@@ -22,10 +22,12 @@ class JavisVoice {
     // Edge TTS backend (server)
     this.ttsBackend = opts.ttsBackend || "/tts"; // "/tts" hoặc null để dùng browser
     this.ttsVoice = opts.ttsVoice || "vi-VN-HoaiMyNeural"; // nhãn UI: Ngọc Thu (nữ) | Nam Minh (nam)
-    this.ttsRate = opts.ttsRate || "+5%";
+    this.ttsRate = opts.ttsRate || "+25%";
     this.currentAudio = null;
     this.ttsQueue = [];
     this.speechQueue = [];   // hàng đợi đọc nối tiếp (các bước trung gian + kết quả)
+    this._streamBuf = "";    // gom mẩu stream thành câu rồi mới đọc, khỏi ngắt giữa chữ
+    this._liveAudios = [];   // audio đang phát (có thể chồng đuôi ~70ms cho liền mạch)
     this.isPlaying = false;
     this._resumeAfterTTS = false;  // mic đang mở khi TTS bắt đầu → đọc xong tự mở nghe lại
     this._resumeTimer = null;
@@ -50,21 +52,29 @@ class JavisVoice {
     return this.audioCtx;
   }
 
+  _stopMicMeter() {
+    // Trả mic cho SpeechRecognition. getUserMedia đang giữ track thì Chrome nhận dạng
+    // vẫn "chạy" nhưng không nghe được giọng - đúng triệu chứng bấm mic, nói, im.
+    if (this.micStream) {
+      try { this.micStream.getTracks().forEach((t) => t.stop()); } catch (e) {}
+      this.micStream = null;
+    }
+    this.inAnalyser = null;
+  }
+
   async _startMicMeter() {
-    try {
-      const ctx = this._ensureCtx();
-      if (!this.micStream) {
-        // Bật khử vọng/khử ồn: giảm việc mic nghe lại chính giọng TTS (chống tự-kích-hoạt + lồng tiếng).
-        this.micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        });
-      }
-      const src = ctx.createMediaStreamSource(this.micStream);
-      const an = ctx.createAnalyser();
-      an.fftSize = 128;
-      src.connect(an);
-      this.inAnalyser = an;
-    } catch (e) { /* mic meter optional */ }
+    const ctx = this._ensureCtx();
+    if (!this.micStream) {
+      this.micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+    }
+    if (this.inAnalyser) return;
+    const src = ctx.createMediaStreamSource(this.micStream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 128;
+    src.connect(an);
+    this.inAnalyser = an;
   }
 
   getInputLevel() {
@@ -93,6 +103,15 @@ class JavisVoice {
       console.warn("Trình duyệt không hỗ trợ SpeechRecognition. Dùng Chrome hoặc Edge.");
       return;
     }
+    if (this.recognition) {
+      try {
+        this.recognition.onend = null;
+        this.recognition.onerror = null;
+        this.recognition.onresult = null;
+        this.recognition.onstart = null;
+        this.recognition.abort();
+      } catch (e) {}
+    }
 
     this.recognition = new SR();
     this.recognition.lang = this.lang;
@@ -106,16 +125,22 @@ class JavisVoice {
     this._silenceTimer = null;
 
     this.recognition.onstart = () => {
+      this._starting = false;
       this.isListening = true;
       this.userStopped = false;
       this.accumulatedTranscript = "";
       this.onStart();
+      clearTimeout(this._hearHint);
+      this._hearHint = setTimeout(() => {
+        if (this.isListening && !this.accumulatedTranscript) {
+          this.onInterim("Chưa nghe được giọng. Nói gần mic hơn, cho phép microphone, và mở bằng Chrome/Edge tại http://127.0.0.1:7777 (đừng dùng cửa sổ xem trong Cursor).");
+        }
+      }, 4000);
     };
 
     this.recognition.onresult = (event) => {
-      // Đang phát TTS thì BỎ mọi kết quả nhận dạng: đó là mic nghe lại chính giọng Javis
-      // (SpeechRecognition thu riêng, KHÔNG được khử vọng như luồng đo mức âm), không phải
-      // user nói. Không chặn thì giọng Javis bị chép vào khung chat rồi tự gửi đi.
+      // Chỉ bỏ kết quả khi loa đang phát THẬT. Cờ synth.speaking của Chrome hay kẹt true
+      // sau cancel() → nuốt hết giọng user, không hiện chữ, không gửi.
       if (this.isSpeaking()) return;
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -124,39 +149,39 @@ class JavisVoice {
         else interim += transcript;
       }
       if (final) this.accumulatedTranscript += final + " ";
-      // Show user toàn bộ tích lũy + đoạn đang nghe
       const display = (this.accumulatedTranscript + interim).trim();
       if (display) {
         this.onInterim(display);
-        // Reset đồng hồ im lặng - nói tiếp thì hoãn, im đủ lâu thì tự gửi
+        clearTimeout(this._hearHint);
         clearTimeout(this._silenceTimer);
         this._silenceTimer = setTimeout(() => this.stopListening(), this.silenceMs);
       }
     };
 
     this.recognition.onerror = (event) => {
-      // 'no-speech' không phải lỗi thật - auto-restart
-      if (event.error === "no-speech" || event.error === "aborted") {
-        return;
-      }
+      const err = event.error;
+      if (err === "no-speech") return;
+      if (err === "aborted") return;
+      this._starting = false;
       this.isListening = false;
-      this.onError(event.error);
+      if (err === "audio-capture") {
+        this._stopMicMeter();
+      }
+      this.onError(err);
     };
 
     this.recognition.onend = () => {
-      // Nếu user chưa chủ động dừng → tự restart (giữ session sống khi user dừng nghĩ)
+      this._starting = false;
       if (!this.userStopped) {
         try {
           this.recognition.start();
           return;
-        } catch (e) {
-          // start fail (đã đang chạy) - ignore
-        }
+        } catch (e) {}
       }
       this.isListening = false;
-      // Gửi toàn bộ text đã tích luỹ khi user dừng
       const finalText = this.accumulatedTranscript.trim();
       if (finalText) this.onTranscript(finalText);
+      else if (this.userStopped) this.onInterim("");
       this.onEnd();
     };
   }
@@ -179,31 +204,39 @@ class JavisVoice {
 
   startListening() {
     if (!this.recognition) {
-      this.onError("not-supported");
-      return;
+      this._initRecognition();
+      if (!this.recognition) { this.onError("not-supported"); return; }
     }
-    if (this.isListening) return;
-    // Mở nghe chủ động → huỷ mọi lịch tự-mở-lại còn treo
+    if (this.isListening || this._starting) return;
+    this._starting = true;
     this._resumeAfterTTS = false;
     clearTimeout(this._resumeTimer);
-    // Stop TTS đang đọc nếu user bấm nói
     this.synth.cancel();
     this.stopSpeaking();
-    this._startMicMeter();  // bật đo âm mic cho hiệu ứng phát sáng
+    // Trả mic + start() NGAY trong cử chỉ bấm. Await getUserMedia rồi mới start thì Chrome
+    // coi như hết cử chỉ, nhận dạng không thu được tiếng.
+    this._stopMicMeter();
     try {
       this.recognition.start();
     } catch (e) {
-      this.onError("start-failed: " + e.message);
+      try {
+        this._initRecognition();
+        this.recognition.start();
+      } catch (e2) {
+        this._starting = false;
+        this.onError("start-failed: " + (e2 && e2.message || e.message));
+      }
     }
   }
 
   stopListening() {
     clearTimeout(this._silenceTimer);
-    // User chủ động tắt nghe → không tự mở lại sau khi TTS đọc xong
+    clearTimeout(this._hearHint);
+    this._starting = false;
     this._resumeAfterTTS = false;
     clearTimeout(this._resumeTimer);
     if (this.recognition && this.isListening) {
-      this.userStopped = true;     // đánh dấu user chủ động dừng → không auto-restart
+      this.userStopped = true;
       this.recognition.stop();
     }
   }
@@ -226,22 +259,125 @@ class JavisVoice {
     if (!this.ttsEnabled && !opts.force) return;
     const clean = this._cleanForTTS(text);
     if (!clean) return;
+    // Đang đọc: nối vào hàng chunk hiện tại và tải sẵn, khỏi ngắt mỗi câu một lần HTTP.
+    if (this.isPlaying && this.ttsChunks && this.ttsChunks.length) {
+      if (this._awaitingMore) {
+        this.ttsChunks.push(clean);
+        this._awaitingMore = false;
+        this._playChunk(this.ttsChunks.length - 1);
+        return;
+      }
+      const i = this._chunkIndex == null ? 0 : this._chunkIndex;
+      if (this.ttsChunks.length > i + 1) {
+        const lastI = this.ttsChunks.length - 1;
+        this.ttsChunks[lastI] = this.ttsChunks[lastI] + " " + clean;
+        if (this._preloaded && this._preloaded.i === lastI) {
+          this._revoke(this._preloaded.audio);
+          this._preloaded = null;
+        }
+      } else {
+        this.ttsChunks.push(clean);
+      }
+      const nextI = (this._chunkIndex == null ? 0 : this._chunkIndex) + 1;
+      const next = this.ttsChunks[nextI] || "";
+      if (next.length >= 360) this._prefetch(nextI);
+      return;
+    }
     this.speechQueue.push(clean);
     if (!this.isPlaying) this._pumpQueue();
+  }
+
+  // Stream token: gom thành cụm ~550 ký tự rồi mới gọi TTS.
+  // Tách từng câu là nguyên nhân đọc xong dòng 1 rồi im vài giây chờ Edge TTS câu sau.
+  feedStream(raw, opts = {}) {
+    if (!this.ttsEnabled && !opts.force) return;
+    this._streamOpen = true;
+    this._streamBuf += (raw || "");
+    this._drainStream(false, opts);
+  }
+
+  flushStream(opts = {}) {
+    this._streamOpen = false;
+    this._drainStream(true, opts);
+  }
+
+  _drainStream(force, opts) {
+    const clean = this._cleanForTTS(this._streamBuf || "");
+    if (!clean) { if (force) this._streamBuf = ""; return; }
+    if (force) {
+      this._streamBuf = "";
+      this.enqueueSpeak(clean, opts);
+      return;
+    }
+    const started = this.isPlaying || (this.speechQueue && this.speechQueue.length)
+      || (this.ttsChunks && this.ttsChunks.length);
+    if (!started) {
+      // Câu đầu đọc ngay. Đợi 500 ký tự thì user nghe thấy "cực chậm".
+      const sent = clean.match(/^[\s\S]{16,160}?[.!?…]["'\)]*(?:\s+|$)/);
+      if (sent) {
+        this._streamBuf = clean.slice(sent[0].length);
+        this.enqueueSpeak(sent[0].trim(), opts);
+        return;
+      }
+      if (clean.length < 90) return;
+      const n = this._cutChunk(clean, 70, 140);
+      this._streamBuf = clean.slice(n);
+      this.enqueueSpeak(clean.slice(0, n).trim(), opts);
+      return;
+    }
+    if (clean.length < 480) return;
+    const n = this._cutChunk(clean, 400, 800);
+    this._streamBuf = clean.slice(n);
+    this.enqueueSpeak(clean.slice(0, n).trim(), opts);
+  }
+
+  _cutChunk(s, min, max) {
+    const window = s.slice(0, Math.min(max, s.length));
+    const find = (re) => {
+      re.lastIndex = 0;
+      let m, last = -1;
+      while ((m = re.exec(window)) !== null) {
+        if (m.index + m[0].length >= min) last = m.index + m[0].length;
+      }
+      return last;
+    };
+    let p = find(/[.!?…]["'\)]*\s+/g);
+    if (p < min) p = find(/[,;:]\s+/g);
+    if (p < min) p = find(/\s+/g);
+    if (p < min) p = s.length <= max ? s.length : max;
+    return p;
+  }
+
+  // Chỉ true khi loa đang phát THẬT. isPlaying còn bật lúc chờ Edge TTS (vài giây) - nếu
+  // dùng cờ đó thì mic tưởng Javis đang nói nên bỏ hết giọng user.
+  isSpeaking() {
+    const a = this.currentAudio;
+    if (a && !a.paused && !a.ended) return true;
+    // Chỉ tin speechSynthesis khi đang đi đường giọng máy (không có Edge TTS).
+    // Chrome hay để speaking=true sau cancel() → nuốt hết kết quả nhận dạng.
+    if (!this.ttsBackend && this.synth && this.synth.speaking) return true;
+    return false;
   }
 
   // Lấy đoạn kế trong hàng đợi để đọc; hết hàng đợi thì dừng.
   _pumpQueue() {
     if (!this.speechQueue || this.speechQueue.length === 0) {
+      if (this._streamOpen) {
+        this._awaitingMore = true;
+        this.isPlaying = true;
+        return;
+      }
       this.isPlaying = false;
+      this._awaitingMore = false;
       this._stopBargeMonitor();
       this._resumeRecognitionIfNeeded();             // đọc xong hết → mở nghe lại nếu trước đó mic đang mở
       return;
     }
     this.isPlaying = true;
-    this._muteRecognition();                         // mic đang mở → tạm ngừng NHẬN DẠNG, khỏi thu giọng TTS vào chat
-    this._startBargeMonitor();                       // cho phép ngắt lời bằng giọng khi đang đọc
-    const text = this.speechQueue.shift();
+    this._muteRecognition();
+    this._startBargeMonitor();
+    // Gộp cả hàng đợi thành MỘT lượt TTS. Mỗi câu một request là nguyên nhân đọc 1 dòng rồi nghỉ lâu.
+    const text = this.speechQueue.splice(0).join(" ");
     if (this.ttsBackend) this._speakBackend(text);   // Edge TTS (giọng Việt chuẩn)
     else this._speakBrowser(text);                   // fallback Web Speech
   }
@@ -267,7 +403,7 @@ class JavisVoice {
     clearTimeout(this._resumeTimer);
     this._resumeTimer = setTimeout(() => {
       if (!this.isPlaying && !this.isListening) this.startListening();
-    }, 400);
+    }, 180);
   }
 
   // ---- Ngắt lời (barge-in): đang đọc mà nghe user nói đủ to/đủ lâu → dừng đọc + mở nghe ngay ----
@@ -276,7 +412,13 @@ class JavisVoice {
     // luồng mic ĐÃ khử vọng - đúng độ TO thật, đáng tin hơn trung bình phổ (bị pha loãng bởi dải tần
     // cao im lặng nên giọng nói không bao giờ chạm ngưỡng). Tự HIỆU CHỈNH theo nền (echo + ồn) đo
     // trong ~600ms đầu để hợp mọi máy/môi trường, hạn chế tự-ngắt do nghe lại chính giọng TTS.
-    if (this._bargeTimer || !this.micStream || !this.inAnalyser) return;
+    if (this._bargeTimer) return;
+    if (!this.micStream || !this.inAnalyser) {
+      this._startMicMeter().then(() => {
+        if (this.isPlaying) this._startBargeMonitor();
+      }).catch(() => {});
+      return;
+    }
     const N = this.inAnalyser.fftSize || 128;
     if (!this._timeData || this._timeData.length !== N) this._timeData = new Uint8Array(N);
     let hits = 0, ticks = 0, baseline = 0;
@@ -327,75 +469,152 @@ class JavisVoice {
     return `${this.ttsBackend}?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(this.ttsVoice)}&rate=${encodeURIComponent(this.ttsRate)}`;
   }
 
-  async _speakBackend(text) {
-    // KHÔNG stopSpeaking ở đây - hàng đợi (_pumpQueue) điều phối thứ tự đọc.
-    // Chunk ĐẦU nhỏ (1 câu) để audio đầu tiên tổng hợp + tải NHANH → bớt khựng; các chunk sau to (liền mạch).
-    this.ttsChunks = this._splitForLatency(text);
+  _revoke(audio) {
+    if (!audio) return;
+    try { audio.pause(); } catch (e) {}
+    if (audio._blobUrl) {
+      try { URL.revokeObjectURL(audio._blobUrl); } catch (e) {}
+      audio._blobUrl = null;
+    }
+  }
+
+  async _loadAudio(text, retry) {
+    const url = this._chunkUrl(text) + (retry ? "&retry=1" : "");
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("tts " + res.status);
+    const blob = await res.blob();
+    const obj = URL.createObjectURL(blob);
+    const audio = new Audio(obj);
+    audio._blobUrl = obj;
+    audio.preload = "auto";
+    return audio;
+  }
+
+  _prefetch(j) {
+    if (!this.ttsChunks || j == null || j >= this.ttsChunks.length) return;
+    if (this._preloaded && this._preloaded.i === j && this._preloaded.audio) return;
+    const text = this.ttsChunks[j];
+    const token = this._chunkToken;
+    this._loadAudio(text).then((audio) => {
+      if (token !== this._chunkToken || !this.isPlaying || !this.ttsChunks || this.ttsChunks[j] !== text) {
+        this._revoke(audio);
+        return;
+      }
+      if (this._preloaded && this._preloaded.i === j && this._preloaded.audio !== audio) {
+        this._revoke(this._preloaded.audio);
+      }
+      this._preloaded = { i: j, audio };
+      if (this._pendingNext && this._pendingNext.i === j) {
+        const go = this._pendingNext.go;
+        this._pendingNext = null;
+        go();
+      }
+    }).catch(() => {});
+  }
+
+  _speakBackend(text) {
+    // Câu đầu ngắn → loa ra sớm. Phần còn lại cụm lớn, tải SONG SONG lúc đang đọc câu đầu.
+    this.ttsChunks = this._splitHeadThenRest(text);
     this._preloaded = null;
+    this._awaitingMore = false;
+    this._chunkIndex = 0;
     this.isPlaying = true;
+    this._prefetch(1);
     this._playChunk(0);
   }
 
-  // Cắt câu ĐẦU ra riêng cho ngắn (phát nhanh), phần còn lại gộp chunk lớn cho liền mạch.
-  _splitForLatency(text) {
-    const sentences = text.match(/[^.!?]+[.!?]+|\s*[^.!?]+$/g) || [text];
-    let first = (sentences.shift() || "").trim();
-    // Câu đầu vẫn dài → cắt tại dấu phẩy đầu tiên cho audio đầu ra thật nhanh.
-    if (first.length > 160) {
-      const c = first.indexOf(",");
-      if (c > 20 && c < 160) { sentences.unshift(first.slice(c + 1)); first = first.slice(0, c + 1).trim(); }
-    }
-    const chunks = [];
-    if (first) chunks.push(first);
-    const rest = sentences.join("").trim();
-    if (rest) chunks.push(...this._splitIntoChunks(rest, 600));
-    return chunks.filter(c => c.length > 0);
+  _splitHeadThenRest(text) {
+    if (!text) return [];
+    if (text.length <= 150) return [text];
+    const n = this._cutChunk(text, 50, 140);
+    const head = text.slice(0, n).trim();
+    const rest = text.slice(n).trim();
+    const chunks = head ? [head] : [];
+    if (rest) chunks.push(...this._splitIntoChunks(rest, 720));
+    return chunks.filter(Boolean);
   }
 
   _playChunk(i, retry) {
-    // Hết chunk của đoạn này → chuyển sang đoạn kế trong hàng đợi (không tự dừng).
-    if (!this.ttsChunks || i >= this.ttsChunks.length) { this._pumpQueue(); return; }
-    // Dùng audio đã preload nếu trùng index, không thì tạo mới (retry = tạo mới, tránh cache lỗi).
-    let audio = (!retry && this._preloaded && this._preloaded.i === i) ? this._preloaded.audio
-              : new Audio(this._chunkUrl(this.ttsChunks[i]) + (retry ? "&retry=1" : ""));
-    this._preloaded = null;
-    this.currentAudio = audio;
-
-    // Route analyser (cho hiệu ứng glow) chỉ khi context chạy + chưa route
-    try {
-      const ctx = this._ensureCtx();
-      if (ctx && ctx.state === "running" && !audio.__routed) {
-        audio.crossOrigin = "anonymous";
-        const src = ctx.createMediaElementSource(audio);
-        const an = ctx.createAnalyser();
-        an.fftSize = 128;
-        src.connect(an);
-        an.connect(ctx.destination);
-        this.outAnalyser = an;
-        audio.__routed = true;
+    // Hết chunk: nếu stream còn đổ chữ thì giữ loa, đừng khép lượt (khép rồi mở lại = nghỉ lâu).
+    if (!this.ttsChunks || i >= this.ttsChunks.length) {
+      if (this._streamOpen || (this._streamBuf && this._streamBuf.trim())) {
+        this._awaitingMore = true;
+        return;
       }
-    } catch (e) { /* phát thẳng vẫn ổn */ }
-
-    // PRELOAD đoạn kế tiếp ngay khi đoạn này bắt đầu → khi hết là phát liền, không trống
-    if (i + 1 < this.ttsChunks.length) {
-      const na = new Audio(this._chunkUrl(this.ttsChunks[i + 1]));
-      na.preload = "auto";
-      try { na.load(); } catch (e) {}
-      this._preloaded = { i: i + 1, audio: na };
+      this._pumpQueue();
+      return;
     }
+    this._chunkIndex = i;
+    this._chunkToken = (this._chunkToken || 0) + 1;
+    const token = this._chunkToken;
+    this._prefetch(i + 1);
+    const pre = (!retry && this._preloaded && this._preloaded.i === i) ? this._preloaded.audio : null;
+    if (pre) this._preloaded = null;
 
-    // Một audio lỗi thì Chrome bắn CẢ sự kiện 'error' LẪN play() reject → phải chống xử lý 2 lần
-    // (nếu không: 2 retry chồng nhau + audio mồ côi stopSpeaking không dừng được). Cờ handled = xử lý đúng 1 lần.
-    let handled = false;
-    const onFail = () => {
-      if (handled) return;
-      handled = true;
-      audio.onerror = null;
-      this._chunkFailed(i, retry);   // thử lại backend, vẫn hỏng mới cân nhắc trình duyệt (không rơi tiếng Anh)
+    const start = (audio) => {
+      if (token !== this._chunkToken || !this.isPlaying) { this._revoke(audio); return; }
+      this.currentAudio = audio;
+
+      try {
+        const ctx = this._ensureCtx();
+        if (ctx && ctx.state === "running" && !audio.__routed) {
+          audio.crossOrigin = "anonymous";
+          const src = ctx.createMediaElementSource(audio);
+          const an = ctx.createAnalyser();
+          an.fftSize = 128;
+          src.connect(an);
+          an.connect(ctx.destination);
+          this.outAnalyser = an;
+          audio.__routed = true;
+        }
+      } catch (e) { /* phát thẳng vẫn ổn */ }
+
+      this._prefetch(i + 1);
+
+      let handled = false;
+      const onFail = () => {
+        if (handled || token !== this._chunkToken) return;
+        handled = true;
+        audio.onerror = null;
+        this._chunkFailed(i, retry);
+      };
+      const goNext = (force) => {
+        if (handled || token !== this._chunkToken) return;
+        const j = i + 1;
+        const nextReady = this._preloaded && this._preloaded.i === j && this._preloaded.audio
+          && this._preloaded.audio.readyState >= 2;
+        if (!force && this.ttsChunks && j < this.ttsChunks.length && !nextReady) {
+          this._pendingNext = { i: j, go: () => goNext(true) };
+          this._prefetch(j);
+          return;
+        }
+        handled = true;
+        this._pendingNext = null;
+        audio.onended = null;
+        audio.ontimeupdate = null;
+        this._playChunk(j);
+      };
+      audio.addEventListener("ended", () => {
+        this._liveAudios = (this._liveAudios || []).filter((a) => a !== audio);
+        this._revoke(audio);
+      });
+      audio.onended = () => goNext(false);
+      audio.ontimeupdate = () => {
+        if (!audio.duration || !isFinite(audio.duration)) return;
+        const next = this._preloaded && this._preloaded.i === i + 1 && this._preloaded.audio;
+        const ready = next && next.readyState >= 3;
+        if (ready && audio.duration - audio.currentTime < 0.12) goNext(true);
+      };
+      audio.onerror = onFail;
+      this._liveAudios.push(audio);
+      audio.play().catch(onFail);
     };
-    audio.onended = () => { if (!handled) this._playChunk(i + 1); };
-    audio.onerror = onFail;
-    audio.play().catch(onFail);
+
+    if (pre) start(pre);
+    else this._loadAudio(this.ttsChunks[i], retry).then(start).catch(() => {
+      if (token !== this._chunkToken) return;
+      this._chunkFailed(i, retry);
+    });
   }
 
   // Đoạn TTS backend lỗi: thử LẠI backend 1 lần (lỗi mạng chốc lát) để GIỮ giọng Việt;
@@ -419,7 +638,7 @@ class JavisVoice {
       const utter = new SpeechSynthesisUtterance(chunks[idx++]);
       utter.lang = this.lang;
       if (this.vietnameseVoice) utter.voice = this.vietnameseVoice;
-      utter.rate = 1.05;
+      utter.rate = 1.25;
       utter.onend = playNext;
       utter.onerror = playNext;
       this.synth.speak(utter);
@@ -428,16 +647,22 @@ class JavisVoice {
   }
 
   stopSpeaking() {
+    this._chunkToken = (this._chunkToken || 0) + 1;
+    this._streamOpen = false;
+    this._awaitingMore = false;
+    this._pendingNext = null;
     this._stopBargeMonitor();
     this.synth.cancel();
+    this._streamBuf = "";
+    (this._liveAudios || []).forEach((a) => { try { a.pause(); a.onended = null; a.ontimeupdate = null; this._revoke(a); } catch (e) {} });
+    this._liveAudios = [];
     if (this.currentAudio) {
-      this.currentAudio.pause();
+      this._revoke(this.currentAudio);
       this.currentAudio = null;
     }
-    if (this._preloaded && this._preloaded.audio) {
-      try { this._preloaded.audio.pause(); } catch (e) {}
-    }
+    if (this._preloaded && this._preloaded.audio) this._revoke(this._preloaded.audio);
     this._preloaded = null;
+    this._chunkIndex = null;
     this.ttsChunks = null;
     this.ttsQueue = [];
     this.speechQueue = [];
@@ -479,10 +704,6 @@ class JavisVoice {
     }
     if (current.trim()) chunks.push(current.trim());
     return chunks.filter(c => c.length > 0);
-  }
-
-  isSpeaking() {
-    return this.isPlaying || (this.synth && this.synth.speaking);
   }
 
   isSupported() {

@@ -99,13 +99,18 @@ const voice = new JavisVoice({
   onStart: () => {
     voiceBtn.classList.add("recording");
     setOrbState("listening", handsFree ? "ĐANG NGHE • LUÔN" : "ĐANG NGHE");
-    voiceInterim.textContent = "";
+    voiceInterim.textContent = "Hãy nói…";
   },
   onInterim: (text) => { voiceInterim.textContent = text; },
   onTranscript: (text) => {
     voiceBtn.classList.remove("recording");
     voiceInterim.textContent = "";
-    if (text) sendMessage(text);
+    if (text) {
+      if (savedSessionId && turns[savedSessionId] && turns[savedSessionId].running) {
+        try { stopCurrent(); } catch (e) {}
+      }
+      sendMessage(text);
+    }
   },
   onEnd: () => {
     voiceBtn.classList.remove("recording");
@@ -115,8 +120,13 @@ const voice = new JavisVoice({
   onError: (err) => {
     voiceBtn.classList.remove("recording");
     setOrbState("", "SẴN SÀNG");
-    if (err === "not-allowed") alert("Bạn cần cấp quyền microphone cho trang này.");
-    else if (err === "not-supported") alert("Trình duyệt không hỗ trợ nhận giọng. Dùng Chrome/Edge.");
+    const msg = {
+      "not-allowed": "Cần cấp quyền microphone: bấm biểu tượng ổ khóa trên Chrome, cho phép Mic, rồi tải lại trang.",
+      "not-supported": "Trình duyệt này không nhận giọng. Mở Google Chrome hoặc Edge tại http://127.0.0.1:7777 — đừng dùng cửa sổ xem trong Cursor.",
+      "network": "Không kết nối được dịch vụ nhận giọng của Google. Kiểm tra mạng rồi thử lại.",
+      "audio-capture": "Không lấy được microphone. Đóng app khác đang dùng mic rồi bấm lại.",
+    };
+    alert(msg[err] || ("Nhận giọng lỗi: " + err));
   }
 });
 
@@ -197,11 +207,11 @@ function handleMessage(data) {
       if (!t.bubble) { t.bubble = createStreamingBubble(); showActivity(Icons.msg("pen-line", "Đang soạn câu trả lời...")); }
       t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
       scrollBottom();
-      // Đọc NGAY đoạn trung gian (chỉ đọc phiên đang xem). OpenRouter gửi tts:false → đọc 1 lần ở cuối.
+      // Gom tới hết câu rồi mới đọc. Đọc từng mẩu stream sẽ khựng giữa câu.
       if (voice.ttsEnabled && data.tts !== false) {
         setOrbState("speaking", "ĐANG NÓI");
         const safeChunk = (data.content || "").replace(/<!--[\s\S]*/, "");
-        if (safeChunk) voice.enqueueSpeak(safeChunk);
+        if (safeChunk) voice.feedStream(safeChunk);
         t.spoke = true;
       }
     }
@@ -219,7 +229,10 @@ function handleMessage(data) {
       if (data.engine) setEngineBadge(data.engine, data.model);   // sự thật engine+model của lượt này
       _renderCtxLine(msgEl, data);   // lượt này đi đường nào, tốn bao nhiêu
       if (finalText.trim()) recordTurn("javis", finalText, null, ask);
-      if (voice.ttsEnabled && t && !t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
+      if (voice.ttsEnabled && t) {
+        voice.flushStream();
+        if (!t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
+      }
       else if (!voice.ttsEnabled) setOrbState("", "SẴN SÀNG");
       maybeAutoLearn();
     }
@@ -1709,20 +1722,22 @@ sendBtn.addEventListener("click", () => sendMessage());
 // Chế độ luôn nghe (hands-free): bấm 1 lần → nghe liên tục đến khi bấm lại
 let handsFree = false;
 voiceBtn.addEventListener("click", () => {
-  if (!voice.isSupported()) { alert("Trình duyệt không hỗ trợ giọng nói. Dùng Chrome/Edge."); return; }
+  if (!voice.isSupported()) { alert("Trình duyệt không hỗ trợ giọng nói. Mở Google Chrome hoặc Edge tại http://127.0.0.1:7777 — đừng dùng cửa sổ xem trong Cursor."); return; }
   handsFree = !handsFree;
   voiceBtn.classList.toggle("handsfree", handsFree);
   if (handsFree) {
+    setOrbState("listening", "ĐANG NGHE • LUÔN");
+    voiceInterim.textContent = "Hãy nói…";
     voice.startListening();
   } else {
     voice.stopListening();
+    voiceInterim.textContent = "";
     setOrbState("", "SẴN SÀNG");
   }
 });
 
-// Tự nghe lại khi rảnh (không đang xử lý, không đang nói) - giữ mic sống ở hands-free
 setInterval(() => {
-  if (handsFree && !voice.isListening && !isProcessing && !voice.isSpeaking()) {
+  if (handsFree && !voice.isListening && !voice._starting && !voice.isSpeaking()) {
     voice.startListening();
   }
 }, 500);
@@ -1762,7 +1777,9 @@ const voicePopover = document.getElementById("voicePopover");
 const rateSlider = document.getElementById("rateSlider");
 const rateLabel = document.getElementById("rateLabel");
 const savedVoice = localStorage.getItem("javis.voice") || "vi-VN-HoaiMyNeural";
-const savedRate = parseFloat(localStorage.getItem("javis.rate") || "1.10");
+const _rawRate = localStorage.getItem("javis.rate");
+let savedRate = parseFloat(_rawRate || "1.25");
+if (!_rawRate || _rawRate === "1.10" || _rawRate === "1.1") savedRate = 1.25;
 document.querySelector(`input[name="voice"][value="${savedVoice}"]`)?.click();
 rateSlider.value = savedRate; rateLabel.textContent = savedRate.toFixed(2) + "×";
 voice.setVoice(savedVoice); voice.setRate(rateToPct(savedRate));

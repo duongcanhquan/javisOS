@@ -1419,17 +1419,27 @@ def _antigravity_sub_stream(model, messages, reasoning="off", *, brain=None, tag
         _apply_antigravity_hub(g, _brain_root(brain), mode=mode)
     # Dùng chung bộ dịch sự kiện với Gemini CLI: hai engine đã phát cùng một hợp đồng
     # {tool_call, final, usage, error}, viết lại là hai bản dễ lệch nhau.
-    return _gemini_sub_doc(g, _cli_think(reasoning, prompt), model)
+    #
+    # KHÔNG chèn _cli_think: với agy, nấc suy nghĩ đã nằm trong tên model
+    # (flash-low / flash-medium / flash-high). Thêm "think harder" vào prompt chỉ làm
+    # chậm thêm, lệch với chat giọng.
+    return _gemini_sub_doc(g, prompt, model)
 
 
 async def _gemini_sub_doc(g, prompt, model):
     """Một lượt engine CLI (Gemini hoặc Antigravity) -> hợp đồng sự kiện của `_api_stream`."""
     yield {"type": "meta", "model": model}
+    streamed = False
     async for ev in g.query(prompt):
         et = ev.get("type")
-        if et == "final":
+        if et == "text":
             txt = ev.get("content") or ""
             if txt:
+                streamed = True
+                yield {"type": "text", "content": txt}
+        elif et == "final":
+            txt = ev.get("content") or ""
+            if txt and not streamed:
                 yield {"type": "text", "content": txt}
         elif et == "tool_call":
             yield {"type": "tool_call", "tool": ev.get("name") or "",
@@ -7771,7 +7781,7 @@ async def config():
         "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
-        "tts_rate": os.getenv("TTS_RATE", "+5%"),
+        "tts_rate": os.getenv("TTS_RATE", "+25%"),
     }
 
 
@@ -8558,7 +8568,7 @@ async def _tts_elevenlabs(text: str, cfg: dict) -> bytes:
 async def tts(
     text: str = Query(...),
     voice: str = Query("vi-VN-HoaiMyNeural"),
-    rate: str = Query("+5%"),
+    rate: str = Query("+25%"),
 ):
     """Sinh audio TTS theo nhà cung cấp đã chọn (edge/openai/elevenlabs). Provider trả phí lỗi
     → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn."""
@@ -8993,7 +9003,7 @@ async def websocket_endpoint(ws: WebSocket):
                         "model": actual_model or "", "session_id": conv_sid,
                         **_ctx_frame(runtime_trace, _ctx_in)}))
                 else:
-                    _a_cur = _cli_think(reasoning, user_message)
+                    _a_cur = user_message
                     _a_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
@@ -9010,6 +9020,12 @@ async def websocket_endpoint(ws: WebSocket):
                             await ws.send_text(json.dumps({
                                 "type": "tool_call", "tool": ev.get("name", ""),
                                 "content": f"⚙ Đang gọi: {ev.get('name', '')}"}))
+                        elif et == "text":
+                            piece = ev.get("content") or ""
+                            if piece:
+                                await ws.send_text(json.dumps({
+                                    "type": "stream", "content": piece,
+                                    "session_id": conv_sid}))
                         elif et == "final":
                             final_text = ev.get("content") or ""
                         elif et == "usage":

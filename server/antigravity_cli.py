@@ -1018,7 +1018,10 @@ class AntigravityCLI:
         đẹp còn hơn mất câu trả lời.
         """
         if "_raw" in ev:
-            cac_manh.append(str(ev["_raw"]))
+            s = str(ev["_raw"])
+            cac_manh.append(s)
+            if len(s.strip()) > 8:
+                return [{"type": "text", "content": s}]
             return []
         if "_exit" in ev:
             loi = str(ev.get("_err") or "").strip()
@@ -1112,6 +1115,10 @@ class AntigravityCLI:
                 v = ev.get(k)
                 if isinstance(v, str) and v:
                     cac_manh.append(v)
+                    # Stream delta ra ngoài để dashboard đọc ngay, khỏi đợi hết lượt.
+                    if k == "text_delta" or (k in ("text", "delta", "content") and t in (
+                            "step_update", "agent_response", "message")):
+                        return [{"type": "text", "content": v}]
                     break
                 if isinstance(v, dict):
                     vv = v.get("text") or v.get("content")
