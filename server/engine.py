@@ -462,6 +462,14 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # picker vẫn nạp danh sách LIVE từ /openai/v1/models nên mặc định này chỉ là lưới an toàn.
 GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
+# DeepSeek API (OpenAI-compatible). Tài liệu chính dùng /chat/completions; /v1 là alias.
+# Model id cũ deepseek-chat / deepseek-reasoner đã gỡ từ 24/07/2026.
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash"
+_DEEPSEEK_EFFORT = {
+    "low": "low", "medium": "high", "high": "high", "xhigh": "max", "ultra": "max",
+}
+
 # Ollama - model chạy NGAY TRÊN MÁY người dùng. Khác mọi provider trên ở hai điểm, và cả hai
 # đều ăn vào cách viết mã chứ không chỉ là cấu hình:
 #   1. KHÔNG có API key. Nó nghe trên máy nhà nên không có gì để xác thực. Header Authorization
@@ -536,7 +544,19 @@ def _gemini_is_reasoning(model):
     return "2.5" in m or "gemini-3" in m or "thinking" in m
 
 
-async def _openai_compat_stream(url, label, api_key, model, messages, reasoning, send_reasoning):
+def _deepseek_thinking(reasoning):
+    """DeepSeek V4: thinking mặc định BẬT phía API; tắt tường minh khi Javis để off.
+    reasoning_effort chỉ nhận low|high|max - gửi medium (thang OpenAI) là 400."""
+    if reasoning in (None, "", "off"):
+        return {"thinking": {"type": "disabled"}}
+    return {
+        "thinking": {"type": "enabled"},
+        "reasoning_effort": _DEEPSEEK_EFFORT.get(reasoning, "high"),
+    }
+
+
+async def _openai_compat_stream(url, label, api_key, model, messages, reasoning, send_reasoning,
+                                extra=None):
     """Chat Completions dạng OpenAI (dùng chung cho OpenAI + Gemini qua endpoint tương thích).
     Stream token-by-token + usage token ở chunk cuối. label chỉ dùng cho thông báo lỗi."""
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -544,6 +564,8 @@ async def _openai_compat_stream(url, label, api_key, model, messages, reasoning,
                "stream_options": {"include_usage": True}}   # → chunk cuối kèm usage token
     if reasoning not in (None, "", "off") and send_reasoning:
         payload["reasoning_effort"] = api_effort(reasoning)
+    if extra:
+        payload.update(extra)
     try:
         timeout = httpx.Timeout(120.0, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -603,6 +625,14 @@ async def groq_stream(api_key, model, messages, reasoning="off"):
     không có tool nào; đường thường là groq_chat_with_mcp)."""
     async for ev in _openai_compat_stream(GROQ_URL, "Groq", api_key, model or GROQ_DEFAULT_MODEL,
                                           messages, reasoning, _groq_is_reasoning(model)):
+        yield ev
+
+
+async def deepseek_stream(api_key, model, messages, reasoning="off"):
+    """DeepSeek API (endpoint OpenAI-compatible, provider 'deepseek') - nhánh KHÔNG tool."""
+    async for ev in _openai_compat_stream(
+            DEEPSEEK_URL, "DeepSeek", api_key, model or DEEPSEEK_DEFAULT_MODEL,
+            messages, reasoning, False, extra=_deepseek_thinking(reasoning)):
         yield ev
 
 
@@ -770,6 +800,7 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
         "gemini": (GEMINI_URL, model or "gemini-2.5-flash"),
         "openrouter": (OPENROUTER_URL, model or "openai/gpt-4o-mini"),
         "ollama": (OLLAMA_URL, model),
+        "deepseek": (DEEPSEEK_URL, model or DEEPSEEK_DEFAULT_MODEL),
     }
     if provider not in endpoints:
         return {"status": "error", "error_code": "provider_not_supported", "input": 0, "output": 0}
@@ -782,7 +813,9 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
         "tool_choice": {"type": "function", "function": {"name": fn}},
         "parallel_tool_calls": False, "stream": False,
     }
-    if reasoning not in (None, "", "off"):
+    if provider == "deepseek":
+        payload.update(_deepseek_thinking(reasoning))
+    elif reasoning not in (None, "", "off"):
         if provider == "openrouter":
             payload["reasoning"] = {"effort": api_effort(reasoning)}
         elif ((provider == "openai" and _openai_is_reasoning(model)) or
@@ -1629,6 +1662,16 @@ async def groq_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": model}
     async for ev in _cc_tool_loop(GROQ_URL, headers, model or GROQ_DEFAULT_MODEL, messages, mcp_tools, mcp_route, extra, "Groq"):
+        yield ev
+
+
+async def deepseek_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
+    """DeepSeek API (OpenAI-compat) + vòng tool-calling MCP - cùng bộ đồ nghề hub như Groq."""
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    extra = _deepseek_thinking(reasoning)
+    yield {"type": "meta", "model": model}
+    async for ev in _cc_tool_loop(DEEPSEEK_URL, headers, model or DEEPSEEK_DEFAULT_MODEL,
+                                  messages, mcp_tools, mcp_route, extra, "DeepSeek"):
         yield ev
 
 

@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Javis OS</title>
   <!-- Favicon = logo hiện tại (/brand-logo): mặc định theo logo.png, và tự đổi theo ảnh user tải lên. -->
-  <link rel="icon" href="/brand-logo?v=5">
-  <link rel="apple-touch-icon" href="/brand-logo?v=5">
+  <link rel="icon" href="/brand-logo?v=6">
+  <link rel="apple-touch-icon" href="/brand-logo?v=6">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=63">
-  <link rel="stylesheet" href="/static/console.css?v=46">
+  <link rel="stylesheet" href="/static/style.css?v=64">
+  <link rel="stylesheet" href="/static/console.css?v=47">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
   <script>(function(){try{if(localStorage.getItem('javis.theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
@@ -456,14 +456,13 @@
         </div>
       </template>
     </div>
-    <!-- ĐÁY cố định: nút thu/mở + version + tác giả -->
+    <!-- ĐÁY cố định: nút thu/mở + version -->
     <div class="rail-foot">
       <button class="rail-collapse-btn" @click="$store.nav.toggleCollapsed()"
               :title="$store.nav.collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'"
               x-html="$store.nav.collapseIcon"></button>
       <div class="rf-meta">
         <div class="rf-ver" id="railVersion">v0.0.0</div>
-        <a class="rf-author" href="https://javisos.com" target="_blank" rel="noopener">by Minh Quý</a>
       </div>
     </div>
   </nav>
@@ -532,11 +531,11 @@
         <style>
         .wz-prov{display:flex;flex-direction:column;gap:8px;margin-top:6px}
         .wz-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:10px;cursor:pointer;transition:.15s}
-        .wz-card:hover{border-color:rgba(255,138,60,.5)} .wz-card.sel{border-color:#ff8a3c;background:rgba(255,138,60,.12)}
-        .wz-card input{margin-top:3px;accent-color:#ff8a3c} .wz-card b{font-size:15px;color:#e7eefc}
-        .wz-rec{font-size:12px;background:#ff8a3c;color:#1a1a1a;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
+        .wz-card:hover{border-color:rgba(62,224,214,.5)} .wz-card.sel{border-color:#3ee0d6;background:rgba(62,224,214,.12)}
+        .wz-card input{margin-top:3px;accent-color:#3ee0d6} .wz-card b{font-size:15px;color:#e7eefc}
+        .wz-rec{font-size:12px;background:#3ee0d6;color:#031418;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:700}
         .wz-pdesc{font-size:15px;color:#9fb0cf;margin-top:3px;line-height:1.45}
-        .wz-tokhelp{border:1px solid rgba(255,138,60,.3);background:rgba(255,138,60,.06);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px;color:#cdd8ee;line-height:1.55}
+        .wz-tokhelp{border:1px solid rgba(62,224,214,.3);background:rgba(62,224,214,.06);border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px;color:#cdd8ee;line-height:1.55}
         .wz-tokhelp ol{margin:6px 0 4px 18px;padding:0} .wz-tokhelp li{margin:3px 0}
         .wz-tokhelp code,#wzProvHint code{background:rgba(0,0,0,.35);padding:1px 5px;border-radius:4px;font-size:13px}
         #wzProvHint{margin-top:8px;font-size:15px;color:#8aa}
@@ -712,9 +711,9 @@
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
        hàm vẽ lại theo tông ngay lúc parse, nếu window.javisTheme chưa có thì chúng
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
-  <script src="/static/theme.js?v=1"></script>
+  <script src="/static/theme.js?v=2"></script>
   <script src="/static/voice.js?v=15"></script>
-  <script src="/static/graph.js?v=16"></script>
+  <script src="/static/graph.js?v=17"></script>
   <script src="/static/chat-render.js?v=9"></script>
   <script src="/static/code-hl.js?v=1"></script>
   <script src="/static/dataview.js?v=1"></script>
@@ -727,7 +726,7 @@
   <script src="/static/chat-slash.js?v=1"></script>
   <script src="/static/chat-acts.js?v=1"></script>
   <script src="/static/chat-marks.js?v=1"></script>
-  <script src="/static/app.js?v=88"></script>
+  <script src="/static/app.js?v=89"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=6"></script>
@@ -742,9 +741,9 @@
   <script src="/static/usage.js?v=1"></script>
   <!-- Trang Code (terminal): nạp TRƯỚC console.js để renderCode ủy quyền được. File này CHỈ có
        phần khung - xterm.js (285KB) nạp lười ở lần đầu mở tab, không nằm trong đường khởi động. -->
-  <script src="/static/code-term.js?v=2"></script>
+  <script src="/static/code-term.js?v=3"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=109"></script>
+  <script src="/static/console.js?v=110"></script>
   <script src="/static/mobile-chat.js?v=5"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/notifications.js?v=1"></script>

@@ -101,18 +101,18 @@
   function bangMau() {
     var sang = !!(window.javisTheme && window.javisTheme.isLight());
     return sang
-      ? { background: "#ffffff", foreground: "#1c1a24", cursor: "#c2410c", cursorAccent: "#ffffff",
-          selectionBackground: "rgba(232,93,31,0.22)",
+      ? { background: "#ffffff", foreground: "#121826", cursor: "#0f766e", cursorAccent: "#ffffff",
+          selectionBackground: "rgba(13,148,136,0.22)",
           black: "#3b3b46", red: "#c62828", green: "#15803d", yellow: "#96590a", blue: "#1d4ed8",
-          magenta: "#7c3aed", cyan: "#0e7490", white: "#55505f",
+          magenta: "#3b6bff", cyan: "#0e7490", white: "#55505f",
           brightBlack: "#6e6878", brightRed: "#d11f1f", brightGreen: "#16a34a", brightYellow: "#b45309",
-          brightBlue: "#2563eb", brightMagenta: "#9333ea", brightCyan: "#0891b2", brightWhite: "#1c1a24" }
-      : { background: "#0b0b12", foreground: "#e8e8f4", cursor: "#ff7a3c", cursorAccent: "#0b0b12",
-          selectionBackground: "rgba(255,122,60,0.28)",
-          black: "#2a2a38", red: "#f4565a", green: "#34d36b", yellow: "#f0c020", blue: "#5b9cff",
-          magenta: "#b98cff", cyan: "#4dd6d6", white: "#c0c0da",
-          brightBlack: "#5a5a72", brightRed: "#ff7b7e", brightGreen: "#6ce89a", brightYellow: "#ffd85c",
-          brightBlue: "#8ab8ff", brightMagenta: "#d0b0ff", brightCyan: "#7fe6e6", brightWhite: "#ffffff" };
+          brightBlue: "#2563eb", brightMagenta: "#4f7cff", brightCyan: "#0891b2", brightWhite: "#121826" }
+      : { background: "#070b14", foreground: "#eef2ff", cursor: "#3ee0d6", cursorAccent: "#070b14",
+          selectionBackground: "rgba(62,224,214,0.28)",
+          black: "#1a2234", red: "#f4565a", green: "#34d36b", yellow: "#f0c020", blue: "#6b8cff",
+          magenta: "#93b4ff", cyan: "#3ee0d6", white: "#a8b4d0",
+          brightBlack: "#4a5870", brightRed: "#ff7b7e", brightGreen: "#6ce89a", brightYellow: "#ffd85c",
+          brightBlue: "#8ab8ff", brightMagenta: "#b4c6ff", brightCyan: "#7ef0e8", brightWhite: "#ffffff" };
   }
 
   function khungCho(chu) {

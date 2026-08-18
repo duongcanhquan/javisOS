@@ -2,7 +2,7 @@
 
 # 🧠 Javis OS
 
-**A model-agnostic agentic AI layer + Second Brain - swap the brain (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Gemini, Anthropic API, Groq, Ollama) without losing tools: voice, a knowledge graph, MCP-driven business reporting, and a self-improvement loop.**
+**A model-agnostic agentic AI layer + Second Brain - swap the brain (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Gemini, Anthropic API, Groq, DeepSeek, Ollama) without losing tools: voice, a knowledge graph, MCP-driven business reporting, and a self-improvement loop.**
 
 *[Tiếng Việt](README.md) · **English***
 
@@ -14,7 +14,7 @@
 
 Javis OS is **not** a chatbot. It is a **self-hosted agentic AI** running on your own machine or VPS: it reads and writes files, calls tools (MCP), runs skills, queues background work, schedules itself - all wrapped in a **voice-controlled dashboard** with a **Second Brain** (memory + wiki) that accumulates knowledge over time.
 
-**You pick the brain, and you can change it whenever you like.** Ten paths work today: **Claude Code**, **ChatGPT/Codex** and **Antigravity CLI** (these run on the subscription you already pay for - no separate API purchase), plus **Gemini CLI · OpenRouter · OpenAI API · Google Gemini · Anthropic API · Groq · Ollama Cloud** (an API key is all they need).
+**You pick the brain, and you can change it whenever you like.** Eleven paths work today: **Claude Code**, **ChatGPT/Codex** and **Antigravity CLI** (these run on the subscription you already pay for - no separate API purchase), plus **Gemini CLI · OpenRouter · OpenAI API · Google Gemini · Anthropic API · Groq · DeepSeek · Ollama Cloud** (an API key is all they need).
 
 > ⚠️ **Read this before letting a subscription run background work.** Anthropic scopes Claude Pro/Max to **ordinary personal use** of Claude Code. Continuous background execution (loops, reminders, Kanban jobs, chatbots), running on a VPS, or several people sharing one account all fall outside that scope, and accounts **have been suspended** over it. Javis does not read your login token (that path was removed in 0.26.17) - it runs the `claude` binary itself, but that does not make round-the-clock background use legitimate either. If you want to be safe: on the **Models** page set Claude Code to run on an **API key**, or point the **background-work model** at a different provider. See `server/claude_auth.py`.
 
@@ -28,7 +28,7 @@ You wire in **your own connections** (POS/sales, ads, calendar, email, Zalo, not
 
 | | An ordinary chatbot | **Javis OS** |
 |---|---|---|
-| Brain | Hard-wired to one model, one stateless API call per message | **Swappable**: 10 providers, each with the full set of tools, MCP, skills and sessions |
+| Brain | Hard-wired to one model, one stateless API call per message | **Swappable**: 11 providers, each with the full set of tools, MCP, skills and sessions |
 | Memory | Forgets after every session | **A living Second Brain** - remembers you, thickens with every conversation |
 | Data | Made up, or absent | **Real numbers** from the connections you wire in (POS, Ads, Calendar, Zalo…) |
 | Self-improvement | None | **Background loops** + an AI-run work queue |
@@ -56,7 +56,7 @@ You wire in **your own connections** (POS/sales, ads, calendar, email, Zalo, not
 - 🎨 **Image generation** on the ChatGPT plan you are already signed in to - no separate API key.
 - 📊 **Usage** - Javis measures its own tokens in/out and cost per day and per provider, separating what you typed from what it ran on its own.
 - ⇅ **Back the brain up to GitHub** - two-way sync of every brain to a private repo, shared between your home machine and a VPS.
-- 🔄 **Multi-engine, no feature loss on a switch** - Claude Code, ChatGPT (Codex), Antigravity CLI, Gemini CLI, OpenRouter, OpenAI API, Google Gemini, Anthropic API, Groq, Ollama. Change it in **Models** with one click; every brain reaches the Javis MCP hub, the brain file tools and the skills.
+- 🔄 **Multi-engine, no feature loss on a switch** - Claude Code, ChatGPT (Codex), Antigravity CLI, Gemini CLI, OpenRouter, OpenAI API, Google Gemini, Anthropic API, Groq, DeepSeek, Ollama. Change it in **Models** with one click; every brain reaches the Javis MCP hub, the brain file tools and the skills.
 - 🌐 **Multilingual** - reply language, interface language and locale are three separate settings. Vietnamese and English ship today; adding a language is a data change, not a code change (see [docs/dev/them-mot-ngon-ngu.md](docs/dev/them-mot-ngon-ngu.md)).
 - 🔐 **Safe on a VPS** - login is forced automatically when running publicly, plus account-takeover protection, rate limiting, CSRF blocking and encrypted secrets in the config.
 
@@ -312,7 +312,7 @@ javis-os/
 
 ## 🙏 Credits
 
-- **Brains:** [Claude Code](https://claude.com/claude-code) and the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) (Anthropic), [Codex CLI](https://developers.openai.com/codex/cli) (OpenAI), [Antigravity](https://antigravity.google) (Google), plus the APIs of [OpenRouter](https://openrouter.ai), OpenAI, [Google Gemini](https://ai.google.dev), Anthropic, [Groq](https://groq.com) and [Ollama](https://ollama.com).
+- **Brains:** [Claude Code](https://claude.com/claude-code) and the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) (Anthropic), [Codex CLI](https://developers.openai.com/codex/cli) (OpenAI), [Antigravity](https://antigravity.google) (Google), plus the APIs of [OpenRouter](https://openrouter.ai), OpenAI, [Google Gemini](https://ai.google.dev), Anthropic, [Groq](https://groq.com), [DeepSeek](https://platform.deepseek.com) and [Ollama](https://ollama.com).
 - **Tool standard:** [Model Context Protocol](https://modelcontextprotocol.io) - the entire Javis connection store runs on it.
 - The Second Brain and digital Bullet Journal patterns.
 

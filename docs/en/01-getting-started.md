@@ -62,7 +62,7 @@ Under **3. AI provider (brain)**, pick one of three cards:
 | **💬 ChatGPT (subscription)** | "Sign in with ChatGPT Plus/Pro (through Codex) → still reaches every Javis MCP." | Sign in to ChatGPT on the Models page |
 | **🌐 OpenRouter** | "Many cheap models in one place, still with full Javis MCP + skills + brain file access. Only needs an API key - no sign-in." | Paste an OpenRouter API key (now or later on Models) |
 
-Any of the three gives you a fully capable Javis: all of them reach the connection store (MCP), read and write files in the brain, run skills, queue work and create loops. The only difference is **running shell commands**, which only the CLI engines (Claude Code, Codex, Antigravity CLI) can do. The wizard shows three cards for brevity; the **Models** page also has OpenAI API, Google Gemini, Anthropic API, Groq and Ollama, and you can change at any time.
+Any of the three gives you a fully capable Javis: all of them reach the connection store (MCP), read and write files in the brain, run skills, queue work and create loops. The only difference is **running shell commands**, which only the CLI engines (Claude Code, Codex, Antigravity CLI) can do. The wizard shows three cards for brevity; the **Models** page also has OpenAI API, Google Gemini, Anthropic API, Groq, DeepSeek and Ollama, and you can change at any time.
 
 Pick **OpenRouter** and an **OpenRouter API key** box appears - paste the key now or leave it empty and paste it later on the Models page. Below the list is a hint line that changes with your choice; picking ChatGPT, for example, suggests "Once inside: **Models** → sign in to ChatGPT".
 

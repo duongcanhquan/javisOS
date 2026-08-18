@@ -17,15 +17,15 @@
      DUYỆT tự vẽ vẫn giữ mặc định sáng/tối cũ: thanh cuộn hệ thống, caret, ô date,
      select popup, checkbox, và nền vàng của autofill. CSS không với tới chúng. */
   color-scheme: dark;
-  --bg: #0e0e16;
-  --bg2: #181822;
-  --bg3: #22222e;
-  --border: #36364c;
-  --accent: #ff7a3c;
-  --accent2: #8b5cf6;
-  --text: #f3f3fb;
-  --text2: #c0c0da;
-  --text3: #9a9ab6;
+  --bg: #06080f;
+  --bg2: #0c101c;
+  --bg3: #141a2a;
+  --border: #243044;
+  --accent: #3ee0d6;
+  --accent2: #6b8cff;
+  --text: #eef2ff;
+  --text2: #a8b4d0;
+  --text3: #6e7c99;
   --green: #34d36b;
   --red: #f4565a;
   --yellow: #f0c020;
@@ -34,55 +34,53 @@
 
   /* --- Mực: màu dùng cho CHỮ. Khác --accent/--accent2 (dùng để tô nền, viền,
          quầng sáng). Trên nền tối chữ nhấn phải sáng hơn nền; trên nền trắng nó
-         phải đậm hơn hẳn, nếu bê nguyên #ff7a3c sang chỉ đạt 3.4:1 - đọc mỏi. --- */
+         phải đậm hơn hẳn. --- */
   --text-hi: #ffffff;              /* chữ bật lên khi hover/chọn */
-  --accent-ink: #ffab81;
-  --accent2-ink: #d5b5ff;
-  /* Cam để TÔ ĐẶC nút có chữ đè lên. Tách khỏi --accent vì tương phản là ĐỐI XỨNG:
-     một màu vừa nổi trên nền trắng vừa đỡ được chữ trắng là bất khả. --accent giữ
-     cam thương hiệu cho chấm/gạch/viền (không mang chữ), --accent-solid sẫm hơn
-     để chữ trắng đặt lên vẫn đạt chuẩn đọc. */
-  --accent-solid: #ff7a3c;
+  --accent-ink: #7ef0e8;
+  --accent2-ink: #b4c6ff;
+  /* Cyan để TÔ ĐẶC nút có chữ đè lên. --accent giữ cho chấm/gạch/viền (không mang chữ),
+     --accent-solid đủ sáng để chữ navy đặt lên vẫn đọc được. */
+  --accent-solid: #3ee0d6;
 
   /* --- Mặt phẳng nổi chồng lên nền (nút mờ, thẻ, dòng hover) --- */
-  --surface-1: rgba(255, 255, 255, 0.025);
-  --surface-2: rgba(255, 255, 255, 0.052);
-  --surface-3: rgba(255, 255, 255, 0.085);
-  --hairline: rgba(255, 255, 255, 0.08);      /* viền mảnh trên mặt kính */
-  --sunken: rgba(0, 0, 0, 0.25);              /* ô nhập liệu chìm xuống */
+  --surface-1: rgba(120, 190, 255, 0.035);
+  --surface-2: rgba(120, 190, 255, 0.065);
+  --surface-3: rgba(120, 190, 255, 0.10);
+  --hairline: rgba(140, 200, 255, 0.10);      /* viền mảnh trên mặt kính */
+  --sunken: rgba(0, 0, 0, 0.32);              /* ô nhập liệu chìm xuống */
 
   /* --- Bóng đổ theo 3 độ cao --- */
-  --shadow-1: 0 4px 14px rgba(0, 0, 0, 0.28);
-  --shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 24px 70px rgba(0, 0, 0, 0.62);
-  --shadow-veil: rgba(0, 0, 0, 0.5);          /* MÀU bóng (không phải cả box-shadow) cho
+  --shadow-1: 0 4px 14px rgba(0, 0, 0, 0.32);
+  --shadow-2: 0 8px 30px rgba(0, 4, 16, 0.52);
+  --shadow-3: 0 24px 70px rgba(0, 4, 18, 0.68);
+  --shadow-veil: rgba(0, 4, 16, 0.58);          /* MÀU bóng (không phải cả box-shadow) cho
                                                  mép ngăn kéo trượt - cần tự đặt offset */
 
   /* --- Vùng nhuộm màu nhấn (nền cảnh báo, thẻ chưa đọc, nút chính) --- */
-  --accent-wash: rgba(255, 101, 45, 0.07);
-  --accent-wash-2: rgba(255, 105, 45, 0.12);
-  --accent-line: rgba(255, 130, 67, 0.30);
-  --accent-ring: 0 0 18px rgba(255, 107, 43, 0.20);
-  --accent2-wash: rgba(159, 104, 255, 0.12);
-  --accent2-wash-2: rgba(124, 58, 237, 0.22);
-  --accent2-line: rgba(124, 58, 237, 0.4);
+  --accent-wash: rgba(62, 224, 214, 0.07);
+  --accent-wash-2: rgba(62, 224, 214, 0.14);
+  --accent-line: rgba(62, 224, 214, 0.32);
+  --accent-ring: 0 0 20px rgba(62, 224, 214, 0.22);
+  --accent2-wash: rgba(107, 140, 255, 0.12);
+  --accent2-wash-2: rgba(107, 140, 255, 0.22);
+  --accent2-line: rgba(107, 140, 255, 0.40);
 
   /* --- Nền của khối chứa chữ. Tách riêng vì đây là cụm làm vỡ tông sáng nặng
          nhất: chỗ nào gõ cứng nền tối mà chữ lấy từ var(--text) thì lật sáng
          thành chữ đen trên nền đen. --- */
-  --field-bg: rgba(20, 20, 30, 0.8);      /* ô nhập, select, nút chìm */
-  --panel-bg: rgba(15, 16, 25, 0.78);     /* khay/thẻ mờ trôi trên nền */
-  --panel-solid: rgba(10, 14, 26, 0.97);  /* panel đặc (ngăn kéo, popup) */
-  --scrim: rgba(3, 3, 8, 0.8);            /* màn che sau modal */
+  --field-bg: rgba(10, 16, 30, 0.82);      /* ô nhập, select, nút chìm */
+  --panel-bg: rgba(8, 12, 24, 0.80);       /* khay/thẻ mờ trôi trên nền */
+  --panel-solid: rgba(6, 10, 20, 0.97);    /* panel đặc (ngăn kéo, popup) */
+  --scrim: rgba(2, 4, 10, 0.82);            /* màn che sau modal */
 
   /* --- Hộp thoại thông tin (xanh) --- */
-  --info-ink: #cfe0ff;
-  --info-wash: rgba(15, 22, 40, 0.85);
-  --info-line: rgba(120, 180, 255, 0.35);
+  --info-ink: #cfe8ff;
+  --info-wash: rgba(12, 28, 52, 0.88);
+  --info-line: rgba(107, 180, 255, 0.38);
 
   /* --- Màu ngữ nghĩa lẻ --- */
-  --link-ink: #7fb0ff;
-  --on-accent: #1a1400;      /* chữ đặt TRÊN nền màu nhấn/vàng đặc */
+  --link-ink: #7ec8ff;
+  --on-accent: #031418;      /* chữ đặt TRÊN nền cyan đặc */
 
   /* --- Trạng thái: cảnh báo / nguy hiểm / xong. Mỗi trạng thái một bộ ba
          mực-nền-viền để dùng nhất quán ở mọi thẻ, banner, badge. --- */
@@ -95,93 +93,90 @@
   --ok-line: rgba(44, 122, 75, 0.5);
 
   /* --- Khối code: bảng cú pháp riêng, không suy ra được từ token nền --- */
-  --code-bg: #0c0c16;
-  --code-ink: #d6c9ff;
+  --code-bg: #070b14;
+  --code-ink: #c9e4ff;
   --tok-c: #6b7a8f;          /* chú thích */
   --tok-s: #7ee787;          /* chuỗi */
-  --tok-n: #f0883e;          /* số */
-  --tok-k: #c792ea;          /* từ khoá */
-  --tok-t: #79c0ff;          /* tên thẻ HTML/XML */
-  --tok-a: #ffa657;          /* tên thuộc tính, tên trường JSON, thuộc tính CSS */
+  --tok-n: #5eead4;          /* số */
+  --tok-k: #93b4ff;          /* từ khoá */
+  --tok-t: #7dd3fc;          /* tên thẻ HTML/XML */
+  --tok-a: #67e8f9;          /* tên thuộc tính, tên trường JSON, thuộc tính CSS */
 
   /* --- KHOANG NÃO (.hud-center) --- */
   --brain-bg: radial-gradient(ellipse 55% 55% at 50% 48%,
-    rgba(124, 58, 237, 0.20) 0%, rgba(70, 40, 140, 0.10) 32%,
-    rgba(20, 12, 40, 0.04) 55%, #03030a 78%);
+    rgba(62, 224, 214, 0.16) 0%, rgba(40, 90, 180, 0.10) 32%,
+    rgba(8, 16, 40, 0.04) 55%, #03050c 78%);
   --brain-vignette: radial-gradient(ellipse 70% 70% at 50% 46%,
-    transparent 45%, rgba(3, 3, 10, 0.55) 100%);
-  --brain-glass: rgba(16, 14, 28, 0.55);
-  --brain-glass-brd: rgba(185, 140, 255, 0.36);
+    transparent 45%, rgba(2, 4, 10, 0.62) 100%);
+  --brain-glass: rgba(8, 14, 26, 0.58);
+  --brain-glass-brd: rgba(62, 224, 214, 0.28);
   --brain-glass-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
   --brain-halo: 0 0 12px rgba(0, 0, 0, 0.9);     /* viền chữ để đọc được trên đồ thị */
-  --brain-ink: #d9c9ff;                          /* tên vùng khái niệm */
-  --brain-ink2: #8a7ab8;                         /* dòng phụ dưới tên vùng */
-  --brain-ink-hot: #ff9d6b;                      /* vùng đang "nóng" */
+  --brain-ink: #c8eaff;                          /* tên vùng khái niệm */
+  --brain-ink2: #6e88b0;                         /* dòng phụ dưới tên vùng */
+  --brain-ink-hot: #5eead4;                      /* vùng đang "nóng" */
 }
 
 /* ============================================================================
-   TÔNG SÁNG - giấy ngà ấm, mực gần đen, nhấn cam đậm.
-   Nền ngà #FBF9F7 thay vì trắng tinh: bớt chói khi nhìn lâu và hợp với cam
-   thương hiệu hơn trắng lạnh. Thẻ/bảng để trắng thật nên vẫn nổi rõ trên nền.
+   TÔNG SÁNG - giấy bạch kim lạnh, mực navy, nhấn teal.
+   Nền #F4F6FB thay vì ngà ấm: hợp cyan/ice hơn giấy nâu-cam cũ.
+   Thẻ/bảng để trắng thật nên vẫn nổi rõ trên nền.
    ========================================================================== */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #fbf9f7;
+  --bg: #f4f6fb;
   --bg2: #ffffff;
-  --bg3: #f7f4ef;
-  --border: #e7e1da;
-  --accent: #e85d1f;
-  --accent2: #7c3aed;
-  --text: #1c1a24;
-  --text2: #55505f;
-  --text3: #6e6878;
+  --bg3: #eef2f8;
+  --border: #d5deea;
+  --accent: #0d9488;
+  --accent2: #3b6bff;
+  --text: #121826;
+  --text2: #4b5568;
+  --text3: #6b778c;
   --green: #15803d;
   --red: #d11f1f;
   --yellow: #96590a;
 
-  --text-hi: #08060e;
-  --accent-ink: #b4430d;
-  --accent2-ink: #6d28d9;
-  --accent-solid: #c2410c;   /* chữ trắng đặt lên đạt 5.2:1 */
+  --text-hi: #060a12;
+  --accent-ink: #0f766e;
+  --accent2-ink: #1d4ed8;
+  --accent-solid: #0f766e;   /* chữ trắng đặt lên đạt tương phản */
 
-  /* Nền sáng thì "nổi lên" = tô SẪM nhẹ, ngược hẳn với nền tối. Sắc nâu ấm
-     (60,42,24) thay vì đen thuần để không bị xám xịt trên giấy ngà. */
-  --surface-1: rgba(60, 42, 24, 0.035);
-  --surface-2: rgba(60, 42, 24, 0.062);
-  --surface-3: rgba(60, 42, 24, 0.095);
-  --hairline: rgba(60, 42, 24, 0.11);
-  --sunken: rgba(60, 42, 24, 0.045);
+  /* Nền sáng thì "nổi lên" = tô SẪM nhẹ. Sắc navy lạnh thay nâu ấm. */
+  --surface-1: rgba(20, 40, 72, 0.035);
+  --surface-2: rgba(20, 40, 72, 0.062);
+  --surface-3: rgba(20, 40, 72, 0.095);
+  --hairline: rgba(20, 40, 72, 0.11);
+  --sunken: rgba(20, 40, 72, 0.045);
 
-  --shadow-1: 0 2px 8px rgba(76, 58, 38, 0.07);
-  --shadow-2: 0 8px 24px rgba(76, 58, 38, 0.10);
-  --shadow-3: 0 22px 58px rgba(76, 58, 38, 0.16);
-  --shadow-veil: rgba(76, 58, 38, 0.16);
+  --shadow-1: 0 2px 8px rgba(20, 40, 72, 0.07);
+  --shadow-2: 0 8px 24px rgba(20, 40, 72, 0.10);
+  --shadow-3: 0 22px 58px rgba(20, 40, 72, 0.16);
+  --shadow-veil: rgba(20, 40, 72, 0.16);
 
-  --accent-wash: rgba(232, 93, 31, 0.075);
-  --accent-wash-2: rgba(232, 93, 31, 0.14);
-  --accent-line: rgba(232, 93, 31, 0.34);
+  --accent-wash: rgba(13, 148, 136, 0.075);
+  --accent-wash-2: rgba(13, 148, 136, 0.14);
+  --accent-line: rgba(13, 148, 136, 0.34);
   /* Quầng toả sáng vô nghĩa trên giấy - đổi thành vòng đặc ôm sát viền. */
-  --accent-ring: 0 0 0 3px rgba(232, 93, 31, 0.13);
-  --accent2-wash: rgba(124, 58, 237, 0.10);
-  --accent2-wash-2: rgba(124, 58, 237, 0.17);
-  --accent2-line: rgba(124, 58, 237, 0.34);
+  --accent-ring: 0 0 0 3px rgba(13, 148, 136, 0.13);
+  --accent2-wash: rgba(59, 107, 255, 0.10);
+  --accent2-wash-2: rgba(59, 107, 255, 0.17);
+  --accent2-line: rgba(59, 107, 255, 0.34);
 
-  /* Ô nhập trên giấy: trắng có viền, KHÔNG tô sẫm - tô sẫm làm chữ nhập vào
-     nhìn như đang bị vô hiệu hoá. Khay/panel thì trắng thật để nổi trên nền ngà. */
+  /* Ô nhập trên giấy: trắng có viền, KHÔNG tô sẫm. */
   --field-bg: #ffffff;
   --panel-bg: rgba(255, 255, 255, 0.9);
   --panel-solid: #ffffff;
-  --scrim: rgba(46, 34, 22, 0.34);
+  --scrim: rgba(16, 28, 48, 0.34);
 
   --info-ink: #1e40af;
   --info-wash: rgba(59, 130, 246, 0.09);
   --info-line: rgba(59, 130, 246, 0.36);
 
   --link-ink: #1d4ed8;
-  --on-accent: #ffffff;      /* nền vàng tông sáng là #a16207 (sẫm) nên chữ phải trắng */
+  --on-accent: #ffffff;
 
-  /* Trên giấy, nền trạng thái phải NHẠT hơn hẳn (7-10% thay vì 14-16%) còn mực
-     thì ĐẬM hơn hẳn - ngược chiều với nền tối. */
+  /* Trên giấy, nền trạng thái phải NHẠT hơn hẳn còn mực thì ĐẬM hơn. */
   --warn-ink: #96590a;
   --warn-wash: rgba(180, 120, 20, 0.10);
   --warn-line: rgba(161, 98, 7, 0.38);
@@ -190,33 +185,28 @@
   --ok-wash: rgba(21, 128, 61, 0.09);
   --ok-line: rgba(21, 128, 61, 0.34);
 
-  /* Khối code cũng sáng theo, không giữ đảo tối: một mảng đen giữa trang giấy
-     nhìn như thủng lỗ, và chuyển tông đột ngột làm mỏi mắt khi đọc xen kẽ. */
-  --code-bg: #f6f2ec;
-  --code-ink: #2c2438;
-  --tok-c: #6f6880;
+  --code-bg: #eef3f9;
+  --code-ink: #1c2740;
+  --tok-c: #64748b;
   --tok-s: #0a7d3f;
-  --tok-n: #b4430d;
-  --tok-k: #7c3aed;
+  --tok-n: #0f766e;
+  --tok-k: #3b6bff;
   --tok-t: #0b5fa5;
-  --tok-a: #9a5b00;
+  --tok-a: #0e7490;
 
-  /* Khoang não: giấy ngà có quầng lavender-đào rất nhạt ở giữa, tối dần ra rìa
-     bằng chính màu giấy (không phải bằng màu đen). */
   --brain-bg: radial-gradient(ellipse 58% 54% at 50% 43%,
-      rgba(124, 58, 237, 0.13) 0%, rgba(124, 58, 237, 0.06) 30%,
-      rgba(232, 93, 31, 0.05) 52%, rgba(255, 255, 255, 0) 72%),
-    linear-gradient(176deg, #fffdfc 0%, #faf6f1 46%, #f2ebe2 100%);
+      rgba(13, 148, 136, 0.12) 0%, rgba(59, 107, 255, 0.06) 30%,
+      rgba(13, 148, 136, 0.04) 52%, rgba(255, 255, 255, 0) 72%),
+    linear-gradient(176deg, #fbfdff 0%, #f4f7fb 46%, #e8eef6 100%);
   --brain-vignette: radial-gradient(ellipse 74% 74% at 50% 43%,
-    transparent 40%, rgba(226, 215, 201, 0.5) 100%);
+    transparent 40%, rgba(200, 214, 230, 0.5) 100%);
   --brain-glass: rgba(255, 255, 255, 0.86);
-  --brain-glass-brd: rgba(60, 42, 24, 0.13);
-  --brain-glass-shadow: 0 6px 20px rgba(76, 58, 38, 0.11);
-  /* Trên giấy, chữ đè lên đồ thị cần viền TRẮNG để tách khỏi dây nối. */
+  --brain-glass-brd: rgba(20, 40, 72, 0.13);
+  --brain-glass-shadow: 0 6px 20px rgba(20, 40, 72, 0.11);
   --brain-halo: 0 1px 2px rgba(255, 255, 255, 0.95), 0 0 9px rgba(255, 255, 255, 0.92);
-  --brain-ink: #4a3568;
-  --brain-ink2: #6f6486;
-  --brain-ink-hot: #c2410c;
+  --brain-ink: #1e3a5f;
+  --brain-ink2: #5a7190;
+  --brain-ink-hot: #0f766e;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -304,7 +294,7 @@ body {
 .notification-badge {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--on-accent); background: var(--accent-solid); box-shadow: 0 0 10px rgba(255,99,47,.55);
+  color: var(--on-accent); background: var(--accent-solid); box-shadow: 0 0 10px rgba(62,224,214,.55);
   font-size: 10px; font-weight: 700; line-height: 1;
 }
 .notification-badge[hidden] { display: none; }
@@ -352,7 +342,7 @@ body {
 .noti-card.unread { background: var(--accent-wash); border-color: var(--accent-line); }
 .noti-card.unread::before {
   content: ""; position: absolute; left: 6px; top: 17px; width: 5px; height: 5px;
-  border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(255,114,61,.75);
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(62,224,214,.75);
 }
 .noti-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .noti-kind {
@@ -519,16 +509,16 @@ body {
 }
 @keyframes tlPulse {
   0%, 100% { box-shadow: var(--brain-glass-shadow); }
-  50% { box-shadow: 0 5px 22px rgba(185,140,255,.5); }
+  50% { box-shadow: 0 5px 22px rgba(62,224,214,.45); }
 }
-/* Trên giấy, quầng tím toả ra không thấy gì - nhịp đập đổi thành vòng cam đậm dần. */
+/* Trên giấy, quầng phát sáng khó thấy - nhịp đập đổi thành vòng teal đậm dần. */
 :root[data-theme="light"] .graph-timelapse-btn.playing {
   color: var(--accent-ink); background: var(--accent-wash-2);
 }
 :root[data-theme="light"] .graph-timelapse-btn.playing { animation-name: tlPulseLight; }
 @keyframes tlPulseLight {
-  0%, 100% { box-shadow: var(--brain-glass-shadow), 0 0 0 0 rgba(232,93,31,.30); }
-  50% { box-shadow: var(--brain-glass-shadow), 0 0 0 4px rgba(232,93,31,.20); }
+  0%, 100% { box-shadow: var(--brain-glass-shadow), 0 0 0 0 rgba(13,148,136,.30); }
+  50% { box-shadow: var(--brain-glass-shadow), 0 0 0 4px rgba(13,148,136,.20); }
 }
 .hud-center .concept-labels,
 .hud-center .brain-stats {
@@ -565,7 +555,7 @@ body {
   color: var(--text); padding: 5px 8px; border-radius: 6px; font-size: 14px;
 }
 .graph-stats { font-size: 13px; color: var(--text2); font-family: var(--font); white-space: nowrap; transition: color .25s, text-shadow .25s; }
-.graph-stats.pulse { color: var(--accent2-ink); text-shadow: 0 0 10px rgba(160,120,255,.8); }
+.graph-stats.pulse { color: var(--accent2-ink); text-shadow: 0 0 10px rgba(62,224,214,.65); }
 /* Giấy: nhấp nháy bằng ĐẬM CHỮ thay vì bằng quầng sáng. */
 :root[data-theme="light"] .graph-stats.pulse { text-shadow: none; font-weight: 700; }
 .graph-folder-btn {
@@ -592,7 +582,7 @@ body {
   font-family: var(--font); font-size: 22px; font-weight: 700;
   color: var(--text); line-height: 1; transition: color 0.2s, text-shadow 0.2s;
 }
-.bstat:hover .bstat-num { color: var(--accent); text-shadow: 0 0 12px rgba(160,120,255,0.7); }
+.bstat:hover .bstat-num { color: var(--accent); text-shadow: 0 0 12px rgba(62,224,214,0.7); }
 :root[data-theme="light"] .bstat:hover .bstat-num { color: var(--accent-ink); text-shadow: none; }
 .bstat-lbl {
   font-family: var(--font); font-size: 11px; letter-spacing: 2px;
@@ -1121,17 +1111,17 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   box-shadow: 0 0 0 4px var(--danger-wash); animation: micpulse 1.2s ease-in-out infinite;
 }
 @keyframes micpulse { 50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } }
-/* Hands-free: luôn nghe - vòng cam cố định */
+/* Hands-free: luôn nghe - vòng cyan cố định */
 .mic-big.handsfree {
   border-color: var(--accent); color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-line), 0 0 18px rgba(255,107,43,0.35);
+  box-shadow: 0 0 0 3px var(--accent-line), 0 0 18px rgba(62,224,214,0.35);
 }
 .mic-big.handsfree.recording {
   border-color: var(--accent); color: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-line);
   animation: micpulse-hf 1.2s ease-in-out infinite;
 }
-@keyframes micpulse-hf { 50% { box-shadow: 0 0 0 11px rgba(255,107,43,0); } }
+@keyframes micpulse-hf { 50% { box-shadow: 0 0 0 11px rgba(62,224,214,0); } }
 .voice-input {
   flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
   color: var(--text); font-size: 16px; padding: 11px 14px; resize: none; outline: none;
@@ -1436,7 +1426,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .wf-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .s-btn.run { background: var(--accent-solid); padding: 6px 12px; font-size: 14px; }
 @keyframes wf-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(168,139,250,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62,224,214,0); }
   50% { box-shadow: 0 0 0 5px var(--accent2-wash-2); }
 }
 

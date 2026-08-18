@@ -1230,27 +1230,27 @@ let _thinkingActive = false;
 // MỰC SẪM chồng thường lên giấy ngà. Không đảo màu được - "lighter" trên nền
 // trắng cho ra trắng bệt, còn sao trắng thì biến mất hẳn.
 const SKY_DARK = {
-  stars: ["#ffffff", "#c9b3ff", "#b8a3ff", "#d6c9ff"],
+  stars: ["#ffffff", "#b8e8ff", "#9ee8e0", "#c9d4ff"],
   starOp: "lighter",          // cộng sáng: sao chồng nhau càng rực
   starMax: 0.85,
-  haloIn: [140, 90, 230],     // quầng giữa - thở theo giọng nói
-  haloMid: [90, 60, 170],
-  haloOut: "rgba(8,6,20,0)",
+  haloIn: [62, 224, 214],     // quầng giữa - thở theo giọng nói
+  haloMid: [40, 90, 180],
+  haloOut: "rgba(6,8,16,0)",
   haloBase: 0.10, haloGain: 0.12,
-  grid: [165, 115, 230], gridBase: 0.13, gridGain: 0.10,
-  ring: [70, 200, 255], ringGain: 1,
+  grid: [80, 180, 220], gridBase: 0.13, gridGain: 0.10,
+  ring: [62, 224, 214], ringGain: 1,
 };
 const SKY_LIGHT = {
-  // Hạt bụi giấy: xám tím và xám nâu, đủ sẫm để thấy mà không thành vết bẩn.
-  stars: ["#8e86a6", "#a79ab8", "#b9a99a", "#7e7694"],
+  // Hạt bụi giấy: xám teal và xám ice, đủ sẫm để thấy mà không thành vết bẩn.
+  stars: ["#7a8aa0", "#8a9ab0", "#6e8898", "#7e8694"],
   starOp: "source-over",      // trên giấy phải chồng thường, không cộng sáng
   starMax: 0.42,
-  haloIn: [124, 58, 237],
-  haloMid: [232, 93, 31],     // vành đào ấm ôm ngoài quầng lavender
+  haloIn: [13, 148, 136],
+  haloMid: [59, 107, 255],
   haloOut: "rgba(255,255,255,0)",
   haloBase: 0.05, haloGain: 0.07,
-  grid: [96, 74, 150], gridBase: 0.13, gridGain: 0.08,
-  ring: [20, 110, 160], ringGain: 1.5,
+  grid: [70, 110, 150], gridBase: 0.13, gridGain: 0.08,
+  ring: [13, 148, 136], ringGain: 1.5,
 };
 
 function initStarfield() {
@@ -1803,7 +1803,7 @@ document.addEventListener("keydown", resumeAudio, { once: true });
 const ENGINE_LABEL = {
   "anthropic-cli": "Claude Code", "openai-oauth": "ChatGPT", "openrouter": "OpenRouter",
   "openai": "OpenAI", "anthropic-api": "Anthropic", "gemini": "Gemini", "groq": "Groq",
-  "ollama": "Ollama",
+  "deepseek": "DeepSeek", "ollama": "Ollama",
   // Nhãn phải TÁCH khỏi "Gemini" ở trên: cùng model nhưng khác đường và khác hoá đơn
   // (đăng nhập Google miễn phí, so với API key trả theo lượt gọi).
   "gemini-cli": "Gemini CLI",
@@ -1884,7 +1884,7 @@ async function refreshEngineBadge() {
 // ============================================
 // Mức dùng (token Javis tự đo, đa nhà cung cấp) - panel sidebar
 // ============================================
-const _PROV_LABEL = { cli: "Claude Code", codex: "ChatGPT", openrouter: "OpenRouter", openai: "OpenAI", "anthropic-api": "Anthropic", gemini: "Gemini", groq: "Groq" };
+const _PROV_LABEL = { cli: "Claude Code", codex: "ChatGPT", openrouter: "OpenRouter", openai: "OpenAI", "anthropic-api": "Anthropic", gemini: "Gemini", groq: "Groq", deepseek: "DeepSeek", ollama: "Ollama" };
 function _fmtTok(n) {
   n = +n || 0;
   if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M";

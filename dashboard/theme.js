@@ -31,7 +31,7 @@
       m.setAttribute("name", "theme-color");
       document.head.appendChild(m);
     }
-    m.setAttribute("content", light ? "#ffffff" : "#181822");
+    m.setAttribute("content", light ? "#ffffff" : "#0c101c");
   }
 
   function syncButton(light) {

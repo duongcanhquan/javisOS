@@ -200,7 +200,7 @@ Chi tiết cách gõ `/model`:
 
 - Bảng nút bấm khi gõ `/model`: chọn nhà cung cấp ĐÃ KẾT NỐI (provider đang dùng có dấu ✓ kèm số model), rồi tới lưới model 2 cột, 8 model một trang, nút ◀ ▶ lật trang. Danh sách model lấy TRỰC TIẾP từ nhà cung cấp (OpenRouter hiện đầy đủ vài trăm model, Antigravity hiện đúng dàn model của Antigravity IDE), không phải danh sách cứng.
 - Gõ thẳng tên cũng được: tên có dấu `/` (vd `openai/gpt-4o`) là model OpenRouter; `gpt-...` hoặc `...-codex` là model ChatGPT (cần đã kết nối OAuth); còn lại (vd `opus`, `sonnet`, `fable`) là model Claude.
-- Từ 0.33.7, bảng nút hiện **đủ 10 nhà cung cấp** như trang Models trên dashboard, gồm cả **Antigravity CLI** - trước đó nó là một danh sách chép tay 5 dòng nên mấy nhà thêm sau không đổi được từ điện thoại. Nhà nào chưa liệt kê được model nào (hay gặp: CLI đã cài nhưng chưa đăng nhập) thì ẩn đi cho gọn, trừ nhà đang dùng.
+- Từ 0.33.7, bảng nút hiện **đủ nhà cung cấp** như trang Models trên dashboard, gồm cả **Antigravity CLI** và **DeepSeek** - trước đó nó là một danh sách chép tay 5 dòng nên mấy nhà thêm sau không đổi được từ điện thoại. Nhà nào chưa liệt kê được model nào (hay gặp: CLI đã cài nhưng chưa đăng nhập) thì ẩn đi cho gọn, trừ nhà đang dùng.
 - Gõ thẳng `/model <tên model>` thì Javis dò tên đó trong danh sách thật của các nhà đã kết nối rồi chuyển đúng nhà. Tên có ở nhiều nhà mà không nhà nào đang dùng thì nó hỏi lại thay vì đoán, vì đoán trượt là âm thầm đổi cả đường tiền (gói thuê bao so với API tính theo lượt gọi).
 
 ## MCP và skill qua Telegram

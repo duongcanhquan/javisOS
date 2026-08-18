@@ -10,37 +10,37 @@
 // chàm vẫn là chàm, lục vẫn là lục - chỉ đổi độ đậm cho hợp nền.
 // Tối: màu rực để nổi trên nền đen. Sáng: mực sẫm cùng hue, đều đạt >=4.5:1 trên
 // giấy ngà - bê nguyên bảng rực sang nền trắng thì chấm nào cũng nhợt như nhau.
-const CAT_COLORS_DARK = ["#8b93ff", "#3fdc9a", "#f0a24a", "#ff7a9c", "#4aa8ff", "#b98cff",
-  "#f0c853", "#5ad1c4", "#e07ad1", "#7ed957", "#ff9f6b", "#9fb0cf"];
-const CAT_COLORS_LIGHT = ["#4a52c9", "#0f8f63", "#b46a10", "#c93b62", "#1668c4", "#7340c9",
-  "#96760a", "#0e8b81", "#a83c95", "#3e8f22", "#c9551f", "#5a688a"];
+const CAT_COLORS_DARK = ["#7ee0d8", "#3fdc9a", "#6b8cff", "#ff7a9c", "#4aa8ff", "#93b4ff",
+  "#f0c853", "#5ad1c4", "#e07ad1", "#7ed957", "#67e8f9", "#9fb0cf"];
+const CAT_COLORS_LIGHT = ["#0f766e", "#0f8f63", "#1d4ed8", "#c93b62", "#1668c4", "#3b6bff",
+  "#96760a", "#0e8b81", "#a83c95", "#3e8f22", "#0e7490", "#5a688a"];
 
 // Bảng đang dùng + các màu phụ thuộc tông của lớp vẽ. Đổi tông thì hoán bảng rồi
 // vẽ lại; không rebuild đồ thị nên vị trí node và trạng thái hover giữ nguyên.
 let CAT_COLORS = CAT_COLORS_DARK;
 let INK = {
   hoverCore: "#ffffff",                      // lõi node đang trỏ - "nóng nhất"
-  fallback: "#b98cff",
+  fallback: "#3ee0d6",
   glowCore: "rgba(255,255,255,0.95)",        // lõi trắng nóng của quầng sáng
   glowStops: [[0.28, 0.9], [0.6, 0.32]],
-  linkIdle: "rgba(150,140,220,0.07)",
-  linkOn: "rgba(175,155,255,0.4)",
-  linkOff: "rgba(140,140,200,0.02)",
+  linkIdle: "rgba(110,180,220,0.08)",
+  linkOn: "rgba(62,224,214,0.42)",
+  linkOff: "rgba(80,140,200,0.02)",
   labelHalo: "rgba(4,6,12,0.85)",
   labelText: "rgba(233,235,246,0.96)",
 };
 const INK_LIGHT = {
-  hoverCore: "#2a2138",
-  fallback: "#7340c9",
+  hoverCore: "#121826",
+  fallback: "#0f766e",
   // Trên giấy KHÔNG có "lõi trắng nóng": quầng sáng đổi thành vệt mực loang,
   // đậm ở tâm rồi thấm nhạt ra - cùng hue với node.
   glowCore: null,
   glowStops: [[0.0, 0.55], [0.30, 0.30], [0.62, 0.11]],
-  linkIdle: "rgba(120,100,170,0.16)",
-  linkOn: "rgba(96,60,180,0.55)",
-  linkOff: "rgba(140,140,200,0.05)",
-  labelHalo: "rgba(251,249,247,0.92)",
-  labelText: "rgba(32,28,44,0.97)",
+  linkIdle: "rgba(80,140,180,0.16)",
+  linkOn: "rgba(13,148,136,0.50)",
+  linkOff: "rgba(80,140,180,0.05)",
+  labelHalo: "rgba(244,246,251,0.92)",
+  labelText: "rgba(18,24,38,0.97)",
 };
 const INK_DARK = INK;
 

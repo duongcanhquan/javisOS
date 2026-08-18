@@ -7,15 +7,15 @@
   --rail-w: 160px;
   --rail-w-collapsed: 60px;
   --font-ui: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  --rail-bg: rgba(14, 14, 22, 0.72);
-  --glass: rgba(22, 22, 31, 0.55);
+  --rail-bg: rgba(6, 8, 15, 0.78);
+  --glass: rgba(12, 16, 28, 0.58);
   --glass-brd: var(--hairline);
   --glow: 0 0 0 1px var(--glass-brd), var(--shadow-2);
   --rail-anim: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --topbar-h: 52px;          /* chiều cao header .hud-top - cview chừa ra để header hiện mọi trang */
 }
 /* Tông sáng: mặt kính đổi từ "tối mờ chồng lên nền đen" thành "trắng mờ chồng lên
-   giấy ngà". Vẫn giữ backdrop-filter nên vẫn có chiều sâu, chỉ đổi chất liệu. */
+   giấy bạch kim". Vẫn giữ backdrop-filter nên vẫn có chiều sâu, chỉ đổi chất liệu. */
 :root[data-theme="light"] {
   --rail-bg: rgba(255, 255, 255, 0.82);
   --glass: rgba(255, 255, 255, 0.72);
@@ -66,7 +66,7 @@ body.in-console .hud-actions { display: none; }
 .rail-grp-ico svg { width: 17px; height: 17px; }
 .rail-group.open > .rail-grp-lbl::before { transform: rotate(90deg); }
 .rail-grp-lbl:hover { color: var(--text); background: var(--surface-2); }
-.rail-group.has-active:not(.open) > .rail-grp-lbl { color: var(--accent); }   /* nhóm gập nhưng đang chứa trang hiện tại → hé màu cam */
+.rail-group.has-active:not(.open) > .rail-grp-lbl { color: var(--accent); }   /* nhóm gập nhưng đang chứa trang hiện tại → hé màu nhấn */
 .rail-group.foot .rail-grp-lbl { border-top: 1px solid var(--glass-brd); border-radius: 0; margin-top: 6px; padding-top: 12px; }
 /* tầng 2: khối mục con, trượt mở/đóng bằng max-height */
 .rail-grp-items {
@@ -78,7 +78,7 @@ body.in-console .hud-actions { display: none; }
 .rail-brand {
   height: 42px; display: flex; align-items: center; justify-content: center;
   color: var(--accent); font-size: 22px;
-  filter: drop-shadow(0 0 8px rgba(255, 107, 43, 0.55));
+  filter: drop-shadow(0 0 8px rgba(62, 224, 214, 0.55));
 }
 .rail-item {
   position: relative; background: transparent; border: 0; cursor: pointer;
@@ -295,8 +295,6 @@ body.in-console .hud-actions { display: none; }
 .rail-collapse-btn svg { width: 18px; height: 18px; }
 .rail-foot .rf-meta { order: 1; text-align: left; min-width: 0; }
 .rail-foot .rf-ver { font-size: 11px; color: var(--text2); }
-.rail-foot .rf-author { display: block; margin-top: 2px; font-size: 8.5px; color: var(--accent); text-decoration: none; }
-.rail-foot .rf-author:hover { text-decoration: underline; }
 
 /* Tooltip nhanh cho rail thu gọn (JS đặt vị trí; body-level nên không bị overflow rail cắt) */
 .rail-tip {
@@ -322,7 +320,7 @@ body.in-console .hud-actions { display: none; }
   }
   .rail.collapsed .rail-item { justify-content: center; padding: 9px 0; gap: 0; }
   .rail.collapsed .rail-item .rail-lbl { display: none; }       /* giấu chữ, chỉ còn icon */
-  .rail.collapsed .rf-meta { display: none; }                   /* giấu version/tác giả cho vừa bề ngang hẹp, chỉ còn nút */
+  .rail.collapsed .rf-meta { display: none; }                   /* giấu version cho vừa bề ngang hẹp, chỉ còn nút */
   .rail.collapsed .rail-foot { justify-content: center; }       /* thu: chỉ còn nút, căn giữa */
 }
 
@@ -357,7 +355,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   transition: transform 0.18s, border-color 0.18s;
 }
 .gcard:hover { transform: translateY(-2px); border-color: var(--accent-line); }
-.gcard.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(255, 107, 43, 0.18); }
+.gcard.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(62, 224, 214, 0.18); }
 .gcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .gcard-name { font-family: var(--font); font-weight: 700; font-size: 16px; }
 .gcard-tag {
@@ -401,7 +399,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   font-family: var(--font); font-size: 14px; transition: all 0.18s;
 }
 .gcard-btn:hover { background: var(--accent-solid); border-color: var(--accent-solid); color: var(--on-accent); }
-/* Nút đang bận/khoá: giữ nguyên bộ mặt thường, không tô cam khi rê chuột (tô cam
+/* Nút đang bận/khoá: giữ nguyên bộ mặt thường, không tô màu nhấn khi rê chuột (tô
    xong chữ đổi sang var(--on-accent) trong khi opacity hạ xuống là đọc không ra). */
 .gcard-btn:disabled { cursor: not-allowed; }
 .gcard-btn:disabled:hover { background: var(--surface-2); border-color: var(--glass-brd); color: var(--text); }
