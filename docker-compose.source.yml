@@ -1,0 +1,4 @@
+# Override khi chạy từ source trên VPS fork — không pull đè image GHCR upstream.
+services:
+  javis:
+    pull_policy: build
