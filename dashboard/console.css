@@ -917,10 +917,11 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
    ============================================================ */
 body.on-mcp .cview {
   background:
-    radial-gradient(900px 480px at 12% -8%, rgba(180, 36, 28, 0.22), transparent 55%),
-    radial-gradient(1100px 620px at 92% 8%, rgba(20, 80, 110, 0.18), transparent 58%),
-    radial-gradient(700px 500px at 50% 110%, rgba(120, 20, 40, 0.16), transparent 50%),
-    #03040a;
+    radial-gradient(1000px 560px at 8% -5%, rgba(210, 40, 36, 0.42), transparent 58%),
+    radial-gradient(1200px 680px at 95% 0%, rgba(12, 90, 120, 0.32), transparent 60%),
+    radial-gradient(800px 520px at 50% 105%, rgba(140, 16, 50, 0.28), transparent 52%),
+    radial-gradient(600px 400px at 70% 40%, rgba(80, 20, 30, 0.2), transparent 70%),
+    #02030a;
 }
 body.on-mcp .cview-head {
   border-bottom-color: rgba(200, 60, 50, 0.28);
@@ -944,6 +945,9 @@ body.on-mcp .cview-body > .cview-placeholder {
   padding: 28px 26px 48px;
   overflow: hidden;
   color: var(--text);
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(180, 30, 40, 0.18), transparent 60%),
+    radial-gradient(ellipse 70% 45% at 90% 10%, rgba(20, 70, 95, 0.16), transparent 65%);
 }
 .galaxy-nexus .gx-stars,
 .galaxy-nexus .gx-nebula,
@@ -955,33 +959,48 @@ body.on-mcp .cview-body > .cview-placeholder {
 }
 .galaxy-nexus .gx-stars {
   background-image:
-    radial-gradient(1.2px 1.2px at 8% 18%, rgba(255, 240, 230, 0.85), transparent),
-    radial-gradient(1px 1px at 22% 62%, rgba(255, 210, 190, 0.7), transparent),
-    radial-gradient(1.4px 1.4px at 41% 28%, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1px 1px at 57% 74%, rgba(255, 180, 160, 0.65), transparent),
-    radial-gradient(1.2px 1.2px at 73% 16%, rgba(200, 255, 255, 0.75), transparent),
-    radial-gradient(1px 1px at 88% 48%, rgba(255, 220, 200, 0.7), transparent),
-    radial-gradient(1.3px 1.3px at 15% 88%, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 63% 42%, rgba(255, 160, 140, 0.6), transparent),
-    radial-gradient(1px 1px at 94% 82%, rgba(220, 255, 255, 0.55), transparent),
-    radial-gradient(1.5px 1.5px at 34% 8%, rgba(255, 230, 210, 0.8), transparent);
-  opacity: 0.85;
-  animation: gx-twinkle 7s ease-in-out infinite alternate;
+    radial-gradient(1.5px 1.5px at 4% 12%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 8% 18%, rgba(255, 240, 230, 0.95), transparent),
+    radial-gradient(2px 2px at 12% 55%, rgba(255, 200, 180, 0.9), transparent),
+    radial-gradient(1px 1px at 18% 30%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 22% 62%, rgba(255, 210, 190, 0.9), transparent),
+    radial-gradient(1px 1px at 28% 80%, rgba(200, 240, 255, 0.85), transparent),
+    radial-gradient(1.8px 1.8px at 33% 22%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 41% 28%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 46% 70%, rgba(255, 180, 160, 0.8), transparent),
+    radial-gradient(2.2px 2.2px at 52% 14%, rgba(255, 220, 200, 1), transparent),
+    radial-gradient(1px 1px at 57% 74%, rgba(255, 180, 160, 0.85), transparent),
+    radial-gradient(1.5px 1.5px at 61% 40%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 68% 88%, rgba(180, 255, 255, 0.8), transparent),
+    radial-gradient(1.2px 1.2px at 73% 16%, rgba(200, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 78% 58%, rgba(255, 160, 140, 0.95), transparent),
+    radial-gradient(1px 1px at 84% 34%, #fff, transparent),
+    radial-gradient(1px 1px at 88% 48%, rgba(255, 220, 200, 0.85), transparent),
+    radial-gradient(1.6px 1.6px at 92% 72%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.3px 1.3px at 15% 88%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 63% 42%, rgba(255, 160, 140, 0.75), transparent),
+    radial-gradient(1px 1px at 94% 82%, rgba(220, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 34% 8%, rgba(255, 230, 210, 0.95), transparent),
+    radial-gradient(1px 1px at 97% 20%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 6% 44%, rgba(255, 200, 190, 0.8), transparent);
+  opacity: 1;
+  animation: gx-twinkle 5.5s ease-in-out infinite alternate;
 }
 .galaxy-nexus .gx-nebula {
   background:
-    radial-gradient(ellipse 55% 40% at 18% 22%, rgba(160, 28, 36, 0.28), transparent 70%),
-    radial-gradient(ellipse 48% 36% at 82% 18%, rgba(18, 70, 95, 0.26), transparent 72%),
-    radial-gradient(ellipse 60% 45% at 55% 88%, rgba(90, 12, 40, 0.22), transparent 70%);
-  filter: blur(2px);
-  animation: gx-drift 22s ease-in-out infinite alternate;
+    radial-gradient(ellipse 60% 45% at 15% 18%, rgba(200, 36, 42, 0.45), transparent 70%),
+    radial-gradient(ellipse 55% 40% at 85% 12%, rgba(24, 90, 120, 0.4), transparent 72%),
+    radial-gradient(ellipse 70% 50% at 55% 90%, rgba(110, 16, 48, 0.38), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 40% 50%, rgba(180, 50, 40, 0.18), transparent 75%);
+  filter: blur(1px);
+  animation: gx-drift 18s ease-in-out infinite alternate;
 }
 .galaxy-nexus .gx-vignette {
-  background: radial-gradient(ellipse 75% 70% at 50% 40%, transparent 35%, rgba(0, 0, 0, 0.55) 100%);
+  background: radial-gradient(ellipse 80% 75% at 50% 35%, transparent 20%, rgba(0, 0, 0, 0.65) 100%);
 }
 @keyframes gx-twinkle {
-  from { opacity: 0.55; }
-  to { opacity: 0.95; }
+  from { opacity: 0.7; }
+  to { opacity: 1; }
 }
 @keyframes gx-drift {
   from { transform: translate3d(0, 0, 0) scale(1); }
