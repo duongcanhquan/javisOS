@@ -6214,8 +6214,8 @@
     if (_eb) _eb.addEventListener("click", () => navigateTo("models"));
     const ver = document.getElementById("railVersion");
     if (ver) {
-      ver.textContent = "v" + APP_VERSION;   // hiện tạm, thay ngay bằng phiên bản thật từ server
-      fetch("/version").then(r => r.json()).then(d => { if (d && d.current) ver.textContent = "v" + d.current; }).catch(() => {});
+      // Nhãn chủ máy (không hiện số VERSION kỹ thuật trên rail)
+      ver.textContent = "Quan.Duong";
     }
     // Theo dõi Studio mở/đóng → bật/tắt graph theo
     const st = document.getElementById("studio");
