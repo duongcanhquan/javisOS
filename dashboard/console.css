@@ -910,3 +910,374 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .set-tfa .tfa-off { color: var(--text); }
 .set-tfa .tfa-low { color: var(--warn-ink); }
 .set-tfa button { margin-left: auto; flex: 0 0 auto; }
+
+/* ============================================================
+   Trang Kết nối — Thiên hà Nexus (huyền bí / nguy hiểm)
+   Scoped dưới .galaxy-nexus + body.on-mcp; không đụng trang khác.
+   ============================================================ */
+body.on-mcp .cview {
+  background:
+    radial-gradient(900px 480px at 12% -8%, rgba(180, 36, 28, 0.22), transparent 55%),
+    radial-gradient(1100px 620px at 92% 8%, rgba(20, 80, 110, 0.18), transparent 58%),
+    radial-gradient(700px 500px at 50% 110%, rgba(120, 20, 40, 0.16), transparent 50%),
+    #03040a;
+}
+body.on-mcp .cview-head {
+  border-bottom-color: rgba(200, 60, 50, 0.28);
+  background: linear-gradient(180deg, rgba(8, 6, 10, 0.55), transparent);
+}
+body.on-mcp .cview-title { font-family: "Orbitron", var(--font-ui); letter-spacing: 0.12em; }
+body.on-mcp .cview-title .ico { color: #e85a4a; }
+body.on-mcp .cview-body { padding: 0; }
+body.on-mcp .cview-body > .cview-placeholder {
+  padding: 48px 26px;
+}
+
+.galaxy-nexus {
+  --gx-ember: #e85a4a;
+  --gx-ember-dim: rgba(232, 90, 74, 0.45);
+  --gx-void: rgba(4, 5, 12, 0.72);
+  --gx-ice: rgba(90, 210, 220, 0.55);
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  padding: 28px 26px 48px;
+  overflow: hidden;
+  color: var(--text);
+}
+.galaxy-nexus .gx-stars,
+.galaxy-nexus .gx-nebula,
+.galaxy-nexus .gx-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.galaxy-nexus .gx-stars {
+  background-image:
+    radial-gradient(1.2px 1.2px at 8% 18%, rgba(255, 240, 230, 0.85), transparent),
+    radial-gradient(1px 1px at 22% 62%, rgba(255, 210, 190, 0.7), transparent),
+    radial-gradient(1.4px 1.4px at 41% 28%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 57% 74%, rgba(255, 180, 160, 0.65), transparent),
+    radial-gradient(1.2px 1.2px at 73% 16%, rgba(200, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 88% 48%, rgba(255, 220, 200, 0.7), transparent),
+    radial-gradient(1.3px 1.3px at 15% 88%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 63% 42%, rgba(255, 160, 140, 0.6), transparent),
+    radial-gradient(1px 1px at 94% 82%, rgba(220, 255, 255, 0.55), transparent),
+    radial-gradient(1.5px 1.5px at 34% 8%, rgba(255, 230, 210, 0.8), transparent);
+  opacity: 0.85;
+  animation: gx-twinkle 7s ease-in-out infinite alternate;
+}
+.galaxy-nexus .gx-nebula {
+  background:
+    radial-gradient(ellipse 55% 40% at 18% 22%, rgba(160, 28, 36, 0.28), transparent 70%),
+    radial-gradient(ellipse 48% 36% at 82% 18%, rgba(18, 70, 95, 0.26), transparent 72%),
+    radial-gradient(ellipse 60% 45% at 55% 88%, rgba(90, 12, 40, 0.22), transparent 70%);
+  filter: blur(2px);
+  animation: gx-drift 22s ease-in-out infinite alternate;
+}
+.galaxy-nexus .gx-vignette {
+  background: radial-gradient(ellipse 75% 70% at 50% 40%, transparent 35%, rgba(0, 0, 0, 0.55) 100%);
+}
+@keyframes gx-twinkle {
+  from { opacity: 0.55; }
+  to { opacity: 0.95; }
+}
+@keyframes gx-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-1.5%, 1.2%, 0) scale(1.04); }
+}
+@keyframes gx-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--gx-ember-dim), 0 0 24px rgba(232, 90, 74, 0.12); }
+  50% { box-shadow: 0 0 0 1px rgba(232, 90, 74, 0.7), 0 0 36px rgba(232, 90, 74, 0.28); }
+}
+
+.galaxy-nexus > *:not(.gx-stars):not(.gx-nebula):not(.gx-vignette) {
+  position: relative;
+  z-index: 1;
+}
+
+.gx-hero {
+  max-width: 720px;
+  margin: 0 0 28px;
+  padding: 8px 0 4px;
+}
+.gx-eyebrow {
+  margin: 0 0 10px;
+  font-family: "Orbitron", var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--gx-ember);
+  text-shadow: 0 0 18px rgba(232, 90, 74, 0.45);
+}
+.gx-title {
+  margin: 0 0 12px;
+  font-family: "Orbitron", var(--font-ui);
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  background: linear-gradient(115deg, #fff4ef 10%, #e85a4a 48%, #7ad8e0 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(232, 90, 74, 0.25));
+}
+.gx-lead {
+  margin: 0 0 18px;
+  max-width: 46ch;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text2);
+}
+.gx-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+.gx-stat {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 90, 74, 0.35);
+  background: rgba(8, 4, 8, 0.55);
+  font-size: 12.5px;
+  color: var(--text2);
+  backdrop-filter: blur(8px);
+}
+.gx-stat b {
+  font-family: "Orbitron", var(--font-ui);
+  font-size: 15px;
+  color: #ffe8e2;
+  letter-spacing: 0.04em;
+}
+.gx-stat-danger {
+  border-color: rgba(232, 90, 74, 0.55);
+  animation: gx-pulse 3.6s ease-in-out infinite;
+}
+
+.gx-alert {
+  max-width: 740px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(232, 90, 74, 0.35);
+  background: rgba(20, 8, 10, 0.65);
+  backdrop-filter: blur(10px);
+}
+.gx-alert-ok {
+  border-color: rgba(62, 180, 120, 0.4);
+  background: rgba(8, 28, 20, 0.55);
+}
+.gx-alert-warn {
+  border-color: rgba(210, 150, 40, 0.45);
+  background: rgba(40, 28, 8, 0.55);
+}
+
+.gx-zone {
+  margin-bottom: 32px;
+  padding: 18px 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(232, 90, 74, 0.18);
+  background:
+    linear-gradient(165deg, rgba(18, 10, 14, 0.72), rgba(6, 8, 16, 0.55));
+  box-shadow: inset 0 1px 0 rgba(255, 180, 160, 0.06), 0 16px 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px) saturate(1.1);
+}
+.gx-zone-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-family: "Orbitron", var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #f0d4cc;
+}
+.gx-zone-mark {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--gx-ember) 55%, #5a1010);
+  box-shadow: 0 0 12px var(--gx-ember);
+  flex: 0 0 auto;
+}
+.gx-zone-mark-hot {
+  background: radial-gradient(circle at 35% 35%, #fff7f0, #ff6b4a 50%, #7a1208);
+  box-shadow: 0 0 16px rgba(255, 80, 50, 0.75);
+}
+.gx-count {
+  margin-left: 4px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  opacity: 0.55;
+  font-size: 12px;
+}
+.gx-zone-meta {
+  max-width: 740px;
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text2);
+}
+.gx-strict {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 10px;
+  cursor: pointer;
+  color: #e8b4aa;
+  font-size: 13px;
+}
+.gx-empty {
+  border: 1px dashed rgba(232, 90, 74, 0.35) !important;
+  background: rgba(12, 6, 10, 0.4) !important;
+  color: var(--text2) !important;
+  border-radius: 12px;
+  padding: 22px 16px !important;
+  text-align: center;
+}
+
+.galaxy-nexus .gx-orbit {
+  border-color: rgba(232, 90, 74, 0.28) !important;
+  background:
+    linear-gradient(145deg, rgba(28, 12, 16, 0.75), rgba(8, 10, 20, 0.65)) !important;
+  box-shadow: 0 0 0 1px rgba(232, 90, 74, 0.08), 0 12px 28px rgba(0, 0, 0, 0.35);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.galaxy-nexus .gx-orbit:hover {
+  transform: translateY(-2px);
+  border-color: rgba(232, 90, 74, 0.55) !important;
+  box-shadow: 0 0 0 1px rgba(232, 90, 74, 0.2), 0 0 28px rgba(232, 90, 74, 0.18);
+}
+.galaxy-nexus .conn-chip {
+  border-color: rgba(232, 90, 74, 0.28);
+  background: rgba(20, 10, 14, 0.7);
+}
+.galaxy-nexus .conn-chip:hover { background: rgba(40, 16, 20, 0.85); }
+.galaxy-nexus .conn-chip.add {
+  border-color: rgba(232, 90, 74, 0.5);
+  color: #ffb4a8;
+}
+
+.gx-tools { margin-top: 12px !important; }
+.gx-search {
+  max-width: 280px !important;
+  border-color: rgba(232, 90, 74, 0.35) !important;
+  background: rgba(6, 6, 12, 0.65) !important;
+}
+.galaxy-nexus .cat-chip {
+  border-color: rgba(255, 160, 140, 0.22);
+  background: rgba(10, 8, 14, 0.5);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.galaxy-nexus .cat-chip.on {
+  border-color: var(--gx-ember);
+  color: #ffcfc6;
+  background: rgba(232, 90, 74, 0.14);
+  box-shadow: 0 0 16px rgba(232, 90, 74, 0.2);
+}
+
+.galaxy-nexus .gx-grid {
+  max-width: none;
+  gap: 14px;
+}
+.galaxy-nexus .gx-node {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(232, 90, 74, 0.22);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(232, 90, 74, 0.12), transparent 55%),
+    rgba(8, 8, 16, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 200, 180, 0.06);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.galaxy-nexus .gx-node::before {
+  content: "";
+  position: absolute;
+  inset: auto -20% -40% auto;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 90, 74, 0.2), transparent 70%);
+  opacity: 0.7;
+  transition: opacity 0.25s ease, transform 0.35s ease;
+}
+.galaxy-nexus .gx-node:hover {
+  transform: translateY(-3px);
+  border-color: rgba(232, 90, 74, 0.55);
+  box-shadow: 0 0 0 1px rgba(232, 90, 74, 0.18), 0 14px 36px rgba(0, 0, 0, 0.4), 0 0 28px rgba(232, 90, 74, 0.15);
+}
+.galaxy-nexus .gx-node:hover::before { opacity: 1; transform: translate(-8px, -10px) scale(1.15); }
+.galaxy-nexus .gx-node.soon { opacity: 0.5; filter: grayscale(0.35); }
+.galaxy-nexus .cat-name { letter-spacing: 0.01em; }
+.galaxy-nexus .gx-gate {
+  width: auto !important;
+  align-self: flex-start;
+  margin-top: 4px;
+  border-color: rgba(232, 90, 74, 0.5) !important;
+  background: linear-gradient(135deg, rgba(232, 90, 74, 0.22), rgba(20, 8, 12, 0.4)) !important;
+  color: #ffe0d8 !important;
+  font-family: "Orbitron", var(--font-ui);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.galaxy-nexus .gx-gate:hover {
+  background: linear-gradient(135deg, rgba(232, 90, 74, 0.45), rgba(40, 12, 16, 0.55)) !important;
+  border-color: #e85a4a !important;
+  color: #fff !important;
+}
+
+.gx-ambient summary {
+  cursor: pointer;
+  list-style: none;
+}
+.gx-ambient summary::-webkit-details-marker { display: none; }
+.gx-ambient[open] {
+  border-color: rgba(90, 210, 220, 0.28);
+}
+
+@media (max-width: 860px) {
+  .galaxy-nexus { padding: 18px 14px 36px; }
+  .gx-zone { padding: 14px 12px 16px; }
+  .gx-search { max-width: 100% !important; width: 100%; }
+  .gx-strict { display: flex; margin-left: 0; margin-top: 8px; }
+}
+
+/* Light theme: giữ cảm giác “cổng nguy hiểm” nhưng đọc được trên nền sáng */
+:root[data-theme="light"] body.on-mcp .cview {
+  background:
+    radial-gradient(900px 480px at 10% -10%, rgba(200, 70, 55, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(20, 90, 110, 0.08), transparent 55%),
+    var(--bg);
+}
+:root[data-theme="light"] .gx-title {
+  background: linear-gradient(115deg, #1a1210 5%, #b83a2e 50%, #0f6b72 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+:root[data-theme="light"] .gx-zone,
+:root[data-theme="light"] .galaxy-nexus .gx-node,
+:root[data-theme="light"] .galaxy-nexus .gx-orbit {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(180, 60, 50, 0.28) !important;
+}
+:root[data-theme="light"] .gx-stat {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text2);
+}
+:root[data-theme="light"] .gx-stat b { color: #8f2e24; }
+:root[data-theme="light"] .gx-zone-h { color: #5c241c; }
+:root[data-theme="light"] .galaxy-nexus .gx-gate {
+  color: #6e241c !important;
+  background: rgba(232, 90, 74, 0.12) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galaxy-nexus .gx-stars,
+  .galaxy-nexus .gx-nebula,
+  .gx-stat-danger { animation: none !important; }
+  .galaxy-nexus .gx-node:hover,
+  .galaxy-nexus .gx-orbit:hover { transform: none; }
+}

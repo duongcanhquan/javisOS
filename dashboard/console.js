@@ -234,6 +234,7 @@
       if (id === "home" || id === "chat") refreshModelUi();
       // Nút điều khiển cockpit (cài đặt, giọng nói, làm mới) chỉ hiện ở trang Javis, không hiện navbar trang quản lý
       document.body.classList.toggle("in-console", id !== "home");
+      document.body.classList.toggle("on-mcp", id === "mcp");
       // Rời trang Cài đặt → cất #quickSet về holder TRƯỚC khi cviewBody bị ghi đè (giữ node + handler).
       if (id !== "settings") parkQuickSet();
       if (id !== "home") renderPage(id);
@@ -3681,7 +3682,7 @@
   function connectorCard(con, conns) {
     const chips = conns.map(connChip).join("")
       + '<button class="conn-chip add" data-addacc="' + esc(con.id) + '">＋ Thêm tài khoản</button>';
-    return '<div class="prov-card conn-card">'
+    return '<div class="prov-card conn-card gx-orbit">'
       + '<div class="prov-head"><span class="conn-ico">' + iconInner(con) + '</span>'
       + '<div class="prov-info"><div class="prov-name">' + esc(con.name || con.id) + '</div>'
       + '<div class="prov-status">' + esc(con.description || "") + '</div>'
@@ -3705,12 +3706,12 @@
       const meta = GROUP_META[g] || { name: g, icon: ic("plug"), category: "Khác", desc: "" };
       const ids = byGroup[g].map(c => c.id);
       const nConn = (conns || []).filter(x => ids.includes(x.connector_id)).length;
-      return '<div class="cat-card" data-cat="' + esc(meta.category) + '">'
+      return '<div class="cat-card gx-node" data-cat="' + esc(meta.category) + '">'
         + '<div class="cat-ico">' + meta.icon + '</div>'
         + '<div class="cat-name">' + esc(meta.name) + ' <span class="prov-kind">' + byGroup[g].length + ' dịch vụ</span>'
         + (nConn ? ' <span class="prov-kind" style="color:var(--green)">đã nối ' + nConn + '</span>' : "") + '</div>'
         + '<div class="cat-desc">' + esc(meta.desc) + '</div>'
-        + '<button class="gcard-btn" data-groupopen="' + esc(g) + '">Chọn dịch vụ</button>'
+        + '<button class="gcard-btn gx-gate" data-groupopen="' + esc(g) + '">Chọn dịch vụ</button>'
         + '</div>';
     }).join("");
   }
@@ -3745,14 +3746,14 @@
     const badge = '<span class="prov-kind">' + (AUTH_BADGE[con.auth_type] || con.auth_type || "") + '</span>'
       + (con.status === "beta" ? ' <span class="prov-kind" style="color:var(--warn-ink)">beta</span>' : "")
       + (soon ? ' <span class="prov-kind">sắp có</span>' : "");
-    return '<div class="cat-card' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
+    return '<div class="cat-card gx-node' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
       + '<div class="cat-ico">' + iconInner(con) + '</div>'
       + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div>'
       + '<div class="cat-desc">' + esc(con.description || "") + '</div>'
       + (soon
         ? '<button class="gcard-btn" disabled style="opacity:.5">Sắp có</button>'
           + (con.guide_url ? ' <a class="cat-doc" href="' + esc(con.guide_url) + '" target="_blank">docs ↗</a>' : "")
-        : '<button class="gcard-btn" data-connect="' + esc(con.id) + '">Kết nối</button>'
+        : '<button class="gcard-btn gx-gate" data-connect="' + esc(con.id) + '">Mở cổng</button>'
           + (con.guide_url ? ' <a class="cat-doc" href="' + esc(safeHref(con.guide_url))
               + '" target="_blank" rel="noopener">Hướng dẫn ↗</a>' : ""))
       + '</div>';
@@ -4158,32 +4159,45 @@
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
-      warn = `<div class="gcard" style="border:1px solid var(--green);background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
     } else if (!MCP_PROVIDERS.includes(main.provider)) {
-      warn = `<div class="gcard" style="border:1px solid var(--warn-ink);background:rgba(185,130,31,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">${WARN_ICON} Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-warn"><div class="gcard-meta" style="opacity:1">${WARN_ICON} Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
     } else if (main.provider !== "anthropic-cli") {
-      warn = `<div class="gcard" style="border:1px solid var(--green);background:rgba(44,122,75,.10);max-width:740px;margin-bottom:14px"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>${esc(mainLabel)}</b> dùng được kho Kết nối qua <b>MCP Javis</b> (vòng gọi tool + hub), kèm tool file trong brain và skill - không phải chat suông.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>${esc(mainLabel)}</b> dùng được kho Kết nối qua <b>MCP Javis</b> (vòng gọi tool + hub), kèm tool file trong brain và skill - không phải chat suông.</div></div>`;
     }
     const groups = {};
     conns.forEach(c => { const k = c.connector_id || "custom"; (groups[k] = groups[k] || []).push(c); });
     const connectedHtml = Object.keys(groups).map(cid =>
       connectorCard(byId[cid] || { id: cid, name: cid, icon: "plug" }, groups[cid])).join("");
     const cats = Array.from(new Set(cat.map(c => c.category || "Khác")));
-    el.innerHTML = warn
-      + '<div class="cview-section"><h3>◆ Đã kết nối <span style="opacity:.5">' + conns.length + ' tài khoản</span></h3>'
-      + '<div class="gcard-meta" style="max-width:740px">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
-      + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label></div>'
-      + '<div class="prov-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty">Chưa đấu nguồn nào - chọn một dịch vụ trong Kho bên dưới để bắt đầu.</div>') + '</div></div>'
-      + '<div class="cview-section"><h3>◆ Kho kết nối</h3>'
-      + '<div class="cat-tools"><input class="js-input" id="catQ" placeholder="Tìm dịch vụ…" style="max-width:220px">'
+    el.innerHTML = '<div class="galaxy-nexus" id="galaxyNexus">'
+      + '<div class="gx-stars" aria-hidden="true"></div>'
+      + '<div class="gx-nebula" aria-hidden="true"></div>'
+      + '<div class="gx-vignette" aria-hidden="true"></div>'
+      + '<header class="gx-hero">'
+      + '<p class="gx-eyebrow">// NEXUS · EXTERNAL POWER</p>'
+      + '<h2 class="gx-title">Thiên hà kết nối</h2>'
+      + '<p class="gx-lead">Mỗi cổng mở là một quyền lực mới — và một rủi ro. Chỉ nối những gì bạn kiểm soát được.</p>'
+      + '<div class="gx-stats">'
+      + '<span class="gx-stat"><b>' + conns.length + '</b> tài khoản đang sống</span>'
+      + '<span class="gx-stat gx-stat-danger"><b>' + cat.filter(c => c.status !== "soon").length + '</b> cổng trong kho</span>'
+      + '</div></header>'
+      + warn
+      + '<section class="cview-section gx-zone">'
+      + '<h3 class="gx-zone-h"><span class="gx-zone-mark" aria-hidden="true"></span> Đã kết nối <span class="gx-count">' + conns.length + '</span></h3>'
+      + '<div class="gcard-meta gx-zone-meta">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
+      + '<label class="gx-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label></div>'
+      + '<div class="prov-list gx-orbit-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty gx-empty">Chưa mở cổng nào — chọn một dịch vụ trong Kho bên dưới.</div>') + '</div></section>'
+      + '<section class="cview-section gx-zone">'
+      + '<h3 class="gx-zone-h"><span class="gx-zone-mark gx-zone-mark-hot" aria-hidden="true"></span> Kho kết nối</h3>'
+      + '<div class="cat-tools gx-tools"><input class="js-input gx-search" id="catQ" placeholder="Dò tìm dịch vụ trong thiên hà…">'
       + '<span class="cat-filter"><button class="cat-chip on" data-catf="">Tất cả</button>' + cats.map(x => '<button class="cat-chip" data-catf="' + esc(x) + '">' + esc(x) + '</button>').join("") + '</span></div>'
-      + '<div class="cat-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div></div>'
-      // Hai khu kết nối sẵn của CLI: GẬP mặc định (dân thường không cần thấy) + LAZY:
-      // chỉ gọi /mcp/ambient (chậm - phải health check) khi người dùng thật sự mở ra.
-      + '<details class="cview-section amb-details" id="ambWrap"><summary><h3 style="display:inline">◆ Kết nối sẵn của Claude Code và Codex <span style="opacity:.5">chỉ hiển thị - bấm để xem</span></h3></summary>'
-      + '<div class="gcard-meta" style="max-width:740px;margin-top:10px">Những nguồn đã đăng nhập sẵn trong tài khoản Claude (đồng bộ từ claude.ai) và trong Codex CLI. Bộ não tương ứng tự dùng được các nguồn "Connected". Đăng nhập và quản lý trong app Claude hoặc bằng lệnh <code>codex mcp</code>, không sửa ở đây.</div>'
-      + '<div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty">Bấm để tải…</div></div>'
-      + '<div class="prov-list" id="mcpAmbientCodex" style="margin-top:12px"></div></details>';
+      + '<div class="cat-grid gx-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div></section>'
+      + '<details class="cview-section amb-details gx-zone gx-ambient" id="ambWrap"><summary><h3 class="gx-zone-h" style="display:inline"><span class="gx-zone-mark" aria-hidden="true"></span> Kết nối sẵn Claude Code &amp; Codex <span class="gx-count">chỉ xem</span></h3></summary>'
+      + '<div class="gcard-meta gx-zone-meta" style="margin-top:10px">Nguồn đã đăng nhập trong Claude / Codex CLI. Bộ não tương ứng tự dùng được khi trạng thái Connected. Quản lý ngoài Javis.</div>'
+      + '<div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty gx-empty">Bấm để tải…</div></div>'
+      + '<div class="prov-list" id="mcpAmbientCodex" style="margin-top:12px"></div></details>'
+      + '</div>';
     document.getElementById("mcpStrict").onchange = (e) => postJson("/mcp/strict", { strict: e.target.checked });
     // Sức khoẻ kết nối: tô ngay khi mở trang + làm tươi mỗi 60s (tự dừng khi rời trang)
     clearInterval(_healthTimer);
