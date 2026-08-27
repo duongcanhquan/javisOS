@@ -7,7 +7,7 @@ param(
   [string]$Message = "Sync from Cursor",
   [string]$VpsHost = $(if ($env:JAVIS_VPS_HOST) { $env:JAVIS_VPS_HOST } else { "165.101.46.238" }),
   [string]$VpsUser = $(if ($env:JAVIS_VPS_USER) { $env:JAVIS_VPS_USER } else { "root" }),
-  [string]$RemoteDir = $(if ($env:JAVIS_VPS_DIR) { $env:JAVIS_VPS_DIR } else { "~/javis-os" }),
+  [string]$RemoteDir = $(if ($env:JAVIS_VPS_DIR) { $env:JAVIS_VPS_DIR } else { "/root/javis-os" }),
   [switch]$SkipCommit
 )
 
