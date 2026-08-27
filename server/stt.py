@@ -20,9 +20,17 @@ GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 STT_MAC_DINH = "vi"   # gợi ý khi chỗ gọi không chốt gì; "" ở chỗ gọi = để Whisper tự dò
 
 # Model rẻ và nhanh nhất trong họ Whisper của Groq, tiếng Việt nghe được. Đổi được qua tham số.
+# Kênh Telegram/Zalo giữ turbo (độ trễ thấp). Mic dashboard dùng STT_MODEL_CHUAN (large-v3)
+# vì Web Speech của Chrome hay sai dấu tiếng Việt — trade latency lấy độ chính xác.
 STT_MODEL_MAC_DINH = "whisper-large-v3-turbo"
+STT_MODEL_CHUAN = "whisper-large-v3"
 MAX_STT_MB = 24          # Groq chặn ở 25MB; chừa biên cho phần multipart bọc ngoài
 STT_TIMEOUT = 120.0      # tin thoại dài vài phút vẫn phải kịp, mạng VPS có lúc chậm
+
+# Prompt ngắn giúp Whisper giữ dấu thanh / tên riêng (Groq hỗ trợ field `prompt`).
+_PROMPT_VI = ("Tiếng Việt có dấu. Ghi đúng chính tả và dấu thanh. "
+              "Giữ nguyên tên riêng và từ kỹ thuật tiếng Anh nếu có.")
+_PROMPT_EN = ("Transcribe clearly in English. Keep proper nouns and technical terms.")
 
 # Câu Javis nói khi chưa đấu key. Để ở đây (không rải trong từng kênh) vì mọi kênh nói CÙNG
 # một chuyện: thiếu đúng một thứ, và thứ đó nằm ở đúng một chỗ trong dashboard.
@@ -75,7 +83,8 @@ def loi_thanh_dong(ly_do, chi_tiet=""):
             ". Nhờ họ gõ chữ, và báo là chỗ nghe giọng đang trục trặc.]")
 
 
-async def groq_nghe(data, ten_file, api_key, model="", ngon_ngu=None):
+async def groq_nghe(data, ten_file, api_key, model="", ngon_ngu=None, prompt=None,
+                    temperature=0.0):
     """Chuyển bytes âm thanh thành chữ. Trả dict:
 
         {"ok": True,  "text": "...", "model": "..."}
@@ -88,6 +97,9 @@ async def groq_nghe(data, ten_file, api_key, model="", ngon_ngu=None):
       ""    -> cố ý KHÔNG gợi ý, để Whisper tự dò. Dùng khi ngôn ngữ trả lời đang là "auto"
                và chưa có căn cứ nào - ép "vi" lúc đó là chủ động làm hỏng tiếng nước ngoài.
       "en"  -> gợi ý đích danh.
+
+    `prompt`: chuỗi gợi ý từ vựng/chính tả. None = tự chọn theo ngôn ngữ (vi/en); "" = không gửi.
+    `temperature`: 0.0 cho ổn định (dashboard); kênh chat giữ mặc định này cũng được.
     """
     if not api_key:
         return {"ok": False, "ly_do": "thieu_key", "noi_voi_javis": loi_thanh_dong("thieu_key")}
@@ -98,10 +110,20 @@ async def groq_nghe(data, ten_file, api_key, model="", ngon_ngu=None):
         return {"ok": False, "ly_do": "qua_lon", "noi_voi_javis": loi_thanh_dong("qua_lon", ct)}
 
     mdl = model or STT_MODEL_MAC_DINH
-    form = {"model": mdl, "response_format": "json"}
+    form = {"model": mdl, "response_format": "json", "temperature": str(temperature)}
     goi_y = STT_MAC_DINH if ngon_ngu is None else ngon_ngu
     if goi_y:
         form["language"] = goi_y
+    # Prompt: caller truyền "" = tắt; None = tự gắn theo ngôn ngữ đang gợi ý.
+    if prompt is None:
+        if goi_y == "vi" or (goi_y is None and STT_MAC_DINH == "vi"):
+            prompt = _PROMPT_VI
+        elif goi_y == "en":
+            prompt = _PROMPT_EN
+        else:
+            prompt = ""
+    if prompt:
+        form["prompt"] = prompt
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(STT_TIMEOUT)) as c:
             r = await c.post(GROQ_STT_URL,

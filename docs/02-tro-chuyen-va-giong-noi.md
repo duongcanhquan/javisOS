@@ -307,6 +307,8 @@ Các bước:
 3. Bấm **▶ Nghe thử** để nghe một câu chào mẫu bằng giọng vừa chọn.
 4. "Ngôn ngữ nghe" là ngôn ngữ Javis dùng để nhận diện lời bạn nói, khác với giọng đọc trả lời. Để mặc định Tiếng Việt trừ khi bạn quen nói tiếng Anh.
 
+**Độ chính xác:** Mic trên dashboard ưu tiên **Whisper qua Groq** (cùng key ở trang Models) — chuẩn tiếng Việt hơn hẳn Web Speech của Chrome. Chưa dán Groq API key thì Javis tạm dùng nhận dạng của trình duyệt (dễ sai dấu). Trong Cài đặt → giọng nói có dòng cho biết engine đang dùng.
+
 Mọi lựa chọn giọng, tốc độ, ngôn ngữ nghe đều được ghi nhớ cho lần sau.
 
 ## Phóng to khung chat

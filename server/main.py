@@ -8598,6 +8598,53 @@ async def tts(
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/stt/status")
+async def stt_status():
+    """Mic dashboard hỏi trước: đã có Groq key để chạy Whisper chưa?
+
+    Không có key → frontend rơi về Web Speech (Chrome), thường kém tiếng Việt hơn.
+    """
+    cfg = cfgmod.read_settings()
+    key = ((cfg.get("model") or {}).get("groq_api_key") or "").strip()
+    return {
+        "available": bool(key),
+        "provider": "groq",
+        "model": stt.STT_MODEL_CHUAN,
+        "hint": ("" if key else
+                 "Dán Groq API key ở trang Models để nhận giọng chuẩn (Whisper). "
+                 "Chưa có key thì dùng Web Speech của trình duyệt."),
+    }
+
+
+@app.post("/stt")
+async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
+    """Nhận dạng giọng từ mic dashboard → chữ (Whisper qua Groq, model chuẩn).
+
+    `lang`: vi | en | auto (rỗng cũng = auto). Khác kênh Telegram ở chỗ luôn dùng
+    `STT_MODEL_CHUAN` (large-v3) để ưu tiên độ chính xác khi đưa vào ô chat.
+    """
+    from fastapi import HTTPException
+    data = await file.read()
+    ten = (file.filename or "voice.webm").strip() or "voice.webm"
+    ma = (lang or "").strip().lower()
+    if ma in ("", "auto"):
+        ngon = ""
+    elif ma.startswith("vi"):
+        ngon = "vi"
+    elif ma.startswith("en"):
+        ngon = "en"
+    else:
+        ngon = ma[:8]
+    _cfg = cfgmod.read_settings()
+    key = ((_cfg.get("model") or {}).get("groq_api_key") or "").strip()
+    kq = await stt.groq_nghe(data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
+    if not kq.get("ok"):
+        # 503 khi thiếu key (frontend biết mà fallback); 422 còn lại.
+        code = 503 if kq.get("ly_do") == "thieu_key" else 422
+        raise HTTPException(code, kq.get("noi_voi_javis") or kq.get("ly_do") or "stt_failed")
+    return {"ok": True, "text": kq.get("text") or "", "model": kq.get("model") or stt.STT_MODEL_CHUAN}
+
+
 @app.get("/tts/voices")
 async def tts_voices(lang: str = Query("")):
     """Giọng Edge cho MỘT ngôn ngữ. Không truyền `lang` = ngôn ngữ trả lời đang cấu hình.

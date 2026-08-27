@@ -123,7 +123,7 @@ const voice = new JavisVoice({
     const msg = {
       "not-allowed": "Cần cấp quyền microphone: bấm biểu tượng ổ khóa trên Chrome, cho phép Mic, rồi tải lại trang.",
       "not-supported": "Trình duyệt này không nhận giọng. Mở Google Chrome hoặc Edge tại http://127.0.0.1:7777 — đừng dùng cửa sổ xem trong Cursor.",
-      "network": "Không kết nối được dịch vụ nhận giọng của Google. Kiểm tra mạng rồi thử lại.",
+      "network": "Không nhận dạng được giọng (mạng hoặc thiếu Groq API key). Vào Models dán key Groq, hoặc kiểm tra mạng rồi thử lại.",
       "audio-capture": "Không lấy được microphone. Đóng app khác đang dùng mic rồi bấm lại.",
     };
     alert(msg[err] || ("Nhận giọng lỗi: " + err));
@@ -1737,7 +1737,7 @@ voiceBtn.addEventListener("click", () => {
 });
 
 setInterval(() => {
-  if (handsFree && !voice.isListening && !voice._starting && !voice.isSpeaking()) {
+  if (handsFree && !voice.isListening && !voice._starting && !voice.isSpeaking() && !voice._transcribing) {
     voice.startListening();
   }
 }, 500);
@@ -1792,6 +1792,18 @@ const recLangInput = document.querySelector(`input[name="recognitionLang"][value
 if (recLangInput) recLangInput.checked = true;
 voice.setRecognitionLang(savedRecLang);
 document.querySelectorAll('input[name="recognitionLang"]').forEach(r => r.addEventListener("change", () => { voice.setRecognitionLang(r.value); localStorage.setItem("javis.recLang", r.value); }));
+
+async function refreshSttHint() {
+  await voice.refreshSttStatus();
+  const el = document.getElementById("sttEngineHint");
+  if (!el) return;
+  el.textContent = voice._useWhisper()
+    ? ("Nhận dạng: Whisper · " + (voice._sttModel || "large-v3") + " (chuẩn tiếng Việt)")
+    : "Nhận dạng: Web Speech (dự phòng). Dán Groq API key ở Models để nghe chuẩn hơn.";
+}
+refreshSttHint();
+// Sau khi lưu Models/key, mở lại popover giọng cũng cập nhật.
+document.getElementById("voicePickerBtn")?.addEventListener("click", () => { refreshSttHint(); });
 rateSlider.addEventListener("input", () => { const r = parseFloat(rateSlider.value); rateLabel.textContent = r.toFixed(2) + "×"; voice.setRate(rateToPct(r)); localStorage.setItem("javis.rate", r.toString()); });
 document.getElementById("testVoiceBtn").addEventListener("click", () => {
   const v = document.querySelector('input[name="voice"]:checked').value;

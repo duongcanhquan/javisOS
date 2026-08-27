@@ -102,6 +102,19 @@ try:
     check("gửi key dạng Bearer", g["headers"]["Authorization"] == "Bearer gsk_test")
     check("gợi ý tiếng Việt cho Whisper", g["data"].get("language") == "vi")
     check("model mặc định là bản turbo", g["data"]["model"] == stt.STT_MODEL_MAC_DINH)
+    check("có prompt tiếng Việt để giữ dấu/chính tả", "Tiếng Việt" in (g["data"].get("prompt") or ""))
+    check("temperature 0 để ổn định", str(g["data"].get("temperature")) in ("0.0", "0"))
+
+    _FakeClient.goi.clear()
+    _FakeClient.tra = (200, {"text": "lap ke hoach tuan"})
+    kq = chay(stt.groq_nghe(b"audio", "voice.webm", "gsk_test", model=stt.STT_MODEL_CHUAN))
+    check("model chuẩn dashboard là large-v3",
+          kq["ok"] and _FakeClient.goi[-1]["data"]["model"] == stt.STT_MODEL_CHUAN)
+
+    _FakeClient.goi.clear()
+    _FakeClient.tra = (200, {"text": "hello"})
+    kq = chay(stt.groq_nghe(b"audio", "v.ogg", "k", ngon_ngu="en", prompt=""))
+    check("prompt rỗng thì không gửi field prompt", "prompt" not in _FakeClient.goi[-1]["data"])
 
     _FakeClient.tra = (200, {"text": "   "})
     kq = chay(stt.groq_nghe(b"audio", "voice.ogg", "k"))
@@ -113,6 +126,11 @@ try:
           not kq["ok"] and "Invalid API Key" in kq["noi_voi_javis"])
 finally:
     stt.httpx.AsyncClient = _that
+
+
+check("main có endpoint /stt cho mic dashboard",
+      '@app.post("/stt")' in MAIN and '@app.get("/stt/status")' in MAIN)
+check("main dùng STT_MODEL_CHUAN cho /stt", "STT_MODEL_CHUAN" in MAIN)
 
 
 # ============================================================
