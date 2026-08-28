@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.16] - 2026-08-28
+### Cải thiện
+- **VPS tự bật Tự học + git-init brain sau deploy.** Brain mặc định được khởi tạo git ngay trên máy chủ, nên trang Tự học xem được commit gần nhất và hoàn tác 1 chạm. Sao lưu lên GitHub Private vẫn cấu hình thêm tay nếu cần.
+
 ## [0.35.11] - 2026-08-18
 ### Thêm mới
 - **Đấu được DeepSeek API ngay trên trang Models.** Dán key từ platform.deepseek.com, chọn `deepseek-v4-flash` hoặc `deepseek-v4-pro`, rồi dùng như mọi bộ não khác: chat, gọi Kết nối, đọc/ghi brain, skill, việc nền. Ô Suy nghĩ trên trang Models bật/tắt thinking của DeepSeek.

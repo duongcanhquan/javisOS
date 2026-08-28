@@ -33,3 +33,7 @@ jobs:
               chmod +x scripts/install-antigravity-vps.sh
               bash scripts/install-antigravity-vps.sh || echo "WARN: install-antigravity skipped"
             fi
+            if [ -f scripts/enable-learn-vps.sh ]; then
+              chmod +x scripts/enable-learn-vps.sh
+              bash scripts/enable-learn-vps.sh || echo "WARN: enable-learn skipped"
+            fi
