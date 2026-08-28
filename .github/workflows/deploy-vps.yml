@@ -28,6 +28,8 @@ jobs:
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
             export COMPOSE_PROJECT_NAME=javis
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
             bash scripts/vps-deploy.sh
             if [ -f scripts/install-antigravity-vps.sh ]; then
               chmod +x scripts/install-antigravity-vps.sh

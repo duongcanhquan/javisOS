@@ -19,6 +19,8 @@ fi
 
 echo "==> git pull"
 git fetch --all --prune
+# VPS có thể còn diff local từ lần deploy trước → reset về origin/main trước khi pull.
+git reset --hard origin/main 2>/dev/null || true
 git pull --ff-only origin main
 
 echo "==> build & up (with Cloudflare tunnel)"
