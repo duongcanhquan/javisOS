@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.18] - 2026-08-28
+### Thêm mới
+- **Kết nối Tavily (tra web AI) trong Kho kết nối.** Dán API key tavily.com là tra web và trích nội dung trang được ngay cả khi Main Model là Antigravity CLI - chat kiểu "tra web và tổng hợp" có nguồn.
+
 ## [0.35.17] - 2026-08-28
 ### Cải thiện
 - **Plugin do bạn cài được bật mặc định trên VPS.** Không còn cảnh báo cam "Plugin đang bị chặn" sau deploy; muốn tắt thì đặt `JAVIS_ENABLE_USER_PLUGINS=false` trong `.env` rồi khởi động lại.

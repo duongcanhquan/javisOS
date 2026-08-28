@@ -33,6 +33,34 @@
       "risk": "Composio là cổng đa ứng dụng: mọi hành động lên app thật (đọc mail, gửi mail, sửa sheet, tạo issue...) đều chạy qua MỘT tool chung nên Javis KHÔNG tách được lệnh đọc với lệnh ghi bên trong.\n\nMức Chỉ đọc: chỉ tìm và xem mô tả tool, chưa chạy được hành động nào.\n\nMức Ghi nháp: thêm quyền nối app mới (Composio đưa link đăng nhập, bạn tự đăng nhập, Javis không thấy mật khẩu).\n\nMức Toàn quyền: Javis chạy được MỌI hành động của các app bạn đã nối qua Composio, kể cả gửi tin, sửa và xoá dữ liệu thật.\nChỉ nâng khi thật sự cần; phạm vi đúng bằng quyền bạn đã cấp cho từng app bên Composio."
     },
     {
+      "id": "tavily",
+      "name": "Tavily (tra web AI)",
+      "icon": "search",
+      "category": "Tra cứu",
+      "description": "Tra cứu web và trích nội dung trang cho AI: tin mới, nghiên cứu chủ đề, tổng hợp có nguồn. Dùng được với mọi bộ não kể cả Antigravity CLI qua MCP Javis. Có gói miễn phí tại tavily.com.",
+      "status": "ready",
+      "transport": "http",
+      "url_template": "https://mcp.tavily.com/mcp/?tavilyApiKey={api_key}",
+      "auth": {
+        "type": "apikey",
+        "fields": [
+          {
+            "key": "api_key",
+            "label": "Tavily API key",
+            "placeholder": "Ví dụ: tvly-... (lấy tại app.tavily.com)"
+          }
+        ],
+        "guide": "Làm 1 lần:\n1. Vào tavily.com hoặc app.tavily.com, đăng ký (có gói miễn phí).\n2. Copy API key dạng tvly-...\n3. Dán vào đây, bấm Kết nối rồi Kiểm tra.\n\nSau khi đấu, chat thử:\n'Tra web và tổng hợp: [chủ đề], kèm nguồn.'\n\nHai tool chính: tavily-search (tìm trên web) và tavily-extract (đọc nội dung một URL).\n\nKhác Google Search Console: Tavily tra web CHUNG (tin, giá, kiến thức mới); Search Console chỉ là số liệu SEO site của bạn.",
+        "guide_url": "https://docs.tavily.com/documentation/mcp"
+      },
+      "tool_meta": {
+        "read": ["tavily_search", "tavily_extract", "tavily-search", "tavily-extract"],
+        "write": []
+      },
+      "default_perm": "readonly",
+      "risk": "Tavily CHỈ tra cứu và trích nội dung trang web - không gửi tin, không sửa dữ liệu bên ngoài.\n\nMỗi lần tìm/trích tiêu quota Tavily (gói miễn phí có giới hạn/tháng). Giữ mức Chỉ đọc là đủ.\n\nAPI key nằm trong URL kết nối (mã hoá trong Javis), không hiện lại sau khi lưu."
+    },
+    {
       "id": "pancake-pos",
       "name": "Pancake POS",
       "icon": "/static/logos/pancake-pos.png",
