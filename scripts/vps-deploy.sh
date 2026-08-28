@@ -16,6 +16,11 @@ if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
 else
   echo 'JAVIS_ENABLE_USER_PLUGINS=true' >> "$ENV_FILE"
 fi
+if grep -q '^GEMINI_FORCE_FILE_STORAGE=' "$ENV_FILE" 2>/dev/null; then
+  sed -i.bak 's/^GEMINI_FORCE_FILE_STORAGE=.*/GEMINI_FORCE_FILE_STORAGE=true/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+else
+  echo 'GEMINI_FORCE_FILE_STORAGE=true' >> "$ENV_FILE"
+fi
 
 echo "==> git pull"
 git fetch --all --prune
