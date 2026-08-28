@@ -4151,15 +4151,18 @@
     const st = await freshSettings();
     const main = (st.model && st.model.main) || {};
     const provs = (st.model && st.model.providers) || [];
-    // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: hai CLI (Claude Code, Codex) đi
-    // native, bốn provider API đi qua vòng gọi tool + hub trong _api_stream_mcp. Gemini từng
-    // thiếu trong danh sách này nên khách chạy Gemini bị banner vàng "chưa hỗ trợ gọi công cụ"
-    // dù bên dưới đã chạy MCP ngon - nhánh vàng giờ chỉ còn để chặn provider lạ.
+    // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
+    // Gemini) đi native hoặc hub; provider API đi qua vòng gọi tool + hub. Antigravity/Gemini
+    // CLI từng rơi vào nhánh vàng vì thiếu ở đây dù server đã gắn hub (_apply_antigravity_hub).
     const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
       warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
+    } else if (main.provider === "antigravity-cli") {
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Antigravity CLI</b> (<code>agy</code>) dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Không có WebSearch sẵn như Claude Code - tra web phải qua MCP đã đấu (vd Search Console cho SEO site của bạn).</div></div>`;
+    } else if (main.provider === "gemini-cli") {
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Gemini CLI</b> dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Google đã ngắt hạng cá nhân 18/06/2026 - nên dùng <b>Antigravity CLI</b> nếu còn lỗi đăng nhập.</div></div>`;
     } else if (!MCP_PROVIDERS.includes(main.provider)) {
       warn = `<div class="gx-alert gx-alert-warn"><div class="gcard-meta" style="opacity:1">${WARN_ICON} Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
     } else if (main.provider !== "anthropic-cli") {
