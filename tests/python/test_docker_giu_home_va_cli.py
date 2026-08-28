@@ -61,7 +61,7 @@ else:
         r = chay_ep(home, persist)
         check("entrypoint exec lệnh chính (server vẫn lên)", r.returncode == 0
               and "DA_CHAY" in r.stdout)
-        for d in (".local", ".antigravity", ".config"):
+        for d in (".local", ".antigravity", ".config", ".gemini"):
             check(f"CANARY: ~/{d} thành symlink vào volume",
                   (home / d).is_symlink()
                   and str((home / d).resolve()).startswith(str(persist.resolve())))

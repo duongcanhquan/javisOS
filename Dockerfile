@@ -120,7 +120,8 @@ EXPOSE 7777
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
     CMD python -c "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)" || exit 1
 
-# tini reaps node subprocesses; entrypoint.sh links ~/.local, ~/.antigravity, ~/.config
+ENV GEMINI_FORCE_FILE_STORAGE=true
+# tini reaps node subprocesses; entrypoint.sh links ~/.local, ~/.antigravity, ~/.config, ~/.gemini
 # into /data/home first so CLI người dùng tự cài (agy) + đăng nhập của nó SỐNG QUA UPDATE
 # (trước đây HOME không nằm trên volume nào → mỗi lần đổi image là cài + đăng nhập lại).
 # uvicorn launched with --app-dir server because main.py uses the "main:app" import

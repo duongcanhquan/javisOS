@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.20] - 2026-08-28
+### Sửa lỗi
+- **Antigravity trên VPS hết phải copy mã OAuth mỗi lần chat.** Docker không có keyring nên `agy` đăng nhập xong nhưng không lưu token. Giờ mặc định lưu ra file trên volume `/data` - chỉ cần `agy` + copy code **một lần**, các lần sau vào chat luôn.
+
 ## [0.35.19] - 2026-08-28
 ### Thêm mới
 - **Bộ Proposal & Chiến lược trên trang Workflows.** Bấm **Bộ Proposal** là có sẵn 4 agent (nghiên cứu thị trường, chiến lược KD, chiến lược MKT, soạn proposal) và workflow chạy 4 bước có kiểm chứng. Kèm 2 skill hệ thống hướng dẫn khung nghiên cứu và format proposal.

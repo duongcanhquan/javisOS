@@ -617,7 +617,8 @@ def auth_status(bo_qua_cache: bool = False) -> dict:
         d = {"connected": False, "method": "", "email": "",
              "error": "Đã cài Antigravity CLI nhưng phiên của Javis chưa đăng nhập. Mở trang "
                       "Code (Terminal) NGAY TRONG Javis, gõ `agy` rồi làm theo hướng dẫn - "
-                      "phải đăng nhập bằng ĐÚNG user đang chạy Javis; SSH bằng user khác "
+                      "chỉ phải làm một lần nếu máy đã bật GEMINI_FORCE_FILE_STORAGE (Docker mặc định). "
+                      "Phải đăng nhập bằng ĐÚNG user đang chạy Javis; SSH bằng user khác "
                       "(vd root) đăng nhập xong Javis vẫn không thấy."}
     _AUTH_CACHE.update(ts=now, val=dict(d))
     return d

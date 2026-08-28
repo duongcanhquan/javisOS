@@ -41,6 +41,9 @@ services:
       # Plugin do bạn cài (global/brain): chạy Python thật trong server. Mặc định BẬT trên VPS;
       # tắt bằng JAVIS_ENABLE_USER_PLUGINS=false trong .env nếu cần.
       JAVIS_ENABLE_USER_PLUGINS: ${JAVIS_ENABLE_USER_PLUGINS:-true}
+      # Antigravity CLI trên Docker không có keyring → bắt lưu token ra file (~/.gemini),
+      # entrypoint giữ ~/.gemini trên volume /data/home. Không đặt thì mỗi lần phải `agy` + copy code.
+      GEMINI_FORCE_FILE_STORAGE: ${GEMINI_FORCE_FILE_STORAGE:-true}
     ports:
       # Cổng MÁY CHỦ lấy từ biến (trong container vẫn luôn là 7777). Bản thứ hai đặt
       # JAVIS_HOST_PORT=7778 là hết đụng cổng.
