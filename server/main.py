@@ -6691,6 +6691,114 @@ async def studio_seed(brain: str = Form("brain")):
     return {"ok": True}
 
 
+@app.post("/studio/seed-strategy")
+async def studio_seed_strategy(brain: str = Form("brain")):
+    """Tạo bộ Agent + Workflow: nghiên cứu thị trường → chiến lược KD/MKT → proposal."""
+    a = _agents_dir(brain)
+    examples = [
+        {"name": "Chuyên viên nghiên cứu thị trường",
+         "role": "Thiết kế và thực hiện nghiên cứu thị trường có nguồn, làm nền cho chiến lược.",
+         "skills": ["nghien-cuu-thi-truong"],
+         "prompt": (
+             "Bạn là chuyên gia nghiên cứu thị trường. Mục tiêu: báo cáo đủ chất để team chiến lược "
+             "ra quyết định, không phải essay chung chung.\n\n"
+             "Quy trình:\n"
+             "1. Làm rõ sản phẩm, thị trường, mục tiêu nghiên cứu; nêu giả định nếu thiếu input.\n"
+             "2. Thu thập: đọc vault/memory trước; có Tavily/WebSearch thì tra tin, báo cáo ngành, đối thủ.\n"
+             "3. Tổng hợp: TAM/SAM/SOM (có phương pháp), persona, 3-5 đối thủ, xu hướng, SWOT, insight hành động.\n"
+             "4. Mỗi claim quan trọng ghi nguồn hoặc đánh dấu ước tính. Không bịa số.\n\n"
+             "Đầu ra: markdown có tiêu đề rõ, kết bằng 5 insight then chốt cho bước chiến lược."
+         )},
+        {"name": "Chiến lược gia kinh doanh",
+         "role": "Xây kế hoạch chiến lược kinh doanh 12 tháng từ insight nghiên cứu thị trường.",
+         "skills": ["proposal-chien-luoc"],
+         "prompt": (
+             "Bạn là chiến lược gia kinh doanh. Input là nghiên cứu thị trường và brief dự án.\n\n"
+             "Xây kế hoạch gồm: tầm nhìn & KPI, positioning (1 câu + 3 pillar), mô hình doanh thu, "
+             "lợi thế cạnh tranh bám insight thật, roadmap Q1-Q4, rủi ro top 3 và cách giảm thiểu.\n\n"
+             "Nguyên tắc: mỗi quyết định phải truy về insight nghiên cứu; không slogan rỗng; "
+             "thiếu số thì nêu giả định và KPI khung. Viết tiếng Việt, markdown có cấu trúc."
+         )},
+        {"name": "Chiến lược gia marketing",
+         "role": "Xây chiến lược marketing và go-to-market khớp positioning kinh doanh.",
+         "skills": ["proposal-chien-luoc"],
+         "prompt": (
+             "Bạn là chiến lược gia marketing. Input: nghiên cứu thị trường + chiến lược kinh doanh.\n\n"
+             "Đầu ra gồm: ICP/persona, value prop & 3 message pillar, kênh ưu tiên + funnel, "
+             "4-6 trụ content, 2-3 campaign idea có KPI, ngân sách khung theo kênh, 5-7 KPI marketing.\n\n"
+             "Khớp positioning KD - không đề xuất kênh trái ICP. Có MCP quảng cáo thì tham chiếu số nội bộ. "
+             "Không hứa ROAS cụ thể nếu không có baseline. Markdown, tiếng Việt."
+         )},
+        {"name": "Chuyên viên proposal",
+         "role": "Tổng hợp nghiên cứu và chiến lược thành proposal chuyên nghiệp gửi khách hoặc nội bộ.",
+         "skills": ["proposal-chien-luoc"],
+         "prompt": (
+             "Bạn soạn proposal chiến lược chuyên nghiệp. Gom nghiên cứu + chiến lược KD + MKT thành "
+             "một tài liệu mạch lạc.\n\n"
+             "Cấu trúc: Executive Summary (≤200 từ), Bối cảnh, Phân tích TT (tóm tắt), "
+             "Chiến lược KD, Chiến lược MKT, Lộ trình 90 ngày + 12 tháng, Ngân sách khung, KPI, "
+             "Bước tiếp theo, Phụ lục nguồn.\n\n"
+             "Giọng: súc tích, có số khi có thể, đọc 5 phút là hiểu vấn đề + giải pháp. "
+             "Không copy nguyên khối bước trước - chưng cất. Không dùng em dash."
+         )},
+        {"name": "Kiểm chứng viên",
+         "role": "Đánh giá độc lập - luôn giả định kết quả SAI và phải chứng minh.",
+         "skills": [],
+         "prompt": (
+             "Bạn KHÔNG tạo nội dung, chỉ ĐÁNH GIÁ. Mặc định kết quả đang sai/thiếu. "
+             "Kiểm tra: có bám nhiệm vụ không, có bịa/thiếu dẫn chứng không, cấu trúc proposal "
+             "có đủ executive summary và KPI không. Khắt khe nhưng công bằng."
+         )},
+    ]
+    created_agents = []
+    for ex in examples:
+        slug = _slugify(ex["name"])
+        path = a / f"{slug}.md"
+        if not path.exists():
+            meta = {"type": "agent", "name": ex["name"], "slug": slug, "role": ex["role"],
+                    "skills": ex["skills"], "model": "sonnet", "updated": _today()}
+            _write_md(path, meta, ex["prompt"])
+            created_agents.append(slug)
+    wf_path = _workflows_dir(brain) / "proposal-chien-luoc.md"
+    if not wf_path.exists():
+        wf_meta = {
+            "type": "workflow", "name": "Proposal & Chiến lược (NCTT → KD → MKT)",
+            "slug": "proposal-chien-luoc",
+            "status": "active",
+            "description": (
+                "Nghiên cứu thị trường → chiến lược kinh doanh → chiến lược marketing → "
+                "proposal hoàn chỉnh (có kiểm chứng)."
+            ),
+            "steps": [
+                {"agent": "chuyen-vien-nghien-cuu-thi-truong",
+                 "task": (
+                     "Thiết kế và thực hiện nghiên cứu thị trường cho: {{input}}.\n"
+                     "Gồm: quy mô TT, persona, đối thủ, xu hướng, cơ hội/rủi ro. "
+                     "Tra web (Tavily) nếu có. Ghi rõ nguồn và giả định."
+                 )},
+                {"agent": "chien-luoc-gia-kinh-doanh",
+                 "task": (
+                     "Dựa trên nghiên cứu:\n{{prev}}\n\n"
+                     "Xây kế hoạch chiến lược kinh doanh 12 tháng cho: {{input}}."
+                 )},
+                {"agent": "chien-luoc-gia-marketing",
+                 "task": (
+                     "Dựa trên chiến lược kinh doanh và nghiên cứu:\n{{prev}}\n\n"
+                     "Xây chiến lược marketing / go-to-market cho: {{input}}."
+                 )},
+                {"agent": "chuyen-vien-proposal",
+                 "task": (
+                     "Tổng hợp thành PROPOSAL hoàn chỉnh cho: {{input}}.\n\n"
+                     "Toàn bộ tư liệu bước trước:\n{{prev}}"
+                 ),
+                 "verify_agent": "kiem-chung-vien", "max_retries": 2},
+            ],
+            "updated": _today(),
+        }
+        _write_md(wf_path, wf_meta, wf_meta["description"])
+    return {"ok": True, "agents_created": created_agents}
+
+
 # ============================================================
 # LOOP TỰ CẢI THIỆN (Beta) - Discovery + Scheduling, an toàn (chỉ thao tác file vault)
 # ============================================================
