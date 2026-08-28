@@ -2287,10 +2287,19 @@ if (document.getElementById("wzFinish")) {
         if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
       }
       await fetch("/settings", { method: "POST", body: _fd({ section: "general", data: JSON.stringify({ workspace_name: ws, setup_done: true }) }) });
-      const _PM = { "anthropic-cli": "sonnet", "openai-oauth": "gpt-5.5", "openrouter": "openai/gpt-4o-mini" };
+      const _PM = {
+        "anthropic-cli": "sonnet", "openai-oauth": "gpt-5.5", "openrouter": "openai/gpt-4o-mini",
+        "openai": "gpt-4o-mini", "anthropic-api": "claude-sonnet-4-6",
+        "gemini": "gemini-2.5-flash", "deepseek": "deepseek-v4-flash",
+      };
+      const _KEYS = {
+        openrouter: "openrouter_key", openai: "openai_api_key", "anthropic-api": "anthropic_api_key",
+        gemini: "gemini_api_key", deepseek: "deepseek_api_key",
+      };
       const _mp = { main: { provider: prov, model: _PM[prov] || "sonnet" } };
       const _ork = (document.getElementById("wzOrKeyInput") || {}).value;
-      if (prov === "openrouter" && _ork && _ork.trim()) _mp.openrouter_key = _ork.trim();
+      const _kf = _KEYS[prov];
+      if (_kf && _ork && _ork.trim()) _mp[_kf] = _ork.trim();
       await fetch("/settings", { method: "POST", body: _fd({ section: "model", data: JSON.stringify(_mp) }) });
       location.reload();
     } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; }
@@ -2307,11 +2316,22 @@ if (document.getElementById("wzFinish")) {
     "anthropic-cli": "Sau khi vào: đăng nhập Claude 1 lần - chạy <code>claude auth login --claudeai</code> trong terminal (Hostinger: App terminal).",
     "openai-oauth": "Sau khi vào: mục <b>Models</b> → đăng nhập ChatGPT (hoặc <code>codex login</code> trong terminal).",
     "openrouter": "Lấy key tại <a href='https://openrouter.ai/keys' target='_blank' style='color:var(--link-ink)'>openrouter.ai/keys</a> rồi dán ở trên (hoặc sau ở Models).",
+    "openai": "Lấy key tại <a href='https://platform.openai.com/api-keys' target='_blank' style='color:var(--link-ink)'>platform.openai.com</a> rồi dán ở trên.",
+    "anthropic-api": "Lấy key tại <a href='https://console.anthropic.com/settings/keys' target='_blank' style='color:var(--link-ink)'>console.anthropic.com</a> rồi dán ở trên.",
+    "gemini": "Lấy key tại <a href='https://aistudio.google.com/apikey' target='_blank' style='color:var(--link-ink)'>Google AI Studio</a> rồi dán ở trên.",
+    "deepseek": "Lấy key tại <a href='https://platform.deepseek.com/api_keys' target='_blank' style='color:var(--link-ink)'>platform.deepseek.com</a> rồi dán ở trên.",
+  };
+  const KEY_LABELS = {
+    openrouter: "OpenRouter API key", openai: "OpenAI API key", "anthropic-api": "Anthropic API key",
+    gemini: "Gemini API key", deepseek: "DeepSeek API key",
   };
   function pick(prov) {
     cards.forEach(c => c.classList.toggle("sel", c.dataset.prov === prov));
     const r = document.querySelector('input[name="wzprov"][value="' + prov + '"]'); if (r) r.checked = true;
-    if (orKey) orKey.style.display = prov === "openrouter" ? "" : "none";
+    const needsKey = ["openrouter", "openai", "anthropic-api", "gemini", "deepseek"].includes(prov);
+    if (orKey) orKey.style.display = needsKey ? "" : "none";
+    const lbl = document.getElementById("wzOrKeyLabel");
+    if (lbl) lbl.innerHTML = (KEY_LABELS[prov] || "API key") + " <span class=\"dim\">(có thể dán sau ở Models)</span>";
     if (hint) hint.innerHTML = HINTS[prov] || "";
   }
   cards.forEach(c => c.addEventListener("click", () => pick(c.dataset.prov)));

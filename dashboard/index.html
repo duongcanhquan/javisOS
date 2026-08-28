@@ -586,10 +586,30 @@
               <div><b><i data-ic="globe"></i> OpenRouter</b>
                 <div class="wz-pdesc">Nhiều model giá rẻ một chỗ, vẫn đủ MCP Javis + skill + đọc/ghi file brain. Chỉ cần API key - không cần đăng nhập.</div></div>
             </label>
+            <label class="wz-card" data-prov="openai">
+              <input type="radio" name="wzprov" value="openai">
+              <div><b><i data-ic="cpu"></i> OpenAI API</b>
+                <div class="wz-pdesc">GPT-4o, o-series... qua API key platform.openai.com. MCP Javis đầy đủ, không cần gói ChatGPT.</div></div>
+            </label>
+            <label class="wz-card" data-prov="anthropic-api">
+              <input type="radio" name="wzprov" value="anthropic-api">
+              <div><b><i data-ic="brain"></i> Claude API</b>
+                <div class="wz-pdesc">Claude Sonnet/Opus qua API key Anthropic. MCP Javis + skill, trả theo lượt gọi.</div></div>
+            </label>
+            <label class="wz-card" data-prov="gemini">
+              <input type="radio" name="wzprov" value="gemini">
+              <div><b><i data-ic="sparkles"></i> Gemini API</b>
+                <div class="wz-pdesc">Gemini 2.5 Flash/Pro qua API key Google AI Studio. MCP Javis đầy đủ.</div></div>
+            </label>
+            <label class="wz-card" data-prov="deepseek">
+              <input type="radio" name="wzprov" value="deepseek">
+              <div><b><i data-ic="zap"></i> DeepSeek API</b>
+                <div class="wz-pdesc">DeepSeek V4 Flash/Pro - nhanh, rẻ, hợp việc nền và agent. Key lấy ở platform.deepseek.com.</div></div>
+            </label>
           </div>
           <div id="wzOrKey" style="display:none">
-            <label>OpenRouter API key <span class="dim">(có thể dán sau ở Models)</span></label>
-            <input id="wzOrKeyInput" placeholder="Ví dụ: sk-or-v1-… (tùy chọn)">
+            <label id="wzOrKeyLabel">API key</label>
+            <input id="wzOrKeyInput" placeholder="Dán API key… (có thể dán sau ở Models)">
           </div>
           <div id="wzProvHint"></div>
         </div>
@@ -727,7 +747,7 @@
   <script src="/static/chat-slash.js?v=1"></script>
   <script src="/static/chat-acts.js?v=1"></script>
   <script src="/static/chat-marks.js?v=1"></script>
-  <script src="/static/app.js?v=93"></script>
+  <script src="/static/app.js?v=94"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=6"></script>
@@ -736,7 +756,7 @@
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
   <script src="/static/sessions-ui.js?v=12"></script>
-  <script src="/static/studio.js?v=28"></script>
+  <script src="/static/studio.js?v=29"></script>
   <script src="/static/chatbots.js?v=10"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
   <script src="/static/usage.js?v=1"></script>

@@ -4328,7 +4328,8 @@ def agents_index(brain: str) -> list:
         meta, body = _read_md(f)
         out.append({"slug": f.stem, "name": meta.get("name", f.stem),
                     "role": meta.get("role", ""), "skills": meta.get("skills", []) or [],
-                    "model": meta.get("model", ""), "prompt": body})
+                    "model": meta.get("model", ""), "model_provider": meta.get("model_provider", ""),
+                    "prompt": body})
     return out
 
 @app.get("/agents")
@@ -4337,12 +4338,15 @@ async def list_agents(brain: str = Query("brain")):
 
 @app.post("/agents")
 async def save_agent(name: str = Form(...), role: str = Form(""), skills: str = Form(""),
-                     model: str = Form(""), slug: str = Form(""), prompt: str = Form(""),
+                     model: str = Form(""), model_provider: str = Form(""),
+                     slug: str = Form(""), prompt: str = Form(""),
                      brain: str = Form("brain")):
     slug = slug or _slugify(name)
     skills_list = [s.strip() for s in re.split(r"[,\n]", skills) if s.strip()]
     meta = {"type": "agent", "name": name, "slug": slug, "role": role,
-            "skills": skills_list, "model": model, "updated": _today()}  # "" = mặc định theo CLI
+            "skills": skills_list, "model": model,
+            "model_provider": (model_provider or "").strip(),
+            "updated": _today()}  # model/model_provider rỗng = mặc định theo CLI
     _write_md(_agents_dir(brain) / f"{slug}.md", meta, (prompt.strip() or role))
     return {"ok": True, "slug": slug}
 
@@ -6089,7 +6093,7 @@ async def _run_workflow_step(node, prompt, mk, agent_sysprompt, sink, router=Non
     `log_run(slug, task, out)`: ghi nhật ký lượt chạy vào memory/agents/<slug>/runs/.
     Trước 0.35.3 chỉ runner cũ ghi - bật canary graph là nhật ký lặng lẽ biến mất.
     """
-    agent_name, sysprompt, agent_model = agent_sysprompt(node.agent)
+    agent_name, sysprompt, agent_model, agent_prov = agent_sysprompt(node.agent)
     # Studio định vị chỗ đổ chữ bằng CHỈ SỐ bước, không phải id node. Thiếu `i` thì
     # event vẫn phát ra nhưng giao diện lặng lẽ vứt đi - người xem thấy bước chạy và
     # bước xong mà không thấy chữ nào.
@@ -6105,7 +6109,7 @@ async def _run_workflow_step(node, prompt, mk, agent_sysprompt, sink, router=Non
     verified = None
     attempt = 0
     while True:
-        gcli = mk(sysprompt, agent_model)
+        gcli = mk(sysprompt, agent_model, agent_prov)
         out = ""
         async for ev in gcli.query(cur_prompt):
             if ev["type"] == "text":
@@ -6121,7 +6125,7 @@ async def _run_workflow_step(node, prompt, mk, agent_sysprompt, sink, router=Non
                             "content": ev["content"]})
         if not node.verify_agent:
             break
-        v_name, v_body, v_model = agent_sysprompt(node.verify_agent)
+        v_name, v_body, v_model, v_prov = agent_sysprompt(node.verify_agent)
         await sink({"type": "step_verify", "i": index, "node": node.id,
                     "agent": v_name, "attempt": attempt})
         v_sys = (
@@ -6135,7 +6139,7 @@ async def _run_workflow_step(node, prompt, mk, agent_sysprompt, sink, router=Non
             f"KẾT QUẢ CẦN KIỂM CHỨNG:\n{out}\n\n"
             "Đánh giá kết quả có ĐẠT nhiệm vụ không. Trả JSON như hướng dẫn."
         )
-        vcli = mk(v_sys, v_model)
+        vcli = mk(v_sys, v_model, v_prov)
         v_out = ""
         async for ev in vcli.query(v_prompt):
             if ev["type"] == "final":
@@ -6184,16 +6188,23 @@ def _workflow_agent_helpers(brain, tools):
     """
     vault_root = str(_brain_root(brain))
 
-    def _mk(sysprompt, model=None):
-        if model and _is_codex_model(model) and tools is None and find_codex_cli():
+    def _mk(sysprompt, model=None, model_provider=None):
+        prov = (model_provider or "").strip()
+        m = (model or "").strip()
+        wf_mode = "suggest" if tools is not None else "full"
+        if prov in aux_engine.API_PROVIDERS:
+            return aux_engine._ApiAuxEngine(
+                provider=prov, model=m, system_prompt=sysprompt, vault_root=vault_root,
+                mode=wf_mode, tag="workflow")
+        if m and _is_codex_model(m) and tools is None and find_codex_cli():
             openai_oauth.write_codex_auth()
-            cc = CodexCLI(cwd=vault_root, tag="workflow", model=_codex_safe_model(model),
+            cc = CodexCLI(cwd=vault_root, tag="workflow", model=_codex_safe_model(m),
                           instructions=sysprompt)
             _apply_codex_hub(cc, vault_root)
             return cc
         c = claude_engine(system_prompt=sysprompt, cwd=vault_root, tag="workflow",
                           allowed_tools=tools)
-        c.model = ((model if not _is_codex_model(model) else "") or _aux_model() or None)
+        c.model = ((m if not _is_codex_model(m) else "") or _aux_model() or None)
         if tools is not None:
             _mcpf = _empty_mcp_file()
             if _mcpf:
@@ -6227,7 +6238,9 @@ def _workflow_agent_helpers(brain, tools):
               "lặp lại bài học đã có trong bộ nhớ.\n"
             + "\nLàm việc trong vault. Tập trung hoàn thành nhiệm vụ, trả kết quả rõ ràng, ngắn gọn."
         )
-        return ameta.get("name", aslug), sysprompt, (ameta.get("model") or "").strip() or None
+        return (ameta.get("name", aslug), sysprompt,
+                (ameta.get("model") or "").strip() or None,
+                (ameta.get("model_provider") or "").strip() or None)
 
     def _log_run(aslug, task, out):
         _log_agent_run(brain, aslug, task, out)
@@ -6454,7 +6467,7 @@ async def execute_workflow(brain, slug, input="", tools=None, session_id=""):
         task = step.get("task", "")
         verify_slug = (step.get("verify_agent") or "").strip()
         max_retries = int(step.get("max_retries", 1) or 0)
-        agent_name, sysprompt, agent_model = _agent_sysprompt(agent_slug)
+        agent_name, sysprompt, agent_model, agent_prov = _agent_sysprompt(agent_slug)
         task_f = task.replace("{{input}}", input or "").replace("{{prev}}", prev or "")
         yield {"type": "step_start", "i": i, "agent": agent_name, "task": task_f}
 
@@ -6463,7 +6476,7 @@ async def execute_workflow(brain, slug, input="", tools=None, session_id=""):
         verified = None
         attempt = 0
         while True:
-            gcli = _mk(sysprompt, agent_model)   # áp model agent đã chọn
+            gcli = _mk(sysprompt, agent_model, agent_prov)   # áp model + provider agent đã chọn
             out = ""
             async for ev in gcli.query(cur_prompt):
                 if ev["type"] == "text":
@@ -6479,7 +6492,7 @@ async def execute_workflow(brain, slug, input="", tools=None, session_id=""):
                 break
 
             # --- KIỂM CHỨNG bằng agent KHÁC (giả định kết quả SAI) ---
-            v_name, v_body, v_model = _agent_sysprompt(verify_slug)
+            v_name, v_body, v_model, v_prov = _agent_sysprompt(verify_slug)
             yield {"type": "step_verify", "i": i, "agent": v_name, "attempt": attempt}
             v_sys = (
                 v_body + "\n\nVAI TRÒ KIỂM CHỨNG: Bạn là người ĐÁNH GIÁ độc lập. "
@@ -6492,7 +6505,7 @@ async def execute_workflow(brain, slug, input="", tools=None, session_id=""):
                 f"KẾT QUẢ CẦN KIỂM CHỨNG:\n{out}\n\n"
                 "Đánh giá kết quả có ĐẠT nhiệm vụ không. Trả JSON như hướng dẫn."
             )
-            vcli = _mk(v_sys, v_model)   # agent kiểm chứng cũng dùng model của nó
+            vcli = _mk(v_sys, v_model, v_prov)   # agent kiểm chứng cũng dùng model của nó
             v_out = ""
             async for ev in vcli.query(v_prompt):
                 if ev["type"] == "final":

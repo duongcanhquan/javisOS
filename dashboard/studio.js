@@ -388,7 +388,7 @@
     cards.innerHTML = "";
     d.agents.forEach(a => {
       const div = document.createElement("div"); div.className = "ag-card";
-      div.innerHTML = `<div class="ag-name"><input type="checkbox" class="ag-sel" data-slug="${esc(a.slug)}" title="Chọn agent này để tải về chung một gói"> ${ic("bot")} ${esc(a.name)} <span class="ag-model">${esc(a.model || "")}</span></div><div class="ag-role">${esc(a.role)}</div><div class="ag-skills">${(a.skills || []).map(s => `<span class="chip-skill">${esc(s)}</span>`).join("") || '<span class="dim">chưa gán skill</span>'}</div><div class="wf-actions"><button class="s-btn-ghost edit">Sửa</button><button class="s-btn-ghost exp" title="Xuất gói .zip (kèm skill) để chia sẻ">⤓ Xuất</button><button class="s-btn-ghost del">Xoá</button></div>`;
+      div.innerHTML = `<div class="ag-name"><input type="checkbox" class="ag-sel" data-slug="${esc(a.slug)}" title="Chọn agent này để tải về chung một gói"> ${ic("bot")} ${esc(a.name)} <span class="ag-model">${esc(a.model_provider ? a.model_provider + "/" : "")}${esc(a.model || "mặc định")}</span></div><div class="ag-role">${esc(a.role)}</div><div class="ag-skills">${(a.skills || []).map(s => `<span class="chip-skill">${esc(s)}</span>`).join("") || '<span class="dim">chưa gán skill</span>'}</div><div class="wf-actions"><button class="s-btn-ghost edit">Sửa</button><button class="s-btn-ghost exp" title="Xuất gói .zip (kèm skill) để chia sẻ">⤓ Xuất</button><button class="s-btn-ghost del">Xoá</button></div>`;
       noiSel("agent", "agDl", div.querySelector(".ag-sel"), a.slug);
       div.querySelector(".exp").onclick = () => exportItem("agent", a.slug);
       div.querySelector(".edit").onclick = () => editAgent(a);
@@ -398,20 +398,42 @@
   }
 
   async function editAgent(a) {
-    const [sd, claudeData, codexData] = await Promise.all([
-      api(`/skills?brain=${encodeURIComponent(brain())}`),
-      api("/provider/models?provider=anthropic-cli"),
-      api("/provider/models?provider=openai-oauth&refresh=1"),
-    ]);
+    const sd = await api(`/skills?brain=${encodeURIComponent(brain())}`);
     const skills = sd.skills || [];
+    const AGENT_PROVS = [
+      { id: "anthropic-cli", label: "Claude Code (gói Claude)" },
+      { id: "openai-oauth", label: "ChatGPT (Codex)" },
+      { id: "anthropic-api", label: "Claude API" },
+      { id: "openai", label: "OpenAI API" },
+      { id: "gemini", label: "Gemini API" },
+      { id: "deepseek", label: "DeepSeek API" },
+    ];
+    const provIds = AGENT_PROVS.map(p => p.id);
+    const modelRes = await Promise.all(provIds.map(id =>
+      api("/provider/models?provider=" + encodeURIComponent(id) + (id === "openai-oauth" ? "&refresh=1" : ""))
+        .catch(() => ({ models: [] }))
+    ));
     const uniq = (xs) => [...new Set((xs || []).filter(Boolean))];
-    const claudeModels = uniq(claudeData.models);
-    const codexModels = uniq(codexData.models);
-    const knownModels = claudeModels.concat(codexModels);
-    const currentOnly = a && a.model && !knownModels.includes(a.model)
-      ? `<optgroup label="Model đang lưu"><option value="${esc(a.model)}">${esc(a.model)} (đang lưu)</option></optgroup>` : "";
-    const modelOptions = (label, models) => models.length
-      ? `<optgroup label="${esc(label)}">${models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join("")}</optgroup>` : "";
+    const byProv = {};
+    AGENT_PROVS.forEach((p, i) => { byProv[p.id] = uniq(modelRes[i].models); });
+    const knownModels = provIds.flatMap(id => byProv[id]);
+    const curVal = (a && a.model_provider && a.model)
+      ? (a.model_provider + "::" + a.model)
+      : (a && a.model ? a.model : "");
+    const currentOnly = a && a.model && !knownModels.includes(a.model) && !curVal.includes("::")
+      ? `<optgroup label="Model đang lưu"><option value="${esc(a.model_provider ? a.model_provider + '::' + a.model : a.model)}">${esc(a.model)} (đang lưu)</option></optgroup>` : "";
+    const modelOptions = (label, pid, models) => models.length
+      ? `<optgroup label="${esc(label)}">${models.map(m => {
+          const v = pid + "::" + m;
+          return `<option value="${esc(v)}">${esc(m)}</option>`;
+        }).join("")}</optgroup>` : "";
+    const legacyCli = [];
+    if (byProv["anthropic-cli"].length) {
+      byProv["anthropic-cli"].forEach(m => legacyCli.push(`<option value="${esc(m)}">${esc(m)}</option>`));
+    }
+    if (byProv["openai-oauth"].length) {
+      byProv["openai-oauth"].forEach(m => legacyCli.push(`<option value="${esc(m)}">${esc(m)} (Codex)</option>`));
+    }
     const box = document.getElementById("editorBox");
     box.innerHTML = `<h3>${a ? "Sửa" : "Tạo"} Agent</h3>
       <label>Tên</label><input id="agName" value="${esc(a ? a.name : "")}">
@@ -427,12 +449,14 @@
       <label>Model</label><select id="agModel">
         <option value="">Mặc định (theo CLI)</option>
         ${currentOnly}
-        ${modelOptions("Claude (Claude Code)", claudeModels)}
-        ${modelOptions("ChatGPT (Codex - danh sách live)", codexModels)}
+        ${AGENT_PROVS.filter(p => p.id.endsWith("-api") || p.id === "openai" || p.id === "gemini" || p.id === "deepseek")
+          .map(p => modelOptions(p.label, p.id, byProv[p.id])).join("")}
+        ${legacyCli.length ? `<optgroup label="Claude / ChatGPT (CLI)">${legacyCli.join("")}</optgroup>` : ""}
       </select>
-      <div class="dim" style="font-size:12px;margin-top:4px">Agent chạy qua CLI của nhà cung cấp. Model ChatGPT được lấy trực tiếp từ Codex nên bản mới sẽ tự xuất hiện; chọn Mặc định để Codex tự dùng model mặc định mới nhất. Cả hai đều đọc/ghi file vault + dùng MCP.</div>
+      <div class="dim" style="font-size:12px;margin-top:4px">Chọn DeepSeek, OpenAI, Claude hay Gemini API nếu muốn agent chạy bằng key (rẻ, không WebSearch). Claude Code / Codex vẫn tra web được. Cần dán API key ở trang <b>Models</b> trước.</div>
       <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">Huỷ</button><button class="s-btn" id="saveAg">Lưu</button></div>`;
-    if (a && a.model) box.querySelector("#agModel").value = a.model;
+    if (curVal) box.querySelector("#agModel").value = curVal;
+    else if (a && a.model) box.querySelector("#agModel").value = a.model;
     // Trạng thái chọn giữ trong Set, DOM chỉ là HÌNH CHIẾU của nó. Đây là chỗ dễ hỏng nhất của
     // khung có bộ lọc: vẽ lại theo bộ lọc rồi lúc lưu mới đi đọc DOM thì mọi skill đang bị lọc
     // ra khỏi màn hình sẽ mất tick, im lặng, và người dùng chỉ phát hiện sau khi agent chạy sai.
@@ -442,7 +466,17 @@
     box.querySelector("#saveAg").onclick = async () => {
       const name = box.querySelector("#agName").value.trim(); if (!name) return alert("Nhập tên");
       const sk = [...chosen].join(",");
-      await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value, prompt: box.querySelector("#agPrompt").value, skills: sk, model: box.querySelector("#agModel").value, slug: a ? a.slug : "", brain: brain() }) });
+      const raw = box.querySelector("#agModel").value;
+      let model = raw, model_provider = "";
+      if (raw.includes("::")) {
+        const parts = raw.split("::");
+        model_provider = parts[0] || "";
+        model = parts.slice(1).join("::");
+      }
+      await api("/agents", { method: "POST", body: fd({
+        name, role: box.querySelector("#agRole").value, prompt: box.querySelector("#agPrompt").value,
+        skills: sk, model, model_provider, slug: a ? a.slug : "", brain: brain()
+      }) });
       editor.classList.remove("open"); loadAgents();
     };
     editor.classList.add("open");
