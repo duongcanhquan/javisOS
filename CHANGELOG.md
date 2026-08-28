@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.17] - 2026-08-28
+### Cải thiện
+- **Plugin do bạn cài được bật mặc định trên VPS.** Không còn cảnh báo cam "Plugin đang bị chặn" sau deploy; muốn tắt thì đặt `JAVIS_ENABLE_USER_PLUGINS=false` trong `.env` rồi khởi động lại.
+
 ## [0.35.16] - 2026-08-28
 ### Cải thiện
 - **VPS tự bật Tự học + git-init brain sau deploy.** Brain mặc định được khởi tạo git ngay trên máy chủ, nên trang Tự học xem được commit gần nhất và hoàn tác 1 chạm. Sao lưu lên GitHub Private vẫn cấu hình thêm tay nếu cần.

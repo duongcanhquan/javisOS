@@ -8,6 +8,15 @@ cd "$ROOT"
 
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-javis}"
 
+# Plugin user: bật trừ khi .env ghi rõ false (env chỉ đọc lúc container khởi động).
+ENV_FILE="$ROOT/.env"
+touch "$ENV_FILE"
+if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
+  sed -i.bak 's/^JAVIS_ENABLE_USER_PLUGINS=.*/JAVIS_ENABLE_USER_PLUGINS=true/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+else
+  echo 'JAVIS_ENABLE_USER_PLUGINS=true' >> "$ENV_FILE"
+fi
+
 echo "==> git pull"
 git fetch --all --prune
 git pull --ff-only origin main
