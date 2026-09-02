@@ -607,21 +607,33 @@ class JavisVoice {
     const started = this.isPlaying || (this.speechQueue && this.speechQueue.length)
       || (this.ttsChunks && this.ttsChunks.length);
     if (!started) {
-      // Câu đầu đọc ngay. Đợi 500 ký tự thì user nghe thấy "cực chậm".
-      const sent = clean.match(/^[\s\S]{16,160}?[.!?…]["'\)]*(?:\s+|$)/);
+      // Đọc SỚM ngay khi UI đã hiện dòng đầu (xuống dòng) hoặc hết câu ngắn —
+      // khỏi chờ cả đoạn rồi mới gọi Edge TTS.
+      const line = clean.match(/^[\s\S]{8,140}?(?:\n+|$)/);
+      if (line && (/\n/.test(line[0]) || /[.!?…]["'\)]*\s*$/.test(line[0].trim()))) {
+        const piece = line[0].replace(/\n+$/, " ").trim();
+        if (piece.length >= 8) {
+          this._streamBuf = clean.slice(line[0].length);
+          this.enqueueSpeak(piece, opts);
+          return;
+        }
+      }
+      const sent = clean.match(/^[\s\S]{12,140}?[.!?…]["'\)]*(?:\s+|$)/);
       if (sent) {
         this._streamBuf = clean.slice(sent[0].length);
         this.enqueueSpeak(sent[0].trim(), opts);
         return;
       }
-      if (clean.length < 90) return;
-      const n = this._cutChunk(clean, 70, 140);
+      // Chưa có dấu câu: cắt sớm (~40–90 ký tự) để loa ra gần với chữ trên màn.
+      if (clean.length < 40) return;
+      const n = this._cutChunk(clean, 40, 90);
       this._streamBuf = clean.slice(n);
       this.enqueueSpeak(clean.slice(0, n).trim(), opts);
       return;
     }
-    if (clean.length < 480) return;
-    const n = this._cutChunk(clean, 400, 800);
+    // Tiếp nối: cụm vừa phải + prefetch chunk sau (trong enqueueSpeak/_speakBackend).
+    if (clean.length < 220) return;
+    const n = this._cutChunk(clean, 160, 360);
     this._streamBuf = clean.slice(n);
     this.enqueueSpeak(clean.slice(0, n).trim(), opts);
   }
@@ -830,12 +842,13 @@ class JavisVoice {
 
   _splitHeadThenRest(text) {
     if (!text) return [];
-    if (text.length <= 150) return [text];
-    const n = this._cutChunk(text, 50, 140);
+    if (text.length <= 100) return [text];
+    // Câu/đầu dòng rất ngắn → Edge TTS trả về sớm, loa ra gần lúc chữ hiện.
+    const n = this._cutChunk(text, 36, 100);
     const head = text.slice(0, n).trim();
     const rest = text.slice(n).trim();
     const chunks = head ? [head] : [];
-    if (rest) chunks.push(...this._splitIntoChunks(rest, 720));
+    if (rest) chunks.push(...this._splitIntoChunks(rest, 520));
     return chunks.filter(Boolean);
   }
 

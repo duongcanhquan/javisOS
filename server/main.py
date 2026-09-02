@@ -2095,7 +2095,8 @@ async def _execute_fast_path(plan, provider: str, api_key: str, model: str,
                              objective: str = "", im_lang_khi_loi: bool = False):
     """Vỏ WebSocket của đường tắt: stream từng mẩu về khung chat rồi chốt gói `response`."""
     async def _stream(txt):
-        await ws.send_text(json.dumps({"type": "stream", "content": txt, "tts": False}))
+        # Cho TTS stream: đọc sớm từ dòng đầu, khỏi chờ chốt cả câu (voice.feedStream).
+        await ws.send_text(json.dumps({"type": "stream", "content": txt}))
 
     async def _loi(txt):
         await ws.send_text(json.dumps({"type": "error", "content": txt}))
@@ -9289,7 +9290,7 @@ async def websocket_endpoint(ws: WebSocket):
                                 await ws.send_text(json.dumps({"type": "tool_call", "tool": ev.get("name", ""), "content": f"⚙ {ev.get('name', '')}"}))
                             elif et == "text":
                                 final_text += ev["content"]
-                                await ws.send_text(json.dumps({"type": "stream", "content": ev["content"], "tts": False}))
+                                await ws.send_text(json.dumps({"type": "stream", "content": ev["content"]}))
                             elif et == "final":
                                 final_text = ev.get("content") or final_text
                                 if ev.get("session_id"):
@@ -9584,7 +9585,7 @@ async def websocket_endpoint(ws: WebSocket):
                                 elif ev["type"] == "text":
                                     final_text += ev["content"]
                                     await ws.send_text(json.dumps({
-                                        "type": "stream", "content": ev["content"], "tts": False,
+                                        "type": "stream", "content": ev["content"],
                                     }))
                                 elif ev["type"] == "error":
                                     if not _limit_hit:
