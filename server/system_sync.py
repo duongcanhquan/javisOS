@@ -439,8 +439,12 @@ def mirror_skills(root) -> None:
                             and (p / "SKILL.md").is_file()):
                 try:
                     dst_dir = mirror / d.name
-                    rels = sorted(p.relative_to(d).as_posix()
-                                  for p in d.rglob("*") if p.is_file())
+                    rels = sorted(
+                        p.relative_to(d).as_posix()
+                        for p in d.rglob("*")
+                        if p.is_file()
+                        and not any(part in _MIRROR_SKIP_DIR_NAMES for part in p.relative_to(d).parts)
+                    )
                     for rel in rels:
                         dst_f = dst_dir / rel
                         dst_f.parent.mkdir(parents=True, exist_ok=True)
@@ -523,6 +527,15 @@ def _mirror_lock(key: str) -> threading.Lock:
         return lk
 
 
+# Bỏ qua thư mục build/deps khi mirror — skill kiểu htmltomp4/htmlanything có
+# node_modules hàng chục nghìn file; quét/copy hết sẽ treo startup (502 nginx).
+_MIRROR_SKIP_DIR_NAMES = {
+    "node_modules", ".git", "__pycache__", ".venv", "venv",
+    "dist", "build", ".next", ".turbo", "coverage",
+    "playwright-report", "test-results",
+}
+
+
 def _mirror_signature(canonical: Path) -> str:
     """Chữ ký cây skill, cộng CHỈ bằng stat - KHÔNG đọc nội dung file nào.
 
@@ -549,7 +562,7 @@ def _mirror_signature(canonical: Path) -> str:
         for e in entries:
             try:
                 if e.is_dir(follow_symlinks=False):
-                    if e.name != ".disabled":
+                    if e.name != ".disabled" and e.name not in _MIRROR_SKIP_DIR_NAMES:
                         stack.append(Path(e.path))
                     continue
                 st = e.stat(follow_symlinks=False)
