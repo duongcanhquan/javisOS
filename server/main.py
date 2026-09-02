@@ -1097,8 +1097,9 @@ def _providers_view(cfg):
         elif p["id"] == "antigravity-cli":
             # `agy` giữ phiên trong keyring của hệ điều hành nên không có file nào để soi -
             # auth_status() phải hỏi chính CLI, và nó tự nhớ kết quả một phút để mở trang Models
-            # không đẻ tiến trình mỗi lần.
-            configured = bool(antigravity_cli.auth_status().get("connected"))
+            # không đẻ tiến trình mỗi lần. Gọi MỘT lần / vòng lặp (tránh 2× cold ~2.5s).
+            _a = antigravity_cli.auth_status(khong_cho=True)
+            configured = bool(_a.get("connected"))
         elif p["key_field"] is None:
             configured = True
         else:
@@ -1129,7 +1130,6 @@ def _providers_view(cfg):
             # terminal thì token là của CLI, Javis không có quyền gỡ hộ.
             item["auth_by_javis"] = gemini_oauth.connected()
         if p["id"] == "antigravity-cli":
-            _a = antigravity_cli.auth_status()
             item["cli_found"] = bool(antigravity_cli.find_antigravity_cli())
             item["auth_method"] = _a.get("method", "")
             item["auth_error"] = _a.get("error", "")

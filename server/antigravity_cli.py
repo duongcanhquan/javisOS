@@ -585,16 +585,20 @@ def list_models() -> Optional[list]:
 # Đăng nhập
 # ---------------------------------------------------------------------------
 _AUTH_CACHE: dict = {"ts": 0.0, "val": None}
-_AUTH_TTL = 60.0
+_AUTH_TTL = 300.0   # 5 phút: /settings gọi mỗi lần mở trang; 60s quá ngắn → cold 2.5s lặp lại
 
 
-def auth_status(bo_qua_cache: bool = False) -> dict:
+def auth_status(bo_qua_cache: bool = False, khong_cho: bool = False) -> dict:
     """Đã đăng nhập chưa: {connected, method, email, error}.
 
     Khác Gemini CLI ở một điểm quyết định cách viết hàm này: `agy` giữ phiên trong KEYRING của
     hệ điều hành, không có file credential nào để soi. Nên không có đường nào rẻ hơn là hỏi
-    chính CLI - và vì trang Models gọi hàm này mỗi lần mở, phải nhớ kết quả một phút, đúng lý
+    chính CLI - và vì trang Models gọi hàm này mỗi lần mở, phải nhớ kết quả (TTL), đúng lý
     do mà `gemini_cli.auth_status()` cố tránh đẻ tiến trình.
+
+    `khong_cho=True`: chỉ trả cache (kể cả hết TTL). Dùng cho `/settings` lúc boot trang -
+    không được chặn 2–3s vì spawn `agy models`. Trang Models gọi `bo_qua_cache=True` khi cần
+    làm mới.
 
     Dùng `models` làm phép thử vì nó cần tài khoản mới trả được danh sách, lại rẻ hơn nhiều so
     với chạy hẳn một lượt chat.
@@ -604,8 +608,13 @@ def auth_status(bo_qua_cache: bool = False) -> dict:
         return {"connected": False, "method": "", "email": "",
                 "error": f"Chưa cài Antigravity CLI. Cài một lần: {lenh_cai()}"}
     now = time.time()
-    if not bo_qua_cache and _AUTH_CACHE["val"] and now - _AUTH_CACHE["ts"] < _AUTH_TTL:
+    if _AUTH_CACHE["val"] and (
+            khong_cho
+            or (not bo_qua_cache and now - _AUTH_CACHE["ts"] < _AUTH_TTL)):
         return dict(_AUTH_CACHE["val"])
+    if khong_cho:
+        # Chưa có cache: đừng spawn CLI trên đường nóng boot UI.
+        return {"connected": False, "method": "", "email": "", "error": ""}
     ds = list_models()
     if ds:
         d = {"connected": True, "method": "google (keyring của máy)", "email": "", "error": ""}
