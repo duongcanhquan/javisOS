@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hướng dẫn sử dụng Javis OS - Bản dễ hiểu</title>
+<style>
+  :root {
+    --ink: #1a2b33;
+    --muted: #5a6b73;
+    --teal: #0d9488;
+    --teal-soft: #ccfbf1;
+    --cream: #f7f4ef;
+    --card: #ffffff;
+    --line: #d7e0e4;
+    --orange: #c2410c;
+    --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--cream);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    color: var(--teal);
+  }
+  h2 {
+    font-size: 20px;
+    margin: 36px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 3px solid var(--teal);
+    color: var(--ink);
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 16px;
+    margin: 20px 0 8px;
+    color: var(--teal);
+    page-break-after: avoid;
+  }
+  p { margin: 0 0 12px; }
+  .lead {
+    font-size: 17px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .badge {
+    background: var(--teal-soft);
+    color: #115e59;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin: 14px 0;
+    page-break-inside: avoid;
+  }
+  .tip {
+    background: #fff7ed;
+    border-left: 4px solid var(--orange);
+    padding: 12px 14px;
+    margin: 14px 0;
+    border-radius: 0 10px 10px 0;
+    page-break-inside: avoid;
+  }
+  .okbox {
+    background: #f0fdf4;
+    border-left: 4px solid var(--ok);
+    padding: 12px 14px;
+    margin: 14px 0;
+    border-radius: 0 10px 10px 0;
+  }
+  ol.steps {
+    padding-left: 0;
+    counter-reset: step;
+    list-style: none;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 12px 12px 52px;
+    margin: 10px 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    page-break-inside: avoid;
+  }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #fff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    background: var(--card);
+    font-size: 14px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--teal-soft);
+    color: #115e59;
+  }
+  img.fig {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    margin: 10px 0 6px;
+    display: block;
+    background: #fff;
+  }
+  .caption {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 16px;
+    font-style: italic;
+  }
+  svg.diagram {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px 0 6px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+  .toc a {
+    color: var(--teal);
+    text-decoration: none;
+  }
+  .toc li { margin: 4px 0; }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 700px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  @media print {
+    body { background: #fff; font-size: 12.5px; }
+    .page { max-width: none; padding: 0; }
+    h2 { page-break-before: auto; }
+    a { color: inherit; text-decoration: none; }
+    .no-print { display: none !important; }
+  }
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="no-print" style="background:#ccfbf1;padding:10px 14px;border-radius:10px">
+    <b>In ra PDF:</b> mở file này bằng Chrome → Ctrl/Cmd + P → Chọn máy in <b>Save as PDF</b> → Bật “Background graphics”.
+  </p>
+
+  <h1>Hướng dẫn sử dụng Javis OS</h1>
+  <p class="lead">Bản dễ hiểu cho người mới. Không cần biết lập trình. Đọc theo thứ tự, làm từng bước.</p>
+  <div class="meta">
+    <span class="badge">Dành cho máy cá nhân Windows / Mac</span>
+    <span class="badge">Ngôn ngữ đơn giản</span>
+    <span class="badge">Có hình + sơ đồ</span>
+  </div>
+
+  <div class="card toc">
+    <b>Mục lục</b>
+    <ol>
+      <li><a href="#s1">Javis là gì?</a></li>
+      <li><a href="#s2">Logic hoạt động (sơ đồ)</a></li>
+      <li><a href="#s3">Mở app lần đầu</a></li>
+      <li><a href="#s4">Chọn bộ não (Models)</a></li>
+      <li><a href="#s5">Chat cơ bản</a></li>
+      <li><a href="#s6">Menu bên trái dùng để làm gì?</a></li>
+      <li><a href="#s7">Kết nối dữ liệu</a></li>
+      <li><a href="#s8">Bộ nhớ (Second Brain)</a></li>
+      <li><a href="#s9">Tạo năng lực: Skill → Agent → Workflow → Loop</a></li>
+      <li><a href="#s10">Việc &amp; nhắc hẹn</a></li>
+      <li><a href="#s11">Lỗi thường gặp</a></li>
+    </ol>
+  </div>
+
+  <h2 id="s1">1. Javis là gì?</h2>
+  <p>Hãy nghĩ Javis như một <b>trợ lý trên máy tính của bạn</b>:</p>
+  <ul>
+    <li>Bạn hỏi bằng chữ hoặc giọng nói</li>
+    <li>Javis trả lời, ghi nhớ, và có thể dùng công cụ (đọc file, tra web, kết nối dịch vụ…)</li>
+    <li>Bạn <b>chọn AI nào</b> để Javis “suy nghĩ” (Claude, ChatGPT, Antigravity, OpenRouter…)</li>
+  </ul>
+
+  <img class="fig" src="hd-tong-quan.png" alt="Tổng quan Javis: Chat, Bộ não, Bộ nhớ, Kết nối"/>
+  <p class="caption">Hình 1. Bốn thứ chính: Chat (nói chuyện) · Models (bộ não) · Bộ nhớ · Kết nối.</p>
+
+  <div class="okbox">
+    <b>Khác chatbot thường:</b> Javis nhớ bạn lâu dài, đọc được dữ liệu bạn đấu vào, và tự tạo được “nhân viên AI” chuyên việc (agent).
+  </div>
+
+  <h2 id="s2">2. Logic hoạt động (sơ đồ)</h2>
+  <p>Mỗi lần bạn nhắn tin, Javis làm theo vòng sau:</p>
+
+  <img class="fig" src="hd-luong-chat.png" alt="Luồng xử lý một câu hỏi"/>
+  <p class="caption">Hình 2. Bạn hỏi → Javis xử lý → gọi công cụ nếu cần → đọc bộ nhớ → trả lời.</p>
+
+  <svg class="diagram" viewBox="0 0 820 160" role="img" aria-label="Sơ đồ 5 bước">
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#0d9488"/>
+      </marker>
+    </defs>
+    <rect x="10" y="40" width="130" height="70" rx="12" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="75" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">1. Bạn hỏi</text>
+    <text x="75" y="92" text-anchor="middle" font-size="11" fill="#5a6b73">gõ / nói</text>
+
+    <line x1="145" y1="75" x2="175" y2="75" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="180" y="40" width="130" height="70" rx="12" fill="#fff" stroke="#0d9488"/>
+    <text x="245" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">2. Bộ não AI</text>
+    <text x="245" y="92" text-anchor="middle" font-size="11" fill="#5a6b73">suy nghĩ</text>
+
+    <line x1="315" y1="75" x2="345" y2="75" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="350" y="40" width="130" height="70" rx="12" fill="#fff" stroke="#0d9488"/>
+    <text x="415" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">3. Công cụ</text>
+    <text x="415" y="92" text-anchor="middle" font-size="11" fill="#5a6b73">nếu cần</text>
+
+    <line x1="485" y1="75" x2="515" y2="75" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="520" y="40" width="130" height="70" rx="12" fill="#fff" stroke="#0d9488"/>
+    <text x="585" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">4. Bộ nhớ</text>
+    <text x="585" y="92" text-anchor="middle" font-size="11" fill="#5a6b73">nhớ bạn</text>
+
+    <line x1="655" y1="75" x2="685" y2="75" stroke="#0d9488" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="690" y="40" width="120" height="70" rx="12" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="750" y="72" text-anchor="middle" font-size="13" font-weight="700" fill="#115e59">5. Trả lời</text>
+    <text x="750" y="92" text-anchor="middle" font-size="11" fill="#5a6b73">cho bạn</text>
+  </svg>
+  <p class="caption">Hình 3. Sơ đồ rút gọn 5 bước của một lượt chat.</p>
+
+  <div class="tip">
+    <b>Ví dụ thật:</b> Bạn hỏi “Tuần này bán được bao nhiêu?” → Javis gọi <b>Kết nối POS</b> lấy số thật → đọc ghi chú mục tiêu trong bộ nhớ → trả lời kèm đề xuất.
+  </div>
+
+  <h2 id="s3">3. Mở app lần đầu</h2>
+  <ol class="steps">
+    <li>Cài xong theo file <b>CAI-DAT-MAY-CA-NHAN.md</b> (double-click <code>1-Cai-dat...</code>).</li>
+    <li>Mở trình duyệt Chrome/Edge → vào <b>http://localhost:7777</b>.</li>
+    <li>Làm theo cửa sổ chào mừng (nếu có): đặt tên, tài khoản (tùy chọn trên máy cá nhân), chọn nhà cung cấp AI.</li>
+    <li>Vào trang <b>Models</b> để đăng nhập / dán key cho bộ não.</li>
+  </ol>
+
+  <div class="card">
+    <b>Trên máy nhà (localhost):</b> thường không bắt buộc mật khẩu.<br/>
+    <b>Trên server/VPS công khai:</b> bắt buộc tài khoản + mật khẩu (và đôi khi cần MÃ THIẾT LẬP).
+  </div>
+
+  <h2 id="s4">4. Chọn bộ não (Models)</h2>
+  <p>“Bộ não” = AI đứng sau Javis. Đổi được bất cứ lúc nào ở trang <b>Models</b>.</p>
+
+  <table>
+    <tr>
+      <th>Lựa chọn dễ</th>
+      <th>Bạn cần gì</th>
+      <th>Hợp ai</th>
+    </tr>
+    <tr>
+      <td><b>Antigravity CLI</b></td>
+      <td>Cài lệnh <code>agy</code>, đăng nhập Google 1 lần</td>
+      <td>Có gói Google / muốn nhiều model</td>
+    </tr>
+    <tr>
+      <td><b>Claude Code</b></td>
+      <td>Đăng nhập gói Claude</td>
+      <td>Muốn mạnh, đủ công cụ</td>
+    </tr>
+    <tr>
+      <td><b>ChatGPT (Codex)</b></td>
+      <td>Đăng nhập ChatGPT</td>
+      <td>Đang dùng Plus/Pro</td>
+    </tr>
+    <tr>
+      <td><b>OpenRouter</b></td>
+      <td>Chỉ dán API key</td>
+      <td>Muốn nhanh, không đăng nhập CLI</td>
+    </tr>
+  </table>
+
+  <ol class="steps">
+    <li>Mở nhóm <b>Kết nối</b> → <b>Models</b>.</li>
+    <li>Chọn 1 thẻ nhà cung cấp → bấm Đăng nhập / dán key → <b>Kiểm tra lại</b>.</li>
+    <li>Chọn model chính (ví dụ Sonnet, GPT, Gemini Flash…).</li>
+    <li>Quay lại chat, hỏi thử: “Bạn còn đó không?”</li>
+  </ol>
+
+  <div class="tip">
+    Chưa đăng nhập bộ não thì chat sẽ lỗi hoặc trống. Hầu hết sự cố “không trả lời” là do chưa xong bước Models.
+  </div>
+
+  <h2 id="s5">5. Chat cơ bản</h2>
+  <div class="grid2">
+    <div class="card">
+      <b>Gõ chữ</b>
+      <p>Gõ vào ô chat → Enter (hoặc nút Gửi).</p>
+    </div>
+    <div class="card">
+      <b>Nói bằng giọng</b>
+      <p>Bấm mic hoặc giữ phím Cách (tùy bản). Javis có thể đọc lại câu trả lời (nút loa).</p>
+    </div>
+  </div>
+
+  <h3>Câu hỏi mẫu nên thử</h3>
+  <ul>
+    <li>“Tóm tắt giúp tôi 5 việc cần làm hôm nay.”</li>
+    <li>“Nhớ điều này: gọi tôi là anh, Javis xưng em.”</li>
+    <li>“Tạo skill viết email ngắn gọn.”</li>
+  </ul>
+
+  <h2 id="s6">6. Menu bên trái dùng để làm gì?</h2>
+  <img class="fig" src="hd-menu.png" alt="Sơ đồ menu chính"/>
+  <p class="caption">Hình 4. Các mục chính trên thanh bên trái (tên có thể gom theo nhóm).</p>
+
+  <table>
+    <tr><th>Mục</th><th>Dùng khi nào</th></tr>
+    <tr><td><b>Chat / Javis</b></td><td>Nói chuyện hằng ngày</td></tr>
+    <tr><td><b>Models</b></td><td>Chọn / đăng nhập AI</td></tr>
+    <tr><td><b>Kết nối</b></td><td>Đấu POS, Ads, lịch, Tavily tra web…</td></tr>
+    <tr><td><b>Tệp tin</b></td><td>Xem/sửa file trong bộ não</td></tr>
+    <tr><td><b>Skills</b></td><td>Hướng dẫn “cách làm” tái dùng</td></tr>
+    <tr><td><b>Agents</b></td><td>Tạo “nhân viên AI” chuyên 1 việc</td></tr>
+    <tr><td><b>Workflows</b></td><td>Nối nhiều agent thành dây chuyền</td></tr>
+    <tr><td><b>Việc</b></td><td>Giao việc chạy nền / Kanban</td></tr>
+    <tr><td><b>Tự học</b></td><td>Xem ký ức, wiki, học từ hội thoại</td></tr>
+    <tr><td><b>Cài đặt</b></td><td>Giọng đọc, giao diện, tài khoản</td></tr>
+  </table>
+
+  <h2 id="s7">7. Kết nối dữ liệu</h2>
+  <p>Kết nối = “ổ cắm” để Javis lấy số liệu thật (không bịa).</p>
+  <ol class="steps">
+    <li>Vào <b>Kết nối</b>.</li>
+    <li>Chọn dịch vụ (vd Tavily tra web, Google, POS…).</li>
+    <li>Làm theo hướng dẫn trên thẻ (dán key / đăng nhập).</li>
+    <li>Bấm <b>Kiểm tra</b> đến khi đèn xanh.</li>
+    <li>Chat thử: “Dùng Tavily tra giúp … và nêu nguồn.”</li>
+  </ol>
+
+  <svg class="diagram" viewBox="0 0 820 180" role="img">
+    <rect x="40" y="60" width="160" height="60" rx="12" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="120" y="95" text-anchor="middle" font-size="14" font-weight="700" fill="#115e59">Javis</text>
+    <line x1="210" y1="90" x2="280" y2="50" stroke="#0d9488" stroke-width="2"/>
+    <line x1="210" y1="90" x2="280" y2="90" stroke="#0d9488" stroke-width="2"/>
+    <line x1="210" y1="90" x2="280" y2="130" stroke="#0d9488" stroke-width="2"/>
+    <rect x="290" y="25" width="150" height="45" rx="10" fill="#fff" stroke="#0d9488"/>
+    <text x="365" y="52" text-anchor="middle" font-size="13" fill="#1a2b33">Tavily (tra web)</text>
+    <rect x="290" y="68" width="150" height="45" rx="10" fill="#fff" stroke="#0d9488"/>
+    <text x="365" y="95" text-anchor="middle" font-size="13" fill="#1a2b33">POS / Ads</text>
+    <rect x="290" y="111" width="150" height="45" rx="10" fill="#fff" stroke="#0d9488"/>
+    <text x="365" y="138" text-anchor="middle" font-size="13" fill="#1a2b33">Lịch / Email</text>
+    <rect x="500" y="55" width="260" height="70" rx="12" fill="#fff7ed" stroke="#c2410c"/>
+    <text x="630" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">Quyền mặc định: Chỉ đọc</text>
+    <text x="630" y="105" text-anchor="middle" font-size="12" fill="#9a3412">An toàn hơn khi mới đấu</text>
+  </svg>
+  <p class="caption">Hình 5. Javis hút dữ liệu qua các kết nối. Nên giữ “Chỉ đọc” khi mới dùng.</p>
+
+  <h2 id="s8">8. Bộ nhớ (Second Brain)</h2>
+  <p>Javis nhớ bạn qua thư mục <b>memory/</b> trong brain:</p>
+  <ul>
+    <li><b>MEMORY.md</b> - mục lục ký ức (nạp mỗi lần chat)</li>
+    <li><b>facts/</b> - từng sự thật chi tiết</li>
+  </ul>
+
+  <ol class="steps">
+    <li>Trong chat, nói: <b>“Nhớ điều này: …”</b></li>
+    <li>Hoặc mở <b>Tệp tin</b> → sửa file trong <code>memory/</code>.</li>
+    <li>Xem tổng quan ở trang <b>Tự học</b>.</li>
+  </ol>
+
+  <div class="card">
+    <b>Ví dụ nhớ xưng hô:</b><br/>
+    “Nhớ điều này: gọi tôi là anh, Javis xưng em, trả lời ngắn gọn.”
+  </div>
+
+  <h2 id="s9">9. Tạo năng lực: Skill → Agent → Workflow → Loop</h2>
+  <p>Chọn đúng “độ nặng”. Đừng tạo thứ to khi việc nhỏ đã đủ.</p>
+
+  <img class="fig" src="hd-tao-nang-luc.png" alt="Thang tạo năng lực"/>
+  <p class="caption">Hình 6. Thang từ nhẹ đến nặng: Skill → Agent → Workflow → Loop.</p>
+
+  <table>
+    <tr><th>Loại</th><th>Là gì?</th><th>Ví dụ</th><th>Tạo thế nào</th></tr>
+    <tr>
+      <td><b>Skill</b></td>
+      <td>Hướng dẫn cách làm, tái dùng</td>
+      <td>“Viết email cảm ơn khách”</td>
+      <td>Chat: “Tạo skill …” hoặc trang Skills → +</td>
+    </tr>
+    <tr>
+      <td><b>Agent</b></td>
+      <td>Một “vai” chuyên môn</td>
+      <td>Chuyên nghiên cứu thị trường</td>
+      <td>Trang Agents → + Agent, hoặc chat</td>
+    </tr>
+    <tr>
+      <td><b>Workflow</b></td>
+      <td>Nối nhiều bước / nhiều agent</td>
+      <td>Nghiên cứu → chiến lược → proposal</td>
+      <td>Trang Workflows → + hoặc nút Bộ Proposal</td>
+    </tr>
+    <tr>
+      <td><b>Loop</b></td>
+      <td>Lặp theo chu kỳ (tự chạy nền)</td>
+      <td>Mỗi sáng 7h báo cáo</td>
+      <td>Chat nhờ tạo lịch / trang Việc định kỳ</td>
+    </tr>
+  </table>
+
+  <h3>Công thức chọn nhanh</h3>
+  <div class="card">
+    Việc <b>1 lần</b> → chỉ chat hoặc giao Việc.<br/>
+    Cần <b>cách làm</b> dùng lại → Skill.<br/>
+    Cần <b>vai chuyên</b> → Agent.<br/>
+    Cần <b>nhiều bước nối nhau</b> → Workflow.<br/>
+    Cần <b>lặp mãi theo giờ</b> → Nhắc hẹn / Loop.
+  </div>
+
+  <h3>Tạo Agent (form)</h3>
+  <ol class="steps">
+    <li>Agents → <b>+ Agent</b>.</li>
+    <li>Điền <b>Tên</b>, <b>Vai trò</b> (1 câu).</li>
+    <li>Viết <b>System prompt</b>: cách làm việc + định dạng đầu ra.</li>
+    <li>Tick skill liên quan (nếu có).</li>
+    <li>Chọn model (hoặc để mặc định) → <b>Lưu</b>.</li>
+  </ol>
+
+  <h3>Tạo Workflow</h3>
+  <ol class="steps">
+    <li>Có ít nhất 1 agent.</li>
+    <li>Workflows → <b>+ Workflow</b>.</li>
+    <li>Thêm bước: chọn agent + nhiệm vụ. Dùng <code>{{input}}</code> (đầu vào) và <code>{{prev}}</code> (kết quả bước trước).</li>
+    <li>Có thể gắn <b>Kiểm chứng</b> ở bước quan trọng.</li>
+    <li>Lưu → bấm Chạy, nhập brief.</li>
+  </ol>
+
+  <div class="tip">
+    Loop mới thường <b>tắt sẵn</b> và chế độ an toàn (chỉ đề xuất). Bạn xem rồi tự bật. Đừng cho “toàn quyền” nếu chưa hiểu rủi ro.
+  </div>
+
+  <h2 id="s10">10. Việc &amp; nhắc hẹn</h2>
+  <ul>
+    <li><b>Việc (Kanban):</b> giao một việc chạy nền. Xem tiến độ trang Việc. Cần bật “AI tự vận hành” nếu muốn nó tự chạy hàng đợi.</li>
+    <li><b>Nhắc hẹn:</b> đúng một giờ cố định (7h sáng, thứ 2 hàng tuần…).</li>
+    <li><b>Loop:</b> lặp vô hạn theo chu kỳ, có kiểm chứng.</li>
+  </ul>
+
+  <div class="okbox">
+    Javis <b>không</b> “đợi xong rồi tự tổng hợp trong cùng một câu trả lời”. Việc nền sẽ đẩy kết quả về sau. Cần tổng hợp thì giao thêm 1 việc tổng hợp, hoặc nhắn lại khi kết quả đã về.
+  </div>
+
+  <h2 id="s11">11. Lỗi thường gặp</h2>
+  <table>
+    <tr><th>Hiện tượng</th><th>Nguyên nhân hay gặp</th><th>Cách xử lý</th></tr>
+    <tr>
+      <td>Chat không ra gì</td>
+      <td>Chưa đăng nhập Models</td>
+      <td>Models → kết nối → Kiểm tra lại</td>
+    </tr>
+    <tr>
+      <td>Không mở được http://localhost:7777</td>
+      <td>Chưa bật Javis</td>
+      <td>Chạy <code>2-Bat-Javis</code></td>
+    </tr>
+    <tr>
+      <td>Telegram không trả lời</td>
+      <td>Bot chưa bật / thiếu token</td>
+      <td>Cài đặt / Kênh → điền token + bật</td>
+    </tr>
+    <tr>
+      <td>Zalo im sau vài tin</td>
+      <td>Tài khoản chưa trong whitelist</td>
+      <td>Xem mã ghép nối → Cho phép trên dashboard</td>
+    </tr>
+    <tr>
+      <td>Số liệu bịa / sai</td>
+      <td>Chưa đấu Kết nối</td>
+      <td>Đấu MCP rồi hỏi lại; Javis không được bịa số</td>
+    </tr>
+  </table>
+
+  <h2>Checklist 10 phút đầu</h2>
+  <ol class="steps">
+    <li>Bật Javis + mở trình duyệt.</li>
+    <li>Models: có ít nhất 1 bộ não xanh.</li>
+    <li>Chat thử 1 câu.</li>
+    <li>(Tuỳ chọn) Đấu 1 kết nối đơn giản như Tavily.</li>
+    <li>Nói “Nhớ điều này: …” để thử bộ nhớ.</li>
+  </ol>
+
+  <div class="footer">
+    Javis OS - Hướng dẫn sử dụng bản dễ hiểu.<br/>
+    File HTML này in ra PDF bằng Chrome (Save as PDF).<br/>
+    Cài máy cá nhân: xem thêm <b>CAI-DAT-MAY-CA-NHAN.md</b>.
+  </div>
+</div>
+</body>
+</html>
