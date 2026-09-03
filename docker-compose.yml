@@ -44,6 +44,8 @@ services:
       # Antigravity CLI trên Docker không có keyring → bắt lưu token ra file (~/.gemini),
       # entrypoint giữ ~/.gemini trên volume /data/home. Không đặt thì mỗi lần phải `agy` + copy code.
       GEMINI_FORCE_FILE_STORAGE: ${GEMINI_FORCE_FILE_STORAGE:-true}
+      # Tavily/remote MCP hay chậm lúc initialize+tools/list; 20s mặc định dễ bỏ nguồn.
+      JAVIS_MCP_DISCOVER_TIMEOUT: ${JAVIS_MCP_DISCOVER_TIMEOUT:-45}
     ports:
       # Cổng MÁY CHỦ lấy từ biến (trong container vẫn luôn là 7777). Bản thứ hai đặt
       # JAVIS_HOST_PORT=7778 là hết đụng cổng.

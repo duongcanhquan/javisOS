@@ -37,7 +37,7 @@ _IDLE_TTL = 900          # đóng session không dùng > 15 phút
 _INTERNAL = {"botcake": "botcake_mcp", "substack": "substack_mcp"}   # transport internal → tên module
 
 _DIAL_SONG_SONG = 8      # số connection dò tool CÙNG LÚC (đừng để npx nổ ra 30 tiến trình)
-_DIAL_TRAN = "20"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
+_DIAL_TRAN = "45"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
 
 
 def sanitize_fn(name):
@@ -88,7 +88,7 @@ class McpHttpSession:
         self.base_headers = dict(headers or {})
         self.session_id = None
         self._id = 0
-        self._client = httpx.AsyncClient(timeout=httpx.Timeout(60, connect=10))
+        self._client = httpx.AsyncClient(timeout=httpx.Timeout(90, connect=20))
         self._init_done = False
         self._lock = asyncio.Lock()
 
@@ -113,6 +113,14 @@ class McpHttpSession:
             self.session_id = sid
         if notify:
             return None
+        # Google MCP đôi khi trả HTTP 403 nhưng body vẫn là JSON-RPC có "result".
+        if r.status_code == 403:
+            try:
+                body = r.json()
+                if isinstance(body, dict) and "result" in body and "error" not in body:
+                    return body
+            except Exception:
+                pass
         ct = (r.headers.get("content-type") or "").lower()
         if "text/event-stream" in ct:
             for line in (r.text or "").splitlines():

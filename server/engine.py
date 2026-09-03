@@ -480,8 +480,27 @@ _DEEPSEEK_EFFORT = {
 # ollama.com. Javis CỐ Ý chỉ đấu bản Cloud: bản chạy trên máy nhà đòi một ô địa chỉ riêng,
 # tức một ca đặc biệt duy nhất xuyên suốt lớp nhà cung cấp, trong khi phần đông người dùng
 # Javis chạy nó trên VPS - nơi "localhost" là chính cái container chứ không phải máy họ.
-OLLAMA_BASE = "https://ollama.com"
+OLLAMA_BASE = os.getenv("OLLAMA_BASE", "https://ollama.com")
 OLLAMA_URL = OLLAMA_BASE + "/v1/chat/completions"
+
+
+def _ollama_needs_auth() -> bool:
+    """Ollama Cloud (https://ollama.com) cần Bearer key; Ollama local (http://...) thì không."""
+    b = (OLLAMA_BASE or "").strip().lower()
+    return "ollama.com" in b and b.startswith("https://")
+
+
+def ollama_local_url() -> str:
+    """URL chat của Ollama chạy trên MÁY NHÀ (provider 'ollama-local'). "" = chưa cấu hình.
+
+    Đây là chỗ hiện thực hoá điểm 2 ở khối chú thích trên: địa chỉ KHÔNG hằng số hoá được nên
+    phải dựng lúc chạy từ cấu hình. Điểm 1 (không API key): `_openai_compat_stream` bỏ
+    Authorization khi không phải Ollama Cloud.
+    """
+    import config as cfgmod
+    ep = (cfgmod.read_settings().get("model", {}).get("ollama_local_endpoint") or "").strip()
+    ep = ep.rstrip("/")
+    return (ep + "/v1/chat/completions") if ep else ""
 
 # Model Anthropic hỗ trợ adaptive thinking + output_config.effort (khỏi budget_tokens).
 _ADAPTIVE_THINKING = ("opus-4-8", "opus-4-7", "opus-4-6", "opus-4-5", "sonnet-4-6", "fable-5", "mythos-5")
@@ -559,7 +578,11 @@ async def _openai_compat_stream(url, label, api_key, model, messages, reasoning,
                                 extra=None):
     """Chat Completions dạng OpenAI (dùng chung cho OpenAI + Gemini qua endpoint tương thích).
     Stream token-by-token + usage token ở chunk cuối. label chỉ dùng cho thông báo lỗi."""
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    # Ollama Cloud cần Bearer; Ollama local (máy nhà / http://...) thì không.
+    skip_auth = label == "Ollama (Local)" or (label == "Ollama" and not _ollama_needs_auth())
+    if not skip_auth:
+        headers["Authorization"] = f"Bearer {api_key}"
     payload = {"model": model, "messages": messages, "stream": True,
                "stream_options": {"include_usage": True}}   # → chunk cuối kèm usage token
     if reasoning not in (None, "", "off") and send_reasoning:
@@ -644,6 +667,33 @@ async def ollama_stream(api_key, model, messages, reasoning="off"):
     """
     async for ev in _openai_compat_stream(OLLAMA_URL, "Ollama", api_key, model,
                                           messages, reasoning, False):
+        yield ev
+
+
+async def ollama_local_stream(api_key, model, messages, reasoning="off"):
+    """Ollama trên máy nhà - nhánh KHÔNG tool. Cùng khuôn `ollama_stream`, chỉ khác URL."""
+    url = ollama_local_url()
+    if not url:
+        yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
+        return
+    async for ev in _openai_compat_stream(url, "Ollama (Local)", api_key, model,
+                                          messages, reasoning, False):
+        yield ev
+
+
+async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
+    """Ollama máy nhà + vòng tool-calling MCP. Model local biết gọi tool (qwen3, mistral...)
+    thì có đủ đồ nghề của Javis y như mọi provider API khác."""
+    url = ollama_local_url()
+    if not url:
+        yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
+        return
+    headers = {"Content-Type": "application/json"}
+    if (api_key or "").strip() and (api_key or "").strip() != "local":
+        headers["Authorization"] = f"Bearer {api_key}"
+    yield {"type": "meta", "model": model}
+    async for ev in _cc_tool_loop(url, headers, model, messages,
+                                  mcp_tools, mcp_route, {}, "Ollama (Local)"):
         yield ev
 
 
@@ -1441,6 +1491,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
     tools = _mcp_to_openai_tools(mcp_tools)
     msgs = _or_mark_system(messages) if cache_system else list(messages)
     usage_in = usage_out = 0
+    guard = _LapGuard()   # phanh chống kẹt vòng lặp (xem _LapGuard)
     # Chỉ chờ cửa sổ hạn mức MỘT lần mỗi lượt: chờ hai lần là người dùng ngồi nhìn màn hình
     # đứng im nửa phút mà không hiểu chuyện gì.
     waited_for_window = False
@@ -1590,6 +1641,16 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                 else:
                     result = _schedule_tool_blocked_result()
                 msgs.append({"role": "tool", "tool_call_id": tc.get("id"), "content": _clip_tool_result(result)})
+            guard.ghi([((tc.get("function") or {}).get("name"),
+                        (tc.get("function") or {}).get("arguments") or "") for tc in tcs])
+            nhac = guard.loi_nhac()
+            if nhac:
+                msgs[-1]["content"] += nhac   # nối vào kết quả tool cuối - chỗ chắc chắn model đọc
+            if guard.ket():
+                if usage_in or usage_out:
+                    yield {"type": "usage", "input": usage_in, "output": usage_out}
+                yield {"type": "text", "content": _loi_ket_vong()}
+                return
             continue
         content = msg.get("content") or ""
         if requirement_pending:
@@ -1622,16 +1683,19 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
 
 
 # ── Trần số vòng gọi tool của engine API (Claude Code/Codex tự quản vòng lặp của chúng) ──
-# Mỗi vòng = một lượt gọi model + chạy tool nó xin. Có trần vì model kẹt vòng lặp sẽ đốt
-# token vô hạn mà không ai thấy. 8 đủ cho gần hết câu hỏi thường ngày, nhưng một việc nền
-# nhiều bước (đọc vài file, tra vài nguồn, ghi vài file) thì chạm trần rồi dừng giữa chừng.
-# Nên nó là BIẾN MÔI TRƯỜNG, không phải số ghim trong ba chỗ khác nhau như trước.
+# Mỗi vòng = một lượt gọi model + chạy tool nó xin. Trần tồn tại vì model kẹt vòng lặp sẽ
+# đốt token vô hạn mà không ai thấy. Nhưng trần ĐẾM SỐ 8 cũ bắt oan người làm việc thật
+# (đọc vài file, tra vài nguồn, ghi vài file là hết 8 vòng - người dùng báo hoài, 27/08),
+# trong khi ca kẹt thật thì đặc điểm không phải "nhiều vòng" mà là "lặp Y HỆT": gọi lại
+# đúng tool với đúng tham số hết vòng này sang vòng khác. Nên từ 0.47.1 phanh chính là
+# _LapGuard (soi đúng bệnh, cắt sớm hơn nhiều so với 8), còn trần đếm số chỉ là lưới đỡ
+# xa: mặc định 30, kẹp 1-120, chỉnh bằng JAVIS_MAX_TOOL_ROUNDS.
 def _max_tool_rounds() -> int:
     try:
-        n = int(os.getenv("JAVIS_MAX_TOOL_ROUNDS", "8"))
+        n = int(os.getenv("JAVIS_MAX_TOOL_ROUNDS", "30"))
     except (TypeError, ValueError):
-        return 8
-    return max(1, min(n, 40))   # kẹp: 0 thì không tool nào chạy, quá to thì mất ý nghĩa của trần
+        return 30
+    return max(1, min(n, 120))   # kẹp: 0 thì không tool nào chạy, quá to thì mất ý nghĩa của trần
 
 
 def _het_vong_msg() -> str:
@@ -1640,7 +1704,50 @@ def _het_vong_msg() -> str:
     n = _max_tool_rounds()
     return (f"\n\n⚠ Đã chạy hết {n} vòng gọi tool cho lượt này nên phải dừng, câu trả lời ở "
             f"trên có thể còn dở. Cách xử lý: chia nhỏ yêu cầu thành từng bước, hoặc nâng trần "
-            f"bằng biến môi trường JAVIS_MAX_TOOL_ROUNDS (tối đa 40) rồi khởi động lại Javis.")
+            f"bằng biến môi trường JAVIS_MAX_TOOL_ROUNDS (tối đa 120) rồi khởi động lại Javis.")
+
+
+class _LapGuard:
+    """Phanh chống model KẸT vòng lặp: gọi lại CÙNG bộ tool với CÙNG tham số vòng này sang
+    vòng khác. Đây mới là thứ trần vòng cũ sinh ra để chống, và soi đúng bệnh thì cắt được
+    ở vòng thứ 5 thay vì bắt oan mọi việc nhiều bước ở vòng thứ 8.
+
+    Cách dùng (cả ba vòng tool dùng chung): mỗi vòng có tool_calls thì gọi `ghi(calls)` với
+    calls = [(tên tool, chuỗi tham số)] của vòng đó. Lặp y hệt lần thứ NHAC thì `loi_nhac()`
+    trả một câu để NỐI VÀO KẾT QUẢ TOOL cuối (chỗ duy nhất chắc chắn model đọc ở vòng sau,
+    và hợp lệ với cả ba định dạng hội thoại). Vẫn lặp tới lần thứ DUNG thì `ket()` = True,
+    vòng ngoài dừng hẳn bằng `_loi_ket_vong()`.
+
+    Chủ ý chỉ so KHỚP TUYỆT ĐỐI liên tiếp: đọc-sửa-đọc lại cùng file là ba vòng khác nhau
+    (vòng giữa khác chữ ký) nên không bao giờ bị bắt oan; chỉ có gọi lại y nguyên - thứ chắc
+    chắn trả cùng kết quả - mới bị đếm."""
+    NHAC = 3    # lặp y hệt vòng thứ 3 → nhắc thẳng vào kết quả tool
+    DUNG = 5    # vẫn y hệt tới vòng thứ 5 → dừng lượt
+
+    def __init__(self):
+        self._sig = None
+        self.lap = 0
+
+    def ghi(self, calls) -> None:
+        sig = json.dumps(sorted((str(n), str(a)) for n, a in calls), ensure_ascii=False)
+        self.lap = self.lap + 1 if sig == self._sig else 1
+        self._sig = sig
+
+    def loi_nhac(self) -> str:
+        if self.lap != self.NHAC:
+            return ""
+        return (f"\n\n⚠ [Javis] Bạn vừa gọi đúng tool này với đúng tham số này {self.NHAC} vòng "
+                "liên tiếp - kết quả sẽ không đổi. ĐỪNG gọi lại nữa: trả lời ngay bằng dữ liệu "
+                "đã có, hoặc đổi tham số nếu thật sự cần dữ liệu khác.")
+
+    def ket(self) -> bool:
+        return self.lap >= self.DUNG
+
+
+def _loi_ket_vong() -> str:
+    return (f"\n\n⚠ Model gọi lại cùng tool với cùng tham số {_LapGuard.DUNG} vòng liên tiếp "
+            "(kẹt vòng lặp) nên Javis dừng lượt này để không đốt token vô ích. Câu trả lời ở "
+            "trên có thể còn dở - thử hỏi lại, nói rõ hơn yêu cầu, hoặc đổi model ở trang Models.")
 
 
 async def openai_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
@@ -1678,7 +1785,9 @@ async def deepseek_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools,
 async def ollama_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
     """Ollama Cloud + vòng tool-calling MCP - cũng là agent đủ đồ nghề của Javis y như các
     provider API khác, miễn model biết gọi tool (gpt-oss, qwen3-coder, deepseek... đều biết)."""
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    if _ollama_needs_auth():
+        headers["Authorization"] = f"Bearer {api_key}"
     yield {"type": "meta", "model": model}
     async for ev in _cc_tool_loop(OLLAMA_URL, headers, model, messages,
                                   mcp_tools, mcp_route, {}, "Ollama"):
@@ -1739,6 +1848,7 @@ async def responses_with_mcp(access_token, account_id, model, messages, reasonin
     timeout = httpx.Timeout(180, connect=15)
     async with httpx.AsyncClient(timeout=timeout) as client:
         usage_in = usage_out = 0
+        guard = _LapGuard()   # phanh chống kẹt vòng lặp (xem _LapGuard)
         for _ in range(_max_tool_rounds()):
             # Backend Codex BẮT BUỘC stream=True → đọc SSE, lấy response.completed.output để chạy vòng tool
             payload = {"model": model, "instructions": instructions, "input": items,
@@ -1809,6 +1919,15 @@ async def responses_with_mcp(access_token, account_id, model, messages, reasonin
                     else:
                         result = _schedule_tool_blocked_result()
                     items.append({"type": "function_call_output", "call_id": fc.get("call_id"), "output": _clip_tool_result(result)})
+                guard.ghi([(fc.get("name"), fc.get("arguments") or "") for fc in fcalls])
+                nhac = guard.loi_nhac()
+                if nhac:
+                    items[-1]["output"] += nhac   # nối vào kết quả tool cuối - chỗ chắc chắn model đọc
+                if guard.ket():
+                    if usage_in or usage_out:
+                        yield {"type": "usage", "input": usage_in, "output": usage_out}
+                    yield {"type": "text", "content": _loi_ket_vong()}
+                    return
                 continue
             text = ""
             for o in output:
@@ -1850,6 +1969,7 @@ async def anthropic_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools
     timeout = httpx.Timeout(180, connect=15)
     async with httpx.AsyncClient(timeout=timeout) as client:
         usage_in = usage_out = 0
+        guard = _LapGuard()   # phanh chống kẹt vòng lặp (xem _LapGuard)
         for _ in range(_max_tool_rounds()):
             # Cache theo lối không-mutate (system dựng mới mỗi vòng, conv copy-khi-đánh-dấu)
             # → marker KHÔNG tích luỹ qua vòng tool, tối đa 3 breakpoint/request (trần API là 4).
@@ -1903,7 +2023,17 @@ async def anthropic_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools
                         res = _schedule_tool_blocked_result()
                     results.append({"type": "tool_result", "tool_use_id": tu.get("id"),
                                     "content": _clip_tool_result(res)})
+                guard.ghi([(tu.get("name"), json.dumps(tu.get("input") or {}, sort_keys=True,
+                                                       ensure_ascii=False)) for tu in tool_uses])
+                nhac = guard.loi_nhac()
+                if nhac:
+                    results[-1]["content"] += nhac   # nối vào kết quả tool cuối - chỗ chắc chắn model đọc
                 conv.append({"role": "user", "content": results})
+                if guard.ket():
+                    if usage_in or usage_out:
+                        yield {"type": "usage", "input": usage_in, "output": usage_out}
+                    yield {"type": "text", "content": _loi_ket_vong()}
+                    return
                 continue
             text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
             if usage_in or usage_out:
