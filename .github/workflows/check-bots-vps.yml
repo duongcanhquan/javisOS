@@ -1,7 +1,9 @@
-# Kiểm tra bot Telegram/Zalo trên VPS
+# Kiểm tra bot Telegram/Zalo trên VPS (tự chứa, không phụ thuộc script repo).
 name: Check Bots on VPS
+
 on:
   workflow_dispatch:
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -15,10 +17,73 @@ jobs:
           command_timeout: 10m
           script: |
             set -euo pipefail
-            DIR="${{ secrets.VPS_DIR }}"
-            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
-            cd "$DIR"
-            git fetch --all --prune 2>/dev/null || true
-            git reset --hard origin/main 2>/dev/null || true
-            chmod +x scripts/check-bots-vps.sh scripts/check-bots-deep-vps.sh
-            bash scripts/check-bots-deep-vps.sh
+            CNAME=javis
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              curl -fsS -m 4 http://127.0.0.1:7777/health >/dev/null 2>&1 && break
+              sleep 5
+            done
+            echo "=== health ==="
+            curl -fsS -m 5 http://127.0.0.1:7777/health || echo HEALTH_FAIL
+            echo
+            echo
+            echo "=== docker ==="
+            docker ps --format 'table {{.Names}}\t{{.Status}}' | head
+            echo
+            cat > /tmp/javis_bots_probe.py <<'PY'
+            import json, sys, os
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            from telegram_bot import parse_chat_ids
+            st = cfgmod.read_settings()
+            tg = st.get("telegram") or {}
+            zl = st.get("zalo_bot") or {}
+            print("TELEGRAM enabled=", tg.get("enabled"), "has_token=", bool(tg.get("token")), "chat_id=", repr(tg.get("chat_id")))
+            print("TELEGRAM whitelist=", parse_chat_ids(tg.get("chat_id")))
+            print("ZALO_BOT enabled=", zl.get("enabled"), "has_token=", bool(zl.get("token")), "chat_id=", repr(zl.get("chat_id")))
+            print("ZALO whitelist=", parse_chat_ids(zl.get("chat_id")))
+            print("MAIN_MODEL=", (st.get("model") or {}).get("main"))
+            try:
+              import chatbot_store
+              bots = chatbot_store.list_bots()
+              print("CHATBOTS", len(bots))
+              for b in bots[:20]:
+                print(" ", b.get("id"), "en=", b.get("enabled"), "ch=", b.get("channel") or b.get("channels"), "name=", b.get("name"))
+            except Exception as e:
+              print("CHATBOTS_ERR", e)
+            # telegram getMe
+            import urllib.request
+            tok = (tg.get("token") or "").strip()
+            if tok:
+              try:
+                with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/getMe", timeout=15) as r:
+                  print("TG_getMe", r.read().decode()[:400])
+                with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/getWebhookInfo", timeout=15) as r:
+                  print("TG_webhook", r.read().decode()[:400])
+              except Exception as e:
+                print("TG_API_ERR", type(e).__name__, e)
+            else:
+              print("TG_API skip (no token)")
+            # zalo getMe if exists
+            ztok = (zl.get("token") or "").strip()
+            if ztok:
+              for base in (
+                f"https://bot-api.zaloplatforms.com/bot{ztok}/getMe",
+                f"https://bot-api.zaloplatforms.com/bot{ztok}/getWebhookInfo",
+              ):
+                try:
+                  with urllib.request.urlopen(base, timeout=15) as r:
+                    print("ZALO", base.split('/')[-1], r.read().decode()[:400])
+                except Exception as e:
+                  print("ZALO", base.split('/')[-1], "ERR", type(e).__name__, e)
+            PY
+            docker cp /tmp/javis_bots_probe.py "$CNAME:/tmp/javis_bots_probe.py"
+            docker exec -u root "$CNAME" chmod 644 /tmp/javis_bots_probe.py
+            echo "=== probe ==="
+            docker exec -u root -w /app "$CNAME" python /tmp/javis_bots_probe.py || true
+            echo
+            echo "=== recent bot logs ==="
+            docker logs --tail 800 "$CNAME" 2>&1 | grep -iE '\[zalo\]|\[telegram\]|\[chatbot' | tail -80 || true
+            echo
+            echo "=== recent errors ==="
+            docker logs --tail 800 "$CNAME" 2>&1 | grep -iE 'Traceback|\[zalo\].*err|\[telegram\].*err|conflict|409|timeout|quota|failed' | grep -vi remotion | tail -60 || true
+            echo DONE_BOTS
