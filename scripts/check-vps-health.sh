@@ -94,16 +94,23 @@ except Exception as e:
 
 # 3) Provider / models (nội bộ)
 try:
+    import config as cfgmod
     import main as m
-    # dùng hàm thuần nếu có
-    if hasattr(m, "_providers_payload"):
-        dump("providers", m._providers_payload())
-    elif hasattr(m, "list_providers"):
-        dump("providers", m.list_providers())
+    cfg = cfgmod.read_settings()
+    if hasattr(m, "_providers_view"):
+        rows = m._providers_view(cfg)
+        print(f"== providers ({len(rows) if isinstance(rows, list) else '?'})")
+        for p in (rows if isinstance(rows, list) else []):
+            if not isinstance(p, dict):
+                continue
+            print(
+                f"  {p.get('id')}: connected={p.get('connected')} cli={p.get('cli_found')} "
+                f"models={len(p.get('models') or [])} "
+                f"{(p.get('auth_error') or p.get('error') or '')[:100]}"
+            )
+        print()
     else:
-        # fallback: đọc settings model
-        import config as cfgmod
-        st = cfgmod.read_settings().get("model") or {}
+        st = cfg.get("model") or {}
         print("== model settings (fallback)")
         print(json.dumps({
             "main": st.get("main"),
@@ -140,7 +147,7 @@ except Exception as e:
 try:
     import asyncio, connect_health
     print("== sweeping enabled connections now...")
-    n = asyncio.get_event_loop().run_until_complete(connect_health.sweep())
+    n = asyncio.run(connect_health.sweep())
     print(f"checked={n}")
     for cid, rec in connect_health.snapshot().items():
         mark = "OK" if rec.get("ok") else "FAIL"
