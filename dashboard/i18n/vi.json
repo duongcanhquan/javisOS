@@ -10,7 +10,7 @@
   "nav.group.ket_noi": "Kết nối",
   "nav.group.he_thong": "Hệ thống",
 
-  "page.home.label": "Javis",
+  "page.home.label": "LYON",
   "page.chat.label": "Trò chuyện",
   "page.chat.sub": "Khung chat rộng · lịch sử hội thoại",
   "page.settings.label": "Cài đặt",
@@ -24,7 +24,7 @@
   "page.files.label": "Tệp tin",
   "page.files.sub": "Duyệt · sửa · tải file trong brain",
   "page.terminal.label": "Terminal",
-  "page.terminal.sub": "Dòng lệnh chạy thẳng trên máy đang chạy Javis",
+  "page.terminal.sub": "Dòng lệnh chạy thẳng trên máy đang chạy LYON",
   "page.selfimprove.label": "Việc định kỳ",
   "page.selfimprove.sub": "Việc định kỳ + nhắc hẹn đang chờ",
   "page.chatbots.label": "Chatbot",
@@ -61,10 +61,10 @@
 
   "settings.lang.title": "NGÔN NGỮ TRẢ LỜI",
   "settings.lang.auto": "Tự động theo người nhắn",
-  "settings.lang.hint": "Chọn \"Tự động\" thì Javis trả lời đúng thứ tiếng bạn đang gõ. Ghim một ngôn ngữ thì Javis luôn trả lời bằng ngôn ngữ đó, dù bạn gõ tiếng gì. Chatbot chăm khách có ô ngôn ngữ RIÊNG ở trang Chatbot.",
+  "settings.lang.hint": "Chọn \"Tự động\" thì LYON trả lời đúng thứ tiếng bạn đang gõ. Ghim một ngôn ngữ thì LYON luôn trả lời bằng ngôn ngữ đó, dù bạn gõ tiếng gì. Chatbot chăm khách có ô ngôn ngữ RIÊNG ở trang Chatbot.",
   "settings.lang.saved": "Đã đổi ngôn ngữ trả lời",
   "settings.ui_lang.title": "NGÔN NGỮ GIAO DIỆN",
-  "settings.ui_lang.hint": "Chữ trên nút và nhãn. Khác với ngôn ngữ trả lời: giao diện tiếng Việt mà Javis trả lời tiếng Anh là một lựa chọn hợp lệ.",
+  "settings.ui_lang.hint": "Chữ trên nút và nhãn. Khác với ngôn ngữ trả lời: giao diện tiếng Việt mà LYON trả lời tiếng Anh là một lựa chọn hợp lệ.",
   "settings.ui_lang.beta": "Đang dịch dần. Phần chưa dịch vẫn hiện tiếng Việt.",
   "settings.save_failed": "Lưu không được",
 

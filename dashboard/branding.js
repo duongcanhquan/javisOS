@@ -125,7 +125,7 @@
     if (check) check.textContent = "Kiểm tra lại";
     var ip = j.server_ip || "(IP máy chủ VPS)";
     var dnsRecord = "A · " + j.domain + " · " + ip;
-    var steps = '<div class="dom-step done"><span class="dom-step-num">' + ic("check") + '</span><div><b>1. Lưu tên miền</b><p>Javis đã ghi nhận <code>' + esc(j.domain) + '</code>.</p></div></div>';
+    var steps = '<div class="dom-step done"><span class="dom-step-num">' + ic("check") + '</span><div><b>1. Lưu tên miền</b><p>LYON đã ghi nhận <code>' + esc(j.domain) + '</code>.</p></div></div>';
     steps += '<div class="dom-step ' + (j.dns_ok ? "done" : "warn") + '"><span class="dom-step-num">' + (j.dns_ok ? ic("check") : "2") + '</span><div><b>2. Trỏ DNS về VPS</b>' +
       '<p>' + (j.dns_ok ? "Bản ghi A đã trỏ đúng IP máy chủ." : "Tạo hoặc sửa bản ghi này tại nơi quản lý tên miền:") + '</p>' +
       '<code>' + esc(dnsRecord) + '</code><br><button class="dom-copy" type="button" data-copy="' + esc(dnsRecord) + '">Sao chép bản ghi</button></div></div>';
@@ -137,13 +137,13 @@
         '<code>' + esc(envLine) + '</code><br><button class="dom-copy" type="button" data-copy="' + esc(envLine) + '">Sao chép biến</button></div></div>';
     } else {
       steps += '<div class="dom-step ' + (j.ssl_active ? "done" : (j.dns_ok ? "warn" : "")) + '"><span class="dom-step-num">' + (j.ssl_active ? ic("check") : "3") + '</span><div><b>3. Bật HTTPS</b>' +
-        '<p>' + (j.ssl_active ? "Chứng chỉ HTTPS đang hoạt động." : "Khi DNS đã đúng, bấm Bật SSL để Javis xin chứng chỉ.") + '</p>' +
+        '<p>' + (j.ssl_active ? "Chứng chỉ HTTPS đang hoạt động." : "Khi DNS đã đúng, bấm Bật SSL để LYON xin chứng chỉ.") + '</p>' +
         (j.deploy_mode === "docker" && !j.ssl_active ? '<code>docker compose -f docker-compose.yml -f docker-compose.https.yml up -d</code>' : "") + '</div></div>';
     }
     if (j.ssl_active) steps += '<a class="dom-open" href="https://' + esc(j.domain) + '" target="_blank" rel="noopener">Mở https://' + esc(j.domain) + ' ↗</a>';
     if (guide) { guide.innerHTML = steps; guide.style.display = "block"; }
     if (j.ssl_active) setStatus("domainStatus", "HTTPS đang chạy cho " + j.domain + ".", false);
-    else if (hostinger && j.requires_redeploy) setStatus("domainStatus", "Đã lưu trong Javis; còn bước đặt DOMAIN_NAME và Redeploy trên Hostinger.", false);
+    else if (hostinger && j.requires_redeploy) setStatus("domainStatus", "Đã lưu trong LYON; còn bước đặt DOMAIN_NAME và Redeploy trên Hostinger.", false);
     else setStatus("domainStatus", j.ssl_reason || "", !!(j.dns_ip && !j.dns_ok));
   }
 

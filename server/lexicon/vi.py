@@ -92,7 +92,7 @@ ACTION_VERBS = (
 FALSE_ACTION = re.compile(
     r"(?i)(?:"
     r"(?:^|[.!?\n]\s*)(?:đã|da|vừa|vua)\s+(?:được\s+|duoc\s+)?" + ACTION_VERBS + r"\b"
-    r"|\b(?:em|tôi|toi|mình|minh|javis)\s+(?:đã|da|vừa|vua)\s+" + ACTION_VERBS + r"\b"
+    r"|\b(?:em|tôi|toi|mình|minh|javis|lyon)\s+(?:đã|da|vừa|vua)\s+" + ACTION_VERBS + r"\b"
     r"|\b" + ACTION_VERBS + r"\s+thành công\b"
     r"|\b" + ACTION_VERBS + r"\s+thanh cong\b"
     r"|\bsuccessfully\s+" + ACTION_VERBS + r"\b"

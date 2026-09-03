@@ -31,7 +31,7 @@
   ];
   var PROVS = [["", "Tất cả"], ["claude", "Claude Code"], ["codex", "ChatGPT"], ["api", "API"]];
   var PROV_LABEL = { claude: "Claude Code", codex: "ChatGPT/Codex", api: "API (OpenRouter...)", "gemini-cli": "Gemini CLI" };
-  var SRC_LABEL = { manual: "Bạn gõ tay", javis: "Javis (tự chạy)" };
+  var SRC_LABEL = { manual: "Bạn gõ tay", javis: "LYON (tự chạy)" };
   var ACT_LABEL = { chat: "Chat", background: "Nền (loop/lịch)", subagent: "Subagent", manual: "Thủ công" };
   var PROV_COLOR = { claude: "var(--accent)", codex: "var(--green)", api: "var(--link-ink)" };
   var MOC_ICO = { muc: "zap", model: "brain", ngan_sach: "shield" };
@@ -219,7 +219,7 @@
       .catch(function () { return state.viec || null; });
   }
 
-  // fetch KHÔNG reject với status 4xx/5xx, mà middleware đăng nhập của Javis lại trả 401 kèm
+  // fetch KHÔNG reject với status 4xx/5xx, mà middleware đăng nhập của LYON lại trả 401 kèm
   // một THÂN JSON. Nên `.then(r => r.json())` trơn sẽ resolve ngon lành với {error:...}, khối
   // .catch không bao giờ chạy, và trang vẽ ra "0 token / $0.00 / Chưa có dữ liệu" ở mọi ô -
   // trông y hệt một tháng chưa dùng gì. Phiên hết hạn mà báo là "bạn chưa tiêu đồng nào" là
@@ -361,7 +361,7 @@
     }
 
     var chuaChon = d.tu_chon ? "" : " Mức đang chạy là mặc định của bản này, bạn chưa tự chọn bao giờ."
-      + " Bấm một mức bất kỳ là Javis ghim lại, từ đó không bản cập nhật nào đổi nữa.";
+      + " Bấm một mức bất kỳ là LYON ghim lại, từ đó không bản cập nhật nào đổi nữa.";
 
     // Dải một dòng luôn hiện; phần thân chỉ dựng khi người dùng bung ra.
     var mm = (dangDung && dangDung.m) || {};
@@ -379,7 +379,7 @@
       ? '<div class="tk-muc-body"><div class="tk-muc-list">' + btns + "</div>"
       + (state.toast ? state.toast : "")
       + doHtml
-      + '<div class="tk-muc-note">Đổi xong có hiệu lực ngay, không cần khởi động lại. Thấy Javis'
+      + '<div class="tk-muc-note">Đổi xong có hiệu lực ngay, không cần khởi động lại. Thấy LYON'
       + " trả lời tệ đi thì bấm <b>Tắt</b> là quay lại như cũ lập tức."
       + " Con số phần trăm là ước lượng đo trên chính bộ não và bộ nhớ của bạn."
       + esc(chuaChon) + "</div></div>"
@@ -425,7 +425,7 @@
       phu.push("Chưa có nhật ký đổi mức nên phần tiết kiệm giả định cả kỳ chạy cùng một chế độ.");
     }
     if (!((t.tien || {}).goi || {}).gia_thang_usd) {
-      phu.push("Khai giá gói mỗi tháng ở ô Tiền mặt bên dưới thì Javis tính được gói đang lời hay lỗ.");
+      phu.push("Khai giá gói mỗi tháng ở ô Tiền mặt bên dưới thì LYON tính được gói đang lời hay lỗ.");
     }
     return '<div class="tk-hero"><p>' + esc(t.cau || "") + "</p>"
       + (phu.length ? '<div class="sub">' + esc(phu.join(" ")) + "</div>" : "")
@@ -500,7 +500,7 @@
       } else {
         body += '<div class="s">token trong 5 giờ qua. Chưa đủ lịch sử để biết mốc của bạn ở đâu.</div>';
       }
-      body += '<div class="s">Khai trần gói ở ô Tiền mặt thì Javis báo được lúc sắp bị chặn.</div>';
+      body += '<div class="s">Khai trần gói ở ô Tiền mặt thì LYON báo được lúc sắp bị chặn.</div>';
     }
     if (!thueBao) {
       body += '<div class="s">Bạn đang dùng API key nên không có trần gói; số này chỉ để thấy nhịp dùng.</div>';
@@ -514,19 +514,19 @@
     var k = t.tiet_kiem || {};
     if (!k.du_du_lieu) {
       // Hai lý do khác hẳn nhau, và gộp làm một là nói dối theo hướng làm người ta tắt chế độ
-      // tiết kiệm đi: "chưa chạy lượt nào" với "bạn đang chỉnh tay nên Javis không biết cấu
+      // tiết kiệm đi: "chưa chạy lượt nào" với "bạn đang chỉnh tay nên LYON không biết cấu
       // hình đó tốn bao nhiêu".
       return '<div class="tk-a"><div class="h">' + ic("sparkles", { cls: "ic-sm" }) + "Đã tiết kiệm</div>"
         + '<div class="big">-</div><div class="s">'
         + (k.khong_do_duoc
-          ? "Bạn đang tự chỉnh tay từng đường nên Javis không biết cấu hình này tốn bao nhiêu mỗi lượt. Chọn một mức có sẵn là đo được."
-          : "Chưa có lượt nào của Javis trong kỳ này để tính.")
+          ? "Bạn đang tự chỉnh tay từng đường nên LYON không biết cấu hình này tốn bao nhiêu mỗi lượt. Chọn một mức có sẵn là đo được."
+          : "Chưa có lượt nào của LYON trong kỳ này để tính.")
         + "</div></div>";
     }
     var ti = k.tien || {};
     return '<div class="tk-a"><div class="h">' + ic("sparkles", { cls: "ic-sm" }) + "Đã tiết kiệm</div>"
       + '<div class="big warn">' + fTok(k.token) + "</div>"
-      + '<div class="s">token không phải gửi, qua ' + (k.so_luot || 0) + " lượt của Javis. "
+      + '<div class="s">token không phải gửi, qua ' + (k.so_luot || 0) + " lượt của LYON. "
       + "Chế độ <b>" + esc(k.nhan_muc || "") + "</b> cắt " + (k.phan_tram || 0)
       + "% chi phí cố định mỗi lượt.</div>"
       + '<div class="s">Quy theo giá API khoảng <b>' + fCost(ti.usd) + "</b>.</div></div>";
@@ -549,7 +549,7 @@
       + '<div><label>Trần tiền API mỗi tháng (USD)</label><input id="tk-ns-tran" type="number" min="0" step="1" value="'
       + esc(val(f.tran, ns.tran)) + '" placeholder="Ví dụ 30"></div>'
       + '<div><label>Trần token cửa sổ 5 giờ</label><input id="tk-ns-5h" type="number" min="0" step="1000" value="'
-      + esc(val(f.h5, c.tran_khai)) + '" placeholder="Để trống thì Javis tự đo"></div>'
+      + esc(val(f.h5, c.tran_khai)) + '" placeholder="Để trống thì LYON tự đo"></div>'
       + "</div>"
       + '<label class="chk"><input id="tk-ns-phanh" type="checkbox"' + tick("phanh", ns.tu_phanh) + ">"
       + "Chạm trần thì tự đẩy việc nền sang đường không tốn tiền</label>"
@@ -557,7 +557,7 @@
       + "Gửi báo cáo token về chat mỗi sáng thứ Hai</label>"
       + '<div class="acts"><button class="save" data-act="ns-luu">Lưu</button>'
       + '<button class="tk-mini" data-act="ns">Huỷ</button></div>'
-      + '<div class="hint">Bốn con số này Javis không tự biết được: nhà cung cấp không cho lấy giá gói'
+      + '<div class="hint">Bốn con số này LYON không tự biết được: nhà cung cấp không cho lấy giá gói'
       + " hay hạn mức gói qua API. Để trống thì trang chỉ nói được cái nó đo được."
       + " Tự phanh chỉ đụng tới <b>việc chạy nền</b>, chat của bạn không bị hạ model.</div></div>";
   }
@@ -709,7 +709,7 @@
     var chart = ts.length ? ('<div class="tk-sec">Token theo ngày</div><div class="tk-chart">' + cols + '</div><div class="tk-xrow">' + xs + '</div><div class="tk-mrow">' + ms + "</div>" + legend) : "";
 
     var grid = '<div class="tk-grid">'
-      + "<div><div class=\"tk-sec\">Nguồn tiêu (bạn vs Javis)</div>" + barList(s.by_source, SRC_LABEL, function () { return "var(--accent)"; })
+      + "<div><div class=\"tk-sec\">Nguồn tiêu (bạn vs LYON)</div>" + barList(s.by_source, SRC_LABEL, function () { return "var(--accent)"; })
       + "<div class=\"tk-sec\">Hoạt động</div>" + barList(s.by_activity, ACT_LABEL, function () { return "var(--link-ink)"; }) + "</div>"
       + "<div><div class=\"tk-sec\">Provider</div>" + barList(s.by_provider, PROV_LABEL, function (kk) { return PROV_COLOR[kk] || "var(--accent)"; }) + "</div>"
       + "</div>";

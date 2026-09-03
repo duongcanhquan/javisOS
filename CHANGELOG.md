@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.23] - 2026-09-03
+### Cải thiện
+- **Đổi hết chữ Javis trên giao diện sang LYON.** Menu Trợ lý, ô chat, đăng nhập, cài đặt, mức dùng…
+- **Ghi chú seed trong brain cũng ghi LYON** (AGENTS, README tầng vận hành, wiki index…). Tên kỹ thuật `javis_*` / thư mục `Javis/` giữ nguyên để app không hỏng.
+
 ## [0.35.22] - 2026-09-03
 ### Cải thiện
 - **Chào / cảm ơn trả lời ngay.** Câu xã giao thuần không còn chờ Antigravity hay Claude CLI khởi động hàng chục giây.

@@ -294,7 +294,7 @@ function sendMessage(text) {
   appendUserMessage(msg, atts);
   recordTurn("user", msg, atts.map(a => ({ name: a.name, kind: a.kind })));
 
-  // Soạn message gửi Javis (kèm đường dẫn file trong Sources)
+  // Soạn message gửi LYON (kèm đường dẫn file trong Sources)
   const _isSkill = _slash.type === "skill";
   let outMsg = _isSkill ? _slash.message : msg;
   if (atts.length) {
@@ -318,7 +318,7 @@ function sendMessage(text) {
   // đính kèm một lần. Gửi lại mỗi lượt vì engine API dựng lại payload từ SQLite mỗi lần,
   // không giữ trạng thái "đang mở file nào" giữa các lượt.
   if (pinnedNote) {
-    outMsg = `[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}\n`
+    outMsg = `[FILE ĐANG MỞ trong trình sửa của LYON: ${pinnedNote.abs}\n`
       + `Đây là file người dùng ĐANG LÀM VIỆC TRÊN ĐÓ - coi như đầu vào của cuộc trò chuyện này. `
       + `Đọc nó trước khi trả lời. Khi được yêu cầu sửa/viết thêm/dọn lại mà không nói rõ file nào `
       + `thì ghi thẳng vào chính file này.]\n\n${outMsg}`;
@@ -329,7 +329,7 @@ function sendMessage(text) {
   turns[sid] = { text: "", bubble: null, spoke: false, running: true };
   setSessionRunning(sid, true);
   setOrbState("thinking", "ĐANG SUY NGHĨ");
-  showActivity("Javis đang suy nghĩ...");   // hiện NGAY trong khung chat, không đợi server báo
+  showActivity("LYON đang suy nghĩ...");   // hiện NGAY trong khung chat, không đợi server báo
   syncActiveUI();
   // Server đóng dấu model đang chạy cho phiên ngay từ tin đầu -> bar hiện "ghim" tại chỗ.
   try { if (window.JavisModelBar) window.JavisModelBar.noteStamped(sid); } catch (e) {}
@@ -448,7 +448,7 @@ function notifySessions() { try { window.dispatchEvent(new Event("javis:sessions
 function actsHtml(role, ts, canResend) {
   return window.JavisActs ? window.JavisActs.actsHtml(role, ts, canResend) : "";
 }
-// Tin chỉ có ảnh (không kèm lời nhắn) thì chẳng có chữ nào để gửi lại. Ở tin của Javis
+// Tin chỉ có ảnh (không kèm lời nhắn) thì chẳng có chữ nào để gửi lại. Ở tin của LYON
 // thì cái quyết định là CÂU HỎI ngay trên nó, nên soi tin người dùng cuối cùng đã nằm
 // trong khung (chatAppend chèn theo đúng thứ tự nên lúc này nó đã có mặt).
 function lastUserText() {
@@ -460,7 +460,7 @@ function lastUserText() {
 // (hoặc 0 nếu tin lưu từ trước bản này chưa có mốc giờ, khi đó phần giờ được ẩn).
 // Khối ngữ cảnh do CHÍNH dashboard chèn vào ĐẦU tin trước khi gửi: file đang ghim trong trình
 // sửa, đường dẫn file đính kèm. Chúng là chỉ dẫn cho model, không phải câu người dùng gõ.
-const _KHOI_NGU_CANH = ["[FILE ĐANG MỞ trong trình sửa của Javis:", "[File đính kèm"];
+const _KHOI_NGU_CANH = ["[FILE ĐANG MỞ trong trình sửa của LYON:", "[File đính kèm"];
 
 // Gỡ mấy khối đó ra để lấy lại ĐÚNG câu người dùng đã gõ.
 //
@@ -551,7 +551,7 @@ function markdownToHtml(text, brain) {
   const blocks = [];
   text = text.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, code) => {
     blocks.push(`<div class="code-wrap"><button class="code-copy" type="button">⧉ Copy</button><pre class="code-block">${esc(code.replace(/\n$/, ""))}</pre></div>`);
-    return ` B${blocks.length - 1} `;
+    return `B${blocks.length - 1}`;
   });
 
   // 2) Bảng markdown |a|b| với dòng phân cách |---|
@@ -564,7 +564,7 @@ function markdownToHtml(text, brain) {
       const body = rows.slice(2).map(cells);
       const th = head.map(c => `<th>${esc(c)}</th>`).join("");
       const trs = body.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
-      return ` T${blocks.push(`<table class="md-table"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`) - 1} `;
+      return `T${blocks.push(`<table class="md-table"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`) - 1}`;
     }
   );
 
@@ -572,9 +572,9 @@ function markdownToHtml(text, brain) {
   const _fileUrl = (p) => `/files/raw?brain=${encodeURIComponent(brain || currentBrainPath())}&path=${encodeURIComponent((p || "").replace(/^\.?\//, ""))}`;
   const _resolveSrc = (s) => { s = (s || "").trim(); return /^(https?:|data:|blob:|\/)/i.test(s) ? s : _fileUrl(s); };
   const _imgHtml = (u, alt) => { const _h = safeHref(u); const _img = `<img class="chat-img" style="max-width:min(100%,440px);border-radius:8px;display:block;margin:6px 0;cursor:zoom-in" src="${esc(u)}" alt="${esc(alt || "")}" loading="lazy">`; return _h ? `<a href="${esc(_h)}" target="_blank" rel="noopener">${_img}</a>` : _img; };
-  text = text.replace(/!\[\[([^\]|]+?)(?:\|[^\]]*)?\]\]/g, (_m, name) => ` B${blocks.push(_imgHtml(_resolveSrc(name.trim()), name.trim())) - 1} `);
-  text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_m, alt, src) => ` B${blocks.push(_imgHtml(_resolveSrc(src), alt)) - 1} `);
-  text = text.replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (_m, t, href) => { href = href.trim(); const u = /^(https?:|mailto:)/i.test(href) ? href : _resolveSrc(href); return ` B${blocks.push(`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`) - 1} `; });
+  text = text.replace(/!\[\[([^\]|]+?)(?:\|[^\]]*)?\]\]/g, (_m, name) => `B${blocks.push(_imgHtml(_resolveSrc(name.trim()), name.trim())) - 1}`);
+  text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_m, alt, src) => `B${blocks.push(_imgHtml(_resolveSrc(src), alt)) - 1}`);
+  text = text.replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (_m, t, href) => { href = href.trim(); const u = /^(https?:|mailto:)/i.test(href) ? href : _resolveSrc(href); return `B${blocks.push(`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`) - 1}`; });
 
   // 3) Phần còn lại: escape rồi áp inline + list + heading
   let html = esc(text)
@@ -588,7 +588,7 @@ function markdownToHtml(text, brain) {
     .replace(/\n/g, "<br>");
 
   // 4) Trả lại các block/table đã giữ
-  html = html.replace(/ [BT](\d+) (?:<br>)?/g, (_, i) => blocks[+i]);
+  html = html.replace(/[BT](\d+)(?:<br>)?/g, (_, i) => blocks[+i]);
   return html;
 }
 function escapeHtml(t) { return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
@@ -704,7 +704,7 @@ function flashCopied(btn, label) {
   setTimeout(() => { btn.textContent = label || old; }, 1200);
 }
 // Bấm một nút trong hàng .msg-acts. Gửi lại / sửa lại đều lấy chữ GỐC của tin người
-// dùng (dataset.text) chứ không đọc lại DOM, vì tin dài đang thu gọn và tin Javis đã
+// dùng (dataset.text) chứ không đọc lại DOM, vì tin dài đang thu gọn và tin LYON đã
 // thành HTML. Gửi lại = một lượt MỚI ở cuối hội thoại, không xoá gì của lượt cũ.
 function runMsgAct(btn) {
   const msgEl = btn.closest(".msg");
@@ -840,7 +840,7 @@ async function initGraph() {
   await reloadGraph();
 }
 
-// Click node trong graph → Javis mở & thao tác note đó trong vault
+// Click node trong graph → LYON mở & thao tác note đó trong vault
 window.onGraphNodeClick = (node) => {
   if (!node || !node.path) return;
   const brainRel = (node.path || "").split("/").slice(1).join("/") || node.path;   // bỏ đoạn gốc → path tương đối brain
@@ -1010,7 +1010,7 @@ async function checkVault() {
       const miss = d.items.filter(i => !i.present).map(i => i.label).join(", ");
       vbText.textContent = d.ok
         ? `Vault chạy được, nhưng thiếu: ${miss}.`
-        : `Cấu trúc vault chưa chuẩn cho Javis - thiếu: ${miss}.`;
+        : `Cấu trúc vault chưa chuẩn cho LYON - thiếu: ${miss}.`;
       vaultBanner.classList.add("show");
     }
   } catch (e) {}
@@ -1224,7 +1224,7 @@ window.addEventListener("resize", () => { if (javisGraph) javisGraph.resize(); }
 let _stopBtnTick = 0;
 function pumpAudioLevel() {
   if (javisGraph) javisGraph.setLevel(voice.getLevel());
-  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc Javis đang đọc)
+  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc LYON đang đọc)
   if ((_stopBtnTick++ % 10) === 0) {
     updateStopBtn();
     // Đọc xong cả hàng đợi (gồm các bước trung gian) → trả orb về nghỉ.
@@ -1464,7 +1464,7 @@ async function doReflect(auto) {
   reflecting = true;
   turnsSinceReflect = 0;
   if (!auto && learnBtn) { learnBtn.disabled = true; learnBtn.innerHTML = ic("brain") + " Đang học..."; }
-  if (memResult) memResult.innerHTML = auto ? ic("brain") + " Đang tự học nền..." : "Javis đang đọc lại hội thoại và rút ra ký ức...";
+  if (memResult) memResult.innerHTML = auto ? ic("brain") + " Đang tự học nền..." : "LYON đang đọc lại hội thoại và rút ra ký ức...";
   try {
     const fd = new FormData();
     fd.append("brain", currentBrainPath());
@@ -1632,7 +1632,7 @@ async function uploadFile(file) {
   pendingAttachments.push(att);
   renderChips();
   try {
-    // Chỉ STAGE để Javis đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
+    // Chỉ STAGE để LYON đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
     const fd = new FormData();
     fd.append("file", file, att.name);
     fd.append("brain", currentBrainPath());
@@ -1666,7 +1666,7 @@ fileInput.addEventListener("change", () => {
 
 // Dán ảnh (Ctrl+V) + dán VĂN BẢN SIÊU DÀI thành file .txt đính kèm (kiểu Claude):
 // bài dài nhồi thẳng vào ô chat vừa khó đọc vừa nặng khung hội thoại - biến thành
-// file thì Javis đọc trọn vẹn còn màn hình chỉ hiện một chip gọn.
+// file thì LYON đọc trọn vẹn còn màn hình chỉ hiện một chip gọn.
 const PASTE_TXT_CHARS = 1500;   // vượt MỘT trong hai ngưỡng là thành file
 const PASTE_TXT_LINES = 25;
 function pasteAsTxt(text) {
@@ -1757,7 +1757,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.code === "Escape") {
     // Esc chỉ thoát chế độ rảnh tay + tắt mic + đóng popup node nếu đang mở. KHÔNG còn dừng câu
-    // trả lời hay ngắt Javis đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
+    // trả lời hay ngắt LYON đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
     handsFree = false; voiceBtn.classList.remove("handsfree");
     voice.stopListening();
     if (typeof closeNodePopup === "function") closeNodePopup();
@@ -1915,7 +1915,7 @@ async function refreshEngineBadge() {
 }
 
 // ============================================
-// Mức dùng (token Javis tự đo, đa nhà cung cấp) - panel sidebar
+// Mức dùng (token LYON tự đo, đa nhà cung cấp) - panel sidebar
 // ============================================
 const _PROV_LABEL = { cli: "Claude Code", codex: "ChatGPT", openrouter: "OpenRouter", openai: "OpenAI", "anthropic-api": "Anthropic", gemini: "Gemini", groq: "Groq", deepseek: "DeepSeek", ollama: "Ollama" };
 function _fmtTok(n) {
@@ -2037,7 +2037,7 @@ async function initAuthGate() {
     if (_wizardMandatory) {
       const pass = document.getElementById("wzPass"); if (pass) pass.required = true;
       const tw = document.getElementById("wzTokenWrap"); if (tw) tw.style.display = "";
-      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Javis trên server công khai.";
+      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ LYON trên server công khai.";
     }
     wz.classList.add("open");
   } else {
@@ -2283,12 +2283,12 @@ if (document.getElementById("wzFinish")) {
     const pass = document.getElementById("wzPass").value;
     const prov = (document.querySelector('input[name="wzprov"]:checked') || {}).value || "anthropic-cli";
     const btn = document.getElementById("wzFinish"); btn.disabled = true; btn.textContent = "Đang lưu…";
-    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+    if (_wizardMandatory && !pass) { err.textContent = "Bắt buộc đặt mật khẩu khi chạy trên server công khai."; btn.disabled = false; btn.textContent = "Bắt đầu dùng LYON →"; return; }
     try {
       if (pass) {
         const _tok = document.getElementById("wzToken");
         const d = await (await fetch("/auth/setup", { method: "POST", body: _fd({ username: user || "admin", password: pass, setup_token: _tok ? _tok.value.trim() : "" }) })).json();
-        if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; return; }
+        if (!d.ok) { err.textContent = d.error || "Đặt mật khẩu lỗi"; btn.disabled = false; btn.textContent = "Bắt đầu dùng LYON →"; return; }
       }
       await fetch("/settings", { method: "POST", body: _fd({ section: "general", data: JSON.stringify({ workspace_name: ws, setup_done: true }) }) });
       const _PM = {
@@ -2306,7 +2306,7 @@ if (document.getElementById("wzFinish")) {
       if (_kf && _ork && _ork.trim()) _mp[_kf] = _ork.trim();
       await fetch("/settings", { method: "POST", body: _fd({ section: "model", data: JSON.stringify(_mp) }) });
       location.reload();
-    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; }
+    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng LYON →"; }
   });
 }
 
