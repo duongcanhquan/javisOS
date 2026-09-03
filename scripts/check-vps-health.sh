@@ -16,8 +16,19 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
 echo "container=$CNAME"
 echo
 echo "=== /health ==="
-curl -fsS -m 8 http://127.0.0.1:7777/health || echo "HEALTH_FAIL"
-echo
+ok_health=0
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fsS -m 5 http://127.0.0.1:7777/health >/tmp/javis-health.json 2>/dev/null; then
+    cat /tmp/javis-health.json; echo
+    ok_health=1
+    break
+  fi
+  echo "waiting health... ($i)"
+  sleep 3
+done
+if [ "$ok_health" != "1" ]; then
+  echo "HEALTH_FAIL"
+fi
 echo
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,19 +57,11 @@ docker exec -u javis "$CNAME" bash -lc '
 echo
 
 echo "=== CONNECT / PROVIDERS / MCP (trong container, bypass login) ==="
-docker exec "$CNAME" python - <<'PY'
+TMP_PY="$(mktemp /tmp/javis-check-XXXXXX.py)"
+cat > "$TMP_PY" <<'PY'
 import json, os, sys
 sys.path.insert(0, "/app/server")
 os.chdir("/app")
-
-def dump(title, obj, limit=2000):
-    print("==", title)
-    try:
-        s = json.dumps(obj, ensure_ascii=False, default=str)
-    except Exception:
-        s = str(obj)
-    print(s[:limit])
-    print()
 
 # 1) Health snapshot kết nối MCP
 try:
@@ -155,6 +158,10 @@ try:
 except Exception as e:
     print("sweep ERR", type(e).__name__, e)
 PY
+docker cp "$TMP_PY" "$CNAME:/tmp/javis-check.py"
+docker exec "$CNAME" python /tmp/javis-check.py || echo "CONNECT_API_FAIL"
+rm -f "$TMP_PY"
+docker exec "$CNAME" rm -f /tmp/javis-check.py 2>/dev/null || true
 
 echo
 echo "=== DONE ==="
