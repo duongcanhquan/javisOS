@@ -21,5 +21,4 @@ jobs:
             git fetch --all --prune 2>/dev/null || true
             git reset --hard origin/main 2>/dev/null || true
             chmod +x scripts/check-bots-vps.sh scripts/check-bots-deep-vps.sh
-            bash scripts/check-bots-vps.sh
             bash scripts/check-bots-deep-vps.sh
