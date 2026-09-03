@@ -8908,6 +8908,29 @@ async def websocket_endpoint(ws: WebSocket):
                                                       _lang_qd.as_trace())
             except Exception:
                 pass
+            # Xã giao thuần ("xin chào" / "cảm ơn"): trả lời ngay, không spawn CLI/model.
+            # Antigravity/Claude Code lạnh máy có thể mất hàng chục giây cho một câu chào -
+            # không hợp giao tiếp. Câu có việc thật vẫn đi engine đầy đủ.
+            if not has_attachments:
+                try:
+                    import instant_social
+                    _inst = instant_social.try_reply(
+                        user_message,
+                        cfgmod.assistant_display_name(_cfg_all.get("workspace_name")),
+                    )
+                except Exception:
+                    _inst = None
+                if _inst:
+                    await ws.send_text(json.dumps({
+                        "type": "stream", "content": _inst, "tts": True,
+                    }))
+                    await ws.send_text(json.dumps({
+                        "type": "response", "content": _inst,
+                        "engine": "instant", "model": "social",
+                        **_ctx_frame(runtime_trace, 0),
+                    }))
+                    await _persist_turn(store, conv_sid, brain, user_message, _inst)
+                    return _inst
             # Đọc row phiên TRƯỚC khi chọn provider: phiên có thể đã ghim model riêng.
             _row0 = store.get_session(conv_sid) or {}
             prov, kind, api_key, api_model = _chat_provider_for_session(mcfg, _row0)

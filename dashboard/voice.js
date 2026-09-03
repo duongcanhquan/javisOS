@@ -18,7 +18,8 @@ class JavisVoice {
     this.isListening = false;
     // Nhớ lựa chọn bật/tắt đọc qua reload. MẶC ĐỊNH TẮT: người dùng mới vào phải im lặng,
     // chỉ đọc thành tiếng khi họ tự bật công tắc (lưu "1" vào localStorage).
-    this.ttsEnabled = (localStorage.getItem("javis.ttsEnabled") === "1");
+    // Mặc định BẬT giọng đọc: giao tiếp cần nghe được. Chỉ tắt khi user từng chọn "0".
+    this.ttsEnabled = (localStorage.getItem("javis.ttsEnabled") !== "0");
     this.vietnameseVoice = null;
 
     // Edge TTS backend (server)
