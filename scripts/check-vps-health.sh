@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Kiểm tra sức khoẻ Javis trên VPS (chạy trên host, gọi vào container).
+set -euo pipefail
+
+CNAME="${JAVIS_NAME:-javis}"
+if ! docker ps --format '{{.Names}}' | grep -qx "$CNAME"; then
+  CNAME=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+fi
+
+echo "=== HOST ==="
+hostname
+date -Is
+echo
+echo "=== DOCKER ==="
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
+echo "container=$CNAME"
+echo
+echo "=== /health ==="
+curl -fsS -m 8 http://127.0.0.1:7777/health || echo "HEALTH_FAIL"
+echo
+echo
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "$ROOT/.git" ]; then
+  echo "=== VERSION ==="
+  echo "dir=$ROOT"
+  git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || true
+  git -C "$ROOT" log -1 --oneline 2>/dev/null || true
+  grep -E '^(GEMINI_FORCE_FILE_STORAGE|JAVIS_ENABLE_USER_PLUGINS)=' "$ROOT/.env" 2>/dev/null || true
+  echo
+fi
+
+if [ -z "$CNAME" ]; then
+  echo "ERROR: không thấy container javis"
+  exit 1
+fi
+
+echo "=== ANTIGRAVITY ==="
+docker exec -u javis "$CNAME" bash -lc '
+  export PATH="$HOME/.local/bin:$PATH"
+  command -v agy || { echo "agy missing"; exit 0; }
+  echo "GEMINI_FORCE_FILE_STORAGE=${GEMINI_FORCE_FILE_STORAGE:-unset}"
+  ls -ld ~/.gemini ~/.antigravity 2>/dev/null || true
+  agy models 2>&1 | head -20
+' || echo "AGY_CHECK_FAIL"
+echo
+
+echo "=== CONNECT / PROVIDERS / MCP (trong container, bypass login) ==="
+docker exec "$CNAME" python - <<'PY'
+import json, os, sys
+sys.path.insert(0, "/app/server")
+os.chdir("/app")
+
+def dump(title, obj, limit=2000):
+    print("==", title)
+    try:
+        s = json.dumps(obj, ensure_ascii=False, default=str)
+    except Exception:
+        s = str(obj)
+    print(s[:limit])
+    print()
+
+# 1) Health snapshot kết nối MCP
+try:
+    import connect_health
+    snap = connect_health.snapshot()
+    engines = getattr(connect_health, "_engines", {})
+    if not snap:
+        print("== connect_health.snapshot: (empty - chưa quét hoặc chưa có kết nối bật)")
+    else:
+        print("== connect_health.snapshot")
+        for cid, rec in snap.items():
+            print(f"  {cid}: ok={rec.get('ok')} tools={rec.get('tools')} kind={rec.get('kind')} {rec.get('message') or ''}")
+    print("== engines")
+    if not engines:
+        print("  (empty)")
+    else:
+        for name, rec in engines.items():
+            print(f"  {name}: ok={rec.get('ok')} {rec.get('message') or ''} src={rec.get('source')}")
+    print()
+except Exception as e:
+    print("connect_health ERR", type(e).__name__, e)
+
+# 2) Danh sách MCP đã cấu hình
+try:
+    import mcp_store
+    rows = mcp_store.resolved(enabled_only=False)
+    print(f"== mcp_store ({len(rows)} connections)")
+    for c in rows:
+        print(f"  id={c.get('id')} enabled={c.get('enabled')} label={c.get('label') or c.get('name')} transport={c.get('transport')}")
+    print()
+except Exception as e:
+    print("mcp_store ERR", type(e).__name__, e)
+
+# 3) Provider / models (nội bộ)
+try:
+    import main as m
+    # dùng hàm thuần nếu có
+    if hasattr(m, "_providers_payload"):
+        dump("providers", m._providers_payload())
+    elif hasattr(m, "list_providers"):
+        dump("providers", m.list_providers())
+    else:
+        # fallback: đọc settings model
+        import config as cfgmod
+        st = cfgmod.read_settings().get("model") or {}
+        print("== model settings (fallback)")
+        print(json.dumps({
+            "main": st.get("main"),
+            "has_openrouter": bool(st.get("openrouter_key")),
+            "has_anthropic": bool(st.get("anthropic_api_key")),
+            "has_openai": bool(st.get("openai_api_key")),
+            "has_gemini": bool(st.get("gemini_api_key")),
+            "has_deepseek": bool(st.get("deepseek_api_key") or st.get("deepseek_key")),
+            "has_groq": bool(st.get("groq_api_key")),
+        }, ensure_ascii=False))
+        print()
+except Exception as e:
+    print("providers ERR", type(e).__name__, e)
+
+# 4) Antigravity + Claude auth status modules
+try:
+    import antigravity_cli
+    print("== antigravity_cli.auth_status")
+    print(json.dumps(antigravity_cli.auth_status(bo_qua_cache=True), ensure_ascii=False))
+    print()
+except Exception as e:
+    print("antigravity auth ERR", type(e).__name__, e)
+
+try:
+    import claude_cli
+    if hasattr(claude_cli, "auth_status"):
+        print("== claude_cli.auth_status")
+        print(json.dumps(claude_cli.auth_status(), ensure_ascii=False, default=str)[:800])
+        print()
+except Exception as e:
+    print("claude auth ERR", type(e).__name__, e)
+
+# 5) Ép quét health các kết nối đang bật (có thể mất vài chục giây)
+try:
+    import asyncio, connect_health
+    print("== sweeping enabled connections now...")
+    n = asyncio.get_event_loop().run_until_complete(connect_health.sweep())
+    print(f"checked={n}")
+    for cid, rec in connect_health.snapshot().items():
+        mark = "OK" if rec.get("ok") else "FAIL"
+        print(f"  [{mark}] {cid}: tools={rec.get('tools')} kind={rec.get('kind')} {rec.get('message') or ''}")
+except Exception as e:
+    print("sweep ERR", type(e).__name__, e)
+PY
+
+echo
+echo "=== DONE ==="
