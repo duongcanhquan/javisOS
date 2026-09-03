@@ -50,46 +50,40 @@ jobs:
               docker exec -u javis "$CNAME" bash -lc 'export PATH="$HOME/.local/bin:$PATH"; command -v agy; echo GEMINI_FORCE_FILE_STORAGE=${GEMINI_FORCE_FILE_STORAGE:-unset}; ls -ld ~/.gemini ~/.antigravity 2>/dev/null || true; agy models 2>&1 | head -20' || echo "AGY_CHECK_FAIL"
               echo
               echo "=== CONNECT HEALTH (API trong container) ==="
-              docker exec "$CNAME" python - <<'PY' || echo "CONNECT_API_FAIL"
-            import json, urllib.request
-            for path in ("/health", "/connect/health", "/mcp/list", "/providers"):
-                try:
-                    with urllib.request.urlopen("http://127.0.0.1:7777"+path, timeout=20) as r:
-                        body = r.read().decode("utf-8", "replace")
-                    print("==", path, "HTTP", r.status)
-                    if path == "/connect/health":
-                        data = json.loads(body)
-                        if not data:
-                            print("(empty - chưa quét hoặc chưa có kết nối)")
-                        else:
-                            for cid, rec in data.items():
-                                ok = rec.get("ok")
-                                msg = rec.get("message") or ""
-                                tools = rec.get("tools")
-                                print(f"  {cid}: ok={ok} tools={tools} {msg}")
-                    elif path == "/mcp/list":
-                        data = json.loads(body)
-                        items = data if isinstance(data, list) else data.get("items") or data.get("connections") or []
-                        if isinstance(data, dict) and not items:
-                            print(json.dumps(data, ensure_ascii=False)[:1200])
-                        else:
-                            for c in items:
-                                if not isinstance(c, dict):
-                                    print(" ", c)
-                                    continue
-                                print(f"  id={c.get('id')} enabled={c.get('enabled')} label={c.get('label') or c.get('name')}")
-                    elif path == "/providers":
-                        data = json.loads(body)
-                        items = data if isinstance(data, list) else data.get("providers") or []
-                        for p in items:
-                            if not isinstance(p, dict):
-                                continue
-                            print(f"  {p.get('id')}: connected={p.get('connected')} cli_found={p.get('cli_found')} models={len(p.get('models') or [])} err={(p.get('auth_error') or '')[:80]}")
-                    else:
-                        print(body[:300])
-                except Exception as e:
-                    print("==", path, "ERR", type(e).__name__, e)
-            PY
+              docker exec "$CNAME" python -c 'import json,urllib.request
+paths=["/health","/connect/health","/mcp/list","/providers","/claude/status"]
+for path in paths:
+  try:
+    with urllib.request.urlopen("http://127.0.0.1:7777"+path, timeout=25) as r:
+      body=r.read().decode("utf-8","replace")
+    print("==", path, "HTTP", r.status)
+    data=json.loads(body) if body.strip().startswith(("{","[")) else body
+    if path=="/connect/health":
+      if not data: print("(empty)")
+      else:
+        for cid,rec in data.items():
+          print(" ", cid, "ok="+str(rec.get("ok")), "tools="+str(rec.get("tools")), rec.get("message") or "")
+    elif path=="/mcp/list":
+      items=data if isinstance(data,list) else data.get("items") or data.get("connections") or data.get("mcp") or []
+      if isinstance(data,dict) and not items:
+        print(json.dumps({k:data.get(k) for k in list(data)[:12]}, ensure_ascii=False)[:1500])
+      for c in items:
+        if isinstance(c,dict):
+          print(" ", c.get("id"), "enabled="+str(c.get("enabled")), c.get("label") or c.get("name") or "")
+        else:
+          print(" ", c)
+    elif path=="/providers":
+      items=data if isinstance(data,list) else data.get("providers") or []
+      for p in items:
+        if isinstance(p,dict):
+          print(" ", p.get("id"), "connected="+str(p.get("connected")), "cli="+str(p.get("cli_found")), "models="+str(len(p.get("models") or [])), (p.get("auth_error") or "")[:100])
+    elif path=="/claude/status":
+      print(json.dumps(data, ensure_ascii=False)[:500] if isinstance(data,dict) else str(data)[:500])
+    else:
+      print(str(data)[:300] if not isinstance(data,str) else data[:300])
+  except Exception as e:
+    print("==", path, "ERR", type(e).__name__, e)
+' || echo "CONNECT_API_FAIL"
             fi
             echo
             echo "=== DONE ==="
