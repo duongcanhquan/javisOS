@@ -102,7 +102,7 @@
       : "Bạn đã đọc tất cả thông báo";
 
     if (!state.items.length) {
-      list.innerHTML = '<div class="noti-empty">Chưa có thông báo.<br>Các bản cập nhật và tin từ Javis OS sẽ xuất hiện tại đây.</div>';
+      list.innerHTML = '<div class="noti-empty">Chưa có thông báo.<br>Các bản cập nhật và tin từ LYON sẽ xuất hiện tại đây.</div>';
       return;
     }
     var limited = state.items.slice(0, MAX_ITEMS);

@@ -453,6 +453,14 @@ def build_system_prompt(brain: str = "brain", include_memory: bool = True,
                      f"từng nhà cung cấp ở panel 'Mức dùng' trên dashboard.")
     except Exception:
         pass
+    # Danh tính thương hiệu (LYON/...): chèn CUỐI để thắng mọi chỗ "Bạn là Javis" trong tài liệu lõi.
+    try:
+        base += cfgmod.identity_prompt_block(cfgmod.read_settings().get("workspace_name"))
+    except Exception:
+        try:
+            base += cfgmod.identity_prompt_block(None)
+        except Exception:
+            pass
     return base
 
 
@@ -838,7 +846,7 @@ async def auth_2fa_start(request: Request):
     _TOTP_CHO.clear()
     _TOTP_CHO.update(secret=secret, ts=time.time())
     uri = totp.otpauth_uri(secret, _ten_hien_thi(cfg),
-                           cfg.get("workspace_name") or "Javis OS")
+                           cfg.get("workspace_name") or "LYON")
     return {"ok": True, "secret": secret, "uri": uri, "qr_svg": totp.qr_svg(uri)}
 
 
@@ -3161,7 +3169,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             lc["currency"] = str(patch["currency"] or "").strip().upper() or "VND"
     elif section == "general":
         if "workspace_name" in patch:
-            cfg["workspace_name"] = patch["workspace_name"] or "Javis OS"
+            cfg["workspace_name"] = patch["workspace_name"] or "LYON"
         if "setup_done" in patch:
             cfg["setup_done"] = bool(patch["setup_done"])
     elif section == "model":
@@ -7900,7 +7908,7 @@ async def path_exists(path: str = Query("", description="Đường dẫn tuyệt
 async def config():
     s = cfgmod.read_settings()
     return {
-        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
+        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "LYON"),
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+25%"),

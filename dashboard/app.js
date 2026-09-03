@@ -76,8 +76,12 @@ const orbState = document.getElementById("orbState");
 // Thanh trạng thái đã bỏ tên workspace + ngày tháng (0.9.195) - element có thể không còn,
 // nên mọi truy cập phải guard để trang không chết trắng nếu thiếu.
 fetch("/config").then(r => r.json()).then(cfg => {
+  const name = cfg.workspace_name || "LYON";
   const wn = document.getElementById("workspaceName");
-  if (wn) wn.textContent = cfg.workspace_name || "Javis OS";
+  if (wn) wn.textContent = name;
+  const bt = document.querySelector(".brand-text");
+  if (bt) bt.textContent = name;
+  if (cfg.workspace_name) document.title = name;
 }).catch(() => {});
 
 // ============================================
@@ -2126,7 +2130,7 @@ if (document.getElementById("settingsBtn")) {
 
   document.getElementById("saveGeneral").addEventListener("click", (e) => {
     _saveSetting("general", { workspace_name: document.getElementById("setWsName").value.trim() }, e.target)
-      .then(() => { document.getElementById("workspaceName").textContent = document.getElementById("setWsName").value.trim() || "Javis OS"; });
+      .then(() => { (() => { const n = document.getElementById("setWsName").value.trim() || "LYON"; const wn=document.getElementById("workspaceName"); if(wn) wn.textContent=n; const bt=document.querySelector(".brand-text"); if(bt) bt.textContent=n; document.title=n; })(); });
   });
   document.getElementById("saveModel").addEventListener("click", (e) => {
     const sel = document.getElementById("setOrModelSel");
