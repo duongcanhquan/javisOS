@@ -159,9 +159,10 @@ except Exception as e:
     print("sweep ERR", type(e).__name__, e)
 PY
 docker cp "$TMP_PY" "$CNAME:/tmp/javis-check.py"
-docker exec "$CNAME" python /tmp/javis-check.py || echo "CONNECT_API_FAIL"
+docker exec -u root "$CNAME" chmod 644 /tmp/javis-check.py
+docker exec -u root -w /app "$CNAME" python /tmp/javis-check.py || echo "CONNECT_API_FAIL"
 rm -f "$TMP_PY"
-docker exec "$CNAME" rm -f /tmp/javis-check.py 2>/dev/null || true
+docker exec -u root "$CNAME" rm -f /tmp/javis-check.py 2>/dev/null || true
 
 echo
 echo "=== DONE ==="
