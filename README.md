@@ -109,7 +109,14 @@ chmod +x install.sh && ./install.sh
 ```
 Script tự cài Python + Node + hai engine CLI (Claude Code, Codex), tạo venv, đăng ký dịch vụ systemd tự chạy khi boot, in ra địa chỉ. Báo Claude chưa đăng nhập thì chạy 1 lần: `claude auth login --claudeai`.
 
-### Cách 4 - Windows (máy cá nhân)
+### Cách 4 - Windows / Mac máy cá nhân (không cần Cursor)
+
+Hướng dẫn ngắn: **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)**.
+
+- **Windows:** ZIP → `1-Cai-dat.bat` (lần đầu) → sau đó `2-Bat-Javis.bat` → http://localhost:7777  
+- **Mac:** ZIP → `1-Cai-dat.command` → sau đó `2-Bat-Javis.command`
+
+Chi tiết Windows (file gốc):
 
 ```
 1. Cài Python 3.12 (tick "Add to PATH") + Node.js LTS
