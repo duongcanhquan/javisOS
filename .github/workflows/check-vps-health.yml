@@ -1,0 +1,95 @@
+# Kiểm tra sức khoẻ Javis trên VPS (workflow_dispatch).
+name: Check VPS Health
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health + connections on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== HOST ==="
+            hostname
+            date -Is
+            echo
+            echo "=== DOCKER ==="
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
+            echo
+            CNAME="${JAVIS_NAME:-javis}"
+            if ! docker ps --format '{{.Names}}' | grep -qx "$CNAME"; then
+              CNAME=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+            fi
+            echo "container=$CNAME"
+            echo
+            echo "=== /health (localhost) ==="
+            curl -fsS -m 8 http://127.0.0.1:7777/health || echo "HEALTH_FAIL"
+            echo
+            echo
+            echo "=== VERSION / git ==="
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            if [ -d "$DIR" ]; then
+              cd "$DIR"
+              echo "dir=$DIR"
+              git rev-parse --short HEAD 2>/dev/null || true
+              git log -1 --oneline 2>/dev/null || true
+              grep -E '^(GEMINI_FORCE_FILE_STORAGE|JAVIS_ENABLE_USER_PLUGINS)=' .env 2>/dev/null || echo "(no matching .env keys)"
+            fi
+            echo
+            if [ -n "$CNAME" ]; then
+              echo "=== ANTIGRAVITY ==="
+              docker exec -u javis "$CNAME" bash -lc 'export PATH="$HOME/.local/bin:$PATH"; command -v agy; echo GEMINI_FORCE_FILE_STORAGE=${GEMINI_FORCE_FILE_STORAGE:-unset}; ls -ld ~/.gemini ~/.antigravity 2>/dev/null || true; agy models 2>&1 | head -20' || echo "AGY_CHECK_FAIL"
+              echo
+              echo "=== CONNECT HEALTH (API trong container) ==="
+              docker exec "$CNAME" python - <<'PY' || echo "CONNECT_API_FAIL"
+            import json, urllib.request
+            for path in ("/health", "/connect/health", "/mcp/list", "/providers"):
+                try:
+                    with urllib.request.urlopen("http://127.0.0.1:7777"+path, timeout=20) as r:
+                        body = r.read().decode("utf-8", "replace")
+                    print("==", path, "HTTP", r.status)
+                    if path == "/connect/health":
+                        data = json.loads(body)
+                        if not data:
+                            print("(empty - chưa quét hoặc chưa có kết nối)")
+                        else:
+                            for cid, rec in data.items():
+                                ok = rec.get("ok")
+                                msg = rec.get("message") or ""
+                                tools = rec.get("tools")
+                                print(f"  {cid}: ok={ok} tools={tools} {msg}")
+                    elif path == "/mcp/list":
+                        data = json.loads(body)
+                        items = data if isinstance(data, list) else data.get("items") or data.get("connections") or []
+                        if isinstance(data, dict) and not items:
+                            print(json.dumps(data, ensure_ascii=False)[:1200])
+                        else:
+                            for c in items:
+                                if not isinstance(c, dict):
+                                    print(" ", c)
+                                    continue
+                                print(f"  id={c.get('id')} enabled={c.get('enabled')} label={c.get('label') or c.get('name')}")
+                    elif path == "/providers":
+                        data = json.loads(body)
+                        items = data if isinstance(data, list) else data.get("providers") or []
+                        for p in items:
+                            if not isinstance(p, dict):
+                                continue
+                            print(f"  {p.get('id')}: connected={p.get('connected')} cli_found={p.get('cli_found')} models={len(p.get('models') or [])} err={(p.get('auth_error') or '')[:80]}")
+                    else:
+                        print(body[:300])
+                except Exception as e:
+                    print("==", path, "ERR", type(e).__name__, e)
+            PY
+            fi
+            echo
+            echo "=== DONE ==="
