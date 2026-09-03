@@ -111,7 +111,7 @@ from sessions import get_store   # kho phiên hội thoại (sqlite + fts5): lis
 import compaction   # nén hội thoại dài cho engine API (tóm tắt phần cũ thay vì cắt bỏ)
 from chat_runtime import ChatRuntime
 
-app = FastAPI(title="LYON")
+app = FastAPI(title="Javis OS")
 _CHAT_RUNTIME = ChatRuntime()
 _CONTEXT_RUNTIME = context_runtime.get_runtime()
 _CAPABILITY_REGISTRY = capability_registry.get_registry()
@@ -247,7 +247,7 @@ SYSTEM_PROMPT = CLAUDE_MD_PATH.read_text(encoding="utf-8") if CLAUDE_MD_PATH.exi
 # Bộ nhớ dài hạn - lưu TRONG vault đang chọn để đi theo vault
 MEMORY_SEED = (
     "# Bộ nhớ Javis - Index\n\n"
-    "> Chỉ mục bộ nhớ dài hạn của LYON. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.\n"
+    "> Chỉ mục bộ nhớ dài hạn của Javis. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.\n"
     "> Nội dung file này được nạp vào đầu mỗi câu hỏi để Javis nhớ ngữ cảnh.\n\n"
     "_(Chưa có ký ức nào. Javis sẽ học dần sau mỗi hội thoại.)_\n"
 )
@@ -453,14 +453,6 @@ def build_system_prompt(brain: str = "brain", include_memory: bool = True,
                      f"từng nhà cung cấp ở panel 'Mức dùng' trên dashboard.")
     except Exception:
         pass
-    # Danh tính thương hiệu (LYON/...): chèn CUỐI để thắng mọi chỗ "Bạn là Javis" trong tài liệu lõi.
-    try:
-        base += cfgmod.identity_prompt_block(cfgmod.read_settings().get("workspace_name"))
-    except Exception:
-        try:
-            base += cfgmod.identity_prompt_block(None)
-        except Exception:
-            pass
     return base
 
 
@@ -846,7 +838,7 @@ async def auth_2fa_start(request: Request):
     _TOTP_CHO.clear()
     _TOTP_CHO.update(secret=secret, ts=time.time())
     uri = totp.otpauth_uri(secret, _ten_hien_thi(cfg),
-                           cfg.get("workspace_name") or "LYON")
+                           cfg.get("workspace_name") or "Javis OS")
     return {"ok": True, "secret": secret, "uri": uri, "qr_svg": totp.qr_svg(uri)}
 
 
@@ -3169,7 +3161,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             lc["currency"] = str(patch["currency"] or "").strip().upper() or "VND"
     elif section == "general":
         if "workspace_name" in patch:
-            cfg["workspace_name"] = patch["workspace_name"] or "LYON"
+            cfg["workspace_name"] = patch["workspace_name"] or "Javis OS"
         if "setup_done" in patch:
             cfg["setup_done"] = bool(patch["setup_done"])
     elif section == "model":
@@ -3884,7 +3876,7 @@ def _check_structure(root: Path):
     return items
 
 JAVIS_README = (
-    "# LYON\n\nLớp điều phối của LYON trong vault này.\n\n"
+    "# Javis\n\nLớp điều phối của Javis OS trong vault này.\n\n"
     "- `agents/` - các Agent (vai trò + skills + bộ nhớ riêng)\n"
     "- `workflows/` - quy trình nhiều agent (status active/off)\n"
     "- Skills dùng chung ở `skills/` (tự mirror sang `.claude/skills` cho Claude Code native)\n"
@@ -3905,15 +3897,16 @@ TASKINBOX_SEED = (
     "Việc thêm nhanh từ dashboard - kéo về đúng sổ khi rảnh.\n"
 )
 SCHEMA_SEED = (
-    "# AGENTS.md - Vault Schema (LYON)\n\n"
-    "> Vault này hoạt động với LYON. Cấu trúc:\n\n"
+    "# AGENTS.md - Vault Schema (Javis)\n\n"
+    "> Vault này hoạt động với Javis OS. Cấu trúc:\n\n"
     "- `01 - Daily Log/` → `04 - Future Log/` - bộ sổ bullet journal (nhật ký ngày/tuần/tháng/tương lai, chứa task `- [ ]`; khối dataview kéo việc từ đây)\n"
     "- `06 - Sources/` - ghi chú thô (source of truth)\n"
     "- `07 - Wiki/` - tri thức đã chưng cất, có `[[wikilink]]`\n"
-    "- `Memory/` - bộ nhớ dài hạn của LYON (facts + conversations)\n"
+    "- `Memory/` - bộ nhớ dài hạn của Javis (facts + conversations)\n"
     "- `Javis/` - agents + workflows\n\n"
     "Nguyên lý: Sources → (ingest) → Wiki. Tri thức tích luỹ, không tái phát hiện.\n"
 )
+
 
 def _ensure_brain_scaffold(root):
     """Tạo cấu trúc chuẩn cho MỘT brain (idempotent): sources/agents/workflows/memory/wiki/
@@ -7908,7 +7901,7 @@ async def path_exists(path: str = Query("", description="Đường dẫn tuyệt
 async def config():
     s = cfgmod.read_settings()
     return {
-        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "LYON"),
+        "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+25%"),
@@ -8914,10 +8907,10 @@ async def websocket_endpoint(ws: WebSocket):
             if not has_attachments:
                 try:
                     import instant_social
-                    _inst = instant_social.try_reply(
-                        user_message,
-                        cfgmod.assistant_display_name(_cfg_all.get("workspace_name")),
-                    )
+                    _ws = str(_cfg_all.get("workspace_name") or "Javis").strip() or "Javis"
+                    if _ws.lower().endswith(" os"):
+                        _ws = _ws[:-3].strip() or "Javis"
+                    _inst = instant_social.try_reply(user_message, _ws)
                 except Exception:
                     _inst = None
                 if _inst:

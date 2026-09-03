@@ -93,7 +93,7 @@ def _sach(s: str) -> str:
     return "".join(ch for ch in s if ch.isprintable() and ch != ":").strip()
 
 
-def otpauth_uri(secret: str, ten_dang_nhap: str, ten_workspace: str = "LYON") -> str:
+def otpauth_uri(secret: str, ten_dang_nhap: str, ten_workspace: str = "Javis OS") -> str:
     """Chuỗi `otpauth://` để app Authenticator quét QR hoặc nhập tay.
 
     CHỈ kèm `algorithm`/`digits`/`period` khi chúng KHÁC mặc định. Ba giá trị SHA1 / 6 số /
@@ -111,7 +111,7 @@ def otpauth_uri(secret: str, ten_dang_nhap: str, ten_workspace: str = "LYON") ->
     # Cắt ở 24 KÝ TỰ chứ không phải 24 byte: chữ có dấu chiếm 6 ký tự sau khi mã hoá ("ý" ->
     # %C3%BD), nên cùng một giới hạn thì tên tiếng Việt tốn chỗ hơn tên không dấu. Đã đo: kể cả
     # 24 ký tự có dấu hết thì QR vẫn giữ 8px mỗi ô, tức vẫn quét thoải mái.
-    issuer = _sach(ten_workspace)[:24].strip() or "LYON"
+    issuer = _sach(ten_workspace)[:24].strip() or "Javis"
     tai_khoan = _sach(ten_dang_nhap)[:24].strip() or "admin"
     label = quote(f"{issuer}:{tai_khoan}", safe="")
     uri = f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer, safe='')}"

@@ -1,5 +1,5 @@
 // ============================================================
-// LYON - Trang Chatbot: quản lý các Bot chuyên trách (mỗi bot một Agent, một brain,
+// Javis - Trang Chatbot: quản lý các Bot chuyên trách (mỗi bot một Agent, một brain,
 // một token Telegram riêng). console.js gọi window.JavisChatbots.render(el).
 //
 // UX dựng theo hướng NHIỀU BOT ngay từ đầu dù lần đầu chỉ chạy một con: lưới thẻ, ô tìm,
@@ -257,7 +257,7 @@
     // trong khi thẻ vẫn xanh và bot vẫn trả lời bình thường.
     if (st.loi_menu_lenh)
       loiTen += '<div class="cb-err">' + ic("triangle-alert") + ' ' + esc(st.loi_menu_lenh) + '</div>';
-    // Chế độ riêng tư của Telegram chặn Ở PHÍA TELEGRAM, trước khi LYON nhìn thấy tin nào.
+    // Chế độ riêng tư của Telegram chặn Ở PHÍA TELEGRAM, trước khi Javis nhìn thấy tin nào.
     // Hiện cho MỌI bot có dùng nhóm, không riêng bot đặt "trả lời mọi tin": nó là nguyên nhân
     // số một của "nhắn riêng thì được, trong nhóm tag tên thì im re", và người dùng không có
     // cách nào đoán ra vì mọi dấu hiệu trên trang này đều xanh.
@@ -593,7 +593,7 @@
             'CHỈ tài liệu trong brain</option>' +
         '</select>' +
         '<div class="cb-hint"><b>Chuyên môn của Agent</b>: bot làm đúng theo quy định bạn viết ' +
-        'trong file Agent, tài liệu tra được là phần bổ sung. LYON không thêm luật nào của ' +
+        'trong file Agent, tài liệu tra được là phần bổ sung. Javis không thêm luật nào của ' +
         'mình vào.<br>' +
         '<b>Chỉ tài liệu</b>: thêm một luật duy nhất là không tìm thấy tài liệu thì nói chưa ' +
         'có thông tin, không tự nói thêm. Hợp với bot đọc giá và chính sách, nơi một câu sai ' +
@@ -606,7 +606,7 @@
         '<div class="cb-muc-note">' + veCanhBao((b && b.muc_quyen) || "suggest") + '</div>' +
 
         // Ngôn ngữ của bot ĐỘC LẬP với ngôn ngữ của chủ, và đó là cả lý do ô này tồn tại:
-        // bot nói chuyện với NGƯỜI NGOÀI, không phải với chủ. Chủ dùng LYON bằng tiếng Việt
+        // bot nói chuyện với NGƯỜI NGOÀI, không phải với chủ. Chủ dùng Javis bằng tiếng Việt
         // mà người nhắn cho bot lại nói tiếng khác là chuyện bình thường, nên lấy ngôn ngữ
         // của chủ suy ra ngôn ngữ của bot là suy sai.
         '<label>Bot trả lời khách bằng tiếng gì</label>' +
@@ -663,7 +663,7 @@
         '</div>' +
         '<div class="cb-hint cb-khong-nhom" id="cbKhongNhom" style="display:none">' +
           'Bot Zalo <b>chỉ trả lời tin nhắn riêng</b>. Gói bot cơ bản của Zalo không cho bot vào ' +
-          'nhóm, và Zalo cũng chưa có API gửi tài liệu nên file LYON tạo ra sẽ không gửi qua ' +
+          'nhóm, và Zalo cũng chưa có API gửi tài liệu nên file Javis tạo ra sẽ không gửi qua ' +
           'kênh này được (ảnh thì đang thử).</div>' +
 
         '<div class="cb-form-acts">' +

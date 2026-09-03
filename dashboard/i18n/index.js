@@ -83,7 +83,7 @@
 
   function _ver_tai() {
     // Lấy ?v= từ chính thẻ <script i18n> (server gắn VERSION vào index.html).
-    // Không có thì từ điển JSON bị cache vĩnh viễn - đúng bệnh "đã đổi LYON mà menu còn Javis".
+    // Không có thì từ điển JSON bị cache vĩnh viễn - menu giữ nhãn cũ sau khi đổi bản.
     try {
       var s = document.querySelector('script[src*="/static/i18n/index.js"]');
       var m = s && (s.getAttribute("src") || "").match(/[?&]v=([^&]+)/);

@@ -23,11 +23,8 @@ SETTINGS_PATH = STATE_DIR / "settings.json"
 # vì code tree dashboard/ là read-only trong container.
 BRANDING_DIR = STATE_DIR / "branding"
 
-# Tên thương hiệu phân phối (UI + cách AI tự xưng). Đổi bằng WORKSPACE_NAME trong .env.
-_PRODUCT_NAME = (os.getenv("WORKSPACE_NAME", "LYON").strip() or "LYON")
-
 _DEFAULT = {
-    "workspace_name": _PRODUCT_NAME,
+    "workspace_name": "Javis OS",
     "setup_done": False,                       # đã qua bộ cài đặt lần đầu chưa
     # totp = xác thực 2 lớp. secret rỗng / enabled=false → cổng đăng nhập giữ nguyên như cũ.
     # `recovery` giữ BẢN BĂM của mã khôi phục (cùng cách băm mật khẩu), nên không có đường nào
@@ -640,37 +637,6 @@ def _no_rong_pham_vi_bo_nao(cfg: dict) -> bool:
     return doi
 
 
-def assistant_display_name(workspace=None):
-    """Tên AI tự xưng với người dùng. 'LYON OS' → 'LYON'; rỗng → LYON."""
-    n = (workspace if workspace is not None else "").strip()
-    if not n:
-        try:
-            n = str((read_settings() or {}).get("workspace_name") or "").strip()
-        except Exception:
-            n = ""
-    if not n:
-        n = _PRODUCT_NAME
-    low = n.casefold()
-    if low.endswith(" os"):
-        n = n[:-3].strip()
-    return n or "LYON"
-
-
-def identity_prompt_block(workspace=None):
-    """Khối chèn cuối system prompt: ép model xưng đúng tên thương hiệu, không xưng Javis."""
-    ten = assistant_display_name(workspace)
-    return (
-        f"\n\n# === DANH TÍNH (BẮT BUỘC) ===\n"
-        f"Tên của bạn khi nói chuyện với người dùng là **{ten}**.\n"
-        f"- Giới thiệu, được hỏi tên, hoặc cần tự gọi tên: luôn dùng **{ten}**. "
-        f"KHÔNG xưng Javis / Javis OS / Jarvis.\n"
-        f"- Trong tài liệu hệ thống vẫn có thể xuất hiện chữ Javis (tool `javis_*`, "
-        f"thư mục `Javis/`, skill `javis-builder`) - đó là tên kỹ thuật nội bộ, "
-        f"không đọc thành tên của bạn với người dùng.\n"
-        f"- Trả lời người dùng thì thay mọi chỗ tự xưng bằng {ten}.\n"
-    )
-
-
 def read_settings():
     try:
         st = SETTINGS_PATH.stat()
@@ -686,12 +652,11 @@ def read_settings():
             _deep_merge(cfg, data or {})
     except Exception:
         pass
-    # Tên mặc định cũ của upstream → LYON (chỉ khi chưa đổi tay sang tên khác).
-    if str(cfg.get("workspace_name") or "").strip() in (
-            "Javis OS", "Javis", "JAVIS OS", "JAVIS", ""):
-        cfg["workspace_name"] = _PRODUCT_NAME
     _no_rong_pham_vi_bo_nao(cfg)
     _ap_muc_mac_dinh(cfg)
+    # Bản fork từng đổi tên hiển thị sang LYON rồi revert: trả về mặc định Javis OS.
+    if str(cfg.get("workspace_name") or "").strip() in ("LYON", "LYON OS"):
+        cfg["workspace_name"] = "Javis OS"
     try:
         import secrets_store   # lazy: secrets_store import config → tránh vòng lặp import
         _transform_secret_fields(cfg, secrets_store.decrypt)

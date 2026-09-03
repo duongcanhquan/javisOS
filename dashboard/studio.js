@@ -1,5 +1,5 @@
 // ============================================
-// LYON - Studio: Agents / Skills / Workflows
+// JAVIS OS - Studio: Agents / Skills / Workflows
 // ============================================
 (function () {
   // Locale để định dạng số/ngày. Lấy từ i18n chứ KHÔNG khoá "vi-VN": người dùng đổi
@@ -674,7 +674,7 @@
     list.forEach(s => {
       const on = s.enabled !== false;
       const div = document.createElement("div"); div.className = "sk2-card" + (on ? "" : " off");
-      const sysBadge = s.system ? ` <span class="sysb" title="Skill hệ thống LYON - có ở mọi brain, tự cập nhật theo phiên bản app. Sửa nội dung thì giữ bản của bạn (ngừng tự cập nhật). Không xoá được - chỉ tắt.">hệ thống</span>` : "";
+      const sysBadge = s.system ? ` <span class="sysb" title="Skill hệ thống Javis OS - có ở mọi brain, tự cập nhật theo phiên bản app. Sửa nội dung thì giữ bản của bạn (ngừng tự cập nhật). Không xoá được - chỉ tắt.">hệ thống</span>` : "";
       // Telemetry: use_count là tín hiệu DƯƠNG một chiều. Skill nạp native qua .claude/skills
       // không đi qua bộ đếm, nên "chưa thấy dùng" là tham khảo, KHÔNG phải phán quyết.
       let usageHtml = "";
@@ -682,7 +682,7 @@
         const when = s.last_used_at ? new Date(s.last_used_at * 1000).toLocaleDateString(LOC()) : "";
         usageHtml = ` · <span class="sk-usage">đã dùng ${s.use_count} lần${when ? ", gần nhất " + when : ""}</span>`;
       } else if (s.stale) {
-        usageHtml = ` · <span class="sk-usage sk-stale" title="LYON chỉ đếm được skill nạp qua tool javis_use_skill. Claude Code nạp native qua .claude/skills thì không đếm được, nên đây chỉ là tham khảo - không có nghĩa skill vô dụng.">chưa thấy dùng</span>`;
+        usageHtml = ` · <span class="sk-usage sk-stale" title="Javis chỉ đếm được skill nạp qua tool javis_use_skill. Claude Code nạp native qua .claude/skills thì không đếm được, nên đây chỉ là tham khảo - không có nghĩa skill vô dụng.">chưa thấy dùng</span>`;
       }
       div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${on ? "Đang bật - bấm để tắt" : "Đang tắt - bấm để bật"}">
         <div class="sk2-info"><div class="nm">${ic("puzzle")} ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">${ic("folder-open")} ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}${usageHtml}</div></div>

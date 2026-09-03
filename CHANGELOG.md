@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.25] - 2026-09-03
+### Cải thiện
+- **Trả lại tên Javis trên giao diện và trong chat.** Không dùng LYON nữa. Giữ các cải tiến hữu ích: chào/cảm ơn trả lời nhanh, giọng đọc mặc định bật, cache từ điển menu không bị kẹt.
+
 ## [0.35.24] - 2026-09-03
 ### Sửa lỗi
 - **Menu Trợ lý còn chữ Javis dù server đã đổi LYON.** Từ điển ngôn ngữ bị trình duyệt giữ bản cũ vì thiếu `?v=`. Giờ nạp `vi.json` kèm phiên bản app - hard refresh một lần là thấy LYON.

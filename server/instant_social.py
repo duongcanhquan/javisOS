@@ -30,7 +30,7 @@ _CAM_ON = re.compile(
 )
 
 
-def try_reply(text, ten_tro_ly="LYON"):
+def try_reply(text, ten_tro_ly="Javis"):
     """Trả câu đáp sẵn nếu là xã giao thuần; None = để engine xử lý."""
     raw = (text or "").strip()
     if not raw or len(raw) > 64:
@@ -40,7 +40,7 @@ def try_reply(text, ten_tro_ly="LYON"):
         return None
     n = _norm(raw)
     # Còn chữ nội dung sau phần chào (vd "xin chao, bao cao giup") → None.
-    ten = (ten_tro_ly or "LYON").strip() or "LYON"
+    ten = (ten_tro_ly or "Javis").strip() or "Javis"
     if _CAM_ON.match(n):
         return f"Không có gì ạ. Cần {ten} giúp gì tiếp cứ nói nhé."
     if _CHAO.match(n):
