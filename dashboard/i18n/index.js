@@ -81,10 +81,20 @@
     });
   }
 
+  function _ver_tai() {
+    // Lấy ?v= từ chính thẻ <script i18n> (server gắn VERSION vào index.html).
+    // Không có thì từ điển JSON bị cache vĩnh viễn - đúng bệnh "đã đổi LYON mà menu còn Javis".
+    try {
+      var s = document.querySelector('script[src*="/static/i18n/index.js"]');
+      var m = s && (s.getAttribute("src") || "").match(/[?&]v=([^&]+)/);
+      if (m && m[1]) return m[1];
+    } catch (e) { /* noop */ }
+    return String(Date.now());
+  }
+
   function _tai(ma) {
-    // `?v=` đi theo phiên bản app (main.py tự đóng dấu cho tài nguyên tĩnh), nên đổi bản là
-    // trình duyệt lấy từ điển mới chứ không ăn bản cũ trong cache.
-    return fetch("/static/i18n/" + ma + ".json")
+    // `?v=` theo VERSION app: đổi bản là trình duyệt lấy từ điển mới, không ăn cache cũ.
+    return fetch("/static/i18n/" + ma + ".json?v=" + encodeURIComponent(_ver_tai()))
       .then(function (r) { return r.ok ? r.json() : {}; })
       .catch(function () { return {}; });
   }
