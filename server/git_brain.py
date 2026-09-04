@@ -157,7 +157,9 @@ _GITIGNORE_BODY = (
        "Attachments/",
        "*attachments/",
        "*Attachments/",
-       "inbox/"]
+       "inbox/",
+       "# Kho làm việc file nhận từ Zalo/Telegram (tầng 2). Binary, không phải tri thức .md.",
+       "received/"]
 )
 
 _GITIGNORE = "\n".join([_GI_MO] + _GITIGNORE_BODY + [_GI_DONG]) + "\n"
@@ -175,6 +177,7 @@ _GITIGNORE_CU = {
     "# Bốn dòng attachments vì tên thư mục có thể là attachments / Attachments / 05 - attachments",
     "# (git phân biệt hoa thường trên Linux, còn dấu * phủ mọi tiền tố số thứ tự).",
     "attachments/", "Attachments/", "*attachments/", "*Attachments/", "inbox/",
+    "received/",
 }
 
 

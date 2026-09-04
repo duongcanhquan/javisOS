@@ -110,8 +110,10 @@ Bot chạy được cả hai chiều file. Đây là cách nhanh nhất để đ
 ### Bạn gửi ảnh/file cho bot
 
 1. Gửi thẳng ảnh hoặc file tài liệu vào chat với bot, kèm caption nếu muốn nói rõ ý.
-2. Gateway tải file về `inbox/telegram/` **của brain đang chọn cho phiên Telegram của bạn** (đổi bằng `/brain`), rồi đưa đường dẫn đó vào tin nhắn cho engine đọc.
-3. Javis đọc file tại chỗ và trả lời như bình thường. File trùng tên không bị đè: Javis thêm hậu tố `_1`, `_2`.
+2. Gateway tải file về `inbox/telegram/` của brain phiên bạn (đổi bằng `/brain`), ghi sổ nhận ở `Javis/received-index.json`.
+3. **Không kèm yêu cầu** (caption trống / chỉ mô tả nhẹ): bot báo đã nhận, **không** gọi model. File ở tầng trung chuyển.
+4. Caption hoặc tin sau kiểu **phân tích / đọc / giữ / đưa Drive / lưu Sources**: chuyển lên kho làm việc `received/` rồi Javis xử lý.
+5. File trùng tên không bị đè: thêm hậu tố `_1`, `_2`.
 
 Giới hạn cần nhớ:
 
@@ -119,7 +121,7 @@ Giới hạn cần nhớ:
 - **Tin thoại (ghi âm) thì Javis nghe được** - xem mục ngay dưới đây.
 - **Video và video note: Javis chưa xem được.** Bot sẽ lịch sự nhờ bạn gõ chữ, gửi tin thoại, hoặc gửi lại dạng file tài liệu.
 - Caption là một lệnh cũng được nhận đúng. Ví dụ chộp ảnh hoá đơn rồi đặt caption `/notes hoá đơn thép hộp hôm nay` thì Javis chạy lệnh `/notes` với đúng tấm ảnh đó, chứ không coi cả cụm là chữ thường.
-- `inbox/` là **vùng cache**, không phải kho tri thức: file quá **30 ngày** hoặc khi vùng cache vượt **300MB** sẽ bị dọn tự động. Cần giữ lâu dài thì bảo Javis rút nội dung thành ghi chú `.md` hoặc chuyển sang thư mục khác trong brain. Xem [Quản lý tệp tin](05-quan-ly-tep-tin.md).
+- `inbox/` là **cache** (tự dọn ~30 ngày / 300MB). `received/` là **kho làm việc** (không dọn cùng inbox). Lâu dài: Sources hoặc Drive (cần đấu Google). Xem [Quản lý tệp tin](05-quan-ly-tep-tin.md).
 
 ### Ra lệnh bằng ghi âm (tin thoại)
 

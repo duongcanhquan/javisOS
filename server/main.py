@@ -12853,6 +12853,17 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
     else:
         sess = _tg_session(chat_id)
         brain = _tg_brain(chat_id)   # brain riêng của phiên (đổi bằng /brain), mặc định theo Settings
+
+    # Follow-up "phân tích file vừa gửi": gắn path từ sổ nhận (tầng inbox/received).
+    # Bot khách bỏ qua - không trộn file chủ vào mạch khách.
+    if not bot and text and channel in ("telegram", "zalo"):
+        try:
+            import received_files as rf
+            ch = "zalo" if channel == "zalo" else "telegram"
+            text = rf.xu_ly_tin_chu(_brain_root(brain), text, channel=ch)
+        except Exception as e:
+            print(f"[received follow-up] {e}", file=__import__('sys').stderr)
+
     mcfg = cfgmod.read_settings().get("model", {})
     # Chủ chat trên Telegram thì theo ghim của kênh (nếu có). Bot chuyên trách KHÔNG: nó
     # phục vụ khách, model của nó là chuyện cấu hình bot, không ăn theo ghim của chủ.
