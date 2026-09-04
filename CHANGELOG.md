@@ -8,7 +8,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ### Sửa lỗi
 - **Tự học hết xoá note Wiki ngay sau khi vừa ghi** khi brain dùng thư mục Wiki đánh số (vd `03 - Wiki`). Trước đây nhật ký đầy dòng "Bị chặn: path ngoài scope" dù nội dung hợp lệ.
 - **Vòng kiểm skill tự học không còn xoá sạch đề xuất** chỉ vì model trả lời lệch JSON.
-- **Git commit lúc học nói rõ khi thất bại** thay vì im lặng; tự gán identity local nếu brain thiếu.
+- **Git commit lúc học nói rõ khi thất bại** thay vì im lặng; chỉ điền identity local khi brain thiếu (không đè tên/email bạn đã đặt cho sao lưu GitHub).
 
 ## [0.35.28] - 2026-09-04
 ### Thêm mới

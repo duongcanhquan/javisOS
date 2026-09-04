@@ -639,8 +639,9 @@ class LearnFeature:
         keep = set(d.get("keep") or [])
         return [s for s in skills if s.get("slug") in keep]
 
-    def _write_allow_prefixes(self, brain: str, root: Path) -> List[str]:
+    def _write_allow_prefixes(self, brain: str, root) -> List[str]:
         """Prefix được phép ghi cho brain này: cứng + thư mục Wiki thật (kể cả `03 - Wiki`)."""
+        root = Path(root)
         prefixes = list(ALLOWED_WRITE_PREFIXES)
         try:
             wiki = Path(self.deps.resolve_subfolder(
@@ -651,7 +652,7 @@ class LearnFeature:
         except Exception:
             pass
         try:
-            for child in Path(root).iterdir():
+            for child in root.iterdir():
                 if child.is_dir() and _WIKI_DIR_RE.match(child.name.strip()):
                     if child.name not in prefixes:
                         prefixes.append(child.name)

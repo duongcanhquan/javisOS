@@ -366,11 +366,14 @@ def commit_paths(root: str, paths: List[str], msg: str) -> Optional[str]:
     """git add ĐÚNG các path (KHÔNG add -A) rồi commit. Trả commit hash ngắn hoặc None.
     An toàn: chỉ đưa vào index những gì engine chủ động ghi."""
     try:
-        if not paths:
+        if not paths or not is_git_checkout(root):
             return None
-        # Brain git-init ngoài Javis có thể thiếu identity → commit chết im. Ép local.
-        _git(root, "config", "user.email", "javis@localhost")
-        _git(root, "config", "user.name", "Javis Learn")
+        # Brain git-init ngoài Javis có thể thiếu identity → commit chết im.
+        # CHỈ điền khi thiếu: đừng đè identity user đã đặt (sao lưu GitHub dùng tên/email thật).
+        if not (_git(root, "config", "--get", "user.email").stdout or "").strip():
+            _git(root, "config", "user.email", "javis@localhost")
+        if not (_git(root, "config", "--get", "user.name").stdout or "").strip():
+            _git(root, "config", "user.name", "Javis Learn")
         add = _git(root, "add", "--", *paths)
         if add.returncode != 0:
             print(f"[git commit_paths] add lỗi: {(add.stderr or add.stdout or '')[:200]}",
@@ -378,8 +381,11 @@ def commit_paths(root: str, paths: List[str], msg: str) -> Optional[str]:
             return None
         c = _git(root, "commit", "-m", msg)
         if c.returncode != 0:
-            print(f"[git commit_paths] commit lỗi: {(c.stderr or c.stdout or '')[:200]}",
-                  file=__import__("sys").stderr)
+            err = (c.stderr or c.stdout or "").strip()
+            # nothing to commit không phải lỗi nghiêm trọng
+            if "nothing to commit" not in err.lower():
+                print(f"[git commit_paths] commit lỗi: {err[:200]}",
+                      file=__import__("sys").stderr)
             return None
         h = _git(root, "rev-parse", "--short", "HEAD")
         return (h.stdout or "").strip() or "committed"
