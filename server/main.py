@@ -7430,14 +7430,17 @@ async def studio_seed_video(brain: str = Form("brain")):
             "prompt": (
                 "Bạn là researcher cho video ngắn/explainer/quảng cáo.\n"
                 "Mục tiêu: đủ nguyên liệu để viết kịch bản shot-by-shot, không viết kịch bản hoàn chỉnh.\n"
-                "BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2) trên brief {{input}}: "
+                "CỔNG BRIEF (BẮT BUỘC, đọc skill lam-video + references/brief-checklist.md): "
+                "trước khi research, kiểm {{input}} đủ chủ đề + mục tiêu + độ dài + tỉ lệ + ngôn ngữ. "
+                "Thiếu → DỪNG, liệt kê thiếu gì, hỏi user (JAVIS_ASK cho lựa chọn kín). "
+                "CẤM giả định 5 mục bắt buộc rồi làm tiếp.\n"
+                "Khi brief đã chốt: BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2): "
                 "sinh SERP query → Tavily/WebSearch → learnings có nguồn → đào sâu → report.\n"
                 "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video).\n"
                 "Sau deep-research, chưng thêm: (1) audience + mục tiêu, "
                 "(2) 5-8 insight then chốt, (3) 3 góc kể/hook, (4) motif hình ảnh/era/tone, "
                 "(5) rủi ro pháp lý/nhạy cảm nếu có.\n"
-                "Đầu ra markdown + mục Sources. Không bịa số. Không dùng em dash.\n"
-                "Thiếu brief thì nêu giả định rồi làm tiếp."
+                "Đầu ra markdown + mục Sources. Không bịa số. Không dùng em dash."
             ),
         },
         {
@@ -7448,10 +7451,12 @@ async def studio_seed_video(brain: str = Form("brain")):
             "prompt": (
                 "Bạn là biên kịch video.\n"
                 "Mục tiêu: kịch bản sẵn để đạo diễn chọn pipeline và render.\n"
-                "Quy trình: đọc nghiên cứu deep-research {{prev}} + brief {{input}}; chỉ dùng fact đã có nguồn; "
+                "Cổng brief: nếu {{input}} thiếu độ dài/tỉ lệ/ngôn ngữ/mục tiêu thì DỪNG và hỏi, không viết beat.\n"
+                "Quy trình: đọc nghiên cứu deep-research {{prev}} + brief đã chốt {{input}}; chỉ dùng fact đã có nguồn; "
                 "thiếu fact then chốt thì ghi rõ cần nghiên cứu thêm, không bịa.\n"
                 "Viết beat map: Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
                 "30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
+                "Cuối: nhắc user duyệt beat map trước khi đạo diễn gen (paperdesign tốn Atlas).\n"
                 "Đầu ra: JSON-like hoặc markdown bảng rõ ràng, kèm 1 dòng đề xuất pipeline "
                 "(paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
                 "Cấm: shot >7s; bịa fact mới ngoài nghiên cứu; em dash."
@@ -7464,8 +7469,10 @@ async def studio_seed_video(brain: str = Form("brain")):
             "skills": ["lam-video", "paperdesign", "remotion-best-practices", "deep-research"],
             "prompt": (
                 "Bạn là đạo diễn / producer video trên Javis.\n"
-                "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief.\n"
-                "Bối cảnh pipeline (đọc skill lam-video/references/catalog.md):\n"
+                "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief đã chốt.\n"
+                "Cổng brief + catalog: đọc lam-video/references/brief-checklist.md và catalog.md. "
+                "Thiếu brief bắt buộc hoặc user chưa duyệt beat (paperdesign) → DỪNG hỏi, không gen Atlas.\n"
+                "Bối cảnh pipeline:\n"
                 "- paperdesign: collage Vox, cần ATLASCLOUD_API_KEY + ffmpeg.\n"
                 "- remotion: video React frame-perfect.\n"
                 "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
@@ -7486,8 +7493,9 @@ async def studio_seed_video(brain: str = Form("brain")):
             "skills": [],
             "prompt": (
                 "Bạn KHÔNG làm video mới. Chỉ kiểm chứng.\n"
-                "Đối chiếu brief gốc với kịch bản/output: hook, độ dài, tỉ lệ, ngôn ngữ, CTA, "
-                "pipeline có hợp không, thiếu điều kiện render có được nói rõ không.\n"
+                "Đối chiếu brief gốc (chủ đề, mục tiêu, độ dài, tỉ lệ, ngôn ngữ, CTA) với kịch bản/output: "
+                "hook, nhịp, pipeline có hợp không, thiếu điều kiện render có được nói rõ không, "
+                "có bỏ cổng brief/duyệt beat khi tốn tiền gen không.\n"
                 "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để đạo diễn sửa."
             ),
         },
@@ -7504,11 +7512,14 @@ async def studio_seed_video(brain: str = Form("brain")):
         "description": "Nghiên cứu chủ đề → biên kịch → đạo diễn chọn paperdesign/Remotion/Ommi → kiểm chứng.",
         "steps": [
             {"agent": "nghien-cuu-chu-de-video",
-             "task": "Deep-research (breadth 4, depth 2) chủ đề video theo brief: {{input}}. Report + hook + Sources."},
+             "task": "Cổng brief (checklist lam-video): {{input}} phải có chủ đề+mục tiêu+độ dài+tỉ lệ+ngôn ngữ. "
+                     "Thiếu thì DỪNG hỏi. Đủ thì deep-research (breadth 4, depth 2). Report + hook + Sources."},
             {"agent": "bien-kich-video",
-             "task": "Viết kịch bản beat/shot cho '{{input}}' từ nghiên cứu:\n{{prev}}"},
+             "task": "Viết kịch bản beat/shot cho brief đã chốt '{{input}}' từ nghiên cứu:\n{{prev}}\n"
+                     "Cuối: yêu cầu user duyệt beat trước khi render tốn tiền."},
             {"agent": "dao-dien-video",
-             "task": "Chọn pipeline và làm video theo brief '{{input}}' + kịch bản:\n{{prev}}",
+             "task": "Chọn pipeline và làm video theo brief đã chốt '{{input}}' + kịch bản:\n{{prev}}\n"
+                     "Paperdesign: chỉ gen sau khi beat/style đã duyệt.",
              "verify_agent": "kiem-chung-video", "max_retries": 2},
         ],
         "updated": _today(),
