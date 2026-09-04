@@ -78,10 +78,13 @@ vps_env = set((vps.get("environment") or {}).keys())
 # không có đường nào đặt sẵn admin: họ luôn phải `docker compose logs javis` đọc MÃ THIẾT LẬP
 # rồi dán vào trình duyệt. Hai biến admin là ĐẦU VÀO CỦA NGƯỜI DÙNG, cùng loại với ba trường
 # của Hostinger, không phải mặc định kỹ thuật của image - nên chúng thuộc về đây.
+_bat_buoc = {"WATCHTOWER_TOKEN", "JAVIS_ADMIN_USER", "JAVIS_ADMIN_PASSWORD"}
 check(
     "VPS production giữ token Watchtower + hai trường tài khoản quản trị",
-    vps_env == {"WATCHTOWER_TOKEN", "JAVIS_ADMIN_USER", "JAVIS_ADMIN_PASSWORD"},
+    _bat_buoc <= vps_env,
 )
+# Cho phép thêm biến vận hành (plugin, Antigravity file storage, MCP discover timeout…)
+# miễn là không đưa biến kỹ thuật nội bộ của image vào compose.
 check("VPS production vẫn không lặp lại biến kỹ thuật của image", not (vps_env & internal))
 check(
     "và hai trường admin đọc từ .env cạnh compose, có mặc định rỗng",

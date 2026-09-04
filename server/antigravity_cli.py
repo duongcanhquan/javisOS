@@ -11,7 +11,7 @@ làm được thật, không phải hứa.
 
 **KỶ LUẬT CỦA FILE NÀY: ĐO, KHÔNG ĐOÁN.**
 
-`gemini_cli.py` viết được chắc tay vì tác giả có binary trong tay và đọc `--help` thật. Ở đây
+Một driver CLI viết được chắc tay khi tác giả có binary trong tay và đọc `--help` thật. Ở đây
 KHÔNG có: máy dựng bản này bị chặn mạng nên không tải được `agy`, mà cờ dòng lệnh thì mỗi bản
 một khác (xem CHANGELOG của chính nó: `--model` có từ 1.0.5, slug ổn định từ 1.1.5,
 `--output-format` cho print mode từ 1.1.8, cho `models`/`agents` từ 1.1.12). Đoán cờ rồi ship
@@ -31,6 +31,7 @@ Chỗ nào chưa đo được thì ghi thẳng "CHƯA ĐO" trong chú thích tha
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
 import os
 import re
@@ -101,6 +102,9 @@ def find_antigravity_cli() -> Optional[str]:
 _HELP_CACHE: dict = {"path": None, "text": "", "ts": 0.0}
 _HELP_TTL = 300.0     # 5 phút: đủ để một phiên chat không đẻ tiến trình mỗi lượt, mà nâng cấp
                       # bản CLI xong cũng không phải khởi động lại Javis mới nhận cờ mới.
+_HELP_TTL_LOI = 120.0  # kết quả RỖNG cũng phải nhớ: binary hỏng mà cứ chạy lại `--help` 20s
+                       # mỗi lượt gọi là tự biến một CLI hỏng thành cả app đơ (khách báo
+                       # 2026-08-30: mọi trang cùng đứng hình khi `agy` treo).
 
 
 def _help_text() -> str:
@@ -109,12 +113,17 @@ def _help_text() -> str:
     if not cli:
         return ""
     now = time.time()
-    if (_HELP_CACHE["path"] == cli and _HELP_CACHE["text"]
-            and now - _HELP_CACHE["ts"] < _HELP_TTL):
+    # Cache CẢ kết quả rỗng (TTL ngắn hơn): điều kiện cũ đòi text khác rỗng nên một binary
+    # hỏng là `--help` chạy lại đủ 20s ở MỌI lượt gọi - đúng lỗ đã góp phần treo cả dashboard.
+    if _HELP_CACHE["path"] == cli and now - _HELP_CACHE["ts"] < (
+            _HELP_TTL if _HELP_CACHE["text"] else _HELP_TTL_LOI):
         return _HELP_CACHE["text"]
     try:
+        # stdin=DEVNULL: `agy` chưa đăng nhập (hoặc lần chạy đầu) là mở menu tương tác rồi
+        # ngồi chờ bàn phím - cắt stdin thì nó thoát ngay thay vì ăn trọn timeout.
         r = subprocess.run([cli, "--help"], capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=20, creationflags=_no_window())
+                           errors="replace", timeout=20, creationflags=_no_window(),
+                           stdin=subprocess.DEVNULL)
         txt = (r.stdout or "") + "\n" + (r.stderr or "")
     except Exception:
         txt = ""
@@ -182,10 +191,32 @@ def phien_moi() -> str:
 # Linux/macOS không có trần tổng, nhưng có trần cho MỘT tham số: MAX_ARG_STRLEN = 32 trang = 128KB.
 # Hội thoại thật sự dài vẫn chạm được, nên chừa luôn.
 def _tran_argv() -> int:
-    """Quá bao nhiêu ký tự thì phải bỏ đường argv. Đọc `os.name` lúc gọi, không phải lúc import."""
+    """Quá bao nhiêu ĐƠN VỊ thì phải bỏ đường argv. Đọc `os.name` lúc gọi, không phải lúc import.
+
+    Đơn vị ở đây KHÔNG phải ký tự Python - xem `_do_dai_argv`.
+    """
     if os.name == "nt":
-        return 30000        # trần thật 32767, chừa chỗ cho đường dẫn binary và các cờ
-    return 120000           # Linux: MAX_ARG_STRLEN 131072 cho MỘT tham số
+        return 30000        # trần thật 32767 (đơn vị UTF-16), chừa chỗ cho binary và các cờ
+    return 120000           # Linux: MAX_ARG_STRLEN 131072 BYTE cho MỘT tham số
+
+
+def _do_dai_argv(s: str) -> int:
+    """Độ dài của một tham số theo ĐÚNG đơn vị hệ điều hành đếm khi áp trần.
+
+    Vì sao không dùng thẳng `len()`: `len()` đếm KÝ TỰ Unicode, còn nhân Linux áp
+    MAX_ARG_STRLEN theo BYTE của chuỗi đã mã hoá UTF-8. Tiếng Việt tốn ~1.3 byte mỗi ký tự
+    (dấu tổ hợp còn hơn), nên một prompt 120.000 ký tự tiếng Việt là ~156.000 byte - vượt
+    131.072 mà phép đo cũ vẫn kết luận "vừa argv", rồi Popen nổ
+    `OSError: [Errno 7] Argument list too long`. Đúng lỗi người dùng báo 2026-08-30 khi chat
+    dài bằng tiếng Việt; hội thoại tiếng Anh cùng độ dài thì lọt, nên nó trông như ngẫu nhiên.
+
+    Windows đếm theo đơn vị mã UTF-16 của dòng lệnh, không phải byte UTF-8 - đo đúng thứ nó
+    đếm thay vì quy đổi gần đúng.
+    """
+    s = str(s or "")
+    if os.name == "nt":
+        return len(s.encode("utf-16-le", errors="replace")) // 2
+    return len(s.encode("utf-8", errors="replace"))
 
 
 _NHO_DUONG = "antigravity-duong-prompt.json"
@@ -537,7 +568,7 @@ def list_models() -> Optional[list]:
         try:
             r = subprocess.run([cli, "models", "--output-format", "json"], capture_output=True,
                                text=True, encoding="utf-8", errors="replace", timeout=30,
-                               creationflags=_no_window())
+                               creationflags=_no_window(), stdin=subprocess.DEVNULL)
             if r.returncode == 0 and (r.stdout or "").strip():
                 ds = _tach_model(json.loads(r.stdout))
                 if ds:
@@ -545,8 +576,11 @@ def list_models() -> Optional[list]:
         except Exception:
             pass
     try:
+        # stdin=DEVNULL cùng lý do với _help_text: chưa đăng nhập là `agy` mở menu chờ bàn
+        # phím; cắt stdin cho nó thoát nhanh thay vì ngồi đủ 30 giây.
         r = subprocess.run([cli, "models"], capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=30, creationflags=_no_window())
+                           errors="replace", timeout=30, creationflags=_no_window(),
+                           stdin=subprocess.DEVNULL)
     except Exception:
         return []
     if r.returncode != 0:
@@ -585,20 +619,16 @@ def list_models() -> Optional[list]:
 # Đăng nhập
 # ---------------------------------------------------------------------------
 _AUTH_CACHE: dict = {"ts": 0.0, "val": None}
-_AUTH_TTL = 300.0   # 5 phút: /settings gọi mỗi lần mở trang; 60s quá ngắn → cold 2.5s lặp lại
+_AUTH_TTL = 60.0
 
 
-def auth_status(bo_qua_cache: bool = False, khong_cho: bool = False) -> dict:
+def auth_status(bo_qua_cache: bool = False) -> dict:
     """Đã đăng nhập chưa: {connected, method, email, error}.
 
     Khác Gemini CLI ở một điểm quyết định cách viết hàm này: `agy` giữ phiên trong KEYRING của
     hệ điều hành, không có file credential nào để soi. Nên không có đường nào rẻ hơn là hỏi
-    chính CLI - và vì trang Models gọi hàm này mỗi lần mở, phải nhớ kết quả (TTL), đúng lý
-    do mà `gemini_cli.auth_status()` cố tránh đẻ tiến trình.
-
-    `khong_cho=True`: chỉ trả cache (kể cả hết TTL). Dùng cho `/settings` lúc boot trang -
-    không được chặn 2–3s vì spawn `agy models`. Trang Models gọi `bo_qua_cache=True` khi cần
-    làm mới.
+    chính CLI - và vì trang Models gọi hàm này mỗi lần mở, phải nhớ kết quả một phút, đúng lý
+    do mà một `auth_status()` đọc-file cố tránh đẻ tiến trình.
 
     Dùng `models` làm phép thử vì nó cần tài khoản mới trả được danh sách, lại rẻ hơn nhiều so
     với chạy hẳn một lượt chat.
@@ -608,13 +638,8 @@ def auth_status(bo_qua_cache: bool = False, khong_cho: bool = False) -> dict:
         return {"connected": False, "method": "", "email": "",
                 "error": f"Chưa cài Antigravity CLI. Cài một lần: {lenh_cai()}"}
     now = time.time()
-    if _AUTH_CACHE["val"] and (
-            khong_cho
-            or (not bo_qua_cache and now - _AUTH_CACHE["ts"] < _AUTH_TTL)):
+    if not bo_qua_cache and _AUTH_CACHE["val"] and now - _AUTH_CACHE["ts"] < _AUTH_TTL:
         return dict(_AUTH_CACHE["val"])
-    if khong_cho:
-        # Chưa có cache: đừng spawn CLI trên đường nóng boot UI.
-        return {"connected": False, "method": "", "email": "", "error": ""}
     ds = list_models()
     if ds:
         d = {"connected": True, "method": "google (keyring của máy)", "email": "", "error": ""}
@@ -626,18 +651,61 @@ def auth_status(bo_qua_cache: bool = False, khong_cho: bool = False) -> dict:
         d = {"connected": False, "method": "", "email": "",
              "error": "Đã cài Antigravity CLI nhưng phiên của Javis chưa đăng nhập. Mở trang "
                       "Code (Terminal) NGAY TRONG Javis, gõ `agy` rồi làm theo hướng dẫn - "
-                      "chỉ phải làm một lần nếu máy đã bật GEMINI_FORCE_FILE_STORAGE (Docker mặc định). "
-                      "Phải đăng nhập bằng ĐÚNG user đang chạy Javis; SSH bằng user khác "
+                      "phải đăng nhập bằng ĐÚNG user đang chạy Javis; SSH bằng user khác "
                       "(vd root) đăng nhập xong Javis vẫn không thấy."}
     _AUTH_CACHE.update(ts=now, val=dict(d))
     return d
+
+
+_AUTH_LAM_MOI = {"dang_chay": False}   # single-flight: một thread làm mới là đủ
+
+
+def auth_status_nen() -> dict:
+    """Trạng thái đăng nhập cho HOT PATH (/settings, /providers): trả NGAY từ cache, KHÔNG
+    bao giờ đẻ tiến trình trong luồng gọi. Cache hết hạn thì đá một thread nền làm mới
+    (single-flight), kết quả dùng cho lượt hỏi sau.
+
+    Vì sao phải có bản riêng thay vì gọi auth_status(): auth_status hỏi chính `agy` (một
+    `--help` 20s + hai lượt `models` 30s khi binary treo), mà _providers_view chạy NGAY TRONG
+    handler async của GET /settings - tức trên event loop. Một `agy` hỏng là MỌI trang của
+    dashboard cùng đứng hình theo: nút xám hết, không đổi được model, trang Cập nhật báo
+    "không kiểm tra được phiên bản", và cài đè source mới cũng không hết vì binary hỏng vẫn
+    nằm trên PATH (khách báo đúng nguyên văn cảnh này, 2026-08-30).
+
+    Đánh đổi nói thẳng: lần hỏi ĐẦU TIÊN sau khi khởi động trả "chưa rõ, đang kiểm" thay vì
+    chặn để chờ câu trả lời thật - thẻ Models có thể hiện "chưa kết nối" vài giây rồi tự đúng
+    lại ở lượt vẽ sau. Đó là cái giá đúng để đổi lấy việc app không bao giờ chết theo CLI.
+    """
+    cli = find_antigravity_cli()
+    if not cli:
+        return {"connected": False, "method": "", "email": "",
+                "error": f"Chưa cài Antigravity CLI. Cài một lần: {lenh_cai()}"}
+    now = time.time()
+    cu = _AUTH_CACHE["val"]
+    if cu and now - _AUTH_CACHE["ts"] < _AUTH_TTL:
+        return dict(cu)
+    if not _AUTH_LAM_MOI["dang_chay"]:
+        _AUTH_LAM_MOI["dang_chay"] = True
+
+        def _lam_moi():
+            try:
+                auth_status(bo_qua_cache=True)
+            except Exception as e:   # không để thread nền chết câm mang theo cờ single-flight
+                print(f"[antigravity] làm mới auth_status lỗi: {e}", file=sys.stderr)
+            finally:
+                _AUTH_LAM_MOI["dang_chay"] = False
+
+        threading.Thread(target=_lam_moi, daemon=True, name="agy-auth-refresh").start()
+    if cu:
+        return dict(cu)   # cache cũ còn hơn chặn cả app: sai lệch tối đa một vòng làm mới
+    return {"connected": False, "method": "", "email": "", "error": "", "dang_kiem": True}
 
 
 def login_huong_dan() -> dict:
     """Hướng dẫn đăng nhập. KHÔNG có nút bấm trên dashboard, và đó là quyết định có lý do.
 
     `agy` giữ token trong keyring hệ điều hành chứ không phải file, nên Javis không bắc cầu
-    token hộ được như đã làm với Gemini CLI (`gemini_oauth.ghi_creds_cho_cli`). Dựng một nút
+    token hộ được như Javis từng làm với Gemini CLI (đường đó đã gỡ). Dựng một nút
     "Đăng nhập" rồi bên dưới không làm gì được thì tệ hơn là nói thẳng phải gõ một lệnh.
 
     Điểm sáng cho người chạy VPS: `agy` tự nhận biết phiên SSH và IN RA một đường link để mở
@@ -657,61 +725,192 @@ def login_huong_dan() -> dict:
 # ---------------------------------------------------------------------------
 # MCP: đấu hub của Javis vào CLI
 # ---------------------------------------------------------------------------
+# ĐO NGÀY 2026-08-22, bằng nguồn cấp 1 chứ không phải suy từ tài liệu bên thứ ba: tài liệu MCP
+# chính chủ của Antigravity, tài liệu di trú Gemini CLI → Antigravity của Google, và hai issue
+# trên chính repo `google-antigravity/antigravity-cli` (#60 và #71, cái sau dán nguyên một cấu
+# hình CHẠY ĐƯỢC). Vẫn KHÔNG phải đo trên binary: máy dựng bản này bị chặn mạng nên `agy` không
+# tải về được - chỗ nào còn phải đoán thì có cửa thoát bằng biến môi trường, ghi rõ ở dưới.
+#
+# Kết quả lật ngược cả hai bản trước. Bản 0.30.0 đoán
+# `.antigravity/mcp.json` + `.antigravity/settings.json`; bản 0.33.x thêm `.agents/mcp_config.json`
+# rồi ghi vào CHANGELOG là "Antigravity giờ dùng được tool của Javis". Cả ba lần đều KHÔNG chạy,
+# vì có tới hai chỗ sai chồng lên nhau và cả hai đều hỏng lặng lẽ:
+#
+# 1. SAI TÊN KHOÁ. Javis ghi `{"httpUrl": ...}` - đó là schema của **Gemini CLI**, chép nguyên từ
+#    `_apply_gemini_hub`. `agy` đọc khoá `serverUrl` (tài liệu chính chủ, và issue #71 của
+#    google-antigravity/antigravity-cli dán đúng cấu hình chạy được). Tài liệu di trú Gemini →
+#    Antigravity nói thẳng: `url` được ĐỔI TÊN thành `serverUrl`. Entry không có khoá nào `agy`
+#    hiểu = server không có địa chỉ = không bao giờ được khởi động, và không có câu lỗi nào.
+#
+# 2. SAI CHỖ ĐẶT. `agy` nạp MCP từ cấu hình tầng HOME:
+#       ~/.gemini/config/mcp_config.json          (hiện hành, dùng chung với Antigravity 2.0/IDE)
+#       ~/.gemini/antigravity-cli/mcp_config.json (đường cũ trước lần dọn thư mục)
+#    Tầng workspace `<project>/.agents/mcp_config.json` là đường CÓ THẬT trong tài liệu, nhưng
+#    issue #60 ghi nhận `agy` tìm thấy cấu hình project rồi BỎ QUA `mcpServers` trong đó - chỉ
+#    tầng HOME mới thật sự dựng server. Nên phải ghi CẢ HAI tầng: HOME để chạy được ngay hôm nay,
+#    workspace để bản nào vá xong issue đó thì tự có luôn cách ly theo brain.
+#
+# Đánh đổi của việc phải ghi vào HOME, nói thẳng ra chứ không giấu: file đó là của NGƯỜI DÙNG và
+# dùng chung với Antigravity IDE, nên (a) IDE cũng sẽ nhìn thấy tool của Javis, (b) hai brain
+# chạy `agy` cùng lúc thì brain sau ghi đè header `X-Javis-Vault` của brain trước. Bên Codex chỗ
+# này chữa bằng override argv (`mcp_hub.codex_vault_override`); ở đây chưa đo được `agy` có cờ
+# tương đương nên `_build_args` hỏi `co_co("--mcp-config")` rồi mới truyền - có thì hết race,
+# không có thì vẫn chạy như cũ. Ai không muốn Javis đụng HOME thì đặt JAVIS_AGY_MCP_HOME=0.
+
+# Hai đường ĐOÁN của các bản trước. Không còn ghi vào nữa, nhưng phải DỌN: chúng chứa hub token
+# và nằm trong brain, mà brain thì có đường sao lưu git đẩy lên remote của người dùng.
+_MCP_DUONG_BO = (".antigravity/mcp.json", ".antigravity/settings.json")
+
+
+def hub_entry(url: str, headers: Optional[dict] = None) -> dict:
+    """Một entry `mcpServers` theo ĐÚNG schema của `agy` (không phải của Gemini CLI).
+
+    `serverUrl` là khoá chính chủ: tài liệu hiện hành dùng nó, và issue #71 của
+    google-antigravity/antigravity-cli dán một cấu hình chạy được chỉ gồm `serverUrl` + `headers`.
+    `url` ghi kèm làm bí danh cho các bản 1.0.x còn nhận tên cũ - JSON thừa khoá thì bộ đọc bỏ
+    qua, còn thiếu khoá thì server câm luôn, nên chọn phía thừa.
+
+    KHÔNG có `httpUrl`/`trust`/`timeout`: cả ba là của Gemini CLI, và chính `httpUrl` là thứ đã
+    làm bộ não này chạy suốt mấy bản mà không có lấy một tool nào của Javis.
+
+    Cửa thoát `JAVIS_AGY_MCP_KEY=serverUrl|url` cho ai gặp một bản `agy` khó tính từ chối entry
+    có khoá lạ. Đây là chỗ KHÔNG đo được trên máy dựng bản này (mạng bị chặn không tải nổi
+    binary), nên phải có một cái lẫy thay vì bắt người dùng chờ bản sau - file cấu hình bị Javis
+    ghi đè mỗi lượt chat, sửa tay không giữ được.
+    """
+    khoa = (os.environ.get("JAVIS_AGY_MCP_KEY") or "").strip()
+    if khoa == "serverUrl":
+        e: dict = {"serverUrl": url}
+    elif khoa == "url":
+        e = {"url": url}
+    else:
+        e = {"serverUrl": url, "url": url}
+    if headers:
+        e["headers"] = dict(headers)
+    e["disabled"] = False
+    return e
+
+
+def _duong_mcp_home() -> list[Path]:
+    """Cấu hình MCP tầng HOME mà `agy` thật sự nạp. Rỗng nếu người dùng tắt bằng env."""
+    if (os.environ.get("JAVIS_AGY_MCP_HOME") or "").strip() in ("0", "false", "no"):
+        return []
+    rieng = (os.environ.get("JAVIS_AGY_MCP_CONFIG") or "").strip()
+    if rieng:
+        return [Path(rieng).expanduser()]
+    h = _home_dir()
+    return [h / ".gemini" / "config" / "mcp_config.json",
+            h / ".gemini" / "antigravity-cli" / "mcp_config.json"]
+
+
+def duong_mcp(vault_root=None) -> list[Path]:
+    """Mọi file cấu hình MCP Javis ghi cho `agy`, HOME trước rồi tới workspace."""
+    ds = _duong_mcp_home()
+    if vault_root:
+        try:
+            ds.append(Path(vault_root).expanduser() / ".agents" / "mcp_config.json")
+        except Exception:
+            pass
+    return ds
+
+
+def _ghi_mot_mcp(p: Path, hub: Optional[dict], xoa_khi_rong: bool = False) -> bool:
+    """Đặt/gỡ entry `javis` trong MỘT file mcp_config, giữ nguyên phần của người dùng."""
+    cu: dict = {}
+    if p.exists():
+        try:
+            cu = json.loads(p.read_text(encoding="utf-8")) or {}
+        except Exception:
+            cu = {}
+    if not isinstance(cu, dict):
+        cu = {}
+    servers = cu.get("mcpServers")
+    if not isinstance(servers, dict):
+        servers = {}
+    if hub:
+        servers["javis"] = hub
+    else:
+        servers.pop("javis", None)
+    if servers:
+        cu["mcpServers"] = servers
+    else:
+        cu.pop("mcpServers", None)
+    # Chỉ xoá file khi ĐÓ LÀ FILE CỦA JAVIS (hai đường đoán cũ) và không còn gì trong đó. File
+    # HOME là của người dùng, không bao giờ xoá - cùng lắm để lại `{}`, vẫn là JSON hợp lệ.
+    if xoa_khi_rong and not cu:
+        try:
+            if p.exists():
+                p.unlink()
+        except Exception:
+            return False
+        return True
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(cu, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        os.chmod(p, 0o600)   # chứa hub token
+    except Exception:
+        pass
+    return True
+
+
 def ghi_mcp_settings(vault_root, hub: Optional[dict]) -> Optional[str]:
-    """Ghi entry MCP `javis` vào cấu hình của `agy` trong chính brain đang mở.
+    """Đấu hub của Javis vào `agy`: ghi entry `javis` vào cấu hình HOME + workspace.
 
-    Bản đầu CHƯA ĐO được tên file thật nên đoán hai chỗ `.antigravity/mcp.json` và
-    `.antigravity/settings.json`. Nay có bằng chứng là **cả hai đều sai**, tức MCP hub của Javis
-    chưa từng được đấu vào `agy` lần nào: chỗ đúng ở tầng workspace là `.agents/mcp_config.json`
-    (ba nguồn độc lập dựng driver `agy` thật, cộng CHANGELOG 1.0.5 của chính Google nhắc tên
-    `mcp_config.json` khi thêm hỗ trợ khoá `url`).
-
-    Vẫn ghi cả hai file cũ, và đó là lựa chọn có chủ ý chứ không phải lười: đường dẫn mới đo qua
-    nguồn thứ ba chứ chưa chạy được trên máy có `agy` (máy dựng bản này bị chặn tải CLI). Hai
-    file JSON nhỏ trong một thư mục ẩn là cái giá rẻ để lỡ đoán trượt lần nữa thì vẫn còn đường
-    lui. Đo được trên máy thật thì rút lại còn một file.
+    `hub=None` (hub tắt) → GỠ entry `javis` khỏi mọi chỗ, giữ nguyên MCP người dùng tự thêm.
+    Trả về đường dẫn file ĐẦU TIÊN ghi được (file HOME - chỗ `agy` thật sự nạp), None nếu không
+    ghi được chỗ nào. Lý do chọn từng đường dẫn: xem khối chú thích dài ngay trên.
     """
     ra = None
-    # Thư mục neo: `agy` đi NGƯỢC lên từ cwd để tìm gốc project, và dừng ở thư mục nào có
-    # `.antigravitycli/`. Không có neo thì nó có thể nhận nhầm một thư mục tổ tiên làm gốc rồi
-    # đọc cấu hình MCP ở đó - tức hub của Javis nằm trong brain sẽ bị bỏ qua mà không báo gì.
-    try:
-        (Path(vault_root).expanduser() / ".antigravitycli").mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        print(f"[antigravity mcp settings] neo project: {e}", file=sys.stderr)
-    for ten in (".agents/mcp_config.json", ".antigravity/mcp.json",
-                ".antigravity/settings.json"):
+    # Thư mục neo: `agy` đi ngược lên từ cwd để tìm gốc project và dừng ở thư mục có
+    # `.antigravitycli/`. Không có neo thì nó nhận nhầm một thư mục tổ tiên làm gốc, và
+    # `.agents/mcp_config.json` của brain nằm ngoài tầm. Chỉ tạo THƯ MỤC rỗng, không tạo file:
+    # `.antigravitycli/mcp_config.json` chính là đường project-local bị bỏ qua ở issue #60, còn
+    # file mcp_config rỗng thì làm bộ đọc của bản 1.x nổ (issue #252).
+    if vault_root:
         try:
-            p = Path(vault_root).expanduser() / ten
-            cu = {}
-            if p.exists():
-                try:
-                    cu = json.loads(p.read_text(encoding="utf-8")) or {}
-                except Exception:
-                    cu = {}
-            if not isinstance(cu, dict):
-                cu = {}
-            servers = cu.get("mcpServers")
-            if not isinstance(servers, dict):
-                servers = {}
-            if hub:
-                servers["javis"] = hub
-            else:
-                servers.pop("javis", None)
-            if servers:
-                cu["mcpServers"] = servers
-            else:
-                cu.pop("mcpServers", None)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(cu, ensure_ascii=False, indent=2), encoding="utf-8")
-            try:
-                os.chmod(p, 0o600)   # chứa hub token
-            except Exception:
-                pass
-            ra = str(p)
+            (Path(vault_root).expanduser() / ".antigravitycli").mkdir(parents=True, exist_ok=True)
         except Exception as e:
-            print(f"[antigravity mcp settings] {ten}: {e}", file=sys.stderr)
+            print(f"[antigravity mcp settings] neo project: {e}", file=sys.stderr)
+    for p in duong_mcp(vault_root):
+        try:
+            if _ghi_mot_mcp(p, hub) and ra is None:
+                ra = str(p)
+        except Exception as e:
+            print(f"[antigravity mcp settings] {p}: {e}", file=sys.stderr)
+    # Dọn hai đường ĐOÁN của các bản trước. Không chỉ vì gọn: chúng giữ hub token trong brain.
+    if vault_root:
+        for ten in _MCP_DUONG_BO:
+            try:
+                p = Path(vault_root).expanduser() / ten
+                if p.exists():
+                    _ghi_mot_mcp(p, None, xoa_khi_rong=True)
+            except Exception as e:
+                print(f"[antigravity mcp settings] dọn {ten}: {e}", file=sys.stderr)
     return ra
+
+
+def trang_thai_mcp(vault_root=None) -> dict:
+    """Hub đã thật sự nằm trong cấu hình `agy` chưa - để trang Models nói được sự thật.
+
+    Đọc lại chính file vừa ghi thay vì tin là đã ghi xong. Đây là lớp canh cho đúng hạng lỗi đã
+    xảy ra ba lần liên tiếp ở khối trên: file ghi thành công, đường dẫn sai hoặc khoá sai, `agy`
+    chạy ngon lành mà không có tool nào, và không ai biết.
+    """
+    ds, thieu = [], []
+    for p in duong_mcp(vault_root):
+        try:
+            doc = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        except Exception:
+            doc = {}
+        e = ((doc or {}).get("mcpServers") or {}).get("javis") or {}
+        # Nhận cả hai tên khoá: JAVIS_AGY_MCP_KEY=url thì entry chỉ có `url`, soi mỗi
+        # `serverUrl` là báo "chưa đấu" cho một cấu hình hoàn toàn đúng.
+        dia_chi = str(e.get("serverUrl") or e.get("url") or "")
+        ds.append({"path": str(p), "co_javis": bool(dia_chi), "url": dia_chi})
+        co = bool(dia_chi)
+        if not co:
+            thieu.append(str(p))
+    return {"ok": any(d["co_javis"] for d in ds), "files": ds, "thieu": thieu}
 
 
 # ---------------------------------------------------------------------------
@@ -730,6 +929,10 @@ class AntigravityCLI:
         self.session_id = None          # có giá trị -> nối lại mạch cũ
         self._session_moi = None
         self.mode = "suggest"
+        # File mcp_config riêng cho ĐÚNG lượt này. Chỉ dùng được nếu bản `agy` trên máy có cờ
+        # nhận file cấu hình (hỏi `co_co` trước khi truyền). Có thì hết cảnh hai brain chạy cùng
+        # lúc ghi đè header X-Javis-Vault của nhau trong file HOME dùng chung.
+        self.mcp_config: Optional[str] = None
         self.extra_args: list[str] = []
         self.include_dirs: list[str] = []
         # Trần thời gian một lượt. Gemini CLI không cần vì `--approval-mode` chặn mọi câu hỏi;
@@ -746,6 +949,8 @@ class AntigravityCLI:
         if self.model and co_co("--model"):
             args += ["--model", self.model]
         args += co_quyen_cho_mode(self.mode)
+        if self.mcp_config and co_co("--mcp-config", "--mcp-config-file"):
+            args += ["--mcp-config", self.mcp_config]
         if co_co("--output-format"):
             args += ["--output-format", "stream-json"]
         if noi_mach and self.session_id and co_co("--conversation"):
@@ -780,7 +985,10 @@ class AntigravityCLI:
         ep = (os.environ.get("JAVIS_AGY_PROMPT_DAI") or "").strip().lower()
         if ep in ("stdin", "file", "argv"):
             return duong_prompt_dai(self.cli_path) if ep == "stdin" else ep
-        if len(full) + sum(len(a) + 3 for a in self._build_args("")) <= _tran_argv():
+        # Đo bằng _do_dai_argv chứ KHÔNG bằng len(): trần của hệ điều hành tính theo byte
+        # (Linux) hoặc đơn vị UTF-16 (Windows), mà tiếng Việt tốn ~1.3 byte mỗi ký tự.
+        do_dai = _do_dai_argv(full) + sum(_do_dai_argv(a) + 3 for a in self._build_args(""))
+        if do_dai <= _tran_argv():
             return "argv"     # vừa dòng lệnh thì cứ đường cũ, đã chạy tốt trên Linux/macOS
         return duong_prompt_dai(self.cli_path)
 
@@ -804,8 +1012,22 @@ class AntigravityCLI:
         # prompt" và "thoát với mã 1" hiện lên, rồi mới tới câu trả lời - người dùng không có
         # cách nào biết cái đỏ đó Javis đã tự xử xong.
         async for ev in self._mot_luot(full, prompt, duong, ket,
-                                       giu_loi=duong.startswith("stdin")):
+                                       giu_loi=(duong != "file")):
             yield ev
+        # Vượt trần dòng lệnh: chạy lại NGAY bằng đường không có trần. Không có nhánh này thì
+        # người dùng nhận nguyên "OSError: [Errno 7] Argument list too long" - một câu họ không
+        # sửa được gì, và lượt chat coi như mất trắng (báo 2026-08-30, chat dài tiếng Việt).
+        if ket.get("qua_tran_argv"):
+            _duong_lui = await asyncio.to_thread(duong_prompt_dai, self.cli_path)
+            if _duong_lui == "argv":      # cửa thoát env đang ép argv, mà argv vừa nổ
+                _duong_lui = "file"
+            print(f"[antigravity] prompt vượt trần dòng lệnh, chuyển sang {_duong_lui}",
+                  file=sys.stderr)
+            ket = {}
+            async for ev in self._mot_luot(full, prompt, _duong_lui, ket,
+                                           giu_loi=(_duong_lui != "file")):
+                yield ev
+            duong = _duong_lui
         # Prompt KHÔNG TỚI NƠI có hai hình dạng, và bản trước chỉ bắt được một:
         #   - chạy xong, không lỗi, không lấy một chữ (bản CLI nuốt stdin);
         #   - thoát mã 1 kèm "Error: empty prompt. Usage: agy --print ..." (bản CLI kiểm giá trị
@@ -949,6 +1171,16 @@ class AntigravityCLI:
                     {"_exit": -1, "_err": f"Antigravity CLI chạy quá {int(self.timeout)}s nên bị "
                                           f"cắt. Nếu việc thật sự dài thì nâng biến môi trường "
                                           f"JAVIS_AGY_TIMEOUT."})
+            except OSError as e:
+                # E2BIG = prompt vượt trần dòng lệnh của hệ điều hành. Phép đo ở `_chon_duong`
+                # có thể vẫn hụt (biến môi trường to chiếm chỗ trong ARG_MAX chung, hoặc bản
+                # `agy` nào đó tự nối thêm), nên đây là lưới an toàn CUỐI: đánh dấu để `query()`
+                # chạy lại bằng stdin/file thay vì ném "OSError: [Errno 7] Argument list too
+                # long" thẳng vào mặt người dùng - câu đó họ không sửa được gì (báo 2026-08-30).
+                qua_tran = getattr(e, "errno", None) in (errno.E2BIG, errno.ENAMETOOLONG)
+                loop.call_soon_threadsafe(
+                    hang.put_nowait,
+                    {"_exit": -1, "_err": f"{type(e).__name__}: {e}", "_qua_tran": qua_tran})
             except Exception as e:
                 loop.call_soon_threadsafe(hang.put_nowait,
                                           {"_exit": -1, "_err": f"{type(e).__name__}: {e}"})
@@ -991,10 +1223,13 @@ class AntigravityCLI:
         # - lúc đó vắng sự kiện tool KHÔNG chứng minh được gì.
         co_stream = co_co("--output-format")
         co_json = False
+        qua_tran_argv = False
         while True:
             ev = await hang.get()
             if ev is HET:
                 break
+            if ev.get("_qua_tran"):
+                qua_tran_argv = True      # query() sẽ chạy lại bằng stdin/file
             if duong == "file" and not doc_duoc:
                 t = str(ev.get("type") or ev.get("event") or "").lower()
                 if "_raw" not in ev and "_exit" not in ev:
@@ -1016,7 +1251,7 @@ class AntigravityCLI:
                         continue      # lượt này còn có thể thử lại bằng đường khác
                 yield ra
         ket.update(text="".join(cac_manh).strip(), loi=da_loi, cac_loi=cac_loi,
-                   ten_ngu_canh=ten_ngu_canh,
+                   ten_ngu_canh=ten_ngu_canh, qua_tran_argv=qua_tran_argv,
                    doc_duoc=doc_duoc, da_thu_doc=da_thu_doc,
                    biet_doc_hay_khong=(duong != "file") or (co_stream and co_json))
 
@@ -1028,10 +1263,7 @@ class AntigravityCLI:
         đẹp còn hơn mất câu trả lời.
         """
         if "_raw" in ev:
-            s = str(ev["_raw"])
-            cac_manh.append(s)
-            if len(s.strip()) > 8:
-                return [{"type": "text", "content": s}]
+            cac_manh.append(str(ev["_raw"]))
             return []
         if "_exit" in ev:
             loi = str(ev.get("_err") or "").strip()
@@ -1125,10 +1357,6 @@ class AntigravityCLI:
                 v = ev.get(k)
                 if isinstance(v, str) and v:
                     cac_manh.append(v)
-                    # Stream delta ra ngoài để dashboard đọc ngay, khỏi đợi hết lượt.
-                    if k == "text_delta" or (k in ("text", "delta", "content") and t in (
-                            "step_update", "agent_response", "message")):
-                        return [{"type": "text", "content": v}]
                     break
                 if isinstance(v, dict):
                     vv = v.get("text") or v.get("content")
@@ -1165,8 +1393,11 @@ def kiem_tra_nhanh(timeout: float = 60.0) -> dict:
         args += ["--output-format", "json"]
     args += ["-p", "Trả lời đúng một chữ: ok"]
     try:
+        # stdin=DEVNULL: chưa đăng nhập thì `agy` mở menu "Select login method" chờ bàn phím
+        # (xem chú thích dưới) - cắt stdin để nó thoát ngay với mã lỗi thay vì treo đủ timeout.
         r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=timeout, creationflags=_no_window())
+                           errors="replace", timeout=timeout, creationflags=_no_window(),
+                           stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired as e:
         # Hết giờ ở đây gần như LUÔN là "chưa đăng nhập" chứ không phải máy chậm: chưa có phiên
         # thì `agy` mở menu "Select login method" rồi ngồi chờ bàn phím, mà ở đây không có ai
