@@ -60,6 +60,14 @@ Các lệnh gõ nhanh (`/status`, `/reset`, `/stop`, `/model`, `/brain`, `/notes
 
 Kết quả việc nền và nhắc hẹn đặt từ Zalo sẽ **tự về đúng khung chat Zalo đó**, không rơi sang Telegram.
 
+### Gửi ảnh cho bot (kho 3 tầng)
+
+1. Gửi ảnh (Zalo Bot hiện nhận ảnh ổn; PDF/docx còn phụ thuộc payload Zalo).
+2. File vào `inbox/zalo/` + sổ `Javis/received-index.json`.
+3. Không kèm yêu cầu → bot chỉ báo đã nhận (không gọi model).
+4. Nhắn **phân tích / đọc / giữ / đưa Drive…** (caption hoặc tin sau) → lên `received/` rồi Javis làm theo lệnh.
+5. Lâu dài: bảo lưu Sources hoặc đẩy Drive (cần đã đấu Google Workspace).
+
 ### Ra lệnh bằng ghi âm (tin thoại)
 
 Bấm giữ micro trong Zalo, nói, thả tay. Javis nghe câu đó thành chữ và làm y như bạn gõ tay.

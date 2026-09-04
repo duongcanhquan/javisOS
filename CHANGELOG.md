@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.30] - 2026-09-04
+### Thêm mới
+- **Kho nhận file 3 tầng trên Zalo và Telegram.** Gửi file không kèm yêu cầu thì chỉ ghi nhận (không đốt model). Bảo phân tích / giữ / đưa Drive thì chuyển vào `received/` rồi mới xử lý.
+- **Sổ nhận** `Javis/received-index.json` + tin follow-up kiểu "phân tích file vừa gửi" tự gắn đúng file.
+
 ## [0.35.29] - 2026-09-04
 ### Sửa lỗi
 - **Tự học hết xoá note Wiki ngay sau khi vừa ghi** khi brain dùng thư mục Wiki đánh số (vd `03 - Wiki`). Trước đây nhật ký đầy dòng "Bị chặn: path ngoài scope" dù nội dung hợp lệ.

@@ -653,6 +653,14 @@ class TelegramBot(HangLuot):
                 dest = d / f"{Path(safe).stem}_{i}{Path(safe).suffix}"
                 i += 1
             dest.write_bytes(rr.content)
+            # Sổ nhận file (tầng inbox). Soft-ack / promote xử lý ở vòng poll.
+            try:
+                import received_files as rf
+                brain = rf.brain_from_inbox(str(d))
+                rf.ghi_nhan(brain, channel="telegram", path=str(dest), name=dest.name,
+                            kind=kind, caption=caption, chat_id=chat)
+            except Exception as e:
+                print(f"[telegram received] {type(e).__name__}: {e}", file=sys.stderr)
             return _with_cap(f"[Người dùng gửi {kind} qua Telegram, gateway đã tải về: {dest}]")
         except Exception as e:
             return _with_cap(f"[Người dùng gửi {kind} qua Telegram nhưng tải về lỗi: "
@@ -799,12 +807,27 @@ class TelegramBot(HangLuot):
                             await self._send(client, chat, "Bạn không có quyền dùng bot Javis này.")
                             continue
                         text = (msg.get("text") or "").strip()
+                        caption = (msg.get("caption") or "")
                         if not text:
                             # tin không có chữ → ảnh/file đính kèm. Caption có thể là LỆNH
                             # (vd "/notes ..."): đưa lệnh lên đầu để _dispatch nhận đúng, kèm
                             # dòng "[đã tải về: path]" cho skill dùng file.
                             ingested = await self._ingest_attachment(client, msg) or ""
-                            text = _caption_command_text(ingested, msg.get("caption"))
+                            text = _caption_command_text(ingested, caption)
+                            # 3 tầng lưu trữ: chỉ nhận → soft-ack; có ý làm việc → promote rồi engine
+                            if text and "đã tải về:" in text:
+                                try:
+                                    import received_files as rf
+                                    ddir = self.download_dir(chat) if callable(self.download_dir) else self.download_dir
+                                    brain = rf.brain_from_inbox(str(ddir or "telegram-inbox"))
+                                    kq = rf.xu_ly_tin_dinh_kem(brain, text, caption, "telegram")
+                                    if kq.get("mode") == "ack":
+                                        await self._send(client, chat, kq.get("reply") or "Đã nhận file.")
+                                        continue
+                                    text = kq.get("text") or text
+                                except Exception as e:
+                                    print(f"[telegram received flow] {type(e).__name__}: {e}",
+                                          file=sys.stderr)
                         if not text:
                             continue
                         await self._dispatch(client, chat, text, self._build_meta(msg))
