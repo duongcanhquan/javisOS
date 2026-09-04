@@ -442,6 +442,13 @@ class ZaloBot(HangLuot):
                 dest = d / f"{Path(safe).stem}_{i}{Path(safe).suffix}"
                 i += 1
             dest.write_bytes(noi_dung)
+            try:
+                import received_files as rf
+                brain = rf.brain_from_inbox(str(d))
+                rf.ghi_nhan(brain, channel="zalo", path=str(dest), name=dest.name,
+                            kind="ảnh", caption=caption, chat_id=chat)
+            except Exception as e:
+                print(f"[zalo received] {type(e).__name__}: {e}", file=sys.stderr)
             return _with_cap(f"[Người dùng gửi một ảnh qua Zalo, đã tải về: {dest}]")
         except Exception as e:
             return _with_cap(f"[Người dùng gửi một ảnh qua Zalo nhưng tải về hỏng: "
@@ -617,10 +624,24 @@ class ZaloBot(HangLuot):
                             await self._send(client, chat, "Bạn không có quyền dùng bot Javis này.")
                             continue
                         text = str(msg.get("text") or "").strip()
+                        caption = str(msg.get("caption") or "")
                         if not text:
                             from telegram_bot import _caption_command_text
                             ingested = await self._ingest_attachment(client, ev, msg) or ""
-                            text = _caption_command_text(ingested, msg.get("caption"))
+                            text = _caption_command_text(ingested, caption)
+                            if text and "đã tải về:" in text:
+                                try:
+                                    import received_files as rf
+                                    ddir = self.download_dir(chat) if callable(self.download_dir) else self.download_dir
+                                    brain = rf.brain_from_inbox(str(ddir or "zalo-inbox"))
+                                    kq = rf.xu_ly_tin_dinh_kem(brain, text, caption, "zalo")
+                                    if kq.get("mode") == "ack":
+                                        await self._send(client, chat, kq.get("reply") or "Đã nhận file.")
+                                        continue
+                                    text = kq.get("text") or text
+                                except Exception as e:
+                                    print(f"[zalo received flow] {type(e).__name__}: {e}",
+                                          file=sys.stderr)
                         if not text:
                             continue
                         await self._dispatch(client, chat, text, meta)
