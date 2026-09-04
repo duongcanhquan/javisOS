@@ -19,6 +19,8 @@ Ba loại engine, khác nhau ở CÔNG CỤ có được - đây là chỗ phả
 - gemini-cli: Gemini CLI chạy bằng đăng nhập Google. Cũng agent thật (tool file + MCP hub qua
   .gemini/settings.json trong brain). Mức quyền ánh xạ thẳng vào --approval-mode của nó:
   suggest -> plan (chỉ đọc), auto -> auto_edit, full -> yolo.
+- antigravity-cli: Antigravity CLI (`agy`) - gói Google hiện tại. Agent thật + MCP hub.
+  Mức quyền qua sandbox / skip-permissions (không có nấc plan cứng như Gemini).
 - api (openrouter/openai/gemini/anthropic-api): KHÔNG có tool native. Bù lại hub cấp
   javis_read_file / javis_list_dir / javis_write_file / javis_use_skill + tool MCP, và
   javis_write_file tự chặn khi mode là suggest (mcp_hub._builtin_tools). Không có Bash,
@@ -40,6 +42,7 @@ import config as cfgmod
 CLAUDE = "anthropic-cli"
 CODEX = "openai-oauth"
 GEMINI_CLI = "gemini-cli"
+ANTIGRAVITY = "antigravity-cli"
 API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api")
 
 # provider -> tên trường chứa API key trong settings["model"]
@@ -137,7 +140,7 @@ def _spec_ne_tien(s: dict, spec: dict) -> dict:
     này luôn dừng ở mắt đầu, và trên máy KHÔNG cài Claude Code việc nền bị đẩy sang một engine
     không chạy được - phanh biến thành cái làm chết việc nền. Phải hỏi thẳng binary.
     """
-    for prov in (CLAUDE, CODEX):
+    for prov in (CLAUDE, CODEX, ANTIGRAVITY):
         ok, _ly_do = availability({"provider": prov}, s)
         if ok and _co_binary(prov):
             return {"provider": prov, "model": ""}
@@ -150,11 +153,18 @@ def _spec_ne_tien(s: dict, spec: dict) -> dict:
 def _co_binary(prov: str) -> bool:
     """Engine CLI đó có thật trên máy không. Lỗi/thiếu module -> False (đừng đoán là có)."""
     try:
-        import claude_cli
         if prov == CLAUDE:
+            import claude_cli
             return bool(claude_cli.find_claude_cli())
         if prov == CODEX:
+            import claude_cli
             return bool(claude_cli.find_codex_cli())
+        if prov == ANTIGRAVITY:
+            import antigravity_cli as _a
+            return bool(_a.find_antigravity_cli())
+        if prov == GEMINI_CLI:
+            import gemini_cli as _g
+            return bool(_g.find_gemini_cli()) if hasattr(_g, "find_gemini_cli") else True
     except Exception:   # noqa: BLE001 - không dò được thì coi như không có, rồi thử mắt sau
         return False
     return False
@@ -194,6 +204,17 @@ def availability(spec: dict, settings: dict = None) -> tuple:
                 return False, st.get("error") or "Gemini CLI chưa sẵn sàng."
         except Exception:
             return False, "Không kiểm tra được Gemini CLI."
+        return True, ""
+    if prov == ANTIGRAVITY:
+        try:
+            import antigravity_cli as _a
+            if not _a.find_antigravity_cli():
+                return False, "Chưa cài Antigravity CLI (`agy`)."
+            st = _a.auth_status()
+            if not st.get("connected"):
+                return False, st.get("error") or "Antigravity CLI chưa đăng nhập Google."
+        except Exception:
+            return False, "Không kiểm tra được Antigravity CLI."
         return True, ""
     if prov in API_PROVIDERS:
         if not api_key_for(prov, settings):
@@ -466,6 +487,39 @@ def _build_gemini(spec, claude_cli_obj, mode, tag):
     return gc
 
 
+def _build_antigravity(spec, claude_cli_obj, mode, tag):
+    """Engine việc nền chạy bằng Antigravity CLI (`agy`).
+
+    Cùng vai với `_build_gemini`: đọc thuộc tính an toàn từ engine Claude đã dựng sẵn,
+    rồi dựng AntigravityCLI + đấu MCP hub. `suggest`/`auto` đi qua sandbox của `agy`
+    (không có nấc plan cứng như Gemini) - xem `antigravity_cli.co_quyen_cho_mode`.
+    """
+    import antigravity_cli as _a
+    muc = mode or getattr(claude_cli_obj, "javis_mode", None) or "full"
+    ag = _a.AntigravityCLI(cwd=getattr(claude_cli_obj, "cwd", None),
+                            tag=tag or getattr(claude_cli_obj, "tag", "aux"),
+                            model=spec.get("model") or None,
+                            instructions=getattr(claude_cli_obj, "system_prompt", None))
+    ag.mode = muc
+    vault = getattr(claude_cli_obj, "javis_vault", None) or getattr(claude_cli_obj, "cwd", None)
+    if vault:
+        try:
+            import mcp_hub
+            hub = None
+            if bool(cfgmod.read_settings().get("mcp", {}).get("hub", True)):
+                hub = _a.hub_entry(
+                    mcp_hub.hub_url(),
+                    {"Authorization": f"Bearer {mcp_hub.hub_token()}",
+                     "X-Javis-Mode": muc, "X-Javis-Vault": str(vault)},
+                )
+            mcpf = _a.ghi_mcp_settings(vault, hub)
+            if mcpf:
+                ag.mcp_config = mcpf
+        except Exception as e:
+            print(f"[aux antigravity mcp] {e}", file=sys.stderr)
+    return ag
+
+
 def apply(deps, cli, mode: str = None, tag: str = None):
     """Dùng ở các nơi chạy nền sau khi đã dựng xong engine Claude.
 
@@ -532,6 +586,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
                 return _build_codex(sp, cli, mode, tag, codex_profile)
             if prov == GEMINI_CLI:
                 return _build_gemini(sp, cli, mode, tag)
+            if prov == ANTIGRAVITY:
+                return _build_antigravity(sp, cli, mode, tag)
             if prov in API_PROVIDERS:
                 return _build_api(sp, cli, mode, tag)
             return cli
@@ -547,6 +603,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             primary = _build_codex(sp, cli, mode, tag, codex_profile)
         elif prov == GEMINI_CLI:
             primary = _build_gemini(sp, cli, mode, tag)
+        elif prov == ANTIGRAVITY:
+            primary = _build_antigravity(sp, cli, mode, tag)
         elif prov in API_PROVIDERS:
             primary = _build_api(sp, cli, mode, tag)
         else:
