@@ -1,4 +1,4 @@
-# Kiểm tra sức khoẻ Javis trên VPS (workflow_dispatch).
+# Dump nhật ký tự học trên VPS (tạm thời, để chẩn đoán thất bại ghi).
 name: Check VPS Health
 
 on:
@@ -8,7 +8,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Health + connections on VPS
+      - name: Dump learn-log on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -17,10 +17,72 @@ jobs:
           command_timeout: 15m
           script: |
             set -euo pipefail
-            DIR="${{ secrets.VPS_DIR }}"
-            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
-            cd "$DIR"
-            git fetch --all --prune 2>/dev/null || true
-            git reset --hard origin/main 2>/dev/null || true
-            chmod +x scripts/check-vps-health.sh
-            bash scripts/check-vps-health.sh
+            CNAME=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+            echo "container=$CNAME"
+            if [ -z "$CNAME" ]; then echo "NO_CONTAINER"; exit 1; fi
+            curl -fsS -m 5 http://127.0.0.1:7777/health || echo HEALTH_FAIL
+            echo
+            cat > /tmp/dump_learn_log.b64 <<'B64'
+            ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCBjb2xsZWN0aW9ucywgcmUKYmFzZXMgPSBb
+            UGF0aChwKSBmb3IgcCBpbiAoIi9kYXRhIiwgIi9hcHAiLCAiL2hvbWUvamF2aXMiLCAiL3Zhci9s
+            aWIvamF2aXMiKSBpZiBQYXRoKHApLmV4aXN0cygpXQpwcmludCgiPT09IEJBU0VTID09PSIpCmZv
+            ciBiIGluIGJhc2VzOgogICAgcHJpbnQoYiwgIi0+IiwgW3gubmFtZSBmb3IgeCBpbiBsaXN0KGIu
+            aXRlcmRpcigpKVs6MjVdXSBpZiBiLmlzX2RpcigpIGVsc2UgIj8iKQpwcmludCgiPT09IGxlYXJu
+            Lmpzb24gPT09IikKZm9yIGIgaW4gYmFzZXM6CiAgICBmb3IgcCBpbiBiLnJnbG9iKCJsZWFybi5q
+            c29uIik6CiAgICAgICAgcHJpbnQoIkZJTEUiLCBwKQogICAgICAgIHByaW50KHAucmVhZF90ZXh0
+            KGVuY29kaW5nPSJ1dGYtOCIsIGVycm9ycz0icmVwbGFjZSIpWzoyMDAwXSkKcm9vdHMgPSBbXQpm
+            b3IgYiBpbiBiYXNlczoKICAgIHJvb3RzICs9IGxpc3QoYi5yZ2xvYigiSmF2aXMvbGVhcm4tbG9n
+            IikpCnByaW50KCI9PT0gbG9nIGRpcnMgPT09IiwgW3N0cihyKSBmb3IgciBpbiByb290c10pCmtl
+            eXMgPSBjb2xsZWN0aW9ucy5Db3VudGVyKCkKc2FtcGxlcyA9IGNvbGxlY3Rpb25zLmRlZmF1bHRk
+            aWN0KGxpc3QpCmZvciBkIGluIHJvb3RzOgogICAgZm9yIGYgaW4gc29ydGVkKGQuZ2xvYigiKi5t
+            ZCIpKVstMjE6XToKICAgICAgICB0cnk6CiAgICAgICAgICAgIHRleHQgPSBmLnJlYWRfdGV4dChl
+            bmNvZGluZz0idXRmLTgiLCBlcnJvcnM9InJlcGxhY2UiKQogICAgICAgIGV4Y2VwdCBFeGNlcHRp
+            b24gYXMgZToKICAgICAgICAgICAgcHJpbnQoInJlYWQgZmFpbCIsIGYsIGUpOyBjb250aW51ZQog
+            ICAgICAgIGZvciBibG9jayBpbiByZS5zcGxpdChyIlxuKD89IyMgXFspIiwgdGV4dCk6CiAgICAg
+            ICAgICAgIGlmIG5vdCBibG9jay5zdHJpcCgpOgogICAgICAgICAgICAgICAgY29udGludWUKICAg
+            ICAgICAgICAgaGVhZCA9IGJsb2NrLnNwbGl0bGluZXMoKVswXVs6MjIwXSBpZiBibG9jay5zcGxp
+            dGxpbmVzKCkgZWxzZSAiIgogICAgICAgICAgICBpZiAiZm9yayBs4buXaSIgaW4gaGVhZCBvciAi
+            a2jDtG5nIHBo4bqjbiBo4buTaSIgaW4gaGVhZDoKICAgICAgICAgICAgICAgIGtleXNbImZvcmst
+            ZXJyb3IiXSArPSAxCiAgICAgICAgICAgICAgICBzYW1wbGVzWyJmb3JrLWVycm9yIl0uYXBwZW5k
+            KGhlYWQpCiAgICAgICAgICAgIGVsaWYgImtow7RuZyBwYXJzZSIgaW4gaGVhZDoKICAgICAgICAg
+            ICAgICAgIGtleXNbInBhcnNlLWZhaWwiXSArPSAxCiAgICAgICAgICAgICAgICBzYW1wbGVzWyJw
+            YXJzZS1mYWlsIl0uYXBwZW5kKGhlYWQgKyAiIHwgIiArICIgIi5qb2luKGJsb2NrLnNwbGl0bGlu
+            ZXMoKVsxOjNdKVs6MjAwXSkKICAgICAgICAgICAgZWxpZiAiZHJ5LXJ1biIgaW4gaGVhZDoKICAg
+            ICAgICAgICAgICAgIGtleXNbInN0YXR1czpkcnktcnVuIl0gKz0gMQogICAgICAgICAgICBlbGlm
+            ICJhdXRvLWdoaSIgaW4gaGVhZDoKICAgICAgICAgICAgICAgIGtleXNbInN0YXR1czphdXRvLWdo
+            aSJdICs9IDEKICAgICAgICAgICAgaWYgIioqQuG7iyBjaOG6t246KioiIGluIGJsb2NrOgogICAg
+            ICAgICAgICAgICAga2V5c1siaGFzLWJsb2NrZWQiXSArPSAxCiAgICAgICAgICAgICAgICBwYXJ0
+            ID0gYmxvY2suc3BsaXQoIioqQuG7iyBjaOG6t246KioiLCAxKVsxXQogICAgICAgICAgICAgICAg
+            Zm9yIGl0ZW0gaW4gcGFydC5yZXBsYWNlKCJcbiIsICIgIikuc3BsaXQoIjsiKToKICAgICAgICAg
+            ICAgICAgICAgICBwID0gaXRlbS5zdHJpcCgpCiAgICAgICAgICAgICAgICAgICAgaWYgbm90IHA6
+            CiAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgICAgICAgICAgICAgaWYg
+            InNlY3JldCIgaW4gcDogayA9ICJibG9ja2VkOnNlY3JldCIKICAgICAgICAgICAgICAgICAgICBl
+            bGlmICJpbmplY3Rpb24iIGluIHA6IGsgPSAiYmxvY2tlZDppbmplY3Rpb24iCiAgICAgICAgICAg
+            ICAgICAgICAgZWxpZiAiQnJhaW5Mb2NrIiBpbiBwOiBrID0gImJsb2NrZWQ6QnJhaW5Mb2NrIgog
+            ICAgICAgICAgICAgICAgICAgIGVsaWYgImFzc2lzdGFudC1vbmx5IiBpbiBwOiBrID0gImJsb2Nr
+            ZWQ6YXNzaXN0YW50LW9ubHkiCiAgICAgICAgICAgICAgICAgICAgZWxpZiAixJHDoyB04buTbiB0
+            4bqhaSIgaW4gcDogayA9ICJibG9ja2VkOnNraWxsLWV4aXN0cyIKICAgICAgICAgICAgICAgICAg
+            ICBlbGlmICJkZXNjcmlwdGlvbiIgaW4gcDogayA9ICJibG9ja2VkOnNraWxsLWRlc2MiCiAgICAg
+            ICAgICAgICAgICAgICAgZWxpZiAidHLDuW5nIiBpbiBwOiBrID0gImJsb2NrZWQ6d2lraS1kdXBl
+            IgogICAgICAgICAgICAgICAgICAgIGVsaWYgcC5zdGFydHN3aXRoKCJ0YXNrICIpOiBrID0gImJs
+            b2NrZWQ6dGFzayIKICAgICAgICAgICAgICAgICAgICBlbHNlOiBrID0gImJsb2NrZWQ6b3RoZXIi
+            CiAgICAgICAgICAgICAgICAgICAga2V5c1trXSArPSAxCiAgICAgICAgICAgICAgICAgICAgaWYg
+            bGVuKHNhbXBsZXNba10pIDwgMzoKICAgICAgICAgICAgICAgICAgICAgICAgc2FtcGxlc1trXS5h
+            cHBlbmQocFs6MjAwXSkKcHJpbnQoIj09PSBDT1VOVFMgPT09IikKZm9yIGssIHYgaW4ga2V5cy5t
+            b3N0X2NvbW1vbig1MCk6CiAgICBwcmludChmIiAge2t9OiB7dn0iKQpwcmludCgiPT09IFNBTVBM
+            RVMgPT09IikKZm9yIGssIHJvd3MgaW4gc2FtcGxlcy5pdGVtcygpOgogICAgcHJpbnQoIiMjIiwg
+            aykKICAgIGZvciByIGluIHJvd3NbOjNdOgogICAgICAgIHByaW50KCIgLSIsIHJbOjMwMF0pCnBy
+            aW50KCI9PT0gUkVDRU5UIEhFQURTID09PSIpCmZvciBkIGluIHJvb3RzOgogICAgZm9yIGYgaW4g
+            c29ydGVkKGQuZ2xvYigiKi5tZCIpKVstNDpdOgogICAgICAgIHByaW50KCJGSUxFIiwgZikKICAg
+            ICAgICBmb3IgbGluZSBpbiBmLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiLCBlcnJvcnM9InJl
+            cGxhY2UiKS5zcGxpdGxpbmVzKCk6CiAgICAgICAgICAgIGlmIGxpbmUuc3RhcnRzd2l0aCgiIyMg
+            WyIpOgogICAgICAgICAgICAgICAgcHJpbnQobGluZVs6MjQwXSkK
+            B64
+            # bỏ indent YAML còn sót (12 spaces) rồi mới decode
+            sed -i 's/^            //' /tmp/dump_learn_log.b64
+            base64 -d /tmp/dump_learn_log.b64 > /tmp/dump_learn_log.py
+            docker cp /tmp/dump_learn_log.py "$CNAME":/tmp/dump_learn_log.py
+            docker exec -u javis "$CNAME" python3 /tmp/dump_learn_log.py
+            echo
+            echo "=== docker logs learn hints ==="
+            docker logs --tail 500 "$CNAME" 2>&1 | grep -iE '\[learn|learn enqueue|learn log|BrainLock|agent-memory|ghi bài học|Fork học' | tail -100 || true
