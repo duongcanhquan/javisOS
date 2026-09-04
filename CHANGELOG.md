@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.31] - 2026-09-04
+### Sửa lỗi
+- **Tin xác nhận nhận file trên Zalo hết hiện dấu markdown thô** (`**tên**`, `inbox`). Nay gửi chữ thường, Telegram cũng đọc gọn hơn.
+- **Deploy VPS đợi health dài hơn** thay vì curl một lần sau 5 giây (tránh Connection reset lúc container vừa start).
+
 ## [0.35.30] - 2026-09-04
 ### Thêm mới
 - **Kho nhận file 3 tầng trên Zalo và Telegram.** Gửi file không kèm yêu cầu thì chỉ ghi nhận (không đốt model). Bảo phân tích / giữ / đưa Drive thì chuyển vào `received/` rồi mới xử lý.

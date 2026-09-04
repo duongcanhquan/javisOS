@@ -37,8 +37,19 @@ docker compose \
   up -d --build
 
 echo "==> health"
-sleep 5
-curl -fsS http://127.0.0.1:7777/health || true
+ok_health=0
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fsS -m 5 http://127.0.0.1:7777/health; then
+    echo
+    ok_health=1
+    break
+  fi
+  echo "waiting health... ($i)"
+  sleep 3
+done
+if [ "$ok_health" != "1" ]; then
+  echo "HEALTH_FAIL (container có thể vẫn đang khởi động)"
+fi
 echo
 echo "==> tunnel URL (if any)"
 docker compose logs tunnel 2>&1 | grep -i trycloudflare | tail -n 3 || true

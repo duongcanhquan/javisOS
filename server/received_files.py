@@ -232,11 +232,12 @@ def moi_nhat(brain_root, channel: str = "") -> Optional[dict]:
 
 
 def cau_ack(entry: dict) -> str:
+    # Plain text: Zalo không parse markdown; Telegram cũng đọc ổn không cần đậm.
     ten = entry.get("name") or "file"
     kenh = entry.get("channel") or "chat"
     return (
-        f"Đã nhận **{ten}** ({kenh}).\n"
-        f"Đang ở tầng trung chuyển (`inbox`) - dùng một lần / chờ lệnh.\n\n"
+        f"Đã nhận {ten} ({kenh}).\n"
+        f"Đang ở tầng trung chuyển (inbox) - dùng một lần / chờ lệnh.\n\n"
         f"Nhắn mình khi cần: phân tích, đọc, giữ vào kho làm việc, "
         f"hoặc đưa lên Drive / lưu Sources."
     )

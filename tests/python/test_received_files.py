@@ -64,7 +64,9 @@ def test_soft_ack_flow():
     mark = f"[Người dùng gửi ảnh qua Telegram, gateway đã tải về: {src}]"
     kq = rf.xu_ly_tin_dinh_kem(str(brain), mark, "", "telegram")
     check("không caption → ack", kq["mode"] == "ack")
-    check("ack nhắc tầng trung chuyển", "trung chuyển" in (kq.get("reply") or ""))
+    reply = kq.get("reply") or ""
+    check("ack nhắc tầng trung chuyển", "trung chuyển" in reply)
+    check("ack plain text (không markdown)", "**" not in reply and "`" not in reply)
     check("file vẫn ở inbox", src.is_file())
 
 
