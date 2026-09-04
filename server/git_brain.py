@@ -368,15 +368,23 @@ def commit_paths(root: str, paths: List[str], msg: str) -> Optional[str]:
     try:
         if not paths:
             return None
+        # Brain git-init ngoài Javis có thể thiếu identity → commit chết im. Ép local.
+        _git(root, "config", "user.email", "javis@localhost")
+        _git(root, "config", "user.name", "Javis Learn")
         add = _git(root, "add", "--", *paths)
         if add.returncode != 0:
+            print(f"[git commit_paths] add lỗi: {(add.stderr or add.stdout or '')[:200]}",
+                  file=__import__("sys").stderr)
             return None
         c = _git(root, "commit", "-m", msg)
         if c.returncode != 0:
+            print(f"[git commit_paths] commit lỗi: {(c.stderr or c.stdout or '')[:200]}",
+                  file=__import__("sys").stderr)
             return None
         h = _git(root, "rev-parse", "--short", "HEAD")
         return (h.stdout or "").strip() or "committed"
-    except Exception:
+    except Exception as e:
+        print(f"[git commit_paths] {type(e).__name__}: {e}", file=__import__("sys").stderr)
         return None
 
 

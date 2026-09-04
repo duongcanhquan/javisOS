@@ -7,7 +7,8 @@ Triết lý an toàn (mạnh hơn cả kế hoạch gốc, theo review đối kh
     "model ghi đè / thoát scope / clobber MEMORY.md".
   - Cô lập: aux model rẻ + 0 MCP (file rỗng ĐÃ assert + --strict-mcp-config) + disallow
     Bash/Web/Task + cwd ghim brain + cap wall-clock.
-  - Fail-closed: auto-write CHỈ chạy khi brain là git repo (git_brain). Không thì → dry-run.
+  - Fail-closed ghi: secret-scan + injection-scan + scope guard (chỉ memory/Wiki/skills/Javis,
+    kể cả thư mục Wiki đánh số kiểu `03 - Wiki`). Git KHÔNG bắt buộc để ghi; có git thì commit để undo.
   - Trước khi commit: secret-scan + injection-scan nội dung MỚI, verify theo tầng.
   - Rate-limit CỨNG (min-interval + trần fork/token mỗi ngày) độc lập với debounce.
   - Curator + /reflect + learn dùng CHUNG BrainLock (serialize cả với backup ngoài).
@@ -178,20 +179,26 @@ def _extract_json(raw: str) -> Optional[dict]:
     """Bóc manifest JSON từ output fork (ưu tiên fenced ```json, rồi {...} cân bằng cuối)."""
     if not raw:
         return None
-    m = re.search(r"```json\s*(\{.*?\})\s*```", raw, re.DOTALL)
-    cand = m.group(1) if m else None
-    if not cand:
-        # lấy khối {...} lớn nhất
-        start = raw.find("{"); end = raw.rfind("}")
-        if start >= 0 and end > start:
-            cand = raw[start:end + 1]
-    if not cand:
-        return None
-    try:
-        d = json.loads(cand)
-        return d if isinstance(d, dict) else None
-    except Exception:
-        return None
+    candidates: List[str] = []
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+    if m:
+        candidates.append(m.group(1).strip())
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start >= 0 and end > start:
+        candidates.append(raw[start:end + 1])
+    seen = set()
+    for cand in candidates:
+        if not cand or cand in seen:
+            continue
+        seen.add(cand)
+        try:
+            d = json.loads(cand)
+            if isinstance(d, dict):
+                return d
+        except Exception:
+            continue
+    return None
 
 
 # ============================================================
@@ -216,7 +223,11 @@ class LearnDeps:
     aux_swap: Optional[Callable] = None
 
 
-ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", "skills", ".claude/skills", "Javis"]
+# Prefix cứng: luôn được ghi. Wiki/wiki thêm ở đây vì hay gặp; thư mục đánh số
+# (vd `03 - Wiki`) được _write_allow_prefixes() bổ sung theo brain thật - trước đây
+# thiếu nên mọi note wiki vào thư mục đánh số bị hard_reset ngay sau khi ghi.
+ALLOWED_WRITE_PREFIXES = ["memory", "Memory", "Wiki", "wiki", "skills", ".claude/skills", "Javis"]
+_WIKI_DIR_RE = re.compile(r"^(\d+\s*[-_.]\s*)?wiki$", re.IGNORECASE)
 
 
 class LearnFeature:
@@ -615,14 +626,38 @@ class LearnFeature:
     async def _verify_skills(self, brain: str, skills: List[dict], cfg: dict) -> List[dict]:
         if not skills:
             return skills
-        listing = "\n".join(f"- {s.get('slug')}: {s.get('name')} — {s.get('description','')}" for s in skills)
+        listing = "\n".join(f"- {s.get('slug')}: {s.get('name')} - {s.get('description','')}" for s in skills)
         prompt = ("Một vòng học đề xuất tạo các SKILL sau (Javis tự quan sát từ việc đã làm). "
                   "GIẢ ĐỊNH chúng SAI/thừa. Với mỗi slug, quyết định giữ hay bỏ.\n" + listing +
                   '\nCHỈ trả JSON: {"keep":["slug1",...]} - slug đáng giữ (quy trình thật, đủ cụ thể, không trùng skill có sẵn).')
         out = await self._spawn_readonly(brain, prompt, cfg, tag="learn")
-        d = _extract_json(out) or {}
+        d = _extract_json(out)
+        # Verify fork lỗi/không parse → GIỮ nguyên danh sách (đừng xoá sạch vì parse hỏng).
+        # Chỉ khi model trả JSON hợp lệ với keep rỗng mới hiểu là "bỏ hết".
+        if d is None:
+            return skills
         keep = set(d.get("keep") or [])
-        return [s for s in skills if s.get("slug") in keep] if keep else []
+        return [s for s in skills if s.get("slug") in keep]
+
+    def _write_allow_prefixes(self, brain: str, root: Path) -> List[str]:
+        """Prefix được phép ghi cho brain này: cứng + thư mục Wiki thật (kể cả `03 - Wiki`)."""
+        prefixes = list(ALLOWED_WRITE_PREFIXES)
+        try:
+            wiki = Path(self.deps.resolve_subfolder(
+                str(root), r"^(\d+\s*[-_.]\s*)?wiki$", "Wiki"))
+            rel = str(wiki.relative_to(root)).replace("\\", "/")
+            if rel and rel not in prefixes:
+                prefixes.append(rel)
+        except Exception:
+            pass
+        try:
+            for child in Path(root).iterdir():
+                if child.is_dir() and _WIKI_DIR_RE.match(child.name.strip()):
+                    if child.name not in prefixes:
+                        prefixes.append(child.name)
+        except Exception:
+            pass
+        return prefixes
 
     # ── PROMOTE (Python tin cậy GHI - chạy trong thread + BrainLock) ──
     def _promote_sync(self, brain: str, manifest: dict, cfg: dict, caps: dict, allow_write: bool) -> dict:
@@ -774,14 +809,28 @@ class LearnFeature:
             # commit không -a → file dirty khác như conversations/loop-log không bị cuốn vào).
             written_paths = sorted(set(written_paths))
             if written_paths:
-                bad = git_brain.paths_within(written_paths, ALLOWED_WRITE_PREFIXES)
+                allowed = self._write_allow_prefixes(brain, root)
+                bad = git_brain.paths_within(written_paths, allowed)
                 if bad:
                     git_brain.hard_reset_paths(root, bad)   # an toàn: đây là file DO ENGINE vừa ghi
                     rep["blocked"].append(f"bỏ {len(bad)} path ngoài scope: {bad[:3]}")
+                    # Gỡ khỏi báo cáo thành công những mục đã bị hoàn tác - tránh nhật ký nói
+                    # "đã ghi wiki X" trong khi file đã bị xoá ngay sau đó.
+                    bad_set = set(bad)
+                    rep["wiki"] = [t for t in rep["wiki"]
+                                   if not any(f"/{t}.md" in p or p.endswith(f"/{t}.md") for p in bad_set)]
+                    rep["facts"] = [s for s in rep["facts"]
+                                    if not any(f"/{s}.md" in p or p.endswith(f"/{s}.md") for p in bad_set)]
+                    rep["skills"] = [s for s in rep["skills"]
+                                     if not any(f"/{s}/" in p or p.endswith(f"/{s}/SKILL.md") for p in bad_set)]
                 safe = [p for p in written_paths if p not in bad]
                 if safe:
                     msg = f"learn: +{len(rep['facts'])} fact +{len(rep['wiki'])} wiki +{len(rep['skills'])} skill ({today})"
                     rep["commit"] = git_brain.commit_paths(root, safe, msg)
+                    if not rep["commit"] and git_brain.is_git_checkout(root):
+                        # File đã ghi nhưng commit im lặng thất bại (identity/hook/lock) -
+                        # nói rõ trong nhật ký thay vì để user nghĩ "không ghi được".
+                        rep["blocked"].append("đã ghi file nhưng git commit thất bại (xem log máy)")
                     st = cfg.setdefault("_state", {})
                     st["fork_count"] = int(st.get("fork_count", 0)) + 1
                     st["last_fork_ts"] = time.time()
@@ -796,7 +845,7 @@ class LearnFeature:
             text = idx.read_text(encoding="utf-8") if idx.exists() else ""
             if f"facts/{slug}.md" in text:
                 return
-            line = f"- [{title}](facts/{slug}.md) — {hook}".rstrip(" —")
+            line = f"- [{title}](facts/{slug}.md) - {hook}".rstrip(" -")
             if "_(Chưa có ký ức" in text:
                 text = re.sub(r"_\(Chưa có ký ức.*?\)_", line, text, flags=re.DOTALL)
             else:
@@ -814,7 +863,7 @@ class LearnFeature:
                 return
             if "## Tự học" not in text:
                 text = text.rstrip() + "\n\n## Tự học\n"
-            line = f"- [[{title}]] — {desc}".rstrip(" —")
+            line = f"- [[{title}]] - {desc}".rstrip(" -")
             text = text.rstrip() + "\n" + line + "\n"
             self.deps.atomic_write_text(idx, text)
             written.append(str(idx.relative_to(root)).replace("\\", "/"))
@@ -834,7 +883,7 @@ class LearnFeature:
     def _append_open_question(self, brain, wiki_dir, title, reason, written, root):
         try:
             oq = wiki_dir / "_open-questions.md"
-            entry = f"\n- [ ] ({_today()}) [[{title}]]: {reason} — status: open\n"
+            entry = f"\n- [ ] ({_today()}) [[{title}]]: {reason} - status: open\n"
             old = oq.read_text(encoding="utf-8") if oq.exists() else "# Open Questions\n"
             self.deps.atomic_write_text(oq, old.rstrip() + "\n" + entry)
             written.append(str(oq.relative_to(root)).replace("\\", "/"))
@@ -1103,7 +1152,7 @@ class LearnFeature:
             d.mkdir(parents=True, exist_ok=True)
             now = _now_vn()
             with open(d / f"{now.strftime('%Y-%m-%d')}.md", "a", encoding="utf-8") as fh:
-                fh.write(f"\n## [{now.strftime('%Y-%m-%d %H:%M')}] {kind} — {title}\n{body}\n")
+                fh.write(f"\n## [{now.strftime('%Y-%m-%d %H:%M')}] {kind} - {title}\n{body}\n")
         except Exception as e:
             print(f"[learn log] {e}", file=__import__('sys').stderr)
 
@@ -1152,7 +1201,8 @@ class LearnFeature:
             self.write_config(cfg)
             return {"ok": True, "git": g, "config": cfg,
                     "note": ("Đã git-init brain → auto-write an toàn/undo được." if g.get("ok")
-                             else "⚠ Chưa git được (thiếu git?) → auto sẽ tự hạ dry-run. " + str(g.get("error", "")))}
+                             else "⚠ Chưa git được (thiếu git?). Tự học VẪN ghi file bình thường, "
+                                  "chỉ mất hoàn tác 1-chạm/sao lưu. " + str(g.get("error", "")))}
 
         @router.post("/learn/run-now")
         async def learn_run_now(brain: str = Form("brain")):

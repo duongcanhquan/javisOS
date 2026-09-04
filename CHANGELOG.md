@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.29] - 2026-09-04
+### Sửa lỗi
+- **Tự học hết xoá note Wiki ngay sau khi vừa ghi** khi brain dùng thư mục Wiki đánh số (vd `03 - Wiki`). Trước đây nhật ký đầy dòng "Bị chặn: path ngoài scope" dù nội dung hợp lệ.
+- **Vòng kiểm skill tự học không còn xoá sạch đề xuất** chỉ vì model trả lời lệch JSON.
+- **Git commit lúc học nói rõ khi thất bại** thay vì im lặng; tự gán identity local nếu brain thiếu.
+
 ## [0.35.28] - 2026-09-04
 ### Thêm mới
 - **Skill hệ thống `deep-research`.** Phương pháp nghiên cứu lặp breadth/depth từ [dzhng/deep-research](https://github.com/dzhng/deep-research), chạy trên Tavily/WebSearch của Javis.
