@@ -57,11 +57,23 @@ TYPING_MOI_GIAY = 4.0     # chưa đo được Zalo tắt chấm sau bao lâu; l
 MAX_DEDUPE = 2000         # số message_id nhớ để chống trùng
 MAX_TAI_MB = 20           # trần tải file người dùng gửi lên, tự đặt (Zalo chưa công bố)
 
-# Sự kiện Zalo bắn ra. `unsupported` là loại Zalo cố ý không chuyển nội dung.
+# Sự kiện Zalo bắn ra. `unsupported` là loại Zalo cố ý không chuyển nội dung
+# (PDF/Word/Excel, hoặc tin từ nhóm đối tượng đặc biệt theo docs Zalo Bot).
 SK_TEXT = "message.text.received"
 SK_ANH = "message.image.received"
 SK_STICKER = "message.sticker.received"
 SK_VOICE = "message.voice.received"
+SK_UNSUPPORTED = "message.unsupported.received"
+
+# Soft-ack cố định: không gọi model (tránh đốt lượt 5 phút chỉ để giải thích giới hạn API).
+CAU_UNSUPPORTED = (
+    "Zalo Bot không chuyển được file tài liệu (PDF, Word, Excel...) sang máy chủ - "
+    "chỉ nhận chữ, ảnh và tin thoại.\n\n"
+    "Cách nhanh:\n"
+    "- Chụp ảnh trang tài liệu rồi gửi ảnh qua Zalo\n"
+    "- Dán chữ / gửi link Google Drive\n"
+    "- Hoặc gửi file qua Telegram của Javis"
+)
 
 
 # `getUpdates` của Zalo KHÔNG trả `ok: true` với danh sách rỗng như Telegram khi hết giờ chờ.
@@ -622,6 +634,12 @@ class ZaloBot(HangLuot):
                             await self._bao_su_kien(meta)
                         if self.chat_ids and chat not in self.chat_ids:
                             await self._send(client, chat, "Bạn không có quyền dùng bot Javis này.")
+                            continue
+                        # PDF/docx/... → Zalo chỉ báo unsupported, không có URL tải.
+                        # Trả lời ngắn ngay, không gọi engine.
+                        if ev == SK_UNSUPPORTED or (
+                                isinstance(ev, str) and "unsupported" in ev.lower()):
+                            await self._send(client, chat, CAU_UNSUPPORTED)
                             continue
                         text = str(msg.get("text") or "").strip()
                         caption = str(msg.get("caption") or "")

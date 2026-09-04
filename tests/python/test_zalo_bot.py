@@ -246,6 +246,19 @@ check("chặn trùng token xét theo TỪNG kênh",
 _ZL = (Path(SERVER) / "zalo_bot.py").read_text(encoding="utf-8")
 check("không dùng em dash trong mã nguồn (luật CLAUDE.md)", "—" not in _ZL)
 
+# ---- 10. Soft-ack khi Zalo báo unsupported (PDF/docx - không có URL tải) ----
+
+check("có hằng SK_UNSUPPORTED", zalo_bot.SK_UNSUPPORTED == "message.unsupported.received")
+check("CAU_UNSUPPORTED nhắc PDF/Drive/Telegram",
+      "PDF" in zalo_bot.CAU_UNSUPPORTED
+      and "Drive" in zalo_bot.CAU_UNSUPPORTED
+      and "Telegram" in zalo_bot.CAU_UNSUPPORTED)
+check("CAU_UNSUPPORTED dưới trần 2000 ký tự",
+      len(zalo_bot.CAU_UNSUPPORTED) < MAX_TIN, len(zalo_bot.CAU_UNSUPPORTED))
+check("vòng poll bắt unsupported trước khi gọi engine",
+      "SK_UNSUPPORTED" in _ZL and "CAU_UNSUPPORTED" in _ZL
+      and "unsupported" in _ZL)
+
 
 print()
 if loi:
