@@ -34,6 +34,15 @@ Nếu bạn mới bắt đầu và chưa có gì, cách nhanh nhất là dùng b
 
 Sau khi có mẫu, bạn có thể chạy thử ngay (xem mục "Chạy một workflow" bên dưới), hoặc mở ra sửa lại theo ý mình để hiểu cách hoạt động.
 
+### Bộ Video (đa pipeline)
+
+Trên trang **Workflows**, bấm **Bộ Video** để tạo sẵn:
+
+- Agent **Nghiên cứu chủ đề video**, **Biên kịch video**, **Đạo diễn video**, **Kiểm chứng video**
+- Workflow **Bộ Video (đa pipeline)**: nghiên cứu → kịch bản → đạo diễn chọn pipeline (paperdesign / Remotion / OmmiStudio html-video) → kiểm chứng
+
+Skill hệ thống kèm theo: `lam-video` (catalog chọn pipeline) và `paperdesign` (collage Vox). Render paperdesign cần biến môi trường `ATLASCLOUD_API_KEY` và `ffmpeg`.
+
 Ghi chú: hai skill mà agent mẫu tham chiếu (deep-research, salepage-16-buoc) chỉ là tên gán sẵn. Nếu brain của bạn chưa có hai skill đó thì agent vẫn chạy bình thường, chỉ là không có hướng dẫn chuyên sâu kèm theo.
 
 ## Tạo một Agent (từng bước, qua form)
