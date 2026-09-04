@@ -10,6 +10,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 ### Sửa lỗi
 - **Thẻ Grok Build CLI không còn làm app chết lúc khởi động.** Thiếu module `grok_cli` nên server báo ModuleNotFoundError; nay đã có đủ đăng nhập device-auth, kiểm tra, MCP hub và chạy chat qua binary `grok`.
+- **Khôi phục các module server bị thiếu trên fork** (`purge`, `inbox`, `webpush`, `deploy_info`, `ollama_local`, `ollama_catalog`) để app khởi động và CI import `main` được.
 
 ## [0.35.25] - 2026-09-03
 ### Cải thiện
