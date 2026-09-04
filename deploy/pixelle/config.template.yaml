@@ -1,0 +1,51 @@
+# Pixelle-Video - cấu hình mặc định cho Javis VPS (static + Edge-TTS).
+# setup-pixelle-vps.sh ghi đè các chỗ __LLM_*__ / __RUNNINGHUB__ từ .env.
+
+project_name: Pixelle-Video
+
+llm:
+  api_key: "__LLM_API_KEY__"
+  base_url: "__LLM_BASE_URL__"
+  model: "__LLM_MODEL__"
+
+api_providers:
+  common:
+    print_model_input: false
+    local_proxy: ""
+  openai:
+    api_key: "__LLM_API_KEY__"
+    base_url: "__LLM_BASE_URL__"
+    use_proxy: false
+  dashscope:
+    api_key: ""
+    base_url: "https://dashscope.aliyuncs.com/api/v1"
+    use_proxy: false
+  ark:
+    api_key: ""
+    base_url: "https://ark.cn-beijing.volces.com/api/v3"
+    use_proxy: false
+  kling:
+    base_url: "https://api-beijing.klingai.com"
+    access_key: ""
+    secret_key: ""
+    use_proxy: false
+
+comfyui:
+  comfyui_url: http://127.0.0.1:8188
+  comfyui_api_key: ""
+  runninghub_api_key: "__RUNNINGHUB_API_KEY__"
+  runninghub_concurrent_limit: 1
+  tts:
+    default_workflow: selfhost/tts_edge.json
+  image:
+    # Không có RunningHub → dùng template static (không gen ảnh AI).
+    default_workflow: runninghub/image_flux.json
+    prompt_prefix: "Clean modern education marketing illustration, bright campus, Vietnamese students"
+  video:
+    default_workflow: runninghub/video_wan2.1_fusionx.json
+    prompt_prefix: "Clean modern education marketing illustration, bright campus, Vietnamese students"
+
+template:
+  # static_* = không cần ảnh AI → render được chỉ với Edge-TTS.
+  # Có RUNNINGHUB_API_KEY thì setup script đổi sang image_default.html.
+  default_template: "__DEFAULT_TEMPLATE__"

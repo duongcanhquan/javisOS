@@ -125,3 +125,5 @@ desktop.ini
 server/stop-last.log
 server/conversation_state.db*
 server/memory_index.db*
+vendor/
+deploy/pixelle/config.yaml

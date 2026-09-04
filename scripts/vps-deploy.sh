@@ -28,12 +28,41 @@ git fetch --all --prune
 git reset --hard origin/main 2>/dev/null || true
 git pull --ff-only origin main
 
-echo "==> build & up (with Cloudflare tunnel)"
+# Pixelle đầy đủ (API :8000 + WebUI :8501) trừ khi .env tắt rõ.
+ENABLE_PIXELLE=true
+if [ -f "$ENV_FILE" ] && grep -q '^JAVIS_ENABLE_PIXELLE=false' "$ENV_FILE" 2>/dev/null; then
+  ENABLE_PIXELLE=false
+fi
+
+COMPOSE_FILES=(
+  -f docker-compose.yml
+  -f docker-compose.build.yml
+  -f docker-compose.source.yml
+  --profile tunnel
+)
+
+if [ "$ENABLE_PIXELLE" = "true" ]; then
+  echo "==> setup Pixelle"
+  chmod +x scripts/setup-pixelle-vps.sh
+  bash scripts/setup-pixelle-vps.sh
+  # shellcheck disable=SC1091
+  if [ -f "$ENV_FILE" ]; then
+    # Xuất PIXELLE_DIR cho compose nếu setup vừa ghi.
+    set -a
+    # Chỉ nạp các dòng PIXELLE_ / RUNNINGHUB_ / JAVIS_ENABLE_PIXELLE an toàn.
+    eval "$(grep -E '^(PIXELLE_|RUNNINGHUB_|JAVIS_ENABLE_PIXELLE=)' "$ENV_FILE" | sed 's/\r$//' || true)"
+    set +a
+  fi
+  export PIXELLE_DIR="${PIXELLE_DIR:-$ROOT/vendor/Pixelle-Video}"
+  COMPOSE_FILES+=(-f docker-compose.pixelle.yml --profile pixelle)
+  echo "==> Pixelle profile ON (dir=$PIXELLE_DIR)"
+else
+  echo "==> Pixelle tắt (JAVIS_ENABLE_PIXELLE=false)"
+fi
+
+echo "==> build & up (with Cloudflare tunnel$([ "$ENABLE_PIXELLE" = true ] && echo ' + pixelle'))"
 docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.build.yml \
-  -f docker-compose.source.yml \
-  --profile tunnel \
+  "${COMPOSE_FILES[@]}" \
   up -d --build
 
 echo "==> health"
@@ -49,6 +78,25 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 if [ "$ok_health" != "1" ]; then
   echo "HEALTH_FAIL (container có thể vẫn đang khởi động)"
+fi
+
+if [ "$ENABLE_PIXELLE" = "true" ]; then
+  echo "==> pixelle health"
+  ok_px=0
+  for i in $(seq 1 20); do
+    if curl -fsS -m 5 http://127.0.0.1:8000/health; then
+      echo
+      ok_px=1
+      break
+    fi
+    echo "waiting pixelle... ($i)"
+    sleep 4
+  done
+  if [ "$ok_px" != "1" ]; then
+    echo "PIXELLE_HEALTH_FAIL (xem: docker compose logs pixelle-api)"
+  else
+    echo "Pixelle API OK · WebUI http://127.0.0.1:${PIXELLE_WEB_PORT:-8501}"
+  fi
 fi
 echo
 echo "==> tunnel URL (if any)"

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.36] - 2026-09-04
+### Thêm mới
+- **Cài Pixelle đầy đủ trên VPS khi deploy.** `setup-pixelle-vps.sh` clone engine, ghi config (static + Edge-TTS), bật API :8000 + WebUI :8501. Tool `javis_pixelle_generate` gọi Pixelle; chết thì tự fallback native.
+
 ## [0.35.35] - 2026-09-04
 ### Thêm mới
 - **Render video ngay trong Javis** bằng tool `javis_render_script_video` (Edge-TTS tiếng Việt + khung chữ + ffmpeg → `attachments/*.mp4`). Không cần bật Pixelle cổng 8000.
