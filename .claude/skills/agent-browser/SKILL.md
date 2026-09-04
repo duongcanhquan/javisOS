@@ -1,6 +1,7 @@
 ---
 name: Tự động hoá trình duyệt
 description: "Browser automation: open pages, fill forms, click, screenshot, scrape, and QA with agent-browser."
+description_en: "Browser automation: open pages, fill forms, click, screenshot, scrape, and QA with agent-browser. (EN)"
 allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*)
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: Proposal & chiến lược
 description: "Soạn proposal và kế hoạch chiến lược kinh doanh + marketing từ nghiên cứu thị trường."
+description_en: "Write business and marketing strategy proposals from market research."
 group: Marketing
 ---
 
