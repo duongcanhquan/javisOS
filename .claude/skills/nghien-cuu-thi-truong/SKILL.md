@@ -1,6 +1,7 @@
 ---
 name: Nghiên cứu thị trường
 description: "Thiết kế và thực hiện nghiên cứu thị trường: phân khúc, đối thủ, xu hướng, nguồn dữ liệu."
+description_en: "Design and run market research: segments, competitors, trends, and data sources."
 group: Marketing
 ---
 

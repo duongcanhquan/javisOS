@@ -1,0 +1,33 @@
+{
+  "name": "paperdesign",
+  "version": "1.0.0",
+  "description": "Paperdesign (upstream: Vox Director) — agent skill that turns one topic into a finished Vox-style paper-collage explainer/ad video on Atlas Cloud + ffmpeg.",
+  "keywords": [
+    "paperdesign",
+    "vox",
+    "vox-director",
+    "ai-video",
+    "video-generation",
+    "text-to-video",
+    "paper-collage",
+    "collage-video",
+    "motion-graphics",
+    "explainer-video",
+    "ai-ads",
+    "agent-skill",
+    "claude-skill",
+    "claude-code",
+    "codex",
+    "ffmpeg",
+    "tts",
+    "atlas-cloud",
+    "generative-ai"
+  ],
+  "homepage": "https://github.com/Alisa0808/vox-director",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Alisa0808/vox-director.git"
+  },
+  "license": "MIT",
+  "author": "Alisa0808"
+}

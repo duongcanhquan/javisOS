@@ -653,6 +653,32 @@ class SessionStore:
             (session_id,),
         ))
 
+    def clear_native_threads(self, session_id: str, keep: str = "") -> List[str]:
+        """Vô hiệu mạch native của MỌI engine, TRỪ engine `keep` đang chạy lượt này.
+
+        BẤT BIẾN: một mạch native chỉ còn đúng khi nó chứa TOÀN BỘ hội thoại. Ngay khi một
+        lượt được engine khác xử lý, mạch của mọi engine còn lại thiếu đúng lượt đó. Nối tiếp
+        một mạch như vậy là engine trả lời với bản ghi khuyết - người dùng thấy nó "quên"
+        đoạn giữa rồi nói lạc đề.
+
+        Trả về tên các cột vừa dọn, để chỗ gọi ghi vào nhật ký chạy mà lần sau còn soi được.
+        """
+        da_don: List[str] = []
+        cot_giu = self._MACH_NATIVE.get(str(keep or ""), "")
+        row = self.get_session(session_id) or {}
+        for nhan, cot in self._MACH_NATIVE.items():
+            if cot == cot_giu or not (row.get(cot) or ""):
+                continue
+            self._write(lambda c, _cot=cot: c.execute(
+                f"UPDATE sessions SET {_cot} = NULL WHERE id = ? AND {_cot} IS NOT NULL",
+                (session_id,),
+            ))
+            da_don.append(nhan)
+        return da_don
+
+    # ── auto-title ──
+
+
     def set_gemini_session_id(self, session_id: str, gemini_id: str) -> None:
         """Gắn mạch native của Gemini CLI vào hội thoại để lượt sau `--resume` đúng chỗ."""
         if not gemini_id:

@@ -1,6 +1,7 @@
 ---
 name: Hỗ trợ Frontend Design Skill
 description: "Distinctive frontend UI: intentional palette, typography, and layout - avoid templated AI-looking defaults."
+description_en: "Distinctive frontend UI: intentional palette, typography, and layout - avoid templated AI defaults."
 license: Complete terms in LICENSE.txt
 ---
 

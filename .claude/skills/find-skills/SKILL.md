@@ -1,6 +1,7 @@
 ---
 name: Research Skills
 description: "Discover and install agent skills from skills.sh when users ask how to do X or find a skill."
+description_en: "Discover and install agent skills from skills.sh when users ask how to do X or find a skill. (EN)"
 ---
 
 # Research Skills (find-skills)

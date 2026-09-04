@@ -37,7 +37,9 @@ _IDLE_TTL = 900          # đóng session không dùng > 15 phút
 _INTERNAL = {"botcake": "botcake_mcp", "substack": "substack_mcp"}   # transport internal → tên module
 
 _DIAL_SONG_SONG = 8      # số connection dò tool CÙNG LÚC (đừng để npx nổ ra 30 tiến trình)
-_DIAL_TRAN = "45"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
+_DIAL_TRAN = "20"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
+# Docker compose VPS có thể ghi đè lên 45s (Tavily/remote MCP chậm); mặc định code giữ 20
+# để khớp trần khởi động Claude SDK và bộ test.
 
 
 def sanitize_fn(name):

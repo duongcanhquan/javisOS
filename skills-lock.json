@@ -61,6 +61,13 @@
       "skillPath": "skills/improve-ui/SKILL.md",
       "computedHash": "5bd7689c5508c6bd8166f796b3d1bd32255077447595b14b60fac9847dce63f1"
     },
+    "paperdesign": {
+      "source": "Alisa0808/vox-director",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "installAs": "paperdesign",
+      "computedHash": "074a764757cca58e6d6a96d98bb6d3a89bfef2959b3b71bf2adbf64d1e863053"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",

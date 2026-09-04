@@ -1,6 +1,7 @@
 ---
 name: BrainStormming Skill
 description: "Brainstorm before coding: clarify intent, pick a direction, lock the design, then implement."
+description_en: "Brainstorm before coding: clarify intent, pick a direction, lock the design, then implement. (EN)"
 ---
 
 # BrainStormming Skill (brainstorming)

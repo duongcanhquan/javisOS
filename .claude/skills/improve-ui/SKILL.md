@@ -1,7 +1,13 @@
 ---
 name: improve-ui
-description: Audit an existing product surface against its own design evidence, identify verified UI problems, and write self-contained implementation plans for another agent. Strictly read-only on product source. Use when asked to review, refine, improve, or clean up an interface without replacing its identity; investigate design-system drift; or prepare a design handoff.
+description: "Audit a product UI against its design evidence; write handoff plans for another agent."
+description_en: "Audit a product UI against its own design evidence and write implementation plans for another agent."
 ---
+
+## Khi nào dùng
+
+Audit an existing product surface against its own design evidence, identify verified UI problems, and write self-contained implementation plans for another agent. Strictly read-only on product source. Use when asked to review, refine, improve, or clean up an interface without replacing its identity; investigate design-system drift; or prepare a design handoff.
+
 
 # Improve UI
 
