@@ -15,7 +15,7 @@ Sau vài lượt chat, Javis mở một **tiến trình học riêng** để đ�
 
 Trước khi ghi, code còn quét thêm hai lớp: **quét lộ khoá bí mật** (API key, token Telegram, JWT, chuỗi kết nối cơ sở dữ liệu, dòng có nhãn "mật khẩu"/"password") và **quét câu chèn lệnh** kiểu "bỏ qua mọi chỉ dẫn trước đó". Cái nào dính là bị chặn, không ghi, và lý do được ghi vào nhật ký. Ngược chiều cũng vậy: nội dung hội thoại đưa cho tiến trình học đọc đã được vô hiệu hoá các câu mệnh lệnh, để một tin nhắn khách gửi vào không điều khiển được vòng học.
 
-Cuối cùng, Javis chỉ cho phép ghi vào đúng các thư mục `memory/`, `Memory/`, `Wiki/`, `skills/`, `.claude/skills/`, `Javis/` của brain. Đường dẫn nào lọt ra ngoài danh sách này sẽ bị khôi phục lại ngay.
+Cuối cùng, Javis chỉ cho phép ghi vào đúng các thư mục `memory/`, `Memory/`, `Wiki/` (kể cả tên đánh số kiểu `03 - Wiki`), `skills/`, `.claude/skills/`, `Javis/` của brain. Đường dẫn nào lọt ra ngoài danh sách này sẽ bị khôi phục lại ngay.
 
 ## Mở ở đâu trong Javis
 
@@ -255,7 +255,7 @@ Cài git rồi thì tắt tự học và bật lại một lần để Javis git
 Kiểm tra theo thứ tự: chế độ ghi có đang là **Tự ghi** không (Chạy thử và Đề xuất đều không tạo file); các lượt chat có "đủ chất" không (chào hỏi, "ok", "cảm ơn" bị bỏ); đã đủ 3 lượt hoặc đã im 10 phút chưa; và dòng Chỉ số xem "Fork hôm nay" đã chạm 40 chưa. Nhật ký học luôn có câu trả lời chính xác.
 
 **Nhật ký ghi đã học nhưng không thấy file mới.**
-Đọc mục **Bị chặn** trong đúng mục nhật ký đó. Lý do hay gặp: ký ức trùng file đã có nên không đè, note Wiki bị loại vì Javis tự nói không có nguồn, note trùng khái niệm đã có, skill trùng tên hoặc `description` dài quá 150 ký tự.
+Đọc mục **Bị chặn** trong đúng mục nhật ký đó. Lý do hay gặp: ký ức trùng file đã có nên không đè, note Wiki bị loại vì Javis tự nói không có nguồn, note trùng khái niệm đã có, skill trùng tên hoặc `description` dài quá 150 ký tự, hoặc (bản cũ) Wiki nằm ở thư mục đánh số bị coi ngoài phạm vi - đã sửa.
 
 **Bấm Học ngay không thấy gì đổi.**
 Nếu đang có một mẻ học hoặc vòng Curator chạy dở thì lượt mới bị từ chối. Chờ mẻ đang chạy xong (tối đa 240 giây) rồi bấm lại, hoặc bấm **■ Dừng** trước.
@@ -270,7 +270,7 @@ Trang này làm việc trên brain đang chọn ở đầu màn hình. Đổi đ
 Nó chạy 24 giờ một lần, và bỏ qua brain đã im lặng quá 14 ngày. Ngoài ra khi Wiki không đổi note nào thì nó bỏ hẳn vòng đó cho đỡ tốn, nhật ký sẽ ghi lý do "wiki không đổi note nào". Muốn thấy ngay thì bấm **🧹 Curator ngay**.
 
 **Sợ tự học làm hỏng ghi chú viết tay.**
-Tiến trình học không có quyền ghi. Code ghi thì không đè file ký ức đã có, không đè note Wiki đã có, không đè skill đã có, không xoá gì, và chỉ được động vào các thư mục `memory/`, `Wiki/`, `skills/`, `Javis/`. Đường dẫn nào lọt ra ngoài bị khôi phục lại ngay.
+Tiến trình học không có quyền ghi. Code ghi thì không đè file ký ức đã có, không đè note Wiki đã có, không đè skill đã có, không xoá gì, và chỉ được động vào các thư mục `memory/`, `Wiki/` (kể cả `03 - Wiki`), `skills/`, `Javis/`. Đường dẫn nào lọt ra ngoài bị khôi phục lại ngay.
 
 ## Liên quan
 
