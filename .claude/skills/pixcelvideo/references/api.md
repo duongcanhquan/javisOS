@@ -92,7 +92,10 @@ asyncio.run(main())
 
 Không commit `config.yaml` (có key).
 
-## Khi không gọi được API
+## Khi không gọi được API Pixelle
 
-Xuất Manual pack từ file kịch bản: title + từng narration + image prompt + template
-+ `prompt_prefix` → user dán WebUI Pixelle (chế độ script cố định / fixed).
+**Đừng dừng.** Gọi tool Javis `javis_render_script_video` với cùng kịch bản (mỗi cảnh
+một đoạn) → ra `attachments/*.mp4` ngay.
+
+Chỉ xuất Manual pack (title + narration + image prompt + template) khi user **cố ý**
+muốn tự dán WebUI Pixelle / máy khác.

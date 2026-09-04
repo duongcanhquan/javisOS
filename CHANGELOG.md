@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.35] - 2026-09-04
+### Thêm mới
+- **Render video ngay trong Javis** bằng tool `javis_render_script_video` (Edge-TTS tiếng Việt + khung chữ + ffmpeg → `attachments/*.mp4`). Không cần bật Pixelle cổng 8000.
+- Skill `pixcelvideo` ưu tiên đường native; Pixelle chỉ khi API đang sống. Compose tuỳ chọn `docker-compose.pixelle.yml` nếu muốn ảnh AI sau.
+
 ## [0.35.32] - 2026-09-04
 ### Cải thiện
 - **Gửi PDF/Word/Excel qua Zalo Bot nhận tin ngắn ngay** (không gọi model ~5 phút). Zalo API không chuyển tài liệu cho bot; tin gợi ý chụp ảnh, Drive hoặc Telegram.

@@ -1,0 +1,10 @@
+name: Video từ kịch bản (ffmpeg)
+slug: script-video
+version: 1.0.0
+description: Render short video mp4 từ kịch bản chữ bằng Edge-TTS + khung chữ + ffmpeg. Không cần Pixelle/RunningHub. Dùng khi user muốn có video ngay trên Javis.
+author: Javis (bundled)
+enabled: true
+min_mode: safe
+tools:
+  - javis_render_script_video
+hooks: []

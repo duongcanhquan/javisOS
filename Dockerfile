@@ -35,6 +35,7 @@ ENV PYTHONUNBUFFERED=1 \
 # subprocesses Claude spawns).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl git ripgrep ffmpeg tini \
+        fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Node 22 LTS from stage 1 (npm/npx are symlinks → recreate on PATH).

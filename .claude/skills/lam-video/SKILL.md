@@ -56,7 +56,8 @@ Chọn ĐÚNG MỘT pipeline chính theo catalog. Báo user vì sao chọn. Nế
 ### 5. Render theo đúng skill của pipeline
 
 - `paperdesign` → nạp skill `paperdesign`, chạy từ `.claude/skills/paperdesign/` (cần `ATLASCLOUD_API_KEY` + ffmpeg). Duyệt beat + style trước khi gen.
-- `pixcelvideo` → nạp skill `pixcelvideo` ([Pixelle-Video](https://github.com/ATH-MaaS/Pixelle-Video)): **viết + duyệt kịch bản**, rồi `mode: fixed` qua API/WebUI Pixelle.
+- `pixcelvideo` → nạp skill `pixcelvideo`: viết + duyệt kịch bản, rồi **`javis_render_script_video`**
+  (Edge-TTS+ffmpeg). Pixelle `mode: fixed` chỉ khi `PIXELLE_API_BASE` sống.
 - `remotion` → nạp `remotion-best-practices`, tạo/sửa composition Remotion, preview rồi render.
 - `ommistudio` / `html-video` → hướng dẫn hoặc gọi OmmiStudio/nexu html-video (cần Node, Playwright, ffmpeg). Ghi brief + template + brand tokens rõ ràng.
 - Không đủ điều kiện render → xuất Manual pack: beat map + image prompts + motion prompts + VO script để user dán generator khác.

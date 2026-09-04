@@ -1,0 +1,43 @@
+# Optional: Pixelle-Video API cạnh Javis (ảnh AI / template HTML Pixelle).
+#
+# Mặc định Javis ĐÃ render được mp4 bằng tool javis_render_script_video (Edge-TTS+ffmpeg)
+# mà KHÔNG cần file này. Bật Pixelle chỉ khi muốn ảnh AI (RunningHub/Comfy) hoặc WebUI :8501.
+#
+# Cách bật trên VPS (cần clone Pixelle cạnh repo hoặc chỉnh build context):
+#   1) git clone https://github.com/ATH-MaaS/Pixelle-Video.git ../Pixelle-Video
+#   2) cp ../Pixelle-Video/config.example.yaml ../Pixelle-Video/config.yaml  # điền llm + key ảnh
+#   3) docker compose -f docker-compose.yml -f docker-compose.pixelle.yml --profile pixelle up -d --build
+#
+# Javis trong cùng project nhận PIXELLE_API_BASE=http://pixelle-api:8000
+
+services:
+  javis:
+    environment:
+      PIXELLE_API_BASE: ${PIXELLE_API_BASE:-http://pixelle-api:8000}
+
+  pixelle-api:
+    profiles: ["pixelle"]
+    build:
+      context: ${PIXELLE_DIR:-../Pixelle-Video}
+      dockerfile: Dockerfile
+    container_name: ${JAVIS_NAME:-javis}-pixelle-api
+    command: .venv/bin/python api/app.py --host 0.0.0.0 --port 8000
+    ports:
+      - "${PIXELLE_HOST_PORT:-8000}:8000"
+    volumes:
+      - ${PIXELLE_DIR:-../Pixelle-Video}/config.yaml:/app/config.yaml
+      - pixelle-data:/app/data
+      - pixelle-output:/app/output
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  pixelle-data:
+  pixelle-output:
