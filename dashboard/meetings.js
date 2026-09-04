@@ -558,8 +558,9 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint">Ghi chú thông tin → Bắt đầu (micro trên máy bạn) → hệ thống ghi chữ vào file và gắn nhãn người nói → Dừng ghi → <b>Tổng kết cuộc họp</b> bằng Ollama <code>qwen3:4b</code> (ý kiến, đề xuất, quyết định). VPS cũng có <code>llama3.2:3b</code>.</p>' +
-      '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Bắt đầu ghi</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy chuyển giọng → chữ realtime; tùy chọn “File → chữ” gửi âm tạm sang Groq Whisper rồi bỏ, chỉ giữ transcript. Sau đó <b>Tổng kết</b> bằng Ollama <code>qwen3:4b</code>.</p>' +
+      '<p class="mt-hint" style="margin-top:-6px">Họp online (Zoom/Meet): dùng tai nghe; micro thường chỉ nghe rõ bạn — để bắt cả phòng họp, ghi cục bộ rồi “File → chữ”, hoặc dán caption. Điền đủ thành phần + agenda trước họp để tổng kết gắn đúng tên.</p>' +
+      '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +
       '<div class="mt-card" id="mtSetup">' +
       '<div class="mt-field"><label>Tiêu đề cuộc họp *</label>' +
@@ -572,9 +573,9 @@
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
       " Bắt đầu cuộc họp</button>" +
-      '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">' +
+      '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Âm thanh chỉ dùng tạm để STT, không lưu trên server">' +
       ic("upload-cloud") +
-      ' Tải file ghi âm<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
+      ' File ghi âm → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
       "</div></div>" +
       '<div id="mtLivePanel" hidden>' +
       '<div class="mt-meta"><span>File: <code id="mtPath">—</code></span><span>Đoạn: <b id="mtCount">0</b></span></div>' +

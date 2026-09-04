@@ -12,7 +12,10 @@ group: AI
 Người dùng vừa ghi cuộc họp trên dashboard (Moonshine) hoặc có file trong
 `sources/meetings/*.md`, và muốn bản tổng kết logic như thư ký chuyên nghiệp.
 
-Nút **Tổng kết cuộc họp** gọi Ollama local (`qwen2.5:3b`) với cùng khuôn này.
+Nút **Tổng kết cuộc họp** gọi Ollama local (`qwen3:4b`) với cùng khuôn này.
+
+**Lưu trữ:** chỉ file text transcript/summary trong `sources/meetings/`. Không lưu file ghi âm trên server
+(upload Whisper chỉ xử lý tạm trong RAM rồi bỏ).
 
 ## Bắt buộc
 
@@ -53,4 +56,4 @@ Nút **Tổng kết cuộc họp** gọi Ollama local (`qwen2.5:3b`) với cùng
 
 ## Model
 
-Ollama local `qwen2.5:3b`. Transcript dài: cắt khối rồi gộp.
+Ollama local `qwen3:4b`. Transcript dài: cắt khối rồi gộp.
