@@ -325,7 +325,7 @@ async def analyze_with_ollama(
     meeting_id: str,
     *,
     stream_fn: Callable,
-    model: str = "qwen2.5:3b",
+    model: str = "qwen3:4b",
     api_key: str = "local",
 ) -> dict:
     """Gọi Ollama local → ghi file summary chuyên nghiệp."""

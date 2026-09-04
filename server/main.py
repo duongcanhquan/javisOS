@@ -4297,14 +4297,14 @@ async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
 
 @app.post("/meetings/{meeting_id}/analyze")
 async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
-                           model: str = Form("qwen2.5:3b")):
+                           model: str = Form("qwen3:4b")):
     """Dừng (nếu chưa) + gọi Ollama local tóm tắt theo skill phan-tich-cuoc-hop."""
     mcfg = cfgmod.read_settings().get("model") or {}
     if not (mcfg.get("ollama_local_endpoint") or "").strip():
         return {"ok": False,
                 "error": "Chưa cấu hình Ollama local (trang Models → Ollama Local)."}
     key = (mcfg.get("ollama_local_key") or "").strip() or "local"
-    mdl = (model or "").strip() or "qwen2.5:3b"
+    mdl = (model or "").strip() or "qwen3:4b"
     try:
         return await meetings.analyze_with_ollama(
             meeting_id, stream_fn=engine.ollama_local_stream, model=mdl, api_key=key)
