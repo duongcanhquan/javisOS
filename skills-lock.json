@@ -25,6 +25,12 @@
       "skillPath": "skills/create-design-md/SKILL.md",
       "computedHash": "5376526e2d60d21ab85fdba2ae15d1ee7be41fa3ee5b76a8717a08327d6459b1"
     },
+    "deep-research": {
+      "source": "dzhng/deep-research",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "7f886fb9f389d117a05cd429917fab17b627c7e15e289878783066455d0b931a"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",

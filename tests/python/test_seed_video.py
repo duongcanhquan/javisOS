@@ -51,4 +51,10 @@ check("catalog pipeline đi kèm",
 r2 = client.post("/studio/seed-strategy", data={"brain": "brain"})
 check(f"POST /studio/seed-strategy trả 200 (thật: {r2.status_code})", r2.status_code == 200)
 
+
+# deep-research phải gắn vào agent nghiên cứu video
+ag = (agents_dir / "nghien-cuu-chu-de-video.md").read_text(encoding="utf-8")
+check("agent nghiên cứu video gắn deep-research", "deep-research" in ag)
+check("skill deep-research tồn tại", (ROOT / ".claude/skills/deep-research/SKILL.md").is_file())
+
 print("OK - test_seed_video")

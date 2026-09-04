@@ -7293,8 +7293,10 @@ async def studio_seed(brain: str = Form("brain")):
     """Tạo bộ Agent + Workflow mẫu để bắt đầu."""
     a = _agents_dir(brain)
     examples = [
-        {"name": "Researcher", "role": "Chuyên nghiên cứu, tìm tư liệu và tổng hợp nguồn đáng tin cậy.",
-         "skills": ["deep-research"], "prompt": "Bạn tìm 5-7 nguồn chất lượng, trích dẫn rõ ràng, tổng hợp insight chính."},
+        {"name": "Researcher", "role": "Chuyên nghiên cứu sâu lặp (deep research), tìm tư liệu và tổng hợp có nguồn.",
+         "skills": ["deep-research", "query-wiki"],
+         "prompt": "Bạn chạy skill deep-research (breadth 4, depth 2): sinh query → tra web (Tavily) → "
+                   "rút learnings → đào sâu → báo cáo markdown có mục Sources. Không bịa số."},
         {"name": "Writer", "role": "Chuyên viết bài chuẩn SEO và hấp dẫn từ tư liệu nghiên cứu.",
          "skills": ["salepage-16-buoc"], "prompt": "Bạn viết bài có cấu trúc, hook mạnh, dùng tư liệu được cung cấp."},
         {"name": "Kiểm chứng viên", "role": "Đánh giá độc lập - luôn giả định kết quả SAI và phải chứng minh.",
@@ -7310,7 +7312,8 @@ async def studio_seed(brain: str = Form("brain")):
     wf_meta = {"type": "workflow", "name": "Research → Write (có kiểm chứng)", "slug": "research-and-write",
                "status": "active", "description": "Nghiên cứu → viết bài → kiểm chứng độc lập, tự sửa nếu chưa đạt.",
                "steps": [
-                   {"agent": "researcher", "task": "Nghiên cứu kỹ chủ đề: {{input}}. Tìm nguồn, tổng hợp insight chính."},
+                   {"agent": "researcher",
+             "task": "Chạy deep-research (breadth 4, depth 2) cho chủ đề: {{input}}. Trả report + Sources."},
                    {"agent": "writer", "task": "Viết một bài hoàn chỉnh về '{{input}}' dựa trên nghiên cứu sau:\n{{prev}}",
                     "verify_agent": "kiem-chung-vien", "max_retries": 2},
                ], "updated": _today()}
@@ -7327,13 +7330,14 @@ async def studio_seed_strategy(brain: str = Form("brain")):
             "name": "Nghiên cứu thị trường",
             "slug": "nghien-cuu-thi-truong",
             "role": "Nghiên cứu phân khúc, đối thủ, xu hướng và nguồn dữ liệu cho quyết định kinh doanh.",
-            "skills": ["nghien-cuu-thi-truong"],
+            "skills": ["deep-research", "nghien-cuu-thi-truong"],
             "prompt": (
                 "Bạn là chuyên viên nghiên cứu thị trường.\n"
                 "Mục tiêu: ra bản nghiên cứu có số liệu/nguồn, đủ để viết chiến lược sau này.\n"
-                "Quy trình: (1) chốt câu hỏi nghiên cứu từ {{input}}, (2) thu thập nguồn, "
-                "(3) phân khúc + đối thủ + xu hướng, (4) insight hành động.\n"
-                "Đầu ra: markdown có mục rõ, mỗi insight kèm nguồn hoặc giả định.\n"
+                "BẮT BUỘC chạy skill deep-research (breadth≈4, depth≈2) trên brief {{input}} trước, "
+                "rồi ánh xạ learnings vào khung nghien-cuu-thi-truong "
+                "(phân khúc, đối thủ, xu hướng, insight hành động).\n"
+                "Đầu ra: markdown có mục rõ + Sources; mỗi insight kèm nguồn hoặc giả định.\n"
                 "Thiếu dữ liệu thì nêu giả định, không bịa số.\n"
                 "Cấm: em dash; bịa doanh thu/thị phần không nguồn."
             ),
@@ -7398,7 +7402,7 @@ async def studio_seed_strategy(brain: str = Form("brain")):
         "description": "Nghiên cứu thị trường → chiến lược KD → MKT → proposal (có kiểm chứng).",
         "steps": [
             {"agent": "nghien-cuu-thi-truong",
-             "task": "Nghiên cứu thị trường cho brief: {{input}}. Trả bản nghiên cứu có nguồn."},
+             "task": "Deep-research rồi khung thị trường cho brief: {{input}}. Report + Sources."},
             {"agent": "chien-luoc-kinh-doanh",
              "task": "Từ nghiên cứu sau, viết chiến lược kinh doanh 12 tháng:\n{{prev}}"},
             {"agent": "chien-luoc-marketing",
@@ -7422,16 +7426,17 @@ async def studio_seed_video(brain: str = Form("brain")):
             "name": "Nghiên cứu chủ đề video",
             "slug": "nghien-cuu-chu-de-video",
             "role": "Nghiên cứu chủ đề video: insight, fact, góc kể chuyện, nguồn tham chiếu hình ảnh.",
-            "skills": ["lam-video", "nghien-cuu-thi-truong", "query-wiki"],
+            "skills": ["deep-research", "lam-video", "nghien-cuu-thi-truong", "query-wiki"],
             "prompt": (
                 "Bạn là researcher cho video ngắn/explainer/quảng cáo.\n"
                 "Mục tiêu: đủ nguyên liệu để viết kịch bản shot-by-shot, không viết kịch bản hoàn chỉnh.\n"
+                "BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2) trên brief {{input}}: "
+                "sinh SERP query → Tavily/WebSearch → learnings có nguồn → đào sâu → report.\n"
                 "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video).\n"
-                "Quy trình: (1) chốt audience + mục tiêu từ brief {{input}}, "
-                "(2) 5-8 insight/fact có nguồn hoặc giả định rõ, "
-                "(3) 3 góc kể chuyện (hook), (4) gợi ý visual motif/era/tone, "
+                "Sau deep-research, chưng thêm: (1) audience + mục tiêu, "
+                "(2) 5-8 insight then chốt, (3) 3 góc kể/hook, (4) motif hình ảnh/era/tone, "
                 "(5) rủi ro pháp lý/nhạy cảm nếu có.\n"
-                "Đầu ra markdown ngắn, có bullet. Không bịa số. Không dùng em dash.\n"
+                "Đầu ra markdown + mục Sources. Không bịa số. Không dùng em dash.\n"
                 "Thiếu brief thì nêu giả định rồi làm tiếp."
             ),
         },
@@ -7439,13 +7444,14 @@ async def studio_seed_video(brain: str = Form("brain")):
             "name": "Biên kịch video",
             "slug": "bien-kich-video",
             "role": "Viết kịch bản beat/shot chuẩn: hook, narration, visual, nhịp cắt, CTA.",
-            "skills": ["lam-video", "paperdesign"],
+            "skills": ["lam-video", "paperdesign", "deep-research"],
             "prompt": (
                 "Bạn là biên kịch video.\n"
                 "Mục tiêu: kịch bản sẵn để đạo diễn chọn pipeline và render.\n"
-                "Quy trình: đọc nghiên cứu {{prev}} + brief {{input}}; viết beat map:\n"
-                "- Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
-                "- 30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
+                "Quy trình: đọc nghiên cứu deep-research {{prev}} + brief {{input}}; chỉ dùng fact đã có nguồn; "
+                "thiếu fact then chốt thì ghi rõ cần nghiên cứu thêm, không bịa.\n"
+                "Viết beat map: Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
+                "30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
                 "Đầu ra: JSON-like hoặc markdown bảng rõ ràng, kèm 1 dòng đề xuất pipeline "
                 "(paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
                 "Cấm: shot >7s; bịa fact mới ngoài nghiên cứu; em dash."
@@ -7455,7 +7461,7 @@ async def studio_seed_video(brain: str = Form("brain")):
             "name": "Đạo diễn video",
             "slug": "dao-dien-video",
             "role": "Chọn pipeline tốt nhất rồi điều phối render đúng brief và kịch bản.",
-            "skills": ["lam-video", "paperdesign", "remotion-best-practices"],
+            "skills": ["lam-video", "paperdesign", "remotion-best-practices", "deep-research"],
             "prompt": (
                 "Bạn là đạo diễn / producer video trên Javis.\n"
                 "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief.\n"
@@ -7464,7 +7470,7 @@ async def studio_seed_video(brain: str = Form("brain")):
                 "- remotion: video React frame-perfect.\n"
                 "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
                 "- manual: thiếu key/binary thì xuất beat + prompts + VO.\n"
-                "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}}, "
+                "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}} (fact lấy từ deep-research trước đó), "
                 "(2) chọn 1 pipeline và nêu lý do, "
                 "(3) kiểm tra điều kiện môi trường, "
                 "(4) nạp đúng skill pipeline và thực thi (paperdesign: duyệt beat+style rồi scripts), "
@@ -7498,7 +7504,7 @@ async def studio_seed_video(brain: str = Form("brain")):
         "description": "Nghiên cứu chủ đề → biên kịch → đạo diễn chọn paperdesign/Remotion/Ommi → kiểm chứng.",
         "steps": [
             {"agent": "nghien-cuu-chu-de-video",
-             "task": "Nghiên cứu chủ đề video theo brief: {{input}}"},
+             "task": "Deep-research (breadth 4, depth 2) chủ đề video theo brief: {{input}}. Report + hook + Sources."},
             {"agent": "bien-kich-video",
              "task": "Viết kịch bản beat/shot cho '{{input}}' từ nghiên cứu:\n{{prev}}"},
             {"agent": "dao-dien-video",

@@ -24,9 +24,9 @@ OmmiStudio / html-video / motion graphics. Dùng skill này TRƯỚC khi nhảy 
 
 Nêu lại 4-6 dòng: chủ đề, audience, CTA, tỉ lệ, độ dài, ngôn ngữ, tone. Thiếu 1 tham số hại thì hỏi bằng JAVIS_ASK (tối đa 1 khối). Đoán được thì nêu giả định rồi làm tiếp.
 
-### 2. Nghiên cứu chủ đề
+### 2. Nghiên cứu chủ đề (deep-research)
 
-Thu thập 5-8 insight/fact đáng tin (wiki brain + web/MCP nếu có). Ghi nguồn. Không bịa số.
+Nạp skill **`deep-research`**: chạy vòng breadth/depth (mặc định 4×2) qua Tavily/WebSearch, rút learnings có nguồn, rồi chưng 5-8 insight then chốt + 3 góc hook cho video. Ghi Sources. Không bịa số.
 
 ### 3. Viết kịch bản chuẩn
 

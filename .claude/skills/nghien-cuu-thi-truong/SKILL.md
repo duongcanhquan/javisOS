@@ -19,8 +19,13 @@ group: Marketing
 2. Nếu user đã gửi tài liệu nội bộ → đọc trong vault trước khi tra web.
 3. Có **Tavily** hoặc WebSearch → dùng tra tin mới, báo cáo ngành, đối thủ.
 4. Có MCP bán hàng/quảng cáo → lấy số thật nội bộ (doanh thu, kênh) nếu liên quan.
+5. Nạp skill **`deep-research`** để đào sâu web theo breadth/depth trước khi viết khung.
 
 ## Quy trình
+
+### Bước 0 - Deep research (bắt buộc khi cần số/nguồn ngoài)
+
+Chạy `deep-research` trên câu hỏi nghiên cứu (breadth 3-5, depth 2). Lấy learnings + Sources làm nguyên liệu cho các bước dưới - không thay khung thị trường, mà **đổ đầy** nó.
 
 ### Bước 1 - Làm rõ phạm vi (30 giây suy nghĩ, không hỏi lan man)
 

@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.28] - 2026-09-04
+### Thêm mới
+- **Skill hệ thống `deep-research`.** Phương pháp nghiên cứu lặp breadth/depth từ [dzhng/deep-research](https://github.com/dzhng/deep-research), chạy trên Tavily/WebSearch của Javis.
+- **Bộ Video / Proposal / Tạo mẫu** gắn `deep-research` vào agent nghiên cứu chủ đề video, nghiên cứu thị trường và Researcher mẫu.
+
 ## [0.35.27] - 2026-09-04
 ### Thêm mới
 - **Bộ Video trên trang Workflows.** Một nút tạo 4 agent (nghiên cứu → biên kịch → đạo diễn → kiểm chứng) và workflow đa pipeline: paperdesign (Vox collage), Remotion, OmmiStudio/html-video.
