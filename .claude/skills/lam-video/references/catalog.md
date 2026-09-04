@@ -5,6 +5,7 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 | ID | Tên | Repo / skill | Hợp khi | Cần có |
 |---|---|---|---|---|
 | `paperdesign` | Vox paper-collage | skill `paperdesign` ([vox-director](https://github.com/Alisa0808/vox-director)) | Explainer, scrapbook, quảng cáo collage, talking-head A-roll, ảnh sản phẩm C-roll | `ATLASCLOUD_API_KEY`, ffmpeg, Pillow |
+| `pixcelvideo` | Pixelle short-video | skill `pixcelvideo` ([Pixelle-Video](https://github.com/ATH-MaaS/Pixelle-Video)) | Topic/script → ảnh+TTS+BGM → mp4 tự động; narration theo câu | Pixelle API/WebUI + LLM + image workflow (RunningHub/Comfy/API) + ffmpeg |
 | `remotion` | Remotion (React) | skill `remotion-best-practices` ([remotion-dev/skills](https://github.com/remotion-dev/skills)) | Motion UI, data viz, caption frame-perfect, video tham số hoá | Node, Remotion project, (render) ffmpeg |
 | `html-video` | HTML → MP4 | [OmmiStudio](https://github.com/duongcanhquan/OmmiStudio) + [nexu html-video](https://github.com/nexu-io/html-video) | Template sẵn, brand pack, short marketing HTML kinetic | Node 20+, pnpm setup, Playwright Chromium, ffmpeg |
 | `motion-css` | CSS kinetic | [motion-anything](https://github.com/nexu-io/motion-anything) (qua OmmiStudio) | Chữ/kinetic typography nhúng HTML hoặc video | Cùng stack html-video |
@@ -14,10 +15,11 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 ## Luật chọn nhanh
 
 1. User nói **Vox / collage / paperdesign / scrapbook** → `paperdesign`.
-2. User nói **Remotion / React video / data trên timeline** → `remotion`.
-3. User nói **Ommi / LYON Studio / template HTML / brand pack** → `html-video` (+ `motion-css` nếu cần chữ kinetic).
-4. Chỉ cần **ảnh/slide** → `html-still`, đừng mở pipeline video.
-5. Thiếu key/binary bắt buộc → `manual` + nêu rõ thiếu gì; hoặc đổi pipeline còn chạy được.
+2. User nói **Pixelle / pixcelvideo / short tự động / topic ra mp4 có VO+BGM** → `pixcelvideo` (viết kịch bản rồi `mode: fixed`).
+3. User nói **Remotion / React video / data trên timeline** → `remotion`.
+4. User nói **Ommi / LYON Studio / template HTML / brand pack** → `html-video` (+ `motion-css` nếu cần chữ kinetic).
+5. Chỉ cần **ảnh/slide** → `html-still`, đừng mở pipeline video.
+6. Thiếu key/binary bắt buộc → `manual` + nêu rõ thiếu gì; hoặc đổi pipeline còn chạy được.
 
 ## OmmiStudio (repo của chủ)
 

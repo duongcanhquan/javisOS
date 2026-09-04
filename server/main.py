@@ -73,6 +73,7 @@ import media_gc       # dọn vùng cache media (attachments/ + inbox/) theo h�
 import inbox         # hòm thư: mọi kết quả chạy nền để lại một mẩu thư bền ở server
 import webpush       # thông báo đẩy trình duyệt (Web Push, tự mã hoá - không thêm thư viện)
 import stt            # nghe tin thoại (Whisper qua Groq) -> chữ, cho kênh Telegram/Zalo
+import meetings       # cuộc họp: transcript Moonshine WASM + tổng hợp Ollama local
 import zalo_login
 import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
@@ -4255,6 +4256,98 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
         import sys, traceback
         traceback.print_exc(file=sys.stderr)
         return {"ok": False, "error": f"Không lưu được file tạm: {e}"}
+
+
+# ============================================================
+# CUỘC HỌP: STT trên browser (Moonshine WASM) → lưu sources/meetings → Ollama tóm tắt
+# ============================================================
+@app.post("/meetings/start")
+async def meetings_start(title: str = Form(""), language: str = Form("vi"),
+                         notes: str = Form(""), attendees: str = Form(""),
+                         brain: str = Form("brain")):
+    try:
+        return meetings.start(
+            _brain_root(brain), title=title, language=language or "vi",
+            notes=notes, attendees=attendees)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/meetings/{meeting_id}/line")
+async def meetings_line(meeting_id: str, text: str = Form(""),
+                        t0: str = Form("0"), t1: str = Form("0"),
+                        speaker: str = Form(""), speaker_index: str = Form("-1"),
+                        brain: str = Form("brain")):
+    try:
+        return meetings.append_line(
+            meeting_id, text, t0=float(t0 or 0), t1=float(t1 or 0),
+            speaker=speaker or "",
+            speaker_index=int(speaker_index or -1))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/meetings/{meeting_id}/stop")
+async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
+    try:
+        return meetings.stop(meeting_id)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/meetings/{meeting_id}/analyze")
+async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
+                           model: str = Form("qwen2.5:3b")):
+    """Dừng (nếu chưa) + gọi Ollama local tóm tắt theo skill phan-tich-cuoc-hop."""
+    mcfg = cfgmod.read_settings().get("model") or {}
+    if not (mcfg.get("ollama_local_endpoint") or "").strip():
+        return {"ok": False,
+                "error": "Chưa cấu hình Ollama local (trang Models → Ollama Local)."}
+    key = (mcfg.get("ollama_local_key") or "").strip() or "local"
+    mdl = (model or "").strip() or "qwen2.5:3b"
+    try:
+        return await meetings.analyze_with_ollama(
+            meeting_id, stream_fn=engine.ollama_local_stream, model=mdl, api_key=key)
+    except Exception as e:
+        import sys, traceback
+        traceback.print_exc(file=sys.stderr)
+        return {"ok": False, "error": f"Analyze lỗi: {e}"}
+
+
+@app.post("/meetings/{meeting_id}/upload-stt")
+async def meetings_upload_stt(meeting_id: str, file: UploadFile = File(...),
+                              brain: str = Form("brain")):
+    """Fallback: upload audio → Groq Whisper → ghi đè transcript → sẵn sàng analyze."""
+    if not meetings.get_active(meeting_id):
+        return {"ok": False, "error": "Không tìm thấy phiên họp."}
+    try:
+        data = await file.read()
+    except Exception as e:
+        return {"ok": False, "error": f"Đọc file lỗi: {e}"}
+    ten = file.filename or "meeting-audio.webm"
+    mcfg = cfgmod.read_settings().get("model") or {}
+    key = (mcfg.get("groq_api_key") or "").strip()
+    # large-v3 cho cuộc họp (độ chính xác > turbo); cùng module stt.py.
+    ket = await stt.groq_nghe(data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu="vi")
+    if not ket.get("ok"):
+        return {"ok": False,
+                "error": ket.get("noi_voi_javis") or ket.get("ly_do") or "STT lỗi",
+                "ly_do": ket.get("ly_do"),
+                "noi_voi_javis": ket.get("noi_voi_javis")}
+    text = (ket.get("text") or "").strip()
+    r = meetings.replace_transcript_from_stt(meeting_id, text, source="groq")
+    if not r.get("ok"):
+        return r
+    return {"ok": True, "text": text, "chars": len(text),
+            "path": r.get("path"), "model": ket.get("model")}
+
+
+@app.get("/meetings/list")
+async def meetings_list(brain: str = Query("brain"), limit: int = Query(20)):
+    try:
+        return {"ok": True, "items": meetings.list_recent(_brain_root(brain), limit=limit)}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "items": []}
 
 
 def _duong_staging(name: str) -> Path:
@@ -10720,7 +10813,26 @@ async def websocket_endpoint(ws: WebSocket):
         while True:
             raw = await _real_ws.receive_text()
             payload = json.loads(raw)
-            action = payload.get("action")
+            action = payload.get("action") or payload.get("type") or ""
+            # Cuộc họp: browser Moonshine gửi dòng transcript đã chốt.
+            if action == "meeting_line":
+                mid = (payload.get("meeting_id") or "").strip()
+                r = meetings.append_line(
+                    mid,
+                    payload.get("text") or "",
+                    t0=float(payload.get("t0") or 0),
+                    t1=float(payload.get("t1") or 0),
+                    partial=bool(payload.get("partial")),
+                    speaker=payload.get("speaker") or "",
+                    speaker_index=int(payload.get("speaker_index")
+                                      if payload.get("speaker_index") is not None else -1),
+                )
+                await send_client({
+                    "type": "meeting_ack",
+                    "meeting_id": mid,
+                    **r,
+                })
+                continue
             if action == "reset":
                 continue                        # client tự quản phiên; reset KHÔNG còn giết lượt nào
             if action == "stop":

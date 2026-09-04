@@ -33,6 +33,7 @@
     files: "folder-tree",
     selfimprove: "repeat",
     learn: "brain",
+    meetings: "mic",
     kanban: "square-kanban",
     terminal: "terminal",
     models: "cpu",
@@ -79,7 +80,7 @@
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
     "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files",
-    "terminal", "selfimprove", "learn", "kanban", "models", "channels", "mcp", "plugins",
+    "terminal", "selfimprove", "learn", "meetings", "kanban", "models", "channels", "mcp", "plugins",
     "logs", "account", "usage",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
@@ -88,7 +89,7 @@
   // Thứ tự & thành viên đổi ở đây; RAIL_ITEMS vẫn là nguồn icon/label + tra cứu cho go().
   const RAIL_GROUPS = [
     { get label() { return t("nav.group.tro_ly"); },      icon: GICON["Trợ lý"],   ids: ["home", "chat"] },
-    { get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "learn"] },
+    { get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "learn", "meetings"] },
     // "Code" là NHÓM riêng, không phải một mục nhét vào "Bộ não". Đây là một KHU VỰC làm việc
     // sẽ dày lên (Terminal hôm nay, các công cụ lập trình khác sau này), chứ không phải một
     // chức năng của Second Brain - chủ repo nói rõ điều đó khi thấy bản đầu xếp nhầm.
@@ -128,7 +129,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "terminal", "selfimprove", "chatbots", "learn", "kanban", "models", "channels", "mcp", "plugins", "logs", "account", "usage"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "terminal", "selfimprove", "chatbots", "learn", "meetings", "kanban", "models", "channels", "mcp", "plugins", "logs", "account", "usage"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -369,6 +370,7 @@
     if (id === "selfimprove") return renderSelfImprove(el);
     if (id === "chatbots") return renderChatbots(el);
     if (id === "learn")    return renderLearn(el);
+    if (id === "meetings") return renderMeetings(el);
     if (id === "kanban")   return renderKanban(el);
     if (id === "logs")     return renderLogs(el);
     if (id === "usage")    return renderUsage(el);
@@ -398,11 +400,25 @@
   function renderCode(el, id) {
     const fn = window.JavisCode && window.JavisCode.render;
     if (!fn) { el.innerHTML = placeholder(id, "code-term.js chưa sẵn sàng."); return; }
+    el.classList.add("cview-flush");
+    try { fn(el, id); } catch (e) { el.innerHTML = placeholder(id, "Lỗi nạp: " + e.message); }
+    const prev = _pageLeave;
     _pageLeave = () => {
       el.classList.remove("cview-flush");
-      try { window.JavisCode.roi(); } catch (e) {}
+      try { window.JavisCode && window.JavisCode.roi && window.JavisCode.roi(); } catch (e) {}
+      if (typeof prev === "function") try { prev(); } catch (e) {}
     };
-    try { fn(el, id); } catch (e) { el.innerHTML = placeholder(id, "Lỗi nạp: " + e.message); }
+  }
+
+  function renderMeetings(el) {
+    const fn = window.JavisMeetings && window.JavisMeetings.render;
+    if (!fn) { el.innerHTML = placeholder("meetings", "meetings.js chưa sẵn sàng."); return; }
+    try { fn(el); } catch (e) { el.innerHTML = placeholder("meetings", "Lỗi nạp: " + e.message); }
+    const prev = _pageLeave;
+    _pageLeave = () => {
+      try { window.JavisMeetings && window.JavisMeetings.roi && window.JavisMeetings.roi(); } catch (e) {}
+      if (typeof prev === "function") try { prev(); } catch (e) {}
+    };
   }
 
   // Trang Chatbot do chatbots.js dựng - uỷ quyền y như renderStudioPage uỷ cho studio.js,

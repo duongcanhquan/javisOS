@@ -31,6 +31,8 @@
   "page.chatbots.sub": "Dedicated bots answering customers over Telegram",
   "page.learn.label": "Self-learning",
   "page.learn.sub": "Rewire Memory · Wiki · Skills (safe, undoable)",
+  "page.meetings.label": "Meetings",
+  "page.meetings.sub": "Notes · live capture · Ollama summary",
   "page.kanban.label": "Tasks",
   "page.kanban.title": "Tasks (Kanban)",
   "page.kanban.sub": "Javis writes the spec, dispatches and runs background tasks",

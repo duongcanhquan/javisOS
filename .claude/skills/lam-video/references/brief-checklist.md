@@ -14,7 +14,7 @@ Ngôn ngữ VO + chữ trên hình:
 Kênh: (Reels | TikTok | YouTube | Ads | khác)
 CTA: (nếu có)
 Tone / vibe: (1-3 từ)
-Pipeline: (paperdesign | remotion | html-video | để đạo diễn chọn)
+Pipeline: (paperdesign | pixcelvideo | remotion | html-video | để đạo diễn chọn)
 Tài sản sẵn: (không | video người nói = A-roll | 1 ảnh SP = C-roll | đường dẫn…)
 Cấm / brand: (logo, mặt người thật, màu…)
 ```
