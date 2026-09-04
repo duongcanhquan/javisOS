@@ -1,0 +1,100 @@
+# Đọc nhật ký tự học trên VPS (workflow_dispatch) - chẩn đoán thất bại ghi.
+name: Dump Learn Log VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump learn-log patterns from javis container
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            CNAME=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+            echo "container=$CNAME"
+            if [ -z "$CNAME" ]; then echo "NO_CONTAINER"; exit 1; fi
+            docker exec -u javis "$CNAME" bash -lc '
+              set -e
+              echo "=== LEARN CONFIG ==="
+              python3 - <<PY
+            import json, pathlib
+            for p in sorted(pathlib.Path("/data").glob("**/learn.json")) + sorted(pathlib.Path("/app").glob("**/learn.json")):
+                print(p)
+                try:
+                    print(json.dumps(json.loads(p.read_text()), ensure_ascii=False, indent=2)[:2500])
+                except Exception as e:
+                    print("read err", e)
+            # state dir variants
+            for base in ("/data", "/app/data", "/home/javis/.javis", "/var/lib/javis"):
+                b = pathlib.Path(base)
+                if b.exists():
+                    print("base", b, "children", [x.name for x in list(b.iterdir())[:30]])
+            PY
+              echo
+              echo "=== BRAIN ROOTS ==="
+              ls -la /data/brains 2>/dev/null || ls -la /app/brains 2>/dev/null || true
+              find /data /app/brains /home/javis -maxdepth 4 -type d -name learn-log 2>/dev/null | head -20
+              echo
+              echo "=== LEARN LOG TAIL (all brains) ==="
+              for d in $(find /data /app/brains /home/javis -maxdepth 5 -type d -name learn-log 2>/dev/null); do
+                echo "---- $d ----"
+                ls -lt "$d" | head -8
+                for f in $(ls -t "$d"/*.md 2>/dev/null | head -5); do
+                  echo "FILE $f"
+                  # lọc dòng tiêu đề + bị chặn / lỗi
+                  grep -nE "^## |Bị chặn|fork lỗi|không parse|BrainLock|__ERROR__|dry-run|auto-ghi|enqueue lỗi|chứa secret|description" "$f" | tail -80 || true
+                done
+              done
+              echo
+              echo "=== COUNTS (last 14 days of log files) ==="
+              python3 - <<PY
+            from pathlib import Path
+            import re, collections
+            keys = collections.Counter()
+            for d in Path("/").glob("**/Javis/learn-log"):
+                # hạn chế đường dẫn thật
+                pass
+            roots = []
+            for base in (Path("/data"), Path("/app/brains"), Path("/home/javis")):
+                if base.exists():
+                    roots += list(base.rglob("Javis/learn-log"))
+            print("log dirs", roots)
+            for d in roots:
+                for f in sorted(d.glob("*.md"))[-14:]:
+                    text = f.read_text(encoding="utf-8", errors="replace")
+                    for line in text.splitlines():
+                        if "Bị chặn" in line or line.startswith("## ["):
+                            if "Bị chặn" in line:
+                                for part in line.split("**Bị chặn:**")[-1].split(";"):
+                                    p = part.strip()
+                                    if not p: continue
+                                    # gom theo loại
+                                    if "secret" in p: keys["blocked:secret"] += 1
+                                    elif "injection" in p: keys["blocked:injection"] += 1
+                                    elif "BrainLock" in p: keys["blocked:BrainLock"] += 1
+                                    elif "assistant-only" in p: keys["blocked:assistant-only"] += 1
+                                    elif "đã tồn tại" in p: keys["blocked:skill-exists"] += 1
+                                    elif "description" in p: keys["blocked:skill-desc"] += 1
+                                    elif "trùng" in p: keys["blocked:wiki-dupe"] += 1
+                                    elif "task" in p.lower(): keys["blocked:task"] += 1
+                                    else: keys["blocked:other"] += 1
+                            elif "fork lỗi" in line or "không phản hồi" in line:
+                                keys["fork-error"] += 1
+                            elif "không parse" in line:
+                                keys["parse-fail"] += 1
+                            elif "dry-run" in line:
+                                keys["status:dry-run"] += 1
+                            elif "auto-ghi" in line:
+                                keys["status:auto-ghi"] += 1
+            print("COUNTS")
+            for k,v in keys.most_common():
+                print(f"  {k}: {v}")
+            PY
+            '
