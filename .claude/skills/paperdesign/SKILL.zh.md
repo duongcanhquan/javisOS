@@ -1,13 +1,8 @@
 ---
-name: paperdesign
-description: >
-  把一个主题一句话变成成品的 Vox 纸片拼贴讲解/广告视频,全程 Atlas Cloud API + 本地 ffmpeg
-  ——脚本、拼贴关键帧、动效、旁白、配乐、字幕全自动。当用户想做「Vox 风格」视频、paperdesign、纸片/撕纸拼贴
-  动画、「motion collage」、用 AI 生成的拼贴海报做旁白讲解或短广告、剪贴簿式致敬片,或想把一个
-  主题/产品/人物变成有冲击力的旁白拼贴视频时使用——即使没说「Vox」也用。也用于复刻 Stav Zilber
-  / rom1trs / Higgsfield 式拼贴广告工作流,或用户提到 拼贴动效视频 / 剪贴簿视频 / 拼贴广告 /
-  motion collage。触发词:「paperdesign」「vox video」「collage video」「拼贴视频」「拼贴动效」「剪贴簿」
-  「paper collage explainer」「做个拼贴广告」「把这个主题做成拼贴视频」。
+name: Paperdesign
+description: "Làm video collage giấy kiểu Vox: topic/ảnh/talking-head → beats, poster, motion, VO, nhạc, ghép mp4 (Atlas+ffmpeg)."
+description_en: "Vox-style paper-collage video: topic/photo/talking-head → beats, posters, motion, VO, music, final mp4 (Atlas+ffmpeg)."
+group: Nội dung
 ---
 
 # Paperdesign / Vox Director(中文版)

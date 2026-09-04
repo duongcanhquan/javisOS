@@ -1,26 +1,15 @@
 ---
-name: paperdesign
-description: >
-  Turn ONE topic into a finished Vox-style paper-collage explainer / ad video, end to end
-  on the Atlas Cloud API + local ffmpeg — script, collage keyframes, motion, voice-over,
-  music, captions, all automated. Use this whenever the user wants a "Vox style" video,
-  a paper/torn-paper collage animation, a "motion collage", "paperdesign", a narrated
-  explainer or short ad built from AI-generated collage posters, a scrapbook-style tribute,
-  or wants to turn a topic / product / person into a punchy narrated collage video — even
-  if they don't say the word "Vox". Also use when reproducing Stav Zilber / rom1trs /
-  Higgsfield-style collage ad workflows.
-  Three input modalities: a topic (B-roll), a talking-head video (A-roll mode), or a single
-  photo of a person/product anchored into the collage (C-roll mode).
-  Triggers: "paperdesign", "vox video", "collage video", "motion collage", "paper collage
-  explainer", "make a collage ad", "turn this topic into a collage video", "turn my
-  photo/this product shot into a collage video".
+name: Paperdesign
+description: "Làm video collage giấy kiểu Vox: topic/ảnh/talking-head → beats, poster, motion, VO, nhạc, ghép mp4 (Atlas+ffmpeg)."
+description_en: "Vox-style paper-collage video: topic/photo/talking-head → beats, posters, motion, VO, music, final mp4 (Atlas+ffmpeg)."
+group: Nội dung
 ---
 
 # Paperdesign (Vox Director)
 
 Installed as skill **`paperdesign`** from upstream
 [Alisa0808/vox-director](https://github.com/Alisa0808/vox-director).
-Skill root: `.claude/skills/paperdesign/` — run every `python3 scripts/...` from that
+Skill root: `.claude/skills/paperdesign/` - run every `python3 scripts/...` from that
 directory (or pass absolute paths). Project outputs go under `out/<project>/`.
 
 Turn a one-line topic into a finished **Vox-style paper-collage video**: a bold, punchy,
@@ -30,6 +19,13 @@ voice-over, music and captions. Runs on **one Atlas Cloud API key** + local **ff
 The look is the modern editorial paper-collage popularized by Vox explainers and creators
 like Stav Zilber / rom1trs: hand-cut paper cut-outs, torn edges, tape, halftone dots,
 newspaper clippings, bold flat color per beat, big cut-out headlines.
+
+## Khi nào dùng
+
+Kích hoạt khi user muốn: paperdesign, Vox style, collage video, motion collage, paper
+collage explainer, scrapbook tribute, làm quảng cáo/explainer bằng poster giấy xé, hoặc
+đưa topic / ảnh sản phẩm / talking-head thành video collage có VO. Ba chế độ: B-roll
+(topic), A-roll (video người nói), C-roll (một ảnh neo vào collage).
 
 ## The core idea (read this first)
 
