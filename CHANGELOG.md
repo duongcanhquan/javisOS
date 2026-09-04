@@ -4,6 +4,14 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.27] - 2026-09-04
+### Thêm mới
+- **Bộ Video trên trang Workflows.** Một nút tạo 4 agent (nghiên cứu → biên kịch → đạo diễn → kiểm chứng) và workflow đa pipeline: paperdesign (Vox collage), Remotion, OmmiStudio/html-video.
+- **Skill hệ thống `lam-video`.** Điều phối chọn pipeline theo catalog (kèm OmmiStudio và các repo nexu).
+
+### Sửa lỗi
+- **Nút Bộ Proposal hết gọi API không tồn tại.** Đã có endpoint `/studio/seed-strategy` tạo đủ agent + workflow proposal.
+
 ## [0.35.26] - 2026-09-04
 ### Thêm mới
 - **Skill hệ thống `paperdesign`.** Làm video collage giấy kiểu Vox (topic / ảnh / talking-head → poster → motion → VO → mp4) dựa trên [vox-director](https://github.com/Alisa0808/vox-director). Cần `ATLASCLOUD_API_KEY` + ffmpeg.

@@ -7318,6 +7318,199 @@ async def studio_seed(brain: str = Form("brain")):
     return {"ok": True}
 
 
+@app.post("/studio/seed-strategy")
+async def studio_seed_strategy(brain: str = Form("brain")):
+    """Bộ Proposal: nghiên cứu thị trường → chiến lược KD/MKT → proposal (có kiểm chứng)."""
+    a = _agents_dir(brain)
+    agents = [
+        {
+            "name": "Nghiên cứu thị trường",
+            "slug": "nghien-cuu-thi-truong",
+            "role": "Nghiên cứu phân khúc, đối thủ, xu hướng và nguồn dữ liệu cho quyết định kinh doanh.",
+            "skills": ["nghien-cuu-thi-truong"],
+            "prompt": (
+                "Bạn là chuyên viên nghiên cứu thị trường.\n"
+                "Mục tiêu: ra bản nghiên cứu có số liệu/nguồn, đủ để viết chiến lược sau này.\n"
+                "Quy trình: (1) chốt câu hỏi nghiên cứu từ {{input}}, (2) thu thập nguồn, "
+                "(3) phân khúc + đối thủ + xu hướng, (4) insight hành động.\n"
+                "Đầu ra: markdown có mục rõ, mỗi insight kèm nguồn hoặc giả định.\n"
+                "Thiếu dữ liệu thì nêu giả định, không bịa số.\n"
+                "Cấm: em dash; bịa doanh thu/thị phần không nguồn."
+            ),
+        },
+        {
+            "name": "Chiến lược kinh doanh",
+            "slug": "chien-luoc-kinh-doanh",
+            "role": "Chưng cất nghiên cứu thành chiến lược KD 12 tháng có KPI.",
+            "skills": ["proposal-chien-luoc"],
+            "prompt": (
+                "Bạn là chiến lược gia kinh doanh.\n"
+                "Dựa nghiên cứu trước, viết chiến lược 12 tháng: tầm nhìn, positioning, "
+                "mô hình doanh thu, lợi thế, roadmap Q1-Q4, rủi ro.\n"
+                "Mỗi mục có ≥1 quyết định cụ thể và KPI định lượng (ghi giả định nếu thiếu baseline)."
+            ),
+        },
+        {
+            "name": "Chiến lược marketing",
+            "slug": "chien-luoc-marketing",
+            "role": "Lập chiến lược marketing gắn ICP, kênh, content và KPI.",
+            "skills": ["proposal-chien-luoc"],
+            "prompt": (
+                "Bạn là chiến lược gia marketing.\n"
+                "Từ nghiên cứu + chiến lược KD, viết ICP/persona, thông điệp, kênh & funnel, "
+                "content/campaign, khung ngân sách, KPI marketing.\n"
+                "Không tách rời positioning kinh doanh."
+            ),
+        },
+        {
+            "name": "Soạn proposal",
+            "slug": "soan-proposal",
+            "role": "Ghép thành proposal hoàn chỉnh gửi khách/nội bộ.",
+            "skills": ["proposal-chien-luoc"],
+            "prompt": (
+                "Bạn soạn proposal chiến lược hoàn chỉnh (executive summary ≤200 từ + các mục bắt buộc "
+                "trong skill proposal-chien-luoc).\n"
+                "Giọng chuyên nghiệp, súc tích; đọc độc lập hiểu vấn đề + giải pháp trong 5 phút."
+            ),
+        },
+        {
+            "name": "Kiểm chứng proposal",
+            "slug": "kiem-chung-proposal",
+            "role": "Soi proposal: thiếu số, hứa KPI không baseline, hoặc lệch brief.",
+            "skills": [],
+            "prompt": (
+                "Bạn KHÔNG viết proposal mới. Chỉ đánh giá.\n"
+                "Mặc định bản đang thiếu/sai. Kiểm: bám brief không, có bịa số không, "
+                "executive summary đủ không, KPI có gắn baseline/giả định không.\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + danh sách lỗi cụ thể để sửa."
+            ),
+        },
+    ]
+    for ex in agents:
+        meta = {"type": "agent", "name": ex["name"], "slug": ex["slug"], "role": ex["role"],
+                "skills": ex["skills"], "model": "sonnet", "updated": _today()}
+        _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
+    wf_meta = {
+        "type": "workflow",
+        "name": "Bộ Proposal & Chiến lược",
+        "slug": "bo-proposal-chien-luoc",
+        "status": "active",
+        "description": "Nghiên cứu thị trường → chiến lược KD → MKT → proposal (có kiểm chứng).",
+        "steps": [
+            {"agent": "nghien-cuu-thi-truong",
+             "task": "Nghiên cứu thị trường cho brief: {{input}}. Trả bản nghiên cứu có nguồn."},
+            {"agent": "chien-luoc-kinh-doanh",
+             "task": "Từ nghiên cứu sau, viết chiến lược kinh doanh 12 tháng:\n{{prev}}"},
+            {"agent": "chien-luoc-marketing",
+             "task": "Từ nghiên cứu + chiến lược KD ({{prev}}), viết chiến lược marketing. Brief gốc: {{input}}"},
+            {"agent": "soan-proposal",
+             "task": "Ghép thành proposal hoàn chỉnh cho '{{input}}' từ các bước trước:\n{{prev}}",
+             "verify_agent": "kiem-chung-proposal", "max_retries": 2},
+        ],
+        "updated": _today(),
+    }
+    _write_md(_workflows_dir(brain) / "bo-proposal-chien-luoc.md", wf_meta, wf_meta["description"])
+    return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-proposal-chien-luoc"}
+
+
+@app.post("/studio/seed-video")
+async def studio_seed_video(brain: str = Form("brain")):
+    """Bộ Video: nghiên cứu → kịch bản → đạo diễn đa pipeline (paperdesign/Remotion/Ommi) → kiểm chứng."""
+    a = _agents_dir(brain)
+    agents = [
+        {
+            "name": "Nghiên cứu chủ đề video",
+            "slug": "nghien-cuu-chu-de-video",
+            "role": "Nghiên cứu chủ đề video: insight, fact, góc kể chuyện, nguồn tham chiếu hình ảnh.",
+            "skills": ["lam-video", "nghien-cuu-thi-truong", "query-wiki"],
+            "prompt": (
+                "Bạn là researcher cho video ngắn/explainer/quảng cáo.\n"
+                "Mục tiêu: đủ nguyên liệu để viết kịch bản shot-by-shot, không viết kịch bản hoàn chỉnh.\n"
+                "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video).\n"
+                "Quy trình: (1) chốt audience + mục tiêu từ brief {{input}}, "
+                "(2) 5-8 insight/fact có nguồn hoặc giả định rõ, "
+                "(3) 3 góc kể chuyện (hook), (4) gợi ý visual motif/era/tone, "
+                "(5) rủi ro pháp lý/nhạy cảm nếu có.\n"
+                "Đầu ra markdown ngắn, có bullet. Không bịa số. Không dùng em dash.\n"
+                "Thiếu brief thì nêu giả định rồi làm tiếp."
+            ),
+        },
+        {
+            "name": "Biên kịch video",
+            "slug": "bien-kich-video",
+            "role": "Viết kịch bản beat/shot chuẩn: hook, narration, visual, nhịp cắt, CTA.",
+            "skills": ["lam-video", "paperdesign"],
+            "prompt": (
+                "Bạn là biên kịch video.\n"
+                "Mục tiêu: kịch bản sẵn để đạo diễn chọn pipeline và render.\n"
+                "Quy trình: đọc nghiên cứu {{prev}} + brief {{input}}; viết beat map:\n"
+                "- Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
+                "- 30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
+                "Đầu ra: JSON-like hoặc markdown bảng rõ ràng, kèm 1 dòng đề xuất pipeline "
+                "(paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
+                "Cấm: shot >7s; bịa fact mới ngoài nghiên cứu; em dash."
+            ),
+        },
+        {
+            "name": "Đạo diễn video",
+            "slug": "dao-dien-video",
+            "role": "Chọn pipeline tốt nhất rồi điều phối render đúng brief và kịch bản.",
+            "skills": ["lam-video", "paperdesign", "remotion-best-practices"],
+            "prompt": (
+                "Bạn là đạo diễn / producer video trên Javis.\n"
+                "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief.\n"
+                "Bối cảnh pipeline (đọc skill lam-video/references/catalog.md):\n"
+                "- paperdesign: collage Vox, cần ATLASCLOUD_API_KEY + ffmpeg.\n"
+                "- remotion: video React frame-perfect.\n"
+                "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
+                "- manual: thiếu key/binary thì xuất beat + prompts + VO.\n"
+                "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}}, "
+                "(2) chọn 1 pipeline và nêu lý do, "
+                "(3) kiểm tra điều kiện môi trường, "
+                "(4) nạp đúng skill pipeline và thực thi (paperdesign: duyệt beat+style rồi scripts), "
+                "(5) trả đường dẫn output hoặc Manual pack.\n"
+                "Không hứa 'xong sẽ báo lại' nếu không giao việc nền. Không em dash.\n"
+                "Người thật/logo brand trên paperdesign: dùng Kling, không Omni."
+            ),
+        },
+        {
+            "name": "Kiểm chứng video",
+            "slug": "kiem-chung-video",
+            "role": "Soi output video/kịch bản so với brief: nhịp, CTA, tỉ lệ, pipeline.",
+            "skills": [],
+            "prompt": (
+                "Bạn KHÔNG làm video mới. Chỉ kiểm chứng.\n"
+                "Đối chiếu brief gốc với kịch bản/output: hook, độ dài, tỉ lệ, ngôn ngữ, CTA, "
+                "pipeline có hợp không, thiếu điều kiện render có được nói rõ không.\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để đạo diễn sửa."
+            ),
+        },
+    ]
+    for ex in agents:
+        meta = {"type": "agent", "name": ex["name"], "slug": ex["slug"], "role": ex["role"],
+                "skills": ex["skills"], "model": "sonnet", "updated": _today()}
+        _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
+    wf_meta = {
+        "type": "workflow",
+        "name": "Bộ Video (đa pipeline)",
+        "slug": "bo-video-da-pipeline",
+        "status": "active",
+        "description": "Nghiên cứu chủ đề → biên kịch → đạo diễn chọn paperdesign/Remotion/Ommi → kiểm chứng.",
+        "steps": [
+            {"agent": "nghien-cuu-chu-de-video",
+             "task": "Nghiên cứu chủ đề video theo brief: {{input}}"},
+            {"agent": "bien-kich-video",
+             "task": "Viết kịch bản beat/shot cho '{{input}}' từ nghiên cứu:\n{{prev}}"},
+            {"agent": "dao-dien-video",
+             "task": "Chọn pipeline và làm video theo brief '{{input}}' + kịch bản:\n{{prev}}",
+             "verify_agent": "kiem-chung-video", "max_retries": 2},
+        ],
+        "updated": _today(),
+    }
+    _write_md(_workflows_dir(brain) / "bo-video-da-pipeline.md", wf_meta, wf_meta["description"])
+    return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-video-da-pipeline"}
+
+
 # ============================================================
 # LOOP TỰ CẢI THIỆN (Beta) - Discovery + Scheduling, an toàn (chỉ thao tác file vault)
 # ============================================================
