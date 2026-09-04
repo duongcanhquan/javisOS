@@ -58,6 +58,16 @@ if shutil.which("ffmpeg"):
     framed = sv.ve_khung("Câu thử overlay", (540, 960), title="Test", bg_image=str(bg))
     check("overlay có size đúng", framed.size == (540, 960))
     check("prompt_anh có style", "photorealistic" in sv.prompt_anh("học thực hành").lower() or "campus" in sv.prompt_anh("x").lower())
+
+    brain3 = Path(tempfile.mkdtemp(prefix="javis-sv-req-"))
+    async def _img():
+        return await sv.render_script_video(
+            script="Sinh viên học thực hành tại xưởng.",
+            title="Anh", vault_root=str(brain3), aspect="portrait",
+            with_images=True, require_images=True, filename="mot-canh")
+    rimg = asyncio.run(_img())
+    check("require_images ok", rimg.get("ok") is True, rimg.get("error"))
+    check("có đúng 1 ảnh", rimg.get("images") == 1, str(rimg.get("images")))
 else:
     print("skip  render (không có ffmpeg)")
 

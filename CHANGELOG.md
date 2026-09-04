@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.38] - 2026-09-04
+### Sửa lỗi
+- **Video short không còn trả bản chỉ chữ.** Mỗi cảnh bắt buộc có ảnh (ChatGPT nếu đã login, không thì Pollinations). Thiếu ảnh → báo lỗi, không giao mp4 khung chữ trơn.
+
 ## [0.35.37] - 2026-09-04
 ### Cải thiện
 - **Video short có ảnh AI từng cảnh.** `javis_render_script_video` mặc định gọi ChatGPT (OAuth) tạo ảnh + Edge-TTS + chữ overlay → mp4 đầy đủ. Chưa đăng nhập ChatGPT thì vẫn ra bản chữ và nói rõ. Pixelle thiếu RunningHub thì fallback đường này.

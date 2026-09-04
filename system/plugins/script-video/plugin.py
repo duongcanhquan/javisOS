@@ -28,6 +28,9 @@ def register(ctx):
         with_images = args.get("with_images", True)
         if isinstance(with_images, str):
             with_images = with_images.lower() not in ("0", "false", "no")
+        require_images = args.get("require_images", True)
+        if isinstance(require_images, str):
+            require_images = require_images.lower() not in ("0", "false", "no")
         quality = str(args.get("image_quality") or "low")
         style = str(args.get("image_style") or "").strip()
         res = await sv.render_script_video(
@@ -39,6 +42,7 @@ def register(ctx):
             with_images=bool(with_images),
             image_quality=quality,
             image_style=style,
+            require_images=bool(require_images) if with_images else False,
         )
         if not res.get("ok"):
             return "ERROR: " + str(res.get("error") or "render thất bại")
@@ -99,11 +103,10 @@ def register(ctx):
     ctx.register_tool(
         name="javis_render_script_video",
         description=(
-            "Render VIDEO mp4 ĐẦY ĐỦ từ kịch bản: ảnh AI từng cảnh (ChatGPT OAuth) + "
-            "giọng Edge-TTS + chữ overlay + ffmpeg. "
-            "Tham số: script (bắt buộc), title, aspect (portrait|landscape|square), "
-            "voice, with_images (mặc định true), image_quality (low|medium|high). "
-            "Sau khi gọi, đưa attachments/... cho user."
+            "Render VIDEO mp4 ĐẦY ĐỦ: ảnh từng cảnh (ChatGPT hoặc Pollinations) + "
+            "Edge-TTS + chữ overlay. Mặc định BẮT BUỘC có ảnh - không trả video chỉ chữ. "
+            "Tham số: script, title, aspect, voice, with_images (true), require_images (true), "
+            "image_quality. Sau khi gọi đưa attachments/... cho user."
         ),
         handler=_render_native,
         min_mode="safe",
@@ -115,7 +118,11 @@ def register(ctx):
                 "title": {"type": "string"},
                 "aspect": {"type": "string", "enum": ["portrait", "landscape", "square"]},
                 "voice": {"type": "string"},
-                "with_images": {"type": "boolean", "description": "Mặc định true - ảnh AI từng cảnh"},
+                "with_images": {"type": "boolean", "description": "Mặc định true"},
+                "require_images": {
+                    "type": "boolean",
+                    "description": "Mặc định true - lỗi nếu thiếu ảnh, không trả video chữ trơn",
+                },
                 "image_quality": {"type": "string", "enum": ["low", "medium", "high"]},
                 "image_style": {"type": "string", "description": "Prefix style ảnh tiếng Anh"},
             },

@@ -209,24 +209,64 @@ def _chatgpt_san_sang() -> bool:
         return False
 
 
-async def _gen_anh_canh(narration: str, vault_root: str, aspect: str,
-                        quality: str, style: str) -> Optional[str]:
-    """Tạo ảnh AI cho 1 cảnh. Trả abs_path hoặc None."""
+async def _gen_anh_pollinations(narration: str, dest: Path, aspect: str,
+                                style: str = "") -> Optional[str]:
+    """Ảnh miễn phí qua Pollinations (không cần key) - đảm bảo luôn có hình."""
+    import httpx
+    from urllib.parse import quote
+    size = _SIZES.get(aspect, _SIZES["portrait"])
+    w, h = size
+    prompt = prompt_anh(narration, style)
+    url = (
+        f"https://image.pollinations.ai/prompt/{quote(prompt)}"
+        f"?width={w}&height={h}&nologo=true&safe=true"
+    )
     try:
-        import image_gen
-        ar = "portrait" if aspect == "portrait" else (
-            "landscape" if aspect == "landscape" else "square")
-        res = await image_gen.generate_chatgpt(
-            prompt_anh(narration, style),
-            aspect_ratio=ar,
-            quality=quality,
-            vault_root=vault_root or None,
-        )
-        if res.get("ok") and res.get("abs_path"):
-            return str(res["abs_path"])
+        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0),
+                                     follow_redirects=True) as c:
+            r = await c.get(url)
+            if r.status_code != 200 or len(r.content) < 1000:
+                return None
+            ctype = (r.headers.get("content-type") or "").lower()
+            if "image" not in ctype and not r.content[:3] in (b"\xff\xd8\xff", b"\x89PN"):
+                # vẫn thử lưu nếu đủ lớn
+                if len(r.content) < 5000:
+                    return None
+            dest.write_bytes(r.content)
+            return str(dest)
     except Exception:
         return None
-    return None
+
+
+async def _gen_anh_canh(narration: str, vault_root: str, aspect: str,
+                        quality: str, style: str, work_dir: Path,
+                        idx: int) -> Tuple[Optional[str], str]:
+    """Tạo ảnh AI cho 1 cảnh. Trả (abs_path|None, nguồn).
+
+    Thứ tự: ChatGPT OAuth → Pollinations (luôn có hình, không cần key).
+    """
+    # 1) ChatGPT
+    if _chatgpt_san_sang():
+        try:
+            import image_gen
+            ar = "portrait" if aspect == "portrait" else (
+                "landscape" if aspect == "landscape" else "square")
+            res = await image_gen.generate_chatgpt(
+                prompt_anh(narration, style),
+                aspect_ratio=ar,
+                quality=quality,
+                vault_root=vault_root or None,
+            )
+            if res.get("ok") and res.get("abs_path") and Path(res["abs_path"]).is_file():
+                return str(res["abs_path"]), "chatgpt"
+        except Exception as e:
+            pass
+    # 2) Pollinations - đảm bảo có ảnh
+    dest = work_dir / f"img{idx:02d}.jpg"
+    p = await _gen_anh_pollinations(narration, dest, aspect, style)
+    if p:
+        return p, "pollinations"
+    return None, ""
 
 
 async def render_script_video(
@@ -240,8 +280,9 @@ async def render_script_video(
     with_images: bool = True,
     image_quality: str = "low",
     image_style: str = "",
+    require_images: bool = True,
 ) -> Dict[str, Any]:
-    """Render mp4 từ kịch bản. with_images=True → ảnh AI từng cảnh (ChatGPT OAuth)."""
+    """Render mp4 từ kịch bản. with_images=True → bắt buộc có ảnh từng cảnh."""
     if not shutil.which("ffmpeg"):
         return {"ok": False, "error": "Máy chưa có ffmpeg - cần cài để ghép video."}
     scenes = tach_canh(script)
@@ -263,11 +304,9 @@ async def render_script_video(
     out_path = att / out_name
 
     want_images = bool(with_images)
+    require_images = bool(require_images) and want_images
     images_ok = 0
-    images_skip_reason = ""
-    if want_images and not _chatgpt_san_sang():
-        want_images = False
-        images_skip_reason = "Chưa kết nối ChatGPT OAuth - fallback khung chữ."
+    image_sources: List[str] = []
 
     work = Path(tempfile.mkdtemp(prefix="javis-svideo-"))
     try:
@@ -278,11 +317,27 @@ async def render_script_video(
             dur = _ffprobe_duration(audio) + 0.35
 
             bg_path = None
+            src = ""
             if want_images:
-                bg_path = await _gen_anh_canh(
-                    line, str(root), aspect_key, image_quality or "low", image_style)
+                bg_path, src = await _gen_anh_canh(
+                    line, str(root), aspect_key, image_quality or "low",
+                    image_style, work, i)
                 if bg_path:
                     images_ok += 1
+                    if src:
+                        image_sources.append(src)
+
+            if require_images and not bg_path:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Không tạo được ảnh cho cảnh {i + 1}/{len(scenes)}. "
+                        "Thử lại, hoặc đăng nhập ChatGPT (Models) để ảnh đẹp hơn. "
+                        f"Câu cảnh: {line[:80]}"
+                    ),
+                    "images": images_ok,
+                    "scenes": len(scenes),
+                }
 
             frame = work / f"f{i:02d}.png"
             show_title = title if i == 0 else ""
@@ -302,6 +357,14 @@ async def render_script_video(
             ])
             clip_paths.append(clip)
 
+        if require_images and images_ok < len(scenes):
+            return {
+                "ok": False,
+                "error": f"Chỉ có {images_ok}/{len(scenes)} cảnh có ảnh - không trả video thiếu hình.",
+                "images": images_ok,
+                "scenes": len(scenes),
+            }
+
         lst = work / "list.txt"
         lst.write_text("".join(f"file '{p}'\n" for p in clip_paths), encoding="utf-8")
         _run_ffmpeg([
@@ -309,6 +372,7 @@ async def render_script_video(
             "-i", str(lst), "-c", "copy", str(out_path),
         ])
         rel = f"attachments/{out_name}"
+        src_note = ",".join(sorted(set(image_sources))) or "none"
         return {
             "ok": True,
             "rel_path": rel,
@@ -319,8 +383,10 @@ async def render_script_video(
             "title": title or "",
             "images": images_ok,
             "with_images": bool(with_images),
-            "images_note": images_skip_reason or (
-                f"{images_ok}/{len(scenes)} cảnh có ảnh AI" if with_images else "tắt ảnh AI"
+            "image_sources": src_note,
+            "images_note": (
+                f"{images_ok}/{len(scenes)} cảnh có ảnh ({src_note})"
+                if with_images else "tắt ảnh AI"
             ),
         }
     except Exception as e:
