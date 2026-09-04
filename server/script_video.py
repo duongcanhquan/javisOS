@@ -1,8 +1,9 @@
-"""Render short video từ kịch bản cố định - chạy TRONG Javis (không cần Pixelle).
+"""Render short video từ kịch bản - chạy TRONG Javis.
 
-Pipeline: tách cảnh → Edge-TTS (vi-VN) → khung chữ Pillow → ffmpeg ghép mp4.
-Mục tiêu: LUÔN ra được file khi có ffmpeg + mạng (Edge-TTS) - không phụ thuộc
-RunningHub/Comfy/Pixelle :8000.
+Pipeline đầy đủ:
+  tách cảnh → (tuỳ chọn) ảnh AI ChatGPT từng cảnh → Edge-TTS → overlay chữ → ffmpeg → mp4
+
+Không phụ thuộc Pixelle/RunningHub. Thiếu ChatGPT OAuth thì vẫn ra video khung chữ.
 """
 from __future__ import annotations
 
@@ -16,7 +17,6 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# ---- kích thước ----
 _SIZES = {
     "portrait": (1080, 1920),
     "landscape": (1920, 1080),
@@ -26,6 +26,11 @@ _SIZES = {
 _DEFAULT_VOICE = "vi-VN-HoaiMyNeural"
 _MAX_SCENES = 20
 _MAX_CHARS_SCENE = 280
+_DEFAULT_STYLE = (
+    "Vertical marketing still for Vietnamese education brand, photorealistic, "
+    "bright campus and students, modern classroom or workshop, NO text, NO watermark, "
+    "cinematic lighting, clean composition"
+)
 
 
 def tach_canh(script: str) -> List[str]:
@@ -48,6 +53,15 @@ def tach_canh(script: str) -> List[str]:
         if len(out) >= _MAX_SCENES:
             break
     return out
+
+
+def prompt_anh(narration: str, style: str = "") -> str:
+    """Prompt tiếng Anh cho ảnh cảnh - không nhúng chữ Việt vào ảnh (overlay sau)."""
+    st = (style or _DEFAULT_STYLE).strip()
+    nar = re.sub(r"\s+", " ", (narration or "").strip())[:180]
+    return (
+        f"{st}. Scene idea (illustrate visually, do not render any letters or logos): {nar}"
+    )
 
 
 def _font_path() -> Optional[str]:
@@ -86,18 +100,43 @@ def _wrap_text(draw, text: str, font, max_width: int) -> List[str]:
 def ve_khung(text: str, size: Tuple[int, int], title: str = "",
              bg: Tuple[int, int, int] = (18, 24, 38),
              fg: Tuple[int, int, int] = (245, 247, 250),
-             accent: Tuple[int, int, int] = (56, 189, 248)) -> "Image.Image":
-    from PIL import Image, ImageDraw, ImageFont
+             accent: Tuple[int, int, int] = (56, 189, 248),
+             bg_image: Optional[str] = None) -> "Image.Image":
+    """Khung chữ thuần hoặc overlay chữ lên ảnh nền (đầy đủ)."""
+    from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
     w, h = size
-    img = Image.new("RGB", (w, h), bg)
+    if bg_image and Path(bg_image).is_file():
+        base = Image.open(bg_image).convert("RGB")
+        # cover-crop về đúng size
+        bw, bh = base.size
+        scale = max(w / bw, h / bh)
+        nw, nh = int(bw * scale), int(bh * scale)
+        base = base.resize((nw, nh), Image.Resampling.LANCZOS)
+        left, top = (nw - w) // 2, (nh - h) // 2
+        img = base.crop((left, top, left + w, top + h))
+        # tối nhẹ để chữ đọc được
+        img = ImageEnhance.Brightness(img).enhance(0.72)
+    else:
+        img = Image.new("RGB", (w, h), bg)
+
+    draw = ImageDraw.Draw(img, "RGBA") if False else ImageDraw.Draw(img)
+    # Thanh gradient tối dưới (vẽ bằng layer)
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    band_top = int(h * 0.52)
+    for y in range(band_top, h):
+        a = int(40 + 180 * ((y - band_top) / max(1, h - band_top)))
+        od.line([(0, y), (w, y)], fill=(0, 0, 0, min(220, a)))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(img)
+
     # Dải accent trên
     draw.rectangle([0, 0, w, max(12, h // 80)], fill=accent)
 
     fp = _font_path()
-    title_size = max(36, w // 22)
-    body_size = max(42, w // 18)
+    title_size = max(34, w // 24)
+    body_size = max(40, w // 20)
     if fp:
         font_title = ImageFont.truetype(fp, title_size)
         font_body = ImageFont.truetype(fp, body_size)
@@ -107,31 +146,33 @@ def ve_khung(text: str, size: Tuple[int, int], title: str = "",
 
     pad = w // 12
     max_w = w - 2 * pad
-    y = h // 6
+    y = max(40, h // 18)
     if title:
         for line in _wrap_text(draw, title, font_title, max_w)[:2]:
             bbox = draw.textbbox((0, 0), line, font=font_title)
             tw = bbox[2] - bbox[0]
+            # bóng chữ
+            draw.text(((w - tw) // 2 + 2, y + 2), line, font=font_title, fill=(0, 0, 0))
             draw.text(((w - tw) // 2, y), line, font=font_title, fill=accent)
-            y += (bbox[3] - bbox[1]) + 16
-        y += h // 40
+            y += (bbox[3] - bbox[1]) + 14
 
     lines = _wrap_text(draw, text, font_body, max_w)
-    # Căn giữa khối chữ theo chiều dọc phần còn lại
-    line_h = 0
     heights = []
+    line_h = 0
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font_body)
         lh = bbox[3] - bbox[1]
         heights.append(lh)
-        line_h += lh + 18
-    start_y = max(y, (h - line_h) // 2)
+        line_h += lh + 16
+    # Chữ nằm nửa dưới
+    start_y = max(int(h * 0.58), h - line_h - h // 10)
     cy = start_y
     for line, lh in zip(lines, heights):
         bbox = draw.textbbox((0, 0), line, font=font_body)
         tw = bbox[2] - bbox[0]
+        draw.text(((w - tw) // 2 + 2, cy + 2), line, font=font_body, fill=(0, 0, 0))
         draw.text(((w - tw) // 2, cy), line, font=font_body, fill=fg)
-        cy += lh + 18
+        cy += lh + 16
     return img
 
 
@@ -159,6 +200,35 @@ def _run_ffmpeg(args: List[str]) -> None:
         raise RuntimeError((r.stderr or r.stdout or "ffmpeg lỗi")[-800:])
 
 
+def _chatgpt_san_sang() -> bool:
+    try:
+        import openai_oauth
+        c = openai_oauth.valid_creds()
+        return bool(c and c.get("access_token"))
+    except Exception:
+        return False
+
+
+async def _gen_anh_canh(narration: str, vault_root: str, aspect: str,
+                        quality: str, style: str) -> Optional[str]:
+    """Tạo ảnh AI cho 1 cảnh. Trả abs_path hoặc None."""
+    try:
+        import image_gen
+        ar = "portrait" if aspect == "portrait" else (
+            "landscape" if aspect == "landscape" else "square")
+        res = await image_gen.generate_chatgpt(
+            prompt_anh(narration, style),
+            aspect_ratio=ar,
+            quality=quality,
+            vault_root=vault_root or None,
+        )
+        if res.get("ok") and res.get("abs_path"):
+            return str(res["abs_path"])
+    except Exception:
+        return None
+    return None
+
+
 async def render_script_video(
     *,
     script: str,
@@ -167,8 +237,11 @@ async def render_script_video(
     aspect: str = "portrait",
     voice: str = "",
     filename: str = "",
+    with_images: bool = True,
+    image_quality: str = "low",
+    image_style: str = "",
 ) -> Dict[str, Any]:
-    """Render mp4 từ kịch bản. Trả {ok, rel_path, path, scenes, error?}."""
+    """Render mp4 từ kịch bản. with_images=True → ảnh AI từng cảnh (ChatGPT OAuth)."""
     if not shutil.which("ffmpeg"):
         return {"ok": False, "error": "Máy chưa có ffmpeg - cần cài để ghép video."}
     scenes = tach_canh(script)
@@ -178,6 +251,9 @@ async def render_script_video(
         scenes = scenes[:_MAX_SCENES]
 
     size = _SIZES.get((aspect or "portrait").lower(), _SIZES["portrait"])
+    aspect_key = (aspect or "portrait").lower()
+    if aspect_key not in _SIZES:
+        aspect_key = "portrait"
     voice = (voice or _DEFAULT_VOICE).strip() or _DEFAULT_VOICE
     root = Path(vault_root) if vault_root else Path(".")
     att = root / "attachments"
@@ -186,18 +262,32 @@ async def render_script_video(
     out_name = f"{time.strftime('%Y-%m-%d')}_{slug}_{uuid.uuid4().hex[:6]}.mp4"
     out_path = att / out_name
 
+    want_images = bool(with_images)
+    images_ok = 0
+    images_skip_reason = ""
+    if want_images and not _chatgpt_san_sang():
+        want_images = False
+        images_skip_reason = "Chưa kết nối ChatGPT OAuth - fallback khung chữ."
+
     work = Path(tempfile.mkdtemp(prefix="javis-svideo-"))
     try:
         clip_paths: List[Path] = []
         for i, line in enumerate(scenes):
             audio = work / f"a{i:02d}.mp3"
             await _tts_file(line, audio, voice)
-            dur = _ffprobe_duration(audio) + 0.35  # nghỉ ngắn cuối cảnh
+            dur = _ffprobe_duration(audio) + 0.35
+
+            bg_path = None
+            if want_images:
+                bg_path = await _gen_anh_canh(
+                    line, str(root), aspect_key, image_quality or "low", image_style)
+                if bg_path:
+                    images_ok += 1
+
             frame = work / f"f{i:02d}.png"
             show_title = title if i == 0 else ""
-            ve_khung(line, size, title=show_title).save(frame, "PNG")
+            ve_khung(line, size, title=show_title, bg_image=bg_path).save(frame, "PNG")
             clip = work / f"c{i:02d}.mp4"
-            # loop ảnh + audio, scale đúng size, yuv420p
             _run_ffmpeg([
                 "ffmpeg", "-y",
                 "-loop", "1", "-i", str(frame),
@@ -227,6 +317,11 @@ async def render_script_video(
             "aspect": f"{size[0]}x{size[1]}",
             "voice": voice,
             "title": title or "",
+            "images": images_ok,
+            "with_images": bool(with_images),
+            "images_note": images_skip_reason or (
+                f"{images_ok}/{len(scenes)} cảnh có ảnh AI" if with_images else "tắt ảnh AI"
+            ),
         }
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}

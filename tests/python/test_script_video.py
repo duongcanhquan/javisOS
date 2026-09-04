@@ -39,6 +39,7 @@ if shutil.which("ffmpeg"):
             vault_root=str(brain),
             aspect="portrait",
             voice="vi-VN-HoaiMyNeural",
+            with_images=False,  # CI không có ChatGPT OAuth
         )
 
     res = asyncio.run(_go())
@@ -48,6 +49,15 @@ if shutil.which("ffmpeg"):
         check("file mp4 tồn tại", p.is_file() and p.stat().st_size > 1000, str(p))
         check("rel_path attachments", res["rel_path"].startswith("attachments/") and res["rel_path"].endswith(".mp4"))
         check("2 cảnh", res.get("scenes") == 2)
+
+    # Overlay trên ảnh nền giả
+    from PIL import Image
+    brain2 = Path(tempfile.mkdtemp(prefix="javis-sv-img-"))
+    bg = brain2 / "bg.jpg"
+    Image.new("RGB", (800, 1200), (40, 80, 120)).save(bg, "JPEG")
+    framed = sv.ve_khung("Câu thử overlay", (540, 960), title="Test", bg_image=str(bg))
+    check("overlay có size đúng", framed.size == (540, 960))
+    check("prompt_anh có style", "photorealistic" in sv.prompt_anh("học thực hành").lower() or "campus" in sv.prompt_anh("x").lower())
 else:
     print("skip  render (không có ffmpeg)")
 

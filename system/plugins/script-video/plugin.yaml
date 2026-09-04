@@ -1,7 +1,7 @@
-name: Video từ kịch bản (ffmpeg + Pixelle)
+name: Video từ kịch bản (ảnh AI + TTS)
 slug: script-video
-version: 1.1.0
-description: Render mp4 từ kịch bản - native Edge-TTS+ffmpeg và/hoặc Pixelle API (fallback tự động).
+version: 1.2.0
+description: Render mp4 đầy đủ - ảnh AI ChatGPT từng cảnh + Edge-TTS + ffmpeg; Pixelle tuỳ chọn.
 author: Javis (bundled)
 enabled: true
 min_mode: safe

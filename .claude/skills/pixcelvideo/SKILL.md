@@ -1,60 +1,46 @@
 ---
 name: pixcelvideo
-description: "Short video qua Pixelle (javis_pixelle_generate) hoặc native ffmpeg; ưu tiên Pixelle nếu :8000 sống."
-description_en: "Short video via Pixelle API or native ffmpeg; prefer Pixelle when :8000 is up."
+description: "Short video đầy đủ: ảnh AI từng cảnh (ChatGPT) + TTS + mp4; Pixelle nếu có RunningHub."
+description_en: "Full short video: AI image per scene (ChatGPT) + TTS + mp4; Pixelle if RunningHub set."
 group: Nội dung
 ---
 
-# pixcelvideo — Pixelle đầy đủ + fallback native
+# pixcelvideo — video có ảnh + giọng (đầy đủ)
 
-Trên VPS Javis (0.35.36+), deploy **tự bật Pixelle** (`scripts/setup-pixelle-vps.sh` +
-`--profile pixelle`) trừ khi `.env` có `JAVIS_ENABLE_PIXELLE=false`.
+## Đường mặc định (đảm bảo có ảnh)
 
-- API: `http://pixelle-api:8000` (host `localhost:8000`)
-- WebUI: `localhost:8501`
-- Biến: `PIXELLE_API_BASE`, `PIXELLE_LLM_*`, `RUNNINGHUB_API_KEY` (tuỳ chọn ảnh AI)
+Tool **`javis_render_script_video`** với `with_images: true` (mặc định):
 
-## Khi nào dùng
-
-User muốn short video / Pixelle / pixcelvideo / topic → mp4.
-
-## Quy trình
-
-1. **Brief** rồi **viết kịch bản** (mỗi cảnh một đoạn). Duyệt với user trừ khi bảo render luôn.
-2. **Render** — gọi tool theo thứ tự:
-
-### A. `javis_pixelle_generate` (đầy đủ Pixelle)
+1. Viết / duyệt kịch bản (mỗi cảnh một đoạn)
+2. Gọi tool — mỗi cảnh: **ảnh AI ChatGPT** + Edge-TTS + chữ overlay → ghép mp4
+3. Cần đã đăng nhập **ChatGPT** ở trang Model (OAuth). Chưa có → vẫn ra video khung chữ và nói rõ.
 
 ```
-javis_pixelle_generate(
-  script="<mỗi cảnh một đoạn>",
+javis_render_script_video(
+  script="Hook...\n\nÝ 2...\n\nCTA...",
   title="...",
-  frame_template="1080x1920/static_default.html"
+  aspect="portrait",
+  with_images=true,
+  image_quality="low"
 )
 ```
 
-Có `RUNNINGHUB_API_KEY` → dùng `1080x1920/image_default.html` (ảnh AI).
+Sau khi xong: đưa `attachments/*.mp4` cho user.
 
-Tool **tự fallback** sang native nếu Pixelle chết.
+## Pixelle (tuỳ chọn)
 
-### B. `javis_render_script_video` (native Edge-TTS + khung chữ)
+`javis_pixelle_generate` khi API :8000 sống **và** có `RUNNINGHUB_API_KEY` (template `image_*`).
+Không đủ → tool tự fallback sang đường ChatGPT ở trên.
 
-Dùng khi muốn chắc chắn / nhanh, không qua Pixelle.
+## Quy trình
 
-3. Đưa đường dẫn / `video_url` cho user.
-
-## Config LLM cho Pixelle (trên VPS `.env`)
-
-```
-PIXELLE_LLM_API_KEY=...
-PIXELLE_LLM_BASE_URL=https://api.openai.com/v1
-PIXELLE_LLM_MODEL=gpt-4o-mini
-RUNNINGHUB_API_KEY=...
-```
-
-Không có key ảnh → template **static** vẫn ra video + TTS.
+1. Brief ngắn
+2. Kịch bản N cảnh (1 ý / cảnh)
+3. Render bằng `javis_render_script_video` (đầy đủ ảnh)
+4. Kiểm số cảnh / tỉ lệ
 
 ## Bẫy
 
-- Đòi ảnh AI mà chưa có RunningHub → nói thật, dùng static hoặc native.
-- `mode: generate` Pixelle viết lại script — skill này mặc định **fixed** qua tool.
+- Báo Pixelle đang render khi chỉ có static / fallback — SAI; nói đúng nguồn (ChatGPT ảnh hay Pixelle).
+- `with_images=false` chỉ khi user muốn bản chữ nhanh.
+- Nhiều cảnh + `image_quality=high` tốn quota ChatGPT; mặc định `low`.

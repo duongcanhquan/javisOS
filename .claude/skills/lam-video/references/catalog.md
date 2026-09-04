@@ -5,7 +5,7 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 | ID | Tên | Repo / skill | Hợp khi | Cần có |
 |---|---|---|---|---|
 | `paperdesign` | Vox paper-collage | skill `paperdesign` ([vox-director](https://github.com/Alisa0808/vox-director)) | Explainer, scrapbook, quảng cáo collage, talking-head A-roll, ảnh sản phẩm C-roll | `ATLASCLOUD_API_KEY`, ffmpeg, Pillow |
-| `pixcelvideo` | Short video (native / Pixelle) | skill `pixcelvideo` + tool `javis_render_script_video` ([Pixelle-Video](https://github.com/ATH-MaaS/Pixelle-Video) tuỳ chọn) | Topic/script → VO+khung chữ → mp4 ngay trên Javis; Pixelle nếu có API | ffmpeg + Edge-TTS (có sẵn); Pixelle API/RunningHub chỉ khi muốn ảnh AI |
+| `pixcelvideo` | Short video đầy đủ | skill `pixcelvideo` + `javis_render_script_video` (ảnh ChatGPT + TTS); Pixelle tuỳ chọn | Topic/script → ảnh AI + VO → mp4 | ChatGPT OAuth (ảnh) + ffmpeg + Edge-TTS; RunningHub chỉ nếu dùng Pixelle image_* |
 | `remotion` | Remotion (React) | skill `remotion-best-practices` ([remotion-dev/skills](https://github.com/remotion-dev/skills)) | Motion UI, data viz, caption frame-perfect, video tham số hoá | Node, Remotion project, (render) ffmpeg |
 | `html-video` | HTML → MP4 | [OmmiStudio](https://github.com/duongcanhquan/OmmiStudio) + [nexu html-video](https://github.com/nexu-io/html-video) | Template sẵn, brand pack, short marketing HTML kinetic | Node 20+, pnpm setup, Playwright Chromium, ffmpeg |
 | `motion-css` | CSS kinetic | [motion-anything](https://github.com/nexu-io/motion-anything) (qua OmmiStudio) | Chữ/kinetic typography nhúng HTML hoặc video | Cùng stack html-video |
