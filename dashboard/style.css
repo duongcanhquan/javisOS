@@ -911,7 +911,8 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .msg-javis .bubble {
   background: var(--bg3); border: 1px solid var(--border);
   padding: 8px 10px; border-radius: 3px 12px 12px 12px;
-  line-height: 1.6; font-size: 12.5px; max-width: 76ch;
+  /* Chữ nhỏ hơn để hiện nhiều; giãn dòng vẫn >= 1.7 (test_de_doc_bong_bong). */
+  line-height: 1.7; font-size: 12.5px; max-width: 76ch;
 }
 .msg-javis .bubble strong { color: var(--accent); }
 .msg-javis .bubble ul { padding-left: 18px; margin: 8px 0; }
