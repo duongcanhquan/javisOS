@@ -280,6 +280,27 @@ def availability(spec: dict, settings: dict = None) -> tuple:
     return False, f"Provider lạ: {prov}"
 
 
+# System prompt đầy đủ (CLAUDE.md ≈10k token) không vừa cửa sổ Ollama Local mặc định.
+# Việc nền chỉ cần vài luật ngắn + đường vault; nội dung nhiệm vụ nằm ở user prompt.
+_OLLAMA_LOCAL_AUX_SYS_MAX = 4000  # ký tự ≈ 1–1.5k token
+
+
+def _compact_ollama_local_sys(sysprompt: str, vault_root=None) -> str:
+    """Rút system prompt việc nền khi chạy Ollama Local - tránh vượt num_ctx."""
+    short = (
+        "Bạn là Javis, trợ lý đang chạy việc nền (nhắc hẹn / loop / Kanban).\n"
+        "Làm đúng việc được giao trong lượt này. Dùng tool MCP nếu cần. "
+        "Trả lời ngắn, đúng sự thật, cùng ngôn ngữ người dùng. "
+        "Không bịa. Không hẹn sẽ báo lại sau.\n"
+    )
+    if vault_root:
+        short += f"Vault: {vault_root}\n"
+    raw = (sysprompt or "").strip()
+    if raw and len(raw) <= _OLLAMA_LOCAL_AUX_SYS_MAX:
+        return raw
+    return short
+
+
 class _ApiAuxEngine:
     """Engine việc nền chạy bằng provider API, mang hợp đồng của ClaudeSDK.
 
@@ -339,6 +360,10 @@ class _ApiAuxEngine:
 
         messages = []
         sysprompt = self.system_prompt or ""
+        # Ollama Local mặc định chỉ 4k ctx; CLAUDE.md Javis đã ~10k token. Gửi nguyên system
+        # prompt → 400 exceed_context_size dù đã nâng num_ctx. Rút gọn cho việc nền local.
+        if self.provider == "ollama-local":
+            sysprompt = _compact_ollama_local_sys(sysprompt, self.vault_root)
         # Khai THẬT năng lực của engine này. Không có dòng này, model chỉ thấy "gọi tool X
         # không được" rồi tự dựng một lý do nghe hợp lý mà sai - hay gặp nhất là đổ cho quyền
         # ("phiên này bị chặn quyền"), khiến chủ đi sửa mức quyền trong khi mức quyền không hề
