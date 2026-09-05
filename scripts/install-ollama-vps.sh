@@ -84,6 +84,13 @@ fi
 
 # Bảng ứng viên: model | size_gb (ước lượng q4) | ram_min_gb | ghi chú
 # Xếp mạnh → yếu. Script chọn cái MẠNH NHẤT còn vừa đĩa + RAM.
+#
+# Quy tắc nhanh (không GPU, để ~2GB cho OS+Javis):
+#   ~6GB RAM  → tối đa ~4B
+#   ~12GB RAM → tối đa ~8B   (gói 6 vCPU / 12GB / 60GB NVMe)
+#   ~16GB RAM → ~14B
+#   ~32GB RAM → ~32B
+#   ~48GB+GPU → ~70B
 pick_model() {
   local free_gb="$1" ram_gb="$2" has_gpu="$3" min_free="$4"
   local budget
@@ -105,9 +112,9 @@ pick_model() {
     "qwen3:14b|9.3|12|Cân bằng tốt máy 16GB"
     "deepseek-r1:14b|9|12|Suy luận vừa"
     "phi4:14b|9.1|12|Logic/toán"
-    "qwen3:8b|5.2|6|Nhẹ-vừa, hợp VPS phổ thông"
-    "llama3.1:8b|4.9|6|Phổ thông Meta"
-    "deepseek-r1:8b|5.2|6|Suy luận nhẹ"
+    "qwen3:8b|5.2|6|Mạnh nhất vừa VPS 12GB (không GPU)"
+    "llama3.1:8b|4.9|6|Phổ thông Meta 8B"
+    "deepseek-r1:8b|5.2|6|Suy luận nhẹ 8B"
     "qwen3:4b-instruct|2.5|2|Nhẹ, còn dùng được"
     "llama3.2:3b|2.0|2|Rất nhẹ"
     "qwen2.5:1.5b|1.0|1|Siêu nhẹ - VPS đĩa/RAM chật"
@@ -222,8 +229,29 @@ else
 fi
 
 echo
+echo "==> Dọn model nhỏ hơn đã kéo trước (giữ $CHOSEN, lấy lại đĩa)"
+# Chỉ xoá bản siêu nhẹ/nhẹ khi đã có model mạnh hơn - tránh chiếm đĩa 60GB.
+_weak=(
+  "llama3.2:1b" "qwen2.5:1.5b" "llama3.2:3b" "qwen3:4b" "qwen3:4b-instruct"
+)
+case "$CHOSEN" in
+  *70b*|*72b*|*32b*|*30b*|*27b*|*24b*|*14b*|*8b*)
+    for _m in "${_weak[@]}"; do
+      [ "$_m" = "$CHOSEN" ] && continue
+      if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$_m"; then
+        echo "  - gỡ $_m"
+        ollama rm "$_m" 2>/dev/null || true
+      fi
+    done
+    ;;
+esac
+
+echo
 echo "==> Model đã cài"
 ollama list || true
+FREE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
+FREE_GB=$(awk -v k="$FREE_KB" 'BEGIN { printf "%.1f", k/1024/1024 }')
+echo "Đĩa trống sau kéo/dọn: ${FREE_GB} GB"
 
 echo
 echo "==> Trỏ Javis container sang Ollama local"
