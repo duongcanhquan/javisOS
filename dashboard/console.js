@@ -2882,6 +2882,8 @@
   }
 
   // ---- Trang Models: (A) Main Model + (B) Providers ----
+  let _modelsTab = "on";   // "on" | "off" - giữ tab khi render lại
+
   async function renderModels(el) {
     el.innerHTML = `<div class="cview-placeholder"><div class="ph-ico">${ic("loader", { cls: "ic-xl ic-spin" })}</div><div>Đang tải...</div></div>`;
     const s = await freshSettings();
@@ -2901,6 +2903,8 @@
     const provList = providers.map((p, i) => ({ p, i }))
       .sort((a, b) => (provOn(b.p) - provOn(a.p)) || (a.i - b.i))
       .map(x => x.p);
+    const onList = provList.filter(provOn);
+    const offList = provList.filter(p => !provOn(p));
     const mainP = providers.find(p => p.id === main.provider) || {};
     const auxCfg = m.auxiliary || {};
     const aux = auxCfg.model || "";
@@ -2946,7 +2950,7 @@
         const st = on
           ? "● Đã kết nối" + (p.plan ? " · " + esc(p.plan) : "") + " · " + p.models.length + " model"
           : "○ Chưa kết nối · " + p.models.length + " model";
-        return `<div class="prov-card ${p.is_main ? "main" : ""}">
+        return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "Device code", st)}
           ${cliWarn("codex")}
           <div class="prov-action" style="flex-wrap:wrap">
@@ -2954,7 +2958,7 @@
               ? `<button class="gcard-btn ghost" data-oauth-disc="1">Ngắt</button>`
               : `<button class="gcard-btn" data-oauth-login="1">Đăng nhập ChatGPT</button>
                  <button class="gcard-btn ghost" data-oauth-browser="1">Qua trình duyệt</button>`}
-            <span id="oauthMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:220px"></span>
+            <span id="oauthMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:160px"></span>
           </div>
         </div>`;
       }
@@ -2970,22 +2974,45 @@
           ? "● Đã đăng nhập" + (p.auth_method ? " · " + esc(p.auth_method) : "")
             + " · " + p.models.length + " model"
           : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài Antigravity CLI");
-        return `<div class="prov-card ${p.is_main ? "main" : ""}">
+        return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "MCP/skill", st)}
-          <div class="prov-note">Dùng <b>gói Google của bạn</b>, không cần mua API key. Đây là
-            bản Google chỉ định thay cho Gemini CLI, và cho chọn <b>đúng dàn model của
-            Antigravity IDE</b> - gồm cả model không phải của Google.</div>
+          <div class="prov-note">Gói Google sẵn có - đúng dàn model Antigravity IDE (kể cả Claude). Không cần API key.</div>
           ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>Chưa thấy CLI trên máy. Cài một lần trên máy chạy Javis:<br><code>${esc(p.cai_lenh || "")}</code></div>
+            <div>Cài: <code>${esc(p.cai_lenh || "")}</code></div>
           </div>`}
           ${on ? "" : `<div class="prov-steps">
-            <div><b>Đăng nhập trong terminal của máy chạy Javis:</b> <code>${esc(dn.dang_nhap || "agy")}</code></div>
-            <div>${esc(dn.ghi_chu || "")}</div>
-            <div>Xong rồi bấm <b>Kiểm tra lại</b> ở dưới.</div>
+            <div>Đăng nhập trên máy chạy Javis: <code>${esc(dn.dang_nhap || "agy")}</code> rồi bấm Kiểm tra lại.</div>
+            ${dn.ghi_chu ? `<div class="dim">${esc(dn.ghi_chu)}</div>` : ""}
           </div>`}
           <div class="prov-action" style="flex-wrap:wrap">
             <button class="gcard-btn ghost" data-agycheck="1">Kiểm tra lại</button>
-            <span id="agyMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:200px">${on ? "" : esc(p.auth_error || "")}</span>
+            <span id="agyMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:140px">${on ? "" : esc(p.auth_error || "")}</span>
+          </div>
+        </div>`;
+      }
+      if (p.id === "copilot-cli") {
+        // GitHub Copilot CLI: dùng gói Copilot (subscription), không dán API key. Đăng nhập
+        // bằng `copilot login` hoặc token env trên máy chạy Javis - thẻ chỉ Kiểm tra lại.
+        const dn = p.dang_nhap || {};
+        const st = on
+          ? "● Đã đăng nhập" + (p.auth_method ? " · " + esc(p.auth_method) : "")
+            + " · " + p.models.length + " model"
+          : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài GitHub Copilot CLI");
+        return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
+          ${provHead(p, on, "MCP/skill", st)}
+          <div class="prov-note">Dùng <b>gói Copilot sẵn có</b> qua binary <code>copilot</code>. Không dán API key.</div>
+          ${p.cli_found ? "" : `<div class="prov-steps">
+            <div>Cài: <code>${esc(p.cai_lenh || "npm install -g @github/copilot")}</code></div>
+            ${dn.cai_shell ? `<div>Hoặc: <code>${esc(dn.cai_shell)}</code></div>` : ""}
+          </div>`}
+          ${on ? "" : `<div class="prov-steps">
+            <div>Đăng nhập trên máy chạy Javis: <code>${esc(dn.dang_nhap || "copilot login")}</code> rồi bấm Kiểm tra lại.</div>
+            <div>Hoặc đặt <code>COPILOT_GITHUB_TOKEN</code> (cũng nhận <code>GH_TOKEN</code> / <code>GITHUB_TOKEN</code>).</div>
+            ${dn.ghi_chu ? `<div class="dim">${esc(dn.ghi_chu)}</div>` : ""}
+          </div>`}
+          <div class="prov-action" style="flex-wrap:wrap">
+            <button class="gcard-btn ghost" data-copilotcheck="1">Kiểm tra lại</button>
+            <span id="copilotMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:140px">${on ? "" : esc(p.auth_error || "")}</span>
           </div>
         </div>`;
       }
@@ -2998,27 +3025,19 @@
           ? "● Đã đăng nhập Google" + (p.account ? " · " + esc(p.account) : "")
             + (p.auth_method ? " · " + esc(p.auth_method) : "") + " · " + p.models.length + " model"
           : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài Gemini CLI");
-        return `<div class="prov-card ${p.is_main ? "main" : ""}">
+        return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "MCP/skill", st)}
-          <div class="prov-note warn"><b>Google đã ngắt đường này với tài khoản cá nhân từ 18/06/2026</b>
-            - cả gói miễn phí, Google AI Pro lẫn Ultra. Đăng nhập vẫn xong nhưng lúc chat sẽ báo
-            <code>IneligibleTierError</code>. Chặn từ phía Google, không sửa được bên Javis.
-            Thẻ này giờ chỉ còn dùng được với <b>giấy phép Code Assist doanh nghiệp</b> hoặc khi
-            chạy CLI bằng API key.</div>
-          <div class="prov-steps">
-            <div><b>Muốn dùng model Gemini thì đi đường khác:</b> thẻ <b>OpenRouter</b> (nhiều model
-              một chỗ, có cả Gemini lẫn Claude - gần nhất với trình chọn model của Antigravity),
-              hoặc thẻ <b>Google Gemini (API)</b> bên dưới.</div>
-          </div>
+          <div class="prov-note warn"><b>Google đã ngắt đường cá nhân từ 18/06/2026</b>
+            (<code>IneligibleTierError</code>). Dùng <b>Antigravity CLI</b>, OpenRouter hoặc Gemini API.</div>
           ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>Chưa thấy CLI trên máy. Cài tay: <code>npm install -g @google/gemini-cli</code></div>
+            <div>Cài: <code>npm install -g @google/gemini-cli</code></div>
           </div>`}
           <div class="prov-action" style="flex-wrap:wrap">
             ${on
               ? (p.auth_by_javis ? `<button class="gcard-btn ghost" data-glogout="1">Ngắt</button>` : "")
               : `<button class="gcard-btn" data-glogin="1">Đăng nhập Google</button>`}
             <button class="gcard-btn ghost" data-gcheck="1">Kiểm tra lại</button>
-            <span id="gcliMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:200px">${on ? "" : esc(p.auth_error || "")}</span>
+            <span id="gcliMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:140px">${on ? "" : esc(p.auth_error || "")}</span>
           </div>
           <div id="gcliLogin"></div>
         </div>`;
@@ -3028,7 +3047,7 @@
         // phiên cũ); khác nhau ở chỗ ai trả tiền và ai chịu rủi ro. Javis cố ý không tắt cứng
         // đường subscription - chủ máy tự cân, nhưng phải cân khi đã BIẾT, nên có cảnh báo.
         const byKey = p.auth_mode === "api_key";
-        return `<div class="prov-card ${p.is_main ? "main" : ""}">
+        return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
           <div class="prov-head">
             <span class="prov-shield on">${_shield(true)}</span>
             <div class="prov-info">
@@ -3039,73 +3058,105 @@
           </div>
           ${cliWarn("claude")}
           <div class="prov-action" id="cliAction"></div>
-          <div class="prov-auth">
-            <div class="prov-auth-title">Chạy bằng</div>
-            <div class="prov-auth-note">Ô này chỉ đổi <b>ai trả tiền</b>. Cả hai đều chạy qua
-              Claude Code nên <b>giữ nguyên lệnh máy, WebFetch, MCP native và nối phiên cũ</b> -
-              khác hẳn thẻ "Anthropic (API)" bên dưới, thẻ đó gọi API thẳng nên không chạy được
-              lệnh máy.</div>
-            <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="subscription" ${byKey ? "" : "checked"}>
-              <span><b>Gói đang đăng nhập</b> - không tốn thêm tiền. Hợp với một người dùng cá nhân ngồi gõ.</span></label>
-            <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="api_key" ${byKey ? "checked" : ""}>
-              <span><b>API key Anthropic</b> - trả theo lượt dùng. Đây là cách duy nhất để việc nền
-              (loop, nhắc hẹn, Kanban) chạy <b>vừa hợp lệ vừa còn lệnh máy</b>.
-              ${p.auth_api_key_set ? "" : ` <i>Chưa có key: dán ở thẻ "${esc("Anthropic (API)")}" bên dưới - dán xong quay lại đây chọn ô này.</i>`}</span></label>
-            ${p.auth_warning ? `<div class="prov-auth-warn">${WARN_ICON} ${esc(p.auth_warning)}</div>` : ""}
-          </div>
+          <details class="prov-auth-wrap"${byKey ? " open" : ""}>
+            <summary>Chạy bằng gói đăng nhập hay API key</summary>
+            <div class="prov-auth">
+              <div class="prov-auth-note">Chỉ đổi <b>ai trả tiền</b>. Cả hai vẫn qua Claude Code (lệnh máy, WebFetch, MCP).</div>
+              <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="subscription" ${byKey ? "" : "checked"}>
+                <span><b>Gói đang đăng nhập</b> - không tốn thêm tiền.</span></label>
+              <label class="prov-auth-opt"><input type="radio" name="claudeAuth" value="api_key" ${byKey ? "checked" : ""}>
+                <span><b>API key Anthropic</b> - hợp việc nền.
+                ${p.auth_api_key_set ? "" : ` <i>Chưa có key: dán ở thẻ Anthropic (API).</i>`}</span></label>
+              ${p.auth_warning ? `<div class="prov-auth-warn">${WARN_ICON} ${esc(p.auth_warning)}</div>` : ""}
+            </div>
+          </details>
         </div>`;
       }
       const masked = (m[KEYFIELD[p.id]] || "").slice(-4);
-      return `<div class="prov-card ${p.is_main ? "main" : ""}">
+      return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
         ${provHead(p, on, p.kind === "cli" ? "MCP/skill" : "MCP Javis", (on ? "● Đã kết nối" : "○ Chưa kết nối") + " · " + p.models.length + " model")}
         ${p.needs_key
-          ? `<div class="prov-action"><input class="js-input" id="pk-${p.id}" type="password" placeholder="${on ? "Đổi key (•••" + esc(masked) + ")" : "Dán API key để kết nối"}"><button class="gcard-btn" data-pk="${p.id}">${on ? "Đổi key" : "Kết nối"}</button>${on ? `<button class="gcard-btn ghost" data-disc="${p.id}">Ngắt</button>` : ""}</div>`
+          ? `<div class="prov-action"><input class="js-input" id="pk-${p.id}" type="password" placeholder="${on ? "Đổi key (•••" + esc(masked) + ")" : "Dán API key"}"><button class="gcard-btn" data-pk="${p.id}">${on ? "Đổi key" : "Kết nối"}</button>${on ? `<button class="gcard-btn ghost" data-disc="${p.id}">Ngắt</button>` : ""}</div>`
           : `<div class="prov-note">Dùng đăng nhập Claude Code - không cần key</div>`}
       </div>`;
     };
 
+    const tab = (_modelsTab === "off" && offList.length) || (!onList.length && offList.length)
+      ? "off"
+      : "on";
+    _modelsTab = tab;
+    const mainCap = mainP.id === "gemini-cli" ? "Gemini CLI · MCP + skill + lệnh máy"
+      : mainP.id === "antigravity-cli" ? "Antigravity CLI · MCP + skill + lệnh máy"
+      : mainP.id === "copilot-cli" ? "GitHub Copilot CLI · MCP + skill + lệnh máy"
+      : mainP.kind === "cli" ? "Claude Code · MCP + skill + lệnh máy"
+      : mainP.kind === "oauth" ? "Codex · MCP + skill + lệnh máy"
+      : mainP.kind === "api" ? "API · MCP + skill (không lệnh máy)" : "";
+
     el.innerHTML = `
-      <div class="cview-section">
-        <h3>◆ Main Model <span style="opacity:.5">model chính cho hội thoại</span></h3>
-        <div class="gcard current" style="max-width:540px">
-          <div class="gcard-top"><span class="gcard-name">${esc(main.model || "-")}</span><span class="gcard-tag">${esc(mainP.label || main.provider || "")}</span></div>
-          <div class="gcard-meta">${mainP.id === "gemini-cli" ? "Qua Gemini CLI - MCP Javis + skill + loop + chạy lệnh máy (đăng nhập Google)"
-            : mainP.kind === "cli" ? "Qua Claude Code - MCP Javis + skill + loop + chạy lệnh máy"
-            : mainP.kind === "oauth" ? "Qua Codex - MCP Javis + skill + loop + chạy lệnh máy"
-            : mainP.kind === "api" ? "Gọi API thẳng - MCP Javis + skill + loop (không chạy lệnh máy)" : ""}</div>
-          <button class="gcard-btn" id="mdChange">Đổi model ▾</button>
-        </div>
-      </div>
-      <div class="cview-section">
-        <h3>◆ Providers <span style="opacity:.5">đăng nhập / kết nối nhà cung cấp model</span></h3>
-        <div class="prov-list">${provList.map(provCard).join("")}</div>
-      </div>
-      <div class="cview-section">
-        <h3>◆ Model việc nền <span style="opacity:.5">loop · việc Kanban · nhắc hẹn · tự học</span></h3>
-        <div class="gcard aux-card">
-          <div class="gcard-meta">Model chạy việc nền. Chọn model rẻ để đỡ hạn mức Claude.</div>
-          <div class="aux-now">
-            <div class="aux-now-txt">
-              <div class="aux-now-model">${aux ? esc(aux) : "Mặc định của Claude Code"}</div>
-              <div class="aux-now-prov">${aux ? esc(auxProvDef.label || auxProv) : "dùng model mặc định"}</div>
+      <div class="md-page">
+        <header class="jx-page-head">
+          <div><h2 class="jx-page-title">Models</h2>
+          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp.</p></div>
+        </header>
+        <div class="jx-split-2 md-top-grid">
+          <section class="cview-section jx-pane">
+            <h3>Model chính</h3>
+            <div class="gcard current md-main-card">
+              <div class="gcard-top"><span class="gcard-name">${esc(main.model || "-")}</span><span class="gcard-tag">${esc(mainP.label || main.provider || "")}</span></div>
+              <div class="gcard-meta">${esc(mainCap)}</div>
+              <button class="gcard-btn" id="mdChange">Đổi model ▾</button>
             </div>
-            <div class="aux-now-act">
-              ${aux ? '<button class="gcard-btn ghost" id="auxReset">Về mặc định</button>' : ""}
-              <button class="gcard-btn" id="auxChange">Đổi model ▾</button>
+            <div class="gcard aux-card md-aux-card" style="margin-top:10px">
+              <div class="gcard-meta" style="margin:0 0 6px"><b>Việc nền</b> · loop · Kanban · nhắc hẹn</div>
+              <div class="aux-now" style="margin-top:0">
+                <div class="aux-now-txt">
+                  <div class="aux-now-model">${aux ? esc(aux) : "Mặc định Claude Code"}</div>
+                  <div class="aux-now-prov">${aux ? esc(auxProvDef.label || auxProv) : "model mặc định"}</div>
+                </div>
+                <div class="aux-now-act">
+                  ${aux ? '<button class="gcard-btn ghost" id="auxReset">Mặc định</button>' : ""}
+                  <button class="gcard-btn" id="auxChange">Đổi ▾</button>
+                </div>
+              </div>
+              ${auxReady ? "" : `<div class="aux-note warn">${WARN_ICON} Provider chưa kết nối - việc nền tự về Claude.</div>`}
             </div>
-          </div>
-          ${auxReady ? "" : `<div class="aux-note warn">${WARN_ICON} Nhà cung cấp này chưa kết nối - việc nền sẽ tự dùng lại Claude.</div>`}
-          <div class="aux-note">Claude Code và Codex chạy được lệnh máy. Model API chỉ đọc/ghi qua vault - hợp việc đọc, tổng hợp, ghi chú.</div>
+          </section>
+          <section class="cview-section jx-pane">
+            <h3>Độ sâu suy nghĩ</h3>
+            <div class="gcard aux-card">
+              <div class="gcard-meta">Càng sâu càng chính xác, chậm và tốn token hơn.</div>
+              <div class="seg">${reasonChips}</div>
+              <div class="aux-note">Một số nhà cung cấp chỉ nhận 3 nấc; hai nấc trên có thể giống nhau.</div>
+            </div>
+          </section>
         </div>
-      </div>
-      <div class="cview-section">
-        <h3>◆ Độ sâu suy nghĩ <span style="opacity:.5">nghĩ kỹ hơn trước khi trả lời</span></h3>
-        <div class="gcard aux-card">
-          <div class="gcard-meta">Nghĩ càng sâu càng chính xác, nhưng chậm và tốn token hơn.</div>
-          <div class="seg">${reasonChips}</div>
-          <div class="aux-note">Nhiều nhà cung cấp chỉ nhận 3 nấc, nên hai nấc trên cùng có thể như nhau ở đó. OpenAI cần model o-series, Gemini cần 2.5 trở lên.</div>
+        <div class="jx-tabs" role="tablist" aria-label="Providers">
+          <button type="button" class="jx-tab${tab === "on" ? " on" : ""}" role="tab" data-mtab="on"
+            aria-selected="${tab === "on"}">${ic("check")} Đã kết nối <span class="jx-tab-n">${onList.length}</span></button>
+          <button type="button" class="jx-tab${tab === "off" ? " on" : ""}" role="tab" data-mtab="off"
+            aria-selected="${tab === "off"}">${ic("plug")} Chưa kết nối <span class="jx-tab-n">${offList.length}</span></button>
         </div>
+        <section class="cview-section md-pane${tab === "on" ? " on" : ""}" id="mdPaneOn" role="tabpanel"${tab === "on" ? "" : " hidden"}>
+          <div class="prov-grid">${onList.length ? onList.map(provCard).join("") : '<div class="mp-empty jx-empty">Chưa có provider nào sẵn sàng. Mở tab <b>Chưa kết nối</b> để đăng nhập / dán key.</div>'}</div>
+        </section>
+        <section class="cview-section md-pane${tab === "off" ? " on" : ""}" id="mdPaneOff" role="tabpanel"${tab === "off" ? "" : " hidden"}>
+          <div class="prov-grid">${offList.length ? offList.map(provCard).join("") : '<div class="mp-empty jx-empty">Tất cả provider đã kết nối.</div>'}</div>
+        </section>
       </div>`;
+
+    const setMTab = (name) => {
+      _modelsTab = name === "off" ? "off" : "on";
+      const onP = el.querySelector("#mdPaneOn");
+      const offP = el.querySelector("#mdPaneOff");
+      el.querySelectorAll(".jx-tab[data-mtab]").forEach(t => {
+        const on = t.dataset.mtab === _modelsTab;
+        t.classList.toggle("on", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      if (onP) { onP.hidden = _modelsTab !== "on"; onP.classList.toggle("on", _modelsTab === "on"); }
+      if (offP) { offP.hidden = _modelsTab !== "off"; offP.classList.toggle("on", _modelsTab === "off"); }
+    };
+    el.querySelectorAll("[data-mtab]").forEach(b => b.onclick = () => setMTab(b.dataset.mtab));
 
     const chg = document.getElementById("mdChange");
     if (chg) chg.onclick = () => openModelPicker(provList, main, () => renderModels(el));
@@ -3140,6 +3191,7 @@
         const val = (inp && inp.value || "").trim();
         if (!val) { if (inp) inp.focus(); return; }
         b.disabled = true; b.textContent = "Đang lưu...";
+        _modelsTab = "on";
         await saveSetting("model", { [KEYFIELD[pid]]: val });
         renderModels(el);
       };
@@ -3177,6 +3229,7 @@
       if (r && r.ok) {
         if (msg) msg.innerHTML = OK_ICON + " Dùng được.";
         _daHoiModel.delete("gemini-cli");
+        _modelsTab = "on";
         setTimeout(() => renderModels(el), 700);
       } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || "Chưa dùng được.");
     };
@@ -3192,6 +3245,23 @@
       if (r && r.ok) {
         if (msg) msg.innerHTML = OK_ICON + " Dùng được.";
         _daHoiModel.delete("antigravity-cli");
+        _modelsTab = "on";
+        setTimeout(() => renderModels(el), 700);
+      } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || "Chưa dùng được.");
+    };
+    const cpk = el.querySelector("[data-copilotcheck]");
+    if (cpk) cpk.onclick = async () => {
+      const msg = el.querySelector("#copilotMsg");
+      cpk.disabled = true; const cu3 = cpk.textContent; cpk.textContent = "Đang thử…";
+      if (msg) msg.textContent = "Đang chạy thử một lượt thật…";
+      let r = null;
+      try { r = await (await fetch("/copilot/check", { method: "POST" })).json(); }
+      catch (e) { r = { ok: false, error: "Lỗi mạng." }; }
+      cpk.disabled = false; cpk.textContent = cu3;
+      if (r && r.ok) {
+        if (msg) msg.innerHTML = OK_ICON + " Dùng được.";
+        _daHoiModel.delete("copilot-cli");
+        _modelsTab = "on";
         setTimeout(() => renderModels(el), 700);
       } else if (msg) msg.innerHTML = Icons.warn((r && r.error) || "Chưa dùng được.");
     };
@@ -3594,6 +3664,7 @@
   // Nhãn cách đăng nhập bằng tiếng người - dân thường không cần biết OAuth là gì
   const AUTH_BADGE = { apikey: "Dán key", qr: "Quét QR", oauth: "Đăng nhập tài khoản", none: "Bấm là xong" };
   let _connPoll = null;
+  let _connTab = "live";   // "live" | "catalog" - giữ tab khi render lại
 
   function closeConnModal() {
     const m = document.getElementById("connectModal");
@@ -3703,20 +3774,20 @@
       go.disabled = true; go.textContent = "Đang kiểm tra…";
       await postJson("/connect/update", { id: c.id, fields: fields });
       const r = await postJson("/connect/health/check", { id: c.id });
-      if (r && r.ok) { closeConnModal(); renderConnect(el); return; }
+      if (r && r.ok) { closeConnModal(); _connTab = "live"; renderConnect(el); return; }
       go.disabled = false; go.textContent = "Lưu và kiểm tra";
       m.querySelector("#rkErr").innerHTML = Icons.warn((r && r.message) || "Vẫn chưa kết nối được.");
     };
   }
   function connectorCard(con, conns) {
+    const nOn = conns.filter(c => c.enabled).length;
     const chips = conns.map(connChip).join("")
-      + '<button class="conn-chip add" data-addacc="' + esc(con.id) + '">＋ Thêm tài khoản</button>';
-    return '<div class="prov-card conn-card gx-orbit">'
-      + '<div class="prov-head"><span class="conn-ico">' + iconInner(con) + '</span>'
-      + '<div class="prov-info"><div class="prov-name">' + esc(con.name || con.id) + '</div>'
-      + '<div class="prov-status">' + esc(con.description || "") + '</div>'
-      + (con.guide_url ? '<a class="cat-doc" href="' + esc(safeHref(con.guide_url))
-          + '" target="_blank" rel="noopener">Hướng dẫn trên GitHub ↗</a>' : "")
+      + '<button class="conn-chip add" data-addacc="' + esc(con.id) + '" title="Thêm tài khoản">＋</button>';
+    return '<div class="prov-card conn-card conn-card-sm gx-orbit">'
+      + '<div class="prov-head conn-head-sm"><span class="conn-ico">' + iconInner(con) + '</span>'
+      + '<div class="prov-info"><div class="prov-name">' + esc(con.name || con.id)
+      + ' <span class="gx-count">' + nOn + '/' + conns.length + '</span></div>'
+      + '<div class="prov-status conn-status-sm">Bấm tài khoản để Test · quyền · xoá</div>'
       + '</div></div>'
       + '<div class="conn-accounts">' + chips + '</div>'
       + '</div>';
@@ -3735,12 +3806,12 @@
       const meta = GROUP_META[g] || { name: g, icon: ic("plug"), category: "Khác", desc: "" };
       const ids = byGroup[g].map(c => c.id);
       const nConn = (conns || []).filter(x => ids.includes(x.connector_id)).length;
-      return '<div class="cat-card gx-node" data-cat="' + esc(meta.category) + '">'
-        + '<div class="cat-ico">' + meta.icon + '</div>'
+      return '<div class="cat-card cat-card-sm gx-node" data-cat="' + esc(meta.category) + '">'
+        + '<div class="cat-top"><div class="cat-ico">' + meta.icon + '</div>'
         + '<div class="cat-name">' + esc(meta.name) + ' <span class="prov-kind">' + byGroup[g].length + ' dịch vụ</span>'
-        + (nConn ? ' <span class="prov-kind" style="color:var(--green)">đã nối ' + nConn + '</span>' : "") + '</div>'
+        + (nConn ? ' <span class="prov-kind" style="color:var(--green)">đã nối ' + nConn + '</span>' : "") + '</div></div>'
         + '<div class="cat-desc">' + esc(meta.desc) + '</div>'
-        + '<button class="gcard-btn gx-gate" data-groupopen="' + esc(g) + '">Chọn dịch vụ</button>'
+        + '<div class="cat-actions"><button class="gcard-btn gx-gate" data-groupopen="' + esc(g) + '">Chọn dịch vụ</button></div>'
         + '</div>';
     }).join("");
   }
@@ -3775,17 +3846,18 @@
     const badge = '<span class="prov-kind">' + (AUTH_BADGE[con.auth_type] || con.auth_type || "") + '</span>'
       + (con.status === "beta" ? ' <span class="prov-kind" style="color:var(--warn-ink)">beta</span>' : "")
       + (soon ? ' <span class="prov-kind">sắp có</span>' : "");
-    return '<div class="cat-card gx-node' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
-      + '<div class="cat-ico">' + iconInner(con) + '</div>'
-      + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div>'
+    return '<div class="cat-card cat-card-sm gx-node' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
+      + '<div class="cat-top"><div class="cat-ico">' + iconInner(con) + '</div>'
+      + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div></div>'
       + '<div class="cat-desc">' + esc(con.description || "") + '</div>'
+      + '<div class="cat-actions">'
       + (soon
         ? '<button class="gcard-btn" disabled style="opacity:.5">Sắp có</button>'
           + (con.guide_url ? ' <a class="cat-doc" href="' + esc(con.guide_url) + '" target="_blank">docs ↗</a>' : "")
-        : '<button class="gcard-btn gx-gate" data-connect="' + esc(con.id) + '">Mở cổng</button>'
+        : '<button class="gcard-btn gx-gate" data-connect="' + esc(con.id) + '">Kết nối</button>'
           + (con.guide_url ? ' <a class="cat-doc" href="' + esc(safeHref(con.guide_url))
-              + '" target="_blank" rel="noopener">Hướng dẫn ↗</a>' : ""))
-      + '</div>';
+              + '" target="_blank" rel="noopener">Hướng dẫn</a>' : ""))
+      + '</div></div>';
   }
 
   function openAddFlow(el, con, isFirst, ctx) {
@@ -3832,7 +3904,7 @@
       m.querySelector(".conn-form").innerHTML = '<div class="conn-ok">' + CHECK_ICON + ' Đã kết nối: <b>' + esc(r.label || con.name) + '</b> (' + (r.tools || 0) + ' công cụ)'
         + (isFirst ? '<div class="conn-hint">Sang trang Javis hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
       go.style.display = "none";
-      setTimeout(() => { closeConnModal(); renderConnect(el); }, 1600);
+      setTimeout(() => { closeConnModal(); _connTab = "live"; renderConnect(el); }, 1600);
     };
   }
 
@@ -3867,7 +3939,7 @@
           clearInterval(_connPoll); _connPoll = null;
           zone.innerHTML = '<div class="conn-ok">' + CHECK_ICON + ' Đã đăng nhập: <b>' + esc(st.label || "Zalo") + '</b>'
             + (isFirst ? '<div class="conn-hint">Sang trang Javis nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
-          setTimeout(() => { closeConnModal(); renderConnect(el); }, 1800);
+          setTimeout(() => { closeConnModal(); _connTab = "live"; renderConnect(el); }, 1800);
         } else if (st.state === "error") {
           clearInterval(_connPoll); _connPoll = null;
           zone.innerHTML = "";
@@ -4190,13 +4262,15 @@
     // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
     // Gemini) đi native hoặc hub; provider API đi qua vòng gọi tool + hub. Antigravity/Gemini
     // CLI từng rơi vào nhánh vàng vì thiếu ở đây dù server đã gắn hub (_apply_antigravity_hub).
-    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"];
+    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local", "copilot-cli"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
       warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
     } else if (main.provider === "antigravity-cli") {
       warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Antigravity CLI</b> (<code>agy</code>) dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Không có WebSearch sẵn như Claude Code - tra web phải qua MCP đã đấu (vd Search Console cho SEO site của bạn).</div></div>`;
+    } else if (main.provider === "copilot-cli") {
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>GitHub Copilot CLI</b> dùng gói Copilot qua binary <code>copilot</code> - kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy (không dán API key).</div></div>`;
     } else if (main.provider === "gemini-cli") {
       warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Gemini CLI</b> dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Google đã ngắt hạng cá nhân 18/06/2026 - nên dùng <b>Antigravity CLI</b> nếu còn lỗi đăng nhập.</div></div>`;
     } else if (!MCP_PROVIDERS.includes(main.provider)) {
@@ -4209,35 +4283,68 @@
     const connectedHtml = Object.keys(groups).map(cid =>
       connectorCard(byId[cid] || { id: cid, name: cid, icon: "plug" }, groups[cid])).join("");
     const cats = Array.from(new Set(cat.map(c => c.category || "Khác")));
-    el.innerHTML = '<div class="galaxy-nexus" id="galaxyNexus">'
+    const nLive = conns.length;
+    const nCat = cat.filter(c => c.status !== "soon").length + 1; // + custom
+    // Chưa có kết nối: mở tab dịch vụ. Đã có / vừa nối xong: giữ tab user chọn (mặc định Đã kết nối).
+    const active = nLive === 0 ? "catalog" : (_connTab === "catalog" ? "catalog" : "live");
+    _connTab = active;
+
+    el.innerHTML = '<div class="galaxy-nexus gx-compact" id="galaxyNexus">'
       + '<div class="gx-stars" aria-hidden="true"></div>'
       + '<div class="gx-nebula" aria-hidden="true"></div>'
       + '<div class="gx-vignette" aria-hidden="true"></div>'
-      + '<header class="gx-hero">'
-      + '<p class="gx-eyebrow">// NEXUS · EXTERNAL POWER</p>'
-      + '<h2 class="gx-title">Thiên hà kết nối</h2>'
-      + '<p class="gx-lead">Mỗi cổng mở là một quyền lực mới — và một rủi ro. Chỉ nối những gì bạn kiểm soát được.</p>'
+      + '<header class="gx-hero gx-hero-sm">'
+      + '<div class="gx-hero-row">'
+      + '<div><h2 class="gx-title gx-title-sm">Kết nối</h2>'
+      + '<p class="gx-lead gx-lead-sm">Quản lý tài khoản đã nối và thêm dịch vụ mới.</p></div>'
       + '<div class="gx-stats">'
-      + '<span class="gx-stat"><b>' + conns.length + '</b> tài khoản đang sống</span>'
-      + '<span class="gx-stat gx-stat-danger"><b>' + cat.filter(c => c.status !== "soon").length + '</b> cổng trong kho</span>'
-      + '</div></header>'
+      + '<span class="gx-stat"><b>' + nLive + '</b> đã nối</span>'
+      + '<span class="gx-stat"><b>' + nCat + '</b> dịch vụ</span>'
+      + '</div></div></header>'
       + warn
-      + '<section class="cview-section gx-zone">'
-      + '<h3 class="gx-zone-h"><span class="gx-zone-mark" aria-hidden="true"></span> Đã kết nối <span class="gx-count">' + conns.length + '</span></h3>'
-      + '<div class="gcard-meta gx-zone-meta">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
-      + '<label class="gx-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label></div>'
-      + '<div class="prov-list gx-orbit-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty gx-empty">Chưa mở cổng nào — chọn một dịch vụ trong Kho bên dưới.</div>') + '</div></section>'
-      + '<section class="cview-section gx-zone">'
-      + '<h3 class="gx-zone-h"><span class="gx-zone-mark gx-zone-mark-hot" aria-hidden="true"></span> Kho kết nối</h3>'
-      + '<div class="cat-tools gx-tools"><input class="js-input gx-search" id="catQ" placeholder="Dò tìm dịch vụ trong thiên hà…">'
+      + '<div class="conn-tabs" role="tablist" aria-label="Kết nối">'
+      + '<button type="button" class="conn-tab' + (active === "live" ? " on" : "") + '" role="tab" aria-selected="' + (active === "live") + '" data-ctab="live">'
+      + ic("link") + ' Đã kết nối <span class="conn-tab-n">' + nLive + '</span></button>'
+      + '<button type="button" class="conn-tab' + (active === "catalog" ? " on" : "") + '" role="tab" aria-selected="' + (active === "catalog") + '" data-ctab="catalog">'
+      + ic("plus") + ' Dịch vụ kết nối <span class="conn-tab-n">' + nCat + '</span></button>'
+      + '</div>'
+      + '<section class="cview-section gx-zone gx-zone-sm conn-pane' + (active === "live" ? " on" : "") + '" id="connPaneLive" role="tabpanel"'
+      + (active === "live" ? "" : " hidden") + '>'
+      + '<div class="gx-zone-toolbar">'
+      + '<label class="gx-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis</label>'
+      + (nLive ? '<button type="button" class="gcard-btn ghost conn-goto-cat" data-ctab="catalog">' + ic("plus") + ' Thêm dịch vụ</button>' : "")
+      + '</div>'
+      + '<div class="conn-grid" id="connLiveGrid">'
+      + (connectedHtml || '<div class="mp-empty gx-empty conn-empty">Chưa có kết nối nào.<br><button type="button" class="gcard-btn gx-gate" data-ctab="catalog">Chọn dịch vụ để kết nối</button></div>')
+      + '</div></section>'
+      + '<section class="cview-section gx-zone gx-zone-sm conn-pane' + (active === "catalog" ? " on" : "") + '" id="connPaneCat" role="tabpanel"'
+      + (active === "catalog" ? "" : " hidden") + '>'
+      + '<div class="cat-tools gx-tools"><input class="js-input gx-search" id="catQ" placeholder="Tìm dịch vụ…">'
       + '<span class="cat-filter"><button class="cat-chip on" data-catf="">Tất cả</button>' + cats.map(x => '<button class="cat-chip" data-catf="' + esc(x) + '">' + esc(x) + '</button>').join("") + '</span></div>'
-      + '<div class="cat-grid gx-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div></section>'
-      + '<details class="cview-section amb-details gx-zone gx-ambient" id="ambWrap"><summary><h3 class="gx-zone-h" style="display:inline"><span class="gx-zone-mark" aria-hidden="true"></span> Kết nối sẵn Claude Code &amp; Codex <span class="gx-count">chỉ xem</span></h3></summary>'
-      + '<div class="gcard-meta gx-zone-meta" style="margin-top:10px">Nguồn đã đăng nhập trong Claude / Codex CLI. Bộ não tương ứng tự dùng được khi trạng thái Connected. Quản lý ngoài Javis.</div>'
-      + '<div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty gx-empty">Bấm để tải…</div></div>'
-      + '<div class="prov-list" id="mcpAmbientCodex" style="margin-top:12px"></div></details>'
+      + '<div class="cat-grid gx-grid conn-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div>'
+      + '<details class="amb-details gx-ambient" id="ambWrap"><summary class="amb-sum">Kết nối sẵn Claude Code &amp; Codex <span class="gx-count">chỉ xem</span></summary>'
+      + '<div class="gcard-meta gx-zone-meta" style="margin-top:8px">Nguồn đã đăng nhập trong CLI. Quản lý ngoài Javis.</div>'
+      + '<div class="prov-list" id="mcpAmbient" style="margin-top:10px"><div class="mp-empty gx-empty">Bấm để tải…</div></div>'
+      + '<div class="prov-list" id="mcpAmbientCodex" style="margin-top:10px"></div></details>'
+      + '</section>'
       + '</div>';
-    document.getElementById("mcpStrict").onchange = (e) => postJson("/mcp/strict", { strict: e.target.checked });
+
+    const setTab = (name) => {
+      _connTab = name === "catalog" ? "catalog" : "live";
+      const live = el.querySelector("#connPaneLive");
+      const catp = el.querySelector("#connPaneCat");
+      el.querySelectorAll(".conn-tab").forEach(t => {
+        const on = t.dataset.ctab === _connTab;
+        t.classList.toggle("on", on);
+        t.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      if (live) { live.hidden = _connTab !== "live"; live.classList.toggle("on", _connTab === "live"); }
+      if (catp) { catp.hidden = _connTab !== "catalog"; catp.classList.toggle("on", _connTab === "catalog"); }
+    };
+    el.querySelectorAll("[data-ctab]").forEach(b => b.onclick = () => setTab(b.dataset.ctab));
+
+    const strictEl = document.getElementById("mcpStrict");
+    if (strictEl) strictEl.onchange = (e) => postJson("/mcp/strict", { strict: e.target.checked });
     // Sức khoẻ kết nối: tô ngay khi mở trang + làm tươi mỗi 60s (tự dừng khi rời trang)
     clearInterval(_healthTimer);
     refreshConnHealth(el, conns, byId);
@@ -4253,7 +4360,8 @@
       if (c) openAccountMenu(el, c, byId[c.connector_id]);
     });
     const applyFilter = () => {
-      const q = (document.getElementById("catQ").value || "").toLowerCase();
+      const qEl = document.getElementById("catQ");
+      const q = ((qEl && qEl.value) || "").toLowerCase();
       const onChip = el.querySelector(".cat-chip.on");
       const cf = onChip ? (onChip.dataset.catf || "") : "";
       el.querySelectorAll("#catGrid .cat-card").forEach(card => {
@@ -4262,7 +4370,8 @@
         card.style.display = (okQ && okC) ? "" : "none";
       });
     };
-    document.getElementById("catQ").oninput = applyFilter;
+    const catQ = document.getElementById("catQ");
+    if (catQ) catQ.oninput = applyFilter;
     el.querySelectorAll(".cat-chip").forEach(ch => ch.onclick = () => {
       el.querySelectorAll(".cat-chip").forEach(x => x.classList.remove("on"));
       ch.classList.add("on");
@@ -4351,38 +4460,42 @@
     const tg = s.telegram || {};
     const zl = s.zalo_bot || {};
     el.innerHTML = `
-      <div class="cview-section">
-        <h3>Telegram</h3>
-        <div class="gcard" style="max-width:560px">
-          <label class="js-row"><span>Bật bot Telegram</span><input type="checkbox" id="tgEnabled" ${tg.enabled ? "checked" : ""}></label>
-          <label class="js-lbl">Bot token ${tg.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
-          <input class="js-input" id="tgToken" type="password" placeholder="${tg.token_set ? "Để trống nếu không đổi" : "Ví dụ: 123456:ABC..."}">
-          <label class="js-lbl">Chat ID được phép dùng <span class="dim">(nhiều ID cách nhau dấu phẩy - mỗi người /start bot rồi thêm ID vào đây)</span></label>
-          <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="Ví dụ: 123456789, 987654321">
-          <div class="js-actions"><button class="gcard-btn" id="tgSave">Lưu & bật</button><button class="gcard-btn ghost" id="tgTest">Gửi test</button></div>
-          <div class="gcard-meta" id="tgStatus"></div>
+      <div class="ch-page">
+        <header class="jx-page-head">
+          <div><h2 class="jx-page-title">Kênh</h2>
+          <p class="jx-page-lead">Bot chat với Javis từ điện thoại. Khác trang Kết nối (MCP thao tác hộp thư / Zalo cá nhân).</p></div>
+        </header>
+        <div class="jx-split-2 ch-split">
+          <section class="cview-section jx-pane">
+            <h3>Telegram</h3>
+            <div class="gcard ch-card">
+              <label class="js-row"><span>Bật bot Telegram</span><input type="checkbox" id="tgEnabled" ${tg.enabled ? "checked" : ""}></label>
+              <label class="js-lbl">Bot token ${tg.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
+              <input class="js-input" id="tgToken" type="password" placeholder="${tg.token_set ? "Để trống nếu không đổi" : "123456:ABC..."}">
+              <label class="js-lbl">Chat ID được phép <span class="dim">(cách nhau dấu phẩy)</span></label>
+              <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="123456789, 987654321">
+              <div class="js-actions"><button class="gcard-btn" id="tgSave">Lưu & bật</button><button class="gcard-btn ghost" id="tgTest">Gửi test</button></div>
+              <div class="gcard-meta" id="tgStatus"></div>
+            </div>
+          </section>
+          <section class="cview-section jx-pane">
+            <h3>${Icons.kenh("zalo", { size: "18px" })} Zalo Official</h3>
+            <div class="gcard ch-card">
+              <div class="gcard-meta" style="margin-bottom:8px">Bot OA để hỏi Javis. Khác <b>Zalo Agent MCP</b> (trang Kết nối) - cái kia là tài khoản cá nhân của bạn.</div>
+              <label class="js-row"><span>Bật bot Zalo</span><input type="checkbox" id="zlEnabled" ${zl.enabled ? "checked" : ""}></label>
+              <label class="js-lbl">Bot token ${zl.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
+              <input class="js-input" id="zlToken" type="password" placeholder="${zl.token_set ? "Để trống nếu không đổi" : "Token từ Zalo Bot Manager"}">
+              <div class="gcard-meta dim">App Zalo → OA <b>Zalo Bot Manager</b> → Tạo bot (tên bắt đầu bằng "Bot").</div>
+              <label class="js-lbl">Chat ID được phép <span class="dim">(hoặc Cho phép bên dưới)</span></label>
+              <input class="js-input" id="zlChat" value="${esc(zl.chat_id || "")}" placeholder="Để trống rồi nhắn bot một câu">
+              <div class="js-actions"><button class="gcard-btn" id="zlSave">Lưu & bật</button><button class="gcard-btn ghost" id="zlTest">Gửi test</button></div>
+              <div class="gcard-meta" id="zlStatus"></div>
+              <div id="zlCho"></div>
+            </div>
+          </section>
         </div>
-      </div>
-      <div class="cview-section">
-        <h3>${Icons.kenh("zalo", { size: "18px" })} Zalo</h3>
-        <div class="gcard" style="max-width:560px">
-          <div class="gcard-meta" style="margin-bottom:8px">Bot Zalo <b>chính thức</b> để hỏi Javis
-            từ điện thoại. Khác <b>Zalo Agent MCP</b> ở trang Kết nối: cái kia đăng nhập chính tài
-            khoản của bạn để Javis thao tác thay bạn, cái này là một danh tính riêng, an toàn, để
-            bạn nhắn cho Javis.</div>
-          <label class="js-row"><span>Bật bot Zalo</span><input type="checkbox" id="zlEnabled" ${zl.enabled ? "checked" : ""}></label>
-          <label class="js-lbl">Bot token ${zl.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
-          <input class="js-input" id="zlToken" type="password" placeholder="${zl.token_set ? "Để trống nếu không đổi" : "Ví dụ: 123456789:abc-xyz"}">
-          <div class="gcard-meta">Lấy token: mở app Zalo, tìm Official Account <b>Zalo Bot Manager</b>,
-            chọn <b>Tạo bot</b>. Tên bot bắt buộc mở đầu bằng chữ "Bot". Token gửi về bằng tin nhắn Zalo.</div>
-          <label class="js-lbl">Chat ID được phép dùng <span class="dim">(không cần gõ tay - xem bên dưới)</span></label>
-          <input class="js-input" id="zlChat" value="${esc(zl.chat_id || "")}" placeholder="Để trống rồi nhắn cho bot một câu">
-          <div class="js-actions"><button class="gcard-btn" id="zlSave">Lưu & bật</button><button class="gcard-btn ghost" id="zlTest">Gửi test</button></div>
-          <div class="gcard-meta" id="zlStatus"></div>
-          <div id="zlCho"></div>
-        </div>
-      </div>
-      ${placeholder("channels", "Sắp tới: web widget… mỗi kênh là 1 card ở đây.")}`;
+        <div class="ch-soon">${placeholder("channels", "Sắp tới: web widget… mỗi kênh là 1 card ở đây.")}</div>
+      </div>`;
     const st = document.getElementById("tgStatus");
     async function refreshTgStatus() {
       let d; try { d = await (await fetch("/telegram/status")).json(); } catch (e) { return; }
@@ -5403,7 +5516,15 @@
       active: "home",
       items: RAIL_ITEMS,
       openGroup: groupLabelOf("home"),   // accordion 2 tầng: nhóm đang mở (mặc định nhóm chứa trang đầu)
-      collapsed: (() => { try { return localStorage.getItem("javis_rail_collapsed") === "1"; } catch (e) { return false; } })(),
+      collapsed: (() => {
+        // Mặc định THU GỌN (chỉ icon + hover hiện tên) để màn hình rộng hơn.
+        // User từng mở rộng thì nhớ lựa chọn qua localStorage.
+        try {
+          const v = localStorage.getItem("javis_rail_collapsed");
+          if (v === null) return true;
+          return v === "1";
+        } catch (e) { return true; }
+      })(),
       collapseIcon: COLLAPSE_ICON,
       // Alpine không biết từ điển i18n đổi (nó là object thuần), nên phải có một biến
       // ĐẾM phản ứng để đá vào getter. Thiếu nó thì đổi ngôn ngữ xong rail vẫn chữ cũ
@@ -6222,6 +6343,24 @@
     });
   }
 
+  // Vault: thu cột trái để hội thoại / não rộng hơn. Nhớ lựa chọn như rail.
+  function initVaultCollapse() {
+    const btn = document.getElementById("vtToggle");
+    if (!btn || btn._vtWired) return;
+    btn._vtWired = true;
+    const apply = (on) => {
+      document.body.classList.toggle("vault-collapsed", !!on);
+      btn.setAttribute("aria-expanded", on ? "false" : "true");
+      btn.title = on ? "Mở cột Vault" : "Thu gọn Vault";
+      btn.setAttribute("aria-label", btn.title);
+      try { localStorage.setItem("javis_vault_collapsed", on ? "1" : "0"); } catch (e) {}
+    };
+    let start = false;
+    try { start = localStorage.getItem("javis_vault_collapsed") === "1"; } catch (e) {}
+    apply(start);
+    btn.addEventListener("click", () => apply(!document.body.classList.contains("vault-collapsed")));
+  }
+
   // ── Đèn báo não: bộ não (Claude/Codex) mất đăng nhập thì thắp dải đỏ trên thanh trạng thái.
   // Não chết thì chính não không tự báo được, nên server probe + cắm cờ, UI chỉ việc hỏi.
   // Thông báo phải NGẮN và nói được VIỆC CẦN LÀM. Bản cũ ghép tên engine với câu báo lỗi
@@ -6283,6 +6422,7 @@
     // Cột trái = Vault explorer (luôn có trong DOM ở màn home) → nạp cây ngay khi khởi động
     renderVaultTree();
     initRailTooltip();   // tooltip nhanh cho rail thu gọn
+    initVaultCollapse(); // thu/mở cột Vault, ưu tiên khung hội thoại
 
     freshSettings().then(s => {
       graphEnabled = !(s.dashboard && s.dashboard.graph_enabled === false);

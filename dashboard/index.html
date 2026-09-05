@@ -136,8 +136,11 @@
     <div class="hud-body">
 
       <!-- LEFT: Vault explorer (cây thư mục kiểu Obsidian + tìm note). Thay cho panel số liệu KD cũ. -->
-      <aside class="hud-left">
+      <aside class="hud-left" id="hudLeft">
         <div class="vault-head">
+          <button type="button" class="vault-toggle" id="vtToggle" title="Thu / mở cột Vault" aria-label="Thu gọn Vault" aria-expanded="true">
+            <i data-ic="panel-left"></i>
+          </button>
           <span class="vault-title">VAULT</span>
           <span class="vault-tools">
             <button class="mini-btn" id="vtNewFile" title="Tạo file mới ở gốc brain">＋</button>
@@ -145,6 +148,7 @@
             <button class="mini-btn" id="vtRefresh" title="Làm mới cây">⟳</button>
           </span>
         </div>
+        <div class="vault-body">
         <div class="vault-search">
           <i class="vs-ico" data-ic="search"></i>
           <input id="vaultSearch" type="text" placeholder="Tìm note..." spellcheck="false" autocomplete="off">
@@ -156,6 +160,7 @@
         </div>
         <div class="vault-tree" id="vaultTree"><div class="vt-info">Đang tải…</div></div>
         <div class="vault-results" id="vaultResults" hidden></div>
+        </div>
       </aside>
 
       <!-- CENTER: knowledge graph -->

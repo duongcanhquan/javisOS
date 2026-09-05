@@ -21,6 +21,8 @@ Ba loại engine, khác nhau ở CÔNG CỤ có được - đây là chỗ phả
   suggest -> plan (chỉ đọc), auto -> auto_edit, full -> yolo.
 - antigravity-cli: Antigravity CLI (`agy`) - gói Google hiện tại. Agent thật + MCP hub.
   Mức quyền qua sandbox / skip-permissions (không có nấc plan cứng như Gemini).
+- copilot-cli: GitHub Copilot CLI (`copilot`) - gói Copilot chính chủ. Agent thật + MCP hub.
+  Không có WebSearch/WebFetch sẵn của Claude; muốn đọc web thì phải qua MCP đã đấu.
 - api (openrouter/openai/gemini/anthropic-api): KHÔNG có tool native. Bù lại hub cấp
   javis_read_file / javis_list_dir / javis_write_file / javis_use_skill + tool MCP, và
   javis_write_file tự chặn khi mode là suggest (mcp_hub._builtin_tools). Không có Bash,
@@ -43,6 +45,7 @@ CLAUDE = "anthropic-cli"
 CODEX = "openai-oauth"
 GEMINI_CLI = "gemini-cli"
 ANTIGRAVITY = "antigravity-cli"
+COPILOT = "copilot-cli"
 API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api",
                  "ollama", "ollama-local")
 
@@ -146,7 +149,7 @@ def _spec_ne_tien(s: dict, spec: dict) -> dict:
     này luôn dừng ở mắt đầu, và trên máy KHÔNG cài Claude Code việc nền bị đẩy sang một engine
     không chạy được - phanh biến thành cái làm chết việc nền. Phải hỏi thẳng binary.
     """
-    for prov in (CLAUDE, CODEX, ANTIGRAVITY):
+    for prov in (CLAUDE, CODEX, ANTIGRAVITY, COPILOT):
         ok, _ly_do = availability({"provider": prov}, s)
         if ok and _co_binary(prov):
             return {"provider": prov, "model": ""}
@@ -168,6 +171,9 @@ def _co_binary(prov: str) -> bool:
         if prov == ANTIGRAVITY:
             import antigravity_cli as _a
             return bool(_a.find_antigravity_cli())
+        if prov == COPILOT:
+            import copilot_cli as _c
+            return bool(_c.find_copilot_cli())
         if prov == GEMINI_CLI:
             import gemini_cli as _g
             return bool(_g.find_gemini_cli()) if hasattr(_g, "find_gemini_cli") else True
@@ -217,6 +223,7 @@ _PROVIDER_TEN = {
     CODEX: "Codex CLI",
     GEMINI_CLI: "Gemini CLI",
     ANTIGRAVITY: "Antigravity CLI (`agy`)",
+    COPILOT: "GitHub Copilot CLI (`copilot`)",
     "openrouter": "OpenRouter",
     "openai": "OpenAI API",
     "gemini": "Google Gemini (API)",
@@ -262,6 +269,8 @@ def _ten_engine_thieu(engine) -> str:
         name = type(engine).__name__.lower()
         if "antigravity" in name:
             prov = ANTIGRAVITY
+        elif "copilot" in name:
+            prov = COPILOT
         elif "codex" in name:
             prov = CODEX
         elif "gemini" in name:
@@ -276,6 +285,8 @@ def _ten_engine_thieu(engine) -> str:
     ten = _PROVIDER_TEN.get(prov, prov or "engine AI")
     if prov == ANTIGRAVITY:
         return f"{ten} chưa cài hoặc không tìm thấy trên máy này"
+    if prov == COPILOT:
+        return f"{ten} chưa cài hoặc chưa đăng nhập"
     if prov == CLAUDE:
         return f"{ten} chưa cài"
     if prov == CODEX:
@@ -353,6 +364,17 @@ def availability(spec: dict, settings: dict = None) -> tuple:
                 return False, st.get("error") or "Antigravity CLI chưa đăng nhập Google."
         except Exception:
             return False, "Không kiểm tra được Antigravity CLI."
+        return True, ""
+    if prov == COPILOT:
+        try:
+            import copilot_cli as _c
+            if not _c.find_copilot_cli():
+                return False, "Chưa cài GitHub Copilot CLI (`copilot`)."
+            st = _c.auth_status()
+            if not st.get("connected"):
+                return False, st.get("error") or "GitHub Copilot CLI chưa đăng nhập."
+        except Exception:
+            return False, "Không kiểm tra được GitHub Copilot CLI."
         return True, ""
     if prov == "ollama-local":
         if not api_key_for(prov, settings):
@@ -704,6 +726,32 @@ def _build_antigravity(spec, claude_cli_obj, mode, tag):
     return ag
 
 
+def _build_copilot(spec, claude_cli_obj, mode, tag):
+    """Engine việc nền chạy bằng GitHub Copilot CLI."""
+    import copilot_cli as _c
+    muc = mode or getattr(claude_cli_obj, "javis_mode", None) or "full"
+    cp = _c.CopilotCLI(cwd=getattr(claude_cli_obj, "cwd", None),
+                       tag=tag or getattr(claude_cli_obj, "tag", "aux"),
+                       model=spec.get("model") or None,
+                       instructions=getattr(claude_cli_obj, "system_prompt", None))
+    cp.mode = muc
+    vault = getattr(claude_cli_obj, "javis_vault", None) or getattr(claude_cli_obj, "cwd", None)
+    if vault:
+        try:
+            import mcp_hub
+            hub = None
+            if bool(cfgmod.read_settings().get("mcp", {}).get("hub", True)):
+                hub = _c.hub_entry(
+                    mcp_hub.hub_url(),
+                    {"Authorization": f"Bearer {mcp_hub.hub_token()}",
+                     "X-Javis-Mode": muc, "X-Javis-Vault": str(vault)},
+                )
+            cp.mcp_config = _c.ghi_mcp_settings(vault, hub)
+        except Exception as e:
+            print(f"[aux copilot mcp] {e}", file=sys.stderr)
+    return cp
+
+
 def apply(deps, cli, mode: str = None, tag: str = None):
     """Dùng ở các nơi chạy nền sau khi đã dựng xong engine Claude.
 
@@ -771,6 +819,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
                 return _build_gemini(sp, cli, mode, tag)
             if prov == ANTIGRAVITY:
                 return _build_antigravity(sp, cli, mode, tag)
+            if prov == COPILOT:
+                return _build_copilot(sp, cli, mode, tag)
             if prov in API_PROVIDERS:
                 return _build_api(sp, cli, mode, tag)
             return cli
@@ -787,6 +837,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             primary = _build_gemini(sp, cli, mode, tag)
         elif prov == ANTIGRAVITY:
             primary = _build_antigravity(sp, cli, mode, tag)
+        elif prov == COPILOT:
+            primary = _build_copilot(sp, cli, mode, tag)
         elif prov in API_PROVIDERS:
             primary = _build_api(sp, cli, mode, tag)
         else:

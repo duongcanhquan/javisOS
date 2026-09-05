@@ -407,9 +407,36 @@ body {
   display: grid;
   /* minmax(0, 1fr) rất quan trọng: canvas và chuỗi tool dài không được dùng min-content
      để nới cột giữa rồi đẩy khung hội thoại ra ngoài viewport. */
-  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  grid-template-columns: 260px minmax(0, 1fr) 340px;
   min-width: 0;
   overflow: hidden;
+  transition: grid-template-columns 0.2s ease;
+}
+/* Vault thu gọn: cột trái còn dải icon, hội thoại bên phải rộng thêm.
+   Chỉ áp khi .hud-left còn trong .hud-body (màn home) - lúc mượn sang chat sidebar thì không thu. */
+body.vault-collapsed .hud-body {
+  grid-template-columns: 44px minmax(0, 1fr) minmax(380px, 440px);
+}
+body.vault-collapsed .hud-body > .hud-left .vault-body,
+body.vault-collapsed .hud-body > .hud-left .vault-tools,
+body.vault-collapsed .hud-body > .hud-left .vault-title { display: none; }
+body.vault-collapsed .hud-body > .hud-left {
+  padding: 10px 0;
+  align-items: center;
+  overflow: hidden;
+}
+body.vault-collapsed .hud-body > .hud-left .vault-head {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0;
+  width: 100%;
+}
+body.vault-collapsed .hud-body > .hud-left .vault-toggle {
+  margin: 0 auto;
+  width: 32px; height: 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-body { transition: none; }
 }
 .hud-left, .hud-right {
   background: var(--bg2);
@@ -2001,8 +2028,17 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
    VAULT EXPLORER (cột trái) - cây thư mục kiểu Obsidian + tìm note
    ============================================================ */
 .hud-left { padding: 12px 0 0; overflow: hidden; }
-.vault-head { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 8px; }
-.vault-title { font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3); }
+.vault-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 10px 8px; }
+.vault-title { font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3); flex: 1; min-width: 0; }
+.vault-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex: 0 0 auto; padding: 0;
+  background: none; border: 1px solid var(--border); border-radius: 7px;
+  color: var(--text2); cursor: pointer;
+}
+.vault-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.vault-toggle svg, .vault-toggle .ico, .vault-toggle i { width: 15px; height: 15px; }
+.vault-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 .vault-tools { display: flex; gap: 6px; }
 .vault-search { display: flex; align-items: center; gap: 6px; margin: 0 12px 6px; background: var(--bg3);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }

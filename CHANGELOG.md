@@ -4,6 +4,28 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.87] - 2026-09-05
+### Cải tiến
+- **GitHub Copilot CLI** vào trang Models: dùng gói Copilot sẵn có (binary `copilot`), không dán API key; đăng nhập bằng `copilot login` hoặc token env rồi bấm Kiểm tra lại.
+- **Kết nối / Models / Kênh gọn hơn:** tab Đã / Chưa kết nối, lưới 2 cột; Telegram và Zalo cạnh nhau.
+- **Menu trái mặc định chỉ icon**; cột Vault thu/mở được để khung hội thoại rộng hơn.
+
+
+## [0.35.86] - 2026-09-05
+### Cải tiến
+- **Menu bên trái mặc định chỉ icon** (rê chuột hiện tên) để màn rộng hơn; cột Vault thu/mở được, hội thoại bên phải rộng thêm khi thu.
+
+
+## [0.35.85] - 2026-09-05
+### Cải tiến
+- **Models & Kênh gọn như trang Kết nối.** Models tách tab Đã / Chưa kết nối, chia 2 cột; Kênh đặt Telegram và Zalo cạnh nhau trên một hàng.
+
+
+## [0.35.84] - 2026-09-05
+### Cải tiến
+- **Trang Kết nối gọn hơn, 2 tab rõ việc.** Tách **Đã kết nối** và **Dịch vụ kết nối**; danh sách chia 2 cột, card nhỏ hơn, thao tác Test/thêm dịch vụ dễ thấy hơn.
+
+
 ## [0.35.83] - 2026-09-05
 ### Sửa lỗi
 - **Google Chat: thông báo đúng khi thiếu Chat app.** OAuth JSON đúng mà Test báo lỗi thì hướng dẫn cấu hình Chat app trong Cloud Console (bước bắt buộc), không còn đổ oan key.

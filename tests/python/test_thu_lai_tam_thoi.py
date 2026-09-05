@@ -220,6 +220,7 @@ for _ten in ("openrouter_stream", "openai_stream", "gemini_stream", "groq_stream
 main._claude_sub_stream = _lam_engine("_claude_sub_stream")
 main._gemini_sub_stream = _lam_engine("_gemini_sub_stream")
 main._antigravity_sub_stream = _lam_engine("_antigravity_sub_stream")
+main._copilot_sub_stream = _lam_engine("_copilot_sub_stream")
 main._grok_sub_stream = _lam_engine("_grok_sub_stream")
 for _ten in ("deepseek_stream", "ollama_local_stream"):
     setattr(main.engine, _ten, _lam_engine(_ten))
