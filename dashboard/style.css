@@ -409,13 +409,15 @@ body {
      để nới cột giữa rồi đẩy khung hội thoại ra ngoài viewport. */
   grid-template-columns: 260px minmax(0, 1fr) 340px;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   transition: grid-template-columns 0.2s ease;
 }
 /* Vault thu gọn: cột trái còn dải icon, hội thoại bên phải rộng thêm.
    Chỉ áp khi .hud-left còn trong .hud-body (màn home) - lúc mượn sang chat sidebar thì không thu. */
 body.vault-collapsed .hud-body {
-  grid-template-columns: 44px minmax(0, 1fr) minmax(380px, 440px);
+  /* Vault hẹp; cột chat lấy phần còn lại (không kẹp 440px). */
+  grid-template-columns: 44px minmax(0, 1fr) minmax(420px, 1.15fr);
 }
 body.vault-collapsed .hud-body > .hud-left .vault-body,
 body.vault-collapsed .hud-body > .hud-left .vault-tools,
@@ -448,7 +450,14 @@ body.vault-collapsed .hud-body > .hud-left .vault-toggle {
 }
 .hud-center { min-width: 0; }
 .hud-left { border-right: 1px solid var(--border); }
-.hud-right { border-left: 1px solid var(--border); }
+/* Cột hội thoại: chỉ #chatArea cuộn, khung chat kéo dài hết chiều cao cột. */
+.hud-right {
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  min-height: 0;
+}
+.hud-right > .panel-label { flex: 0 0 auto; }
+.hud-right > .transcript { flex: 1 1 auto; min-height: 0; }
 .hud-left::-webkit-scrollbar, .hud-right::-webkit-scrollbar, .transcript::-webkit-scrollbar { width: 4px; }
 .hud-left::-webkit-scrollbar-thumb, .hud-right::-webkit-scrollbar-thumb, .transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
@@ -869,21 +878,21 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 .fm-use:hover { opacity: 0.88; }
 /* RIGHT transcript */
 .transcript {
-  flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
-  /* Ô chat chiếm phần lớn chiều cao, co giãn theo cửa sổ; các panel dưới cuộn tiếp */
-  min-height: clamp(280px, 46vh, 620px);
+  flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  /* Chiếm hết chiều cao còn lại của cột chat (không bị kẹp 46vh / 620px). */
+  min-height: 0;
 }
 .transcript:empty::after {
   content: "Nói hoặc gõ để bắt đầu hội thoại với Javis.";
-  color: var(--text3); font-size: 14px; font-style: italic;
+  color: var(--text3); font-size: 13px; font-style: italic;
 }
 .msg { animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .msg-user { display: flex; flex-direction: column; align-items: flex-end; }
 .msg-user .bubble {
   background: var(--accent-wash-2); border: 1px solid var(--accent-line);
-  padding: 8px 12px; border-radius: 12px 12px 3px 12px; max-width: 90%;
-  line-height: 1.55; font-size: 16px;
+  padding: 6px 10px; border-radius: 12px 12px 3px 12px; max-width: 90%;
+  line-height: 1.5; font-size: 12.5px;
 }
 /* ===== Bong bóng Javis: đây là chỗ người dùng ĐỌC, không phải chỗ nhét chữ =====
    Chủ repo gửi ảnh một câu trả lời dài (2026-08-07): "muốn cải thiện lại cách hiển thị của
@@ -901,13 +910,13 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
    cũng vậy. Khung chat hẹp (khoang não, điện thoại) thì trần này không đụng tới gì cả. */
 .msg-javis .bubble {
   background: var(--bg3); border: 1px solid var(--border);
-  padding: 12px 14px; border-radius: 3px 12px 12px 12px;
-  line-height: 1.75; font-size: 16px; max-width: 76ch;
+  padding: 8px 10px; border-radius: 3px 12px 12px 12px;
+  line-height: 1.6; font-size: 12.5px; max-width: 76ch;
 }
 .msg-javis .bubble strong { color: var(--accent); }
-.msg-javis .bubble ul { padding-left: 18px; margin: 10px 0; }
-.msg-javis .bubble code { font-family: var(--mono); font-size: 13px; background: var(--bg); padding: 1px 4px; border-radius: 3px; color: var(--accent2-ink); }
-.msg-javis .bubble h3 { font-size: 15px; color: var(--text); margin: 18px 0 6px; }
+.msg-javis .bubble ul { padding-left: 18px; margin: 8px 0; }
+.msg-javis .bubble code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 1px 4px; border-radius: 3px; color: var(--accent2-ink); }
+.msg-javis .bubble h3 { font-size: 14px; color: var(--text); margin: 14px 0 5px; }
 .msg-javis .bubble h3:first-child { margin-top: 0; }
 
 /* Link/URL dài trong tin nhắn: ngắt dòng theo khung thay vì tràn ra ngoài (vd link Google Docs
@@ -1151,7 +1160,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 @keyframes micpulse-hf { 50% { box-shadow: 0 0 0 11px rgba(62,224,214,0); } }
 .voice-input {
   flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-  color: var(--text); font-size: 16px; padding: 11px 14px; resize: none; outline: none;
+  color: var(--text); font-size: 13px; padding: 8px 11px; resize: none; outline: none;
   line-height: 1.4; max-height: 90px; font-family: inherit;
 }
 .voice-input:focus { border-color: var(--accent-line); }
@@ -1856,8 +1865,8 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
    ============================================================ */
 
 /* Markdown block trong bong bong Javis */
-.msg-javis .bubble h1 { font-size: 19px; }
-.msg-javis .bubble h2 { font-size: 17px; }
+.msg-javis .bubble h1 { font-size: 16px; }
+.msg-javis .bubble h2 { font-size: 14.5px; }
 .msg-javis .bubble h1, .msg-javis .bubble h2,
 .msg-javis .bubble h4, .msg-javis .bubble h5, .msg-javis .bubble h6 {
   color: var(--text); margin: 18px 0 6px; line-height: 1.35; }

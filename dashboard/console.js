@@ -3096,7 +3096,7 @@
       <div class="md-page">
         <header class="jx-page-head">
           <div><h2 class="jx-page-title">Models</h2>
-          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp.</p></div>
+          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp. GitHub Copilot CLI nằm ở tab <b>Chưa kết nối</b> (hoặc Đã kết nối sau khi đăng nhập).</p></div>
         </header>
         <div class="jx-split-2 md-top-grid">
           <section class="cview-section jx-pane">
@@ -5065,7 +5065,7 @@
             <div><span>Telegram</span><b>${telegram.enabled ? "Đang bật" : "Đang tắt"}</b></div>
           </div>
           <div class="settings-links">
-            <button data-settings-go="models"><span>◈</span><b>Models</b><small>Model và nhà cung cấp</small></button>
+            <button data-settings-go="models"><span>◈</span><b>Models</b><small>Claude, Copilot CLI, ChatGPT, API key…</small></button>
             <button data-settings-go="channels"><span>${ic("send")}</span><b>Kênh</b><small>Telegram và kết nối chat</small></button>
             <button data-settings-go="account"><span>${ic("circle-user")}</span><b>Tài khoản</b><small>Đăng nhập, workspace, token API cho CLI</small></button>
             <button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>Cập nhật</b><small>Phiên bản và nhật ký mới</small></button>
@@ -6320,12 +6320,17 @@
     if (!tip) { tip = document.createElement("div"); tip.id = "railTip"; tip.className = "rail-tip"; document.body.appendChild(tip); }
     let timer = null, cur = null;
     const collapsed = () => document.body.classList.contains("rail-collapsed");
+    const railWide = () => {
+      const r = document.querySelector(".rail.collapsed");
+      return !!(r && (r.matches(":hover") || r.matches(":focus-within")));
+    };
     nav.addEventListener("mouseover", (e) => {
-      const btn = e.target.closest(".rail-item"); if (!btn || !collapsed() || btn === cur) return;
+      const btn = e.target.closest(".rail-item"); if (!btn || !collapsed() || railWide() || btn === cur) return;
       cur = btn;
       if (btn.hasAttribute("title")) { btn.dataset.tip = btn.getAttribute("title"); btn.removeAttribute("title"); }  // chặn tooltip native chậm
       clearTimeout(timer);
       timer = setTimeout(() => {
+        if (railWide() || !collapsed()) { tip.classList.remove("show"); return; }
         const label = btn.dataset.tip || ""; if (!label) return;
         const r = btn.getBoundingClientRect();
         tip.textContent = label;
@@ -6343,7 +6348,7 @@
     });
   }
 
-  // Vault: thu cột trái để hội thoại / não rộng hơn. Nhớ lựa chọn như rail.
+  // Vault: thu cột trái để hội thoại / não rộng hơn. Mặc định THU để khung chat dài/rộng hơn.
   function initVaultCollapse() {
     const btn = document.getElementById("vtToggle");
     if (!btn || btn._vtWired) return;
@@ -6355,8 +6360,12 @@
       btn.setAttribute("aria-label", btn.title);
       try { localStorage.setItem("javis_vault_collapsed", on ? "1" : "0"); } catch (e) {}
     };
-    let start = false;
-    try { start = localStorage.getItem("javis_vault_collapsed") === "1"; } catch (e) {}
+    let start = true;   // mặc định thu
+    try {
+      const v = localStorage.getItem("javis_vault_collapsed");
+      if (v === "0") start = false;
+      else if (v === "1") start = true;
+    } catch (e) {}
     apply(start);
     btn.addEventListener("click", () => apply(!document.body.classList.contains("vault-collapsed")));
   }
