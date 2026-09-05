@@ -625,7 +625,9 @@ def register(ctx) -> None:
                                               "động ra ngoài. 'suggest' = chỉ đọc rồi báo lại. "
                                               "Chỉ hạ mức khi user muốn vậy.")},
                 "chat_id": {"type": "string",
-                             "description": "chat_id Telegram người yêu cầu, để báo đúng người. Bỏ trống nếu không rõ."},
+                             "description": ("Kênh báo kết quả: chat_id Telegram, zalo:<id>, web:<sid>; "
+                                             "zalo hoặc zalo:all = chỉ Zalo; all = cả Telegram + Zalo. "
+                                             "Bỏ trống = theo kênh người yêu cầu nếu biết.")},
                 "allow_no_channel": {"type": "boolean",
                                       "description": ("Chỉ đặt true khi tool đã báo THIẾU KÊNH GỬI, "
                                                       "bạn đã nói với user thiếu gì, và user vẫn "

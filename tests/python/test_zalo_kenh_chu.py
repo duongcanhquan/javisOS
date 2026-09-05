@@ -234,6 +234,37 @@ finally:
     main._bo_vao_hom_thu = _hom_that
 
 
+# ---- 9. chat_id=zalo chỉ gửi Zalo, không Telegram ----
+
+_gui2 = []
+
+
+async def _fake_tg2(cid, text):
+    _gui2.append(("tg", cid, text))
+    return True, ""
+
+
+async def _fake_zalo2(cid, text):
+    _gui2.append(("zalo", cid, text))
+    return True, ""
+
+
+_tg2, _zalo2 = main._tg_send_to, main._zalo_send_to
+_hom2 = main._bo_vao_hom_thu
+main._tg_send_to = _fake_tg2
+main._zalo_send_to = _fake_zalo2
+main._bo_vao_hom_thu = _fake_hom
+try:
+    ok3, err3 = asyncio.run(main._bao_nhac_hen("zalo", "Tổng kết chỉ Zalo"))
+    check("chat_id=zalo báo thành công", ok3 and not err3, (ok3, err3))
+    check("chat_id=zalo KHÔNG gọi Telegram", not any(c[0] == "tg" for c in _gui2), _gui2)
+    check("chat_id=zalo gọi Zalo", any(c[0] == "zalo" for c in _gui2), _gui2)
+finally:
+    main._tg_send_to = _tg2
+    main._zalo_send_to = _zalo2
+    main._bo_vao_hom_thu = _hom2
+
+
 print()
 if loi:
     print(f"{len(loi)} test ĐỎ: " + ", ".join(loi))

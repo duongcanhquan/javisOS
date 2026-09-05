@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ép tổng kết sáng chạy SÁNG NAY trên VPS.
-# 1) Bắn một bản one-shot trong ~1 phút (chat_id=all → Telegram + Zalo).
+# 1) Bắn một bản one-shot trong ~1 phút (chat_id=zalo → chỉ Zalo).
 # 2) Giữ nhắc cron 8h hàng ngày; lần kế đặt = ngày mai 8:00 (tránh gửi trùng 8h sáng nay).
 set -euo pipefail
 
@@ -82,7 +82,7 @@ one = call("POST", "/reminders", {
     "mode": "task",
     "brain": brain,
     "muc_quyen": rem.get("muc_quyen") or "suggest",
-    "chat_id": "all",
+    "chat_id": "zalo",
     "delay_min": 1,
     "created_by": "force-morning-brief-today",
     "allow_no_channel": True,
@@ -97,7 +97,7 @@ if not one.get("ok"):
             "mode": "task",
             "brain": brain,
             "muc_quyen": rem.get("muc_quyen") or "suggest",
-            "chat_id": "all",
+            "chat_id": "zalo",
             "delay_min": 1,
             "created_by": "force-morning-brief-today",
             "allow_no_channel": True,
@@ -111,7 +111,7 @@ upd = call("POST", "/reminders/update", {
     "id": rid,
     "brain": brain,
     "cron": "0 8 * * *",
-    "chat_id": "all",
+    "chat_id": "zalo",
     "mode": "task",
 }, form=True)
 print("daily_cron_refresh:", json.dumps(upd, ensure_ascii=False))
@@ -143,7 +143,7 @@ if due_after and due_after < tomorrow_8.timestamp():
             if r.get("id") == rid and r.get("status") == "pending":
                 r["due_at"] = tomorrow_8.timestamp()
                 r["cron"] = "0 8 * * *"
-                r["chat_id"] = "all"
+                r["chat_id"] = "zalo"
                 print("patched_due_tomorrow_8:", datetime.fromtimestamp(r["due_at"], vn).isoformat())
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except Exception as e:

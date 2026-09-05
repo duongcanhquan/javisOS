@@ -94,8 +94,8 @@ if existing:
         "mode": "task",
         "cron": cron,
         "muc_quyen": muc,
-        # all = gửi CẢ Telegram lẫn Zalo (xem _bao_nhac_hen trong server/main.py)
-        "chat_id": "all",
+        # zalo = chỉ gửi Zalo (chat Telegram vẫn dùng khi user nhắn tay)
+        "chat_id": "zalo",
     }, form=True)
     print("updated:", json.dumps(upd, ensure_ascii=False))
     if not upd.get("ok"):
@@ -111,8 +111,8 @@ else:
         "muc_quyen": muc,
         "created_by": "seed-morning-brief",
         "allow_no_channel": allow,
-        # all = gửi CẢ Telegram lẫn Zalo khi tới giờ
-        "chat_id": "all",
+        # zalo = chỉ gửi Zalo khi tới giờ
+        "chat_id": "zalo",
     }
     created = call("POST", "/reminders", payload)
     print("created:", json.dumps(created, ensure_ascii=False))
@@ -133,11 +133,11 @@ else:
 
 print("notify:", json.dumps(notify, ensure_ascii=False))
 print("muc_quyen:", muc, "(suggest = chi doc email/lich roi bao)")
-print("chat_id: all (gui ca Telegram + Zalo neu da dau)")
+print("chat_id: zalo (chi gui Zalo; Telegram van chat binh thuong)")
 PY
 
 echo ""
 echo "==> XONG seed Tong ket sang 8h."
 echo "    Xem / sua / tat: trang Viec dinh ky tren dashboard."
 echo "    Can da dau Gmail + Google Calendar (Ket noi)."
-echo "    Bao cao sang se gui ca Telegram va Zalo (trang Kenh) neu da dau."
+echo "    Bao cao sang chi gui Zalo (trang Kenh). Telegram van dung de chat tay."

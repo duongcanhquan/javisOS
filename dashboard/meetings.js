@@ -8,6 +8,8 @@
     meetingId: null,
     path: "",
     mic: null,
+    speechRec: null,
+    sttEngine: "", // "webspeech" | "moonshine"
     running: false,
     stopped: false,
     loading: false,
@@ -15,6 +17,10 @@
     lines: 0,
     speakers: {}, // index -> name
   };
+
+  function hasWebSpeech() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
 
   function fbrain() {
     try {
@@ -233,6 +239,134 @@
     return mod.MicTranscriber;
   }
 
+  function stopWebSpeech() {
+    if (!state.speechRec) return;
+    try {
+      state.speechRec.onend = null;
+      state.speechRec.onerror = null;
+      state.speechRec.onresult = null;
+      state.speechRec.stop();
+    } catch (e) {}
+    state.speechRec = null;
+  }
+
+  /** Nhận giọng qua Web Speech API (Chrome/Edge) — không tải model, ổn định hơn Moonshine CDN. */
+  function startWebSpeech(root) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) throw new Error("Trình duyệt không hỗ trợ nhận giọng. Dùng Chrome hoặc Edge qua HTTPS.");
+    stopWebSpeech();
+    var rec = new SR();
+    rec.lang = "vi-VN";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    rec.onresult = function (ev) {
+      if (!state.running) return;
+      var interim = "";
+      var finals = [];
+      for (var i = ev.resultIndex; i < ev.results.length; i++) {
+        var piece = ((ev.results[i][0] && ev.results[i][0].transcript) || "").trim();
+        if (!piece) continue;
+        if (ev.results[i].isFinal) finals.push(piece);
+        else interim += piece;
+      }
+      if (interim) setPartial(root, interim.replace(/\s+/g, " ").trim(), "");
+      finals.forEach(function (tx) {
+        tx = tx.replace(/\s+/g, " ").trim();
+        if (!tx) return;
+        setPartial(root, "");
+        var wall = new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        appendFinal(root, tx, wall, "");
+        sendLine(tx, 0, 0, "", -1);
+      });
+    };
+
+    rec.onerror = function (ev) {
+      var err = (ev && ev.error) || "";
+      if (err === "no-speech" || err === "aborted") return;
+      if (err === "not-allowed") {
+        setStatus(root, "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ).", "err");
+      } else if (err === "audio-capture") {
+        setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
+      } else {
+        setStatus(root, "Nhận giọng: " + err, "err");
+      }
+    };
+
+    rec.onend = function () {
+      if (state.running && state.speechRec === rec) {
+        try {
+          rec.start();
+        } catch (e) {}
+      }
+    };
+
+    rec.start();
+    state.speechRec = rec;
+    state.sttEngine = "webspeech";
+  }
+
+  function startWebSpeechSafe(root) {
+    try {
+      startWebSpeech(root);
+    } catch (e) {
+      var name = (e && e.name) || "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        throw new Error(
+          "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ)."
+        );
+      }
+      throw e;
+    }
+  }
+
+  async function startMoonshine(root) {
+    var MicTranscriber = await loadMoonshine(root);
+    var mic = new MicTranscriber()
+      .language("vi")
+      .onProgress(function (frac) {
+        setStatus(root, "Tải model tiếng Việt… " + Math.round((frac || 0) * 100) + "%");
+      })
+      .onText(function (text) {
+        setPartial(root, text || "", "");
+      })
+      .onLine(function (line) {
+        var tx = (line && line.text) || "";
+        if (!tx.trim()) return;
+        var idx = dominantSpeakerIndex(line);
+        if (idx >= 0 && state.speakers[idx] == null) {
+          state.speakers[idx] = "Người " + (idx + 1);
+          refreshSpeakerBar(root);
+        }
+        var who = idx >= 0 ? speakerName(idx) : "";
+        setPartial(root, "");
+        var t0 = line.startTime || 0;
+        var t1 = t0 + (line.duration || 0);
+        var wall = new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        appendFinal(root, tx, wall, who);
+        sendLine(tx, t0, t1, who, idx);
+      })
+      .onError(function (err) {
+        setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
+      });
+
+    setStatus(root, "Nạp model Moonshine…");
+    await mic.load();
+    setStatus(root, "Xin quyền micro…");
+    await mic.start();
+    state.mic = mic;
+    state.sttEngine = "moonshine";
+  }
+
   function seedSpeakersFromInput(root) {
     state.speakers = {};
     var raw = ((root.querySelector("#mtPeople") || {}).value || "").trim();
@@ -294,50 +428,49 @@
       refreshSpeakerBar(root);
       setPhase(root, "live");
 
-      var MicTranscriber = await loadMoonshine(root);
-      var mic = new MicTranscriber()
-        .language("vi")
-        .onProgress(function (frac) {
-          setStatus(root, "Tải model tiếng Việt… " + Math.round((frac || 0) * 100) + "%");
-        })
-        .onText(function (text) {
-          setPartial(root, text || "", "");
-        })
-        .onLine(function (line) {
-          var tx = (line && line.text) || "";
-          if (!tx.trim()) return;
-          var idx = dominantSpeakerIndex(line);
-          if (idx >= 0 && state.speakers[idx] == null) {
-            state.speakers[idx] = "Người " + (idx + 1);
-            refreshSpeakerBar(root);
-          }
-          var who = idx >= 0 ? speakerName(idx) : "";
-          setPartial(root, "");
-          var t0 = line.startTime || 0;
-          var t1 = t0 + (line.duration || 0);
-          var wall = new Date().toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
-          appendFinal(root, tx, wall, who);
-          sendLine(tx, t0, t1, who, idx);
-        })
-        .onError(function (err) {
-          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
-        });
-
-      setStatus(root, "Nạp model…");
-      await mic.load();
-      setStatus(root, "Xin quyền micro…");
-      await mic.start();
-      state.mic = mic;
-      state.running = true;
-      var stopBtn = root.querySelector("#mtStop");
-      if (stopBtn) stopBtn.disabled = false;
-      setStatus(root, "Đang ghi vào file. Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.", "ok");
-      await ensureWs();
+      if (hasWebSpeech()) {
+        setStatus(root, "Bật micro (Web Speech)…");
+        startWebSpeechSafe(root);
+        state.running = true;
+        var stopBtn = root.querySelector("#mtStop");
+        if (stopBtn) stopBtn.disabled = false;
+        setStatus(
+          root,
+          "Đang nghe qua micro (Chrome/Edge). Nói rõ; mỗi câu sẽ ghi vào file transcript.",
+          "ok"
+        );
+        await ensureWs();
+      } else {
+        try {
+          await startMoonshine(root);
+          state.running = true;
+          var stopBtn2 = root.querySelector("#mtStop");
+          if (stopBtn2) stopBtn2.disabled = false;
+          setStatus(
+            root,
+            "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
+            "ok"
+          );
+          await ensureWs();
+        } catch (moonErr) {
+          throw new Error(
+            (moonErr && moonErr.message) ||
+              "Không tải được Moonshine. Dùng Chrome/Edge hoặc chọn File ghi âm → chữ."
+          );
+        }
+      }
     } catch (e) {
+      stopWebSpeech();
+      if (state.mic) {
+        try {
+          state.mic.stop();
+        } catch (err) {}
+        try {
+          state.mic.close();
+        } catch (err) {}
+        state.mic = null;
+      }
+      state.sttEngine = "";
       setStatus(root, "Không bắt đầu được: " + (e.message || e), "err");
       if (startBtn) startBtn.disabled = false;
       state.meetingId = null;
@@ -352,6 +485,10 @@
     var stopBtn = root.querySelector("#mtStop");
     if (stopBtn) stopBtn.disabled = true;
     try {
+      state.running = false;
+      if (state.speechRec) {
+        stopWebSpeech();
+      }
       if (state.mic) {
         try {
           await state.mic.stop();
@@ -361,7 +498,7 @@
         } catch (e) {}
         state.mic = null;
       }
-      state.running = false;
+      state.sttEngine = "";
       setPartial(root, "");
       var f = new FormData();
       f.append("brain", fbrain());
@@ -558,8 +695,8 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy chuyển giọng → chữ realtime; tùy chọn “File → chữ” gửi âm tạm sang Groq Whisper rồi bỏ, chỉ giữ transcript. Sau đó <b>Tổng kết</b> bằng Ollama local (<code>javis-qwen3-8b</code>).</p>' +
-      '<p class="mt-hint" style="margin-top:-6px">Họp online (Zoom/Meet): dùng tai nghe; micro thường chỉ nghe rõ bạn — để bắt cả phòng họp, ghi cục bộ rồi “File → chữ”, hoặc dán caption. Điền đủ thành phần + agenda trước họp để tổng kết gắn đúng tên.</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy (Chrome/Edge + HTTPS) chuyển giọng → chữ realtime; Firefox/Safari thử Moonshine WASM hoặc “File → chữ” (Groq Whisper). Sau đó <b>Tổng kết</b> bằng Ollama local (<code>javis-qwen3-8b</code>).</p>' +
+      '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +
       '<div class="mt-card" id="mtSetup">' +
@@ -625,6 +762,8 @@
   }
 
   function roi() {
+    state.running = false;
+    stopWebSpeech();
     if (state.mic) {
       try {
         state.mic.stop();
@@ -633,7 +772,7 @@
         state.mic.close();
       } catch (e) {}
       state.mic = null;
-      state.running = false;
+      state.sttEngine = "";
     }
     if (state.ws) {
       try {

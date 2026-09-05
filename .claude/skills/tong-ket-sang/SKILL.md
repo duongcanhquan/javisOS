@@ -12,7 +12,7 @@ group: Năng suất
 - Nhắc hẹn 8h sáng hàng ngày (label `Tổng kết sáng 8h`).
 - User hỏi "tóm tắt sáng nay", "email hôm qua + lịch hôm nay", "brief buổi sáng".
 
-Báo cáo của nhắc hệ thống (`chat_id=all`) được gửi về **cả Telegram và Zalo** nếu đã đấu ở trang Kênh.
+Báo cáo nhắc hệ thống mặc định (`chat_id=zalo`) chỉ gửi **Zalo**. Dùng `chat_id=all` nếu muốn cả Telegram.
 
 ## Chuẩn bị
 

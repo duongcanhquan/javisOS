@@ -8074,23 +8074,42 @@ async def _gui_moi_kenh_ngoai(text) -> tuple:
     return False, "; ".join(errs) or "Chưa bật Telegram hoặc Zalo"
 
 
+async def _gui_zalo_ngoai(text) -> tuple:
+    """Gửi text tới mọi chat_id Zalo trong whitelist. Thành công nếu ≥1 tin đi được."""
+    try:
+        ok, err = await _zalo_send_to("", text)
+    except Exception as e:
+        ok, err = False, f"{type(e).__name__}: {e}"
+    if ok:
+        return True, ""
+    return False, err or "Chưa bật Zalo"
+
+
 async def _bao_nhac_hen(chat_id, text) -> tuple:
     """Đường BÁO của nhắc hẹn. Cùng chữ ký (chat_id, text) -> (ok, err) như `_tg_send_to` cũ,
     nhưng đi qua `_notify_owner` nên nhắc hẹn được đúng ba thứ mà trước đây nó không có:
     hòm thư ở server, đẩy về khung chat web khi chat_id là "web:<sid>", và thông báo đẩy.
 
-    chat_id rỗng / `all` / `*`: gửi CẢ Telegram lẫn Zalo (mọi ID whitelist đã đấu). Đây là
-    đường của nhắc hệ thống như tổng kết sáng 8h - không gắn một người chat cụ thể, mà báo
-    cho chủ trên mọi kênh đang sống. chat_id cụ thể (telegram id / zalo:<id> / web:<sid>)
-    vẫn chỉ gửi đúng một kênh như cũ.
+    chat_id rỗng / `all` / `*`: gửi CẢ Telegram lẫn Zalo (mọi ID whitelist đã đấu).
+    `zalo` / `zalo:all` / `zalo:*`: chỉ Zalo (nhắc hệ thống khi chủ không muốn Telegram).
+    chat_id cụ thể (telegram id / zalo:<id> / web:<sid>) vẫn chỉ gửi đúng một kênh như cũ.
     """
     cid = str(chat_id or "").strip()
-    if cid in ("", "all", "*"):
+    cid_l = cid.lower()
+    if cid_l in ("", "all", "*"):
         vao = await _bo_vao_hom_thu("", text, kind="report", source="reminder")
         ok, err = await _gui_moi_kenh_ngoai(text)
         if ok or vao:
             if err and not ok:
                 print(f"[reminder] hòm thư đã giữ tin, kênh ngoài: {err}", file=sys.stderr)
+            return True, ""
+        return False, err
+    if cid_l in ("zalo", "zalo:all", "zalo:*"):
+        vao = await _bo_vao_hom_thu("", text, kind="report", source="reminder")
+        ok, err = await _gui_zalo_ngoai(text)
+        if ok or vao:
+            if err and not ok:
+                print(f"[reminder] hòm thư đã giữ tin, Zalo: {err}", file=sys.stderr)
             return True, ""
         return False, err
     return await _notify_owner(cid, text, kind="report", source="reminder")
