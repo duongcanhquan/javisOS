@@ -20,7 +20,7 @@ Làm đúng skill tong-ket-sang. Báo cáo tổng kết sáng (giờ VN):
 3) Lịch làm việc HÔM NAY (Google Calendar) - giờ + tên sự kiện.
 4) Lịch NGÀY MAI để nhắc trước - cuộc họp/việc cần chuẩn bị từ hôm nay.
 
-Chỉ ĐỌC, không gửi mail, không sửa/xoá sự kiện. Thiếu Gmail hoặc Lịch thì nói thẳng thiếu gì ở đúng mục, không bịa. Viết ngắn như tin nhắn Telegram, tiếng Việt, theo khuôn skill tong-ket-sang.
+Chỉ ĐỌC, không gửi mail, không sửa/xoá sự kiện. Thiếu Gmail hoặc Lịch thì nói thẳng thiếu gì ở đúng mục, không bịa. Viết ngắn như tin nhắn (Telegram/Zalo), tiếng Việt, theo khuôn skill tong-ket-sang. Kết quả sẽ được gửi về cả Telegram và Zalo của chủ (nếu đã đấu).
 EOF
 )
 
@@ -94,6 +94,8 @@ if existing:
         "mode": "task",
         "cron": cron,
         "muc_quyen": muc,
+        # all = gửi CẢ Telegram lẫn Zalo (xem _bao_nhac_hen trong server/main.py)
+        "chat_id": "all",
     }, form=True)
     print("updated:", json.dumps(upd, ensure_ascii=False))
     if not upd.get("ok"):
@@ -109,6 +111,8 @@ else:
         "muc_quyen": muc,
         "created_by": "seed-morning-brief",
         "allow_no_channel": allow,
+        # all = gửi CẢ Telegram lẫn Zalo khi tới giờ
+        "chat_id": "all",
     }
     created = call("POST", "/reminders", payload)
     print("created:", json.dumps(created, ensure_ascii=False))
@@ -119,7 +123,7 @@ else:
             print("CANH_BAO:", created["canh_bao"])
     elif created.get("can_force"):
         print("NEED_CHANNEL:", created.get("error"))
-        print("-> Dau Telegram (trang Kenh) roi chay lai script.")
+        print("-> Dau Telegram va/hoac Zalo (trang Kenh) roi chay lai script.")
         print("-> Hoac: MORNING_BRIEF_ALLOW_NO_CHANNEL=true bash scripts/seed-morning-brief-vps.sh")
         print("  (viec van chay nhung khong ai nhan bao cao).")
         raise SystemExit(2)
@@ -129,9 +133,11 @@ else:
 
 print("notify:", json.dumps(notify, ensure_ascii=False))
 print("muc_quyen:", muc, "(suggest = chi doc email/lich roi bao)")
+print("chat_id: all (gui ca Telegram + Zalo neu da dau)")
 PY
 
 echo ""
 echo "==> XONG seed Tong ket sang 8h."
 echo "    Xem / sua / tat: trang Viec dinh ky tren dashboard."
-echo "    Can da dau Gmail + Google Calendar (Ket noi) va Telegram (Kenh) de nhan bao cao."
+echo "    Can da dau Gmail + Google Calendar (Ket noi)."
+echo "    Bao cao sang se gui ca Telegram va Zalo (trang Kenh) neu da dau."

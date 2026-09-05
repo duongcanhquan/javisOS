@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.40] - 2026-09-05
+### Thêm mới
+- **Tổng kết sáng gửi cả Telegram và Zalo.** Nhắc hệ thống (`chat_id=all`) báo cáo lên mọi kênh ngoài đã đấu, không chỉ một app.
+
+### Sửa lỗi
+- **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
+
 ## [0.35.39] - 2026-09-05
 ### Thêm mới
 - **Nhắc tổng kết sáng 8h hàng ngày.** Mỗi sáng Javis đọc email hôm qua, lịch hôm nay và ngày mai, rồi gửi báo cáo ngắn (việc cần làm / đã xử lý). Skill `tong-ket-sang` + seed tự chạy khi deploy VPS.

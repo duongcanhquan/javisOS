@@ -12,6 +12,8 @@ group: Năng suất
 - Nhắc hẹn 8h sáng hàng ngày (label `Tổng kết sáng 8h`).
 - User hỏi "tóm tắt sáng nay", "email hôm qua + lịch hôm nay", "brief buổi sáng".
 
+Báo cáo của nhắc hệ thống (`chat_id=all`) được gửi về **cả Telegram và Zalo** nếu đã đấu ở trang Kênh.
+
 ## Chuẩn bị
 
 1. Kiểm tra đã đấu **Gmail** (hoặc Google Workspace) và **Google Calendar** (hoặc Lịch trong Workspace). Thiếu thì nói thẳng thiếu gì, không bịa.
