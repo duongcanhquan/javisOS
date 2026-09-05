@@ -1227,6 +1227,8 @@ PROVIDER_DEFS = [   # thứ tự = thứ tự hiển thị card ở trang Models
      "default_models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]},
     {"id": "groq",          "label": "Groq (API)",              "kind": "api", "key_field": "groq_api_key",      "catalog_key": "groq",
      "default_models": ["llama-3.3-70b-versatile", "qwen3-32b", "openai/gpt-oss-120b"]},
+    {"id": "deepseek",      "label": "DeepSeek (API)",          "kind": "api", "key_field": "deepseek_api_key",  "catalog_key": "deepseek",
+     "default_models": ["deepseek-v4-flash", "deepseek-v4-pro"]},
     # Ollama Cloud. CỐ Ý không đấu bản chạy trên máy nhà: bản đó đòi một ô địa chỉ riêng, tức
     # một ca đặc biệt duy nhất xuyên suốt lớp này, trong khi phần đông người dùng Javis chạy
     # nó trên VPS - nơi "localhost" là chính cái container chứ không phải máy họ.
@@ -1396,6 +1398,8 @@ def _set_main_model(cfg, provider, model):
         m["engine"] = "grok-cli"
     elif provider == "groq":
         m["engine"] = "groq"
+    elif provider == "deepseek":
+        m["engine"] = "deepseek"
     elif provider == "ollama":
         m["engine"] = "ollama"
     else:  # anthropic-cli
@@ -1779,6 +1783,8 @@ def _api_stream_goc(prov, key, model, messages, reasoning="off"):
         return engine.gemini_stream(key, model, messages, reasoning)
     if prov == "groq":
         return engine.groq_stream(key, model, messages, reasoning)
+    if prov == "deepseek":
+        return engine.deepseek_stream(key, model, messages, reasoning)
     if prov == "ollama":
         return engine.ollama_stream(key, model, messages, reasoning)
     if prov == "ollama-local":
@@ -1865,11 +1871,13 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
                 return engine.gemini_chat_with_mcp(key, model, messages, reasoning, tools, route)
             if prov == "groq":
                 return engine.groq_chat_with_mcp(key, model, messages, reasoning, tools, route)
+            if prov == "deepseek":
+                return engine.deepseek_chat_with_mcp(key, model, messages, reasoning, tools, route)
             return engine.ollama_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "ollama-local":
             return engine.ollama_local_chat_with_mcp(key, model, messages, reasoning, tools, route)
 
-        if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama"):
+        if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "deepseek", "ollama"):
             return engine.thu_lai_khi_tam_thoi(_vong_tool, nhan=f"{prov}/{model or 'mặc định'}+tool")
     return _api_stream(prov, key, model, messages, reasoning)
 
@@ -2685,7 +2693,7 @@ def _schedule_cancel_reply(action: dict) -> str:
 def _api_label(prov):
     return {"openrouter": "OpenRouter", "openai": "OpenAI", "anthropic-api": "Anthropic API",
             "openai-oauth": "ChatGPT (OAuth)", "gemini": "Google Gemini",
-            "groq": "Groq", "ollama": "Ollama"}.get(prov, prov)
+            "groq": "Groq", "deepseek": "DeepSeek", "ollama": "Ollama"}.get(prov, prov)
 
 def _reasoning_level(mcfg):
     r = (mcfg or {}).get("reasoning", "off")
@@ -3380,14 +3388,16 @@ async def connect_relogin(request: Request):
     cid = (data.get("id") or "").strip()
     if not cid:
         return JSONResponse({"ok": False, "error": "Thiếu id kết nối"}, status_code=400)
-    done = mcp_store.forget_cred_dir_by_id(cid)
+    done_cred = mcp_store.forget_cred_dir_by_id(cid)
+    oauth_mcp.forget(cid)   # OAuth Javis giữ (Gmail/Lịch/Chat): xoá token cũ để đăng nhập lại thật
     mcp_client.pool.invalidate(cid)   # giết tiến trình con đang giữ token cũ trong RAM
     mcp_hub.invalidate_cache()
     connect_health.forget(cid)
-    return {"ok": True, "cleared": done,
-            "message": ("Đã xoá đăng nhập Google cũ. Nhờ Javis làm một việc bất kỳ với nguồn này, "
-                        "trình duyệt trên máy chạy Javis sẽ mở để bạn cấp lại quyền."
-                        if done else
+    cleared = done_cred or bool(cid)
+    return {"ok": True, "cleared": cleared,
+            "message": ("Đã xoá đăng nhập cũ. Bấm Kết nối lại hoặc nhờ Javis dùng nguồn này - "
+                        "trình duyệt sẽ mở để bạn cấp lại quyền (nhớ tick hết các ô)."
+                        if cleared else
                         "Kết nối này không tự giữ token riêng, hoặc chưa từng đăng nhập.")}
 
 
@@ -13407,6 +13417,8 @@ def _bot_stream_co_tool(prov, key, model, messages, reasoning, tools, route,
             return engine.gemini_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "groq":
             return engine.groq_chat_with_mcp(key, model, messages, reasoning, tools, route)
+        if prov == "deepseek":
+            return engine.deepseek_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "ollama":
             return engine.ollama_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "ollama-local":

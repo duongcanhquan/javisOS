@@ -3660,12 +3660,13 @@
   }
 
   // Kết nối lại GIỮ NGUYÊN connection (id, label, quyền, deny) - không xoá tạo lại.
-  function reconnectAccount(el, c, con) {
+  async function reconnectAccount(el, c, con) {
     if ((c.auth || "") === "oauth" || (con && con.auth_type === "oauth")) {
-      postJson("/connect/oauth/start", { id: c.id }).then(r => {
-        if (!r || r.ok === false) { alert("Không mở được đăng nhập: " + ((r && r.error) || "lỗi")); return; }
-        window.open(r.url, "_blank");
-      });
+      // Google OAuth: token cũ khiến màn đăng nhập không hiện ô tick quyền mới - xoá trước.
+      await postJson("/connect/relogin", { id: c.id });
+      const r = await postJson("/connect/oauth/start", { id: c.id });
+      if (!r || r.ok === false) { alert("Không mở được đăng nhập: " + ((r && r.error) || "lỗi")); return; }
+      window.open(r.url, "_blank");
       return;
     }
     openReKey(el, c, con);
@@ -4082,7 +4083,8 @@
       + '<button class="conn-menu-btn" data-m="rename">' + ic("pencil") + ' Đổi tên</button>'
       + '<button class="conn-menu-btn" data-m="perm">' + ic("shield") + ' Đổi quyền (' + ((PERM_META[c.perm] || {}).label || c.perm) + ')</button>'
       + '<button class="conn-menu-btn" data-m="deny">' + ic("ban") + ' Chặn tool cụ thể' + ((c.deny_tools || []).length ? " (" + c.deny_tools.length + ")" : "") + '</button>'
-      + (con && con.cred_dir ? '<button class="conn-menu-btn" data-m="relogin">' + ic("key")
+      + (con && (con.cred_dir || (con.auth_type === "oauth" && /google/.test(con.id || "")))
+          ? '<button class="conn-menu-btn" data-m="relogin">' + ic("key")
           + ' Đăng nhập lại Google (xoá quyền cũ)</button>' : "")
       + '<button class="conn-menu-btn" data-m="audit">' + ic("scroll") + ' Nhật ký gọi tool</button>'
       + '<button class="conn-menu-btn" data-m="toggle">' + (c.enabled ? "○ Tắt tạm" : "● Bật lại") + '</button>'
@@ -4125,7 +4127,13 @@
         await postJson("/connect/toggle", { id: c.id }); closeConnModal(); renderConnect(el);
       } else if (act === "del") {
         if (!confirm('Xoá kết nối "' + (c.label || "") + '"?')) return;
-        await postJson("/connect/delete", { id: c.id }); closeConnModal(); renderConnect(el);
+        note.textContent = "Đang xoá…";
+        const r = await postJson("/connect/delete", { id: c.id });
+        if (!r || r.ok === false) {
+          note.innerHTML = WARN_ICON + " " + esc((r && (r.error || (r.errors || []).join("; "))) || "Không xoá được");
+          return;
+        }
+        closeConnModal(); renderConnect(el);
       }
     });
   }

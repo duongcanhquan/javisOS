@@ -889,8 +889,9 @@
           { "text": "Quyền dữ liệu > Thêm hoặc bớt phạm vi: dán đủ 5 phạm vi Chat (chat.spaces.readonly, chat.memberships.readonly, chat.messages.readonly, chat.messages.create, chat.users.readstate).", "link": "https://console.cloud.google.com/auth/scopes", "link_label": "Mở trang Quyền dữ liệu" },
           { "text": "Tạo OAuth client loại 'Ứng dụng web', thêm địa chỉ dưới đây vào ô 'URI chuyển hướng được ủy quyền'.", "link": "https://console.cloud.google.com/apis/credentials/oauthclient", "link_label": "Tạo OAuth client", "copy": "redirect" },
           { "text": "Muốn Javis GỬI tin Chat sau này: vào Google Chat API > Configuration, tạo Chat app (tên Chat MCP, tắt interactive features). Chỉ đọc/tìm tin thì bỏ qua bước này.", "link": "https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat", "link_label": "Cấu hình Chat app" },
+          { "text": "Đọc hướng dẫn chính chủ Google về Chat MCP nếu cần chi tiết kỹ thuật.", "link": "https://developers.google.com/workspace/chat/api/guides/configure-mcp-server", "link_label": "Hướng dẫn Chat MCP" },
           { "text": "Tải file JSON client (hoặc copy Client ID + Secret), kéo thả vào ô bên dưới rồi bấm Kết nối. Gặp 'ứng dụng chưa được xác minh' thì Nâng cao > Tiếp tục, TICK HẾT ô quyền." },
-          { "text": "ĐĂNG NHẬP LẠI MÀ GOOGLE KHÔNG HIỆN LẠI CÁC Ô TICK QUYỾN? Gỡ Javis ở trang quyền Google rồi Kết nối lại.", "link": "https://myaccount.google.com/permissions", "link_label": "Gỡ quyền cũ ở Google" }
+          { "text": "ĐĂNG NHẬP LẠI MÀ GOOGLE KHÔNG HIỆN LẠI CÁC Ô TICK QUYỀN? Gỡ Javis ở trang quyền Google rồi Kết nối lại.", "link": "https://myaccount.google.com/permissions", "link_label": "Gỡ quyền cũ ở Google" }
         ],
         "setup": {
           "links": [

@@ -69,18 +69,18 @@ async def _run():
     check("kết quả lưu vào kho phiên (F5 vẫn còn)",
           bool(msgs) and msgs[-1]["role"] == "assistant" and "So sánh skill" in msgs[-1]["content"])
 
-    # Không được bịa thành công khi chẳng có kênh nào.
+    # Không rõ người nhận: kênh ngoài hỏng nhưng hòm thư vẫn giữ tin (0.49+).
     ok2, err2 = await main._notify_owner("", "báo linh tinh")
-    check("không rõ người nhận + Telegram tắt -> vẫn báo thất bại có lý do",
-          ok2 is False and "Telegram" in err2)
+    check("không rõ người nhận: vẫn lưu hòm thư và coi là báo được",
+          ok2 is True and err2 == "")
     ok3, err3 = await main._notify_owner(main.WEB_CHAT_PREFIX, "rỗng")
-    check("tiền tố web: nhưng thiếu mã phiên -> thất bại, không im lặng",
-          ok3 is False and "phiên chat web" in err3)
+    check("tiền tố web thiếu mã phiên: hòm thư vẫn giữ, không im lặng",
+          ok3 is True and err3 == "")
 
     # Telegram vẫn là đường riêng: chat_id thường KHÔNG được coi là phiên web.
     ok4, err4 = await main._notify_owner("123456789", "gửi telegram")
-    check("chat_id Telegram vẫn đi nhánh Telegram như cũ",
-          ok4 is False and "Telegram" in err4)
+    check("chat_id Telegram khi kênh tắt: hòm thư giữ tin, không báo failed",
+          ok4 is True and err4 == "")
 
 
 asyncio.run(_run())

@@ -255,11 +255,20 @@ async def purge_connection(cid: str, *, mode: str = "trash", purge_audit: bool =
         ("store", lambda: mcp_store.delete_connection(cid)),
     ):
         try:
-            viec()
-            bao_cao["removed"].append(ten)
+            ket_qua = viec()
+            if ten == "store" and ket_qua is False:
+                bao_cao["ok"] = False
+                bao_cao.setdefault("errors", []).append("store: không xoá được khỏi registry")
+            else:
+                bao_cao["removed"].append(ten)
         except Exception as e:
             print(f"[purge] {ten}: {type(e).__name__}: {e}", file=sys.stderr)
+            bao_cao["ok"] = False
             bao_cao.setdefault("errors", []).append(f"{ten}: {e}")
+
+    if bao_cao.get("ok") and mcp_store.get_connection(cid):
+        bao_cao["ok"] = False
+        bao_cao.setdefault("errors", []).append("store: kết nối vẫn còn sau khi xoá")
 
     # Nhật ký: mặc định GIỮ, chỉ bỏ nhãn. Xem docstring `mcp_hub.audit_scrub`.
     try:

@@ -215,6 +215,15 @@ def _sach_icon(icon: Optional[str]) -> Optional[str]:
 class SessionStore:
     """Kho hội thoại SQLite thread-safe (1 connection + app-lock, WAL)."""
 
+    # Nhãn engine (dashboard/Telegram) → cột SQLite giữ mạch native. Thêm engine giữ phiên mới
+    # thì chỉ sửa bảng này + migration cột tương ứng; `clear_native_threads` tự nhận.
+    _MACH_NATIVE = {
+        "cli": "cli_session_id",
+        "codex": "codex_thread_id",
+        "gemini-cli": "gemini_session_id",
+        "grok-cli": "grok_session_id",
+    }
+
     _WRITE_MAX_RETRIES = 12
     _RETRY_MIN_S = 0.020
     _RETRY_MAX_S = 0.150
@@ -285,6 +294,7 @@ class SessionStore:
                               # nhưng phải là cột RIÊNG: đổi bộ não giữa chừng mà dùng chung một
                               # cột là lượt sau đưa UUID của engine này cho engine kia resume.
                               ("gemini_session_id", "TEXT"),
+                              ("grok_session_id", "TEXT"),
                               # Model GHIM RIÊNG của phiên. Hai nguồn ghi: user đổi model ngay
                               # trong phiên, và từ 0.35.5 server tự ĐÓNG DẤU model đang chạy ở
                               # lượt dashboard đầu tiên - nên đổi mặc định chung không bao giờ
@@ -692,6 +702,21 @@ class SessionStore:
         self._write(lambda c: c.execute(
             "UPDATE sessions SET gemini_session_id = NULL "
             "WHERE id = ? AND gemini_session_id IS NOT NULL",
+            (session_id,),
+        ))
+
+    def set_grok_session_id(self, session_id: str, grok_id: str) -> None:
+        if not grok_id:
+            return
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET grok_session_id = ?, updated_at = ? WHERE id = ?",
+            (grok_id, time.time(), session_id),
+        ))
+
+    def clear_grok_session_id(self, session_id: str) -> None:
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET grok_session_id = NULL "
+            "WHERE id = ? AND grok_session_id IS NOT NULL",
             (session_id,),
         ))
 

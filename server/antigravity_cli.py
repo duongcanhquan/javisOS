@@ -494,7 +494,7 @@ _CANH_BAO_DOC_HONG = (
 # ---------------------------------------------------------------------------
 # Mức quyền
 # ---------------------------------------------------------------------------
-def co_quyen_cho_mode(mode: Optional[str]) -> list[str]:
+def co_quyen_cho_mode(mode: Optional[str], headless: bool = False) -> list[str]:
     """Ba mức quyền của Javis -> cờ của `agy`. Giá trị lạ về nấc CHẶT NHẤT (fail-closed).
 
     Chỉ có `--dangerously-skip-permissions` (tự duyệt mọi tool) và `--sandbox` (siết terminal)
@@ -502,6 +502,10 @@ def co_quyen_cho_mode(mode: Optional[str]) -> list[str]:
     CLI, nên `suggest` ở đây được siết bằng SANDBOX cộng với lời dặn trong system prompt, chứ
     không phải một cái chốt cứng của CLI. Khác biệt này phải nói thật ở tài liệu, đừng để người
     dùng tưởng mức Chỉ đọc do CLI chặn như bên Gemini.
+
+    `headless=True` cho mọi lượt `agy -p` (nhắc hẹn, việc nền, loop): không có ai bấm duyệt
+    tool nên BẮT BUỘC tự duyệt, kể cả mức suggest - nếu không `read_file` bị auto-deny và việc
+    chết với "no output produced". Rào ghi file / hành động ra ngoài vẫn ở MCP Hub + prompt.
     """
     m = str(mode or "").strip().lower()
     co: list[str] = []
@@ -512,7 +516,9 @@ def co_quyen_cho_mode(mode: Optional[str]) -> list[str]:
     # suggest + auto + mọi giá trị lạ: bật sandbox nếu bản CLI có.
     if co_co("--sandbox"):
         co.append("--sandbox")
-    if m == "auto" and co_co("--dangerously-skip-permissions"):
+    if headless and co_co("--dangerously-skip-permissions"):
+        co.append("--dangerously-skip-permissions")
+    elif m == "auto" and co_co("--dangerously-skip-permissions"):
         # auto = được ghi file nháp trong brain. Headless mà dừng lại hỏi duyệt là treo tới hết
         # giờ, nên vẫn phải tự duyệt; rào tiền/đơn/đăng bài nằm ở MCP Hub chứ không ở đây.
         co.append("--dangerously-skip-permissions")
@@ -948,7 +954,9 @@ class AntigravityCLI:
         args = [self.cli_path]
         if self.model and co_co("--model"):
             args += ["--model", self.model]
-        args += co_quyen_cho_mode(self.mode)
+        # Mọi lượt AntigravityCLI chạy qua `agy -p` (headless). Không truyền headless=True thì
+        # mức suggest chỉ có --sandbox → read_file bị auto-deny → nhắc hẹn chết "no output".
+        args += co_quyen_cho_mode(self.mode, headless=True)
         if self.mcp_config and co_co("--mcp-config", "--mcp-config-file"):
             args += ["--mcp-config", self.mcp_config]
         if co_co("--output-format"):

@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.62] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn chạy Antigravity không còn chết vì thiếu quyền đọc file.** Việc nền headless tự duyệt tool thay vì chờ bấm (lỗi "read_file permission auto-denied" / "no output produced").
+- **Kết quả việc nền luôn vào hòm thư** kể cả khi Telegram/Zalo chưa đấu, không còn báo failed oan.
+- **Xoá kết nối Google Chat (và OAuth Google) báo đúng kết quả:** nếu xoá thất bại sẽ hiện lỗi thay vì báo xong mà card vẫn còn. Nút "Đăng nhập lại Google" có cho Chat/Gmail/Lịch; bấm "Kết nối lại" sẽ xoá token cũ trước khi mở trang Google.
+
+
 ## [0.35.61] - 2026-09-05
 ### Sửa lỗi
 - **Deploy VPS không còn kẹt khi gỡ Ollama.** Script gỡ xóa thư mục model trực tiếp (không gọi `ollama rm` dễ treo), chạy trước build Docker.

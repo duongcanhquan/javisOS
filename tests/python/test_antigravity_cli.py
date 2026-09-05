@@ -143,8 +143,8 @@ check("bản cũ không có --sandbox thì cũng không truyền", "--sandbox" n
 
 _evs3, _g3, _argv3 = _chay_gia(_DONG, help_text=_HELP_MOI, mode="suggest")
 check("mức suggest: bật --sandbox", "--sandbox" in _argv3, _argv3)
-check("CANARY: mức suggest KHÔNG tự duyệt mọi tool",
-      "--dangerously-skip-permissions" not in _argv3, _argv3)
+check("headless suggest: tự duyệt tool (không ai bấm duyệt read_file)",
+      "--dangerously-skip-permissions" in _argv3, _argv3)
 
 _evs4, _g4, _argv4 = _chay_gia(_DONG, help_text=_HELP_MOI, mode="full")
 check("mức full: tự duyệt tool để headless không treo",
@@ -157,8 +157,9 @@ check("mức full: tự duyệt tool để headless không treo",
 _cli_moi, _ = _gia([], help_text=_HELP_MOI)
 _reset_cache()
 antigravity_cli.find_antigravity_cli = lambda: _cli_moi
-check("mode rỗng -> siết như suggest",
-      antigravity_cli.co_quyen_cho_mode("") == ["--sandbox"])
+check("mode rỗng + headless: siết như suggest và tự duyệt tool",
+      set(antigravity_cli.co_quyen_cho_mode("", headless=True))
+      == {"--sandbox", "--dangerously-skip-permissions"})
 check("CANARY: mode gõ sai KHÔNG được thành toàn quyền",
       "--dangerously-skip-permissions" not in antigravity_cli.co_quyen_cho_mode("FULLL"))
 check("mode auto: có sandbox VÀ tự duyệt (headless dừng hỏi là treo)",
@@ -306,46 +307,45 @@ check("is_available() nói đúng sự thật", _g9.is_available() is False)
 # ============================================================
 # 5. MCP hub cô lập theo brain, không đụng file người dùng
 # ============================================================
+# Tắt ghi HOME trong test này: tránh đụng ~/.gemini của máy chạy CI; chỉ soi tầng workspace.
+os.environ["JAVIS_AGY_MCP_HOME"] = "0"
 _brain = Path(tempfile.mkdtemp(prefix="javis-agybrain-"))
-_hub = {"httpUrl": "http://127.0.0.1:7777/mcp", "headers": {"Authorization": "Bearer x"}}
+_hub = antigravity_cli.hub_entry("http://127.0.0.1:7777/mcp",
+                                 {"Authorization": "Bearer x"})
 antigravity_cli.ghi_mcp_settings(_brain, _hub)
-_files = list((_brain / ".antigravity").glob("*.json"))
-check("ghi cấu hình MCP vào TRONG brain, không vào HOME", len(_files) >= 1, _files)
-_doc = json.loads(_files[0].read_text(encoding="utf-8"))
-check("entry hub tên 'javis'", (_doc.get("mcpServers") or {}).get("javis") == _hub, _doc)
-# CANARY của một lỗi ĐÃ XẢY RA và im lặng suốt: hai đường dẫn `.antigravity/*` là bản ĐOÁN của
-# 0.30.0, và cả hai đều sai. Chỗ đúng ở tầng workspace là `.agents/mcp_config.json` (ba driver
-# `agy` thật của bên thứ ba dùng đường này, cộng CHANGELOG 1.0.5 của Google nhắc đích danh tên
-# file). Sai đường dẫn thì `agy` chạy bình thường nhưng KHÔNG có tool nào của Javis - không
-# Kanban, không MCP, không skill - mà chẳng có câu lỗi nào để lần ra.
+# CANARY: hai đường `.antigravity/*` là bản ĐOÁN cũ - KHÔNG còn ghi vào đó. Chỗ đúng ở tầng
+# workspace là `.agents/mcp_config.json`. Sai đường dẫn thì `agy` chạy mà không có tool Javis.
 _p_moi = _brain / ".agents" / "mcp_config.json"
-check("CANARY: ghi cả đường dẫn ĐÚNG `.agents/mcp_config.json`", _p_moi.is_file(), _p_moi)
-check("và entry hub ở đó cũng đúng",
-      (json.loads(_p_moi.read_text(encoding="utf-8")).get("mcpServers") or {}).get("javis") == _hub)
+check("CANARY: ghi đường dẫn ĐÚNG `.agents/mcp_config.json`", _p_moi.is_file(), _p_moi)
+_doc = json.loads(_p_moi.read_text(encoding="utf-8"))
+check("entry hub tên 'javis' đúng schema agy (serverUrl)",
+      (_doc.get("mcpServers") or {}).get("javis") == _hub, _doc)
+check("CANARY: KHÔNG còn ghi vào `.antigravity/` (đường đoán cũ)",
+      not (_brain / ".antigravity").exists() or not list((_brain / ".antigravity").glob("*.json")))
 check("CANARY: có neo `.antigravitycli/` để agy nhận đúng brain làm gốc project",
       (_brain / ".antigravitycli").is_dir())
 
-# Giữ nguyên phần người dùng đã tự thêm.
-_p0 = _brain / ".antigravity" / "mcp.json"
-_doc0 = json.loads(_p0.read_text(encoding="utf-8"))
-_doc0["mcpServers"]["cua-toi"] = {"httpUrl": "http://x"}
+# Giữ nguyên phần người dùng đã tự thêm trong file workspace.
+_doc0 = json.loads(_p_moi.read_text(encoding="utf-8"))
+_doc0["mcpServers"]["cua-toi"] = {"serverUrl": "http://x"}
 _doc0["theme"] = "dark"
-_p0.write_text(json.dumps(_doc0), encoding="utf-8")
+_p_moi.write_text(json.dumps(_doc0), encoding="utf-8")
 antigravity_cli.ghi_mcp_settings(_brain, _hub)
-_doc1 = json.loads(_p0.read_text(encoding="utf-8"))
+_doc1 = json.loads(_p_moi.read_text(encoding="utf-8"))
 check("CANARY: không xoá MCP người dùng tự thêm",
       "cua-toi" in (_doc1.get("mcpServers") or {}), _doc1)
 check("và không xoá cấu hình khác của họ", _doc1.get("theme") == "dark")
 
 antigravity_cli.ghi_mcp_settings(_brain, None)
-_doc2 = json.loads(_p0.read_text(encoding="utf-8"))
+_doc2 = json.loads(_p_moi.read_text(encoding="utf-8"))
 check("tắt hub -> gỡ đúng entry javis, giữ phần còn lại",
       "javis" not in (_doc2.get("mcpServers") or {})
       and "cua-toi" in (_doc2.get("mcpServers") or {}), _doc2)
 
 if os.name != "nt":
     check("file chứa hub token bị siết quyền",
-          (_p0.stat().st_mode & 0o077) == 0, oct(_p0.stat().st_mode))
+          (_p_moi.stat().st_mode & 0o077) == 0, oct(_p_moi.stat().st_mode))
+os.environ.pop("JAVIS_AGY_MCP_HOME", None)
 
 
 # ============================================================
@@ -355,8 +355,12 @@ antigravity_cli.find_antigravity_cli = _that_find
 _main_src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("có trong danh sách provider của trang Models",
       '"id": "antigravity-cli"' in _main_src)
-check("CANARY: xếp TRƯỚC thẻ Gemini CLI (đường Gemini cá nhân đã chết)",
-      _main_src.index('"id": "antigravity-cli"') < _main_src.index('"id": "gemini-cli"'))
+# Google đã ngắt Gemini CLI hạng cá nhân 18/06/2026 - thẻ đó không còn trong PROVIDER_DEFS;
+# Antigravity là đường thay thế. Canary cũ so thứ tự với gemini-cli nên nổ khi thẻ đó đã gỡ.
+check("CANARY: không còn khai PROVIDER_DEFS id gemini-cli (đường cá nhân đã chết)",
+      '{"id": "gemini-cli"' not in _main_src and "{'id': 'gemini-cli'" not in _main_src)
+check("và Antigravity vẫn là provider có id riêng",
+      '{"id": "antigravity-cli"' in _main_src)
 check("có nhánh chat riêng", 'elif prov == "antigravity-cli":' in _main_src)
 check("Telegram cũng có nhánh đó", 'if prov == "antigravity-cli":' in _main_src)
 check("đường chat-thuần (_api_stream) có nhánh, không rơi xuống anthropic key rỗng",
