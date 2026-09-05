@@ -206,7 +206,31 @@ check("CANARY: giao diện không còn nhánh theo địa chỉ", "needs_host" n
 check("CANARY: không còn nút Kiểm tra địa chỉ", "data-ph=" not in _console)
 # Thiếu dòng này thì thẻ Ollama hiện "Đổi key (•••)" với bốn ký tự cuối của... không gì cả.
 check("bảng key của giao diện biết ollama", '"ollama": "ollama_key"' in _console)
-check("ollama vẫn nằm trong danh sách provider có MCP", '"groq", "ollama"]' in _console)
+# deepseek đứng sau ollama trong danh sách - đừng khớp cứng `"ollama"]` vì sẽ vỡ khi thêm provider.
+check("ollama vẫn nằm trong danh sách provider có MCP",
+      'const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek"]'
+      in _console)
+
+
+# ---- 8. Việc nền (aux_engine) cũng chạy được bằng Ollama Cloud ----
+# Trước đây card Models có Ollama nhưng aux_engine quên đấu → chọn làm model việc nền
+# thì availability báo "provider lạ" và lặng lẽ fallback về Claude (đòi /login).
+import aux_engine  # noqa: E402
+
+check("aux_engine coi ollama là provider API", "ollama" in aux_engine.API_PROVIDERS)
+check("aux_engine map đúng ô key ollama",
+      aux_engine._KEY_FIELD.get("ollama") == "ollama_key")
+_S_OL = {"model": {"auxiliary": {"provider": "ollama", "model": "gpt-oss:120b-cloud"},
+                   "ollama_key": "sk-cloud-test"}}
+_ok, _why = aux_engine.availability(aux_engine.read_spec(_S_OL), _S_OL)
+check("có key thì availability OK cho việc nền", _ok and not _why)
+_fake = type("C", (), {"system_prompt": "S", "cwd": "/v", "javis_vault": "/v",
+                       "javis_mode": "suggest", "tag": "reminder", "model": None})()
+_out = aux_engine.swap(_fake, mode="suggest", settings=_S_OL)
+# FallbackChain uỷ quyền attr sang mắt đầu → .provider/.model thấy được luôn.
+check("swap việc nền dựng engine API ollama",
+      getattr(_out, "provider", None) == "ollama"
+      and getattr(_out, "model", None) == "gpt-oss:120b-cloud")
 
 print()
 if _fails:

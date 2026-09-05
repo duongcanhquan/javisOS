@@ -43,7 +43,8 @@ CLAUDE = "anthropic-cli"
 CODEX = "openai-oauth"
 GEMINI_CLI = "gemini-cli"
 ANTIGRAVITY = "antigravity-cli"
-API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api")
+API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api",
+                 "ollama")
 
 # provider -> tên trường chứa API key trong settings["model"]
 _KEY_FIELD = {
@@ -53,6 +54,7 @@ _KEY_FIELD = {
     "groq": "groq_api_key",
     "deepseek": "deepseek_api_key",
     "anthropic-api": "anthropic_api_key",
+    "ollama": "ollama_key",
 }
 
 # mode của Javis -> sandbox của Codex CLI. Bản đồ thật nằm ở `claude_cli.codex_sandbox_cho_mode`
@@ -307,13 +309,15 @@ class _ApiAuxEngine:
                   "openai": eng.openai_chat_with_mcp,
                   "gemini": eng.gemini_chat_with_mcp, "groq": eng.groq_chat_with_mcp,
                   "deepseek": eng.deepseek_chat_with_mcp,
-                  "anthropic-api": eng.anthropic_chat_with_mcp}[self.provider]
+                  "anthropic-api": eng.anthropic_chat_with_mcp,
+                  "ollama": eng.ollama_chat_with_mcp}[self.provider]
             stream = fn(key, self.model, messages, self.reasoning, tools, route)
         else:
             fn = {"openrouter": eng.openrouter_stream, "openai": eng.openai_stream,
                   "gemini": eng.gemini_stream, "groq": eng.groq_stream,
                   "deepseek": eng.deepseek_stream,
-                  "anthropic-api": eng.anthropic_stream}[self.provider]
+                  "anthropic-api": eng.anthropic_stream,
+                  "ollama": eng.ollama_stream}[self.provider]
             stream = fn(key, self.model, messages, self.reasoning)
 
         # Đường API sinh "text" theo mảnh; việc nền chỉ đọc "final" nên gom lại rồi phát MỘT lần.

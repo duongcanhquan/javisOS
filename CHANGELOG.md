@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.41] - 2026-09-05
+### Sửa lỗi
+- **Ollama Cloud chạy được làm model việc nền.** Trước đây chọn Ollama ở khối việc nền vẫn lặng lẽ rơi về Claude (đòi đăng nhập). Nay đấu đủ vào `aux_engine` nên nhắc hẹn / loop / Kanban chạy bằng key Ollama như chat thường.
+
 ## [0.35.40] - 2026-09-05
 ### Thêm mới
 - **Tổng kết sáng gửi cả Telegram và Zalo.** Nhắc hệ thống (`chat_id=all`) báo cáo lên mọi kênh ngoài đã đấu, không chỉ một app.
