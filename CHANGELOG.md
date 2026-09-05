@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.70] - 2026-09-05
+### Sửa lỗi
+- **Zalo/Telegram lại đọc được Gmail/Lịch.** Lỗi kỹ thuật làm engine API (Groq…) chạy chat không có tool dù kết nối vẫn xanh; đã sửa và tự nạp tool email/lịch theo câu hỏi.
+
+
 ## [0.35.69] - 2026-09-05
 ### Sửa lỗi
 - **Groq gpt-oss không còn trả lời rỗng.** Model suy nghĩ hết token vẫn hiện chữ (lấy từ reasoning) và Javis gửi đủ ngân sách token cho chat Zalo/Telegram.

@@ -1831,24 +1831,24 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
         try:
             if _hub_enabled():
                 vault_root = _brain_root(brain) if brain else None
-                # staging=True: đây là đường chat của CHỦ (dashboard + Telegram của chủ), tức
-                # đúng nơi người dùng đính kèm/dán file. Cho javis_read_file với tới vùng nhận
-                # file của khung chat, nếu không thì khối "[File đính kèm để ĐỌC…]" mà chính
-                # dashboard chèn vào câu hỏi là một lời hứa engine API không giữ nổi. Bot
-                # chuyên trách dựng tool ở chỗ khác và KHÔNG truyền cờ này - khách lạ vẫn chỉ
-                # thấy brain của bot.
                 tools, route = await mcp_hub.discover_all(
-                    mode, vault_root=vault_root, force_lazy=force_lazy, staging=True
+                    mode, vault_root=vault_root, force_lazy=force_lazy,
                 )
                 inventory_tools, inventory_route = mcp_hub.registry_inventory(
-                    mode, vault_root=vault_root, force_lazy=force_lazy, staging=True)
+                    mode, vault_root=vault_root, force_lazy=force_lazy)
+                # Lazy: nạp sẵn tool khớp câu hỏi (email/lịch…) — model flash hay bảo thiếu tool.
+                tools, route = mcp_hub.seed_visible_for_query(
+                    tools, route, inventory_tools, inventory_route, _last_user_text(messages))
             else:
                 servers = mcp_store.servers_for_client()
                 if servers:
                     tools, route = await mcp_client.discover(servers)
                     inventory_tools, inventory_route = tools, route
+                else:
+                    inventory_tools, inventory_route = [], {}
         except Exception as e:
             print(f"[mcp discover] {e}", file=__import__('sys').stderr)
+            inventory_tools, inventory_route = [], {}
     # Phase 0-1: chỉ đo metadata payload sau khi đã biết tool schema thật. Không lưu content,
     # không chặn quota và không thay danh sách tool. ContextVar giữ trace riêng từng asyncio task.
     _trace = context_runtime.current_trace()
@@ -8435,6 +8435,45 @@ async def _canh_bao_hua_suong(brain: str, chat_id: str, final_text: str,
     return background_status.promise_note(view.get("orchestration") or "")
 
 
+def _canh_bao_phu_nhan_tool(final_text: str) -> str:
+    """Model API (Groq…) hay bảo 'không có tool Gmail' dù kết nối vẫn xanh trên VPS.
+
+    Chỉ đính chính khi câu trả lời phủ nhận năng lực VÀ máy vẫn còn connector Google
+    (gmail/calendar/chat) đang bật. Không đoán bừa khi thật sự chưa đấu.
+    """
+    text = (final_text or "").strip()
+    if not text:
+        return ""
+    low = text.lower()
+    markers = (
+        "không có tool", "không có công cụ", "không thể truy cập công cụ",
+        "no tools available", "do not have access to tool",
+        "cần thêm kết nối gmail", "can them ket noi gmail",
+        "javis_add_mcp",
+    )
+    if not any(m in low for m in markers):
+        return ""
+    try:
+        rows = mcp_store.resolved(enabled_only=True)
+    except Exception:
+        return ""
+    googleish = []
+    for c in rows or []:
+        cid = (c.get("connector_id") or c.get("id") or "").lower()
+        lab = (c.get("label") or c.get("name") or "").lower()
+        if any(k in cid or k in lab for k in ("gmail", "calendar", "google-chat", "google_chat")):
+            googleish.append(c.get("label") or c.get("name") or cid)
+        elif "googleapis.com" in str(c.get("url") or "").lower():
+            googleish.append(c.get("label") or c.get("name") or cid)
+    if not googleish:
+        return ""
+    ten = ", ".join(googleish[:4])
+    return (
+        "⚠ Đính chính hệ thống: máy vẫn đang có kết nối Google (" + ten
+        + "). Câu trên nói thiếu tool là sai - hãy nhắn lại (vd «đọc email» / «lịch hôm nay») "
+        "để Javis gọi tool thật, không cần thêm kết nối."
+    )
+
 @app.get("/lint")
 async def lint(brain: str = Query("brain")):
     """LINT - health-check Wiki (chỉ đọc, không sửa). Trả danh sách 8 loại vấn đề."""
@@ -13220,6 +13259,9 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
                     brain, str(chat_id or ""), out.get("text") or "", runtime_trace)
                 if _canh_bao:
                     out["text"] = (out.get("text") or "") + "\n\n" + _canh_bao
+                _canh2 = _canh_bao_phu_nhan_tool(out.get("text") or "")
+                if _canh2:
+                    out["text"] = (out.get("text") or "") + "\n\n" + _canh2
             except Exception as e:
                 print(f"[hua suong telegram] {type(e).__name__}: {e}", file=__import__('sys').stderr)
         if conv_sid and isinstance(out, dict):

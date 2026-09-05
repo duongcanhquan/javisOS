@@ -841,13 +841,74 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
 
 def registry_inventory(mode="full", vault_root=None, include_plugins=True, include_ambient=False,
                        force_lazy=False):
-    """Trả snapshot pre-lazy đã cache; không discover I/O và không lộ ra model."""
+    """Trả snapshot pre-lazy đã cache; không discover I/O và không lộ ra model.
+
+    Khoá cache phải khớp `discover_all` (kể cả ngôn ngữ) - thiếu lang thì luôn miss,
+    inventory rỗng, shadow/seed tool theo câu hỏi không chạy được.
+    """
+    try:
+        import localefmt
+        lang = localefmt.ngon_ngu_tra_loi()
+    except Exception:
+        lang = ""
     key = ((mode or "full").strip().lower(), str(vault_root or ""),
-           bool(include_plugins), bool(include_ambient), bool(force_lazy))
+           bool(include_plugins), bool(include_ambient), bool(force_lazy), lang)
     ent = _cache.get(key) or {}
     return list(ent.get("inventory_tools") or ent.get("tools") or []), dict(
         ent.get("inventory_route") or ent.get("route") or {}
     )
+
+
+_SEED_BOOST = (
+    "gmail", "email", "mail", "inbox", "hộp thư", "hop thu", "thư", "thu ",
+    "lịch", "lich", "calendar", "google", "kết nối", "ket noi", "nguồn", "nguon",
+)
+
+
+def seed_visible_for_query(tools_spec, route, inventory_tools, inventory_route, query,
+                           top_k=None):
+    """Lazy MCP: nạp sẵn top tool khớp câu hỏi vào danh sách hiện.
+
+    Model yếu (Groq gpt-oss…) hay nhìn danh sách meta-tool rồi bảo 'không có Gmail'
+    dù kết nối vẫn xanh. Seed trực tiếp vài schema khớp query → gọi thẳng được, không
+    bắt buộc vòng javis_search_tools trước. Không lazy / không query → giữ nguyên.
+    """
+    if not query or not tools_spec or not route:
+        return tools_spec, route
+    if _LAZY_SEARCH not in route:
+        return tools_spec, route
+    if not inventory_tools or not inventory_route:
+        return tools_spec, route
+    _, _, default_k = _lazy_config()
+    k = max(1, int(top_k or default_k or 8))
+    visible = {t.get("fn") for t in tools_spec}
+    pool = [t for t in inventory_tools
+            if (t.get("fn") or "") not in visible
+            and t.get("fn") not in (_LAZY_SEARCH, _LAZY_RUN)]
+    hits = list(_rank_tools(pool, query, k))
+    q = (query or "").strip().lower()
+    if any(w in q for w in _SEED_BOOST):
+        for t in inventory_tools:
+            fn = t.get("fn") or ""
+            if fn == "javis_connections" and fn not in {h.get("fn") for h in hits}:
+                hits.insert(0, t)
+                break
+    if not hits:
+        return tools_spec, route
+    new_tools = list(tools_spec)
+    new_route = dict(route)
+    have = {t.get("fn") for t in new_tools}
+    for t in hits:
+        fn = t.get("fn") or ""
+        if not fn or fn in have:
+            continue
+        ent = inventory_route.get(fn)
+        if not ent:
+            continue
+        new_tools.append(t)
+        new_route[fn] = ent
+        have.add(fn)
+    return new_tools, new_route
 
 
 def invalidate_cache():

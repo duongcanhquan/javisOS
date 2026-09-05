@@ -387,6 +387,41 @@ async def _skill_findable():
 
 asyncio.run(_skill_findable())
 
+# ---- seed_visible_for_query: nạp tool khớp câu hỏi khi lazy ----
+set_lazy({"lazy_tools": True, "lazy_top_k": 8})
+_tools_s, _route_s = _fixture()
+# Thêm tool giả Gmail vào inventory để seed có gì mà kéo.
+_tools_s = list(_tools_s) + [{
+    "fn": "gmail__list_messages", "server": "gmail", "name": "list_messages",
+    "namespace": "gmail", "label": "Gmail",
+    "description": "Liệt kê email trong inbox Gmail",
+    "schema": {"type": "object", "properties": {}},
+}]
+_route_s = dict(_route_s)
+_route_s["gmail__list_messages"] = {"call": lambda a: "ok", "conn": {"id": "g1"}, "tool": "list_messages"}
+_lt_s, _lr_s = mcp_hub._apply_lazy(_tools_s, _route_s)
+check("seed prep: gmail bị giấu khi lazy",
+      "gmail__list_messages" not in {t["fn"] for t in _lt_s})
+_seeded_t, _seeded_r = mcp_hub.seed_visible_for_query(
+    _lt_s, _lr_s, _tools_s, _route_s, "đọc gmail inbox hôm nay")
+_seed_fns = {t["fn"] for t in _seeded_t}
+check("seed: kéo gmail__list_messages ra danh sách hiện",
+      "gmail__list_messages" in _seed_fns)
+check("seed: route có entry để gọi thẳng",
+      "gmail__list_messages" in _seeded_r)
+_noop_t, _noop_r = mcp_hub.seed_visible_for_query(_lt_s, _lr_s, [], {}, "gmail")
+check("seed: inventory rỗng → giữ nguyên", _noop_t is _lt_s and _noop_r is _lr_s)
+_full_t, _full_r = mcp_hub.seed_visible_for_query(
+    _tools_s, _route_s, _tools_s, _route_s, "gmail")  # không lazy (không có meta)
+check("seed: không lazy → giữ nguyên", _full_t is _tools_s)
+
+# Canary: main không được truyền kwargs lạ (staging=…) vào discover_all - TypeError bị nuốt
+# → tools rỗng → model bảo thiếu Gmail dù kết nối xanh (bug 2026-09-05).
+_main_src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
+_api_fn = _main_src.split("async def _api_stream_mcp")[1].split("def _last_user_text")[0]
+check("main không truyền staging= vào discover_all/registry_inventory",
+      "staging=" not in _api_fn)
+
 print()
 if _fails:
     print("FAILED (%d): %s" % (len(_fails), ", ".join(_fails)))

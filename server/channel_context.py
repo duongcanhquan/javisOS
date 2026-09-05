@@ -71,6 +71,10 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
         "- Với mọi dữ liệu đang chạy hoặc dữ liệu tài khoản ngoài (MCP/Google/POS...): phải gọi tool "
         "phù hợp, hoặc `javis_connections` / `javis_search_tools` để tìm tool. Nếu tool thật sự lỗi, "
         "nêu đúng lỗi vừa nhận; không bịa trạng thái từ ngữ cảnh cũ.",
+        "- Hỏi email/Gmail/inbox/lịch Google: TUYỆT ĐỐI không nói 'không có tool' hay 'cần thêm "
+        "kết nối' khi thực đơn nguồn (trong mô tả `javis_search_tools`) hoặc danh sách tool đã "
+        "có Gmail/Calendar. Phải gọi tool Gmail/Calendar (hoặc `javis_search_tools` query "
+        "`gmail`/`calendar` rồi `javis_run_tool`). Chỉ khi search báo chưa có nguồn đó mới nói thiếu.",
         "- KHÔNG HỨA THỨ MÌNH KHÔNG LÀM ĐƯỢC. Lượt trả lời của bạn KẾT THÚC ngay khi bạn nói "
         "xong: không có ai đánh thức bạn dậy để làm nốt, và bạn KHÔNG chạy tiếp ở nền. Nên "
         "TUYỆT ĐỐI không nói những câu kiểu \"mình đang dò/đang kiểm tra, có kết quả mình báo "
