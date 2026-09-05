@@ -108,4 +108,10 @@ if [ -f "$ROOT/scripts/seed-morning-brief-vps.sh" ]; then
   bash "$ROOT/scripts/seed-morning-brief-vps.sh" || echo "WARN: seed-morning-brief skipped"
 fi
 
+if [ -f "$ROOT/scripts/force-morning-brief-today-vps.sh" ]; then
+  echo "==> force morning brief today (send soon)"
+  chmod +x "$ROOT/scripts/force-morning-brief-today-vps.sh"
+  bash "$ROOT/scripts/force-morning-brief-today-vps.sh" || echo "WARN: force-morning-brief-today skipped"
+fi
+
 echo "==> done"
