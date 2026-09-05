@@ -2,12 +2,12 @@
 # Áp phân tầng model trên VPS (cloud-first, không Ollama local):
 #   Main     = Antigravity CLI (dashboard / MCP nặng / lệnh máy)
 #   Việc nền = Antigravity CLI (nhắc hẹn, loop, Kanban, tự học, tổng kết sáng)
-#   Nhắn tin = API flash nhanh (Groq/Gemini/DeepSeek/OpenRouter nếu có key)
-#              → Telegram + Zalo phản hồi nhanh nhưng VẪN gọi MCP qua hub
+#   Nhắn tin = theo Main (Antigravity) — không ghim Groq/API flash
+#              (Groq free TPM thấp, STT phụ thuộc key, hay 429 / “thiếu key”)
 #   Họp      = Antigravity (trang Cuộc họp → Tổng kết)
 #
 # Tuỳ chọn env:
-#   JAVIS_MSG_PROVIDER / JAVIS_MSG_MODEL  - ép provider/model cho Telegram+Zalo
+#   JAVIS_MSG_PROVIDER / JAVIS_MSG_MODEL  - chỉ khi CỐ Ý ghim API flash (không khuyến nghị)
 #   JAVIS_NEW_ADMIN_PASSWORD              - reset mật khẩu dashboard
 # Idempotent. Chạy trong thư mục repo trên VPS (cần docker container javis đang chạy).
 set -euo pipefail
@@ -77,10 +77,9 @@ if not aux_mod:
 m["auxiliary"] = {"provider": aux_p, "model": aux_mod}
 print("auxiliary:", old_aux, "->", m["auxiliary"])
 
-# --- Nhắn tin (Telegram + Zalo): API flash nếu có key, không thì giữ Antigravity ---
-# Ưu tiên tốc độ TTFT: Groq > Gemini API > DeepSeek > OpenRouter. API đi HTTP, không spawn
-# `agy` mỗi tin → phản hồi nhanh; MCP hub vẫn gắn nên đọc lịch/Gmail/Chat vẫn được.
-# Thiếu Bash/WebFetch/Task của CLI - đủ cho hầu hết tin nhắn; việc nặng để dashboard/nền.
+# --- Nhắn tin (Telegram + Zalo): mặc định THEO MAIN (Antigravity) ---
+# Không còn tự ghim Groq/Gemini API: gói free TPM thấp + STT bắt key → hay lỗi.
+# Chỉ ghim API flash khi env JAVIS_MSG_PROVIDER đặt rõ ràng.
 _KEY = {
     "groq": "groq_api_key",
     "gemini": "gemini_api_key",
@@ -88,11 +87,11 @@ _KEY = {
     "openrouter": "openrouter_key",
 }
 _MAC_DINH_MSG = {
-    # 20b: nhẹ hơn 120b, ít đốt TPM free-tier (8000) khi chat Zalo/Telegram + tool.
     "groq": "openai/gpt-oss-20b",
     "gemini": "gemini-2.5-flash",
     "deepseek": "deepseek-v4-flash",
     "openrouter": "google/gemini-2.0-flash-001",
+    "antigravity-cli": "",
 }
 
 
@@ -109,58 +108,28 @@ if msg_p:
     elif msg_p in _KEY and not _co_key(msg_p):
         print("WARN: JAVIS_MSG_PROVIDER=", msg_p, "nhưng chưa có API key - bỏ qua")
         msg_p = ""
-if not msg_p:
-    for ung in ("groq", "gemini", "deepseek", "openrouter"):
-        if _co_key(ung):
-            msg_p = ung
-            break
-if msg_p:
+if msg_p and msg_p != "antigravity-cli":
     if not msg_mod:
         msg_mod = _MAC_DINH_MSG.get(msg_p) or ""
-    # Ghim cũ còn Llama (đã gỡ trên Groq) hoặc 120b quá nặng TPM free → ép mặc định nhắn tin.
-    if msg_p == "groq" and (
-            "llama" in (msg_mod or "").lower()
-            or "gpt-oss-120b" in (msg_mod or "").lower()):
-        print("messaging: đổi model Groq nặng", msg_mod, "->", _MAC_DINH_MSG["groq"])
-        msg_mod = _MAC_DINH_MSG["groq"]
     m["telegram"] = {"provider": msg_p, "model": msg_mod}
-    print("messaging (Telegram+Zalo):", old_tg, "->", m["telegram"])
+    print("messaging (Telegram+Zalo):", old_tg, "->", m["telegram"], "(ép env)")
 else:
-    # Không có API key nào: đừng ghim Antigravity (trùng Main, vô ích). Giữ/xoá ghim cũ
-    # nếu ghim cũ trỏ API đã mất key.
-    cu = (old_tg.get("provider") or "").strip()
-    if cu in _KEY and not _co_key(cu):
-        m["telegram"] = {"provider": "", "model": ""}
-        print("messaging: gỡ ghim cũ (hết key)", old_tg)
-    else:
-        # Vẫn đang giữ Groq+Llama từ lần ghim trước → sửa tại chỗ.
-        if cu == "groq" and "llama" in (old_tg.get("model") or "").lower() and _co_key("groq"):
-            m["telegram"] = {"provider": "groq", "model": _MAC_DINH_MSG["groq"]}
-            print("messaging: scrub Llama", old_tg, "->", m["telegram"])
-        else:
-            print("messaging: giữ", old_tg or "(theo Main/Antigravity - chưa có API key flash)")
+    # Gỡ ghim API flash (Groq/…) → kênh nhắn tin đi theo Main = Antigravity.
+    m["telegram"] = {"provider": "", "model": ""}
+    print("messaging: gỡ ghim API flash", old_tg or "(trống)", "-> theo Main/Antigravity")
 
-# --- Scrub mọi chỗ còn ghim Llama trên Groq (Main / Aux / catalog) ---
-for slot in ("main", "auxiliary", "telegram"):
+# --- Scrub Llama chết trên Groq (nếu vẫn còn trong Main/Aux/catalog) ---
+for slot in ("main", "auxiliary"):
     block = dict(m.get(slot) or {})
     if (block.get("provider") or "") == "groq" and "llama" in (block.get("model") or "").lower():
         block["model"] = _MAC_DINH_MSG["groq"]
         m[slot] = block
         print(f"scrub {slot}: bỏ Llama →", block["model"])
-# Nhắn tin: 120b trên free-tier TPM 8k dễ 429 liên tục → hạ 20b.
-tg = dict(m.get("telegram") or {})
-if (tg.get("provider") or "") == "groq" and "gpt-oss-120b" in (tg.get("model") or "").lower():
-    tg["model"] = _MAC_DINH_MSG["groq"]
-    m["telegram"] = tg
-    print("messaging: hạ gpt-oss-120b →", tg["model"])
 cat = m.setdefault("catalog", {})
 old_g = list(cat.get("groq") or [])
 neu_g = [x for x in old_g if "llama" not in str(x).lower()]
 if not neu_g:
     neu_g = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b"]
-elif "openai/gpt-oss-20b" in neu_g:
-    # Đưa 20b lên đầu catalog để picker ưu tiên model nhẹ cho chat.
-    neu_g = ["openai/gpt-oss-20b"] + [x for x in neu_g if x != "openai/gpt-oss-20b"]
 if neu_g != old_g:
     cat["groq"] = neu_g
     print("catalog.groq:", old_g, "->", neu_g)
@@ -181,14 +150,11 @@ for k in (
 if cleared:
     print("cleared ollama_local:", ", ".join(cleared))
 
-# --- Tốc độ chat Telegram/Zalo: ép lazy MCP (ít schema tool = TTFT nhanh hơn) ---
+# --- MCP lazy: để auto (Antigravity CLI không cần ép True như khi ghim Groq) ---
 mcp = s.setdefault("mcp", {})
-if mcp.get("lazy_tools") != True:
-    print("mcp.lazy_tools:", mcp.get("lazy_tools"), "-> True (ép bật cho chat nhanh)")
-    mcp["lazy_tools"] = True
-if int(mcp.get("lazy_threshold") or 40) > 25:
-    print("mcp.lazy_threshold:", mcp.get("lazy_threshold"), "-> 25")
-    mcp["lazy_threshold"] = 25
+if mcp.get("lazy_tools") is True:
+    print("mcp.lazy_tools: True -> auto (bỏ ép tốc độ API flash)")
+    mcp["lazy_tools"] = "auto"
 
 # --- Reset mật khẩu (tuỳ chọn) ---
 if new_pw.strip():
@@ -212,7 +178,7 @@ else:
     cfg.write_settings(s)
     print("auth: không đổi (không truyền JAVIS_NEW_ADMIN_PASSWORD)")
 
-print("OK - đã ghi settings (cloud-first, nhắn tin tách tầng)")
+print("OK - đã ghi settings (Main/Aux/nhắn tin = Antigravity)")
 PY
 
-echo "==> xong. Main/Aux = Antigravity; Telegram+Zalo = API flash (nếu có key)."
+echo "==> xong. Main + Việc nền + Telegram/Zalo = Antigravity (không ghim Groq)."

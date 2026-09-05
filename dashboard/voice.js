@@ -1,7 +1,8 @@
 // ============================================
 // JAVIS OS - Voice Layer
-// Nghe: ưu tiên Whisper (Groq) qua /stt — chuẩn tiếng Việt hơn Web Speech của Chrome.
-// Không có Groq key → fallback Web Speech API. Đọc: Edge TTS (server) / browser.
+// Nghe: ưu tiên Web Speech (trình duyệt, không cần API key).
+// Có Groq key thì vẫn có thể dùng Whisper qua /stt (sttMode=whisper|auto khi available).
+// Đọc: Edge TTS (server) / browser.
 // ============================================
 
 class JavisVoice {
@@ -35,10 +36,11 @@ class JavisVoice {
     this._resumeAfterTTS = false;  // mic đang mở khi TTS bắt đầu → đọc xong tự mở nghe lại
     this._resumeTimer = null;
 
-    // STT: Whisper (server) ưu tiên; Web Speech chỉ khi không có Groq key.
+    // STT: mặc định Web Speech (không phụ thuộc Groq). Whisper chỉ khi sttMode=whisper
+    // hoặc auto + server báo có key Groq.
     // sttMode: "auto" | "whisper" | "browser"
     this.sttBackend = opts.sttBackend || "/stt";
-    this.sttMode = opts.sttMode || "auto";
+    this.sttMode = opts.sttMode || "browser";
     this._whisperReady = null;   // null=chưa hỏi, true/false
     this._sttEngine = "browser"; // engine đang dùng cho lượt nghe hiện tại
     this._transcribing = false;  // đang upload/nhận dạng Whisper — chặn restart hands-free

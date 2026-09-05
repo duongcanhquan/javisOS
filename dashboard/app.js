@@ -127,7 +127,7 @@ const voice = new JavisVoice({
     const msg = {
       "not-allowed": "Cần cấp quyền microphone: bấm biểu tượng ổ khóa trên Chrome, cho phép Mic, rồi tải lại trang.",
       "not-supported": "Trình duyệt này không nhận giọng. Mở Google Chrome hoặc Edge tại http://127.0.0.1:7777 — đừng dùng cửa sổ xem trong Cursor.",
-      "network": "Không nhận dạng được giọng (mạng hoặc thiếu Groq API key). Vào Models dán key Groq, hoặc kiểm tra mạng rồi thử lại.",
+      "network": "Không nhận dạng được giọng (Chrome cần mạng tới Google Speech, hoặc mic bị chặn). Thử Chrome/Edge, cho phép mic, kiểm tra mạng — hoặc gõ chữ.",
       "audio-capture": "Không lấy được microphone. Đóng app khác đang dùng mic rồi bấm lại.",
     };
     alert(msg[err] || ("Nhận giọng lỗi: " + err));
