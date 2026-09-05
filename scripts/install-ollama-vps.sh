@@ -261,7 +261,12 @@ cat >"$TMP_MF" <<EOF
 FROM ${CHOSEN}
 PARAMETER num_ctx ${NUM_CTX}
 EOF
-ollama create "$JAVIS_MODEL" -f "$TMP_MF"
+if ollama create "$JAVIS_MODEL" -f "$TMP_MF"; then
+  echo "OK: đã tạo $JAVIS_MODEL"
+else
+  echo "WARN: ollama create $JAVIS_MODEL thất bại → việc nền dùng base $CHOSEN"
+  JAVIS_MODEL="$CHOSEN"
+fi
 rm -f "$TMP_MF"
 
 echo

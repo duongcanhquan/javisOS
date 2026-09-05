@@ -63,16 +63,50 @@ local_ep = (m.get("ollama_local_endpoint") or "").strip()
 key = (m.get("ollama_key") or "").strip()
 
 
+def _ollama_has(name: str) -> bool:
+    """True nếu Ollama local đã có model (kể cả :latest). Lỗi mạng → False."""
+    ep = (local_ep or "").rstrip("/")
+    if not ep or not name:
+        return False
+    try:
+        import json
+        import urllib.request
+        with urllib.request.urlopen(ep + "/api/tags", timeout=8) as r:
+            models = (json.load(r) or {}).get("models") or []
+        names = set()
+        for m in models:
+            n = (m.get("name") or "").strip()
+            if not n:
+                continue
+            names.add(n)
+            names.add(n.split(":")[0])
+        return name in names or name.split(":")[0] in names
+    except Exception as e:
+        print("WARN: không liệt kê được model Ollama:", e)
+        return False
+
+
 def _pick_local_model():
     if aux_mod and "cloud" not in aux_mod:
-        return aux_mod
-    prev = (old_aux.get("model") or "").strip() if old_aux.get("provider") == "ollama-local" else ""
-    if prev.startswith("javis-"):
-        return prev
-    # Base tag (vd qwen3:4b-instruct) → biến thể Modelfile bake num_ctx 16k
-    if prev and "cloud" not in prev:
-        return "javis-" + prev.replace(":", "-")
-    return "javis-qwen3-4b-instruct"
+        cand = aux_mod
+    else:
+        prev = (old_aux.get("model") or "").strip() if old_aux.get("provider") == "ollama-local" else ""
+        if prev.startswith("javis-"):
+            cand = prev
+        elif prev and "cloud" not in prev:
+            # Base tag (vd qwen3:4b-instruct) → biến thể Modelfile bake num_ctx
+            cand = "javis-" + prev.replace(":", "-")
+        else:
+            cand = "javis-qwen3-4b-instruct"
+    # Install từng fail vì index.lock → routing trỏ javis-* nhưng model chưa tạo.
+    # Dùng tạm base đã kéo (qwen3:4b-instruct) thay vì để nhắc hẹn 404/fallback Claude.
+    if cand.startswith("javis-") and not _ollama_has(cand):
+        base = cand[len("javis-"):].replace("-", ":", 1)
+        if _ollama_has(base):
+            print(f"WARN: chưa có {cand} → dùng tạm base {base} (chạy lại Install Ollama)")
+            return base
+        print(f"WARN: chưa có {cand} trên Ollama - vẫn ghi (cần chạy Install)")
+    return cand
 
 
 if not aux_p:

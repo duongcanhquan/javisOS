@@ -11,6 +11,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cùng nhóm Install/Routing Ollama - tránh đụng .git/index.lock trên VPS.
+concurrency:
+  group: javis-vps-host
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -28,8 +33,18 @@ jobs:
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
             export COMPOSE_PROJECT_NAME=javis
-            git fetch --all --prune 2>/dev/null || true
-            git reset --hard origin/main 2>/dev/null || true
+            ok=0
+            for i in $(seq 1 60); do
+              rm -f .git/index.lock 2>/dev/null || true
+              git fetch --all --prune 2>/dev/null || true
+              if git reset --hard origin/main 2>/dev/null; then ok=1; break; fi
+              echo "git bận - chờ 2s ($i/60)"
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "ERROR: git reset thất bại (index.lock)"
+              exit 1
+            fi
             bash scripts/vps-deploy.sh
             if [ -f scripts/install-antigravity-vps.sh ]; then
               chmod +x scripts/install-antigravity-vps.sh

@@ -19,6 +19,11 @@ on:
       - "scripts/install-ollama-vps.sh"
       - ".github/workflows/install-ollama-vps.yml"
 
+# Cùng nhóm với Deploy/Routing: tránh đụng .git/index.lock trên VPS (PR #18/#19 fail vì vậy).
+concurrency:
+  group: javis-vps-host
+  cancel-in-progress: false
+
 jobs:
   install:
     runs-on: ubuntu-latest
@@ -39,16 +44,26 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
-            # Deploy/Install chạy song song dễ đụng index.lock → gỡ lock cũ trước khi reset.
-            rm -f .git/index.lock 2>/dev/null || true
-            # Pin đúng commit kích hoạt workflow - tránh race fetch origin/main chưa kịp có bản mới.
+            # Pin đúng commit kích hoạt workflow. Retry khi Deploy đang giữ index.lock.
             WANT_SHA="${{ github.sha }}"
-            git fetch --all --prune 2>/dev/null || true
-            if [ -n "$WANT_SHA" ] && git cat-file -e "${WANT_SHA}^{commit}" 2>/dev/null; then
-              git reset --hard "$WANT_SHA"
-            else
-              git fetch origin "$WANT_SHA" 2>/dev/null || git fetch origin main 2>/dev/null || true
-              git reset --hard "$WANT_SHA" 2>/dev/null || git reset --hard origin/main 2>/dev/null || true
+            ok=0
+            for i in $(seq 1 90); do
+              rm -f .git/index.lock 2>/dev/null || true
+              git fetch --all --prune 2>/dev/null || true
+              if [ -n "$WANT_SHA" ] && git cat-file -e "${WANT_SHA}^{commit}" 2>/dev/null; then
+                if git reset --hard "$WANT_SHA" 2>/dev/null; then ok=1; break; fi
+              else
+                git fetch origin "$WANT_SHA" 2>/dev/null || git fetch origin main 2>/dev/null || true
+                if git reset --hard "$WANT_SHA" 2>/dev/null || git reset --hard origin/main 2>/dev/null; then
+                  ok=1; break
+                fi
+              fi
+              echo "git bận (Deploy/Routing?) - chờ 2s ($i/90)"
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "ERROR: không reset được repo sau ~3 phút (index.lock)"
+              exit 1
             fi
             echo "==> install script @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
             chmod +x scripts/install-ollama-vps.sh
