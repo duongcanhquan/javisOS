@@ -2191,9 +2191,95 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 
 /* ============================================================
    VAULT EXPLORER (cột trái) - cây thư mục kiểu Obsidian + tìm note
+   Nền thiên hà: tinh vân cyan/violet + sao twinkle (chỉ màn chính).
    ============================================================ */
+.hud-body > .hud-left {
+  --vx-cyan: rgba(62, 224, 214, 0.55);
+  --vx-violet: rgba(120, 90, 255, 0.42);
+  --vx-magenta: rgba(200, 80, 180, 0.28);
+  --vx-void: #03050f;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 120% 70% at 10% -10%, rgba(62, 224, 214, 0.22), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 110% 20%, rgba(107, 140, 255, 0.28), transparent 58%),
+    radial-gradient(ellipse 80% 50% at 40% 110%, rgba(180, 60, 160, 0.2), transparent 55%),
+    linear-gradient(165deg, #050814 0%, #0a1020 45%, #060a14 100%);
+  border-right-color: rgba(62, 224, 214, 0.18);
+}
+.hud-body > .hud-left::before,
+.hud-body > .hud-left::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* Lớp sao + lấp lánh */
+.hud-body > .hud-left::before {
+  background-image:
+    radial-gradient(1.4px 1.4px at 8% 12%, #fff, transparent),
+    radial-gradient(1px 1px at 18% 28%, rgba(200, 255, 255, 0.95), transparent),
+    radial-gradient(1.8px 1.8px at 28% 8%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.2px 1.2px at 42% 22%, rgba(180, 220, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 55% 14%, #fff, transparent),
+    radial-gradient(2px 2px at 68% 30%, rgba(255, 230, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 78% 10%, rgba(180, 255, 240, 0.85), transparent),
+    radial-gradient(1.3px 1.3px at 88% 24%, #fff, transparent),
+    radial-gradient(1px 1px at 12% 48%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 32% 58%, rgba(160, 230, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 48% 42%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 62% 52%, rgba(220, 180, 255, 0.85), transparent),
+    radial-gradient(1.6px 1.6px at 82% 46%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 94% 58%, rgba(180, 255, 255, 0.75), transparent),
+    radial-gradient(1.3px 1.3px at 6% 72%, #fff, transparent),
+    radial-gradient(1px 1px at 22% 82%, rgba(200, 255, 255, 0.8), transparent),
+    radial-gradient(1.8px 1.8px at 38% 78%, rgba(255, 200, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 58% 88%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 74% 74%, rgba(160, 240, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 90% 86%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1.2px 1.2px at 15% 92%, rgba(200, 220, 255, 0.7), transparent),
+    radial-gradient(2.2px 2.2px at 50% 6%, rgba(255, 255, 255, 1), transparent),
+    radial-gradient(1px 1px at 96% 40%, rgba(180, 200, 255, 0.8), transparent);
+  opacity: 0.85;
+  animation: vx-twinkle 6s ease-in-out infinite alternate;
+}
+/* Tinh vân trôi chậm */
+.hud-body > .hud-left::after {
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 15%, rgba(62, 224, 214, 0.35), transparent 70%),
+    radial-gradient(ellipse 65% 50% at 100% 5%, rgba(107, 140, 255, 0.4), transparent 72%),
+    radial-gradient(ellipse 80% 55% at 50% 100%, rgba(160, 60, 180, 0.32), transparent 68%),
+    radial-gradient(ellipse 45% 35% at 30% 55%, rgba(62, 224, 214, 0.12), transparent 75%);
+  filter: blur(0.5px);
+  animation: vx-drift 22s ease-in-out infinite alternate;
+  opacity: 0.95;
+}
+@keyframes vx-twinkle {
+  from { opacity: 0.55; }
+  to { opacity: 0.95; }
+}
+@keyframes vx-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(2%, -1.5%, 0) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-body > .hud-left::before,
+  .hud-body > .hud-left::after { animation: none; }
+}
+
 .hud-left { padding: 12px 0 0; overflow: hidden; }
+.hud-body > .hud-left > * { position: relative; z-index: 1; }
 .vault-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 10px 8px; }
+.hud-body > .hud-left .vault-title {
+  font-family: var(--font);
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: rgba(180, 245, 255, 0.88);
+  text-shadow: 0 0 18px rgba(62, 224, 214, 0.45), 0 0 2px rgba(255, 255, 255, 0.35);
+  flex: 1; min-width: 0;
+}
 .vault-title { font-family: var(--font); font-size: 12px; letter-spacing: 2px; color: var(--text3); flex: 1; min-width: 0; }
 .vault-toggle {
   display: inline-flex; align-items: center; justify-content: center;
@@ -2205,8 +2291,29 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 .vault-toggle svg, .vault-toggle .ico, .vault-toggle i { width: 15px; height: 15px; }
 .vault-body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 .vault-tools { display: flex; gap: 6px; }
+.hud-body > .hud-left .mini-btn {
+  background: rgba(8, 14, 28, 0.45);
+  border-color: rgba(62, 224, 214, 0.28);
+  color: rgba(200, 240, 255, 0.85);
+  backdrop-filter: blur(8px);
+}
+.hud-body > .hud-left .mini-btn:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(62, 224, 214, 0.25);
+}
 .vault-search { display: flex; align-items: center; gap: 6px; margin: 0 12px 6px; background: var(--bg3);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+.hud-body > .hud-left .vault-search {
+  background: rgba(6, 10, 22, 0.55);
+  border-color: rgba(107, 140, 255, 0.28);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+.hud-body > .hud-left .vault-search:focus-within {
+  border-color: rgba(62, 224, 214, 0.55);
+  box-shadow: 0 0 0 3px rgba(62, 224, 214, 0.12), 0 0 24px rgba(62, 224, 214, 0.15);
+}
 .vault-search:focus-within { border-color: var(--accent); }
 .vault-search .vs-ico { font-size: 12px; opacity: .55; }
 .vault-search input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text);
@@ -2217,15 +2324,44 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 .vault-modes { display: flex; gap: 6px; margin: 0 12px 8px; }
 .vs-chip { font-size: 11px; padding: 3px 11px; border-radius: 20px; background: var(--bg3);
   border: 1px solid var(--border); color: var(--text3); cursor: pointer; }
+.hud-body > .hud-left .vs-chip {
+  background: rgba(8, 12, 24, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(200, 220, 255, 0.7);
+  backdrop-filter: blur(8px);
+}
+.hud-body > .hud-left .vs-chip.active {
+  background: rgba(62, 224, 214, 0.16);
+  border-color: rgba(62, 224, 214, 0.45);
+  color: var(--accent-ink);
+  box-shadow: 0 0 16px rgba(62, 224, 214, 0.18);
+}
 .vs-chip.active { background: var(--accent-wash-2); border-color: var(--accent-line); color: var(--accent); }
 .vault-tree, .vault-results { flex: 1; overflow-y: auto; padding: 2px 8px 14px; }
 .vault-tree::-webkit-scrollbar, .vault-results::-webkit-scrollbar { width: 4px; }
 .vault-tree::-webkit-scrollbar-thumb, .vault-results::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.hud-body > .hud-left .vault-tree::-webkit-scrollbar-thumb,
+.hud-body > .hud-left .vault-results::-webkit-scrollbar-thumb {
+  background: rgba(62, 224, 214, 0.28);
+}
 .vt-info { color: var(--text3); font-size: 13px; padding: 8px 6px; }
 .vt-node { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 6px; cursor: pointer;
   font-size: 13.5px; color: var(--text2); white-space: nowrap; overflow: hidden; }
+.hud-body > .hud-left .vt-node {
+  color: rgba(210, 230, 255, 0.82);
+}
 .vt-node:hover { background: var(--info-wash); color: var(--text); }
+.hud-body > .hud-left .vt-node:hover {
+  background: rgba(62, 224, 214, 0.12);
+  color: #e8f8ff;
+  box-shadow: inset 0 0 0 1px rgba(62, 224, 214, 0.15);
+}
 .vt-node.active { background: var(--info-wash); box-shadow: inset 3px 0 0 var(--accent); color: var(--text); }
+.hud-body > .hud-left .vt-node.active {
+  background: rgba(62, 224, 214, 0.16);
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 18px rgba(62, 224, 214, 0.12);
+  color: #f0fbff;
+}
 .vt-chev { flex: none; width: 13px; text-align: center; font-size: 10px; color: var(--text3); transition: transform .12s; }
 .vt-chev.open { transform: rotate(90deg); }
 .vt-chev.leaf { visibility: hidden; }
@@ -2240,12 +2376,53 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 .vt-hidden { display: none !important; }
 .vr-item { padding: 7px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .vr-item:hover { background: var(--info-wash); }
+.hud-body > .hud-left .vr-item:hover {
+  background: rgba(107, 140, 255, 0.14);
+}
 .vr-main { min-width: 0; flex: 1; }
 .vr-name { font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vr-snip { font-size: 12px; color: var(--text3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vr-dl { flex: none; border: 1px solid var(--border); background: var(--surface-1); color: var(--text2); border-radius: 6px; padding: 3px 7px; cursor: pointer; }
 .vr-dl:hover { color: var(--accent); border-color: var(--accent-line); }
 .vr-empty { color: var(--text3); font-size: 13px; padding: 10px 6px; }
+
+/* Tông sáng: tinh vân dịu hơn, vẫn đọc được chữ */
+:root[data-theme="light"] .hud-body > .hud-left {
+  background:
+    radial-gradient(ellipse 120% 70% at 10% -10%, rgba(13, 148, 136, 0.14), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 110% 20%, rgba(59, 107, 255, 0.12), transparent 58%),
+    radial-gradient(ellipse 80% 50% at 40% 110%, rgba(124, 58, 237, 0.08), transparent 55%),
+    linear-gradient(165deg, #eef4ff 0%, #f4f7fc 50%, #e8eef8 100%);
+  border-right-color: rgba(13, 148, 136, 0.2);
+}
+:root[data-theme="light"] .hud-body > .hud-left::before { opacity: 0.35; filter: brightness(0.55); }
+:root[data-theme="light"] .hud-body > .hud-left::after {
+  opacity: 0.55;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 15%, rgba(13, 148, 136, 0.18), transparent 70%),
+    radial-gradient(ellipse 65% 50% at 100% 5%, rgba(59, 107, 255, 0.16), transparent 72%),
+    radial-gradient(ellipse 80% 55% at 50% 100%, rgba(124, 58, 237, 0.1), transparent 68%);
+}
+:root[data-theme="light"] .hud-body > .hud-left .vault-title {
+  color: #0f4c4a;
+  text-shadow: none;
+}
+:root[data-theme="light"] .hud-body > .hud-left .vault-search,
+:root[data-theme="light"] .hud-body > .hud-left .vs-chip,
+:root[data-theme="light"] .hud-body > .hud-left .mini-btn {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text2);
+  border-color: var(--border);
+  box-shadow: none;
+}
+:root[data-theme="light"] .hud-body > .hud-left .vt-node { color: var(--text2); }
+:root[data-theme="light"] .hud-body > .hud-left .vt-node:hover,
+:root[data-theme="light"] .hud-body > .hud-left .vt-node.active {
+  color: var(--text);
+  background: var(--accent-wash-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 
 /* ============================================================
    NOTE EDITOR overlay - đè lên khoang não (.hud-center), giữ cây + chat sống
