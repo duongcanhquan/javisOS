@@ -15,17 +15,13 @@ RAM_GB=$(awk -v m="$RAM_MB" 'BEGIN { printf "%.1f", m/1024 }')
 FREE_GB=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}' || echo "?")
 echo "RAM: ${RAM_GB} GB (${RAM_MB} MB) · đĩa trống: ~${FREE_GB} GB"
 
-if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-  echo "ERROR: container '$CONTAINER' không chạy."
-  exit 1
-fi
-
-# --- Gỡ Ollama local (nếu còn) ---
+# --- Gỡ Ollama local còn sót (timeout, không treo deploy) ---
 if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
   echo
-  echo "==> Gỡ Ollama local (giải phóng RAM + đĩa)"
+  echo "==> Gỡ Ollama local (settings + cache)"
   chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
-  bash "$ROOT/scripts/uninstall-ollama-vps.sh" || echo "WARN: uninstall-ollama skipped"
+  timeout 90 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
+    || echo "WARN: uninstall-ollama skipped"
 fi
 
 # --- Javis settings: routing cloud ---
@@ -36,9 +32,10 @@ if [ -f "$ROOT/scripts/apply-model-routing-vps.sh" ]; then
   bash "$ROOT/scripts/apply-model-routing-vps.sh" || echo "WARN: apply-model-routing skipped"
 fi
 
-echo
-echo "==> Kiểm tra settings trong container"
-docker exec -i -u javis "$CONTAINER" python - <<'PY'
+if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+  echo
+  echo "==> Kiểm tra settings trong container"
+  docker exec -i -u javis "$CONTAINER" python - <<'PY'
 import sys
 sys.path.insert(0, "/app/server")
 import config as cfg
@@ -52,6 +49,9 @@ print("ollama_local_endpoint:", ep or "(đã xóa - OK)")
 if ep:
     print("WARN: vẫn còn ollama_local_endpoint - chạy lại uninstall-ollama-vps.sh")
 PY
+else
+  echo "WARN: container '$CONTAINER' chưa chạy - bỏ qua kiểm tra settings"
+fi
 
 echo
 echo "==> Health snapshot"

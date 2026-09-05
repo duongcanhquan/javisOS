@@ -22,6 +22,14 @@ else
   echo 'GEMINI_FORCE_FILE_STORAGE=true' >> "$ENV_FILE"
 fi
 
+# Gỡ Ollama host TRƯỚC build (giải phóng đĩa/RAM, tránh treo `ollama rm` sau deploy).
+if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
+  echo "==> Gỡ Ollama host (trước build)"
+  chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
+  JAVIS_OLLAMA_HOST_ONLY=1 timeout 120 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
+    || echo "WARN: uninstall-ollama host skipped"
+fi
+
 echo "==> git pull"
 git fetch --all --prune
 # VPS có thể còn diff local từ lần deploy trước → reset về origin/main trước khi pull.
@@ -131,7 +139,7 @@ if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morn
 fi
 
 if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
-  echo "==> optimize VPS (routing + Ollama + health)"
+  echo "==> optimize VPS (routing cloud + health)"
   chmod +x "$ROOT/scripts/optimize-vps.sh"
   bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
 fi
