@@ -1,0 +1,39 @@
+# Gỡ container Javis kẹt tên rồi deploy lại (khi 502 / Conflict name).
+name: Recover VPS Javis
+
+on:
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force remove stuck containers and redeploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 25m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            export COMPOSE_PROJECT_NAME=javis
+            echo "==> gỡ container kẹt tên"
+            docker rm -f javis javis-pixelle-api javis-pixelle-web 2>/dev/null || true
+            docker ps -aq --filter "name=javis" | while read -r cid; do
+              [ -n "$cid" ] || continue
+              docker rm -f "$cid" 2>/dev/null || true
+            done
+            rm -f .git/index.lock .git/refs/remotes/origin/main.lock 2>/dev/null || true
+            git remote prune origin 2>/dev/null || true
+            git fetch --all --prune || true
+            git reset --hard origin/main || true
+            chmod +x scripts/vps-deploy.sh
+            bash scripts/vps-deploy.sh
+            curl -fsS -m 10 http://127.0.0.1:7777/health || true
+            echo
+            chmod +x scripts/seed-htdt-profile-vps.sh
+            bash scripts/seed-htdt-profile-vps.sh || echo "WARN: seed HTĐT sau - chạy lại workflow Seed"
