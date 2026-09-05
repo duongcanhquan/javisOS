@@ -301,10 +301,13 @@ rm -f "$TMP_MF"
 if [ "${JAVIS_OLLAMA_PURGE_UNUSED:-1}" = "1" ]; then
   echo
   echo "==> Gỡ model Ollama không còn dùng (giữ $CHOSEN + $JAVIS_MODEL)"
+  _keep_base="${CHOSEN%%:*}|${JAVIS_MODEL%%:*}"
   ollama list 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do
     [ -n "$_m" ] || continue
-    [ "$_m" = "$CHOSEN" ] && continue
-    [ "$_m" = "$JAVIS_MODEL" ] && continue
+    _mb="${_m%%:*}"
+    case "|${_keep_base}|" in
+      *"|${_m}|"*|*"|${_mb}|"*) continue ;;
+    esac
     echo "  - gỡ $_m"
     ollama rm "$_m" 2>/dev/null || true
   done
