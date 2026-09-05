@@ -45,6 +45,10 @@
     max_tokens_per_second: "13.0",
     identify_speakers: "true",
   };
+  var MOONSHINE_VI_OPTS_LITE = {
+    max_tokens_per_second: "13.0",
+    identify_speakers: "false",
+  };
 
   function hasWebSpeech() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -109,6 +113,10 @@
   }
 
   function dominantSpeakerIndex(line) {
+    if (!line) return -1;
+    if (typeof line.speakerIndex === "number" && line.speakerIndex >= 0) {
+      return line.speakerIndex;
+    }
     var spans = (line && line.speakerSpans) || [];
     if (!spans.length) return -1;
     var best = spans[0];
@@ -288,10 +296,24 @@
       f.append("speaker", speaker || "");
       f.append("speaker_index", String(speakerIndex == null ? -1 : speakerIndex));
       f.append("brain", fbrain());
-      await fetch("/meetings/" + encodeURIComponent(mid) + "/line", {
+      var resp = await fetch("/meetings/" + encodeURIComponent(mid) + "/line", {
         method: "POST",
         body: f,
       });
+      var d = {};
+      try {
+        d = await resp.json();
+      } catch (e) {}
+      if (!resp.ok || (d && d.ok === false)) {
+        var root = document.querySelector(".mt-wrap") && document.querySelector(".mt-wrap").closest(".cview-section");
+        if (root) {
+          setStatus(
+            root,
+            "Không ghi được dòng vào file: " + ((d && d.error) || resp.status),
+            "err"
+          );
+        }
+      }
     } catch (e) {}
   }
 
@@ -544,6 +566,21 @@
     }
   }
 
+  function loadMoonshineTranscriberOnce(root, onProgress, viOpts) {
+    var modPromise = importMoonshineModule();
+    return modPromise.then(function (mod) {
+      return mod.Transcriber.load({
+        language: "vi",
+        modelArch: mod.ModelArch.Base,
+        options: viOpts || MOONSHINE_VI_OPTS,
+        onProgress: function (loaded, total, file) {
+          var frac = total ? Math.min(1, loaded / total) : 0;
+          if (onProgress) onProgress(frac, file || "");
+        },
+      });
+    });
+  }
+
   function ensureMoonshineTranscriber(root, onProgress) {
     if (state.moonshineTranscriber) {
       return Promise.resolve(state.moonshineTranscriber);
@@ -560,22 +597,18 @@
     }
 
     state._moonshineLoadPromise = (async function () {
-      var mod = await importMoonshineModule();
       var prog =
         onProgress ||
         function (frac) {
           updateMoonshinePreloadHint(root, frac);
         };
-      var transcriber = await mod.Transcriber.load({
-        language: "vi",
-        modelArch: mod.ModelArch.Base,
-        options: MOONSHINE_VI_OPTS,
-        onProgress: function (loaded, total, file) {
-          var frac = total ? Math.min(1, loaded / total) : 0;
-          if (typeof frac === "number" && frac > 0) prog(frac, file || "");
-          else prog(0, file || "");
-        },
-      });
+      var transcriber;
+      try {
+        transcriber = await loadMoonshineTranscriberOnce(root, prog, MOONSHINE_VI_OPTS);
+      } catch (e1) {
+        state._moonshineLoadPromise = null;
+        transcriber = await loadMoonshineTranscriberOnce(root, prog, MOONSHINE_VI_OPTS_LITE);
+      }
       state.moonshineTranscriber = transcriber;
       state.moonshineReady = true;
       state.moonshinePreloadError = null;
@@ -671,7 +704,7 @@
     };
 
     rec.onresult = function (ev) {
-      if (!state.running) return;
+      if (!state.running && !state.loading) return;
       var interim = "";
       var finals = [];
       for (var i = ev.resultIndex; i < ev.results.length; i++) {
@@ -738,7 +771,7 @@
         if (partial && !partial.textContent) partial.textContent = "…";
       };
       rec.onresult = function (ev) {
-        if (!state.running) return;
+        if (!state.running && !state.loading) return;
         var interim = "";
         var finals = [];
         for (var i = ev.resultIndex; i < ev.results.length; i++) {
@@ -834,6 +867,7 @@
         setPartial(root, text || "", "");
       })
       .onLine(function (line) {
+        if (!state.running && !state.loading) return;
         var tx = (line && line.text) || "";
         if (!tx.trim()) return;
         var idx = dominantSpeakerIndex(line);
@@ -928,6 +962,25 @@
     }
   }
 
+  async function beginSttFast(root) {
+    if (state.abortRequested) return null;
+    if (state.moonshineReady) {
+      try {
+        await startMoonshine(root);
+        return "moonshine";
+      } catch (e) {
+        await stopMoonshineMic();
+        if (!hasWebSpeech()) throw e;
+        setStatus(root, "Moonshine lỗi — chuyển Web Speech…");
+      }
+    }
+    if (hasWebSpeech()) {
+      startWebSpeechSafe(root);
+      return "webspeech";
+    }
+    return null;
+  }
+
   async function startMeeting(root) {
     if (state.running || state.loading) return;
     if (
@@ -971,8 +1024,14 @@
 
     var sttStarted = false;
     var moonshineFail = null;
+    var sttEngine = null;
     var micPromise = null;
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // Chỉ giữ mic sớm khi không có Web Speech (Safari) — getUserMedia song song làm Chrome im lặng.
+    if (
+      !hasWebSpeech() &&
+      navigator.mediaDevices &&
+      navigator.mediaDevices.getUserMedia
+    ) {
       micPromise = navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -983,7 +1042,28 @@
       });
     }
     try {
-      setStatus(root, "Tạo file ghi chú trên server…");
+      // STT trong cử chỉ bấm — TRƯỚC await fetch (voice.js: await fetch làm Chrome im lặng).
+      state.running = true;
+      setStatus(
+        root,
+        state.moonshineReady
+          ? "Bật Moonshine…"
+          : hasWebSpeech()
+            ? "Bật micro (Web Speech)…"
+            : "Bật micro…"
+      );
+      try {
+        sttEngine = await beginSttFast(root);
+        if (sttEngine) sttStarted = true;
+      } catch (fastErr) {
+        moonshineFail = fastErr;
+        state.running = false;
+      }
+
+      setStatus(
+        root,
+        sttStarted ? "Đang nghe — tạo file ghi chú…" : "Tạo file ghi chú trên server…"
+      );
       var f = new FormData();
       f.append("title", title);
       f.append("notes", notes);
@@ -1001,33 +1081,36 @@
       var countEl = root.querySelector("#mtCount");
       if (countEl) countEl.textContent = "0";
 
-      try {
-        setStatus(root, "Bật Moonshine…");
-        await startMoonshine(root);
-        if (state.abortRequested) throw new Error("Đã hủy");
+      await flushLineBuffer();
+
+      if (!sttStarted) {
         state.running = true;
-        sttStarted = true;
-      } catch (moonErr) {
-        moonshineFail = moonErr;
-        await stopMoonshineMic();
-        if (state.abortRequested) throw moonErr;
-        if (hasWebSpeech()) {
-          setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
-          startWebSpeechSafe(root);
-          state.running = true;
+        try {
+          setStatus(root, "Bật Moonshine…");
+          await startMoonshine(root);
+          if (state.abortRequested) throw new Error("Đã hủy");
           sttStarted = true;
+          sttEngine = "moonshine";
+        } catch (moonErr) {
+          moonshineFail = moonErr;
+          await stopMoonshineMic();
+          if (state.abortRequested) throw moonErr;
+          if (hasWebSpeech()) {
+            setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
+            startWebSpeechSafe(root);
+            sttStarted = true;
+            sttEngine = "webspeech";
+          }
         }
       }
-
-      await flushLineBuffer();
 
       if (!sttStarted) {
         var whisperOk = await fetchWhisperReady();
         if (whisperOk && micPromise) {
           try {
             await startWhisperMeeting(root, micPromise);
-            state.running = true;
             sttStarted = true;
+            sttEngine = "whisper";
           } catch (whErr) {
             if (micPromise && micPromise.catch) {
               try {
@@ -1046,18 +1129,29 @@
         } else {
           throw new Error(
             (moonshineFail && moonshineFail.message) ||
-              "Không nghe được micro. Cho phép micro, kiểm tra mạng (Moonshine), hoặc dán key Groq ở Models."
+              "Không nghe được micro. Cho phép micro, đợi Moonshine tải xong (mở trang 1–2 phút), hoặc dán key Groq ở Models."
           );
         }
-      } else if (state.sttEngine === "webspeech") {
+      }
+
+      if (!state.running) state.running = true;
+      if (sttEngine === "webspeech") {
         setStatus(
           root,
-          "Đang nghe (Web Speech). Không phân biệt người nói — Moonshine sẽ dùng lại khi tải xong.",
+          "Đang nghe (Web Speech). Nói rõ từng câu — mỗi câu ghi vào file.",
           "ok"
         );
+      } else if (sttEngine === "moonshine") {
+        setStatus(
+          root,
+          "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
+          "ok"
+        );
+      } else if (sttEngine === "whisper") {
+        setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
       }
       await ensureWs();
-      refreshList(root);
+      loadArchive(root);
     } catch (e) {
       state.running = false;
       await cleanupAudio();

@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.55] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.56] - 2026-09-05
+### Sửa lỗi
+- **Ghi cuộc họp không còn kẹt "Nạp model" im lặng.** Bật micro ngay khi bấm Bắt đầu (Web Speech hoặc Moonshine đã tải), tạo file server sau; không tranh micro với Web Speech trên Chrome.
+
+
+## [0.35.55] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi hết giờ (ReadTimeout) trên CPU.** Tăng timeout HTTP 3 phút → 15 phút, giảm vòng tool và độ dài câu trả lời, báo rõ model đang chạy chậm thay vì stack trace.
 
