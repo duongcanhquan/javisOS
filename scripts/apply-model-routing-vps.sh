@@ -84,6 +84,15 @@ for k in (
 if cleared:
     print("cleared ollama_local:", ", ".join(cleared))
 
+# --- Tốc độ chat Telegram/Zalo: ép lazy MCP (ít schema tool = TTFT nhanh hơn) ---
+mcp = s.setdefault("mcp", {})
+if mcp.get("lazy_tools") != True:
+    print("mcp.lazy_tools:", mcp.get("lazy_tools"), "-> True (ép bật cho chat nhanh)")
+    mcp["lazy_tools"] = True
+if int(mcp.get("lazy_threshold") or 40) > 25:
+    print("mcp.lazy_threshold:", mcp.get("lazy_threshold"), "-> 25")
+    mcp["lazy_threshold"] = 25
+
 # --- Reset mật khẩu (tuỳ chọn) ---
 if new_pw.strip():
     if len(new_pw.strip()) < 8:

@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.63] - 2026-09-05
+### Cải thiện
+- **Chat Telegram/Zalo nhanh hơn.** Zalo cũng đi được chế độ Siêu tiết kiệm (trước bị sót); ghim model trên Telegram áp luôn cho Zalo; VPS ép lazy MCP để bớt schema tool mỗi lượt.
+
+
 ## [0.35.62] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn chạy Antigravity không còn chết vì thiếu quyền đọc file.** Việc nền headless tự duyệt tool thay vì chờ bấm (lỗi "read_file permission auto-denied" / "no output produced").

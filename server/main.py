@@ -1528,16 +1528,20 @@ def _chat_provider_for_session(mcfg, row):
 
 
 def _tg_ghim(mcfg) -> dict:
-    """{'provider','model'} đang GHIM cho kênh Telegram, hoặc {} nếu đang theo model chính."""
+    """{'provider','model'} đang GHIM cho kênh nhắn tin (Telegram + Zalo), hoặc {}.
+
+    Một ô `model.telegram` dùng chung cho cả hai kênh nhắn tin: cùng nhu cầu tốc độ, cùng
+    lệnh `/model ghim` trên Telegram. Zalo không có lệnh chat riêng nên theo cùng ghim.
+    """
     tg = (mcfg or {}).get("telegram") or {}
     return {"provider": tg["provider"], "model": tg.get("model") or ""} if tg.get("provider") else {}
 
 
 def _chat_provider_kenh(mcfg, channel):
-    """Provider cho một lượt theo KÊNH: Telegram có ghim riêng thì theo ghim, còn lại theo
-    model chính. Dùng lại đúng luật rơi-về của ghim phiên web (`_chat_provider_for_session`):
+    """Provider cho một lượt theo KÊNH: Telegram/Zalo có ghim nhắn tin thì theo ghim, còn lại
+    theo model chính. Dùng lại đúng luật rơi-về của ghim phiên web (`_chat_provider_for_session`):
     provider đã gỡ hay key đã bị xoá thì lui về model chính chứ không chết lượt chat."""
-    if channel != "telegram":
+    if channel not in ("telegram", "zalo"):
         return _chat_provider(mcfg)
     g = _tg_ghim(mcfg)
     if not g:
@@ -14060,7 +14064,7 @@ async def _tg_help_text(brain):
         "/agents - liệt kê agent + việc đang chạy\n"
         "/workflows - liệt kê workflow\n"
         "/model - xem/đổi model: gõ /model để chọn bằng nút (mọi nhà cung cấp đã kết nối), hoặc /model <tên model>\n"
-        "/model ghim - khoá Telegram vào model đang dùng (web đổi không kéo theo) · /model theo - bỏ ghim\n"
+        "/model ghim - khoá Telegram + Zalo vào model đang dùng (web đổi không kéo theo) · /model theo - bỏ ghim\n"
         "/brain - xem/đổi brain (vault) cho riêng phiên của bạn (vd /brain hoặc /brain <tên>)\n"
         "/cli - engine Claude (có MCP/skill)\n"
         "/or - engine OpenRouter (chat + MCP đa-model)\n"
@@ -14408,15 +14412,15 @@ async def _tg_command(cmd, arg, chat=None, meta=None):
         if a.lower() in ("ghim", "pin"):
             em = _effective_main(s)
             _set_telegram_model(s, em["provider"], em["model"]); cfgmod.write_settings(s)
-            return {"reply": (f"📌 Đã ghim Telegram vào {_tg_prov_label(em['provider'])}: "
+            return {"reply": (f"📌 Đã ghim Telegram + Zalo vào {_tg_prov_label(em['provider'])}: "
                               f"{em['model'] or 'mặc định'}.\nĐổi model trên web không còn kéo "
-                              "Telegram theo. Gõ /model <tên> để đổi riêng cho Telegram, "
+                              "hai kênh nhắn tin theo. Gõ /model <tên> để đổi riêng, "
                               "/model theo để bỏ ghim.")}
         if a.lower() in ("theo", "bo-ghim", "unpin"):
             _set_telegram_model(s, "", ""); cfgmod.write_settings(s)
             em = _effective_main(s)
-            return {"reply": (f"🔗 Đã bỏ ghim. Telegram theo model chính: "
-                              f"{_tg_prov_label(em['provider'])} {em['model'] or 'mặc định'}.")}
+            return {"reply": (f"🔗 Đã bỏ ghim. Telegram + Zalo theo model chính: "
+                              f"{_tg_prov_label(em['provider'])}: {em['model'] or 'mặc định'}.")}
         if a:
             # HỎI DANH SÁCH THẬT TRƯỚC, đoán sau. Mấy luật đoán bên dưới ra đời khi Telegram chỉ
             # biết 3 provider, và giờ chúng gán nhầm một cách im lặng: gõ tên model của
