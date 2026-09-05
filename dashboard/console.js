@@ -114,6 +114,36 @@
   // một người mới cài, chưa đấu gì, không có trang nào để mà bấm tab - họ cần thấy lối vào
   // ngay trên thanh bên. Chủ dự án yêu cầu đưa ra, và đặt cạnh Kết nối.
   const RAIL_AN = new Set();
+  window.JAVIS_UPDATES_UI = false;
+
+  async function napUpdatesUiFlag() {
+    try {
+      const d = await (await fetch("/config", { cache: "no-store" })).json();
+      window.JAVIS_UPDATES_UI = d.updates_ui === true;
+    } catch (e) {
+      window.JAVIS_UPDATES_UI = false;
+    }
+    if (window.JAVIS_UPDATES_UI === false) {
+      RAIL_AN.add("logs");
+      const trig = document.getElementById("notificationTrigger");
+      if (trig) { trig.hidden = true; trig.style.display = "none"; }
+      const panel = document.getElementById("notificationPanel");
+      if (panel) panel.remove();
+      const shade = document.getElementById("notificationShade");
+      if (shade) shade.remove();
+      document.querySelectorAll(".cview-section").forEach((sec) => {
+        const h = sec.querySelector("h3");
+        if (h && /Phiên bản|Version/i.test((h.textContent || "").trim())) sec.remove();
+      });
+      try {
+        const st = window.Alpine && Alpine.store("nav");
+        if (st) {
+          st.i18nTick = (st.i18nTick || 0) + 1;
+          if (st.active === "logs") st.go("home");
+        }
+      } catch (e) {}
+    }
+  }
   // Trả về [{label, foot, items:[...]}], bỏ id không tồn tại. Mục nào chưa xếp nhóm → dồn vào "Khác".
   function railGroups() {
     const seen = new Set();
@@ -760,6 +790,12 @@
   }
 
   async function renderLogs(el) {
+    if (window.JAVIS_UPDATES_UI === false) {
+      el.innerHTML = `<div class="cview-section"><h3>Cập nhật đã tắt</h3>
+        <p class="dim">Máy chủ đặt <code>JAVIS_UPDATES_UI=0</code> — chuông tin cập nhật/cộng đồng và nhật ký phiên bản bị ẩn.
+        Bỏ biến hoặc đặt khác <code>0</code> rồi khởi động lại Javis nếu muốn bật lại.</p></div>`;
+      return;
+    }
     _injectChangelogCss();
     const myGen = _renderGen;
     el.innerHTML = `<div class="cl-wrap">
@@ -2787,8 +2823,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const tg = s.telegram || {};
     const dash = s.dashboard || {};
     const gOn = dash.graph_enabled !== false;
-    el.innerHTML = `
-      <div class="cview-section">
+    const _verSec = (window.JAVIS_UPDATES_UI === false) ? "" : `
+      <div class="cview-section" id="ovVerSection">
         <h3>Phiên bản</h3>
         <div class="gcard" style="max-width:640px">
           <div class="gcard-top"><span class="gcard-name">Javis</span><span class="gcard-tag" id="ovVerTag">…</span></div>
@@ -2802,7 +2838,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div class="gcard-meta" id="ovVerStatus"></div>
           <div id="ovVerRollback" style="display:none;margin-top:10px;padding:10px;border:1px solid var(--red);border-radius:8px;background:rgba(200,80,80,.08);font-size:13px;line-height:1.6"></div>
         </div>
-      </div>
+      </div>`;
+    el.innerHTML = _verSec + `
       <div class="cview-section">
         <h3>Hệ thống</h3>
         <div class="cgrid">
@@ -5961,7 +5998,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             <button data-settings-go="models"><span>◈</span><b>${esc(t("page.models.label"))}</b><small>${esc(t("settings.link_models_sub"))}</small></button>
             <button data-settings-go="channels"><span>${ic("send")}</span><b>${esc(t("page.channels.label"))}</b><small>${esc(t("settings.link_channels_sub"))}</small></button>
             <button data-settings-go="account"><span>${ic("circle-user")}</span><b>${esc(t("page.account.label"))}</b><small>${esc(t("settings.link_account_sub"))}</small></button>
-            <button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>${esc(t("page.logs.label"))}</b><small>${esc(t("settings.link_logs_sub"))}</small></button>
+            ${window.JAVIS_UPDATES_UI === false ? "" : `<button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>${esc(t("page.logs.label"))}</b><small>${esc(t("settings.link_logs_sub"))}</small></button>`}
           </div>
         </div>
       </details>
@@ -6563,6 +6600,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         try { localStorage.setItem("javis_rail_collapsed", this.collapsed ? "1" : "0"); } catch (e) {}
       },
       go(id) {
+        if (id === "logs" && window.JAVIS_UPDATES_UI === false) return;
         const item = RAIL_ITEMS.find(i => i.id === id);
         if (item && item.launch) { item.launch(); recomputeGraph(); return; }  // launcher: không đổi view
         const gl = groupLabelOf(id); if (gl) this.openGroup = gl;   // giữ nhóm chứa mục vừa mở luôn bung ra
@@ -7479,7 +7517,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     b.hidden = false;
   }
 
-  function boot() {
+  async function boot() {
+    await napUpdatesUiFlag();
     document.body.classList.add("has-rail");
     // Áp lại trạng thái thu gọn panel Vault ĐÃ LƯU ngay lúc tải trang (nút bấm gắn trong
     // _vtWire, nhưng chờ tới đó mới áp thì panel nháy to rồi mới thu).

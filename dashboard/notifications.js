@@ -267,6 +267,12 @@
 
   async function load(force) {
     taiThu();
+    if (window.JAVIS_UPDATES_UI === false) {
+      state.items = [];
+      state.loadedAt = Date.now();
+      render();
+      return;
+    }
     if (state.loading || (!force && Date.now() - state.loadedAt < 300000)) return;
     state.loading = true;
     var list = byId("notificationList");
@@ -369,6 +375,34 @@
     if (!trigger) return;
     loadRead();
     try { state.tab = localStorage.getItem(TAB_KEY) === "news" ? "news" : "mine"; } catch (e) {}
+    // JAVIS_UPDATES_UI=0: an tab Tin tuc (cap nhat + cong dong). Tab "Cua toi" (inbox) van giu.
+    fetch("/config", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (d) {
+        window.JAVIS_UPDATES_UI = d.updates_ui === true;
+        if (window.JAVIS_UPDATES_UI === false) {
+          var tn = byId("notiTabNews");
+          var ou = byId("notificationOpenUpdates");
+          if (tn) tn.hidden = true;
+          if (ou) ou.hidden = true;
+          if (trigger) { trigger.hidden = true; trigger.style.display = "none"; }
+          var panel = byId("notificationPanel");
+          if (panel) panel.remove();
+          var shade = byId("notificationShade");
+          if (shade) shade.remove();
+          try { state.tab = "mine"; localStorage.setItem(TAB_KEY, "mine"); } catch (e) {}
+          return;
+        }
+        wireNotifications();
+      })
+      .catch(function () {
+        window.JAVIS_UPDATES_UI = false;
+        if (trigger) { trigger.hidden = true; trigger.style.display = "none"; }
+      });
+  }
+  function wireNotifications() {
+    var trigger = byId("notificationTrigger");
+    if (!trigger) return;
     trigger.addEventListener("click", function () {
       byId("notificationPanel").hidden ? openPanel() : closePanel();
     });

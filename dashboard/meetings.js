@@ -20,6 +20,8 @@
     moonshineReady: false,
     moonshinePreloading: false,
     moonshinePreloadError: null,
+    moonshineLang: null,
+    lang: "vi",
     _moonshineLoadPromise: null,
     abortRequested: false,
     running: false,
@@ -40,15 +42,122 @@
     total: 0,
   };
 
-  // Tiếng Việt chỉ có model Base (~70MB). MicTranscriber mặc định MediumStreaming (~270MB, chỉ có en).
-  var MOONSHINE_VI_OPTS = {
-    max_tokens_per_second: "13.0",
-    identify_speakers: "true",
+  // Moonshine WASM: vi/en/es/zh/ja/ko/ar/uk. Non-Latin cần max_tokens_per_second=13.
+  var MOONSHINE_LANG = {
+    vi: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "true" }, label: "Tiếng Việt" },
+    en: { arch: "Base", opts: { identify_speakers: "true" }, label: "English" },
+    es: { arch: "Base", opts: { identify_speakers: "true" }, label: "Español" },
+    zh: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "中文" },
+    ja: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "日本語" },
+    ko: { arch: "Tiny", opts: { max_tokens_per_second: "13.0" }, label: "한국어" },
+    ar: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "العربية" },
+    uk: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "Українська" },
   };
   var MOONSHINE_VI_OPTS_LITE = {
     max_tokens_per_second: "13.0",
     identify_speakers: "false",
   };
+  var WEB_SPEECH_BCP47 = {
+    vi: "vi-VN",
+    en: "en-US",
+    es: "es-ES",
+    zh: "zh-CN",
+    ja: "ja-JP",
+    ko: "ko-KR",
+    ar: "ar-SA",
+    uk: "uk-UA",
+    fr: "fr-FR",
+    de: "de-DE",
+    th: "th-TH",
+    id: "id-ID",
+    pt: "pt-BR",
+    ru: "ru-RU",
+    hi: "hi-IN",
+    it: "it-IT",
+    nl: "nl-NL",
+    pl: "pl-PL",
+    tr: "tr-TR",
+    ms: "ms-MY",
+  };
+  var ALL_LANG_CODES = Object.keys(WEB_SPEECH_BCP47).concat(["auto"]);
+
+  var LANG_KEY = "javis.meeting.lang";
+
+  function normalizeLang(v) {
+    v = String(v || "vi").trim().toLowerCase();
+    if (v === "cn" || v === "zh-cn" || v === "zh-tw") v = "zh";
+    if (v.indexOf("-") > 0) v = v.split("-")[0];
+    if (ALL_LANG_CODES.indexOf(v) < 0 && v !== "auto") v = "vi";
+    return v;
+  }
+
+  function meetingLang() {
+    var el = document.querySelector("#mtLang");
+    return normalizeLang((el && el.value) || state.lang || "vi");
+  }
+
+  function langLabel(code) {
+    if (code === "auto") return "Tự nhận diện";
+    if (MOONSHINE_LANG[code]) return MOONSHINE_LANG[code].label;
+    var map = {
+      fr: "Français",
+      de: "Deutsch",
+      th: "ไทย",
+      id: "Indonesia",
+      pt: "Português",
+      ru: "Русский",
+      hi: "हिन्दी",
+      it: "Italiano",
+      nl: "Nederlands",
+      pl: "Polski",
+      tr: "Türkçe",
+      ms: "Bahasa Melayu",
+    };
+    return map[code] || code;
+  }
+
+  function saveMeetingLang(v) {
+    state.lang = normalizeLang(v);
+    try {
+      localStorage.setItem(LANG_KEY, state.lang);
+    } catch (e) {}
+  }
+
+  function loadMeetingLang() {
+    try {
+      var v = normalizeLang(localStorage.getItem(LANG_KEY) || "vi");
+      state.lang = v;
+      return v;
+    } catch (e) {
+      state.lang = "vi";
+      return "vi";
+    }
+  }
+
+  function whisperLangCode(lang) {
+    lang = normalizeLang(lang);
+    if (lang === "auto") return "auto";
+    return lang || "vi";
+  }
+
+  function webSpeechLang(lang) {
+    lang = normalizeLang(lang);
+    if (lang === "auto") return navigator.language || "en-US";
+    return WEB_SPEECH_BCP47[lang] || "en-US";
+  }
+
+  function moonshineSupports(lang) {
+    return !!MOONSHINE_LANG[normalizeLang(lang)];
+  }
+
+  function resetMoonshineCache() {
+    state.moonshineTranscriber = null;
+    state.moonshineReady = false;
+    state.moonshinePreloadError = null;
+    state._moonshineLoadPromise = null;
+    state.moonshineLang = null;
+  }
+
 
   function hasWebSpeech() {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -477,7 +586,7 @@
       var fd = new FormData();
       var ext = type.indexOf("mp4") >= 0 ? "m4a" : type.indexOf("ogg") >= 0 ? "ogg" : "webm";
       fd.append("file", blob, "meeting." + ext);
-      fd.append("lang", "vi");
+      fd.append("lang", whisperLangCode(meetingLang()));
       fetch("/stt", { method: "POST", body: fd, credentials: "same-origin" })
         .then(function (r) {
           if (r.status === 503) {
@@ -566,13 +675,21 @@
     }
   }
 
-  function loadMoonshineTranscriberOnce(root, onProgress, viOpts) {
+  function loadMoonshineTranscriberOnce(root, onProgress, lang, optsOverride) {
+    lang = normalizeLang(lang || "vi");
+    var cfg = MOONSHINE_LANG[lang] || MOONSHINE_LANG.vi;
+    var opts = optsOverride || cfg.opts || {};
     var modPromise = importMoonshineModule();
     return modPromise.then(function (mod) {
+      var archName = cfg.arch || "Base";
+      var arch =
+        (mod.ModelArch && mod.ModelArch[archName]) ||
+        (mod.ModelArch && mod.ModelArch.Base) ||
+        archName;
       return mod.Transcriber.load({
-        language: "vi",
-        modelArch: mod.ModelArch.Base,
-        options: viOpts || MOONSHINE_VI_OPTS,
+        language: lang,
+        modelArch: arch,
+        options: opts,
         onProgress: function (loaded, total, file) {
           var frac = total ? Math.min(1, loaded / total) : 0;
           if (onProgress) onProgress(frac, file || "");
@@ -581,9 +698,16 @@
     });
   }
 
-  function ensureMoonshineTranscriber(root, onProgress) {
-    if (state.moonshineTranscriber) {
+  function ensureMoonshineTranscriber(root, onProgress, lang) {
+    lang = normalizeLang(lang || meetingLang());
+    if (!moonshineSupports(lang)) {
+      return Promise.reject(new Error("Moonshine chưa hỗ trợ ngôn ngữ: " + lang));
+    }
+    if (state.moonshineTranscriber && state.moonshineLang === lang && state.moonshineReady) {
       return Promise.resolve(state.moonshineTranscriber);
+    }
+    if (state.moonshineLang && state.moonshineLang !== lang) {
+      resetMoonshineCache();
     }
     if (state._moonshineLoadPromise) return state._moonshineLoadPromise;
 
@@ -596,23 +720,30 @@
       }, 1000);
     }
 
+    var label = langLabel(lang);
     state._moonshineLoadPromise = (async function () {
       var prog =
         onProgress ||
         function (frac) {
-          updateMoonshinePreloadHint(root, frac);
+          updateMoonshinePreloadHint(root, frac, lang);
         };
       var transcriber;
+      var cfg = MOONSHINE_LANG[lang] || MOONSHINE_LANG.vi;
       try {
-        transcriber = await loadMoonshineTranscriberOnce(root, prog, MOONSHINE_VI_OPTS);
+        transcriber = await loadMoonshineTranscriberOnce(root, prog, lang, cfg.opts);
       } catch (e1) {
         state._moonshineLoadPromise = null;
-        transcriber = await loadMoonshineTranscriberOnce(root, prog, MOONSHINE_VI_OPTS_LITE);
+        var lite =
+          lang === "vi"
+            ? MOONSHINE_VI_OPTS_LITE
+            : Object.assign({}, cfg.opts || {}, { identify_speakers: "false" });
+        transcriber = await loadMoonshineTranscriberOnce(root, prog, lang, lite);
       }
       state.moonshineTranscriber = transcriber;
       state.moonshineReady = true;
+      state.moonshineLang = lang;
       state.moonshinePreloadError = null;
-      updateMoonshinePreloadHint(root, 1);
+      updateMoonshinePreloadHint(root, 1, lang);
       return transcriber;
     })()
       .catch(function (e) {
@@ -627,36 +758,59 @@
     return state._moonshineLoadPromise;
   }
 
-  function updateMoonshinePreloadHint(root, frac) {
+  function updateMoonshinePreloadHint(root, frac, lang) {
     var el = root && root.querySelector("#mtMoonshinePreload");
     if (!el) return;
-    if (state.moonshineReady) {
-      el.textContent = "Moonshine sẵn sàng (model tiếng Việt ~70MB, lần sau dùng cache).";
+    lang = normalizeLang(lang || meetingLang());
+    var label = langLabel(lang);
+    if (!moonshineSupports(lang)) {
+      el.textContent =
+        "Ngôn ngữ " +
+        label +
+        ": dùng Web Speech hoặc Whisper (Groq). Moonshine hỗ trợ VI/EN/ES/ZH/JA/KO/AR/UK.";
+      el.style.color = "var(--text3)";
+      return;
+    }
+    if (state.moonshineReady && state.moonshineLang === lang) {
+      el.textContent =
+        "Moonshine sẵn sàng (" + label + ") — lần sau dùng cache trình duyệt.";
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
     if (typeof frac === "number" && frac > 0 && frac < 1) {
       el.textContent =
-        "Đang chuẩn bị Moonshine (model tiếng Việt)… " + Math.round(frac * 100) + "%";
+        "Đang chuẩn bị Moonshine (" + label + ")… " + Math.round(frac * 100) + "%";
     } else if (state.moonshinePreloading) {
-      el.textContent = "Đang chuẩn bị Moonshine…";
+      el.textContent = "Đang chuẩn bị Moonshine (" + label + ")…";
     } else if (state.moonshinePreloadError) {
-      el.textContent = "Moonshine chưa tải được — vẫn thử lại khi bấm Bắt đầu.";
+      el.textContent = "Moonshine chưa tải được — vẫn thử lại khi bấm Bắt đầu / dùng Web Speech.";
     } else {
       el.textContent = "";
     }
   }
 
   function preloadMoonshine(root) {
-    if (state.moonshineReady || state.moonshinePreloading || state._moonshineLoadPromise) return;
+    var lang = meetingLang();
+    if (!moonshineSupports(lang)) {
+      updateMoonshinePreloadHint(root, 0, lang);
+      return;
+    }
+    if (
+      (state.moonshineReady && state.moonshineLang === lang) ||
+      state.moonshinePreloading ||
+      state._moonshineLoadPromise
+    ) {
+      updateMoonshinePreloadHint(root, state.moonshineReady ? 1 : 0, lang);
+      return;
+    }
     state.moonshinePreloading = true;
-    ensureMoonshineTranscriber(root)
+    ensureMoonshineTranscriber(root, null, lang)
       .catch(function (e) {
         state.moonshinePreloadError = e;
-        updateMoonshinePreloadHint(root);
       })
       .finally(function () {
         state.moonshinePreloading = false;
+        updateMoonshinePreloadHint(root, state.moonshineReady ? 1 : 0, lang);
       });
   }
 
@@ -689,7 +843,7 @@
     if (!SR) throw new Error("Trình duyệt không hỗ trợ nhận giọng. Dùng Chrome hoặc Edge qua HTTPS.");
     stopWebSpeech();
     var rec = new SR();
-    rec.lang = "vi-VN";
+    rec.lang = webSpeechLang(meetingLang());
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
@@ -759,7 +913,7 @@
     } catch (e1) {
       stopWebSpeech();
       rec = new SR();
-      rec.lang = "vi-VN";
+      rec.lang = webSpeechLang(meetingLang());
       rec.continuous = true;
       rec.interimResults = true;
       rec.maxAlternatives = 3;
@@ -840,24 +994,27 @@
 
   async function startMoonshine(root) {
     if (state.abortRequested) throw new Error("Đã hủy");
+    var lang = meetingLang();
+    var label = langLabel(lang);
     var mod = await importMoonshineModule();
-    if (!state.moonshineReady) {
-      setStatus(root, "Nạp model Moonshine (tiếng Việt, ~70MB)…");
+    if (!state.moonshineReady || state.moonshineLang !== lang) {
+      setStatus(root, "Nạp model Moonshine (" + label + ")…");
     }
     var transcriber = await promiseTimeout(
-      ensureMoonshineTranscriber(root, function (frac, hint) {
-        if (state.abortRequested) return;
-        if (frac > 0) {
-          setStatus(root, "Tải model tiếng Việt… " + Math.round(frac * 100) + "%");
-        } else {
-          setStatus(
-            root,
-            "Tải model Moonshine (tiếng Việt, ~70MB)… " + (hint || "")
-          );
-        }
-      }),
+      ensureMoonshineTranscriber(
+        root,
+        function (frac, hint) {
+          if (state.abortRequested) return;
+          if (frac > 0) {
+            setStatus(root, "Tải model " + label + "… " + Math.round(frac * 100) + "%");
+          } else {
+            setStatus(root, "Tải model Moonshine (" + label + ")… " + (hint || ""));
+          }
+        },
+        lang
+      ),
       MOONSHINE_LOAD_TIMEOUT_MS,
-      "Moonshine không tải được trong 90 giây. Kiểm tra mạng hoặc dùng Web Speech."
+      "Moonshine không tải được trong 90 giây. Kiểm tra mạng hoặc dùng Web Speech / Whisper."
     );
     if (state.abortRequested) throw new Error("Đã hủy");
 
@@ -897,7 +1054,7 @@
     state.sttEngine = "moonshine";
     setStatus(
       root,
-      "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
+      "Đang ghi (Moonshine · " + label + "). Nói rõ; gắn nhãn người nói khi phân biệt được.",
       "ok"
     );
   }
@@ -964,14 +1121,15 @@
 
   async function beginSttFast(root) {
     if (state.abortRequested) return null;
-    if (state.moonshineReady) {
+    var lang = meetingLang();
+    if (moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
         return "moonshine";
       } catch (e) {
         await stopMoonshineMic();
         if (!hasWebSpeech()) throw e;
-        setStatus(root, "Moonshine lỗi — chuyển Web Speech…");
+        setStatus(root, "Moonshine lỗi — chuyển Web Speech (" + langLabel(lang) + ")…");
       }
     }
     if (hasWebSpeech()) {
@@ -1068,7 +1226,7 @@
       f.append("title", title);
       f.append("notes", notes);
       f.append("attendees", people);
-      f.append("language", "vi");
+      f.append("language", meetingLang());
       f.append("brain", fbrain());
       var r = await (await fetch("/meetings/start", { method: "POST", body: f })).json();
       if (!r.ok) throw new Error(r.error || "Không tạo được phiên");
@@ -1085,22 +1243,29 @@
 
       if (!sttStarted) {
         state.running = true;
-        try {
-          setStatus(root, "Bật Moonshine…");
-          await startMoonshine(root);
-          if (state.abortRequested) throw new Error("Đã hủy");
-          sttStarted = true;
-          sttEngine = "moonshine";
-        } catch (moonErr) {
-          moonshineFail = moonErr;
-          await stopMoonshineMic();
-          if (state.abortRequested) throw moonErr;
-          if (hasWebSpeech()) {
-            setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
-            startWebSpeechSafe(root);
+        var lang2 = meetingLang();
+        if (moonshineSupports(lang2)) {
+          try {
+            setStatus(root, "Bật Moonshine (" + langLabel(lang2) + ")…");
+            await startMoonshine(root);
+            if (state.abortRequested) throw new Error("Đã hủy");
             sttStarted = true;
-            sttEngine = "webspeech";
+            sttEngine = "moonshine";
+          } catch (moonErr) {
+            moonshineFail = moonErr;
+            await stopMoonshineMic();
+            if (state.abortRequested) throw moonErr;
+            if (hasWebSpeech()) {
+              setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
+              startWebSpeechSafe(root);
+              sttStarted = true;
+              sttEngine = "webspeech";
+            }
           }
+        } else if (hasWebSpeech()) {
+          startWebSpeechSafe(root);
+          sttStarted = true;
+          sttEngine = "webspeech";
         }
       }
 
@@ -1242,7 +1407,7 @@
         fs.append("title", title);
         fs.append("notes", notes);
         fs.append("attendees", people);
-        fs.append("language", "vi");
+        fs.append("language", meetingLang());
         fs.append("brain", fbrain());
         var sr = await (await fetch("/meetings/start", { method: "POST", body: fs })).json();
         if (!sr.ok) throw new Error(sr.error || "Không tạo phiên");
@@ -1254,6 +1419,7 @@
       var f = new FormData();
       f.append("file", file);
       f.append("brain", fbrain());
+      f.append("lang", whisperLangCode(meetingLang()));
       var r = await (
         await fetch("/meetings/" + encodeURIComponent(state.meetingId) + "/upload-stt", {
           method: "POST",
@@ -1682,6 +1848,35 @@
       '<input type="text" id="mtPeople" placeholder="Ví dụ: An, Bình, Chi"></div>' +
       '<div class="mt-field"><label>Ghi chú / mục tiêu trước khi họp</label>' +
       '<textarea id="mtNotes" placeholder="Mục đích họp, agenda ngắn, điểm cần quyết…"></textarea></div>' +
+      '<div class="mt-field"><label>Ngôn ngữ cuộc họp</label>' +
+      '<select id="mtLang">' +
+      '<optgroup label="Moonshine (trên máy, có nhãn người nói)">' +
+      '<option value="vi">Tiếng Việt</option>' +
+      '<option value="en">English</option>' +
+      '<option value="es">Español</option>' +
+      '<option value="zh">中文</option>' +
+      '<option value="ja">日本語</option>' +
+      '<option value="ko">한국어</option>' +
+      '<option value="ar">العربية</option>' +
+      '<option value="uk">Українська</option>' +
+      "</optgroup>" +
+      '<optgroup label="Web Speech / Whisper (Groq)">' +
+      '<option value="fr">Français</option>' +
+      '<option value="de">Deutsch</option>' +
+      '<option value="th">ไทย</option>' +
+      '<option value="id">Indonesia</option>' +
+      '<option value="pt">Português</option>' +
+      '<option value="ru">Русский</option>' +
+      '<option value="hi">हिन्दी</option>' +
+      '<option value="it">Italiano</option>' +
+      '<option value="nl">Nederlands</option>' +
+      '<option value="pl">Polski</option>' +
+      '<option value="tr">Türkçe</option>' +
+      '<option value="ms">Bahasa Melayu</option>' +
+      '<option value="auto">Tự nhận diện</option>' +
+      "</optgroup>" +
+      "</select>" +
+      '<div class="dim" style="font-size:12.5px;margin-top:6px">Moonshine: VI/EN/ES/ZH/JA/KO/AR/UK (chạy trên máy). Ngôn ngữ khác: Web Speech hoặc file → Whisper (Groq). Không lưu file âm.</div></div>' +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -1778,6 +1973,16 @@
     setPhase(el, "setup");
     setMtTab(el, archiveState.tab || "new");
     setStatus(el, "Điền thông tin rồi bấm Bắt đầu cuộc họp.");
+    var langSel = el.querySelector("#mtLang");
+    var savedLang = loadMeetingLang();
+    if (langSel) {
+      langSel.value = savedLang;
+      langSel.onchange = function () {
+        saveMeetingLang(langSel.value);
+        if (moonshineSupports(langSel.value)) preloadMoonshine(el);
+        else updateMoonshinePreloadHint(el, 0, langSel.value);
+      };
+    }
     preloadMoonshine(el);
   }
 
