@@ -361,6 +361,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ### Thêm mới
 - **Đấu được DeepSeek API ngay trên trang Models.** Dán key từ platform.deepseek.com, chọn `deepseek-v4-flash` hoặc `deepseek-v4-pro`, rồi dùng như mọi bộ não khác: chat, gọi Kết nối, đọc/ghi brain, skill, việc nền. Ô Suy nghĩ trên trang Models bật/tắt thinking của DeepSeek.
 
+## [0.55.61] - 2026-09-06
+### Cải tiến
+- **Trạng thái chờ chat:** `Javis đang suy nghĩ...` → `Cho em chút thời gian....`
 ## [0.55.60] - 2026-09-06
 ### Sửa
 - **Bust cache asset:** tăng VERSION để trình duyệt bỏ `meetings.js` (và JS khác) bị kẹt immutable sau chuỗi deploy nhanh.
