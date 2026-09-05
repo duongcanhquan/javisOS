@@ -9,9 +9,14 @@
     path: "",
     mic: null,
     speechRec: null,
-    sttEngine: "", // "webspeech" | "whisper" | "moonshine"
+    sttEngine: "", // "moonshine" | "webspeech" | "whisper"
     whisper: null,
     _whisperReady: null,
+    moonshineMod: null,
+    moonshineTranscriber: null,
+    moonshineReady: false,
+    moonshinePreloading: false,
+    moonshinePreloadError: null,
     running: false,
     stopped: false,
     loading: false,
@@ -19,6 +24,12 @@
     lines: 0,
     speakers: {}, // index -> name
     lineBuffer: [], // dòng chờ meetingId (STT bật trước fetch)
+  };
+
+  // Tiếng Việt chỉ có model Base (~70MB). MicTranscriber mặc định MediumStreaming (~270MB, chỉ có en).
+  var MOONSHINE_VI_OPTS = {
+    max_tokens_per_second: "13.0",
+    identify_speakers: "true",
   };
 
   function hasWebSpeech() {
@@ -508,10 +519,78 @@
     setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
   }
 
-  async function loadMoonshine(root) {
-    setStatus(root, "Đang tải Moonshine WASM (lần đầu có thể tải model tiếng Việt)…");
-    var mod = await import(/* webpackIgnore: true */ CDN);
-    return mod.MicTranscriber;
+  async function importMoonshineModule() {
+    if (state.moonshineMod) return state.moonshineMod;
+    state.moonshineMod = await import(/* webpackIgnore: true */ CDN);
+    return state.moonshineMod;
+  }
+
+  function updateMoonshinePreloadHint(root, frac) {
+    var el = root && root.querySelector("#mtMoonshinePreload");
+    if (!el) return;
+    if (state.moonshineReady) {
+      el.textContent = "Moonshine sẵn sàng (model tiếng Việt ~70MB, lần sau dùng cache).";
+      el.style.color = "var(--ok-ink, var(--text3))";
+      return;
+    }
+    if (typeof frac === "number" && frac > 0 && frac < 1) {
+      el.textContent =
+        "Đang chuẩn bị Moonshine (model tiếng Việt)… " + Math.round(frac * 100) + "%";
+    } else if (state.moonshinePreloading) {
+      el.textContent = "Đang chuẩn bị Moonshine…";
+    } else if (state.moonshinePreloadError) {
+      el.textContent = "Moonshine chưa tải được — vẫn thử lại khi bấm Bắt đầu.";
+    } else {
+      el.textContent = "";
+    }
+  }
+
+  async function ensureMoonshineTranscriber(root, onProgress) {
+    if (state.moonshineTranscriber) return state.moonshineTranscriber;
+    var mod = await importMoonshineModule();
+    var prog =
+      onProgress ||
+      function (frac) {
+        updateMoonshinePreloadHint(root, frac);
+      };
+    state.moonshineTranscriber = await mod.Transcriber.load({
+      language: "vi",
+      modelArch: mod.ModelArch.Base,
+      options: MOONSHINE_VI_OPTS,
+      onProgress: function (loaded, total) {
+        var frac = total ? Math.min(1, loaded / total) : 0;
+        prog(frac);
+      },
+    });
+    state.moonshineReady = true;
+    state.moonshinePreloadError = null;
+    updateMoonshinePreloadHint(root, 1);
+    return state.moonshineTranscriber;
+  }
+
+  function preloadMoonshine(root) {
+    if (state.moonshineReady || state.moonshinePreloading) return;
+    state.moonshinePreloading = true;
+    ensureMoonshineTranscriber(root)
+      .catch(function (e) {
+        state.moonshinePreloadError = e;
+        updateMoonshinePreloadHint(root);
+      })
+      .finally(function () {
+        state.moonshinePreloading = false;
+      });
+  }
+
+  async function stopMoonshineMic() {
+    if (!state.mic) return;
+    try {
+      await state.mic.stop();
+    } catch (e) {}
+    try {
+      state.mic.close();
+    } catch (e) {}
+    state.mic = null;
+    if (state.sttEngine === "moonshine") state.sttEngine = "";
   }
 
   function stopWebSpeech() {
@@ -525,7 +604,7 @@
     state.speechRec = null;
   }
 
-  /** Nhận giọng qua Web Speech API (Chrome/Edge) — không tải model, ổn định hơn Moonshine CDN. */
+  /** Dự phòng: Web Speech (Chrome/Edge) — nhanh nhưng không phân biệt người nói. */
   function startWebSpeech(root) {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) throw new Error("Trình duyệt không hỗ trợ nhận giọng. Dùng Chrome hoặc Edge qua HTTPS.");
@@ -681,12 +760,20 @@
   }
 
   async function startMoonshine(root) {
-    var MicTranscriber = await loadMoonshine(root);
-    var mic = new MicTranscriber()
-      .language("vi")
-      .onProgress(function (frac) {
+    var mod = await importMoonshineModule();
+    if (!state.moonshineReady) {
+      setStatus(root, "Nạp model Moonshine (tiếng Việt, ~70MB)…");
+    }
+    var transcriber = await promiseTimeout(
+      ensureMoonshineTranscriber(root, function (frac) {
         setStatus(root, "Tải model tiếng Việt… " + Math.round((frac || 0) * 100) + "%");
-      })
+      }),
+      120000,
+      "Moonshine không tải được trong 2 phút. Kiểm tra mạng hoặc thử lại."
+    );
+
+    var mic = new mod.MicTranscriber()
+      .useTranscriber(transcriber)
       .onText(function (text) {
         setPartial(root, text || "", "");
       })
@@ -714,12 +801,15 @@
         setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
       });
 
-    setStatus(root, "Nạp model Moonshine…");
-    await mic.load();
     setStatus(root, "Xin quyền micro…");
     await mic.start();
     state.mic = mic;
     state.sttEngine = "moonshine";
+    setStatus(
+      root,
+      "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
+      "ok"
+    );
   }
 
   function seedSpeakersFromInput(root) {
@@ -771,8 +861,9 @@
     refreshSpeakerBar(root);
 
     var sttStarted = false;
+    var moonshineFail = null;
     var micPromise = null;
-    if (!hasWebSpeech() && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       micPromise = navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -783,14 +874,25 @@
       });
     }
     try {
-      // Bật STT ngay trong cử chỉ bấm — await fetch trước đó khiến Chrome không thu tiếng (voice.js).
-      if (hasWebSpeech()) {
-        setStatus(root, "Bật micro (Web Speech)…");
-        startWebSpeechSafe(root);
+      // Moonshine trước: model VI Base on-device + phân biệt người nói. Bật STT trong cử chỉ bấm.
+      try {
+        setStatus(root, "Bật Moonshine…");
+        await startMoonshine(root);
         state.running = true;
         sttStarted = true;
-        var stopBtn = root.querySelector("#mtStop");
-        if (stopBtn) stopBtn.disabled = false;
+        var stopBtnM = root.querySelector("#mtStop");
+        if (stopBtnM) stopBtnM.disabled = false;
+      } catch (moonErr) {
+        moonshineFail = moonErr;
+        await stopMoonshineMic();
+        if (hasWebSpeech()) {
+          setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
+          startWebSpeechSafe(root);
+          state.running = true;
+          sttStarted = true;
+          var stopBtnWs = root.querySelector("#mtStop");
+          if (stopBtnWs) stopBtnWs.disabled = false;
+        }
       }
 
       setStatus(
@@ -842,31 +944,15 @@
             "Trình duyệt không hỗ trợ micro. Dùng Chrome/Edge hoặc File ghi âm → chữ."
           );
         } else {
-          try {
-            await promiseTimeout(
-              startMoonshine(root),
-              90000,
-              "Moonshine không tải được trong 90 giây. Dán key Groq ở trang Models (ưu tiên) hoặc dùng Chrome/Edge."
-            );
-            state.running = true;
-            var stopBtn2 = root.querySelector("#mtStop");
-            if (stopBtn2) stopBtn2.disabled = false;
-            setStatus(
-              root,
-              "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
-              "ok"
-            );
-          } catch (moonErr) {
-            throw new Error(
-              (moonErr && moonErr.message) ||
-                "Không nghe được micro. Dán key Groq ở Models, dùng Chrome/Edge, hoặc File ghi âm → chữ."
-            );
-          }
+          throw new Error(
+            (moonshineFail && moonshineFail.message) ||
+              "Không nghe được micro. Cho phép micro, kiểm tra mạng (Moonshine), hoặc dán key Groq ở Models."
+          );
         }
-      } else {
+      } else if (state.sttEngine === "webspeech") {
         setStatus(
           root,
-          "Đang nghe qua micro (Chrome/Edge). Nói rõ; mỗi câu sẽ ghi vào file transcript.",
+          "Đang nghe (Web Speech). Không phân biệt người nói — dùng Moonshine khi tải model xong.",
           "ok"
         );
       }
@@ -875,15 +961,7 @@
       state.running = false;
       stopWebSpeech();
       stopWhisper();
-      if (state.mic) {
-        try {
-          state.mic.stop();
-        } catch (err) {}
-        try {
-          state.mic.close();
-        } catch (err) {}
-        state.mic = null;
-      }
+      await stopMoonshineMic();
       state.sttEngine = "";
       state.lineBuffer = [];
       setStatus(root, "Không bắt đầu được: " + (e.message || e), "err");
@@ -1111,8 +1189,9 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Chrome/Edge:</b> Web Speech realtime. <b>Safari/Firefox:</b> cần key <b>Groq</b> ở trang Models (Whisper, chính xác tiếng Việt). Moonshine chỉ là dự phòng cuối. Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng Ollama (<code>javis-qwen3-8b</code>).</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Mặc định: Moonshine</b> (~70MB, tải một lần, có nhãn Người 1/2…) chạy ngay trên máy bạn. Nếu Moonshine lỗi: Chrome dùng Web Speech; hoặc key <b>Groq</b> ở Models (Whisper). Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng Ollama (<code>javis-qwen3-8b</code>).</p>' +
       '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
+      '<p class="mt-hint dim" id="mtMoonshinePreload" style="margin-top:-6px;font-size:13px"></p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +
       '<div class="mt-card" id="mtSetup">' +
@@ -1175,6 +1254,7 @@
     setPhase(el, "setup");
     refreshList(el);
     setStatus(el, "Điền thông tin rồi bấm Bắt đầu cuộc họp.");
+    preloadMoonshine(el);
   }
 
   function roi() {

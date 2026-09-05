@@ -76,7 +76,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 - **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
 
 ### Sửa lỗi
-- **Cuộc họp kẹt "Nạp model" trên Safari/Firefox.** Trước đó chỉ còn Moonshine WASM (tải model nặng, hay treo). Nay ưu tiên Groq Whisper qua key Models; Moonshine chỉ dự phòng cuối có hạn 90 giây.
+- **Cuộc họp kẹt "Nạp model".** Trước đó MicTranscriber tải nhầm model English Medium (~270MB) thay model tiếng Việt Base (~70MB) nên treo. Nay dùng đúng Moonshine VI + phân biệt người nói; tải nền khi mở trang.
 
 ## [0.35.39] - 2026-09-05
 ### Thêm mới
