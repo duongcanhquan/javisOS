@@ -15,7 +15,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   exit 1
 fi
 
-docker exec -u javis \
+docker exec -i -u javis \
   -e "JAVIS_PORT=$PORT" \
   -e "MORNING_LABEL=$LABEL" \
   -e "MORNING_BRAIN=$BRAIN" \
