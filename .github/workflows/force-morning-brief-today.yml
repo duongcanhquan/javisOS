@@ -4,6 +4,11 @@ name: Force morning brief today
 on:
   workflow_dispatch:
 
+# Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
 jobs:
   force:
     runs-on: ubuntu-latest

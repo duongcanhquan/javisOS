@@ -4,23 +4,45 @@ name: Recover VPS Javis
 on:
   workflow_dispatch:
 
+# Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   recover:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve GHCR image
+        id: img
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "image=ghcr.io/${repo}:latest" >> "$GITHUB_OUTPUT"
+
       - name: Force remove stuck containers and redeploy
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          JAVIS_IMAGE: ${{ steps.img.outputs.image }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 25m
+          envs: GHCR_TOKEN,GHCR_USER,JAVIS_IMAGE
           script: |
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
             export COMPOSE_PROJECT_NAME=javis
+            export JAVIS_IMAGE GHCR_TOKEN GHCR_USER
             echo "==> gỡ container kẹt tên"
             docker rm -f javis javis-pixelle-api javis-pixelle-web 2>/dev/null || true
             docker ps -aq --filter "name=javis" | while read -r cid; do

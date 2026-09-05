@@ -19,6 +19,10 @@ on:
       - "scripts/install-ollama-vps.sh"
       - ".github/workflows/install-ollama-vps.yml"
 
+# Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
 
 jobs:
   install:

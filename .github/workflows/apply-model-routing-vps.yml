@@ -23,6 +23,10 @@ on:
       - "scripts/apply-model-routing-vps.sh"
       - ".github/workflows/apply-model-routing-vps.yml"
 
+# Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
 
 jobs:
   apply:

@@ -1,4 +1,4 @@
-# Tự deploy lên VPS mỗi khi push lên main (GitHub → Ubuntu).
+# Deploy lên VPS SAU khi image GHCR đã đẩy xong (không đua với publish, không --build trên VPS).
 # Cần Secrets trên repo:
 #   VPS_HOST          ví dụ 165.101.46.238
 #   VPS_USER          root
@@ -7,32 +7,69 @@
 name: Deploy Javis to VPS
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Build & Publish Docker image (GHCR)"]
+    types: [completed]
   workflow_dispatch:
 
+# Một hàng SSH vào VPS tại một thời điểm (Deploy / Seed / Recover / Routing…).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve GHCR image
+        id: img
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY,,}"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            sha="${{ github.event.workflow_run.head_sha }}"
+            echo "image=ghcr.io/${repo}:${sha}" >> "$GITHUB_OUTPUT"
+          else
+            sha="${{ github.sha }}"
+            echo "image=ghcr.io/${repo}:latest" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "Dùng image ghcr.io/${repo} @ ${sha}"
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          JAVIS_IMAGE: ${{ steps.img.outputs.image }}
+          WANT_SHA: ${{ steps.img.outputs.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 25m
+          envs: GHCR_TOKEN,GHCR_USER,JAVIS_IMAGE,WANT_SHA
           script: |
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
             export COMPOSE_PROJECT_NAME=javis
+            export JAVIS_IMAGE GHCR_TOKEN GHCR_USER WANT_SHA
             ok=0
             for i in $(seq 1 60); do
               rm -f .git/index.lock 2>/dev/null || true
               git fetch --all --prune 2>/dev/null || true
+              if [ -n "${WANT_SHA:-}" ] && git cat-file -e "${WANT_SHA}^{commit}" 2>/dev/null; then
+                if git reset --hard "$WANT_SHA" 2>/dev/null; then ok=1; break; fi
+              fi
+              git fetch origin "$WANT_SHA" 2>/dev/null || git fetch origin main 2>/dev/null || true
+              if [ -n "${WANT_SHA:-}" ] && git reset --hard "$WANT_SHA" 2>/dev/null; then ok=1; break; fi
               if git reset --hard origin/main 2>/dev/null; then ok=1; break; fi
               echo "git bận - chờ 2s ($i/60)"
               sleep 2

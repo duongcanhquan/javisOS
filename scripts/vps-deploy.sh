@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Javis on Ubuntu from the git checkout (build from source).
+# Deploy Javis on Ubuntu: PULL image GHCR (không --build trên VPS).
 # Keeps Docker volumes (admin, brains, Claude auth) via COMPOSE_PROJECT_NAME=javis.
 set -euo pipefail
 
@@ -22,106 +22,106 @@ else
   echo 'GEMINI_FORCE_FILE_STORAGE=true' >> "$ENV_FILE"
 fi
 
-# Gỡ Ollama host TRƯỚC build (giải phóng đĩa/RAM, tránh treo `ollama rm` sau deploy).
+# Gỡ Ollama host TRƯỚC pull (giải phóng đĩa/RAM, tránh treo `ollama rm` sau deploy).
 if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
-  echo "==> Gỡ Ollama host (trước build)"
+  echo "==> Gỡ Ollama host (trước pull)"
   chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
   JAVIS_OLLAMA_HOST_ONLY=1 timeout 120 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
     || echo "WARN: uninstall-ollama host skipped"
 fi
 
-echo "==> git pull"
+echo "==> git fetch"
 git fetch --all --prune
-# VPS có thể còn diff local từ lần deploy trước → reset về origin/main trước khi pull.
-git reset --hard origin/main 2>/dev/null || true
-git pull --ff-only origin main
-
-# Pixelle (API + WebUI) mặc định TẮT trên VPS - 2 container nặng làm máy chậm.
-# Bật video AI: đặt JAVIS_ENABLE_PIXELLE=true trong .env rồi redeploy.
-ENABLE_PIXELLE=false
-if [ -f "$ENV_FILE" ] && grep -q '^JAVIS_ENABLE_PIXELLE=true' "$ENV_FILE" 2>/dev/null; then
-  ENABLE_PIXELLE=true
+# WANT_SHA = commit đã publish image; đừng reset lên origin/main mới hơn image.
+if [ -n "${WANT_SHA:-}" ]; then
+  git fetch origin "$WANT_SHA" 2>/dev/null || true
+  git reset --hard "$WANT_SHA"
 else
-  if grep -q '^JAVIS_ENABLE_PIXELLE=' "$ENV_FILE" 2>/dev/null; then
-    sed -i.bak 's/^JAVIS_ENABLE_PIXELLE=.*/JAVIS_ENABLE_PIXELLE=false/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  git reset --hard origin/main 2>/dev/null || true
+  git pull --ff-only origin main || true
+fi
+
+# Pixelle: ÉP tắt TRƯỚC compose up. .env cũ còn =true vẫn không được kéo 2 container nặng.
+if grep -q '^JAVIS_ENABLE_PIXELLE=' "$ENV_FILE" 2>/dev/null; then
+  sed -i.bak 's/^JAVIS_ENABLE_PIXELLE=.*/JAVIS_ENABLE_PIXELLE=false/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+else
+  printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
+fi
+echo "==> Pixelle tắt (ép JAVIS_ENABLE_PIXELLE=false trước up)"
+
+# Image GHCR của CHÍNH repo này (fork), không kéo nhầm upstream blogminhquy.
+if [ -z "${JAVIS_IMAGE:-}" ]; then
+  origin=$(git remote get-url origin 2>/dev/null || true)
+  slug=${origin%.git}
+  slug=${slug#https://github.com/}
+  slug=${slug#http://github.com/}
+  slug=${slug#git@github.com:}
+  slug=${slug#ssh://git@github.com/}
+  slug=$(printf '%s' "$slug" | tr '[:upper:]' '[:lower:]')
+  if [[ "$slug" == */* ]]; then
+    JAVIS_IMAGE="ghcr.io/${slug}:latest"
   else
-    printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
+    JAVIS_IMAGE="ghcr.io/duongcanhquan/javisos:latest"
   fi
 fi
+export JAVIS_IMAGE
+echo "==> image $JAVIS_IMAGE"
 
 COMPOSE_FILES=(
   -f docker-compose.yml
-  -f docker-compose.build.yml
-  -f docker-compose.source.yml
   --profile tunnel
 )
 
-if [ "$ENABLE_PIXELLE" = "true" ]; then
-  echo "==> setup Pixelle"
-  chmod +x scripts/setup-pixelle-vps.sh
-  bash scripts/setup-pixelle-vps.sh
-  # shellcheck disable=SC1091
-  if [ -f "$ENV_FILE" ]; then
-    # Xuất PIXELLE_DIR cho compose nếu setup vừa ghi.
-    set -a
-    # Chỉ nạp các dòng PIXELLE_ / RUNNINGHUB_ / JAVIS_ENABLE_PIXELLE an toàn.
-    eval "$(grep -E '^(PIXELLE_|RUNNINGHUB_|JAVIS_ENABLE_PIXELLE=)' "$ENV_FILE" | sed 's/\r$//' || true)"
-    set +a
-  fi
-  export PIXELLE_DIR="${PIXELLE_DIR:-$ROOT/vendor/Pixelle-Video}"
-  COMPOSE_FILES+=(-f docker-compose.pixelle.yml --profile pixelle)
-  echo "==> Pixelle profile ON (dir=$PIXELLE_DIR)"
-else
-  echo "==> Pixelle tắt (JAVIS_ENABLE_PIXELLE=false)"
+if [ -n "${GHCR_TOKEN:-}" ]; then
+  echo "==> docker login ghcr.io"
+  echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-github}" --password-stdin \
+    || echo "WARN: docker login GHCR thất bại (image public thì pull vẫn được)"
 fi
 
 echo "==> dọn container cũ / orphan (tránh Conflict tên sau recreate thất bại)"
 docker compose "${COMPOSE_FILES[@]}" down --remove-orphans 2>/dev/null || true
-for _pat in javis-pixelle-api javis-pixelle-web; do
-  docker ps -aq --filter "name=${_pat}" | while read -r _cid; do
-    [ -n "$_cid" ] || continue
-    docker rm -f "$_cid" 2>/dev/null || true
-  done
+for _name in "${JAVIS_NAME:-javis}" javis-pixelle-api javis-pixelle-web "${JAVIS_NAME:-javis}-tunnel"; do
+  docker rm -f "$_name" 2>/dev/null || true
 done
 
-echo "==> build & up (with Cloudflare tunnel$([ "$ENABLE_PIXELLE" = true ] && echo ' + pixelle'))"
+echo "==> pull $JAVIS_IMAGE"
+ok_pull=0
+for i in $(seq 1 18); do
+  if docker compose "${COMPOSE_FILES[@]}" pull; then
+    ok_pull=1
+    break
+  fi
+  echo "pull chưa sẵn sàng ($i/18) - chờ 10s"
+  sleep 10
+done
+if [ "$ok_pull" != 1 ]; then
+  echo "ERROR: không pull được $JAVIS_IMAGE"
+  echo "Không build tại chỗ (tránh image sai / Conflict). Chờ workflow Docker publish xanh rồi deploy lại."
+  exit 1
+fi
+
+echo "==> up (pull image, không --build, Cloudflare tunnel)"
 docker compose \
   "${COMPOSE_FILES[@]}" \
-  up -d --build
+  up -d --no-build --remove-orphans
 
 echo "==> health"
 ok_health=0
-for i in 1 2 3 4 5 6 7 8 9 10; do
+for i in $(seq 1 20); do
   if curl -fsS -m 5 http://127.0.0.1:7777/health; then
     echo
     ok_health=1
     break
   fi
   echo "waiting health... ($i)"
-  sleep 3
+  sleep 4
 done
 if [ "$ok_health" != "1" ]; then
-  echo "HEALTH_FAIL (container có thể vẫn đang khởi động)"
+  echo "HEALTH_FAIL"
+  docker compose "${COMPOSE_FILES[@]}" logs javis --tail 80 || true
+  exit 1
 fi
 
-if [ "$ENABLE_PIXELLE" = "true" ]; then
-  echo "==> pixelle health"
-  ok_px=0
-  for i in $(seq 1 20); do
-    if curl -fsS -m 5 http://127.0.0.1:8000/health; then
-      echo
-      ok_px=1
-      break
-    fi
-    echo "waiting pixelle... ($i)"
-    sleep 4
-  done
-  if [ "$ok_px" != "1" ]; then
-    echo "PIXELLE_HEALTH_FAIL (xem: docker compose logs pixelle-api)"
-  else
-    echo "Pixelle API OK · WebUI http://127.0.0.1:${PIXELLE_WEB_PORT:-8501}"
-  fi
-fi
 echo
 echo "==> tunnel URL (if any)"
 docker compose logs tunnel 2>&1 | grep -i trycloudflare | tail -n 3 || true
