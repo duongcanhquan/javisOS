@@ -1,7 +1,7 @@
-"""Cuộc họp: lưu transcript realtime + tổng hợp bằng Ollama local.
+"""Cuộc họp: lưu transcript realtime + tổng hợp bằng model cloud (Antigravity mặc định).
 
 STT chạy trên trình duyệt (Moonshine WASM). Module này chỉ nhận chữ đã chốt,
-ghi `sources/meetings/`, và khi dừng thì gọi Ollama để tóm tắt như trợ lý chuyên nghiệp.
+ghi `sources/meetings/`, và khi dừng thì gọi model cloud để tóm tắt.
 """
 from __future__ import annotations
 
@@ -321,14 +321,14 @@ def chunk_text(text: str, max_chars: int = 12000) -> list[str]:
     return chunks
 
 
-async def analyze_with_ollama(
+async def analyze_transcript(
     meeting_id: str,
     *,
     stream_fn: Callable,
-    model: str = "qwen3:4b",
-    api_key: str = "local",
+    model: str = "",
+    api_key: str = "",
 ) -> dict:
-    """Gọi Ollama local → ghi file summary chuyên nghiệp."""
+    """Gọi model cloud (stream_fn) → ghi file summary chuyên nghiệp."""
     sess = _ACTIVE.get(meeting_id)
     if not sess:
         return {"ok": False, "error": "Không tìm thấy phiên họp."}
@@ -375,7 +375,7 @@ async def analyze_with_ollama(
             elif t == "final":
                 buf.append(ev.get("content") or "")
             elif t == "error":
-                err = ev.get("content") or "Ollama lỗi"
+                err = ev.get("content") or "Model lỗi"
                 break
         if err:
             return {"ok": False, "error": err}
@@ -396,11 +396,11 @@ async def analyze_with_ollama(
             if ev.get("type") in ("text", "final"):
                 buf.append(ev.get("content") or "")
             elif ev.get("type") == "error":
-                return {"ok": False, "error": ev.get("content") or "Ollama merge lỗi"}
+                return {"ok": False, "error": ev.get("content") or "Gộp tổng kết lỗi"}
         summary = "".join(buf).strip() or "\n\n".join(partials)
 
     if not summary:
-        return {"ok": False, "error": "Ollama trả về rỗng."}
+        return {"ok": False, "error": "Model trả về rỗng. Thử lại hoặc đổi model ở trang Models."}
 
     md_path = Path(sess["md_path"])
     summary_path = md_path.with_name(md_path.stem + "-summary.md")
@@ -443,6 +443,10 @@ async def analyze_with_ollama(
         "summary": summary,
         "model": model,
     }
+
+
+# Backward-compatible alias (tests / plugin cũ).
+analyze_with_ollama = analyze_transcript
 
 
 def delete_files(brain_root: str, rel_path: str) -> dict:

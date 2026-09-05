@@ -4336,16 +4336,37 @@ async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
 @app.post("/meetings/{meeting_id}/analyze")
 async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
                            model: str = Form("")):
-    """Dừng (nếu chưa) + gọi Ollama local tóm tắt theo skill phan-tich-cuoc-hop."""
+    """Dừng (nếu chưa) + gọi Antigravity (hoặc Main model) tóm tắt theo skill phan-tich-cuoc-hop."""
     mcfg = cfgmod.read_settings().get("model") or {}
-    if not (mcfg.get("ollama_local_endpoint") or "").strip():
-        return {"ok": False,
-                "error": "Chưa cấu hình Ollama local (trang Models → Ollama Local)."}
-    key = (mcfg.get("ollama_local_key") or "").strip() or "local"
-    mdl = (model or "").strip() or ollama_local.default_javis_model({"model": mcfg})
+    main = dict(mcfg.get("main") or {})
+    aux = dict(mcfg.get("auxiliary") or {})
+    prov = (main.get("provider") or "").strip()
+    mdl = (model or "").strip() or (main.get("model") or "").strip()
+    if prov != "antigravity-cli":
+        prov = (aux.get("provider") or "").strip()
+        mdl = (model or "").strip() or (aux.get("model") or "").strip() or mdl
+    if prov != "antigravity-cli":
+        return {
+            "ok": False,
+            "error": "Tổng kết cuộc họp cần Antigravity CLI. Vào Models → Main hoặc Việc nền = Antigravity.",
+        }
+    if not mdl:
+        mdl = "gemini-3.8-flash-high"
     try:
-        return await meetings.analyze_with_ollama(
-            meeting_id, stream_fn=engine.ollama_local_summarize_stream, model=mdl, api_key=key)
+        import antigravity_cli as ag
+        if not ag.find_antigravity_cli():
+            return {"ok": False, "error": "Antigravity CLI chưa cài. Trang Models → Kiểm tra lại."}
+    except Exception:
+        pass
+
+    async def _stream(_key, _model, messages, reasoning="off"):
+        async for ev in _antigravity_sub_stream(
+                _model, messages, reasoning, tag="meeting-analyze", mode="suggest"):
+            yield ev
+
+    try:
+        return await meetings.analyze_transcript(
+            meeting_id, stream_fn=_stream, model=mdl, api_key="")
     except Exception as e:
         import sys, traceback
         traceback.print_exc(file=sys.stderr)

@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.59] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.60] - 2026-09-05
+### Cải thiện
+- **VPS bỏ Ollama local, chuyển sang cloud.** Tổng kết cuộc họp, nhắc hẹn và việc nền dùng Antigravity (nhanh hơn CPU). Deploy tự gỡ Ollama và xóa model trên VPS để giải phóng RAM/đĩa.
+
+
+## [0.35.59] - 2026-09-05
 ### Cải thiện
 - **VPS 12GB tự tối ưu sau deploy:** script kiểm tra Ollama, `javis-qwen3-8b`, ctx 8192, giữ model nóng 30 phút, 6 vòng tool.
 

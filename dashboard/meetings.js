@@ -1,4 +1,4 @@
-// Trang Cuộc họp — ghi chú → Bắt đầu → nhận diện người nói → Tổng kết (Ollama).
+// Trang Cuộc họp — ghi chú → Bắt đầu → nhận diện người nói → Tổng kết (Antigravity).
 // Nạp TRƯỚC console.js; console gọi window.JavisMeetings.render(el).
 (function () {
   "use strict";
@@ -1195,7 +1195,7 @@
     if (state.running) {
       await stopRecording(root);
     }
-    setStatus(root, "Đang tổng kết bằng Ollama local… có thể mất 1–3 phút.");
+    setStatus(root, "Đang tổng kết bằng Antigravity… thường 30–90 giây.");
     var box = root.querySelector("#mtSummary");
     if (box) box.innerHTML = '<div class="dim">Trợ lý đang đọc transcript và viết tổng kết…</div>';
     var btn = root.querySelector("#mtAnalyze");
@@ -1661,7 +1661,7 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Mặc định: Moonshine</b> (~70MB, tải một lần, có nhãn Người 1/2…) chạy ngay trên máy bạn. Nếu Moonshine lỗi: Chrome dùng Web Speech; hoặc key <b>Groq</b> ở Models (Whisper). Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng Ollama (<code>javis-qwen3-8b</code>).</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Mặc định: Moonshine</b> (~70MB, tải một lần, có nhãn Người 1/2…) chạy ngay trên máy bạn. Nếu Moonshine lỗi: Chrome dùng Web Speech; hoặc key <b>Groq</b> ở Models (Whisper). Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng <b>Antigravity</b> (model Main).</p>' +
       '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
       '<p class="mt-hint dim" id="mtMoonshinePreload" style="margin-top:-6px;font-size:13px"></p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
