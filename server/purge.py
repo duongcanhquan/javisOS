@@ -169,7 +169,7 @@ def plan_connection(cid: str) -> dict:
         muc.append({"kind": "audit", "label": "Dòng nhật ký gọi tool", "n": n_audit,
                     "note": "Mặc định GIỮ LẠI, chỉ xoá tên hiển thị."})
 
-    return {
+    out = {
         "ok": True,
         "id": cid,
         "label": conn.get("label") or cid,
@@ -178,9 +178,14 @@ def plan_connection(cid: str) -> dict:
         # Cảnh báo nằm trong CATALOG chứ không viết cứng trong JS: nó là tính chất của
         # connector (quét QR mất là mất thật), nên nó phải đi cùng connector.
         "warning": con.get("purge_warning") or "",
-        "busy": mcp_client.pool.dang_ban_theo_key(cid),
+        "busy": False,
         "items": muc,
     }
+    try:
+        out["busy"] = bool(mcp_client.pool.dang_ban_theo_key(cid))
+    except Exception:
+        pass
+    return out
 
 
 async def purge_connection(cid: str, *, mode: str = "trash", purge_audit: bool = False) -> dict:
@@ -197,6 +202,10 @@ async def purge_connection(cid: str, *, mode: str = "trash", purge_audit: bool =
     import mcp_store
     import oauth_mcp
 
+    cid = (cid or "").strip()
+    if not cid:
+        return {"ok": False, "error": "Thiếu id kết nối"}
+
     conn = mcp_store.get_connection(cid)
     if not conn:
         return {"ok": False, "error": "Không tìm thấy kết nối"}
@@ -204,10 +213,22 @@ async def purge_connection(cid: str, *, mode: str = "trash", purge_audit: bool =
     # 1. LÀM IM. Chờ thật, không bắn-rồi-quên: bước 2 sắp dời đi thư mục mà tiến trình này
     #    đang giữ khoá. Đang chạy dở một tool call thì DỪNG LẠI - đóng phiên stdio là giết cả
     #    cây tiến trình, có thể đang đặt một cái đơn thật.
-    if mcp_client.pool.dang_ban_theo_key(cid):
-        return {"ok": False, "busy": True,
-                "error": "Kết nối đang chạy dở một việc. Chờ nó xong rồi xoá."}
-    da_dong = await mcp_client.pool.close_now(cid)
+    try:
+        if mcp_client.pool.dang_ban_theo_key(cid):
+            return {"ok": False, "busy": True,
+                    "error": "Kết nối đang chạy dở một việc. Chờ nó xong rồi xoá."}
+    except Exception as e:
+        print(f"[purge] dang_ban: {e}", file=sys.stderr)
+
+    da_dong = False
+    try:
+        da_dong = await mcp_client.pool.close_now(cid)
+    except Exception as e:
+        print(f"[purge] close_now: {e}", file=sys.stderr)
+        try:
+            mcp_client.pool.invalidate(cid)
+        except Exception:
+            pass
 
     bao_cao: dict = {"ok": True, "id": cid, "label": conn.get("label") or cid,
                      "closed_session": da_dong, "moved": [], "removed": [], "kept": []}

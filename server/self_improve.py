@@ -909,7 +909,7 @@ class LoopFeature:
         if gcli is None:
             return _finish("Lỗi: không tạo được file MCP rỗng để cô lập (profile code từ chối chạy)", "", True)
         if not gcli.is_available():
-            return {"ok": False, "error": "Claude CLI chưa cài"}
+            return {"ok": False, "error": aux_engine.unavailable_message(gcli)}
         summary = ""
         async for ev in gcli.query(prompt):
             if ev["type"] == "final":

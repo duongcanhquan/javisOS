@@ -3368,15 +3368,30 @@ async def connect_delete(request: Request):
     đóng), thư mục `connector-home` chứa phiên đăng nhập không ai xoá, và sổ năng lực chỉ xoá
     mềm. Đừng thêm bước dọn mới vào đây - thêm vào `purge.py`, để chỉ có MỘT chỗ biết một kết
     nối có thể để lại những gì."""
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Body không phải JSON hợp lệ"}, status_code=400)
     cid = (data.get("id") or "").strip()
-    bao_cao = await purge.purge_connection(
-        cid,
-        mode=("hard" if data.get("hard") else "trash"),
-        purge_audit=bool(data.get("purge_audit")),
-    )
+    if not cid:
+        return JSONResponse({"ok": False, "error": "Thiếu id kết nối"}, status_code=400)
+    try:
+        bao_cao = await purge.purge_connection(
+            cid,
+            mode=("hard" if data.get("hard") else "trash"),
+            purge_audit=bool(data.get("purge_audit")),
+        )
+    except Exception as e:
+        print(f"[connect/delete] {type(e).__name__}: {e}", file=sys.stderr)
+        return JSONResponse(
+            {"ok": False, "error": f"Xoá kết nối lỗi: {type(e).__name__}: {e}"},
+            status_code=500,
+        )
     if bao_cao.get("ok"):
-        _write_codex_profile()
+        try:
+            _write_codex_profile()
+        except Exception as e:
+            print(f"[connect/delete] codex profile: {e}", file=sys.stderr)
     return bao_cao
 
 

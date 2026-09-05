@@ -439,6 +439,28 @@ class SessionPool:
         if ent:
             self._close_later(ent["obj"])
 
+    def dang_ban_theo_key(self, key) -> bool:
+        """Session của kết nối này đang gọi tool dở không?
+
+        Chưa theo dõi in-flight riêng → luôn False (không chặn xoá). Khi có cờ busy thật,
+        `/connect/delete` dùng để tránh rmtree home đang bị tiến trình stdio giữ khoá.
+        """
+        return False
+
+    async def close_now(self, key) -> bool:
+        """Đóng session ngay và chờ `close()` xong (khác `invalidate` fire-and-forget).
+
+        `purge.purge_connection` cần chờ stdio chết hẳn trước khi dời `connector-home/`.
+        """
+        ent = self._sessions.pop(key, None)
+        if not ent:
+            return False
+        try:
+            await ent["obj"].close()
+        except Exception:
+            pass
+        return True
+
     async def close_all(self):
         for key in list(self._sessions):
             ent = self._sessions.pop(key, None)

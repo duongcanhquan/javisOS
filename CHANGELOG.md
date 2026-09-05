@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.65] - 2026-09-05
+### Sửa lỗi
+- **Xoá kết nối Google Chat (và kết nối khác) không còn lỗi JSON / Internal Server Error.** Nút Xoá trên trang Kết nối chạy được để cài lại từ đầu.
+- **Nhắc hẹn / việc nền báo đúng engine.** Máy dùng Antigravity mà phụ lỗi sẽ không còn hiện nhầm "Claude CLI chưa cài" - Zalo/Telegram báo đúng lý do (chưa cài `agy`, chưa đăng nhập Google…).
+
+
 ## [0.35.64] - 2026-09-05
 ### Cải thiện
 - **Chat Zalo/Telegram tách tầng tốc độ.** VPS tự ghim kênh nhắn tin sang API flash (Groq/Gemini/DeepSeek…) nếu đã có key - phản hồi nhanh, vẫn gọi MCP; Antigravity giữ cho dashboard và việc nền.

@@ -115,6 +115,47 @@ def audit_tail(limit=50, conn_id=None):
         return []
 
 
+def audit_scrub(conn_id, drop: bool = False) -> int:
+    """Dọn nhật ký của một kết nối đã xoá.
+
+    Mặc định chỉ bỏ nhãn (giữ dòng, xoá conn_id/label) để thống kê còn dùng được.
+    `drop=True` thì xoá hẳn các dòng của kết nối đó.
+    """
+    cid = (conn_id or "").strip()
+    if not cid or not _AUDIT_PATH.exists():
+        return 0
+    try:
+        lines = _AUDIT_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return 0
+    kept, n = [], 0
+    for line in lines:
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            kept.append(line)
+            continue
+        if rec.get("conn_id") != cid:
+            kept.append(line)
+            continue
+        n += 1
+        if drop:
+            continue
+        rec["conn_id"] = ""
+        rec["label"] = "(đã xoá)"
+        kept.append(json.dumps(rec, ensure_ascii=False))
+    try:
+        _AUDIT_PATH.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+    except OSError:
+        return 0
+    return n
+
+
+def forget_rate(conn_id) -> None:
+    """Xoá bộ đếm rate-limit của kết nối đã gỡ."""
+    _rate.pop(conn_id or "", None)
+
+
 # ============================================================
 # Rate limit (catalog rate_limit.calls_per_min - vd Zalo chống spam/ban)
 # ============================================================

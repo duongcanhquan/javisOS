@@ -86,10 +86,15 @@ check("API: thua huong vault", api.vault_root == "/vault")
 check("API: thua huong mode (quyet dinh an toan dau kia)", api.javis_mode == "suggest")
 
 # ---- swap: hỏng cấu hình thì KHÔNG được làm chết việc nền ----
+# Ca này giả định Claude còn dùng được làm mắt dự phòng. Máy đã cài `claude` nhưng chưa
+# /login thì `_claude_session_ready` = False → DeadAux; mock để test không phụ thuộc máy.
+_real_ready = aux_engine._claude_session_ready
+aux_engine._claude_session_ready = lambda: True
 c4 = FakeClaude()
 check("thieu API key -> giu Claude", aux_engine.swap(c4, settings=S_OR_NOKEY) is c4)
 c5 = FakeClaude()
 check("provider la -> giu Claude", aux_engine.swap(c5, settings=S_WEIRD) is c5)
+aux_engine._claude_session_ready = _real_ready
 
 ok, why = aux_engine.availability({"provider": "openrouter"})
 check("availability neu ro ly do thieu key", ok is False and "key" in why.lower())

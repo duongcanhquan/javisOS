@@ -679,7 +679,7 @@ class RemindersFeature:
         cli = aux_engine.apply(self.deps, cli, mode=mq, tag="reminder")
         cli.max_wall_s = 900  # Ollama Local CPU: một vòng tool có thể >3 phút
         if not cli.is_available():
-            return "", "Claude CLI chưa cài"
+            return "", aux_engine.unavailable_message(cli)
         rang_buoc = {
             "suggest": ("Mức quyền của nhắc hẹn này là CHỈ ĐỌC: được đọc dữ liệu thật qua MCP "
                         "và đọc file, KHÔNG ghi file, KHÔNG hành động ra ngoài. Việc nào cần "

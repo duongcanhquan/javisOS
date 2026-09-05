@@ -3555,7 +3555,19 @@
     try {
       const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                    body: JSON.stringify(obj || {}), signal: ctl ? ctl.signal : undefined });
-      return await r.json();
+      const raw = await r.text();
+      let data = null;
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch (_) {
+        const snip = (raw || "").replace(/\s+/g, " ").slice(0, 160);
+        return { ok: false, error: "Máy chủ trả lỗi (" + r.status + ")"
+          + (snip ? ": " + snip : "") };
+      }
+      if (data && typeof data === "object" && data.ok === undefined && !r.ok) {
+        data.ok = false;
+        data.error = data.error || ("HTTP " + r.status);
+      }
+      return data || { ok: false, error: "Phản hồi trống" };
     } catch (e) {
       return { ok: false, error: (ctl && e && e.name === "AbortError")
         ? "Máy chủ không phản hồi sau " + Math.round(timeoutMs / 1000) + "s. Thử lại giúp em."

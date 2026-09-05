@@ -657,6 +657,41 @@ class CapabilityRegistry:
                 "fts_enabled": self._fts, "fts_rows": fts_rows,
                 "revision": self.revision(brain)}
 
+    def drop_connection(self, cid: str) -> int:
+        """Tắt (active=0) mọi capability thuộc connection id này trên mọi brain.
+
+        `source_key` dạng `{scope}:mcp:{conn_id}`. Lời gọi xoá kết nối không mang brain nên
+        phải quét theo hậu tố.
+        """
+        cid = (cid or "").strip()
+        if not cid:
+            return 0
+        suffix = f":mcp:{cid}"
+        now = time.time()
+        n = 0
+        with self._lock:
+            db = self._conn()
+            with db:
+                rows = db.execute(
+                    "SELECT source_key FROM capability_sources WHERE source_type='mcp' "
+                    "AND source_key LIKE ?",
+                    (f"%{suffix}",),
+                ).fetchall()
+                for row in rows:
+                    sk = row["source_key"] if hasattr(row, "keys") else row[0]
+                    if not str(sk).endswith(suffix):
+                        continue
+                    db.execute(
+                        "UPDATE capability_sources SET active=0,updated_at=? WHERE source_key=?",
+                        (now, sk),
+                    )
+                    db.execute(
+                        "UPDATE capabilities SET active=0,updated_at=? WHERE source_key=?",
+                        (now, sk),
+                    )
+                    n += 1
+        return n
+
 
 _REGISTRY: CapabilityRegistry | None = None
 

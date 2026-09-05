@@ -107,6 +107,9 @@ aux_engine._OR_FREE_CACHE.update(ts=aux_engine.time.time(), model="test/model-ca
 check("pick dùng cache còn hạn", run(aux_engine.pick_openrouter_free("k")) == "test/model-cache:free")
 
 # --- swap() ghép chuỗi đúng theo cấu hình ---
+# Ghép Claude vào chuỗi cần session_ready; mock để không phụ thuộc máy local đã /login chưa.
+_real_ready = aux_engine._claude_session_ready
+aux_engine._claude_session_ready = lambda: True
 S_KEY = {"model": {"openrouter_key": "sk-or-test", "auxiliary": {}}}
 S_NOKEY = {"model": {"auxiliary": {}}}
 out = aux_engine.swap(FakeEngine(), spec={"provider": "openrouter", "model": "x/y"}, settings=S_KEY)
@@ -121,6 +124,27 @@ check("swap Claude CÓ key OpenRouter → bọc chuỗi [Claude, OR-free]",
 out = aux_engine.swap(FakeEngine(), spec={"provider": "openrouter", "model": ""}, settings=S_KEY)
 check("phụ = openrouter model trống → không nhân đôi mắt or-free",
       type(out).__name__ == "_FallbackChain" and len(out._all()) == 2)
+aux_engine._claude_session_ready = _real_ready
+
+# --- fallback phụ chết + Claude binary thiếu → giữ lý do phụ, không giả Claude ---
+class _DeadCli:
+    def is_available(self):
+        return False
+    system_prompt = ""
+    javis_vault = None
+    javis_mode = "suggest"
+    tag = "t"
+
+_dead = aux_engine._fallback_when_aux_unavailable(
+    _DeadCli(), "antigravity-cli", "Chưa cài Antigravity CLI (`agy`).",
+    "suggest", "reminder", {"model": {}})
+check("agy thiếu + Claude chết → DeadAux giữ lý do Antigravity",
+      isinstance(_dead, aux_engine._DeadAuxEngine)
+      and "Antigravity" in (_dead.reason or ""))
+check("unavailable_message DeadAux = đúng lý do phụ",
+      aux_engine.unavailable_message(_dead) == _dead.reason)
+check("unavailable_message Claude chết không giả Antigravity",
+      "Claude" in aux_engine.unavailable_message(_DeadCli()))
 
 print()
 if _fails:

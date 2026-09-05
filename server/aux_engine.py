@@ -185,6 +185,9 @@ def _claude_session_ready() -> bool:
 
     Không có binary Claude → True (giữ hành vi cũ / test FakeClaude). Có CLI mà không
     credentials → False. Lỗi đọc không rõ → True (đừng phá máy đang chạy ổn).
+
+    Lưu ý: True ở đây KHÔNG nghĩa là Claude chạy được. Máy VPS chỉ cài `agy` vẫn True
+    (không tìm thấy binary). Fallback phải gọi `_claude_cli_usable(cli)` trước khi trả Claude.
     """
     try:
         import claude_cli
@@ -196,6 +199,90 @@ def _claude_session_ready() -> bool:
         return bool(claude_cli._cred_co_token(p.read_text(encoding="utf-8")))
     except Exception:
         return True
+
+
+def _claude_cli_usable(cli) -> bool:
+    """Claude vừa dựng có chạy được không? Engine giả (test, không có is_available) → True."""
+    fn = getattr(cli, "is_available", None)
+    if not callable(fn):
+        return True
+    try:
+        return bool(fn())
+    except Exception:
+        return False
+
+
+_PROVIDER_TEN = {
+    CLAUDE: "Claude Code CLI",
+    CODEX: "Codex CLI",
+    GEMINI_CLI: "Gemini CLI",
+    ANTIGRAVITY: "Antigravity CLI (`agy`)",
+    "openrouter": "OpenRouter",
+    "openai": "OpenAI API",
+    "gemini": "Google Gemini (API)",
+    "groq": "Groq",
+    "deepseek": "DeepSeek",
+    "anthropic-api": "Anthropic API",
+    "ollama": "Ollama Cloud",
+    "ollama-local": "Ollama (Local)",
+}
+
+
+def unavailable_message(engine) -> str:
+    """Lý do việc nền không chạy được - đúng tên engine phụ, không mặc định 'Claude CLI'."""
+    if isinstance(engine, _DeadAuxEngine):
+        return engine.reason or "Model việc nền chưa sẵn sàng."
+    if isinstance(engine, _FallbackChain):
+        bits = []
+        for e in engine._all():
+            if e is None:
+                continue
+            if isinstance(e, _DeadAuxEngine):
+                if e.reason:
+                    bits.append(e.reason)
+                continue
+            try:
+                if e.is_available():
+                    continue
+            except Exception:
+                continue
+            bits.append(_ten_engine_thieu(e))
+        if bits:
+            return " · ".join(dict.fromkeys(bits))  # giữ thứ tự, bỏ trùng
+        return "Không engine việc nền nào sẵn sàng."
+    return _ten_engine_thieu(engine)
+
+
+def _ten_engine_thieu(engine) -> str:
+    if isinstance(engine, _DeadAuxEngine):
+        return engine.reason or "Model việc nền chưa sẵn sàng."
+    prov = (getattr(engine, "provider", None) or "").strip()
+    if not prov:
+        # ClaudeSDK / Fake không gắn provider; suy từ tên lớp hoặc spec phụ.
+        name = type(engine).__name__.lower()
+        if "antigravity" in name:
+            prov = ANTIGRAVITY
+        elif "codex" in name:
+            prov = CODEX
+        elif "gemini" in name:
+            prov = GEMINI_CLI
+        elif "claude" in name or name in ("claudesdk",):
+            prov = CLAUDE
+        else:
+            try:
+                prov = read_spec().get("provider") or CLAUDE
+            except Exception:
+                prov = CLAUDE
+    ten = _PROVIDER_TEN.get(prov, prov or "engine AI")
+    if prov == ANTIGRAVITY:
+        return f"{ten} chưa cài hoặc không tìm thấy trên máy này"
+    if prov == CLAUDE:
+        return f"{ten} chưa cài"
+    if prov == CODEX:
+        return f"{ten} chưa cài"
+    if prov == GEMINI_CLI:
+        return f"{ten} chưa sẵn sàng"
+    return f"{ten} chưa sẵn sàng"
 
 
 class _DeadAuxEngine:
@@ -215,10 +302,8 @@ class _DeadAuxEngine:
         pass
 
     async def query(self, prompt: str):
-        msg = (self.reason
-               + " Vào Models chọn Ollama (Local) hoặc dán Ollama Cloud key. "
-               + "Không fallback Claude vì chưa đăng nhập.")
-        yield {"type": "error", "content": msg}
+        # Chỉ lý do thật. Không gắn sẵn lời khuyên Ollama - dễ lệch khi phụ là Antigravity/Codex.
+        yield {"type": "error", "content": self.reason}
 
 
 def api_key_for(provider: str, settings: dict = None) -> str:
@@ -706,12 +791,12 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             primary = _build_api(sp, cli, mode, tag)
         else:
             return cli
-        # Không nhét Claude vào chuỗi nếu chưa login - runtime fail sẽ lộ /login che lỗi Ollama.
+        # Không nhét Claude vào chuỗi nếu chưa login / chưa cài CLI - tránh mắt chết che lỗi phụ.
         chain = [primary]
-        if _claude_session_ready():
+        if _claude_session_ready() and _claude_cli_usable(cli):
             chain.append(cli)
         else:
-            print("[aux] Claude chưa đăng nhập - bỏ khỏi chuỗi fallback việc nền.",
+            print("[aux] Claude chưa dùng được - bỏ khỏi chuỗi fallback việc nền.",
                   file=sys.stderr)
         or_free = _openrouter_free_engine(cli, mode, tag, settings)
         # Phụ ĐANG là openrouter với model trống thì mắt or_free trùng hệt → khỏi thêm.
@@ -724,7 +809,12 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
 
 
 def _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings):
-    """Aux không dựng được: chỉ về Claude khi đã login; Ollama thì ưu tiên OR-free / báo rõ."""
+    """Aux không dựng được: chỉ về Claude khi CLI thật sự chạy được; Ollama thì ưu tiên OR-free / báo rõ.
+
+    Ca VPS chỉ có Antigravity: `_claude_session_ready()` vẫn True (không tìm thấy binary Claude),
+    nhưng `cli.is_available()` False. Trả Claude chết rồi nơi gọi báo "Claude CLI chưa cài" là
+    SAI - che lý do Antigravity. Chỉ fallback Claude khi binary thật sự sẵn sàng.
+    """
     print(f"[aux] {why}", file=sys.stderr)
     or_free = _openrouter_free_engine(cli, mode, tag, settings)
     if prov in ("ollama", "ollama-local") and not _claude_session_ready():
@@ -733,11 +823,11 @@ def _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings):
             return or_free
         print("[aux] Không fallback Claude (chưa /login) - trả lỗi rõ.", file=sys.stderr)
         return _DeadAuxEngine(why)
-    if _claude_session_ready():
+    if _claude_session_ready() and _claude_cli_usable(cli):
         print("[aux] → việc nền tạm dùng lại Claude.", file=sys.stderr)
         return cli
     if or_free:
-        print("[aux] Claude chưa login → dùng OpenRouter free.", file=sys.stderr)
+        print("[aux] Claude không dùng được → OpenRouter free.", file=sys.stderr)
         return or_free
-    print("[aux] Claude chưa login - trả lỗi rõ.", file=sys.stderr)
+    print(f"[aux] Không fallback Claude chết - giữ lý do phụ: {why}", file=sys.stderr)
     return _DeadAuxEngine(why)
