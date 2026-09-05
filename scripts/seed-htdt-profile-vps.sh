@@ -6,9 +6,13 @@ set -euo pipefail
 CONTAINER="${JAVIS_CONTAINER:-javis}"
 echo "==> container: $CONTAINER"
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-  echo "ERROR: container '$CONTAINER' không chạy."
+  CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+fi
+if [ -z "${CONTAINER}" ]; then
+  echo "ERROR: không thấy container javis đang chạy (có thể đang deploy). Thử lại sau 1-2 phút."
   exit 1
 fi
+echo "==> dùng container: $CONTAINER"
 
 docker exec -i -u javis "$CONTAINER" python - <<'PY'
 from pathlib import Path
