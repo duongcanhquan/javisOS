@@ -181,21 +181,43 @@ def is_claude(spec: dict) -> bool:
 
 
 def _claude_session_ready() -> bool:
-    """False chỉ khi chắc Claude CLI có mặt nhưng chưa đăng nhập (tránh lộ lỗi /login).
+    """True chỉ khi Claude CLI thật sự dùng được làm fallback việc nền.
 
-    Không có binary Claude → True (giữ hành vi cũ / test FakeClaude). Có CLI mà không
-    credentials → False. Lỗi đọc không rõ → True (đừng phá máy đang chạy ổn).
+    Không có binary Claude → False. Trước đây trả True (giữ FakeClaude / hành vi cũ) nên
+    máy VPS không cài Claude vẫn bị coi là "sẵn sàng", fallback Ollama → Claude chết, rồi
+    nhắc hẹn báo cứng "Claude CLI chưa cài" che mất lỗi Ollama (thiếu endpoint / model).
+    Có CLI mà chưa credentials → False (tránh lộ /login). Lỗi đọc không rõ → True.
     """
     try:
         import claude_cli
         if not claude_cli.find_claude_cli():
-            return True
+            return False
         p = claude_cli._cred_path()
         if not p.is_file():
             return False
         return bool(claude_cli._cred_co_token(p.read_text(encoding="utf-8")))
     except Exception:
         return True
+
+
+def unavailable_reason(cli) -> str:
+    """Lý do engine việc nền không chạy - Telegram/nhắc hẹn báo đúng, không đổ oan Claude."""
+    reason = getattr(cli, "reason", None)
+    if isinstance(reason, str) and reason.strip():
+        return reason.strip()
+    prov = getattr(cli, "provider", None)
+    if prov and prov not in ("none", CLAUDE):
+        return (f"Engine việc nền ({prov}) chưa sẵn sàng. "
+                "Kiểm tra endpoint/key ở trang Models.")
+    try:
+        import claude_cli
+        if not claude_cli.find_claude_cli():
+            return ("Claude CLI chưa cài. Việc nền cần chọn Ollama (Local) hoặc "
+                    "API key ở trang Models → Model việc nền.")
+    except Exception:
+        pass
+    return ("Claude CLI chưa sẵn sàng hoặc chưa đăng nhập. "
+            "Hoặc vào Models chọn Ollama (Local) cho việc nền.")
 
 
 class _DeadAuxEngine:
@@ -676,6 +698,16 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
         if str(mode or "").strip().lower() == "full":
             if prov == CLAUDE:
                 cli.model = sp.get("model") or None
+                # Máy không cài Claude (VPS Ollama-only): đừng trả engine chết rồi để
+                # reminders.py báo cứng "Claude CLI chưa cài" - nói rõ phải chọn Ollama.
+                try:
+                    if hasattr(cli, "is_available") and not cli.is_available():
+                        return _DeadAuxEngine(
+                            "Model việc nền đang để Claude nhưng Claude CLI chưa cài. "
+                            "Vào Models chọn Ollama (Local) cho việc nền."
+                        )
+                except Exception:
+                    pass
                 return cli
             ok, why = availability(sp, settings)
             if not ok:

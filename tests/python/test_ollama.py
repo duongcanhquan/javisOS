@@ -245,6 +245,30 @@ try:
 finally:
     aux_engine._claude_session_ready = _real_ready
 
+# ---- 9b. Ollama Local full: có endpoint thì dùng; thiếu endpoint không đổ oan Claude ----
+# Ca Telegram: "⚠ Nhắc hẹn chưa chạy được nhiệm vụ: Claude CLI chưa cài" dù đã chọn Ollama Local.
+_fake_ol = type("C", (), {"system_prompt": "S", "cwd": "/v", "javis_vault": "/v",
+                          "javis_mode": "full", "tag": "reminder", "model": None})()
+_S_OL_OK = {"model": {"auxiliary": {"provider": "ollama-local", "model": "javis-qwen3-4b-instruct"},
+                      "ollama_local_endpoint": "http://172.17.0.1:11434"}}
+_out_ol = aux_engine.swap(_fake_ol, mode="full", settings=_S_OL_OK)
+# Không gọi is_available(): nó đọc settings máy thật, không phải dict test.
+check("full + ollama-local có endpoint -> engine API local",
+      getattr(_out_ol, "provider", None) == "ollama-local"
+      and getattr(_out_ol, "model", None) == "javis-qwen3-4b-instruct")
+_S_OL_NO = {"model": {"auxiliary": {"provider": "ollama-local", "model": "javis-qwen3-4b-instruct"}}}
+# Không mock session_ready: trên CI không có Claude binary → mặc định False sau fix.
+_out_ol_no = aux_engine.swap(_fake_ol, mode="full", settings=_S_OL_NO)
+check("full + ollama-local thiếu endpoint -> DeadAux, không trả Claude",
+      _out_ol_no is not _fake_ol
+      and getattr(_out_ol_no, "provider", None) == "none"
+      and "Claude CLI chưa cài" not in aux_engine.unavailable_reason(_out_ol_no)
+      and ("endpoint" in aux_engine.unavailable_reason(_out_ol_no).lower()
+           or "địa chỉ" in aux_engine.unavailable_reason(_out_ol_no).lower()
+           or "ollama" in aux_engine.unavailable_reason(_out_ol_no).lower()))
+check("unavailable_reason lấy reason của DeadAux",
+      aux_engine.unavailable_reason(_out_ol_no) == getattr(_out_ol_no, "reason", ""))
+
 # ---- 10. Ollama Local: num_ctx + rút system prompt việc nền ----
 # Ca thật: nhắc hẹn gửi ~12k token system (CLAUDE.md) trong khi Ollama mặc định 4096 → 400.
 import engine as _eng  # noqa: E402

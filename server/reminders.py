@@ -685,10 +685,17 @@ class RemindersFeature:
                 if mcpf:
                     cli.mcp_config = mcpf
                     cli.mcp_strict = True
+        # Ollama Local / API cần vault_root qua javis_vault; thiếu thì tool vault không gắn.
+        try:
+            root = self.deps.brain_root(brain)
+            cli.javis_vault = root
+            cli.javis_mode = mq
+        except Exception:
+            pass
         cli = aux_engine.apply(self.deps, cli, mode=mq, tag="reminder")
         cli.max_wall_s = 300
         if not cli.is_available():
-            return "", "Claude CLI chưa cài"
+            return "", aux_engine.unavailable_reason(cli)
         rang_buoc = {
             "suggest": ("Mức quyền của nhắc hẹn này là CHỈ ĐỌC: được đọc dữ liệu thật qua MCP "
                         "và đọc file, KHÔNG ghi file, KHÔNG hành động ra ngoài. Việc nào cần "
