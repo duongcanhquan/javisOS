@@ -17,22 +17,8 @@ jobs:
           command_timeout: 10m
           script: |
             set -euo pipefail
-            DIR="${{ secrets.VPS_DIR }}"
-            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
-            cd "$DIR"
-            # Tránh race với deploy song song (ref lock origin/main).
-            for i in 1 2 3 4 5 6; do
-              rm -f .git/refs/remotes/origin/main.lock .git/index.lock 2>/dev/null || true
-              git remote prune origin 2>/dev/null || true
-              if git fetch --all --prune && git reset --hard origin/main; then
-                break
-              fi
-              echo "git bận - chờ 5s ($i/6)"
-              sleep 5
-              if [ "$i" = 6 ]; then
-                echo "ERROR: git fetch/reset thất bại"
-                exit 1
-              fi
-            done
-            chmod +x scripts/seed-htdt-profile-vps.sh
-            bash scripts/seed-htdt-profile-vps.sh
+            # Không đụng git checkout trên VPS (hay race với Deploy). Lấy script thẳng từ main.
+            curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/seed-htdt-profile-vps.sh" \
+              -o /tmp/seed-htdt-profile-vps.sh
+            chmod +x /tmp/seed-htdt-profile-vps.sh
+            bash /tmp/seed-htdt-profile-vps.sh
