@@ -4616,10 +4616,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const nutGo = con.id === "custom" ? ""
       : '<button class="cat-x" data-coreoff="' + esc(con.id) + '" title="Gỡ khỏi kho">'
         + ic("x") + '</button>';
-    return '<div class="cat-card' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
+    return '<div class="cat-card cat-card-sm' + (soon ? " soon" : "") + '" data-cat="' + esc(con.category || "Khác") + '">'
       + nutGo
-      + '<div class="cat-ico">' + iconInner(con) + '</div>'
-      + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div>'
+      + '<div class="cat-top"><div class="cat-ico">' + iconInner(con) + '</div>'
+      + '<div class="cat-name">' + esc(con.name) + ' ' + badge + '</div></div>'
       + '<div class="cat-desc">' + esc(con.description || "") + '</div>'
       + '<div class="cat-actions">'
       + (soon
@@ -5094,12 +5094,12 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   function ambientCard(s, kind) {   // MCP sẵn trong CLI (Claude Code / Codex) - chỉ hiển thị
     const ok = s.connected;
     const detail = s.url || s.command || "";
-    return `<div class="prov-card" style="opacity:.92">
-      <div class="prov-head">
+    return `<div class="prov-card conn-card conn-card-sm" style="opacity:.92">
+      <div class="prov-head conn-head-sm">
         <span class="prov-shield ${ok ? "on" : ""}">${_shield(ok)}</span>
         <div class="prov-info">
           <div class="prov-name">${esc(s.name)} <span class="prov-kind">${esc(kind || "claude code")}</span></div>
-          <div class="prov-status ${ok ? "on" : ""}">${ok ? ic("circle", { cls: "ic-fill ic-ok" }) + " " : WARN_ICON + " "}${esc(s.status)}${detail ? " · " + esc(detail) : ""}</div>
+          <div class="prov-status conn-status-sm ${ok ? "on" : ""}">${ok ? ic("circle", { cls: "ic-fill ic-ok" }) + " " : WARN_ICON + " "}${esc(s.status)}${detail ? " · " + esc(detail) : ""}</div>
         </div>
       </div>
     </div>`;
@@ -5179,18 +5179,18 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         + '</div>'
       : "";
     const khuDaGo = removed.length
-      ? '<details class="cview-section"><summary><h3 style="display:inline">◆ Đã gỡ '
-        + '<span style="opacity:.5">' + removed.length + ' dịch vụ - bấm để xem</span></h3></summary>'
-        + '<div class="gcard-meta" style="max-width:740px;margin-top:10px">Những dịch vụ bạn đã gỡ khỏi kho. '
-        + 'File của chúng vẫn nằm trong bản cài (Javis không sửa mã nguồn của chính nó), nên cài lại là có ngay.</div>'
-        + '<div class="prov-list" style="margin-top:12px">'
-        + removed.map(r => '<div class="prov-row"><div class="prov-ico">' + iconInner(r) + '</div>'
-            + '<div class="prov-main"><div class="prov-name">' + esc(r.name) + '</div>'
-            + '<div class="prov-meta">' + esc(r.category) + '</div></div>'
-            + '<button class="gcard-btn" data-coreon="' + esc(r.id) + '">Cài lại</button></div>').join("")
+      ? '<details class="cview-section conn-sec"><summary><h3 style="display:inline">◆ Đã gỡ '
+        + '<span style="opacity:.5">' + removed.length + ' dịch vụ — bấm để xem</span></h3></summary>'
+        + '<div class="conn-lead" style="margin-top:10px">Những dịch vụ bạn đã gỡ khỏi kho. Cài lại là có ngay.</div>'
+        + '<div class="conn-grid" style="margin-top:12px">'
+        + removed.map(r => '<div class="prov-card conn-card conn-card-sm"><div class="prov-head conn-head-sm"><div class="conn-ico">' + iconInner(r) + '</div>'
+            + '<div class="prov-info"><div class="prov-name">' + esc(r.name) + '</div>'
+            + '<div class="prov-status conn-status-sm">' + esc(r.category) + '</div></div></div>'
+            + '<div class="conn-accounts"><button class="gcard-btn" data-coreon="' + esc(r.id) + '">Cài lại</button></div></div>').join("")
         + '</div></details>'
       : "";
-    el.innerHTML = warn + banMoCoi
+    el.classList.add("cview-conn");
+    el.innerHTML = '<div class="conn-page">' + warn + banMoCoi
       // Hai TAB, không phải một mạch cuộn. Trang này gộp hai danh sách rất khác nhau:
       // thứ đang chạy, và thứ có thể đấu thêm. Gộp lại thì người đã đấu vài chục tài
       // khoản phải cuộn qua hết đống đó mới tới chỗ đấu cái mới.
@@ -5198,32 +5198,31 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       // Cả hai khối đều NẰM TRONG DOM, chỉ ẩn đi - phần dây nối bên dưới tìm theo id và
       // chạy một lần cho cả hai, nên đổi tab không phải vẽ lại hay nối lại gì cả.
       + '<div id="mcpTabDaNoi"' + (_mcpTab === "danoi" ? "" : " hidden") + '>'
-      + '<div class="cview-section"><h3>◆ Đã kết nối <span style="opacity:.5">' + conns.length + ' tài khoản</span></h3>'
-      + '<div class="gcard-meta" style="max-width:none">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
-      + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label></div>'
-      + '<div class="conn-grid" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào - mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
-      // Lối đi tiếp, đặt ngay dưới danh sách. Không có nó thì tab này là ngõ cụt với
-      // người chưa đấu gì: họ nhìn một ô trống mà không biết bước kế tiếp ở đâu.
-      + '<div class="conn-guide" style="border:1px dashed var(--border);border-radius:12px;'
-      + 'padding:14px 16px;margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">'
-      + '<span style="flex:1;min-width:240px">Muốn nối thêm dịch vụ? Chọn từ những dịch vụ '
-      + 'Javis có sẵn, hoặc tải thêm từ kho.</span>'
+      + '<div class="cview-section conn-sec">'
+      + '<div class="conn-sec-head"><h3>◆ Đã kết nối</h3>'
+      + '<span class="conn-sec-count">' + conns.length + ' tài khoản</span></div>'
+      + '<div class="conn-lead">Một dịch vụ nối được nhiều tài khoản. Mọi bộ não dùng chung kho này qua trung tâm kết nối Javis.</div>'
+      + '<label class="conn-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label>'
+      + '<div class="conn-grid">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào — mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
+      + '<div class="conn-guide conn-cta">'
+      + '<span class="conn-cta-text">Muốn nối thêm dịch vụ? Chọn từ kho sẵn có, hoặc tải thêm từ Javis Store.</span>'
+      + '<div class="conn-cta-actions">'
       + '<button class="mp-btn" id="mcpDiSanCo">Kết nối sẵn có</button>'
-      + '<button class="mp-btn primary" id="mcpDiKho">Javis Store</button></div>'
-      + '<details class="cview-section amb-details" id="ambWrap"><summary><h3 style="display:inline">◆ Kết nối sẵn của Claude Code và Codex <span style="opacity:.5">chỉ hiển thị - bấm để xem</span></h3></summary>'
-      + '<div class="gcard-meta" style="max-width:740px;margin-top:10px">Những nguồn đã đăng nhập sẵn trong tài khoản Claude (đồng bộ từ claude.ai) và trong Codex CLI. Bộ não tương ứng tự dùng được các nguồn "Connected". Đăng nhập và quản lý trong app Claude hoặc bằng lệnh <code>codex mcp</code>, không sửa ở đây.</div>'
-      + '<div class="prov-list" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty">Bấm để tải…</div></div>'
-      + '<div class="prov-list" id="mcpAmbientCodex" style="margin-top:12px"></div></details>'
+      + '<button class="mp-btn primary" id="mcpDiKho">Javis Store</button></div></div>'
+      + '<details class="cview-section amb-details conn-sec" id="ambWrap"><summary><h3 style="display:inline">◆ Kết nối sẵn của Claude Code và Codex <span style="opacity:.5">chỉ hiển thị — bấm để xem</span></h3></summary>'
+      + '<div class="conn-lead" style="margin-top:10px">Nguồn đã đăng nhập sẵn trong Claude / Codex CLI. Quản lý trong app Claude hoặc lệnh <code>codex mcp</code>.</div>'
+      + '<div class="conn-grid" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty conn-empty">Bấm để tải…</div></div>'
+      + '<div class="conn-grid" id="mcpAmbientCodex" style="margin-top:12px"></div></details>'
       + '</div>'
       + '<div id="mcpTabSanCo"' + (_mcpTab === "sanco" ? "" : " hidden") + '>'
-      + '<div class="cview-section"><h3>◆ Kết nối sẵn có</h3>'
-      + '<div class="cat-tools"><input class="js-input" id="catQ" placeholder="Tìm dịch vụ…" style="max-width:220px">'
+      + '<div class="cview-section conn-sec">'
+      + '<div class="conn-sec-head"><h3>◆ Kết nối sẵn có</h3></div>'
+      + '<div class="cat-tools conn-tools">'
+      + '<input class="js-input conn-search" id="catQ" placeholder="Tìm dịch vụ…">'
       + '<span class="cat-filter"><button class="cat-chip on" data-catf="">Tất cả</button>' + cats.map(x => '<button class="cat-chip" data-catf="' + esc(x) + '">' + esc(x) + '</button>').join("") + '</span></div>'
       + '<div class="cat-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div></div>'
-      // Hai khu kết nối sẵn của CLI: GẬP mặc định (dân thường không cần thấy) + LAZY:
-      // chỉ gọi /mcp/ambient (chậm - phải health check) khi người dùng thật sự mở ra.
       + khuDaGo
-      + '</div>';
+      + '</div></div>';
     // Ba tab. Hai tab đầu chỉ đổi khối hiển thị trong trang; tab thứ ba ĐIỀU HƯỚNG sang kho
     // cài đặt - nơi có cả connector không nằm trong bản app.
     const doiTab = (v) => {
@@ -5314,20 +5313,20 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (!ambWrap.open || ambWrap._loaded) return;
       ambWrap._loaded = true;
       const box = document.getElementById("mcpAmbient");
-      if (box) box.innerHTML = '<div class="mp-empty">Đang tải… (kiểm tra tình trạng từng nguồn, hơi lâu)</div>';
+      if (box) box.innerHTML = '<div class="mp-empty conn-empty">Đang tải… (kiểm tra tình trạng từng nguồn, hơi lâu)</div>';
       fetch("/mcp/ambient").then(r => r.json()).then(a => {
         if (box) {
           const list = a.servers || [];
-          box.innerHTML = list.length ? list.map(s => ambientCard(s, "claude code")).join("") : '<div class="mp-empty">Không có (hoặc Claude CLI chưa cài).</div>';
+          box.innerHTML = list.length ? list.map(s => ambientCard(s, "claude code")).join("") : '<div class="mp-empty conn-empty">Không có (hoặc Claude CLI chưa cài).</div>';
         }
         const cbox = document.getElementById("mcpAmbientCodex");
         if (cbox) {
           const clist = a.codex_servers || [];
-          cbox.innerHTML = clist.length ? clist.map(s => ambientCard(s, "codex")).join("") : '<div class="mp-empty">Không có (hoặc Codex CLI chưa cài).</div>';
+          cbox.innerHTML = clist.length ? clist.map(s => ambientCard(s, "codex")).join("") : '<div class="mp-empty conn-empty">Không có (hoặc Codex CLI chưa cài).</div>';
         }
       }).catch(() => {
         ambWrap._loaded = false;   // mở lại sẽ thử tải lại
-        ["mcpAmbient", "mcpAmbientCodex"].forEach(id => { const b = document.getElementById(id); if (b) b.innerHTML = '<div class="mp-empty">Không tải được.</div>'; });
+        ["mcpAmbient", "mcpAmbientCodex"].forEach(id => { const b = document.getElementById(id); if (b) b.innerHTML = '<div class="mp-empty conn-empty">Không tải được.</div>'; });
       });
     });
   }

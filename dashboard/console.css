@@ -990,7 +990,124 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; min-height: 0;
 }
-.cat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.cat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; }
+
+/* ===== Trang Kết nối: full chiều ngang, lưới đều, dễ quét ===== */
+.cview-body.cview-conn {
+  padding: 18px 22px 28px;
+}
+.conn-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+.conn-page .tab-kho,
+.conn-page .cat-filter,
+.cview-conn > .cat-filter {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+.cview-conn > .cat-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px !important;
+}
+.conn-sec { margin-bottom: 22px; }
+.conn-sec-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0 0 8px;
+}
+.conn-sec-head h3 { margin: 0; }
+.conn-sec-count {
+  font-size: 13px;
+  color: var(--text3);
+  font-weight: 500;
+}
+.conn-lead {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text2);
+  max-width: none;
+  margin: 0 0 10px;
+}
+.conn-strict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  margin: 0 0 14px;
+  user-select: none;
+}
+.conn-tools {
+  width: 100%;
+  margin: 0 0 14px;
+  align-items: stretch;
+}
+.conn-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: none !important;
+}
+.conn-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin: 16px 0 8px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: transparent;
+  white-space: normal;
+}
+.conn-cta-text { flex: 1 1 240px; font-size: 13.5px; line-height: 1.5; opacity: 0.9; }
+.conn-cta-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.conn-grid > .prov-card,
+.conn-grid > .conn-card,
+.cat-grid > .cat-card {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.conn-grid > .prov-card:hover,
+.cat-grid > .cat-card:hover {
+  border-color: var(--accent-line, var(--border));
+  transform: translateY(-1px);
+}
+.conn-grid > .conn-card .conn-accounts { margin-top: auto; }
+.cat-grid > .cat-card .cat-actions { margin-top: auto; }
+.conn-empty {
+  grid-column: 1 / -1;
+  padding: 28px 16px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-1, transparent);
+}
+@media (min-width: 1400px) {
+  .conn-page .conn-grid,
+  .conn-page .cat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+@media (max-width: 860px) {
+  .cview-body.cview-conn { padding: 14px 14px 22px; }
+  .conn-cta { padding: 12px; }
+}
+
 .galaxy-nexus.gx-compact { padding: 18px 18px 32px; }
 .gx-hero-sm { margin: 0 0 14px !important; max-width: none !important; padding: 0 !important; }
 .gx-hero-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 16px; }
