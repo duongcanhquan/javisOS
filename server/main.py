@@ -4260,7 +4260,44 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
 
 
 # ============================================================
-# CUỘC HỌP: STT trên browser (Moonshine WASM) → lưu sources/meetings → Ollama tóm tắt
+# STT dashboard (mic chat + Cuộc họp): Groq Whisper qua /stt
+# ============================================================
+@app.get("/stt/status")
+async def stt_status():
+    """Mic dashboard và Cuộc họp hỏi trước khi bật Whisper."""
+    mcfg = cfgmod.read_settings().get("model") or {}
+    key = (mcfg.get("groq_api_key") or "").strip()
+    return {"ok": True, "available": bool(key)}
+
+
+@app.post("/stt")
+async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
+    """Nhận đoạn âm thanh ngắn từ browser → chữ (Whisper large-v3 qua Groq)."""
+    try:
+        data = await file.read()
+    except Exception as e:
+        return {"ok": False, "error": f"Đọc file lỗi: {e}"}
+    ten = file.filename or "voice.webm"
+    mcfg = cfgmod.read_settings().get("model") or {}
+    key = (mcfg.get("groq_api_key") or "").strip()
+    if not key:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Chưa cấu hình Groq API key (trang Models → Groq)."},
+        )
+    ngon = (lang or "vi").strip() or "vi"
+    ket = await stt.groq_nghe(
+        data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
+    if not ket.get("ok"):
+        from fastapi.responses import JSONResponse
+        msg = ket.get("noi_voi_javis") or ket.get("ly_do") or "stt_failed"
+        return JSONResponse(status_code=400, content={"detail": str(msg)[:500]})
+    return {"ok": True, "text": ket.get("text") or "", "model": ket.get("model") or ""}
+
+
+# ============================================================
+# CUỘC HỌP: STT trên browser (Web Speech / Groq Whisper / Moonshine) → Ollama tóm tắt
 # ============================================================
 @app.post("/meetings/start")
 async def meetings_start(title: str = Form(""), language: str = Form("vi"),

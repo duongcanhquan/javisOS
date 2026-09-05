@@ -75,6 +75,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 - **Google Chat trong Kết nối.** Đấu MCP chính chủ của Google để đọc space/DM, tìm tin và biết ai nhắc bạn (cần email Workspace).
 - **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
 
+### Sửa lỗi
+- **Cuộc họp kẹt "Nạp model" trên Safari/Firefox.** Trước đó chỉ còn Moonshine WASM (tải model nặng, hay treo). Nay ưu tiên Groq Whisper qua key Models; Moonshine chỉ dự phòng cuối có hạn 90 giây.
+
 ## [0.35.39] - 2026-09-05
 ### Thêm mới
 - **Nhắc tổng kết sáng 8h hàng ngày.** Mỗi sáng Javis đọc email hôm qua, lịch hôm nay và ngày mai, rồi gửi báo cáo ngắn (việc cần làm / đã xử lý). Skill `tong-ket-sang` + seed tự chạy khi deploy VPS.

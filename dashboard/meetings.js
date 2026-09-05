@@ -9,7 +9,9 @@
     path: "",
     mic: null,
     speechRec: null,
-    sttEngine: "", // "webspeech" | "moonshine"
+    sttEngine: "", // "webspeech" | "whisper" | "moonshine"
+    whisper: null,
+    _whisperReady: null,
     running: false,
     stopped: false,
     loading: false,
@@ -266,6 +268,244 @@
         body: f,
       });
     } catch (e) {}
+  }
+
+  function promiseTimeout(promise, ms, message) {
+    return Promise.race([
+      promise,
+      new Promise(function (_, reject) {
+        setTimeout(function () {
+          reject(new Error(message || "Hết thời gian chờ"));
+        }, ms);
+      }),
+    ]);
+  }
+
+  async function fetchWhisperReady() {
+    if (state._whisperReady !== null) return state._whisperReady;
+    try {
+      var r = await fetch("/stt/status", { credentials: "same-origin" });
+      if (!r.ok) {
+        state._whisperReady = false;
+        return false;
+      }
+      var d = await r.json();
+      state._whisperReady = !!(d && d.available);
+      return state._whisperReady;
+    } catch (e) {
+      state._whisperReady = false;
+      return false;
+    }
+  }
+
+  function pickRecorderMime() {
+    if (typeof MediaRecorder === "undefined") return "";
+    var cands = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+    for (var i = 0; i < cands.length; i++) {
+      try {
+        if (MediaRecorder.isTypeSupported(cands[i])) return cands[i];
+      } catch (e) {}
+    }
+    return "";
+  }
+
+  function stopWhisper() {
+    var w = state.whisper;
+    state.whisper = null;
+    if (!w) return;
+    if (w.vadTimer) {
+      clearInterval(w.vadTimer);
+      w.vadTimer = null;
+    }
+    if (w.recorder) {
+      try {
+        w.recorder.ondataavailable = null;
+        w.recorder.onstop = null;
+        w.recorder.onerror = null;
+        if (w.recorder.state === "recording" || w.recorder.state === "paused") w.recorder.stop();
+      } catch (e) {}
+      w.recorder = null;
+    }
+    if (w.stream) {
+      try {
+        w.stream.getTracks().forEach(function (t) {
+          t.stop();
+        });
+      } catch (e) {}
+      w.stream = null;
+    }
+  }
+
+  function appendWhisperLine(root, tx) {
+    var wall = new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    appendFinal(root, tx, wall, "");
+    queueLine(tx, 0, 0, "", -1);
+  }
+
+  function restartWhisperRecorder(w) {
+    if (!state.running || state.sttEngine !== "whisper" || !w || !w.stream) return;
+    var mime = pickRecorderMime();
+    var rec;
+    try {
+      rec = mime
+        ? new MediaRecorder(w.stream, { mimeType: mime, audioBitsPerSecond: 128000 })
+        : new MediaRecorder(w.stream);
+    } catch (e) {
+      rec = new MediaRecorder(w.stream);
+    }
+    w.recorder = rec;
+    w.mime = rec.mimeType || mime || "audio/webm";
+    w.chunks = [];
+    rec.ondataavailable = function (ev) {
+      if (ev.data && ev.data.size > 0) w.chunks.push(ev.data);
+    };
+    rec.onerror = function () {
+      setStatus(w.root, "Micro ghi âm lỗi. Thử tải lại trang.", "err");
+    };
+    try {
+      rec.start(250);
+    } catch (e) {
+      try {
+        rec.start();
+      } catch (e2) {}
+    }
+  }
+
+  function startWhisperVad(root, w) {
+    if (w.vadTimer) clearInterval(w.vadTimer);
+    var silentTicks = 0;
+    var baseline = 0;
+    var ticks = 0;
+    var needSilent = 19;
+    w.vadTimer = setInterval(function () {
+      if (!state.running || state.sttEngine !== "whisper" || !w.analyser || !w.timeData) return;
+      w.analyser.getByteTimeDomainData(w.timeData);
+      var s = 0;
+      var N = w.timeData.length;
+      for (var k = 0; k < N; k++) {
+        var dv = w.timeData[k] - 128;
+        s += dv * dv;
+      }
+      var rms = Math.sqrt(s / N) / 128;
+      ticks++;
+      if (ticks <= 5) {
+        baseline = Math.max(baseline, rms);
+        return;
+      }
+      var thresh = Math.max(0.028, baseline * 1.8 + 0.012);
+      if (rms > thresh) {
+        w.speechSeen = true;
+        silentTicks = 0;
+        setPartial(root, "Đang nghe…", "");
+      } else if (w.speechSeen) {
+        silentTicks++;
+        if (silentTicks >= needSilent) {
+          silentTicks = 0;
+          finalizeWhisperChunk(root, w);
+        }
+      }
+    }, 100);
+  }
+
+  function finalizeWhisperChunk(root, w) {
+    if (!w || w._flushing) return;
+    w._flushing = true;
+    var rec = w.recorder;
+    var done = function () {
+      w._flushing = false;
+      var type = (w.chunks[0] && w.chunks[0].type) || w.mime || "audio/webm";
+      var blob = new Blob(w.chunks, { type: type });
+      w.chunks = [];
+      var hadSpeech = w.speechSeen;
+      w.speechSeen = false;
+      if (!hadSpeech || blob.size < 1200) {
+        if (state.running && state.sttEngine === "whisper") restartWhisperRecorder(w);
+        return;
+      }
+      setPartial(root, "Đang nhận dạng…", "");
+      var fd = new FormData();
+      var ext = type.indexOf("mp4") >= 0 ? "m4a" : type.indexOf("ogg") >= 0 ? "ogg" : "webm";
+      fd.append("file", blob, "meeting." + ext);
+      fd.append("lang", "vi");
+      fetch("/stt", { method: "POST", body: fd, credentials: "same-origin" })
+        .then(function (r) {
+          if (r.status === 503) {
+            return r.json().then(function (j) {
+              throw new Error(
+                (j && j.detail) || "Chưa cấu hình Groq API key. Vào trang Models → Groq."
+              );
+            });
+          }
+          if (!r.ok) {
+            return r.json().then(function (j) {
+              throw new Error((j && j.detail) || "STT lỗi " + r.status);
+            });
+          }
+          return r.json();
+        })
+        .then(function (d) {
+          var tx = String((d && d.text) || "").replace(/\s+/g, " ").trim();
+          setPartial(root, "");
+          if (tx) appendWhisperLine(root, tx);
+          if (state.running && state.sttEngine === "whisper") {
+            setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
+            restartWhisperRecorder(w);
+          }
+        })
+        .catch(function (e) {
+          setPartial(root, "");
+          setStatus(root, (e && e.message) || String(e), "err");
+          if (state.running && state.sttEngine === "whisper") restartWhisperRecorder(w);
+        });
+    };
+    if (!rec || rec.state === "inactive") {
+      done();
+      return;
+    }
+    rec.onstop = function () {
+      rec.onstop = null;
+      done();
+    };
+    try {
+      rec.stop();
+    } catch (e) {
+      done();
+    }
+  }
+
+  async function startWhisperMeeting(root, micPromise) {
+    stopWhisper();
+    var stream = await micPromise;
+    var w = {
+      root: root,
+      stream: stream,
+      recorder: null,
+      mime: "audio/webm",
+      chunks: [],
+      speechSeen: false,
+      vadTimer: null,
+      analyser: null,
+      timeData: null,
+      _flushing: false,
+    };
+    state.whisper = w;
+    state.sttEngine = "whisper";
+
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var src = ctx.createMediaStreamSource(stream);
+    var an = ctx.createAnalyser();
+    an.fftSize = 2048;
+    src.connect(an);
+    w.analyser = an;
+    w.timeData = new Uint8Array(an.fftSize);
+
+    restartWhisperRecorder(w);
+    startWhisperVad(root, w);
+    setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
   }
 
   async function loadMoonshine(root) {
@@ -531,6 +771,17 @@
     refreshSpeakerBar(root);
 
     var sttStarted = false;
+    var micPromise = null;
+    if (!hasWebSpeech() && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      micPromise = navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+      });
+    }
     try {
       // Bật STT ngay trong cử chỉ bấm — await fetch trước đó khiến Chrome không thu tiếng (voice.js).
       if (hasWebSpeech()) {
@@ -567,21 +818,50 @@
       await flushLineBuffer();
 
       if (!sttStarted) {
-        try {
-          await startMoonshine(root);
-          state.running = true;
-          var stopBtn2 = root.querySelector("#mtStop");
-          if (stopBtn2) stopBtn2.disabled = false;
-          setStatus(
-            root,
-            "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
-            "ok"
-          );
-        } catch (moonErr) {
+        var whisperOk = await fetchWhisperReady();
+        if (whisperOk && micPromise) {
+          try {
+            await startWhisperMeeting(root, micPromise);
+            state.running = true;
+            sttStarted = true;
+            var stopBtnW = root.querySelector("#mtStop");
+            if (stopBtnW) stopBtnW.disabled = false;
+          } catch (whErr) {
+            if (micPromise && micPromise.catch) {
+              try {
+                await micPromise.catch(function () {});
+              } catch (e) {}
+            }
+            throw new Error(
+              (whErr && whErr.message) ||
+                "Không bật được micro Whisper. Cho phép micro hoặc dán key Groq ở trang Models."
+            );
+          }
+        } else if (whisperOk && !micPromise) {
           throw new Error(
-            (moonErr && moonErr.message) ||
-              "Không tải được Moonshine. Dùng Chrome/Edge hoặc chọn File ghi âm → chữ."
+            "Trình duyệt không hỗ trợ micro. Dùng Chrome/Edge hoặc File ghi âm → chữ."
           );
+        } else {
+          try {
+            await promiseTimeout(
+              startMoonshine(root),
+              90000,
+              "Moonshine không tải được trong 90 giây. Dán key Groq ở trang Models (ưu tiên) hoặc dùng Chrome/Edge."
+            );
+            state.running = true;
+            var stopBtn2 = root.querySelector("#mtStop");
+            if (stopBtn2) stopBtn2.disabled = false;
+            setStatus(
+              root,
+              "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
+              "ok"
+            );
+          } catch (moonErr) {
+            throw new Error(
+              (moonErr && moonErr.message) ||
+                "Không nghe được micro. Dán key Groq ở Models, dùng Chrome/Edge, hoặc File ghi âm → chữ."
+            );
+          }
         }
       } else {
         setStatus(
@@ -594,6 +874,7 @@
     } catch (e) {
       state.running = false;
       stopWebSpeech();
+      stopWhisper();
       if (state.mic) {
         try {
           state.mic.stop();
@@ -623,6 +904,7 @@
       if (state.speechRec) {
         stopWebSpeech();
       }
+      stopWhisper();
       if (state.mic) {
         try {
           await state.mic.stop();
@@ -829,7 +1111,7 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy (Chrome/Edge + HTTPS) chuyển giọng → chữ realtime; Firefox/Safari thử Moonshine WASM hoặc “File → chữ” (Groq Whisper). Sau đó <b>Tổng kết</b> bằng Ollama local (<code>javis-qwen3-8b</code>).</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Chrome/Edge:</b> Web Speech realtime. <b>Safari/Firefox:</b> cần key <b>Groq</b> ở trang Models (Whisper, chính xác tiếng Việt). Moonshine chỉ là dự phòng cuối. Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng Ollama (<code>javis-qwen3-8b</code>).</p>' +
       '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +
@@ -900,6 +1182,7 @@
     state.lineBuffer = [];
     releaseMicConflicts();
     stopWebSpeech();
+    stopWhisper();
     if (state.mic) {
       try {
         state.mic.stop();
