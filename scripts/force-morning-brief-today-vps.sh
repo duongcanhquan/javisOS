@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ép nhắc "Tổng kết sáng 8h" chạy SÁNG NAY (không để nhảy sang mai).
-# - Nếu chưa tới 8:00 VN: đặt due = 8:00 hôm nay.
-# - Nếu đã qua 8:00 VN: bắn trong ~1 phút (vẫn giữ cron mỗi ngày 8h cho các ngày sau).
+# Ép tổng kết sáng chạy SÁNG NAY trên VPS.
+# 1) Bắn một bản one-shot trong ~1 phút (chat_id=all → Telegram + Zalo).
+# 2) Giữ nhắc cron 8h hàng ngày; lần kế đặt = ngày mai 8:00 (tránh gửi trùng 8h sáng nay).
 set -euo pipefail
 
 CONTAINER="${JAVIS_CONTAINER:-javis}"
@@ -20,7 +20,7 @@ docker exec -u javis \
   -e "MORNING_LABEL=$LABEL" \
   -e "MORNING_BRAIN=$BRAIN" \
   "$CONTAINER" python - <<'PY'
-import json, os, urllib.error, urllib.parse, urllib.request
+import json, os, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -30,7 +30,7 @@ label = os.environ["MORNING_LABEL"]
 brain = os.environ["MORNING_BRAIN"]
 vn = ZoneInfo("Asia/Ho_Chi_Minh")
 now = datetime.now(vn)
-today_8 = now.replace(hour=8, minute=0, second=0, microsecond=0)
+tomorrow_8 = (now + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
 
 
 def call(method, path, data=None, form=False):
@@ -72,46 +72,83 @@ if not rem:
     )
 
 rid = rem["id"]
-print("found:", rid, "due_human=", rem.get("due_human"), "cron=", rem.get("cron"))
+text = rem.get("text") or ""
+print("found_daily:", rid, "due=", rem.get("due_human"), "cron=", rem.get("cron"))
 
-if now < today_8:
-    # Còn trước 8h hôm nay → ép lại cron để due = 8:00 sáng nay
-    upd = call("POST", "/reminders/update", {
-        "id": rid,
-        "brain": brain,
-        "cron": "0 8 * * *",
-        "chat_id": "all",
-        "mode": "task",
-    }, form=True)
-    print("updated_cron:", json.dumps(upd, ensure_ascii=False))
-    if not upd.get("ok"):
-        raise SystemExit(1)
-    due_h = (upd.get("reminder") or {}).get("due_human") or "?"
-    print(f"OK: sẽ gửi LÚC 8:00 SÁNG NAY ({due_h}), không phải sáng mai.")
-else:
-    # Đã qua 8h → tạo bản một lần chạy ngay (~1 phút), giữ cron ngày mai
-    text = rem.get("text") or ""
-    one = call("POST", "/reminders", {
-        "text": text,
-        "label": f"{label} (chạy ngay sáng nay)",
-        "mode": "task",
-        "brain": brain,
-        "muc_quyen": rem.get("muc_quyen") or "suggest",
-        "chat_id": "all",
-        "delay_min": 1,
-        "created_by": "force-morning-brief-today",
-        "allow_no_channel": True,
-    })
-    print("oneshot:", json.dumps(one, ensure_ascii=False))
+# 1) One-shot gửi trong ~1 phút (sáng nay ngay)
+one = call("POST", "/reminders", {
+    "text": text,
+    "label": f"{label} (chạy ngay sáng nay)",
+    "mode": "task",
+    "brain": brain,
+    "muc_quyen": rem.get("muc_quyen") or "suggest",
+    "chat_id": "all",
+    "delay_min": 1,
+    "created_by": "force-morning-brief-today",
+    "allow_no_channel": True,
+})
+print("oneshot:", json.dumps(one, ensure_ascii=False))
+if not one.get("ok"):
+    # Thử lại với allow nếu thiếu kênh đã báo can_force
+    if one.get("can_force"):
+        one = call("POST", "/reminders", {
+            "text": text,
+            "label": f"{label} (chạy ngay sáng nay)",
+            "mode": "task",
+            "brain": brain,
+            "muc_quyen": rem.get("muc_quyen") or "suggest",
+            "chat_id": "all",
+            "delay_min": 1,
+            "created_by": "force-morning-brief-today",
+            "allow_no_channel": True,
+        })
+        print("oneshot_retry:", json.dumps(one, ensure_ascii=False))
     if not one.get("ok"):
         raise SystemExit(f"ERROR oneshot: {one}")
-    # Bảo đảm lịch hàng ngày vẫn còn (cron về lần kế = ngày mai 8h)
-    upd = call("POST", "/reminders/update", {
-        "id": rid,
-        "brain": brain,
-        "cron": "0 8 * * *",
-        "chat_id": "all",
-    }, form=True)
-    print("daily_refresh:", json.dumps(upd, ensure_ascii=False))
-    print(f"OK: sẽ gửi trong ~1 phút (id={one.get('id')}). Từ ngày mai vẫn 8:00 mỗi sáng.")
+
+# 2) Nhắc cron hàng ngày: giữ cron, đẩy due sang 8:00 ngày mai (tránh trùng với one-shot)
+upd = call("POST", "/reminders/update", {
+    "id": rid,
+    "brain": brain,
+    "cron": "0 8 * * *",
+    "chat_id": "all",
+    "mode": "task",
+}, form=True)
+print("daily_cron_refresh:", json.dumps(upd, ensure_ascii=False))
+
+# Nếu cron_next vẫn ra hôm nay 8h (vì chưa tới 8h), ghi đè due_at = ngày mai 8:00 qua due_at
+# (update với due_at sẽ XOÁ cron - nên ghi thẳng file trong brain).
+due_after = (upd.get("reminder") or {}).get("due_at") or 0
+if due_after and due_after < tomorrow_8.timestamp():
+    import sys
+    sys.path.insert(0, "/app/server")
+    # Ghi đè due trong kho nhắc, GIỮ cron
+    try:
+        from pathlib import Path
+        brains = os.environ.get("BRAINS_DIR", "/brains")
+        # brain id "brain" → Brain Default
+        root = Path(brains) / ("Brain Default" if brain in ("brain", "") else brain)
+        path = root / "Javis" / "reminders.json"
+        if not path.exists():
+            # thử tên đúng như label brain
+            for p in Path(brains).iterdir():
+                cand = p / "Javis" / "reminders.json"
+                if cand.exists():
+                    data = json.loads(cand.read_text(encoding="utf-8"))
+                    if any(r.get("id") == rid for r in data.get("reminders", [])):
+                        path = cand
+                        break
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for r in data.get("reminders", []):
+            if r.get("id") == rid and r.get("status") == "pending":
+                r["due_at"] = tomorrow_8.timestamp()
+                r["cron"] = "0 8 * * *"
+                r["chat_id"] = "all"
+                print("patched_due_tomorrow_8:", datetime.fromtimestamp(r["due_at"], vn).isoformat())
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception as e:
+        print("WARN: không patch được due ngày mai:", type(e).__name__, e)
+
+print(f"OK: bản sáng nay sẽ gửi trong ~1 phút (id={one.get('id')}, due={one.get('due_human')}).")
+print("    Lịch 8h hàng ngày giữ nguyên; lần kế = 8:00 ngày mai.")
 PY
