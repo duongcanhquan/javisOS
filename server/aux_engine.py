@@ -180,6 +180,47 @@ def is_claude(spec: dict) -> bool:
     return (spec or {}).get("provider", CLAUDE) == CLAUDE
 
 
+def _claude_session_ready() -> bool:
+    """False chỉ khi chắc Claude CLI có mặt nhưng chưa đăng nhập (tránh lộ lỗi /login).
+
+    Không có binary Claude → True (giữ hành vi cũ / test FakeClaude). Có CLI mà không
+    credentials → False. Lỗi đọc không rõ → True (đừng phá máy đang chạy ổn).
+    """
+    try:
+        import claude_cli
+        if not claude_cli.find_claude_cli():
+            return True
+        p = claude_cli._cred_path()
+        if not p.is_file():
+            return False
+        return bool(claude_cli._cred_co_token(p.read_text(encoding="utf-8")))
+    except Exception:
+        return True
+
+
+class _DeadAuxEngine:
+    """Engine giả: báo lỗi rõ, không gọi Claude (tránh Not logged in · Please run /login)."""
+
+    def __init__(self, reason: str):
+        self.reason = (reason or "Model việc nền chưa sẵn sàng.").strip()
+        self.provider = "none"
+        self.model = ""
+        self.system_prompt = None
+        self.tag = "aux-dead"
+
+    def is_available(self) -> bool:
+        return False
+
+    def reset_session(self):
+        pass
+
+    async def query(self, prompt: str):
+        msg = (self.reason
+               + " Vào Models chọn Ollama (Local) hoặc dán Ollama Cloud key. "
+               + "Không fallback Claude vì chưa đăng nhập.")
+        yield {"type": "error", "content": msg}
+
+
 def api_key_for(provider: str, settings: dict = None) -> str:
     s = settings if settings is not None else cfgmod.read_settings()
     mcfg = (s.get("model", {}) or {})
@@ -600,8 +641,7 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
                 return cli
             ok, why = availability(sp, settings)
             if not ok:
-                print(f"[aux] {why} → việc full tạm dùng lại Claude.", file=sys.stderr)
-                return cli
+                return _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings)
             if prov == CODEX:
                 return _build_codex(sp, cli, mode, tag, codex_profile)
             if prov == GEMINI_CLI:
@@ -617,8 +657,7 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             return _FallbackChain([cli, or_free]) if or_free else cli
         ok, why = availability(sp, settings)
         if not ok:
-            print(f"[aux] {why} → việc nền tạm dùng lại Claude.", file=sys.stderr)
-            return cli
+            return _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings)
         if prov == CODEX:
             primary = _build_codex(sp, cli, mode, tag, codex_profile)
         elif prov == GEMINI_CLI:
@@ -629,12 +668,38 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             primary = _build_api(sp, cli, mode, tag)
         else:
             return cli
-        chain = [primary, cli]
+        # Không nhét Claude vào chuỗi nếu chưa login - runtime fail sẽ lộ /login che lỗi Ollama.
+        chain = [primary]
+        if _claude_session_ready():
+            chain.append(cli)
+        else:
+            print("[aux] Claude chưa đăng nhập - bỏ khỏi chuỗi fallback việc nền.",
+                  file=sys.stderr)
         or_free = _openrouter_free_engine(cli, mode, tag, settings)
         # Phụ ĐANG là openrouter với model trống thì mắt or_free trùng hệt → khỏi thêm.
         if or_free and not (prov == "openrouter" and not (sp.get("model") or "").strip()):
             chain.append(or_free)
-        return _FallbackChain(chain)
+        return chain[0] if len(chain) == 1 else _FallbackChain(chain)
     except Exception as e:
         print(f"[aux swap] {e} → giữ engine Claude.", file=sys.stderr)
     return cli
+
+
+def _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings):
+    """Aux không dựng được: chỉ về Claude khi đã login; Ollama thì ưu tiên OR-free / báo rõ."""
+    print(f"[aux] {why}", file=sys.stderr)
+    or_free = _openrouter_free_engine(cli, mode, tag, settings)
+    if prov in ("ollama", "ollama-local") and not _claude_session_ready():
+        if or_free:
+            print("[aux] Ollama lỗi + Claude chưa login → dùng OpenRouter free.", file=sys.stderr)
+            return or_free
+        print("[aux] Không fallback Claude (chưa /login) - trả lỗi rõ.", file=sys.stderr)
+        return _DeadAuxEngine(why)
+    if _claude_session_ready():
+        print("[aux] → việc nền tạm dùng lại Claude.", file=sys.stderr)
+        return cli
+    if or_free:
+        print("[aux] Claude chưa login → dùng OpenRouter free.", file=sys.stderr)
+        return or_free
+    print("[aux] Claude chưa login - trả lỗi rõ.", file=sys.stderr)
+    return _DeadAuxEngine(why)

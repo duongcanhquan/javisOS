@@ -232,6 +232,19 @@ check("swap việc nền dựng engine API ollama",
       getattr(_out, "provider", None) == "ollama"
       and getattr(_out, "model", None) == "gpt-oss:120b-cloud")
 
+# ---- 9. Ollama thiếu key + Claude chưa login → KHÔNG fallback Claude (/login) ----
+_real_ready = aux_engine._claude_session_ready
+aux_engine._claude_session_ready = lambda: False
+try:
+    _S_NO = {"model": {"auxiliary": {"provider": "ollama", "model": "gpt-oss:120b-cloud"}}}
+    _fake2 = type("C", (), {"system_prompt": "S", "cwd": "/v", "javis_vault": "/v",
+                            "javis_mode": "suggest", "tag": "reminder", "model": None})()
+    _out2 = aux_engine.swap(_fake2, mode="suggest", settings=_S_NO)
+    check("ollama thiếu key không fallback Claude khi chưa login",
+          _out2 is not _fake2 and getattr(_out2, "provider", None) == "none")
+finally:
+    aux_engine._claude_session_ready = _real_ready
+
 print()
 if _fails:
     print(f"THẤT BẠI {len(_fails)}: {_fails}")

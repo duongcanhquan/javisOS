@@ -1,4 +1,4 @@
-# Áp phân tầng model trên VPS: Main=Antigravity, Việc nền=Ollama.
+# Áp phân tầng model trên VPS: Main=Antigravity, Việc nền=Ollama (ưu tiên Local).
 # Tuỳ chọn reset mật khẩu dashboard (input admin_password).
 name: Apply model routing on VPS
 
@@ -9,10 +9,19 @@ on:
         description: "Mật khẩu dashboard mới (để trống = không đổi)"
         required: false
         default: ""
-      aux_model:
-        description: "Model Ollama Cloud cho việc nền"
+      aux_provider:
+        description: "Ép provider việc nền (để trống = tự chọn local nếu có)"
         required: false
-        default: "gpt-oss:120b-cloud"
+        default: ""
+      aux_model:
+        description: "Ép model việc nền (để trống = giữ/tự chọn)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "scripts/apply-model-routing-vps.sh"
+      - ".github/workflows/apply-model-routing-vps.yml"
 
 jobs:
   apply:
@@ -21,14 +30,15 @@ jobs:
       - name: Apply Antigravity Main + Ollama aux (+ optional password)
         uses: appleboy/ssh-action@v1.2.0
         env:
-          NEW_PW: ${{ inputs.admin_password }}
-          AUX_MODEL: ${{ inputs.aux_model }}
+          NEW_PW: ${{ github.event.inputs.admin_password || '' }}
+          AUX_PROVIDER: ${{ github.event.inputs.aux_provider || '' }}
+          AUX_MODEL: ${{ github.event.inputs.aux_model || '' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 10m
-          envs: NEW_PW,AUX_MODEL
+          envs: NEW_PW,AUX_PROVIDER,AUX_MODEL
           script: |
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
@@ -37,7 +47,13 @@ jobs:
             git fetch --all --prune 2>/dev/null || true
             git reset --hard origin/main 2>/dev/null || true
             chmod +x scripts/apply-model-routing-vps.sh
-            export JAVIS_AUX_MODEL="${AUX_MODEL:-gpt-oss:120b-cloud}"
+            # Không mặc định ép Ollama Cloud (không key → fallback Claude → /login).
+            if [ -n "${AUX_PROVIDER:-}" ]; then
+              export JAVIS_AUX_PROVIDER="$AUX_PROVIDER"
+            fi
+            if [ -n "${AUX_MODEL:-}" ]; then
+              export JAVIS_AUX_MODEL="$AUX_MODEL"
+            fi
             if [ -n "${NEW_PW:-}" ]; then
               export JAVIS_NEW_ADMIN_PASSWORD="$NEW_PW"
             fi
