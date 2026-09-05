@@ -1827,7 +1827,8 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
     ChatGPT OAuth ở các kênh tương tác đi qua Codex CLI native MCP, không dùng fallback này."""
     tools, route = [], {}
     inventory_tools, inventory_route = [], {}
-    if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama"):
+    if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama",
+                "deepseek", "ollama-local"):
         try:
             if _hub_enabled():
                 vault_root = _brain_root(brain) if brain else None

@@ -15,24 +15,10 @@ RAM_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo
 FREE_GB=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}' || echo "?")
 echo "RAM: ${RAM_MB} MB · đĩa trống: ~${FREE_GB} GB"
 
-# --- 1. Gỡ Ollama local còn sót ---
-if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
-  echo
-  echo "==> Gỡ Ollama local (nếu còn)"
-  chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
-  timeout 90 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
-    || echo "WARN: uninstall-ollama skipped"
-fi
+# Không gọi apply-model-routing: mỗi deploy từng ghi đè ghim Telegram/Zalo về Antigravity.
+# Không gỡ Ollama ở đây: vps-deploy.sh chỉ gỡ khi host còn binary/service.
 
-# --- 2. Scrub model chết (Llama trên Groq) + routing cloud ---
-if [ -f "$ROOT/scripts/apply-model-routing-vps.sh" ]; then
-  echo
-  echo "==> Áp routing + scrub Llama"
-  chmod +x "$ROOT/scripts/apply-model-routing-vps.sh"
-  bash "$ROOT/scripts/apply-model-routing-vps.sh" || echo "WARN: apply-model-routing skipped"
-fi
-
-# --- 3. Docker prune AN TOÀN (không đụng volume brains/state) ---
+# --- Docker prune AN TOÀN (không đụng volume brains/state) ---
 echo
 echo "==> Docker prune (images/containers/network dư, GIỮ volumes)"
 docker container prune -f 2>/dev/null || true

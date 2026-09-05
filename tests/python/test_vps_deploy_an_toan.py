@@ -108,6 +108,40 @@ code = "\n".join(
 )
 check("vps-deploy.sh: không `up --build`", "up -d --build" not in code)
 check("vps-deploy.sh: có `docker compose pull`", re.search(r"docker compose .*pull", code) is not None)
+# Pull phải đứng trước bất kỳ `compose down` / `rm javis` (nếu còn) - tránh 502 suốt lúc kéo image.
+idx_pull = script.find("docker compose")
+# Tìm lần pull thật (không phải comment).
+idx_pull = -1
+for i, ln in enumerate(script.splitlines()):
+    if ln.lstrip().startswith("#"):
+        continue
+    if "docker compose" in ln and "pull" in ln:
+        idx_pull = script.find(ln)
+        break
+idx_down = -1
+for ln in script.splitlines():
+    if ln.lstrip().startswith("#"):
+        continue
+    if "docker compose" in ln and " down" in ln:
+        idx_down = script.find(ln)
+        break
+check(
+    "vps-deploy.sh: không `compose down` trước khi pull (502 dài khi kéo image)",
+    idx_down < 0 or (idx_pull >= 0 and idx_pull < idx_down),
+)
+idx_rm_javis_before_pull = False
+for ln in script.splitlines():
+    if ln.lstrip().startswith("#"):
+        continue
+    if idx_pull >= 0 and script.find(ln) >= idx_pull:
+        break
+    if re.search(r"docker rm -f .*\$\{?JAVIS_NAME|docker rm -f javis[^-]", ln):
+        idx_rm_javis_before_pull = True
+        break
+check(
+    "vps-deploy.sh: không `docker rm javis` trước pull",
+    not idx_rm_javis_before_pull,
+)
 check(
     "vps-deploy.sh: không gắn compose build/source (cái đó ép build tại chỗ)",
     "docker-compose.build.yml" not in code and "docker-compose.source.yml" not in code,
@@ -148,6 +182,39 @@ check(
 check(
     "docker-compose.yml: image đọc JAVIS_IMAGE (fork kéo GHCR của mình, không dính upstream)",
     "${JAVIS_IMAGE:-" in compose_src,
+)
+
+# Ollama / Apply routing không dùng trên VPS: không auto-push, không gọi lúc deploy.
+for name in ("install-ollama-vps.yml", "apply-model-routing-vps.yml"):
+    on_wf = triggers(wf_data(name))
+    check(
+        f"{name}: không còn trigger push (chỉ bấm tay khi thật sự cần)",
+        not (isinstance(on_wf, dict) and "push" in on_wf),
+    )
+    check(
+        f"{name}: vẫn bấm tay được (workflow_dispatch)",
+        isinstance(on_wf, dict) and "workflow_dispatch" in on_wf,
+    )
+
+cleanup = (ROOT / "scripts" / "cleanup-vps.sh").read_text(encoding="utf-8")
+cleanup_code = "\n".join(
+    ln for ln in cleanup.splitlines() if not ln.lstrip().startswith("#")
+)
+check(
+    "cleanup-vps.sh: không gọi apply-model-routing (tránh gỡ ghim Telegram/Zalo mỗi deploy)",
+    "apply-model-routing" not in cleanup_code,
+)
+check(
+    "optimize-vps.sh: không gọi apply-model-routing",
+    "apply-model-routing" not in opt_code,
+)
+check(
+    "vps-deploy.sh: không gọi apply-model-routing",
+    "apply-model-routing" not in code,
+)
+check(
+    "cleanup-vps.sh: không gỡ Ollama mỗi lần dọn (chỉ khi host còn sót, ở vps-deploy)",
+    "uninstall-ollama" not in cleanup_code,
 )
 
 if FAIL:

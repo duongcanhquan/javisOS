@@ -22,12 +22,18 @@ else
   echo 'GEMINI_FORCE_FILE_STORAGE=true' >> "$ENV_FILE"
 fi
 
-# Gỡ Ollama host TRƯỚC pull (giải phóng đĩa/RAM, tránh treo `ollama rm` sau deploy).
-if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
-  echo "==> Gỡ Ollama host (trước pull)"
+# Gỡ Ollama host CHỈ khi còn sót (binary / service / cache). Không gọi mỗi deploy khi đã sạch.
+_ollama_con=0
+command -v ollama >/dev/null 2>&1 && _ollama_con=1
+[ -d /root/.ollama ] || [ -d "${HOME:-}/.ollama" ] && _ollama_con=1
+systemctl list-unit-files ollama.service 2>/dev/null | grep -q ollama && _ollama_con=1
+if [ "$_ollama_con" = 1 ] && [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
+  echo "==> Gỡ Ollama host còn sót (trước pull)"
   chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
   JAVIS_OLLAMA_HOST_ONLY=1 timeout 120 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
     || echo "WARN: uninstall-ollama host skipped"
+else
+  echo "==> Ollama không còn trên host, bỏ qua"
 fi
 
 echo "==> git fetch"
@@ -78,11 +84,10 @@ if [ -n "${GHCR_TOKEN:-}" ]; then
     || echo "WARN: docker login GHCR thất bại (image public thì pull vẫn được)"
 fi
 
-echo "==> dọn container cũ / orphan (tránh Conflict tên sau recreate thất bại)"
-docker compose "${COMPOSE_FILES[@]}" down --remove-orphans 2>/dev/null || true
-for _name in "${JAVIS_NAME:-javis}" javis-pixelle-api javis-pixelle-web "${JAVIS_NAME:-javis}-tunnel"; do
-  docker rm -f "$_name" 2>/dev/null || true
-done
+# Chỉ gỡ Pixelle (nặng). KHÔNG `compose down` / `rm javis` trước pull:
+# down sớm = 502 suốt lúc kéo image. Pull khi app cũ vẫn chạy; up mới recreate ngắn.
+echo "==> gỡ Pixelle (nếu còn), giữ javis chạy khi pull"
+docker rm -f javis-pixelle-api javis-pixelle-web 2>/dev/null || true
 
 echo "==> pull $JAVIS_IMAGE"
 ok_pull=0
@@ -100,11 +105,14 @@ if [ "$ok_pull" != 1 ]; then
   exit 1
 fi
 
-echo "==> up (pull image, không --build, Cloudflare tunnel)"
-docker compose \
-  "${COMPOSE_FILES[@]}" \
-  up -d --no-build --remove-orphans
-
+echo "==> up (image mới, không --build; recreate ngắn thay vì down dài)"
+if ! docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
+  echo "WARN: up lỗi (có thể Conflict tên) - gỡ container kẹt rồi up lại"
+  for _name in "${JAVIS_NAME:-javis}" "${JAVIS_NAME:-javis}-tunnel" javis-pixelle-api javis-pixelle-web; do
+    docker rm -f "$_name" 2>/dev/null || true
+  done
+  docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans
+fi
 echo "==> health"
 ok_health=0
 for i in $(seq 1 20); do
@@ -146,7 +154,7 @@ if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morn
 fi
 
 if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
-  echo "==> optimize VPS (routing cloud + health)"
+  echo "==> optimize VPS (Pixelle off + prune + health)"
   chmod +x "$ROOT/scripts/optimize-vps.sh"
   bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
 fi

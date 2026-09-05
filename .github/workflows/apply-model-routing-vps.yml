@@ -1,5 +1,5 @@
-# Áp phân tầng model trên VPS: Main=Antigravity, Việc nền=Ollama (ưu tiên Local).
-# Tuỳ chọn reset mật khẩu dashboard (input admin_password).
+# Áp phân tầng model trên VPS. KHÔNG chạy khi push / deploy - ghi đè ghim Telegram/Zalo.
+# Chỉ bấm tay (workflow_dispatch) nếu thật sự cần.
 name: Apply model routing on VPS
 
 on:
@@ -17,11 +17,6 @@ on:
         description: "Ép model việc nền (để trống = giữ/tự chọn)"
         required: false
         default: ""
-  push:
-    branches: [main]
-    paths:
-      - "scripts/apply-model-routing-vps.sh"
-      - ".github/workflows/apply-model-routing-vps.yml"
 
 # Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
 concurrency:

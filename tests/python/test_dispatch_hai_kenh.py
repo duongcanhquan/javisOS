@@ -215,7 +215,7 @@ _ghi = []
 main._set_main_model = lambda s, p, m: _ghi.append((p, m))
 main.cfgmod.write_settings = lambda s: _ghi.append(("write", None))
 
-kq4 = chay("chào")
+kq4 = chay("doanh thu tháng này?")
 t4 = loi_text(kq4) or ""
 check("(4) model không hợp lệ: GHI LẠI model đã ép vào Settings",
       any(g[0] == "openai-oauth" and g[1] == "gpt-5.5" for g in _ghi) and ("write", None) in _ghi)

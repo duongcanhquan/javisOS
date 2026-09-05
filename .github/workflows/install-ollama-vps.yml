@@ -1,5 +1,5 @@
-# Cài Ollama trên VPS: check đĩa/RAM/GPU, kéo model mạnh nhất vừa máy, trỏ Javis Local.
-# Chạy khi push các file liên quan lên main (agent không dispatch workflow_dispatch được).
+# Cài Ollama trên VPS. KHÔNG chạy khi push / deploy - VPS không dùng Ollama.
+# Chỉ bấm tay (workflow_dispatch) nếu thật sự cần local LLM.
 name: Install Ollama on VPS
 
 on:
@@ -13,11 +13,6 @@ on:
         description: "Ép model cụ thể (để trống = tự chọn mạnh nhất vừa máy)"
         required: false
         default: ""
-  push:
-    branches: [main]
-    paths:
-      - "scripts/install-ollama-vps.sh"
-      - ".github/workflows/install-ollama-vps.yml"
 
 # Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
 concurrency:

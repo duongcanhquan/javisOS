@@ -30,16 +30,11 @@ docker rm -f javis-pixelle-api javis-pixelle-web 2>/dev/null || true
 # KHÔNG `docker compose -f docker-compose.yml ... stop`: file đó chứa service javis
 # (không profile), `stop` tắt luôn app rồi `docker container prune` xóa container.
 
-# Cleanup gộp: gỡ Ollama local, scrub Llama, routing, prune Docker, verify hàm sống.
+# Prune image/container dư. Không chạy Apply routing (không dùng, còn gỡ ghim nhắn tin).
 if [ -f "$ROOT/scripts/cleanup-vps.sh" ]; then
   echo
   chmod +x "$ROOT/scripts/cleanup-vps.sh"
   bash "$ROOT/scripts/cleanup-vps.sh" || echo "WARN: cleanup-vps skipped"
-elif [ -f "$ROOT/scripts/apply-model-routing-vps.sh" ]; then
-  echo
-  echo "==> Áp phân tầng model (fallback không có cleanup-vps.sh)"
-  chmod +x "$ROOT/scripts/apply-model-routing-vps.sh"
-  bash "$ROOT/scripts/apply-model-routing-vps.sh" || echo "WARN: apply-model-routing skipped"
 fi
 
 echo
