@@ -151,4 +151,28 @@ if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
   bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
 fi
 
+# Optimize từng gọi `compose stop` kèm docker-compose.yml và tắt nhầm javis.
+CNAME="${JAVIS_NAME:-javis}"
+if ! docker ps --format '{{.Names}}' | grep -qx "$CNAME"; then
+  echo "==> javis không chạy sau optimize - up lại"
+  docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans
+fi
+echo "==> health (sau optimize)"
+ok_health=0
+for i in $(seq 1 20); do
+  if curl -fsS -m 5 http://127.0.0.1:7777/health; then
+    echo
+    ok_health=1
+    break
+  fi
+  echo "waiting health... ($i)"
+  sleep 4
+done
+if [ "$ok_health" != "1" ]; then
+  echo "HEALTH_FAIL sau optimize"
+  docker compose "${COMPOSE_FILES[@]}" logs javis --tail 80 || true
+  docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
+  exit 1
+fi
+
 echo "==> done"

@@ -4,7 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
-## [0.35.74] - 2026-09-05
+## [0.35.75] - 2026-09-05
+### Sửa lỗi
+- **Deploy xong không còn tắt nhầm Javis.** Script tối ưu VPS trước đây `compose stop` cả file app nên container `javis` bị gỡ ngay sau khi vừa lên; giờ chỉ gỡ Pixelle, rồi kiểm tra health lại trước khi báo xong.
+
+
 ### Sửa lỗi
 - **Deploy VPS hết đua nhau và hết build Docker trên máy.** Mỗi lần đẩy code: GitHub dựng image xong mới kéo xuống VPS (không `--build` tại chỗ); Seed / Recover / Routing xếp hàng cùng một cửa SSH; Pixelle tắt trước khi lên container. Hết Conflict tên `javis` và SSH timeout vì nhiều job cùng lúc.
 

@@ -136,6 +136,15 @@ check(
 )
 
 compose_src = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+opt = (ROOT / "scripts" / "optimize-vps.sh").read_text(encoding="utf-8")
+opt_code = "\n".join(
+    ln for ln in opt.splitlines() if not ln.lstrip().startswith("#")
+)
+check(
+    "optimize-vps.sh: không `compose -f docker-compose.yml ... stop` (lệnh đó tắt luôn container javis)",
+    all("docker-compose.yml" not in ln or " stop" not in ln for ln in opt_code.splitlines()),
+)
+
 check(
     "docker-compose.yml: image đọc JAVIS_IMAGE (fork kéo GHCR của mình, không dính upstream)",
     "${JAVIS_IMAGE:-" in compose_src,

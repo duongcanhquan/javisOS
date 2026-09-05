@@ -27,9 +27,8 @@ else
   printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
 fi
 docker rm -f javis-pixelle-api javis-pixelle-web 2>/dev/null || true
-if command -v docker >/dev/null 2>&1 && [ -f "$ROOT/docker-compose.yml" ]; then
-  (cd "$ROOT" && docker compose -f docker-compose.yml -f docker-compose.pixelle.yml --profile pixelle stop 2>/dev/null) || true
-fi
+# KHÔNG `docker compose -f docker-compose.yml ... stop`: file đó chứa service javis
+# (không profile), `stop` tắt luôn app rồi `docker container prune` xóa container.
 
 # Cleanup gộp: gỡ Ollama local, scrub Llama, routing, prune Docker, verify hàm sống.
 if [ -f "$ROOT/scripts/cleanup-vps.sh" ]; then
