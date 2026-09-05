@@ -23,7 +23,13 @@ check("provOn: rieng anthropic-cli lay theo claudeOn, con lai lay theo configure
   /const provOn = \(p\) => \(p\.id === "anthropic-cli" \? claudeOn : !!p\.configured\)/.test(CONSOLE_JS));
 check("sort co tiebreak theo chi so goc (on dinh, khong phu thuoc engine)",
   /\.sort\(\(a, b\) => \(provOn\(b\.p\) - provOn\(a\.p\)\) \|\| \(a\.i - b\.i\)\)/.test(CONSOLE_JS));
-check("danh sach card dung ban da sap xep", CONSOLE_JS.includes("${provList.map(provCard).join(\"\")}"));
+check("danh sach card dung ban da sap xep",
+  // Tab Đã / Chưa kết nối: mỗi tab vẽ từ onList/offList (đã lọc từ provList đã sort).
+  CONSOLE_JS.includes("${onList.length ? onList.map(provCard).join(\"\")")
+  && CONSOLE_JS.includes("${offList.length ? offList.map(provCard).join(\"\")")
+  && /const onList = provList\.filter\(provOn\)/.test(CONSOLE_JS)
+  && /const offList = provList\.filter\(p => !provOn\(p\)\)/.test(CONSOLE_JS));
+
 check("hop Doi model chinh cung dung ban da sap xep",
   CONSOLE_JS.includes("openModelPicker(provList, main,"));
 check("hop Doi model viec nen cung dung ban da sap xep",
