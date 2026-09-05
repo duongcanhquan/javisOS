@@ -110,11 +110,21 @@ check("full + user chọn provider API -> dùng đúng provider đó",
 check("full + provider API -> vẫn KHÔNG có chuỗi dự phòng",
       not isinstance(_out_api, aux_engine._FallbackChain))
 
-# Provider chưa có key thì lui về Claude chứ không chết - hành vi cũ, giữ nguyên ở mức full.
+# Provider chưa có key: chỉ lui về Claude khi Claude thật sự dùng được; không thì DeadAux
+# (báo rõ) - trước đây "không binary = session ready" làm VPS Ollama rơi về Claude chết.
 _S_THIEU = {"model": {"auxiliary": {"provider": "groq", "model": "llama"}}}
 _cli_thieu = _FakeCli()
-check("full + provider chưa có key -> lui về Claude, không chết",
-      aux_engine.swap(_cli_thieu, mode="full", settings=_S_THIEU) is _cli_thieu)
+_real_ready = aux_engine._claude_session_ready
+aux_engine._claude_session_ready = lambda: True
+try:
+    check("full + thiếu key + Claude sẵn sàng -> lui về Claude, không chết",
+          aux_engine.swap(_cli_thieu, mode="full", settings=_S_THIEU) is _cli_thieu)
+finally:
+    aux_engine._claude_session_ready = _real_ready
+_out_dead = aux_engine.swap(_FakeCli(), mode="full", settings=_S_THIEU)
+check("full + thiếu key + Claude không dùng được -> DeadAux (không giả vờ Claude)",
+      getattr(_out_dead, "provider", None) == "none"
+      and not getattr(_out_dead, "is_available", lambda: True)())
 
 
 # ============================================================

@@ -119,8 +119,19 @@ check("swap Claude CÓ key OpenRouter → bọc chuỗi [Claude, OR-free]",
       type(out).__name__ == "_FallbackChain" and len(out._all()) == 2
       and getattr(out._all()[1], "provider", "") == "openrouter")
 out = aux_engine.swap(FakeEngine(), spec={"provider": "openrouter", "model": ""}, settings=S_KEY)
+# Không nhân đôi or-free. Claude không sẵn sàng trên CI → chỉ còn 1 mắt openrouter.
 check("phụ = openrouter model trống → không nhân đôi mắt or-free",
-      type(out).__name__ == "_FallbackChain" and len(out._all()) == 2)
+      getattr(out, "provider", "") == "openrouter"
+      and type(out).__name__ != "_FallbackChain")
+_real_ready = aux_engine._claude_session_ready
+aux_engine._claude_session_ready = lambda: True
+try:
+    out = aux_engine.swap(FakeEngine(), spec={"provider": "openrouter", "model": ""}, settings=S_KEY)
+    check("openrouter model trống + Claude sẵn sàng → 2 mắt (primary + Claude), không thêm or-free",
+          type(out).__name__ == "_FallbackChain" and len(out._all()) == 2
+          and getattr(out._all()[0], "provider", "") == "openrouter")
+finally:
+    aux_engine._claude_session_ready = _real_ready
 
 print()
 if _fails:

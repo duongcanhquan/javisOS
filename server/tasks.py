@@ -477,8 +477,7 @@ class TasksFeature:
 
     async def _query(self, cli, prompt: str) -> tuple[str, str, list[str]]:
         if not cli.is_available():
-            spec = aux_engine.read_spec()
-            return "", f"Engine {spec.get('provider') or 'AI'} chưa sẵn sàng", []
+            return "", aux_engine.unavailable_reason(cli), []
         # Gom RIÊNG câu chốt (final) và dòng tường thuật (text). Trước đây trộn chung nên
         # result = toàn bộ dòng suy nghĩ của worker ("Tôi sẽ lần theo...", "Lệnh shell bị
         # chặn...") rồi đổ nguyên si về Telegram. Có final thì final LÀ kết quả; text chỉ
