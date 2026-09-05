@@ -1,0 +1,26 @@
+# Ép tổng kết sáng chạy SÁNG NAY trên VPS (workflow_dispatch).
+name: Force morning brief today
+
+on:
+  workflow_dispatch:
+
+jobs:
+  force:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force morning brief due = today on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
+            chmod +x scripts/force-morning-brief-today-vps.sh
+            bash scripts/force-morning-brief-today-vps.sh
