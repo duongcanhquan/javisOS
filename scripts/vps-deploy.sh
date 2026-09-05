@@ -60,6 +60,15 @@ else
   echo "==> Pixelle tắt (JAVIS_ENABLE_PIXELLE=false)"
 fi
 
+echo "==> dọn container cũ / orphan (tránh Conflict tên sau recreate thất bại)"
+docker compose "${COMPOSE_FILES[@]}" down --remove-orphans 2>/dev/null || true
+for _pat in javis-pixelle-api javis-pixelle-web; do
+  docker ps -aq --filter "name=${_pat}" | while read -r _cid; do
+    [ -n "$_cid" ] || continue
+    docker rm -f "$_cid" 2>/dev/null || true
+  done
+done
+
 echo "==> build & up (with Cloudflare tunnel$([ "$ENABLE_PIXELLE" = true ] && echo ' + pixelle'))"
 docker compose \
   "${COMPOSE_FILES[@]}" \
