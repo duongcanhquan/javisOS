@@ -516,7 +516,8 @@ body.vault-collapsed .hud-body > .hud-left .vault-toggle {
    Trò chuyện mượn đúng node này (nằm trong .cside-pane) và ở đó không có gì để thu -
    selector con trực tiếp giữ cho trạng thái thu không đi lạc theo node. */
 .vault-expand { display: none; }
-body.vault-thu .hud-body { grid-template-columns: 44px minmax(0, 1fr) 320px; }
+/* Vault thu: cột hội thoại ~1.5× bề ngang lúc thu (320→480) để tận dụng chỗ trống. */
+body.vault-thu .hud-body { grid-template-columns: 44px minmax(0, 1fr) 480px; }
 body.vault-thu .hud-body > .hud-left { padding: 12px 6px; align-items: center; overflow: hidden; }
 body.vault-thu .hud-body > .hud-left > :not(.vault-expand) { display: none; }
 body.vault-thu .hud-body > .hud-left > .vault-expand {
@@ -550,7 +551,6 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
   body.chatcol-thu .hud-body > .hud-right > .chatcol-expand:hover { color: var(--accent); border-color: var(--accent); }
 }
 
-pstream/main
 .hud-left::-webkit-scrollbar, .hud-right::-webkit-scrollbar, .transcript::-webkit-scrollbar { width: 4px; }
 .hud-left::-webkit-scrollbar-thumb, .hud-right::-webkit-scrollbar-thumb, .transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
