@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Áp phân tầng model trên VPS:
-#   Main     = Antigravity CLI (chat / làm việc / lệnh máy)
-#   Việc nền = Ollama Local nếu đã cài, không thì Ollama Cloud (nhắc hẹn, loop, Kanban…)
-#   Họp      = Ollama (module họp đã ưu tiên Ollama)
+#   Main     = Antigravity CLI (chat / MCP / lệnh máy / tra web)
+#   Việc nền = Ollama Local javis-qwen3-8b (nhắc hẹn, loop, Kanban, tự học, tổng kết sáng)
+#   Họp      = Ollama Local (trang Cuộc họp → Tổng kết)
+#   STT họp  = Groq Whisper (chỉ khi upload file âm; cần groq_api_key)
+#
+# Dùng Ollama cho: email tóm tắt, đọc vault, việc lặp → giao Kanban/nhắc hẹn (việc nền).
+# Dùng Antigravity/ChatGPT/Gemini (Main) cho: MCP ngoài, đăng bài, gửi tin, tra web, workflow.
 #
 # Tuỳ chọn: JAVIS_NEW_ADMIN_PASSWORD=... để reset mật khẩu đăng nhập dashboard.
 # Idempotent. Chạy trong thư mục repo trên VPS (cần docker container javis đang chạy).

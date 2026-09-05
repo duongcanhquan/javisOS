@@ -316,6 +316,24 @@ Bạn không cần rời trang Models để đổi model: bấm **Đổi model �
 - **Bấm Ngắt provider đang là Main**: Javis tự chuyển Main về Claude Code để chat không gãy. Đây là hành vi cố ý, không phải lỗi.
 - **ChatGPT OAuth báo chưa cài Codex CLI**: kênh này cần Codex CLI trên máy. Từ 0.28.8 cả ba engine CLI (Claude Code, Codex, Gemini CLI) đều được cài sẵn lúc cài Javis - bản Docker, `install.sh` lẫn `setup.bat` - nên báo thiếu thường là bản cài cũ, **cập nhật Javis** một lần là có. Cài tay cũng được: `npm i -g @openai/codex`.
 
+## Phân tầng VPS (Antigravity + Ollama local)
+
+Cấu hình khuyên dùng khi VPS có Ollama (`javis-qwen3-8b`, ctx 8192):
+
+| Loại việc | Model | Vì sao |
+|-----------|-------|--------|
+| Chat / ra lệnh phức tạp (MCP, web, lệnh máy) | **Main** (Antigravity / ChatGPT / Gemini tuỳ cài đặt) | Cần kết nối ngoài + tool đầy đủ |
+| Chào / cảm ơn thuần | **Tức thì** (không gọi model) | Tránh spawn CLI vài chục giây |
+| Nhắc hẹn, loop, Kanban nền, tự học, tổng kết sáng | **Ollama Local** (việc nền) | Chạy 24/7, không đốt quota Main |
+| Cuộc họp → Tổng kết | **Ollama Local** | Trang Cuộc họp, không qua Main |
+| Email: tóm tắt / phân loại / soạn nháp trong vault | **Ollama Local** qua **việc Kanban** hoặc nhắc hẹn | Giao việc nền, không chat Main |
+| Email: gửi thật / trả lời qua Gmail MCP | **Main** (Antigravity…) | Cần MCP ra ngoài |
+| Workflow bấm ▶ Chạy (video, proposal…) | Model của **agent** (thường Sonnet/Antigravity) | Chuỗi nhiều bước, cần MCP |
+
+**Tốc độ chat Main (Antigravity):** bật mức **Tối ưu** hoặc **Siêu tiết kiệm** ở Cài đặt (giảm prompt). Câu đơn giản chỉ đọc vault vẫn phải spawn CLI - muốn nhanh hơn thì giao việc đó sang Kanban (Ollama nền) thay vì chat trực tiếp.
+
+Kiểm tra: **Models** → Main = Antigravity; Model việc nền = Ollama (Local) · `javis-qwen3-8b`.
+
 ## Liên quan
 
 - [Kết nối & số liệu kinh doanh](09-mcp-va-so-lieu.md) - đấu nguồn dữ liệu và công cụ cho mọi engine dùng chung.

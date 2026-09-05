@@ -405,7 +405,7 @@
     if (state.running) {
       await stopRecording(root);
     }
-    setStatus(root, "Đang tổng kết bằng Ollama (qwen3:4b)… có thể mất 1–2 phút.");
+    setStatus(root, "Đang tổng kết bằng Ollama (javis-qwen3-8b)… có thể mất 1–2 phút.");
     var box = root.querySelector("#mtSummary");
     if (box) box.innerHTML = '<div class="dim">Trợ lý đang đọc transcript và viết tổng kết…</div>';
     var btn = root.querySelector("#mtAnalyze");
@@ -413,7 +413,7 @@
     try {
       var f = new FormData();
       f.append("brain", fbrain());
-      f.append("model", "qwen3:4b");
+      f.append("model", "javis-qwen3-8b");
       var r = await (
         await fetch("/meetings/" + encodeURIComponent(mid) + "/analyze", {
           method: "POST",
@@ -558,7 +558,7 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy chuyển giọng → chữ realtime; tùy chọn “File → chữ” gửi âm tạm sang Groq Whisper rồi bỏ, chỉ giữ transcript. Sau đó <b>Tổng kết</b> bằng Ollama <code>qwen3:4b</code>.</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. Micro trên máy chuyển giọng → chữ realtime; tùy chọn “File → chữ” gửi âm tạm sang Groq Whisper rồi bỏ, chỉ giữ transcript. Sau đó <b>Tổng kết</b> bằng Ollama local (<code>javis-qwen3-8b</code>).</p>' +
       '<p class="mt-hint" style="margin-top:-6px">Họp online (Zoom/Meet): dùng tai nghe; micro thường chỉ nghe rõ bạn — để bắt cả phòng họp, ghi cục bộ rồi “File → chữ”, hoặc dán caption. Điền đủ thành phần + agenda trước họp để tổng kết gắn đúng tên.</p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +

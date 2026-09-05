@@ -74,6 +74,7 @@ import inbox         # hòm thư: mọi kết quả chạy nền để lại m�
 import webpush       # thông báo đẩy trình duyệt (Web Push, tự mã hoá - không thêm thư viện)
 import stt            # nghe tin thoại (Whisper qua Groq) -> chữ, cho kênh Telegram/Zalo
 import meetings       # cuộc họp: transcript Moonshine WASM + tổng hợp Ollama local
+import instant_social # chào/cảm ơn thuần → trả ngay, không spawn CLI
 import zalo_login
 import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
@@ -4297,14 +4298,14 @@ async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
 
 @app.post("/meetings/{meeting_id}/analyze")
 async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
-                           model: str = Form("qwen3:4b")):
+                           model: str = Form("")):
     """Dừng (nếu chưa) + gọi Ollama local tóm tắt theo skill phan-tich-cuoc-hop."""
     mcfg = cfgmod.read_settings().get("model") or {}
     if not (mcfg.get("ollama_local_endpoint") or "").strip():
         return {"ok": False,
                 "error": "Chưa cấu hình Ollama local (trang Models → Ollama Local)."}
     key = (mcfg.get("ollama_local_key") or "").strip() or "local"
-    mdl = (model or "").strip() or "qwen3:4b"
+    mdl = (model or "").strip() or ollama_local.default_javis_model({"model": mcfg})
     try:
         return await meetings.analyze_with_ollama(
             meeting_id, stream_fn=engine.ollama_local_stream, model=mdl, api_key=key)
@@ -9959,6 +9960,21 @@ async def websocket_endpoint(ws: WebSocket):
             final_text = ""
             used_fast_path = False
 
+            # Chào/cảm ơn thuần → trả ngay (đặc biệt quan trọng khi Main = Antigravity CLI).
+            _ten = (_cfg_all.get("workspace_name") or "Javis OS").split()[0] or "Javis"
+            _social = instant_social.try_reply(user_message, _ten)
+            if _social:
+                final_text = _social
+                used_fast_path = True
+                await ws.send_text(json.dumps({
+                    "type": "response", "content": final_text,
+                    "engine": "instant", "model": "social",
+                    "session_id": conv_sid,
+                    **_ctx_frame(runtime_trace, 0),
+                }))
+                await _persist_turn(store, conv_sid, brain, user_message, final_text)
+                return final_text
+
             await ws.send_text(json.dumps({
                 "type": "status",
                 "content": "Javis đang suy nghĩ..."
@@ -13436,6 +13452,14 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         _CONTEXT_RUNTIME.record_runtime_event(runtime_trace, "lang.resolved", _lang_qd.as_trace())
     except Exception:
         pass
+
+    # Chào/cảm ơn thuần → trả ngay, không spawn Antigravity/CLI.
+    if not bot:
+        _cfg_tg = cfgmod.read_settings()
+        _ten = (_cfg_tg.get("workspace_name") or "Javis OS").split()[0] or "Javis"
+        _social = instant_social.try_reply(text, _ten)
+        if _social:
+            return {"reply": _social, "engine": "instant", "model": "social"}
 
     async def _p(s):
         # Báo trạng thái trung gian về kênh (Telegram) cho user đỡ lo khi chờ. Bỏ qua nếu lỗi.

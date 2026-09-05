@@ -368,3 +368,19 @@ def detect_specs() -> dict:
     ram = _ram_gb()
     return {"source": "auto" if ram > 0 else "unknown", "ram_gb": ram,
             "has_gpu": bool(ten), "vram_gb": vram, "gpu_name": ten}
+
+
+def default_javis_model(settings: dict | None = None) -> str:
+    """Model Ollama local ưu tiên: auxiliary ollama-local → javis-qwen3-8b (VPS 12GB)."""
+    if settings is None:
+        import config as cfgmod
+        settings = cfgmod.read_settings()
+    m = (settings or {}).get("model") or {}
+    aux = m.get("auxiliary") or {}
+    if (aux.get("provider") or "").strip() == "ollama-local":
+        cand = (aux.get("model") or "").strip()
+        if cand:
+            return cand
+    if (m.get("ollama_local_endpoint") or "").strip():
+        return "javis-qwen3-8b"
+    return "qwen3:4b"
