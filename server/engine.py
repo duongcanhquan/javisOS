@@ -185,7 +185,9 @@ _WINDOW_WAIT_MAX = 25.0
 # MÃ và cụm từ đặc trưng chứ không theo status, vì 400 còn dùng cho cả chục lỗi khác mà thử
 # lại chỉ tổ tốn thêm một lượt (payload sai định dạng, model không tồn tại, thiếu tham số).
 _TOOL_SYNTAX_FAIL = ("tool_use_failed", "failed to call a function",
-                     "failed_generation")
+                     "failed_generation",
+                     # Ollama native: arguments gửi lại dạng JSON string → parser báo thiếu '}'.
+                     "can't find closing '}'", "cant find closing '}'")
 
 
 def _is_tool_syntax_failure(body_text: str) -> bool:
@@ -575,6 +577,56 @@ def _ollama_local_extra() -> dict:
     }
 
 
+def _ollama_parse_tool_args(args):
+    """Chuẩn hoá arguments về object cho native Ollama.
+
+    OpenAI shape dùng JSON string; `/api/chat` bắt object. Gửi chuỗi '{"a":1}' sẽ 400:
+    "Value looks like object, but can't find closing '}' symbol".
+    """
+    if isinstance(args, dict):
+        return args
+    if args is None or args == "":
+        return {}
+    if isinstance(args, str):
+        try:
+            parsed = json.loads(args)
+            return parsed if isinstance(parsed, dict) else {"value": parsed}
+        except (json.JSONDecodeError, TypeError):
+            return {"raw": args}
+    return {}
+
+
+def _ollama_messages_for_native(messages):
+    """Đổi history OpenAI-shape → native Ollama trước mỗi POST `/api/chat`.
+
+    `_ollama_native_to_openai` stringify arguments để vòng tool nội bộ dùng chung với OpenAI;
+    khi gửi lại Ollama phải parse object, không thì multi-turn tool gọi 400.
+    """
+    out = []
+    for m in messages or []:
+        if not isinstance(m, dict) or not m.get("tool_calls"):
+            out.append(m)
+            continue
+        nm = dict(m)
+        new_tcs = []
+        for tc in m.get("tool_calls") or []:
+            if not isinstance(tc, dict):
+                continue
+            fn = dict(tc.get("function") or {})
+            call = {
+                "function": {
+                    "name": fn.get("name") or "",
+                    "arguments": _ollama_parse_tool_args(fn.get("arguments")),
+                }
+            }
+            if tc.get("id"):
+                call["id"] = tc["id"]
+            new_tcs.append(call)
+        nm["tool_calls"] = new_tcs
+        out.append(nm)
+    return out
+
+
 def _ollama_native_to_openai(data: dict) -> dict:
     """Đổi phản hồi `/api/chat` → dạng OpenAI `choices[0].message` mà `_cc_tool_loop` đọc.
 
@@ -854,6 +906,7 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
                                   mcp_tools, mcp_route, _ollama_local_extra(),
                                   "Ollama (Local)",
                                   response_adapter=_ollama_native_to_openai,
+                                  messages_adapter=_ollama_messages_for_native,
                                   max_rounds=ollama_local_max_tool_rounds()):
         yield ev
 
@@ -1644,11 +1697,13 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
 
 
 async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, reasoning_extra, label,
-                        cache_system=False, response_adapter=None, max_rounds=None):
+                        cache_system=False, response_adapter=None, messages_adapter=None,
+                        max_rounds=None):
     """Vòng Chat Completions + tool (OpenAI/OpenRouter). Non-stream từng vòng; yield tool_call + text cuối.
     cache_system=True (OpenRouter + model Claude): đánh cache_control lên system - OpenAI/Gemini
     tự cache nên không cần.
     response_adapter: gọi trên JSON response (vd Ollama native → OpenAI shape).
+    messages_adapter: đổi msgs trước mỗi POST (vd Ollama: arguments object, không stringify).
     max_rounds: trần vòng tool (None = JAVIS_MAX_TOOL_ROUNDS); Ollama Local truyền 8."""
     import mcp_client
     tools = _mcp_to_openai_tools(mcp_tools)
@@ -1718,7 +1773,8 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
         })
         requirement_pending = False
     for _ in range(max_rounds if max_rounds is not None else _max_tool_rounds()):
-        payload = {"model": model, "messages": msgs, "stream": False}
+        send_msgs = messages_adapter(msgs) if messages_adapter else msgs
+        payload = {"model": model, "messages": send_msgs, "stream": False}
         # Bỏ hẳn khoá "tools" khi rỗng: vài endpoint OpenAI-compat từ chối mảng rỗng, và
         # nhánh cứu hộ ở dưới (model vấp cú pháp gọi tool) dựa vào đúng chỗ này.
         if tools:

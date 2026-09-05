@@ -16,6 +16,7 @@ trong im lặng. Hai, phần máy nhà đã đi sạch, không để lại mẩu
 """
 from _paths import ROOT, SERVER  # noqa: E402,F401
 import asyncio
+import json
 import os
 import sys
 import tempfile
@@ -288,6 +289,29 @@ check("adapter đổi tool_calls sang OpenAI shape",
       and _tc.get("id"))
 check("adapter map usage token",
       (_native.get("usage") or {}).get("prompt_tokens") == 100)
+
+# ---- 12. Replay tool_calls về native: arguments phải là object ----
+# Ca Telegram: Ollama (Local) 400 "Value looks like object, but can't find closing '}'"
+# vì vòng 2 gửi lại arguments dạng JSON string (OpenAI shape).
+_hist = [{
+    "role": "assistant", "content": "",
+    "tool_calls": [{
+        "id": "c1", "type": "function",
+        "function": {"name": "javis_read_file",
+                     "arguments": json.dumps({"path": "a.md"}, ensure_ascii=False)},
+    }],
+}, {"role": "tool", "tool_call_id": "c1", "content": "ok"}]
+_back = _eng._ollama_messages_for_native(_hist)
+_args = ((_back[0].get("tool_calls") or [{}])[0].get("function") or {}).get("arguments")
+check("replay native: arguments là object",
+      isinstance(_args, dict) and _args.get("path") == "a.md")
+check("replay native: role tool giữ nguyên",
+      _back[1].get("role") == "tool")
+check("parse args hỏng → vẫn object (không nổ)",
+      isinstance(_eng._ollama_parse_tool_args("{not-json"), dict))
+check("bắt lỗi Ollama thiếu closing brace như tool-syntax",
+      _eng._is_tool_syntax_failure(
+          'Value looks like object, but can\'t find closing \'}\' symbol'))
 
 print()
 if _fails:
