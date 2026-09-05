@@ -4862,6 +4862,49 @@ async def meetings_delete(path: str = Form(""), brain: str = Form("brain")):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/meetings/to-knowledge")
+async def meetings_to_knowledge(
+    path: str = Form(""),
+    brain: str = Form("brain"),
+    project_id: str = Form(""),
+    topic: str = Form(""),
+    pin: str = Form("1"),
+):
+    """Đưa transcript/summary cuộc họp vào Wiki; tùy chọn gắn vào project (và ghim)."""
+    pid = (project_id or "").strip()
+    pname = ""
+    if pid:
+        p = get_store().get_project(pid)
+        if not p:
+            return {"ok": False, "error": "Không tìm thấy dự án."}
+        # Chỉ gắn project cùng brain đang mở
+        if (p.get("brain") or "brain") != (brain or "brain"):
+            return {"ok": False, "error": "Dự án thuộc brain khác — đổi brain hoặc chọn dự án khác."}
+        pname = (p.get("name") or "").strip()
+
+    def _add(proj_id: str, fpath: str, name: str = ""):
+        return get_store().add_project_file(proj_id, fpath, name)
+
+    def _pin(proj_id: str, fid: str):
+        return get_store().set_project_file_pinned(proj_id, fid, True)
+
+    try:
+        return meetings.to_knowledge(
+            _brain_root(brain),
+            path,
+            project_id=pid,
+            project_name=pname,
+            topic=(topic or "").strip(),
+            pin=str(pin).strip() in ("1", "true", "True", "on"),
+            add_project_file_fn=_add if pid else None,
+            pin_project_file_fn=_pin if pid else None,
+        )
+    except Exception as e:
+        import sys, traceback
+        traceback.print_exc(file=sys.stderr)
+        return {"ok": False, "error": f"Đưa vào kiến thức lỗi: {e}"}
+
+
 def _duong_staging(name: str) -> Path:
     """Tên file trong staging -> đường tuyệt đối. ValueError nếu tên không hợp lệ.
 

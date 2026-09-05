@@ -33,6 +33,8 @@
     lines: 0,
     speakers: {}, // index -> name
     lineBuffer: [], // dòng chờ meetingId (STT bật trước fetch)
+    summaryPath: "",
+    knowledgeDone: false,
   };
 
   var archiveState = {
@@ -222,6 +224,10 @@
     if (after) after.hidden = !(phase === "stopped" || phase === "done");
     var analyzeBtn = root.querySelector("#mtAnalyze");
     if (analyzeBtn) analyzeBtn.disabled = !(phase === "stopped" || phase === "done");
+    if ((phase === "stopped" || phase === "done") && state.path) {
+      var kh = root.querySelector("#mtKnowHost");
+      if (kh && kh.hidden) showKnowledgePanel(root, state.path);
+    }
   }
 
   function speakerName(idx) {
@@ -1489,6 +1495,137 @@
     await stopOrCancelMeeting(root);
   }
 
+  async function loadProjectOptions(selectEl, selectedId) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '<option value="">— Không gắn dự án (chỉ Wiki) —</option>';
+    try {
+      var r = await (
+        await fetch("/projects?brain=" + encodeURIComponent(fbrain()))
+      ).json();
+      var list = r.projects || r.items || [];
+      list.forEach(function (p) {
+        var opt = document.createElement("option");
+        opt.value = p.id || "";
+        opt.textContent = p.name || p.id || "Dự án";
+        if (selectedId && selectedId === p.id) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+    } catch (e) {}
+  }
+
+  function knowledgePanelHtml(prefix, pathHint) {
+    return (
+      '<div class="mt-know" id="' +
+      prefix +
+      'Know">' +
+      '<div class="mt-know-title">' +
+      ic("brain") +
+      " Đưa vào kiến thức</div>" +
+      '<p class="mt-know-hint">Chưng cuộc họp thành trang Wiki (Javis nhớ lâu). Tuỳ chọn gắn vào dự án — file họp được ghim để chat trong dự án luôn thấy.</p>' +
+      '<div class="mt-field"><label>Chủ đề / tên trang Wiki</label>' +
+      '<input type="text" id="' +
+      prefix +
+      'KnowTopic" placeholder="VD: Quyết định pricing Q3 · Brief landing"></div>' +
+      '<div class="mt-field"><label>Gắn dự án (tuỳ chọn)</label>' +
+      '<select id="' +
+      prefix +
+      'KnowProject"></select></div>' +
+      '<label class="mt-know-pin"><input type="checkbox" id="' +
+      prefix +
+      'KnowPin" checked> Ghim tài liệu vào dự án (nạp khi chat trong dự án)</label>' +
+      '<div class="mt-toolbar" style="margin-top:10px">' +
+      '<button class="s-btn" type="button" id="' +
+      prefix +
+      'KnowGo" data-path="' +
+      esc(pathHint || "") +
+      '">' +
+      ic("notebook") +
+      " Đưa vào kiến thức</button>" +
+      "</div>" +
+      '<div class="mt-know-result dim" id="' +
+      prefix +
+      'KnowResult"></div>' +
+      "</div>"
+    );
+  }
+
+  function showKnowledgePanel(root, path) {
+    var host = root.querySelector("#mtKnowHost");
+    if (!host) return;
+    host.hidden = false;
+    host.innerHTML = knowledgePanelHtml("mt", path || state.path || "");
+    var sel = host.querySelector("#mtKnowProject");
+    loadProjectOptions(sel, "");
+    var topic = host.querySelector("#mtKnowTopic");
+    var titleEl = root.querySelector("#mtTitle");
+    if (topic && titleEl && titleEl.value) topic.value = titleEl.value.trim();
+    var go = host.querySelector("#mtKnowGo");
+    if (go) {
+      go.onclick = function () {
+        runToKnowledge(root, {
+          path: go.getAttribute("data-path") || state.path,
+          topic: (host.querySelector("#mtKnowTopic") || {}).value || "",
+          projectId: (host.querySelector("#mtKnowProject") || {}).value || "",
+          pin: !!(host.querySelector("#mtKnowPin") || {}).checked,
+          resultEl: host.querySelector("#mtKnowResult"),
+          btn: go,
+        });
+      };
+    }
+  }
+
+  async function runToKnowledge(root, opts) {
+    opts = opts || {};
+    var path = (opts.path || "").trim();
+    if (!path) {
+      setStatus(root, "Chưa có file cuộc họp để đưa vào kiến thức.", "err");
+      return;
+    }
+    var btn = opts.btn;
+    var resultEl = opts.resultEl;
+    if (btn) btn.disabled = true;
+    if (resultEl) resultEl.textContent = "Đang chưng vào Wiki…";
+    setStatus(root, "Đưa cuộc họp vào kiến thức…");
+    try {
+      var f = new FormData();
+      f.append("path", path);
+      f.append("brain", fbrain());
+      f.append("topic", opts.topic || "");
+      f.append("project_id", opts.projectId || "");
+      f.append("pin", opts.pin ? "1" : "0");
+      var r = await (await fetch("/meetings/to-knowledge", { method: "POST", body: f })).json();
+      if (!r.ok) throw new Error(r.error || "Lỗi");
+      state.knowledgeDone = true;
+      var msg =
+        "Đã tạo Wiki: " +
+        (r.wiki_path || "") +
+        (r.project_id ? " · gắn dự án" + (r.pinned ? " (ghim)" : "") : "");
+      if (r.project_warn) msg += " · cảnh báo dự án: " + r.project_warn;
+      if (resultEl) {
+        resultEl.innerHTML =
+          '<span class="mt-know-ok">✓ ' +
+          esc(msg) +
+          "</span>" +
+          (r.wiki_path
+            ? ' <button type="button" class="s-btn-ghost mt-know-open" style="margin-left:6px">Mở trang Wiki</button>'
+            : "");
+        var openBtn = resultEl.querySelector(".mt-know-open");
+        if (openBtn && r.wiki_path) {
+          openBtn.onclick = function () {
+            openMeetingEditor(r.wiki_path);
+          };
+        }
+      }
+      setStatus(root, msg, "ok");
+      refreshList(root);
+      loadArchive(root);
+    } catch (e) {
+      if (resultEl) resultEl.textContent = "Lỗi: " + (e.message || e);
+      setStatus(root, "Đưa vào kiến thức lỗi: " + (e.message || e), "err");
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function runAnalyze(root) {
     var mid = state.meetingId;
     if (!mid) {
@@ -1513,6 +1650,8 @@
         })
       ).json();
       if (!r.ok) throw new Error(r.error || "Tổng kết lỗi");
+      state.summaryPath = r.summary_path || "";
+      state.knowledgeDone = false;
       if (box) {
         box.innerHTML =
           '<div class="mt-sum-path dim">Đã lưu: ' +
@@ -1523,6 +1662,7 @@
       }
       setPhase(root, "done");
       setStatus(root, "Xong tổng kết · " + (r.summary_path || ""), "ok");
+      showKnowledgePanel(root, state.path);
       refreshList(root);
     } catch (e) {
       if (box) box.innerHTML = "";
@@ -1729,11 +1869,15 @@
         (r.line_count ? " · " + r.line_count + " đoạn" : "") +
         "</div>" +
         '<div class="mt-detail-actions">' +
+        '<button type="button" class="s-btn mt-detail-know">' +
+        ic("brain") +
+        " Đưa vào kiến thức</button>" +
         '<button type="button" class="s-btn-ghost mt-detail-edit">Sửa file</button>' +
         '<button type="button" class="s-btn-ghost mt-detail-del">Xóa</button>' +
         '<button type="button" class="s-btn-ghost mt-detail-close">Đóng</button>' +
         "</div></div>" +
         tabs +
+        '<div id="mtArchKnowHost" hidden style="margin:0 0 12px"></div>' +
         '<div class="mt-detail-body" id="mtDetailBody"><pre class="mt-detail-pre">' +
         esc(r.transcript || "(Chưa có transcript)") +
         "</pre></div>";
@@ -1747,6 +1891,34 @@
       box.querySelector(".mt-detail-del").onclick = function () {
         deleteMeetingFile(root, r.path);
       };
+      var knowBtn = box.querySelector(".mt-detail-know");
+      if (knowBtn) {
+        knowBtn.onclick = function () {
+          var host = box.querySelector("#mtArchKnowHost");
+          if (!host) return;
+          host.hidden = false;
+          host.innerHTML = knowledgePanelHtml("mtArch", r.path || "");
+          loadProjectOptions(host.querySelector("#mtArchKnowProject"), r.project_id || "");
+          var topicIn = host.querySelector("#mtArchKnowTopic");
+          if (topicIn) {
+            topicIn.value = (r.knowledge_topic || r.title || "").trim();
+          }
+          var go = host.querySelector("#mtArchKnowGo");
+          if (go) {
+            go.onclick = function () {
+              runToKnowledge(root, {
+                path: r.path,
+                topic: (host.querySelector("#mtArchKnowTopic") || {}).value || "",
+                projectId: (host.querySelector("#mtArchKnowProject") || {}).value || "",
+                pin: !!(host.querySelector("#mtArchKnowPin") || {}).checked,
+                resultEl: host.querySelector("#mtArchKnowResult"),
+                btn: go,
+              });
+            };
+          }
+          host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        };
+      }
       var bodies = {
         transcript: r.transcript || "(Chưa có transcript)",
         summary: r.summary || "(Chưa có tổng kết)",
@@ -1945,6 +2117,12 @@
       ".mt-spk{margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:13px}" +
       ".mt-spk:hover{border-color:var(--accent-ink,var(--text2))}" +
       ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px;margin:8px 0 0}" +
+      ".mt-know{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:14px 14px 12px;margin:0}" +
+      ".mt-know-title{font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px;display:flex;align-items:center;gap:8px}" +
+      ".mt-know-hint{font-size:13px;color:var(--text3);line-height:1.5;margin:0 0 12px}" +
+      ".mt-know-pin{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin:4px 0 0;cursor:pointer}" +
+      ".mt-know-result{margin-top:10px;font-size:13px;min-height:1.2em}" +
+      ".mt-know-ok{color:var(--ok-ink,var(--text2))}" +
       "#mtStatus{font-size:13.5px;margin:8px 0 0;min-height:1.3em}" +
       ".mt-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--text3)}" +
       ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}";
@@ -1965,10 +2143,10 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Mặc định: Moonshine</b> (~70MB, tải một lần, có nhãn Người 1/2…) chạy ngay trên máy bạn. Nếu Moonshine lỗi: Chrome dùng Web Speech; hoặc key <b>Groq</b> ở Models (Whisper). Hoặc “File ghi âm → chữ”. <b>Tổng kết</b> bằng <b>Antigravity</b> (model Main).</p>' +
+      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Tổng kết</b> bằng Antigravity. Sau đó bấm <b>Đưa vào kiến thức</b> để chưng vào Wiki và (tuỳ chọn) gắn dự án — Javis mới “học” lâu dài.</p>' +
       '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
       '<p class="mt-hint dim" id="mtMoonshinePreload" style="margin-top:-6px;font-size:13px"></p>' +
-      '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
+      '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span><span>5. Kiến thức</span></div>' +
       "</div>" +
       '<nav class="mt-tabs" role="tablist">' +
       '<button type="button" class="mt-tab mt-tab-active" data-mt-tab="new" role="tab" aria-selected="true">' +
@@ -2041,6 +2219,7 @@
       '<button class="s-btn-ghost" id="mtNew" type="button">Cuộc họp mới</button>' +
       "</div>" +
       '<div class="mt-sum" id="mtSummary" style="margin-top:12px"></div>' +
+      '<div id="mtKnowHost" hidden style="margin-top:14px"></div>' +
       "</div>" +
       '<div id="mtStatus"></div>' +
       "</div>" +

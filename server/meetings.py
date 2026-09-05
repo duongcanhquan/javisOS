@@ -730,6 +730,259 @@ def meeting_detail(brain_root: str, rel_path: str) -> dict:
         "notes_full": notes,
         "transcript": transcript,
         "summary": summary,
+        "project_id": str(meta.get("project_id") or ""),
+        "wiki_links": meta.get("wiki_links") if isinstance(meta.get("wiki_links"), list) else [],
+        "knowledge_topic": str(meta.get("knowledge_topic") or ""),
+    }
+
+
+def _resolve_wiki_dir(brain_root: str) -> Path:
+    root = Path(brain_root)
+    try:
+        for child in sorted(root.iterdir()):
+            if child.is_dir() and re.match(r"^(\d+\s*[-_.]\s*)?wiki$", child.name.strip(), re.I):
+                return child
+    except OSError:
+        pass
+    d = root / "wiki"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _rewrite_frontmatter(raw: str, updates: dict) -> str:
+    """Cập nhật/thêm khóa frontmatter YAML đơn giản; giữ body nguyên."""
+    meta, body = _parse_simple_frontmatter(raw)
+    meta.update({k: v for k, v in updates.items() if v is not None})
+    lines = ["---"]
+    order = [
+        "type", "source_kind", "status", "created", "processed_at", "meeting_id",
+        "language", "title", "attendees", "tags", "project_id", "project_name",
+        "knowledge_topic", "wiki_links", "source", "model",
+    ]
+    seen = set()
+    for k in order:
+        if k not in meta:
+            continue
+        seen.add(k)
+        v = meta[k]
+        if isinstance(v, (list, dict)):
+            lines.append(f"{k}: {json.dumps(v, ensure_ascii=False)}")
+        elif isinstance(v, str) and (v.startswith("[") or ":" in v or v.startswith("{")):
+            lines.append(f"{k}: {json.dumps(v, ensure_ascii=False)}")
+        else:
+            lines.append(f"{k}: {v}")
+    for k, v in meta.items():
+        if k in seen:
+            continue
+        if isinstance(v, (list, dict)):
+            lines.append(f"{k}: {json.dumps(v, ensure_ascii=False)}")
+        else:
+            lines.append(f"{k}: {v}")
+    lines.append("---")
+    body_out = body if body.startswith("\n") else "\n" + body
+    return "\n".join(lines) + body_out
+
+
+def _safe_meeting_md(brain_root: str, rel_path: str) -> Path:
+    root = Path(brain_root).resolve()
+    rel = (rel_path or "").strip().replace("\\", "/").lstrip("/")
+    if not rel or ".." in rel.split("/"):
+        raise ValueError("Đường dẫn không hợp lệ")
+    p = (root / rel).resolve()
+    p.relative_to(root)
+    if not p.is_file() or p.suffix.lower() != ".md":
+        raise ValueError("Không tìm thấy file cuộc họp")
+    if "meetings" not in [x.lower() for x in p.parts]:
+        raise ValueError("Không phải file cuộc họp")
+    return p
+
+
+def to_knowledge(
+    brain_root: str,
+    rel_path: str = "",
+    *,
+    project_id: str = "",
+    project_name: str = "",
+    topic: str = "",
+    pin: bool = True,
+    add_project_file_fn=None,
+    pin_project_file_fn=None,
+) -> dict:
+    """Đưa cuộc họp vào Wiki (+ gắn project nếu chọn).
+
+    - Ưu tiên nội dung summary nếu có; không thì dùng transcript/notes.
+    - Tạo trang `wiki/meetings/<slug>.md`, cập nhật index/log.
+    - Đánh dấu source + summary: status processed, wiki_links, project_id.
+    - Nếu có project_id + callback: gắn file summary (hoặc transcript) vào project.
+    """
+    try:
+        p = _safe_meeting_md(brain_root, rel_path)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    if p.name.endswith("-summary.md"):
+        # Cho phép chọn summary: quy về transcript cùng stem.
+        stem = p.stem[: -len("-summary")]
+        cand = p.parent / f"{stem}.md"
+        if cand.is_file():
+            p = cand
+        else:
+            return {"ok": False, "error": "Chọn file transcript cuộc họp"}
+
+    it = _meeting_item_from_path(brain_root, p)
+    if not it:
+        return {"ok": False, "error": "Đọc cuộc họp lỗi"}
+
+    root = Path(brain_root).resolve()
+    summ_rel = it.get("summary_path") or ""
+    summ_path = (root / summ_rel) if summ_rel else None
+    body_src = ""
+    source_for_wiki = it["path"]
+    if summ_path and summ_path.is_file():
+        _, body_src, _ = _extract_meeting_sections(_read_text_limited(summ_path, 800_000))
+        source_for_wiki = summ_rel
+    if not (body_src or "").strip():
+        raw_t = _read_text_limited(p, 800_000)
+        notes, transcript, _ = _extract_meeting_sections(raw_t)
+        body_src = (transcript or notes or "").strip()
+        source_for_wiki = it["path"]
+    if len((body_src or "").strip()) < 40:
+        return {"ok": False, "error": "Nội dung quá ngắn. Hãy ghi họp hoặc bấm Tổng kết trước."}
+
+    title = (it.get("title") or p.stem).strip()
+    topic_name = (topic or "").strip() or title
+    wiki_title = topic_name if topic_name.lower() != title.lower() else f"Họp: {title}"
+    date_key = it.get("date") or datetime.now().strftime("%Y-%m-%d")
+    slug = _slug(wiki_title, 48)
+    wiki_dir = _resolve_wiki_dir(brain_root)
+    meetings_wiki = wiki_dir / "meetings"
+    meetings_wiki.mkdir(parents=True, exist_ok=True)
+    wiki_file = meetings_wiki / f"{date_key}-{slug}.md"
+    # Trùng slug: thêm meeting_id ngắn
+    if wiki_file.exists():
+        mid = (it.get("id") or "x")[:8]
+        wiki_file = meetings_wiki / f"{date_key}-{slug}-{mid}.md"
+
+    wiki_rel = str(wiki_file.relative_to(root)).replace("\\", "/")
+    src_rel = it["path"]
+    attendees = it.get("attendees") or []
+    people_line = ", ".join(attendees) if attendees else "(không ghi)"
+    proj_line = ""
+    if project_id:
+        pn = (project_name or "").strip() or project_id
+        proj_line = f"\n**Dự án:** {pn}\n"
+
+    wiki_body = (
+        "---\n"
+        "type: wiki\n"
+        f"created: {_now_stamp()}\n"
+        f"source: {json.dumps(src_rel, ensure_ascii=False)}\n"
+        f"meeting_id: {json.dumps(it.get('id') or '', ensure_ascii=False)}\n"
+        f"aliases: {json.dumps([title, topic_name, f'cuộc họp {title}'], ensure_ascii=False)}\n"
+        "tags: [meeting, knowledge]\n"
+        + (f"project_id: {json.dumps(project_id, ensure_ascii=False)}\n" if project_id else "")
+        + "---\n\n"
+        f"# {wiki_title}\n\n"
+        f"Kiến thức chưng từ cuộc họp **{title}** ({date_key}). "
+        f"Dùng khi cần quyết định, việc làm hoặc ngữ cảnh dự án liên quan buổi họp này.\n"
+        f"{proj_line}\n"
+        f"**Thành phần:** {people_line}\n\n"
+        f"**Nguồn:** [[{Path(src_rel).stem}]] · `{src_rel}`"
+        + (f" · summary `{summ_rel}`" if summ_rel else "")
+        + "\n\n"
+        "## Nội dung đã chưng\n\n"
+        f"{body_src.strip()}\n\n"
+        "## Liên hệ\n\n"
+        f"- Nguồn gốc: `{src_rel}`\n"
+        + (f"- Dự án gắn: `{project_name or project_id}`\n" if project_id else "")
+    )
+    try:
+        wiki_file.write_text(wiki_body, encoding="utf-8")
+    except OSError as e:
+        return {"ok": False, "error": f"Ghi wiki lỗi: {e}"}
+
+    # index + log
+    idx = wiki_dir / "index.md"
+    try:
+        line = f"- [[{wiki_file.stem}]] — {wiki_title} (họp {date_key})\n"
+        if idx.is_file():
+            cur = idx.read_text(encoding="utf-8")
+            if wiki_file.stem not in cur:
+                if not cur.endswith("\n"):
+                    cur += "\n"
+                if "## Cuộc họp" not in cur:
+                    cur += "\n## Cuộc họp\n\n"
+                cur += line
+                idx.write_text(cur, encoding="utf-8")
+        else:
+            idx.write_text(
+                "# Wiki index\n\n## Cuộc họp\n\n" + line, encoding="utf-8")
+    except OSError:
+        pass
+    try:
+        logf = wiki_dir / "log.md"
+        entry = (
+            f"\n## [{datetime.now().strftime('%Y-%m-%d')}] ingest | họp → wiki\n\n"
+            f"- Nguồn: `{src_rel}`\n"
+            f"- Trang: [[{wiki_file.stem}]]\n"
+            + (f"- Dự án: {project_name or project_id}\n" if project_id else "")
+        )
+        if logf.is_file():
+            logf.write_text(logf.read_text(encoding="utf-8") + entry, encoding="utf-8")
+        else:
+            logf.write_text("# Wiki log\n" + entry, encoding="utf-8")
+    except OSError:
+        pass
+
+    processed_at = _now_stamp()
+    fm_updates = {
+        "status": "processed",
+        "processed_at": processed_at,
+        "wiki_links": [wiki_rel],
+        "knowledge_topic": topic_name,
+    }
+    if project_id:
+        fm_updates["project_id"] = project_id
+        if project_name:
+            fm_updates["project_name"] = project_name
+
+    for target in [p] + ([summ_path] if summ_path and summ_path.is_file() else []):
+        try:
+            old = target.read_text(encoding="utf-8")
+            target.write_text(_rewrite_frontmatter(old, fm_updates), encoding="utf-8")
+        except OSError:
+            pass
+
+    project_file_id = None
+    attach_path = summ_rel or src_rel
+    if project_id and callable(add_project_file_fn):
+        try:
+            project_file_id = add_project_file_fn(
+                project_id, attach_path, f"Họp: {title}")
+            if pin and project_file_id and callable(pin_project_file_fn):
+                try:
+                    pin_project_file_fn(project_id, project_file_id)
+                except Exception:
+                    pass
+        except Exception as e:
+            return {
+                "ok": True,
+                "wiki_path": wiki_rel,
+                "source_path": src_rel,
+                "summary_path": summ_rel or None,
+                "project_id": project_id,
+                "project_warn": str(e),
+                "title": wiki_title,
+            }
+
+    return {
+        "ok": True,
+        "wiki_path": wiki_rel,
+        "source_path": src_rel,
+        "summary_path": summ_rel or None,
+        "project_id": project_id or "",
+        "project_file_id": project_file_id,
+        "title": wiki_title,
+        "pinned": bool(pin and project_file_id),
     }
 
 
