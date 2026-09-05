@@ -583,14 +583,16 @@ def ollama_local_native_url() -> str:
 # (bám spec OpenAI). Chỉ `/api/chat` native + Modelfile PARAMETER num_ctx / OLLAMA_CONTEXT_LENGTH
 # (sau khi unload model) mới nâng được cửa sổ thật.
 _OLLAMA_LOCAL_NUM_CTX_DEFAULT = 4096
-# Giữ model nóng vừa đủ giữa các nhắc hẹn; 30m trên máy 6GB giữ KV chiếm RAM lâu.
-_OLLAMA_LOCAL_KEEP_ALIVE = "10m"
+# Giữ model nóng vừa đủ giữa các nhắc hẹn; 30m trên máy 12GB+ (ctx 8192) giảm cold start.
+_OLLAMA_LOCAL_KEEP_ALIVE_SHORT = "10m"
+_OLLAMA_LOCAL_KEEP_ALIVE_LONG = "30m"
 # Câu trả lời Telegram/việc nền ngắn; CPU chậm - cắt output để sớm xong vòng.
 _OLLAMA_LOCAL_NUM_PREDICT = 256
 # Tổng kết cuộc họp / merge dài: Qwen3 thinking ăn hết 256 token → content rỗng.
 _OLLAMA_LOCAL_NUM_PREDICT_SUMMARIZE = 4096
 # Trần vòng tool cho local - mỗi vòng = 1 lần prefill chậm trên CPU.
 _OLLAMA_LOCAL_MAX_TOOL_ROUNDS = 4
+_OLLAMA_LOCAL_MAX_TOOL_ROUNDS_12GB = 6
 # HTTP timeout cho Ollama Local trên CPU: cold start + prefill tool schema dễ >3 phút.
 # 180s cũ → ReadTimeout / "deadline exceeded" trên VPS 6GB. Ghi đè: JAVIS_OLLAMA_HTTP_TIMEOUT.
 _OLLAMA_LOCAL_HTTP_TIMEOUT_DEFAULT = 900.0
@@ -614,6 +616,20 @@ def ollama_local_num_ctx() -> int:
     return _OLLAMA_LOCAL_NUM_CTX_DEFAULT
 
 
+def ollama_local_keep_alive() -> str:
+    """Thời gian giữ model nóng sau mỗi lời gọi Ollama."""
+    try:
+        import config as cfgmod
+        v = (cfgmod.read_settings().get("model") or {}).get("ollama_local_keep_alive")
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    except Exception:
+        pass
+    if ollama_local_num_ctx() >= 8192:
+        return _OLLAMA_LOCAL_KEEP_ALIVE_LONG
+    return _OLLAMA_LOCAL_KEEP_ALIVE_SHORT
+
+
 def ollama_local_max_tool_rounds() -> int:
     """Trần vòng tool cho Ollama Local (CPU nhỏ - mỗi vòng rất đắt)."""
     try:
@@ -630,6 +646,22 @@ def ollama_local_max_tool_rounds() -> int:
     except Exception:
         pass
     return _OLLAMA_LOCAL_MAX_TOOL_ROUNDS
+
+
+def _ollama_local_default_tool_rounds() -> int:
+    """Vòng tool mặc định theo RAM host (đọc /proc/meminfo khi chạy trong container)."""
+    try:
+        ram_mb = 0
+        with open("/proc/meminfo", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    ram_mb = int(line.split()[1]) // 1024
+                    break
+        if ram_mb >= 10000:
+            return _OLLAMA_LOCAL_MAX_TOOL_ROUNDS_12GB
+    except OSError:
+        pass
+    return _ollama_local_default_tool_rounds()
 
 
 def ollama_local_http_timeout() -> "httpx.Timeout":
@@ -674,7 +706,7 @@ def _ollama_timeout_user_msg(exc) -> str:
 def _ollama_local_extra() -> dict:
     """Payload phụ cho Ollama Local trên `/api/chat`: num_ctx vừa RAM + giữ model nóng + cắt output."""
     return {
-        "keep_alive": _OLLAMA_LOCAL_KEEP_ALIVE,
+        "keep_alive": ollama_local_keep_alive(),
         "options": {
             "num_ctx": ollama_local_num_ctx(),
             "num_predict": _OLLAMA_LOCAL_NUM_PREDICT,

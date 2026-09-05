@@ -256,6 +256,9 @@ check("extra có options.num_ctx",
       (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) == 4096)
 check("extra giữ model nóng keep_alive",
       bool(_eng._ollama_local_extra().get("keep_alive")))
+check("12GB ctx 8192 → keep_alive dài hơn",
+      _eng.ollama_local_keep_alive() == "30m"
+      if _eng.ollama_local_num_ctx() >= 8192 else True)
 check("extra cắt num_predict",
       (_eng._ollama_local_extra().get("options") or {}).get("num_predict", 0) > 0)
 check("summarize extra num_predict cao",

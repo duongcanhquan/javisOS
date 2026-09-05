@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.58] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.59] - 2026-09-05
+### Cải thiện
+- **VPS 12GB tự tối ưu sau deploy:** script kiểm tra Ollama, `javis-qwen3-8b`, ctx 8192, giữ model nóng 30 phút, 6 vòng tool.
+
+
+## [0.35.58] - 2026-09-05
 ### Sửa lỗi
 - **Tổng kết cuộc họp không còn báo Ollama trả về rỗng.** Model Qwen3 trước đó bị giới hạn 256 token output và chỉ suy nghĩ; giờ tắt thinking và cho phép viết báo cáo dài.
 

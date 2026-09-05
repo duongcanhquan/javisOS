@@ -60,8 +60,4 @@ jobs:
             fi
             # Không ép tổng kết sáng mỗi deploy — gây tin Zalo lỗi kỹ thuật không mong muốn.
             # Chạy tay: workflow force-morning-brief-today hoặc scripts/force-morning-brief-today-vps.sh
-            if [ -f scripts/apply-model-routing-vps.sh ]; then
-              chmod +x scripts/apply-model-routing-vps.sh
-              # Không reset mật khẩu trên mọi lần deploy - chỉ chốt Main/Việc nền.
-              bash scripts/apply-model-routing-vps.sh || echo "WARN: apply-model-routing skipped"
-            fi
+            # optimize-vps (routing + Ollama) chạy trong vps-deploy.sh

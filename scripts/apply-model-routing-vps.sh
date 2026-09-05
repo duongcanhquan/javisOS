@@ -158,6 +158,14 @@ if aux_p == "ollama-local":
     elif cur_ctx <= 0:
         m["ollama_local_num_ctx"] = target_ctx
         print(f"ollama_local_num_ctx -> {target_ctx}")
+    target_rounds = 6 if ram_mb >= 10000 else 4
+    cur_rounds = int(m.get("ollama_local_max_tool_rounds") or 0)
+    if cur_rounds != target_rounds:
+        m["ollama_local_max_tool_rounds"] = target_rounds
+        print(f"ollama_local_max_tool_rounds -> {target_rounds} (RAM ~{ram_mb} MB)")
+    if ram_mb >= 10000 and not (m.get("ollama_local_keep_alive") or "").strip():
+        m["ollama_local_keep_alive"] = "30m"
+        print("ollama_local_keep_alive -> 30m (VPS 12GB)")
 print("auxiliary:", old_aux, "->", m["auxiliary"])
 print("ollama_local_endpoint:", local_ep or "(trống)")
 print("ollama_key:", "có" if key else "không")
@@ -194,7 +202,7 @@ PY
 
 echo "==> xong. Kiểm tra nhanh trên dashboard: Models → Main + Model việc nền."
 
-# Unload model đang giữ KV lớn (8192) để lần gọi sau nạp lại với num_ctx=4096.
+# Unload model đang giữ KV cũ để lần gọi sau nạp lại với num_ctx / keep_alive mới.
 if command -v ollama >/dev/null 2>&1; then
   echo "==> unload Ollama models (áp num_ctx mới)"
   ollama ps 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do

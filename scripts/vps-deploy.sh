@@ -130,4 +130,10 @@ if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morn
   bash "$ROOT/scripts/force-morning-brief-today-vps.sh" || echo "WARN: force-morning-brief-today skipped"
 fi
 
+if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
+  echo "==> optimize VPS (routing + Ollama + health)"
+  chmod +x "$ROOT/scripts/optimize-vps.sh"
+  bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
+fi
+
 echo "==> done"
