@@ -4695,7 +4695,12 @@ async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
             status_code=503,
             content={"detail": "Chưa cấu hình Groq API key (trang Models → Groq)."},
         )
-    ngon = (lang or "vi").strip() or "vi"
+    # Chuoi rong / auto = Whisper tu do (cuoc hop ngoai ngu).
+    raw = (lang if isinstance(lang, str) else "vi").strip().lower()
+    if raw in ("", "auto"):
+        ngon = ""
+    else:
+        ngon = raw or "vi"
     ket = await stt.groq_nghe(
         data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
     if not ket.get("ok"):
@@ -4784,7 +4789,8 @@ async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
 
 @app.post("/meetings/{meeting_id}/upload-stt")
 async def meetings_upload_stt(meeting_id: str, file: UploadFile = File(...),
-                              brain: str = Form("brain")):
+                              brain: str = Form("brain"),
+                              lang: str = Form("vi")):
     """Fallback: upload audio → Groq Whisper → ghi đè transcript → sẵn sàng analyze."""
     if not meetings.get_active(meeting_id):
         return {"ok": False, "error": "Không tìm thấy phiên họp."}
@@ -4795,8 +4801,13 @@ async def meetings_upload_stt(meeting_id: str, file: UploadFile = File(...),
     ten = file.filename or "meeting-audio.webm"
     mcfg = cfgmod.read_settings().get("model") or {}
     key = (mcfg.get("groq_api_key") or "").strip()
+    raw = (lang if isinstance(lang, str) else "vi").strip().lower()
+    if raw in ("", "auto"):
+        ngon = ""
+    else:
+        ngon = raw or "vi"
     # large-v3 cho cuộc họp (độ chính xác > turbo); cùng module stt.py.
-    ket = await stt.groq_nghe(data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu="vi")
+    ket = await stt.groq_nghe(data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
     if not ket.get("ok"):
         return {"ok": False,
                 "error": ket.get("noi_voi_javis") or ket.get("ly_do") or "STT lỗi",
@@ -9533,6 +9544,7 @@ async def config():
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+5%"),
+        "updates_ui": cfgmod.updates_ui_bat(),
     }
 
 
@@ -10090,6 +10102,14 @@ async def changelog_index():
 
 @app.get("/changelog")
 async def changelog_info():
+    if not cfgmod.updates_ui_bat():
+        return {
+            "current": _read_version(),
+            "latest": None,
+            "releases": [],
+            "updates_ui": False,
+            "error": None,
+        }
     return await changelog_index()
 
 
@@ -10099,6 +10119,15 @@ _NOTIFICATION_CACHE = {"at": 0.0, "data": None}
 @app.get("/notifications")
 async def notifications_info():
     """Hộp thư thống nhất: release tự động + tin cộng đồng/marketing từ GitHub main."""
+    if not cfgmod.updates_ui_bat():
+        return {
+            "current": _read_version(),
+            "latest": None,
+            "unified": True,
+            "items": [],
+            "updates_ui": False,
+            "errors": {},
+        }
     now = time.monotonic()
     cached = _NOTIFICATION_CACHE.get("data")
     if cached is not None and now - float(_NOTIFICATION_CACHE.get("at") or 0) < 120:
