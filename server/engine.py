@@ -530,6 +530,8 @@ _GROQ_DOI_MODEL = {
     "qwen/qwen3-32b": "openai/gpt-oss-120b",
     "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
 }
+# gpt-oss / reasoning: thinking và chữ chung một ngân sách. Thiếu → HTTP 200 nhưng content "".
+_GROQ_MAX_COMPLETION = 16384
 
 
 def groq_resolve_model(model: str | None) -> str:
@@ -545,6 +547,31 @@ def groq_resolve_model(model: str | None) -> str:
     if "llama" in low:
         return GROQ_DEFAULT_MODEL
     return m
+
+
+def _groq_payload_extra(model: str, reasoning: str | None) -> dict:
+    """Tham số riêng Groq reasoning (gpt-oss…): đủ chỗ cho thinking + câu trả lời."""
+    if not _groq_is_reasoning(model):
+        return {}
+    extra = {"max_completion_tokens": _GROQ_MAX_COMPLETION}
+    # Tắt reasoning phía Javis vẫn có thể bị model nghĩ ngầm; ép low để còn token cho chữ.
+    if reasoning in (None, "", "off"):
+        extra["reasoning_effort"] = "low"
+    return extra
+
+
+def _openai_msg_text(msg: dict) -> str:
+    """Chữ nhìn thấy được từ message OpenAI-compat (kể cả reasoning khi content rỗng)."""
+    if not isinstance(msg, dict):
+        return ""
+    c = (msg.get("content") or "").strip()
+    if c:
+        return c
+    for k in ("reasoning_content", "reasoning"):
+        r = msg.get(k)
+        if isinstance(r, str) and r.strip():
+            return r.strip()
+    return ""
 
 # DeepSeek API (OpenAI-compatible). Tài liệu chính dùng /chat/completions; /v1 là alias.
 # Model id cũ deepseek-chat / deepseek-reasoner đã gỡ từ 24/07/2026.
@@ -951,6 +978,7 @@ async def _openai_compat_stream(url, label, api_key, model, messages, reasoning,
                     yield ev_loi_http(label, r.status_code, body_text, r.headers, _fact)
                     return
                 got = False
+                reasoning_buf = ""
                 usage = None
                 async for line in r.aiter_lines():
                     line = (line or "").strip()
@@ -965,14 +993,23 @@ async def _openai_compat_stream(url, label, api_key, model, messages, reasoning,
                         continue
                     if obj.get("usage"):
                         usage = obj["usage"]
-                    c = ((obj.get("choices") or [{}])[0].get("delta") or {}).get("content")
+                    delta = ((obj.get("choices") or [{}])[0].get("delta") or {})
+                    c = delta.get("content")
                     if c:
                         got = True
                         yield {"type": "text", "content": c}
+                    else:
+                        # gpt-oss / reasoning: chữ đôi khi chỉ nằm ở reasoning(_content)
+                        rc = delta.get("reasoning") or delta.get("reasoning_content")
+                        if isinstance(rc, str) and rc:
+                            reasoning_buf += rc
                 if usage:
                     yield {"type": "usage", "input": usage.get("prompt_tokens", 0), "output": usage.get("completion_tokens", 0)}
                 if not got:
-                    yield {"type": "error", "content": f"{label} trả về rỗng. Thử model khác."}
+                    if reasoning_buf.strip():
+                        yield {"type": "text", "content": reasoning_buf.strip()}
+                    else:
+                        yield {"type": "error", "content": f"{label} trả về rỗng. Thử model khác."}
     except Exception as e:
         yield ev_loi_exc(f"{label} lỗi", e)
 
@@ -988,8 +1025,9 @@ async def groq_stream(api_key, model, messages, reasoning="off"):
     """Groq (endpoint OpenAI-compatible, provider 'groq') - nhánh KHÔNG tool (dự phòng khi hub
     không có tool nào; đường thường là groq_chat_with_mcp)."""
     mdl = groq_resolve_model(model)
-    async for ev in _openai_compat_stream(GROQ_URL, "Groq", api_key, mdl,
-                                          messages, reasoning, _groq_is_reasoning(mdl)):
+    async for ev in _openai_compat_stream(
+            GROQ_URL, "Groq", api_key, mdl, messages, reasoning, _groq_is_reasoning(mdl),
+            extra=_groq_payload_extra(mdl, reasoning)):
         yield ev
 
 
@@ -2105,7 +2143,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                 yield {"type": "text", "content": _loi_ket_vong()}
                 return
             continue
-        content = msg.get("content") or ""
+        content = _openai_msg_text(msg)
         if requirement_pending:
             ignored_required += 1
             if ignored_required < 2:
@@ -2218,7 +2256,7 @@ async def groq_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp
     của Javis y như OpenAI/Gemini. Non-stream từng vòng (dùng _cc_tool_loop chung)."""
     mdl = groq_resolve_model(model)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    extra = {}
+    extra = _groq_payload_extra(mdl, reasoning)
     if reasoning not in (None, "", "off") and _groq_is_reasoning(mdl):
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": mdl}

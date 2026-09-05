@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.69] - 2026-09-05
+### Sửa lỗi
+- **Groq gpt-oss không còn trả lời rỗng.** Model suy nghĩ hết token vẫn hiện chữ (lấy từ reasoning) và Javis gửi đủ ngân sách token cho chat Zalo/Telegram.
+
+
 ## [0.35.68] - 2026-09-05
 ### Cải thiện
 - **Dọn VPS một lệnh:** scrub Llama/Ollama local, prune Docker (giữ volume), kiểm tra hàm xoá kết nối / remap Groq còn sống - deploy tự chạy qua optimize.

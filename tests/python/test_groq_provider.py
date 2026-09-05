@@ -146,7 +146,54 @@ async def _run():
             pass
         got = SEEN[0]["body"].get("reasoning_effort")
         check(f"reasoning_effort với {mdl} = {want!r} (nhận {got!r})", got == want)
+        if mdl.startswith("openai/gpt-oss"):
+            check("gpt-oss luôn gửi max_completion_tokens đủ chỗ",
+                  SEEN[0]["body"].get("max_completion_tokens") == engine._GROQ_MAX_COMPLETION)
     check("gửi key bằng header Bearer", SEEN[0]["auth"] == "Bearer gsk_test")
+
+    # reasoning off + gpt-oss: vẫn ép low + budget token (tránh content rỗng vì hết chỗ thinking)
+    SEEN.clear()
+    async for _ in engine.groq_chat_with_mcp("gsk_test", "openai/gpt-oss-120b",
+                                             [{"role": "user", "content": "x"}],
+                                             "off", TOOLS, ROUTE):
+        pass
+    check("gpt-oss + reasoning off → effort low",
+          SEEN[0]["body"].get("reasoning_effort") == "low")
+
+    # Stream chỉ có reasoning (content rỗng) → vẫn hiện chữ, không báo "trả về rỗng"
+    class _FakeReason(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.end_headers()
+            chunk = {"choices": [{"delta": {"reasoning": "Chỉ suy nghĩ, không content"}}]}
+            self.wfile.write(b"data: " + json.dumps(chunk).encode() + b"\n\n")
+            self.wfile.write(b"data: [DONE]\n\n")
+
+    _srv2 = HTTPServer(("127.0.0.1", 0), _FakeReason)
+    threading.Thread(target=_srv2.serve_forever, daemon=True).start()
+    _old = engine.GROQ_URL
+    engine.GROQ_URL = f"http://127.0.0.1:{_srv2.server_address[1]}/openai/v1/chat/completions"
+    try:
+        text2, err2 = "", None
+        async for ev in engine.groq_stream("gsk_test", "openai/gpt-oss-120b",
+                                          [{"role": "user", "content": "chào"}], "off"):
+            if ev["type"] == "text":
+                text2 += ev["content"]
+            elif ev["type"] == "error":
+                err2 = ev["content"]
+        check("stream reasoning-only không báo rỗng", err2 is None)
+        check(f"stream reasoning-only ra chữ (nhận: {text2!r})",
+              "Chỉ suy nghĩ" in text2)
+        check("_openai_msg_text lấy reasoning khi content rỗng",
+              engine._openai_msg_text({"content": "", "reasoning": "  hello  "}) == "hello")
+    finally:
+        engine.GROQ_URL = _old
+        _srv2.shutdown()
 
 
 asyncio.run(_run())
