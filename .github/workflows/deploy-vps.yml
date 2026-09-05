@@ -58,10 +58,8 @@ jobs:
               chmod +x scripts/seed-chat-brief-vps.sh
               bash scripts/seed-chat-brief-vps.sh || echo "WARN: seed-chat-brief skipped"
             fi
-            if [ -f scripts/force-morning-brief-today-vps.sh ]; then
-              chmod +x scripts/force-morning-brief-today-vps.sh
-              bash scripts/force-morning-brief-today-vps.sh || echo "WARN: force-morning-brief-today skipped"
-            fi
+            # Không ép tổng kết sáng mỗi deploy — gây tin Zalo lỗi kỹ thuật không mong muốn.
+            # Chạy tay: workflow force-morning-brief-today hoặc scripts/force-morning-brief-today-vps.sh
             if [ -f scripts/apply-model-routing-vps.sh ]; then
               chmod +x scripts/apply-model-routing-vps.sh
               # Không reset mật khẩu trên mọi lần deploy - chỉ chốt Main/Việc nền.

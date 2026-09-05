@@ -123,7 +123,8 @@ if [ -f "$ROOT/scripts/seed-chat-brief-vps.sh" ]; then
   bash "$ROOT/scripts/seed-chat-brief-vps.sh" || echo "WARN: seed-chat-brief skipped"
 fi
 
-if [ -f "$ROOT/scripts/force-morning-brief-today-vps.sh" ]; then
+# Ép tổng kết sáng: chỉ khi FORCE_MORNING_BRIEF_TODAY=1 (không mặc định mỗi deploy).
+if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morning-brief-today-vps.sh" ]; then
   echo "==> force morning brief today (send soon)"
   chmod +x "$ROOT/scripts/force-morning-brief-today-vps.sh"
   bash "$ROOT/scripts/force-morning-brief-today-vps.sh" || echo "WARN: force-morning-brief-today skipped"

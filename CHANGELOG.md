@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.56] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.57] - 2026-09-05
+### Sửa lỗi
+- **Deploy không còn tự gửi tin Zalo lỗi kỹ thuật.** Bỏ ép "Tổng kết sáng" mỗi lần deploy; nhắc 8h vẫn giữ, chỉ chạy ngay khi bạn bật tay.
+
+
+## [0.35.56] - 2026-09-05
 ### Sửa lỗi
 - **Ghi cuộc họp không còn kẹt "Nạp model" im lặng.** Bật micro ngay khi bấm Bắt đầu (Web Speech hoặc Moonshine đã tải), tạo file server sau; không tranh micro với Web Speech trên Chrome.
 
