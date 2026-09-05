@@ -1,6 +1,7 @@
 """Xóa file cuộc họp — chỉ trong sources/meetings/."""
 from pathlib import Path
 
+from _paths import SERVER  # noqa: F401  - nạp server/ vào sys.path
 import meetings as mt
 
 
@@ -26,3 +27,11 @@ def test_delete_rejects_outside_meetings(tmp_path):
     rel = str(bad.relative_to(tmp_path)).replace("\\", "/")
     r = mt.delete_files(str(tmp_path), rel)
     assert r["ok"] is False
+
+
+if __name__ == "__main__":
+    import tempfile
+    t = Path(tempfile.mkdtemp())
+    test_delete_meeting_transcript_and_sidecars(t)
+    test_delete_rejects_outside_meetings(t)
+    print("OK - test_meetings_delete")
