@@ -42,7 +42,7 @@ check("CANARY: deep-link #open= đi qua openVaultPath, KHÔNG phải openFilesAt
       + "(đây chính là đường đổ vào thư mục)",
       /#open=\(\.\+\)\$\/\.exec[\s\S]{0,400}?openVaultPath\(decodeURIComponent/.test(CONSOLE));
 check("chat-render ưu tiên đúng hàm đó thay vì tự có luật riêng",
-      /function moFileVault[\s\S]{0,400}?window\.JavisOpenVaultPath/.test(CR));
+      /function moFileVault[\s\S]{0,1200}?window\.JavisOpenVaultPath/.test(CR));
 
 // ============================================================
 // 2. Luật chọn: file sửa được -> trình sửa; thư mục -> trang Tệp tin

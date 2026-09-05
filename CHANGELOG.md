@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.81] - 2026-09-05
+### Sửa lỗi
+- **CI hết đỏ vì test mở file từ chat.** Hàm ghép đường dẫn tương đối trong note (facts trong Memory) vẫn mở đúng trình sửa; test nới khoảng cách cho khớp.
+
 ## [0.35.80] - 2026-09-05
 ### Sửa lỗi
 - **CI và Ollama local khớp bản đang chạy.** Test Gemini CLI chuyển sang Antigravity; Ollama local có retry tool; bỏ em dash trong placeholder họp.
