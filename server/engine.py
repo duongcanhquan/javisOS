@@ -490,22 +490,35 @@ def _ollama_needs_auth() -> bool:
     return "ollama.com" in b and b.startswith("https://")
 
 
-def ollama_local_url() -> str:
-    """URL chat của Ollama chạy trên MÁY NHÀ (provider 'ollama-local'). "" = chưa cấu hình.
-
-    Đây là chỗ hiện thực hoá điểm 2 ở khối chú thích trên: địa chỉ KHÔNG hằng số hoá được nên
-    phải dựng lúc chạy từ cấu hình. Điểm 1 (không API key): `_openai_compat_stream` bỏ
-    Authorization khi không phải Ollama Cloud.
-    """
+def ollama_local_endpoint() -> str:
+    """Base URL Ollama Local (không có path). "" = chưa cấu hình."""
     import config as cfgmod
     ep = (cfgmod.read_settings().get("model", {}).get("ollama_local_endpoint") or "").strip()
-    ep = ep.rstrip("/")
+    return ep.rstrip("/")
+
+
+def ollama_local_url() -> str:
+    """URL OpenAI-compat `/v1/chat/completions` - KHÔNG tôn trọng options.num_ctx.
+
+    Giữ cho chỗ còn cần SSE OpenAI. Việc nền / tool loop dùng `ollama_local_native_url`.
+    """
+    ep = ollama_local_endpoint()
     return (ep + "/v1/chat/completions") if ep else ""
+
+
+def ollama_local_native_url() -> str:
+    """URL native `/api/chat` - tôn trọng `options.num_ctx` trên Ollama local."""
+    ep = ollama_local_endpoint()
+    return (ep + "/api/chat") if ep else ""
 
 
 # Ollama mặc định num_ctx=4096. System prompt Javis (CLAUDE.md + memory + skill) dễ >10k
 # token → nhắc hẹn/việc nền nổ exceed_context_size_error. 16384 đủ cho việc nền trên VPS
 # 6–12GB; muốn cao hơn đặt model.ollama_local_num_ctx hoặc JAVIS_OLLAMA_NUM_CTX.
+#
+# Quan trọng: endpoint OpenAI-compat `/v1/chat/completions` BỎ QUA options.num_ctx
+# (bám spec OpenAI). Chỉ `/api/chat` native + Modelfile PARAMETER num_ctx / OLLAMA_CONTEXT_LENGTH
+# (sau khi unload model) mới nâng được cửa sổ thật.
 _OLLAMA_LOCAL_NUM_CTX_DEFAULT = 16384
 
 
@@ -528,8 +541,49 @@ def ollama_local_num_ctx() -> int:
 
 
 def _ollama_local_extra() -> dict:
-    """Payload phụ cho Ollama Local: nâng num_ctx khỏi mặc định 4096."""
+    """Payload phụ cho Ollama Local: nâng num_ctx khỏi mặc định 4096 (chỉ hiệu lực trên /api/chat)."""
     return {"options": {"num_ctx": ollama_local_num_ctx()}}
+
+
+def _ollama_native_to_openai(data: dict) -> dict:
+    """Đổi phản hồi `/api/chat` → dạng OpenAI `choices[0].message` mà `_cc_tool_loop` đọc.
+
+    Native trả `message` + `prompt_eval_count`/`eval_count`; tool_calls thường không có `id`
+    và `arguments` là object thay vì JSON string.
+    """
+    if not isinstance(data, dict):
+        return {"choices": [{"message": {}}]}
+    if data.get("choices"):
+        return data
+    msg = dict(data.get("message") or {})
+    tcs_out = []
+    for i, tc in enumerate(msg.get("tool_calls") or []):
+        if not isinstance(tc, dict):
+            continue
+        fn = dict(tc.get("function") or {})
+        args = fn.get("arguments")
+        if isinstance(args, dict):
+            args = json.dumps(args, ensure_ascii=False)
+        elif args is None:
+            args = "{}"
+        else:
+            args = str(args)
+        tcs_out.append({
+            "id": tc.get("id") or f"ollama_call_{i}",
+            "type": "function",
+            "function": {"name": fn.get("name") or "", "arguments": args},
+        })
+    if tcs_out:
+        msg["tool_calls"] = tcs_out
+    else:
+        msg.pop("tool_calls", None)
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    if not usage:
+        usage = {
+            "prompt_tokens": int(data.get("prompt_eval_count") or 0),
+            "completion_tokens": int(data.get("eval_count") or 0),
+        }
+    return {"choices": [{"message": msg}], "usage": usage}
 
 # Model Anthropic hỗ trợ adaptive thinking + output_config.effort (khỏi budget_tokens).
 _ADAPTIVE_THINKING = ("opus-4-8", "opus-4-7", "opus-4-6", "opus-4-5", "sonnet-4-6", "fable-5", "mythos-5")
@@ -699,22 +753,66 @@ async def ollama_stream(api_key, model, messages, reasoning="off"):
         yield ev
 
 
+async def _ollama_native_stream(url, api_key, model, messages, extra=None):
+    """Stream NDJSON từ Ollama `/api/chat` (tôn trọng options.num_ctx)."""
+    headers = {"Content-Type": "application/json"}
+    if (api_key or "").strip() and (api_key or "").strip() != "local":
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = {"model": model, "messages": list(messages), "stream": True}
+    if extra:
+        payload.update(extra)
+    try:
+        timeout = httpx.Timeout(180.0, connect=15.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as r:
+                if r.status_code != 200:
+                    body = await r.aread()
+                    body_text = body.decode("utf-8", "replace")
+                    yield ev_loi_http("Ollama (Local)", r.status_code, body_text, r.headers, None)
+                    return
+                got = False
+                usage_in = usage_out = 0
+                async for line in r.aiter_lines():
+                    line = (line or "").strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    chunk = ((obj.get("message") or {}).get("content") or "")
+                    if chunk:
+                        got = True
+                        yield {"type": "text", "content": chunk}
+                    if obj.get("done"):
+                        usage_in = int(obj.get("prompt_eval_count") or 0)
+                        usage_out = int(obj.get("eval_count") or 0)
+                if usage_in or usage_out:
+                    yield {"type": "usage", "input": usage_in, "output": usage_out}
+                if not got:
+                    yield {"type": "error",
+                           "content": "Ollama (Local) trả về rỗng. Thử model khác."}
+    except Exception as e:
+        yield ev_loi_exc("Ollama (Local) lỗi", e)
+
+
 async def ollama_local_stream(api_key, model, messages, reasoning="off"):
-    """Ollama trên máy nhà - nhánh KHÔNG tool. Cùng khuôn `ollama_stream`, chỉ khác URL."""
-    url = ollama_local_url()
+    """Ollama trên máy nhà - nhánh KHÔNG tool. Dùng `/api/chat` để num_ctx có hiệu lực."""
+    url = ollama_local_native_url()
     if not url:
         yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
         return
-    async for ev in _openai_compat_stream(url, "Ollama (Local)", api_key, model,
-                                          messages, reasoning, False,
+    async for ev in _ollama_native_stream(url, api_key, model, messages,
                                           extra=_ollama_local_extra()):
         yield ev
 
 
 async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
-    """Ollama máy nhà + vòng tool-calling MCP. Model local biết gọi tool (qwen3, mistral...)
-    thì có đủ đồ nghề của Javis y như mọi provider API khác."""
-    url = ollama_local_url()
+    """Ollama máy nhà + vòng tool-calling MCP qua `/api/chat` (honors num_ctx).
+
+    `/v1/chat/completions` bỏ qua options.num_ctx → vẫn kẹt 4096 dù đã gửi 16384.
+    """
+    url = ollama_local_native_url()
     if not url:
         yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
         return
@@ -724,7 +822,8 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
     yield {"type": "meta", "model": model}
     async for ev in _cc_tool_loop(url, headers, model, messages,
                                   mcp_tools, mcp_route, _ollama_local_extra(),
-                                  "Ollama (Local)"):
+                                  "Ollama (Local)",
+                                  response_adapter=_ollama_native_to_openai):
         yield ev
 
 
@@ -1514,10 +1613,11 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
 
 
 async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, reasoning_extra, label,
-                        cache_system=False):
+                        cache_system=False, response_adapter=None):
     """Vòng Chat Completions + tool (OpenAI/OpenRouter). Non-stream từng vòng; yield tool_call + text cuối.
     cache_system=True (OpenRouter + model Claude): đánh cache_control lên system - OpenAI/Gemini
-    tự cache nên không cần."""
+    tự cache nên không cần.
+    response_adapter: gọi trên JSON response (vd Ollama native → OpenAI shape)."""
     import mcp_client
     tools = _mcp_to_openai_tools(mcp_tools)
     msgs = _or_mark_system(messages) if cache_system else list(messages)
@@ -1649,6 +1749,8 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                 yield ev_loi_http(label, r.status_code, body_text, r.headers, _fact)
                 return
             data = r.json()
+            if response_adapter:
+                data = response_adapter(data)
         except Exception as e:
             yield ev_loi_exc(f"{label} lỗi", e)
             return
@@ -1662,10 +1764,14 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
             msgs.append({"role": "assistant", "content": msg.get("content") or "", "tool_calls": tcs})
             for tc in tcs:
                 fn = (tc.get("function") or {}).get("name")
-                try:
-                    args = json.loads((tc.get("function") or {}).get("arguments") or "{}")
-                except json.JSONDecodeError:
-                    args = {}
+                raw_args = (tc.get("function") or {}).get("arguments") or "{}"
+                if isinstance(raw_args, dict):
+                    args = raw_args
+                else:
+                    try:
+                        args = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        args = {}
                 if _schedule_tool_allowed(messages, fn, args):
                     yield {"type": "tool_call", "name": fn}
                     result = await mcp_client.call_route(mcp_route, fn, args)

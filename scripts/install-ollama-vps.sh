@@ -248,6 +248,31 @@ case "$CHOSEN" in
     ;;
 esac
 
+# /v1/chat/completions bỏ qua options.num_ctx. Tạo biến thể Modelfile bake num_ctx
+# để cả đường OpenAI-compat lẫn native đều mở cửa sổ 16k. Đồng thời unload model đang
+# nạp - không thì OLLAMA_CONTEXT_LENGTH vừa set vẫn bị model cũ giữ 4096.
+NUM_CTX="${JAVIS_OLLAMA_NUM_CTX:-16384}"
+JAVIS_MODEL="javis-${CHOSEN//:/-}"
+echo
+echo "==> Tạo model Javis với num_ctx=${NUM_CTX}: $JAVIS_MODEL"
+TMP_MF=$(mktemp)
+cat >"$TMP_MF" <<EOF
+FROM ${CHOSEN}
+PARAMETER num_ctx ${NUM_CTX}
+EOF
+ollama create "$JAVIS_MODEL" -f "$TMP_MF"
+rm -f "$TMP_MF"
+
+echo
+echo "==> Unload model đang nạp (để OLLAMA_CONTEXT_LENGTH / num_ctx mới có hiệu lực)"
+if ollama ps >/dev/null 2>&1; then
+  ollama ps 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do
+    [ -n "$_m" ] || continue
+    echo "  - stop $_m"
+    ollama stop "$_m" 2>/dev/null || true
+  done
+fi
+
 echo
 echo "==> Model đã cài"
 ollama list || true
@@ -256,7 +281,7 @@ FREE_GB=$(awk -v k="$FREE_KB" 'BEGIN { printf "%.1f", k/1024/1024 }')
 echo "Đĩa trống sau kéo/dọn: ${FREE_GB} GB"
 
 echo
-echo "==> Trỏ Javis container sang Ollama local"
+echo "==> Trỏ Javis container sang Ollama local (model $JAVIS_MODEL)"
 if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   docker exec -i -u javis "$CONTAINER" python - <<PY
 import sys
@@ -265,12 +290,12 @@ import config as cfg
 s = cfg.read_settings()
 m = s.setdefault("model", {})
 m["ollama_local_endpoint"] = "${ENDPOINT_FROM_CONTAINER}"
-# Việc nền: ưu tiên ollama-local nếu đã đặt; không xoá ollama cloud key nếu có
-aux = dict(m.get("auxiliary") or {})
-# Giữ cloud nếu user muốn - nhưng yêu cầu lần này là dùng bản tải về → chuyển việc nền sang local
-m["auxiliary"] = {"provider": "ollama-local", "model": "${CHOSEN}"}
+m["ollama_local_num_ctx"] = int("${NUM_CTX}")
+# Việc nền: model Modelfile đã bake num_ctx (không phụ thuộc /v1 bỏ options)
+m["auxiliary"] = {"provider": "ollama-local", "model": "${JAVIS_MODEL}"}
 cfg.write_settings(s)
 print("ollama_local_endpoint =", m.get("ollama_local_endpoint"))
+print("ollama_local_num_ctx =", m.get("ollama_local_num_ctx"))
 print("auxiliary =", m.get("auxiliary"))
 print("OK")
 PY
@@ -281,8 +306,9 @@ fi
 echo
 echo "============================================"
 echo " XONG"
-echo "  Model : $CHOSEN"
+echo "  Base  : $CHOSEN"
+echo "  Javis : $JAVIS_MODEL (num_ctx=$NUM_CTX)"
 echo "  Thử   : curl http://127.0.0.1:11434/api/tags"
-echo "  Chat  : ollama run $CHOSEN"
+echo "  Chat  : ollama run $JAVIS_MODEL"
 echo "  Javis Models → Ollama (Local) → ${ENDPOINT_FROM_CONTAINER}"
 echo "============================================"

@@ -68,7 +68,8 @@ def _pick_local_model():
         return aux_mod
     if old_aux.get("provider") == "ollama-local" and (old_aux.get("model") or "").strip():
         return (old_aux.get("model") or "").strip()
-    return "qwen3:4b-instruct"
+    # Model Modelfile bake num_ctx=16k (install-ollama-vps.sh). Base tag vẫn 4096.
+    return "javis-qwen3-4b-instruct"
 
 
 if not aux_p:
