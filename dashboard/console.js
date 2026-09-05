@@ -5199,9 +5199,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       // chạy một lần cho cả hai, nên đổi tab không phải vẽ lại hay nối lại gì cả.
       + '<div id="mcpTabDaNoi"' + (_mcpTab === "danoi" ? "" : " hidden") + '>'
       + '<div class="cview-section"><h3>◆ Đã kết nối <span style="opacity:.5">' + conns.length + ' tài khoản</span></h3>'
-      + '<div class="gcard-meta" style="max-width:740px">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
+      + '<div class="gcard-meta" style="max-width:none">Một dịch vụ nối được NHIỀU tài khoản (nhiều shop, nhiều số Zalo…). Mọi bộ não - Claude Code, ChatGPT/Codex, OpenRouter, API - dùng chung kho này qua trung tâm kết nối của Javis, kèm phân quyền và nhật ký.'
       + '<label style="margin-left:8px;cursor:pointer"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label></div>'
-      + '<div class="prov-list" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty">Chưa đấu nguồn nào - mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
+      + '<div class="conn-grid" style="margin-top:12px">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào - mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
       // Lối đi tiếp, đặt ngay dưới danh sách. Không có nó thì tab này là ngõ cụt với
       // người chưa đấu gì: họ nhìn một ô trống mà không biết bước kế tiếp ở đâu.
       + '<div class="conn-guide" style="border:1px dashed var(--border);border-radius:12px;'

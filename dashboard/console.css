@@ -965,12 +965,13 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .gx-zone-toolbar .gx-strict { margin-left: 0; }
 .conn-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   max-width: none;
+  width: 100%;
 }
 .conn-empty { grid-column: 1 / -1; }
-.conn-card-sm { margin: 0; }
+.conn-card-sm { margin: 0; min-width: 0; }
 .conn-card-sm .conn-head-sm { gap: 8px; padding: 10px 12px 0; }
 .conn-card-sm .conn-ico { font-size: 20px; width: 28px; }
 .conn-card-sm .conn-ico .ico-img { width: 22px; height: 22px; }
@@ -978,7 +979,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .conn-status-sm { font-size: 11.5px !important; opacity: 0.65; }
 .conn-card-sm .conn-accounts { padding: 8px 10px 10px; gap: 6px; }
 .conn-card-sm .conn-chip { padding: 3px 8px; font-size: 12px; border-radius: 12px; }
-.cat-card-sm { padding: 11px 12px; gap: 6px; }
+.cat-card-sm { padding: 11px 12px; gap: 6px; min-width: 0; }
 .cat-card-sm .cat-top { display: flex; align-items: center; gap: 8px; }
 .cat-card-sm .cat-ico { font-size: 22px; height: 24px; }
 .cat-card-sm .cat-ico .ico-img { width: 22px; height: 22px; }
@@ -1005,6 +1006,9 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .amb-sum::-webkit-details-marker { display: none; }
 .amb-sum::before { content: "▸ "; opacity: 0.55; }
 .gx-ambient[open] > .amb-sum::before { content: "▾ "; }
+@media (max-width: 1100px) {
+  .conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 760px) {
   .conn-grid { grid-template-columns: 1fr; }
   .conn-tabs { max-width: none; }
@@ -1081,17 +1085,24 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .cat-chip { border: 1px solid var(--border); background: transparent; color: inherit;
   border-radius: 14px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; opacity: .8; }
 .cat-chip.on { border-color: var(--accent); color: var(--accent); opacity: 1; }
-.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px; margin-top: 12px; max-width: 980px; }
-/* Trang Kết nối: luôn 2 cột (mobile 1 cột ở media phía trên) */
+.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px; margin-top: 12px; max-width: none; width: 100%; }
+/* Trang Kết nối: lưới 3 cột full chiều ngang (tablet 2, mobile 1) */
 .galaxy-nexus .conn-grid,
 .cat-grid.conn-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 10px;
   max-width: none;
+  width: 100%;
+}
+@media (max-width: 1100px) {
+  .cat-grid,
+  .galaxy-nexus .conn-grid,
+  .cat-grid.conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
+  .cat-grid,
   .galaxy-nexus .conn-grid,
   .cat-grid.conn-grid { grid-template-columns: 1fr; }
 }
