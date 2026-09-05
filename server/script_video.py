@@ -17,6 +17,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import winproc
+
 _SIZES = {
     "portrait": (1080, 1920),
     "landscape": (1920, 1080),
@@ -187,7 +189,7 @@ def _ffprobe_duration(path: Path) -> float:
         out = subprocess.check_output(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-            text=True, stderr=subprocess.DEVNULL,
+            text=True, stderr=subprocess.DEVNULL, **winproc.kwargs_no_window(),
         ).strip()
         return max(0.8, float(out or "0") or 0.8)
     except Exception:
@@ -195,7 +197,7 @@ def _ffprobe_duration(path: Path) -> float:
 
 
 def _run_ffmpeg(args: List[str]) -> None:
-    r = subprocess.run(args, capture_output=True, text=True)
+    r = subprocess.run(args, capture_output=True, text=True, **winproc.kwargs_no_window())
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout or "ffmpeg lỗi")[-800:])
 

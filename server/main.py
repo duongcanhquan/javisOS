@@ -1402,6 +1402,8 @@ def _set_main_model(cfg, provider, model):
         m["engine"] = "deepseek"
     elif provider == "ollama":
         m["engine"] = "ollama"
+    elif provider == "ollama-local":
+        m["engine"] = "ollama-local"
     else:  # anthropic-cli
         m["engine"] = "cli"; m["claude_model"] = model
 
@@ -1827,8 +1829,7 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
     ChatGPT OAuth ở các kênh tương tác đi qua Codex CLI native MCP, không dùng fallback này."""
     tools, route = [], {}
     inventory_tools, inventory_route = [], {}
-    if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama",
-                "deepseek", "ollama-local"):
+    if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"):
         try:
             if _hub_enabled():
                 vault_root = _brain_root(brain) if brain else None
@@ -1880,7 +1881,10 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
                 return engine.deepseek_chat_with_mcp(key, model, messages, reasoning, tools, route)
             return engine.ollama_chat_with_mcp(key, model, messages, reasoning, tools, route)
         if prov == "ollama-local":
-            return engine.ollama_local_chat_with_mcp(key, model, messages, reasoning, tools, route)
+            return engine.thu_lai_khi_tam_thoi(
+                lambda: engine.ollama_local_chat_with_mcp(
+                    key, model, messages, reasoning, tools, route),
+                nhan=f"{prov}/{model or 'mặc định'}+tool")
 
         if prov in ("openrouter", "openai", "anthropic-api", "gemini", "groq", "deepseek", "ollama"):
             return engine.thu_lai_khi_tam_thoi(_vong_tool, nhan=f"{prov}/{model or 'mặc định'}+tool")

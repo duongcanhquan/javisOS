@@ -1677,9 +1677,9 @@
       '<div id="mtPanelNew">' +
       '<div class="mt-card" id="mtSetup">' +
       '<div class="mt-field"><label>Tiêu đề cuộc họp *</label>' +
-      '<input type="text" id="mtTitle" placeholder="Vd: Họp kế hoạch Q3 — Marketing"></div>' +
+      '<input type="text" id="mtTitle" placeholder="Ví dụ: Họp kế hoạch Q3 - Marketing"></div>' +
       '<div class="mt-field"><label>Thành phần (cách nhau bằng dấu phẩy)</label>' +
-      '<input type="text" id="mtPeople" placeholder="Vd: An, Bình, Chi"></div>' +
+      '<input type="text" id="mtPeople" placeholder="Ví dụ: An, Bình, Chi"></div>' +
       '<div class="mt-field"><label>Ghi chú / mục tiêu trước khi họp</label>' +
       '<textarea id="mtNotes" placeholder="Mục đích họp, agenda ngắn, điểm cần quyết…"></textarea></div>' +
       '<div class="mt-toolbar">' +

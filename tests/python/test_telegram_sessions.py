@@ -136,7 +136,7 @@ s1 = _lay(sess)
 check("lượt đầu tạo được phiên", bool(s1))
 check("phiên nhớ vào sess['sid'] để lượt sau nối tiếp", sess["sid"] == s1)
 check("phiên Telegram gắn channel='telegram'", rot.get_session(s1)["channel"] == "telegram")
-check("phiên ghi đúng brain", rot.get_session(s1)["brain"] == BRAIN)
+check("phiên ghi đúng brain", rot.get_session(s1)["brain"] == main._brain_key(BRAIN))
 check("chat đang nóng thì DÙNG LẠI phiên cũ", _lay(sess) == s1)
 
 # ---- Xoay theo NGHỈ LÂU ----

@@ -212,11 +212,11 @@ check("và remedy phân biệt được bốn chiều siết của cùng một n
        ll.LimitFact("tpm", 12000, 4701, "t", used=8812).remedy,
        ll.LimitFact("rpd", 14400, 1, "t", used=14400).remedy} == {"shrink", "wait", "wait_long"})
 check("thật sự có ngủ chờ rồi thử lại",
-      "await asyncio.sleep(_fact.retry_after" in _eng)
+      "await asyncio.sleep(" in _eng and "waited_for_window" in _eng)
 check("có trần thời gian chờ, không treo vô hạn",
       "_fact.retry_after <= _WINDOW_WAIT_MAX" in _eng)
-check("chỉ chờ MỘT lần mỗi lượt, không chờ chồng",
-      "not waited_for_window" in _eng)
+check("TPM/RPM được chờ vài nhịp, không chờ chồng vô hạn",
+      "waited_for_window < _cho_toi_da" in _eng)
 
 print()
 if _fails:

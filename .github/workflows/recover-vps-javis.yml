@@ -53,9 +53,15 @@ jobs:
             git remote prune origin 2>/dev/null || true
             git fetch --all --prune || true
             git reset --hard origin/main || true
+            # Kéo đúng image :latest đã publish (không --build trên VPS).
+            export WANT_SHA="$(git rev-parse HEAD)"
+            echo "==> WANT_SHA=$WANT_SHA image=$JAVIS_IMAGE"
             chmod +x scripts/vps-deploy.sh
             bash scripts/vps-deploy.sh
             curl -fsS -m 10 http://127.0.0.1:7777/health || true
             echo
-            chmod +x scripts/seed-htdt-profile-vps.sh
-            bash scripts/seed-htdt-profile-vps.sh || echo "WARN: seed HTĐT sau - chạy lại workflow Seed"
+            # Seed HTĐT không đụng git (script từ GitHub raw) - tránh race.
+            curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/seed-htdt-profile-vps.sh" \
+              -o /tmp/seed-htdt-profile-vps.sh
+            chmod +x /tmp/seed-htdt-profile-vps.sh
+            bash /tmp/seed-htdt-profile-vps.sh || echo "WARN: seed HTĐT sau - chạy lại workflow Seed"

@@ -327,25 +327,22 @@ check("tắt hub -> gỡ entry javis nhưng KHÔNG đụng phần còn lại",
 import main   # noqa: E402  - import sau khi STATE_DIR đã trỏ vào thư mục tạm
 
 _defs = {p["id"]: p for p in main.PROVIDER_DEFS}
-check("có provider gemini-cli trong danh sách", "gemini-cli" in _defs)
-_d = _defs.get("gemini-cli", {})
-check("CANARY: kind='cli' - mọi chỗ hỏi 'có phải bộ não gói thuê bao không' đều dựa vào nó",
-      _d.get("kind") == "cli")
-check("không đòi API key", _d.get("key_field") is None)
-check("có sẵn catalog dự phòng nên không bao giờ ra 0 model như ChatGPT từng bị",
-      len(_d.get("default_models") or []) >= 3)
+check("Gemini CLI không còn là bộ não mặc định (Google ngắt hạng cá nhân 18/06/2026)",
+      "gemini-cli" not in _defs)
+check("Antigravity CLI là đường Google thay thế",
+      _defs.get("antigravity-cli", {}).get("kind") == "cli")
 check("KHÁC provider `gemini` (API key) - hai thẻ, hai đường tính tiền",
       _defs["gemini"]["kind"] == "api" and _defs["gemini"]["key_field"] == "gemini_api_key")
 
-check("model chính đặt được sang gemini-cli", True)
+check("model chính đặt được sang antigravity-cli", True)
 _cfg = {"model": {}}
-main._set_main_model(_cfg, "gemini-cli", "gemini-2.5-pro")
-check("và đồng bộ trường engine legacy", _cfg["model"]["engine"] == "gemini-cli")
+main._set_main_model(_cfg, "antigravity-cli", "gemini-3-flash")
+check("và đồng bộ trường engine legacy", _cfg["model"]["engine"] == "antigravity-cli")
 
 _prov, _kind, _key, _model = main._chat_provider(
-    {"main": {"provider": "gemini-cli", "model": "gemini-2.5-pro"}})
+    {"main": {"provider": "antigravity-cli", "model": "gemini-3-flash"}})
 check("_chat_provider trả đúng bộ (prov, kind, key, model)",
-      (_prov, _kind, _key, _model) == ("gemini-cli", "cli", "", "gemini-2.5-pro"))
+      (_prov, _kind, _key, _model) == ("antigravity-cli", "cli", "", "gemini-3-flash"))
 
 # Việc nền
 check("aux_engine biết provider này", aux_engine.GEMINI_CLI == "gemini-cli")
@@ -413,10 +410,13 @@ check("thẻ vẫn chỉ cách cài CLI khi máy chưa có",
       "npm install -g @google/gemini-cli" in _console)
 
 _src_main = (SERVER / "main.py").read_text(encoding="utf-8")
-check("chat dashboard có nhánh riêng cho gemini-cli", 'elif prov == "gemini-cli":' in _src_main)
-check("Telegram cũng có nhánh đó", 'if prov == "gemini-cli":' in _src_main)
-check("CANARY: nhãn engine không đội lốt 'cli' của Claude Code",
-      _src_main.count('else "gemini-cli" if prov == "gemini-cli"') == 2)
+check("chat dashboard không còn nhánh Gemini CLI (đã thay bằng Antigravity)",
+      'elif prov == "gemini-cli":' not in _src_main)
+check("Telegram đi Antigravity CLI, không còn Gemini CLI",
+      'if prov == "antigravity-cli":' in _src_main
+      and 'if prov == "gemini-cli":' not in _src_main)
+check("CANARY: nhãn engine Antigravity không đội lốt 'cli' của Claude Code",
+      _src_main.count("antigravity-cli") >= 4)
 
 # ============================================================
 # 8. Đăng nhập Google NGAY TRÊN DASHBOARD (gemini_oauth)
@@ -590,7 +590,7 @@ finally:
 _duong = {getattr(r, "path", "") for r in main.app.routes}
 for _e in ("/gemini-cli/login-start", "/gemini-cli/login-code", "/gemini-cli/logout",
            "/gemini-cli/check", "/gemini-cli/status"):
-    check(f"có endpoint {_e}", _e in _duong)
+    check(f"không còn endpoint {_e} (dùng Antigravity)", _e not in _duong)
 check("CANARY: endpoint đăng nhập KHÔNG nằm trong danh sách miễn đăng nhập Javis",
       "gemini" not in _src_main[_src_main.index("_AUTH_PUBLIC_EXACT = "):
                                 _src_main.index("_AUTH_PUBLIC_EXACT = ") + 400])
@@ -611,35 +611,15 @@ check("CANARY: có luật CSS gò nút 'Xong' lại - thiếu nó nút nuốt h�
       ".gcli-code-row .gcard-btn" in _console_css and "width: auto" in _console_css[
           _console_css.index(".gcli-code-row .gcard-btn"):
           _console_css.index(".gcli-code-row .gcard-btn") + 120])
-# --- Thẻ Models ẨN khi máy không có binary (0.29.1) -------------------------
-# Google ngắt hạng cá nhân nên với gần như mọi người đây là lựa chọn chết; bày ra chỉ để họ
-# đăng nhập xong rồi đâm vào tường. Nhưng engine KHÔNG bị xoá (doanh nghiệp + API key vẫn
-# chạy), nên ranh giới là "máy có binary hay không".
+# Google ngắt hạng cá nhân nên Gemini CLI không còn trong PROVIDER_DEFS. Thẻ Models
+# không hiện nữa; đường Google còn sống là Antigravity CLI.
 import config as _cfgmod   # noqa: E402
 _cfg_the = _cfgmod.read_settings()
-_that_find2 = gemini_cli.find_gemini_cli
-try:
-    gemini_cli.find_gemini_cli = lambda: None
-    _ids = [p["id"] for p in main._providers_view(_cfg_the)]
-    check("CANARY: máy KHÔNG có binary `gemini` -> thẻ Gemini CLI biến mất khỏi trang Models",
-          "gemini-cli" not in _ids, _ids)
-    check("và các thẻ khác không bị ảnh hưởng",
-          "antigravity-cli" in _ids and "anthropic-cli" in _ids and len(_ids) == 9, _ids)
-
-    gemini_cli.find_gemini_cli = lambda: "/usr/bin/gemini"
-    check("máy CÓ binary (doanh nghiệp / chạy bằng API key) -> thẻ hiện lại",
-          "gemini-cli" in [p["id"] for p in main._providers_view(_cfg_the)])
-
-    # Ai đang ĐẶT nó làm Main Model mà mất thẻ thì mất luôn đường đổi sang engine khác.
-    gemini_cli.find_gemini_cli = lambda: None
-    _cfg_main = dict(_cfg_the)
-    _cfg_main["model"] = dict(_cfg_the["model"])
-    _cfg_main["model"]["main"] = {"provider": "gemini-cli", "model": "gemini-2.5-pro"}
-    check("CANARY: đang là Main Model thì VẪN hiện dù không có binary "
-          "(không thì người dùng kẹt, không đổi engine được)",
-          "gemini-cli" in [p["id"] for p in main._providers_view(_cfg_main)])
-finally:
-    gemini_cli.find_gemini_cli = _that_find2
+_ids = [p["id"] for p in main._providers_view(_cfg_the)]
+check("CANARY: thẻ Gemini CLI không còn trên trang Models",
+      "gemini-cli" not in _ids, _ids)
+check("Antigravity CLI vẫn hiện (đường Google thay thế)",
+      "antigravity-cli" in _ids and "anthropic-cli" in _ids, _ids)
 
 for _f, _ten in ((ROOT / "Dockerfile", "Dockerfile"), (ROOT / "install.sh", "install.sh"),
                  (ROOT / "setup.bat", "setup.bat")):

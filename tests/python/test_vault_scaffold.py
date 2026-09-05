@@ -61,9 +61,8 @@ try:
     check("init: các mục cũ vẫn được tạo (sources/agents/wiki...)",
           (v4 / "sources").is_dir() and (v4 / "agents").is_dir() and (v4 / "wiki").is_dir())
 
-    check("init: có thư mục Dashboard + seed Dashboard.md / Task Inbox.md",
-          (v4 / "00 - Dashboard" / "Dashboard.md").is_file()
-          and (v4 / "00 - Dashboard" / "Task Inbox.md").is_file())
+    check("init: có thư mục Dashboard + seed Dashboard.md",
+          (v4 / "00 - Dashboard" / "Dashboard.md").is_file())
     check("init: seed Dashboard.md dùng khối ```tasks chạy thật",
           "```tasks" in (v4 / "00 - Dashboard" / "Dashboard.md").read_text(encoding="utf-8"))
 

@@ -117,7 +117,7 @@ finally:
 # ---- 5. Có tool MCP thì Ollama cũng là agent, không chỉ chat suông ----
 _src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("ollama nằm trong danh sách provider được phát tool",
-      '"gemini", "groq", "ollama")' in _src)
+      '"gemini", "groq", "ollama"' in _src)
 check("có nhánh gọi vòng tool cho ollama",
       "engine.ollama_chat_with_mcp(key, model, messages, reasoning, tools, route)" in _src)
 check("CANARY: mã đã sạch hàm chọn địa chỉ",
@@ -210,7 +210,7 @@ check("CANARY: không còn nút Kiểm tra địa chỉ", "data-ph=" not in _con
 check("bảng key của giao diện biết ollama", '"ollama": "ollama_key"' in _console)
 # deepseek đứng sau ollama trong danh sách - đừng khớp cứng `"ollama"]` vì sẽ vỡ khi thêm provider.
 check("ollama vẫn nằm trong danh sách provider có MCP",
-      'const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek"]'
+      'const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"]'
       in _console)
 
 

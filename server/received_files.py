@@ -12,11 +12,10 @@ import json
 import re
 import shutil
 import time
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-_VN = timezone(timedelta(hours=7))
+import localefmt
 _INDEX_NAME = "received-index.json"
 _MAX_INDEX = 200
 
@@ -52,11 +51,11 @@ _MARK_FILE = re.compile(
 
 
 def _now_iso() -> str:
-    return datetime.now(_VN).strftime("%Y-%m-%dT%H:%M:%S%z")
+    return localefmt.now().strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def _today() -> str:
-    return datetime.now(_VN).strftime("%Y-%m-%d")
+    return localefmt.now().strftime("%Y-%m-%d")
 
 
 def index_path(brain_root) -> Path:

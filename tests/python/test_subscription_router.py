@@ -259,8 +259,8 @@ check("CANARY: nhánh Codex dùng câu đã dịch",
       '_subscription_limit_message(ev.get("content") or "", "codex")' in _MAIN_SRC)
 # Bộ não thứ 9 (Gemini CLI) cũng là gói thuê bao, nên cũng phải đi qua đúng cái dịch này -
 # không thì nó là engine DUY NHẤT dội nguyên văn tiếng Anh của Google vào mặt người dùng.
-check("CANARY: nhánh Gemini CLI dùng câu đã dịch",
-      '"gemini-cli")' in _MAIN_SRC and _MAIN_SRC.count("_subscription_limit_message(") >= 4)
+check("CANARY: nhánh Grok CLI dùng câu đã dịch",
+      '"grok-cli")' in _MAIN_SRC and _MAIN_SRC.count("_subscription_limit_message(") >= 4)
 # Bộ não thứ 10 (Antigravity CLI) cũng chạy bằng gói Google nên cùng luật: hết lượt phải ra
 # câu tiếng Việt, không phải nguyên văn của Google.
 check("CANARY: nhánh Antigravity CLI dùng câu đã dịch",

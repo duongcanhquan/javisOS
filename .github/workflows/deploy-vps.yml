@@ -95,5 +95,9 @@ jobs:
               chmod +x scripts/seed-chat-brief-vps.sh
               bash scripts/seed-chat-brief-vps.sh || echo "WARN: seed-chat-brief skipped"
             fi
+            # Hồ sơ HTĐT (Memory/agents/skills) - idempotent, không đụng git.
+            curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/seed-htdt-profile-vps.sh" \
+              -o /tmp/seed-htdt-profile-vps.sh && chmod +x /tmp/seed-htdt-profile-vps.sh \
+              && bash /tmp/seed-htdt-profile-vps.sh || echo "WARN: seed HTĐT skipped"
             # Không ép tổng kết sáng mỗi deploy — gây tin Zalo lỗi kỹ thuật không mong muốn.
             # Không chạy Install Ollama / Apply routing (không dùng trên VPS này).

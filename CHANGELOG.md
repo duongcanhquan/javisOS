@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.80] - 2026-09-05
+### Sửa lỗi
+- **CI và Ollama local khớp bản đang chạy.** Test Gemini CLI chuyển sang Antigravity; Ollama local có retry tool; bỏ em dash trong placeholder họp.
+
+
 ## [0.35.79] - 2026-09-05
 ### Sửa lỗi
 - **Khôi phục hồ sơ Memory HTĐT và sửa link mở hụt.** File `memory/facts/…` bị mất trên VPS đã seed lại; link trong `MEMORY.md` trỏ đúng `memory/facts/…`, và bấm link tương đối trong note cũng ghép đúng thư mục đang mở.
