@@ -20,7 +20,19 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
-            git fetch --all --prune
-            git reset --hard origin/main
+            # Tránh race với deploy song song (ref lock origin/main).
+            for i in 1 2 3 4 5 6; do
+              rm -f .git/refs/remotes/origin/main.lock .git/index.lock 2>/dev/null || true
+              git remote prune origin 2>/dev/null || true
+              if git fetch --all --prune && git reset --hard origin/main; then
+                break
+              fi
+              echo "git bận - chờ 5s ($i/6)"
+              sleep 5
+              if [ "$i" = 6 ]; then
+                echo "ERROR: git fetch/reset thất bại"
+                exit 1
+              fi
+            done
             chmod +x scripts/seed-htdt-profile-vps.sh
             bash scripts/seed-htdt-profile-vps.sh
