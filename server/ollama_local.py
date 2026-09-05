@@ -369,7 +369,6 @@ def detect_specs() -> dict:
     return {"source": "auto" if ram > 0 else "unknown", "ram_gb": ram,
             "has_gpu": bool(ten), "vram_gb": vram, "gpu_name": ten}
 
-
 def default_javis_model(settings: dict | None = None) -> str:
     """Model Ollama local ưu tiên: auxiliary ollama-local → javis-qwen3-8b (VPS 12GB)."""
     if settings is None:

@@ -51,9 +51,13 @@ try:
     check("Main = OpenRouter, việc nền để trống → KHÔNG có đèn nào",
           connect_health.engines_in_use() == set())
 
+    # 0.47.4: việc nền KHÔNG còn được soi đèn, kể cả khi đặt rõ là Claude. Từ 0.43.3 việc
+    # nền có _FallbackChain (Claude chết thì tự chạy bằng bộ não chat) nên "việc nền chưa
+    # đăng nhập" không còn nghĩa là "Javis chưa dùng được" - mà banner đọc đúng nghĩa đen
+    # như vậy, và đã hai lần bắt oan máy Main Codex trong một ngày (27/08).
     _fake_settings("openrouter", "anthropic-cli")
-    check("Việc nền đặt RÕ là Claude → đèn claude sống lại",
-          connect_health.engines_in_use() == {"claude"})
+    check("Việc nền đặt rõ là Claude → vẫn KHÔNG soi đèn (banner chỉ nói về Main Model)",
+          connect_health.engines_in_use() == set())
 
     _fake_settings("openai-oauth", "openrouter")
     check("Main = ChatGPT → đèn codex; provider API không có đèn",
@@ -116,12 +120,16 @@ for name, text in (("system prompt (CLAUDE.md)", CLAUDE_MD),
                    ("dashboard/index.html", INDEX)):
     check(f'{name} không còn nhãn "chat thuần"', "chat thuần" not in text)
     check(f'{name} không còn nhãn "không MCP"', "không MCP" not in text)
+    # CLAUDE.md nay là tiếng Anh (0.50.0) nên canh thêm biến thể tiếng Anh của cùng nhãn.
+    check(f'{name} không còn nhãn "chat-only"', "chat-only" not in text.lower())
 
 check("nhãn kiểu của provider API là 'MCP Javis', không phải 'chat'",
       '"MCP Javis"' in CONSOLE_JS and re.search(r'p\.kind === "cli" \? "MCP/skill" : "chat"', CONSOLE_JS) is None)
-check("dòng Main Model nói rõ provider API vẫn có MCP + skill",
-      "API · MCP + skill (không lệnh máy)" in CONSOLE_JS
-      or "Gọi API thẳng - MCP Javis + skill + loop" in CONSOLE_JS)
+_vi_i18n_api = (ROOT / "dashboard" / "i18n" / "vi.json").read_text(encoding="utf-8")
+check("dòng Main Model nói rõ provider API vẫn có MCP + skill + loop",
+      't("models.main_api")' in CONSOLE_JS
+      and ("Gọi API thẳng - MCP Javis + skill + loop" in _vi_i18n_api
+           or "API · MCP + skill (không lệnh máy)" in CONSOLE_JS))
 
 # Gemini từng bị sót khỏi MCP_PROVIDERS nên trang Kết nối báo nhầm "chưa hỗ trợ gọi công cụ"
 # dù _api_stream_mcp đã phục vụ nó. Danh sách trên UI phải khớp danh sách thật ở server.
@@ -142,13 +150,13 @@ check(f"CANARY: UI liệt kê ĐÚNG danh sách của server + Claude Code "
 
 # System prompt: Javis phải tự biết mình đổi được bộ não và không được tự hạ thấp.
 check("system prompt gọi Javis là AI agentic đổi được bộ não",
-      "ĐỔI ĐƯỢC BỘ NÃO" in CLAUDE_MD)
+      "SWAPPABLE BRAIN" in CLAUDE_MD)
 check("system prompt nói rõ MỌI bộ não dùng chung một bộ đồ nghề",
-      "MỌI bộ não đều được cấp cùng một bộ đồ nghề" in CLAUDE_MD)
+      "EVERY brain gets the same toolkit" in CLAUDE_MD)
 check("system prompt cấm Javis tự nhận 'chỉ chat được'",
-      "chỉ chat được" in CLAUDE_MD and "sai sự thật" in CLAUDE_MD)
+      "can only chat" in CLAUDE_MD and "factually wrong" in CLAUDE_MD)
 check("system prompt nêu đúng khác biệt duy nhất là lệnh máy",
-      "lệnh máy" in CLAUDE_MD)
+      "shell commands" in CLAUDE_MD)
 
 # Tài liệu giới thiệu: bán "đổi được model", không bán "chạy trên Claude".
 check("README mở đầu bằng AI agentic đổi được bộ não",

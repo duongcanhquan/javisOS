@@ -21,7 +21,7 @@ import re
 import time
 
 
-def plan_deletions(entries, now, max_age_days, max_mb, keep_md=True):
+def plan_deletions(entries, now, max_age_days, max_mb, keep_md=True, giu_path=None):
     """Quyết định file nào phải xoá. HÀM THUẦN.
 
     entries      : list[(path, size_bytes, mtime)] - mọi file trong vùng cache của MỘT brain.
@@ -31,11 +31,19 @@ def plan_deletions(entries, now, max_age_days, max_mb, keep_md=True):
     keep_md      : True (mặc định) = không bao giờ xoá .md, vì vùng cache của brain có thể
                    lạc note vào mà note là tri thức. Đặt False cho thư mục THUẦN trung chuyển
                    (staging), nơi một file .md chỉ là thứ user vừa dán vào chat, không phải note.
+    giu_path     : set đường dẫn TUYỆT ĐỐI không bao giờ được xoá, bất kể tuổi hay trần.
+
+    Vì sao có giu_path: vùng cache "cái gì cũng biến mất được" chỉ đúng khi KHÔNG AI trỏ vào
+    nó. Một tài liệu gắn vào project thì có người trỏ - xoá nó đi là để lại một hàng trong
+    khung Project dẫn tới hư không, ghim nó thì prompt nạp rỗng. Luật tuổi không biết điều đó
+    nên phải nói cho nó biết.
 
     Trả list path theo ĐÚNG thứ tự xoá: nhóm quá hạn trước, rồi nhóm bị trần cắt (cũ tới mới).
     """
+    khoa = {os.path.normcase(os.path.abspath(x)) for x in (giu_path or ())}
     giu = [t for t in entries
-           if not (keep_md and str(t[0]).lower().endswith(".md"))]
+           if not (keep_md and str(t[0]).lower().endswith(".md"))
+           and os.path.normcase(os.path.abspath(str(t[0]))) not in khoa]
     xoa, con_lai = [], []
     if max_age_days and max_age_days > 0:
         han = now - max_age_days * 86400.0
@@ -61,8 +69,13 @@ def plan_deletions(entries, now, max_age_days, max_mb, keep_md=True):
 _ATTACH_RE = r"^(\d+\s*[-_.]\s*)?attachments$"
 
 
-def media_dirs(brain_root):
-    """Các thư mục VÙNG CACHE cấp 1 của brain: attachments (mọi biến thể tên) + inbox."""
+def media_dirs(brain_root, attachments=True):
+    """Các thư mục VÙNG CACHE cấp 1 của brain: attachments (mọi biến thể tên) + inbox.
+
+    attachments=False: CHỈ inbox. Dùng khi bật đồng bộ ảnh lên GitHub (backup.sync_images) -
+    lúc đó attachments/ không còn là cache dùng-xong-vứt nữa mà là thứ người dùng muốn GIỮ:
+    để máy dọn xoá ảnh quá hạn thì lượt sync sau ghi nhận "đã xoá" rồi lan sang mọi máy,
+    ảnh backup tự biến mất đúng hạn. inbox thì vẫn dọn - nó không bao giờ được sync."""
     ra = []
     try:
         with os.scandir(brain_root) as it:
@@ -73,7 +86,9 @@ def media_dirs(brain_root):
                 except OSError:
                     continue
                 ten = d.name.strip()
-                if ten.lower() == "inbox" or re.match(_ATTACH_RE, ten, re.IGNORECASE):
+                if ten.lower() == "inbox":
+                    ra.append(d.path)
+                elif attachments and re.match(_ATTACH_RE, ten, re.IGNORECASE):
                     ra.append(d.path)
     except OSError:
         pass
@@ -122,14 +137,16 @@ def _xoa(can_xoa, kich_thuoc):
     return {"files": n, "bytes": b}
 
 
-def sweep(brain_root, max_age_days=30, max_mb=300, now=None):
+def sweep(brain_root, max_age_days=30, max_mb=300, now=None, attachments=True, giu_path=None):
     """Dọn vùng cache của MỘT brain. CHẶN vì đụng đĩa - phải gọi qua asyncio.to_thread.
 
+    attachments=False (đang bật đồng bộ ảnh): chỉ dọn inbox, xem media_dirs.
+    giu_path: đường dẫn tuyệt đối phải giữ (tài liệu đang gắn vào project) - xem plan_deletions.
     Trả {"files": số file đã xoá, "bytes": tổng byte đã giải phóng}.
     """
-    entries = scan(media_dirs(brain_root))
+    entries = scan(media_dirs(brain_root, attachments=attachments))
     can_xoa = plan_deletions(entries, float(now if now is not None else time.time()),
-                             max_age_days, max_mb)
+                             max_age_days, max_mb, giu_path=giu_path)
     return _xoa(can_xoa, {t[0]: t[1] for t in entries})
 
 

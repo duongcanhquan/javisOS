@@ -1,5 +1,7 @@
 # Việc (Kanban): giao goal cho AI chạy nền
 
+***Tiếng Việt** · [English](en/21-kanban-work.md)*
+
 Trang **Việc** là chỗ bạn giao một mục tiêu ("goal") rồi để Javis tự làm ở nền, không cần bạn ngồi canh khung chat. Bạn viết một câu mô tả việc cần xong, AI tự chuẩn hoá thành đặc tả, tự chọn loại worker, tự nhận việc và chạy; xong thì bắn kết quả về Telegram cho đúng người đã giao.
 
 Điểm dễ hiểu nhầm nhất: đây **không phải bảng Trello kéo thả**. Bạn không kéo thẻ, không bấm chạy từng thẻ. Màn hình này để **quan sát hàng đợi và xử lý ngoại lệ**, phần chạy do dispatcher lo.
@@ -186,6 +188,20 @@ Ai nhận tin, nhận ở đâu:
 - **Không rõ ai giao** (tạo tay ngoài chat) → báo về **ID Telegram đầu tiên** trong whitelist; chưa bật bot thì bước này bỏ qua, việc vẫn chạy bình thường. Xem [Kênh Telegram](11-telegram.md).
 
 > Trước 0.9.289 chỉ có đường Telegram. Ai giao việc trên web mà chưa đấu Telegram thì giao xong là im lặng tuyệt đối - không trạng thái, không hồi âm. Giờ chat web là một kênh nhận báo thật, không cần Telegram nữa.
+
+### Việc nào làm chuông kêu (từ 0.52.7)
+
+Chuông **Thông báo** trên thanh trên chỉ nổi chấm đỏ (và chỉ đẩy thông báo ra ngoài trình duyệt) cho việc **cần bạn ra tay**:
+
+| Việc kết thúc ở | Kết quả về khung chat | Vào hòm thư | Chấm đỏ + thông báo đẩy |
+|---|---|---|---|
+| Bị chặn | có | có | **có** |
+| Chờ duyệt ngoại lệ | có | có | **có** |
+| Chạy xong trót lọt | có | có | không |
+
+Việc chạy xong vẫn nằm nguyên trong danh sách chuông để bạn mở ra xem lại, chỉ là nó không gọi bạn dậy: kết quả đã rơi thẳng vào đúng khung chat đã giao việc rồi. Đổi cách này vì chủ repo báo (01/09/2026) chuông kêu liên hồi giữa lúc đang trò chuyện.
+
+Đánh đổi cần biết: lúc bạn đi vắng, một việc chạy xong sẽ **không** có gì nhắc. Muốn xem thì mở chuông, hoặc mở lại cuộc trò chuyện đã giao việc.
 
 ## Thấy việc nền đang chạy ngay trong khung chat
 

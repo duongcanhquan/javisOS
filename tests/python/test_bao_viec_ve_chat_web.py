@@ -12,6 +12,10 @@ Hai gốc rễ, test này canh cả hai:
      thêm là sẽ NGỒI ĐỢI rồi tổng hợp - điều nó không làm được: lượt trả lời đóng lại ngay
      sau khi nó nói xong, không ai đánh thức nó dậy.
 
+Cập nhật 0.49.0: hòm thư (inbox.py) trở thành kênh mặc định và LUÔN có, nên `_notify_owner`
+đổi nghĩa - nó trả True khi tin đã tới được người dùng, kể cả khi Telegram tắt. Phần "gửi
+qua kênh nào, hỏng vì sao" tách xuống `_gui_qua_kenh`, và mấy ca dưới đo ở đúng tầng đó.
+
 Chạy:
     .venv/Scripts/python.exe tests/python/test_bao_viec_ve_chat_web.py
 """
@@ -69,18 +73,55 @@ async def _run():
     check("kết quả lưu vào kho phiên (F5 vẫn còn)",
           bool(msgs) and msgs[-1]["role"] == "assistant" and "So sánh skill" in msgs[-1]["content"])
 
-    # Không rõ người nhận: kênh ngoài hỏng nhưng hòm thư vẫn giữ tin (0.49+).
-    ok2, err2 = await main._notify_owner("", "báo linh tinh")
-    check("không rõ người nhận: vẫn lưu hòm thư và coi là báo được",
-          ok2 is True and err2 == "")
-    ok3, err3 = await main._notify_owner(main.WEB_CHAT_PREFIX, "rỗng")
-    check("tiền tố web thiếu mã phiên: hòm thư vẫn giữ, không im lặng",
-          ok3 is True and err3 == "")
+    # HỢP ĐỒNG ĐỔI Ở 0.49.0. Trước đây "không có kênh" = mất tin, nên `_notify_owner` phải
+    # trả False để chỗ gọi còn biết mà kêu. Từ khi có HÒM THƯ thì tin không mất nữa: nó nằm
+    # ở server, mở dashboard là thấy. Vì vậy `_notify_owner` giờ trả True (đã tới được người
+    # dùng), còn phần "kênh nào hỏng vì sao" chuyển xuống `_gui_qua_kenh`.
+    #
+    # Ý ĐỊNH GỐC của mấy ca dưới vẫn được canh nguyên vẹn, chỉ đo ở đúng tầng của nó: tầng
+    # KÊNH không được bịa thành công khi chẳng gửi đi đâu cả.
+    ok2, err2 = await main._gui_qua_kenh("", "báo linh tinh")
+    check("kênh: không rõ người nhận + Telegram tắt -> thất bại có lý do",
+          ok2 is False and "Telegram" in err2)
+    ok3, err3 = await main._gui_qua_kenh(main.WEB_CHAT_PREFIX, "rỗng")
+    check("kênh: tiền tố web: nhưng thiếu mã phiên -> thất bại, không im lặng",
+          ok3 is False and "phiên chat web" in err3)
 
     # Telegram vẫn là đường riêng: chat_id thường KHÔNG được coi là phiên web.
-    ok4, err4 = await main._notify_owner("123456789", "gửi telegram")
-    check("chat_id Telegram khi kênh tắt: hòm thư giữ tin, không báo failed",
-          ok4 is True and err4 == "")
+    ok4, err4 = await main._gui_qua_kenh("123456789", "gửi telegram")
+    check("kênh: chat_id Telegram vẫn đi nhánh Telegram như cũ",
+          ok4 is False and "Telegram" in err4)
+
+    # Và đây là điều MỚI phải giữ: kênh hỏng nhưng hòm thư nhận được thì lượt báo vẫn tính
+    # là đã tới. Thiếu luật này thì nhắc hẹn trên máy chưa đấu Telegram bị ghi "failed"
+    # trong khi nội dung đang nằm sẵn trong hòm - vô lý với người dùng.
+    ok5, err5 = await main._notify_owner("", "hòm thư đỡ")
+    check("hòm thư đỡ được lượt báo khi không có kênh nào", ok5 is True and err5 == "")
+
+    # ─── Báo LẶNG (0.52.7): việc chạy xong trót lọt thì đừng gọi người dùng dậy ───
+    # Chủ repo chốt 01/09/2026 sau khi chuông kêu liên hồi giữa lúc đang chat. Ranh giới:
+    # chỉ việc BỊ CHẶN / CHỜ DUYỆT mới kêu, vì đó là thứ cần anh ra tay. Việc xong thì kết
+    # quả vẫn phải đi qua kênh và vẫn phải vào hòm - chỉ là vào ở dạng ĐÃ ĐỌC.
+    import inbox as inbox_mod
+
+    truoc = inbox_mod.so_chua_doc()
+    ok6, _ = await main._notify_owner(main.WEB_CHAT_PREFIX + SID, "✅ Việc 'Lấy bảng giá' đã xong.",
+                                      quiet=True)
+    check("báo lặng vẫn tính là đã tới người dùng", ok6 is True)
+    check("báo lặng KHÔNG cộng thêm số chưa đọc (chuông không nổi chấm đỏ)",
+          inbox_mod.so_chua_doc() == truoc)
+    thu = inbox_mod.danh_sach(5)
+    check("nhưng thư VẪN nằm trong hòm để mở ra xem lại",
+          bool(thu) and "Lấy bảng giá" in (thu[0].get("body") or ""))
+    check("và thư đó được đánh dấu đã đọc sẵn", bool(thu) and thu[0].get("read") is True)
+    check("nội dung vẫn rơi vào ĐÚNG khung chat đã giao việc",
+          any("Lấy bảng giá" in (m.get("content") or "") for m in store.get_messages(SID)))
+
+    # Ngược lại: mặc định (việc kẹt / chờ duyệt) phải KÊU như cũ. Đây là vế dễ mất nhất khi
+    # ai đó sau này đổi mặc định của `quiet` cho gọn.
+    truoc2 = inbox_mod.so_chua_doc()
+    await main._notify_owner(main.WEB_CHAT_PREFIX + SID, "⚠ Việc 'Ramp ngân sách' bị chặn.")
+    check("việc kẹt VẪN cộng số chưa đọc (vẫn kêu)", inbox_mod.so_chua_doc() == truoc2 + 1)
 
 
 asyncio.run(_run())
@@ -121,11 +162,13 @@ check("đang xem phiên khác thì vẫn làm tươi Lịch sử để phiên đ
 
 # ─────────── 4. System prompt ───────────
 check("system prompt nêu 3 kênh nhận báo theo nơi giao việc",
-      '"web:<mã phiên chat>"' in CLAUDE_MD and "chat_id của người đang nói" in CLAUDE_MD)
+      '"web:<chat session id>"' in CLAUDE_MD
+      and "chat_id of the person speaking" in CLAUDE_MD)
 check("system prompt cảnh báo bỏ trống là mất hút khi chưa đấu Telegram",
-      "mất hút" in CLAUDE_MD)
+      "nothing goes missing" in CLAUDE_MD)
 check("system prompt cấm hứa ngồi đợi tổng hợp",
-      re.search(r"KHÔNG hứa .*đợi việc chạy xong rồi tổng hợp", CLAUDE_MD) is not None)
+      re.search(r"NEVER promise .*wait for the job to finish and then summarize", CLAUDE_MD)
+      is not None)
 
 
 if fails:

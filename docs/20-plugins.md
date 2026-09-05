@@ -1,8 +1,10 @@
 # Plugins: thêm công cụ native cho mọi engine
 
+***Tiếng Việt** · [English](en/20-plugins.md)*
+
 Plugin là cách thêm **công cụ mới** cho Javis mà không phải sửa mã nguồn: một thư mục Python thả vào đúng chỗ, Javis tự nạp, và từ đó mọi engine (Claude Code, ChatGPT/Codex, OpenRouter, OpenAI, Anthropic, Gemini) đều gọi được công cụ đó.
 
-Trang này hướng dẫn đọc danh sách plugin trong dashboard, bật/tắt từng cái, hiểu 7 plugin có sẵn, và cách tự cài plugin riêng kèm rào an toàn bắt buộc phải biết trước khi làm.
+Trang này hướng dẫn đọc danh sách plugin trong dashboard, bật/tắt từng cái, hiểu 11 plugin có sẵn, và cách tự cài plugin riêng kèm rào an toàn bắt buộc phải biết trước khi làm.
 
 ## Tính năng này là gì
 
@@ -107,6 +109,7 @@ Nếu tool bị chặn vì mức quyền, câu trả lời sẽ chứa nguyên v
 | Giao việc Kanban | `javis-task` | `javis_task` | ghi (safe) | Bật |
 | Đấu thêm MCP | `javis-connect` | `javis_add_mcp` | ghi (safe) | Bật |
 | Tạo ảnh (ChatGPT) | `image-chatgpt` | `javis_generate_image` | ghi (safe) | Bật |
+| Đọc video YouTube | `youtube-read` | `javis_youtube_read` | chỉ đọc | Bật |
 | Meta Ads (Graph API) | `meta-ads-graph` | `meta_ads_accounts`, `meta_ads_insights`, `meta_ads_campaigns`, `meta_ads_get` | chỉ đọc | Bật |
 | Facebook Trang (Graph API) | `meta-pages-graph` | `fb_pages_list`, `fb_page_posts`, `fb_page_comments`, `fb_page_post`, `fb_page_photo`, `fb_page_album`, `fb_page_video`, `fb_page_edit`, `fb_page_delete`, `fb_page_reply` | toàn quyền | Bật |
 | Theo dõi Facebook (Apify) | `fb-monitor-apify` | `fb_monitor` | chỉ đọc | Bật |
@@ -121,6 +124,7 @@ Từng cái làm được gì:
 - **Thời gian & ngày (VN)**: cho Javis biết hôm nay là ngày nào, mấy giờ, thứ mấy theo giờ Việt Nam (UTC+7), và tính ngày tương đối ("3 ngày nữa", "tuần trước"). Thuần thư viện chuẩn, không cần mạng. Đây cũng là plugin mẫu đơn giản nhất để đọc khi bạn muốn tự viết plugin.
 - **Đặt việc định kỳ & nhắc hẹn**: cho phép tạo, liệt kê, huỷ việc định kỳ và nhắc hẹn **ngay trong câu chat**, khỏi gõ YAML tay. Việc lặp và bền được ghi ra `Javis/loops/<slug>.md` (mở sửa được trong Obsidian); nhắc một lần hoặc lịch cron thì vào kho nhắc hẹn. Chi tiết ở [Việc định kỳ & Nhắc hẹn](08-viec-dinh-ky.md).
 - **Tạo ảnh (ChatGPT)**: tạo ảnh từ mô tả bằng chính **gói ChatGPT** bạn đang đăng nhập (OAuth), không cần khoá API OpenAI. Ảnh lưu vào `attachments/` của brain rồi nhúng thẳng vào câu trả lời. Cần đã kết nối ChatGPT ở trang **Models**; chưa kết nối thì tool trả về câu "Chưa kết nối ChatGPT (OAuth). Vào trang Model đăng nhập ChatGPT rồi thử lại...".
+- **Đọc video YouTube**: dán link video vào chat rồi nhờ tóm tắt. Plugin lấy **phụ đề thật** của video (đường mà trình phát YouTube dùng) nên Javis đọc được lời thoại chứ không đoán theo tiêu đề. Không cần khoá API, không cần đăng nhập YouTube, chạy trên **mọi engine** kể cả engine API vốn không mở được URL. Khi YouTube chặn máy chủ, nó tự đổi lần lượt qua sáu kiểu trình phát rồi mới nhờ tới yt-dlp, nên vượt được phần lớn ca bị nghi là robot. Video không có phụ đề, video riêng tư hoặc bị YouTube chặn thì tool nói thẳng lý do để Javis khỏi bịa. Video dài bị cắt bớt thì nhờ "đọc tiếp" là nó đọc khúc sau. Chi tiết ở [Trò chuyện](02-tro-chuyen-va-giong-noi.md).
 - **Luật cho từng cuộc chat Zalo**: đặt cách ứng xử cho từng nhóm hoặc từng khách trên Zalo bằng lời (im lặng, báo mọi tin, báo theo từ khoá, nhắc khi quên trả lời quá N phút). Luật ghi ra `Javis/zalo/<slug>.md` nên xem và sửa lại được.
 - **Gửi tin Zalo an toàn**: gửi tin Zalo thay cho tool thô. Nó khoá cứng vào tài khoản đang nghe và chỉ gửi được cho cuộc chat trong danh sách đang theo dõi; tên khớp nhiều người thì từ chối và bắt hỏi lại. Hai plugin Zalo dùng chung với [Kênh Zalo](12-zalo.md).
 - **Meta Ads (Graph API)**: đọc số liệu quảng cáo Facebook/Instagram (danh sách tài khoản ads, chiến dịch, hiệu suất). **Chỉ đọc, không tiêu tiền.** Cần đã đấu kết nối "Meta Ads (tự tạo app - Graph API)" ở trang Kết nối.
@@ -129,6 +133,28 @@ Từng cái làm được gì:
 - **Nhật ký dùng tool**: đếm số lần **mỗi** tool được engine gọi (qua hook `post_tool_call`) rồi cho xem thống kê tool hay dùng nhất. Đây là ví dụ minh hoạ cơ chế hook, nên mặc định để tắt; bật ở trang Plugins, chat vài lượt có gọi tool, rồi hỏi Javis "tool nào hay dùng nhất".
 
 Lưu ý về cột "Quyền tối thiểu": đó là mức khai báo cho **cả plugin** và là cái hiển thị trên thẻ. Từng tool bên trong vẫn có mức riêng. Ví dụ `meta-pages-graph` ghi "toàn quyền" trên thẻ, nhưng ba tool đọc bài/bình luận của nó chỉ cần mức chỉ-đọc, còn các tool đăng và xoá mới cần toàn quyền.
+
+## Plugin đến từ một Gói
+
+Từ 0.55.23, một **Gói** cài ở trang **Năng lực > Kho cài đặt** mang theo được cả plugin, tức cả công cụ mới, chứ không chỉ dịch vụ kết nối. Thẻ của chúng hiện ở trang này với nhãn nguồn **Từ gói**.
+
+Khác ba nguồn kia ở ba điểm:
+
+- **Bật, tắt và gỡ đều làm ở Kho cài đặt**, không làm ở đây. Plugin đi theo cả gói, nên tách ra bật lẻ chỉ gây nhầm. Thẻ ở trang này có nút dẫn thẳng sang đó.
+- **Không cần biến môi trường `JAVIS_ENABLE_USER_PLUGINS`.** Gói đi qua trình cài, tức bạn đã xem màn hình liệt kê từng tệp mã rồi mới bấm đồng ý. Đó là cùng một loại bảo đảm mà biến môi trường cung cấp, chỉ theo từng gói thay vì bật tắt tất cả.
+- **Mã trong gói bị khoá theo nội dung.** Lúc cài, Javis ghi lại một dấu vân tay của toàn bộ mã trong gói. Mỗi lần nạp, nó tính lại và đối chiếu: lệch một byte là plugin **không chạy**, và thẻ nói rõ "mã trong gói đã đổi so với lúc bạn đồng ý cài". Muốn dùng tiếp thì cài lại ở Kho cài đặt để xem và xác nhận lại.
+
+Lưu ý khi tự sửa: mở tệp `plugin.py` của một gói bằng trình soạn thảo trên Windows rồi lưu là đủ để dấu vân tay lệch, vì nhiều trình soạn thảo tự đổi ký tự xuống dòng. Đó không phải lỗi, chỉ là nội dung tệp thật sự đã khác. Sửa plugin thì nên sửa trong thư mục plugin của bạn chứ không sửa trong gói.
+
+Một gói **không được** mang plugin trùng tên với plugin có sẵn của Javis. Trình cài từ chối ngay và nói tên bị trùng, để không có chuyện một gói lặng lẽ thay thế công cụ lõi.
+
+## Gỡ hẳn một plugin khỏi danh sách
+
+Nút **Tắt** giữ thẻ lại cho bạn nhìn; nút **Gỡ** thì cho nó biến khỏi danh sách chính. Cả hai đều làm tool của plugin biến mất khỏi mọi bộ não, khác nhau ở chỗ bạn còn định dùng lại hay không.
+
+Gỡ **không xoá tệp** trong bản cài. Javis chỉ ghi nhớ lựa chọn đó vào thư mục state, nên cập nhật Javis lên bản mới không làm plugin mọc lại, mà cài lại thì chỉ mất một cú bấm ở mục **Đã gỡ** nằm cuối trang (mặc định gập).
+
+Áp cho cả plugin **Có sẵn** đi kèm Javis. Đây là cách dọn bộ mặc định cho gọn nếu bạn không dùng tới.
 
 ## Mức quyền tối thiểu và chế độ chạy
 

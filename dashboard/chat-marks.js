@@ -15,6 +15,13 @@
  *    Là con của nó thì thanh đi theo, khỏi phải dựng lại; là lớp fixed thì phải tự dò xem khung
  *    chat vừa nhảy đi đâu, mà nhịp dò với nhịp chuyển trang không bao giờ khớp hẳn.
  *
+ *    NGOẠI LỆ (02/09): nút "≡ n/m" trên ĐIỆN THOẠI đứng ở HÀNG NHÃN phía trên khung chat
+ *    (cạnh nút phóng to) chứ không dính góc khung cuộn. Bản đầu để nó sticky ở góc trên-phải
+ *    trong khung: bong bóng của mình căn phải nên cuộn tới đâu nút đè lên chữ tới đó (chủ repo
+ *    gửi ảnh), trong khi hàng nhãn ngay trên lại thừa chỗ. Vì thế mỗi lượt dựng phải hỏi lại
+ *    "nút đang đứng đúng chỗ chưa" (choNut) thay vì tin rằng nó vẫn là con của #chatArea; và
+ *    theo dõi thêm class của body để đổi trang (Trò chuyện mượn #chatArea) cũng dựng lại.
+ *
  * 3. Chèn LƯỜI, và gỡ ra khi không đủ mốc. `.transcript:empty::after` là câu mời "Nói hoặc gõ
  *    để bắt đầu" - chèn một node con thường trực là #chatArea không còn :empty và câu đó biến
  *    mất im lặng. Đây là cái bẫy đã ghi sẵn trong app.js cho #newMsgBtn; giẫm lại thì phí.
@@ -39,6 +46,16 @@
   // mỗi dòng đủ to để chạm.
   function hepQua() {
     try { return window.innerWidth < HEP; } catch (e) { return false; }
+  }
+
+  // Chỗ đứng của nút "≡ n/m" trên điện thoại: hàng nhãn ngay trên khung chat. Ở màn Javis là
+  // nhóm nút .panel-acts (cạnh nút phóng to), ở trang Trò chuyện là thanh .chatpage-bar. Tìm
+  // theo KHUNG ĐANG CHỨA #chatArea chứ không theo id cố định, vì node chat bị mượn qua lại
+  // giữa hai trang. Không thấy thì rơi về góc khung như cũ - còn hơn không có nút.
+  function choNut() {
+    if (!chatArea || !chatArea.closest) return null;
+    var khung = chatArea.closest(".hud-right, .chatpage-main");
+    return khung ? khung.querySelector(".panel-label .panel-acts, .chatpage-bar") : null;
   }
 
   function gonChu(s) {
@@ -87,8 +104,22 @@
     return boc;
   }
 
-  function moHop() {
+  // Đang bôi đen chữ thì ĐỪNG mở danh sách. Hai dấu hiệu, phải xét cả hai:
+  //   - `e.buttons` khác 0: chuột đang giữ, tức cú quét còn đang diễn ra.
+  //   - vùng chọn hiện có không rỗng: quét xong rồi, người ta đang rê tới nút Copy hoặc chuẩn
+  //     bị Ctrl+C; bung một hộp che ngang lúc đó cũng phá đúng thao tác đó.
+  // Thiếu bước này thì mọi lần copy một câu cũ đều bị danh sách nhảy ra chắn (báo 2026-08-31).
+  function dangBoiDen(e) {
+    if (e && typeof e.buttons === "number" && e.buttons !== 0) return true;
+    try {
+      var sel = window.getSelection();
+      return !!(sel && !sel.isCollapsed && String(sel).trim());
+    } catch (err) { return false; }
+  }
+
+  function moHop(e) {
     clearTimeout(choDong);
+    if (dangBoiDen(e)) return;
     if (!hop || !moc.length) return;
     hop.hidden = false;
     // Đưa mục đang đọc vào tầm mắt: hội thoại dài thì danh sách tự cuộn, mở ra mà nó nằm ở
@@ -177,7 +208,8 @@
     // Đổi chế độ (xoay ngang máy, kéo cửa sổ) phải dựng lại từ đầu: hai chế độ có cấu trúc
     // node khác hẳn nhau, giữ lại bản cũ là còn nguyên dãy vạch trên điện thoại.
     var van = (hep ? "m|" : "d|") + moc.length + "|" + moc.map(function (m) { return m.text; }).join("");
-    var daGan = boc && boc.parentNode === chatArea;
+    var chu = (hep && choNut()) || chatArea;   // nút điện thoại đứng ở hàng nhãn, dãy vạch ở trong khung
+    var daGan = boc && boc.parentNode === chu;
     if (van === vanTruoc && daGan) { doCao(); capNhatDangDoc(); return; }
     vanTruoc = van;
 
@@ -210,7 +242,16 @@
 
     // Chèn LÊN ĐẦU: app.js chèn tin mới vào trước #newMsgBtn nên nó luôn ở cuối; để thanh
     // ở đầu thì hai bên không giành chỗ. Sticky vẫn bám đúng vì phần tử neo theo cả vùng cuộn.
-    if (!daGan) chatArea.insertBefore(boc, chatArea.firstChild);
+    if (!daGan) {
+      if (chu === chatArea) chatArea.insertBefore(boc, chatArea.firstChild);
+      // Hàng nhãn: đứng TRƯỚC hai nút phóng to/thu (nhóm .panel-acts đã dồn về mép phải), còn
+      // trên thanh của trang Trò chuyện thì về cuối, sau chip project.
+      else if (chu.classList.contains("panel-acts")) chu.insertBefore(boc, chu.firstChild);
+      else chu.appendChild(boc);
+    }
+    // Khung chat chừa lề phải cho dải mốc - chỉ khi dải THẬT SỰ đang hiện, và chỉ ở chế độ
+    // máy tính (điện thoại là một nút góc trên, không có dải nào để né).
+    try { chatArea.classList.toggle("cm-co-thanh", !hepQua()); } catch (e) {}
     doCao();
     capNhatDangDoc();
   }
@@ -261,6 +302,8 @@
   function thaoRa() {
     dongTam();
     if (boc && boc.parentNode) boc.parentNode.removeChild(boc);
+    // Gỡ luôn lề phải: giữ lại là khung chat chừa một khoảng trắng cho một dải không còn ở đó.
+    try { if (chatArea) chatArea.classList.remove("cm-co-thanh"); } catch (e) {}
     vanTruoc = "";
     moc = [];
   }
@@ -289,6 +332,25 @@
       choScroll = requestAnimationFrame(function () { choScroll = 0; capNhatDangDoc(); });
     }, { passive: true });
     window.addEventListener("resize", hen);
+    // Đổi trang (vào/ra Trò chuyện) không phải là childList của #chatArea - node bị mượn đi
+    // nguyên khối - nhưng nút điện thoại đứng NGOÀI khung nên phải theo sang trang mới. Trang
+    // Trò chuyện bật/tắt class on-chat ở body: nghe đúng cái đó, không cần dò gì thêm.
+    try {
+      new MutationObserver(hen).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    } catch (e) {}
+    // Trong lúc giữ chuột kéo, dải mốc trong suốt với chuột (xem .cm-dang-chon trong CSS).
+    // Nghe ở DOCUMENT chứ không ở chatArea: cú quét thường bắt đầu trong bong bóng rồi đi ra
+    // ngoài khung, mà `mouseup` lúc đó rơi ngoài chatArea - nghe hẹp thì class không bao giờ
+    // được gỡ và dải mốc chết hẳn, không bấm được nữa.
+    document.addEventListener("mousedown", function (e) {
+      if (e.button !== 0 || !chatArea) return;
+      // Bấm vào chính dải mốc thì KHÔNG phải bôi đen - đó là cú bấm để nhảy về câu cũ.
+      if (boc && e.target && boc.contains(e.target)) return;
+      chatArea.classList.add("cm-dang-chon");
+    }, true);
+    document.addEventListener("mouseup", function () {
+      if (chatArea) chatArea.classList.remove("cm-dang-chon");
+    }, true);
     // Esc đóng tấm trượt. Máy tính bảng có bàn phím rời cũng rơi vào cỡ màn hẹp này, và một
     // lớp phủ toàn màn hình mà không thoát được bằng Esc thì thành cái bẫy.
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && tam) dongTam(); });

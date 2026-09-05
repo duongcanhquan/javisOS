@@ -1,6 +1,8 @@
-/* quick-settings.js - công tắc BẬT/TẮT đọc trả lời bằng giọng (nhớ qua reload).
-   Đồng bộ 3 chiều: nút loa header (#ttsToggle) ↔ công tắc sidebar (#qsTts) ↔ nút loa trên
-   khung chat (#ttsToggleBar). Tách riêng để không đụng app.js. */
+/* quick-settings.js - trạng thái BẬT/TẮT đọc trả lời bằng giọng (nhớ qua reload).
+   Từ 02/09 loa ĐI THEO MIC: app.js gọi window.JavisTts.set() khi bật/tắt mic, và mic là công
+   tắc duy nhất người dùng bấm. Nút loa trên thanh nhập (#ttsToggleBar) đã bỏ theo yêu cầu
+   chủ repo; nút loa header (#ttsToggle) bỏ từ 0.48.3. Công tắc trong Cài đặt nhanh (#qsTts)
+   giữ lại làm chỗ tắt tiếng thủ công, và nó cũng đi qua applyState. */
 (function () {
   "use strict";
   function $(id) { return document.getElementById(id); }
@@ -9,12 +11,9 @@
   function isOff() { return localStorage.getItem("javis.ttsEnabled") === "0"; }
   function persist(on) { try { localStorage.setItem("javis.ttsEnabled", on ? "1" : "0"); } catch (e) {} }
 
-  // Cập nhật MỌI chỗ hiển thị trạng thái đọc-giọng (header + sidebar + nút trên khung chat).
+  // Cập nhật chỗ hiển thị trạng thái đọc-giọng (Cài đặt nhanh).
   function reflect(on) {
     var qs = $("qsTts"); if (qs) qs.checked = on;
-    var hdr = $("ttsToggle"); if (hdr) hdr.classList.toggle("muted", !on);
-    var bar = $("ttsToggleBar");
-    if (bar) { bar.classList.toggle("muted", !on); bar.title = on ? "Tắt giọng đọc" : "Bật giọng đọc"; }
   }
   function applyState(on) {
     persist(on);
@@ -29,20 +28,11 @@
     var v = getVoice(); if (v) v.ttsEnabled = on;
 
     var qs = $("qsTts"); if (qs) qs.addEventListener("change", function () { applyState(qs.checked); });
-
-    // Nút loa trên khung chat: bấm là bật/tắt luôn (đi qua khung chat / màn Javis đều thấy).
-    var bar = $("ttsToggleBar");
-    if (bar) bar.addEventListener("click", function () { applyState(isOff()); });   // đang OFF → bật, đang ON → tắt
-
-    // Nút loa header: app.js đã tự flip voice.ttsEnabled + class muted → ta chỉ đồng bộ lại + lưu.
-    var hdr = $("ttsToggle");
-    if (hdr) hdr.addEventListener("click", function () {
-      setTimeout(function () {
-        var nowOn = !hdr.classList.contains("muted");
-        persist(nowOn); reflect(nowOn);
-      }, 0);
-    });
   }
+
+  // Cho app.js gọi khi bật/tắt mic: loa đi theo mic (02/09). Đi qua applyState để nút loa,
+  // công tắc Cài đặt nhanh và localStorage cùng đổi - không có đường "đổi lén" nào.
+  window.JavisTts = { set: applyState, isOn: function () { return !isOff(); } };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
   else bind();

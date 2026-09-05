@@ -140,23 +140,27 @@ finally:
     main._zalo_send_to = _that_send
 
 
-# ---- 5. Cửa "đủ điều kiện mới tạo lịch" + kênh ngoài ----
-# Từ 0.49.0 hòm thư luôn có → `_notify_ready` không còn chặn tạo. Phần soi Telegram/Zalo
-# nằm ở `_kenh_con_thieu` (hiển thị ở trang Việc), không phải rào tạo nữa.
-
-san, ly_do = main._notify_ready()
-check("_notify_ready luôn sẵn (hòm thư mặc định)", san is True, (san, ly_do))
+# ---- 5. Soát kênh ngoài: Zalo phải được tính ngang Telegram ----
+#
+# Tới 0.48.x đây là một CÁI CỬA: chưa đấu kênh nào thì `_notify_ready` chặn không cho tạo
+# nhắc hẹn, vì tới giờ chạy xong kết quả sẽ rơi vào hư không. Từ 0.49.0 hòm thư luôn nhận
+# nên cửa đó mở hẳn, và phần soi Telegram/Zalo chuyển sang `_kenh_con_thieu` - dùng để HIỂN
+# THỊ ("chưa có đường tới điện thoại") chứ không chặn nữa.
+#
+# Ý ĐỊNH GỐC của mục này vẫn nguyên: người chỉ đấu Zalo không được coi là "chưa có kênh".
 
 main.cfgmod.read_settings = lambda: {"telegram": {}, "zalo_bot": {}}
-co, thieu = main._kenh_con_thieu()
-check("chưa đấu kênh ngoài nào thì báo thiếu", not co and thieu, (co, thieu))
+co_ngoai, ly_do = main._kenh_con_thieu()
+check("chưa đấu kênh nào -> báo là còn thiếu", not co_ngoai and ly_do, (co_ngoai, ly_do))
 check("lý do nêu CẢ HAI kênh, không chỉ Telegram",
-      "Telegram" in thieu and "Zalo" in thieu, thieu)
+      "Telegram" in ly_do and "Zalo" in ly_do, ly_do)
+san, _ = main._notify_ready()
+check("nhưng KHÔNG còn chặn tạo nhắc hẹn nữa (hòm thư luôn nhận)", san is True, san)
 
 main.cfgmod.read_settings = lambda: {
     "telegram": {}, "zalo_bot": {"enabled": True, "token": "t", "chat_id": "abc"}}
-co, thieu = main._kenh_con_thieu()
-check("chỉ đấu Zalo (không có Telegram) là ĐỦ kênh ngoài", co, (co, thieu))
+co_ngoai, ly_do = main._kenh_con_thieu()
+check("chỉ đấu Zalo (không có Telegram) là ĐỦ, không kêu thiếu", co_ngoai, (co_ngoai, ly_do))
 
 main.cfgmod.read_settings = _read_that
 

@@ -1,5 +1,7 @@
 # Trò chuyện & giọng nói
 
+***Tiếng Việt** · [English](en/02-chat-and-voice.md)*
+
 Đây là chỗ bạn làm việc với Javis nhiều nhất: gõ chữ hoặc nói, Javis trả lời bằng chữ kèm đọc thành tiếng. Trang này mô tả toàn bộ khung chat, từ phím tắt, lệnh gạch chéo, nút bấm dưới mỗi tin nhắn cho tới cách chọn giọng đọc và nhờ Javis tạo ảnh.
 
 Nếu chưa cài đặt xong lần đầu, xem [Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md) trước.
@@ -79,6 +81,8 @@ Nút mic (hình micro to, bên trái thanh nhập) bật **chế độ luôn ngh
 4. Muốn tắt chế độ này: bấm lại nút mic, hoặc nhấn phím **Esc**.
 
 Trong chế độ rảnh tay, khi bạn bắt đầu nói thì Javis tự ngắt phần nó đang đọc để lắng nghe, nên bạn có thể chen ngang bất cứ lúc nào. Cơ chế này đo độ to của giọng qua luồng mic đã khử vọng (nói liên tục khoảng 0,3 giây, to hơn hẳn nền), nên tiếng loa của chính Javis không tự làm nó ngắt lời.
+
+Chen ngang chỉ hoạt động khi **mic đang mở**. Mic đã tắt thì dù Javis đang đọc, một tiếng động trong phòng cũng không bật mic trở lại.
 
 ### Bước 4 - Nghe Javis trả lời bằng giọng
 
@@ -221,6 +225,30 @@ Vài điều cần biết:
 - Tạo ảnh là thao tác mức `safe` (ghi file + tiêu quota), nên việc nền đang chạy ở chế độ chỉ-đọc sẽ không tự tạo ảnh.
 - Ảnh do AI sinh ra mang sẵn dấu nguồn gốc (Content Credentials). Trong **Cài đặt → Giao diện & Brain → Dấu nguồn gốc ảnh AI** có hai nút **Giữ dấu** / **Gỡ dấu**; mặc định là giữ.
 - Ngoài chat, còn gọi trực tiếp được qua `POST /image/generate` với các trường `prompt`, `aspect_ratio`, `quality`, `brain`.
+
+## Tóm tắt video YouTube
+
+Dán link video vào ô chat rồi nói bạn muốn gì, ví dụ "tóm tắt video này giúp mình" hoặc "video này có nói gì về giá không". Javis đọc **phụ đề** của video rồi trả lời dựa trên lời thoại thật, kèm mốc thời gian cho từng ý chính.
+
+Nhận mọi kiểu link: `youtube.com/watch?v=...`, `youtu.be/...`, Shorts, link phát trực tiếp, link có kèm danh sách phát hay mốc thời gian, và cả link nằm lẫn trong câu bạn gõ.
+
+Bên dưới, Javis gọi tool `javis_youtube_read` (plugin đi kèm app `youtube-read`). Đây là thao tác **chỉ đọc** nên việc nền ở chế độ chỉ-đọc cũng tóm tắt được video, và nó chạy trên **mọi engine** - kể cả sáu engine API vốn không tự mở được trang web.
+
+Vài điều cần biết:
+
+- **Video không có phụ đề thì không tóm tắt được.** Javis sẽ nói thẳng như vậy chứ không đoán nội dung từ tiêu đề. Phần lớn video tiếng Việt và tiếng Anh đều có phụ đề máy nghe, nhưng video vừa đăng vài phút thì phụ đề chưa kịp chạy xong.
+- **Video riêng tư, giới hạn tuổi hoặc chặn theo vùng** cũng không đọc được, và Javis nói rõ lý do nào trong số đó.
+- **Câu "YouTube nghi máy chủ này là robot" không phải lỗi video của bạn.** Gốc rễ là **danh tiếng địa chỉ IP**: YouTube đánh dấu dải IP của các nhà cung cấp máy chủ, nên cùng một video mở ở nhà thì được mà chạy trên VPS thì bị hỏi giấy. Javis tự đổi lần lượt qua tám kiểu trình phát rồi mới nhờ tới yt-dlp, nên phần lớn ca đó tự vượt. Gặp câu đó nghĩa là cả chín đường đều bị từ chối.
+  - Thử lại sau vài phút thường là xong, vì YouTube siết theo đợt.
+  - Lặp lại nhiều lần thì IP máy chủ đang bị đánh dấu nặng. Cách dứt điểm là đặt biến môi trường `JAVIS_YOUTUBE_PROXY` trỏ qua một proxy dân cư rồi khởi động lại, xem [Cấu hình .env](16-cau-hinh-env.md). Chỉ riêng lưu lượng YouTube đi qua đó.
+- **Muốn biết chính xác đường nào hỏng** thì chạy ngay trên máy chủ:
+  ```
+  python server/youtube_read.py <link video>
+  ```
+  Nó thử từng đường một rồi in ra bảng: đường nào sống, đường nào chết, YouTube trả lý do gì, yt-dlp đã cài chưa. Một lần chạy là đủ để biết bệnh, khỏi đoán.
+- **Video dài bị cắt bớt.** Một lần đọc lấy tối đa khoảng 40 nghìn ký tự lời thoại (đủ cho video 60-90 phút). Dài hơn thì Javis báo đã đọc tới phút mấy; bạn bảo "đọc tiếp" là nó đọc khúc sau.
+- **Muốn phụ đề tiếng khác** thì nói ra, ví dụ "đọc bản tiếng Anh". Mặc định Javis ưu tiên phụ đề theo ngôn ngữ giao diện, sau đó tới tiếng Anh, và luôn chuộng bản do người làm hơn bản máy nghe vì bản người có dấu câu nên tóm tắt chuẩn hơn.
+- Bản chép lời do máy nghe hay sai tên riêng và số liệu. Con số quan trọng thì nên mở video kiểm lại ở đúng mốc thời gian Javis dẫn.
 
 ## Hàng nút dưới mỗi tin nhắn
 
@@ -390,6 +418,7 @@ Phím tắt:
 ## Sự cố thường gặp
 
 - **Giữ phím Cách không bật mic.** Con trỏ đang nằm trong ô gõ chữ hoặc một ô nhập khác. Bấm ra vùng trống của trang rồi giữ lại phím Cách.
+- **Trong chat hiện ra một câu bạn không hề gõ.** Gần như chắc chắn là mic nghe được tiếng trong phòng (nhạc, TV, người khác nói) rồi chép thành chữ và gửi luôn, vì câu nói xong là Javis gửi ngay chứ không hỏi lại. Nhìn dòng chữ giữa màn hình: còn **ĐANG NGHE** hay **ĐANG NGHE • LUÔN** nghĩa là mic vẫn mở, bấm nút mic hoặc **Esc** để tắt. Từ bản 0.52.6, mic không còn kẹt mở khi bạn bấm rồi thả phím Cách quá nhanh, và Javis đang đọc thành tiếng cũng không tự bật mic lại nữa. Xoá câu lạ đó thì bắt đầu một hội thoại mới; Javis không có cách nào tự gõ vào ô chat của bạn, mọi kết quả chạy nền đều hiện ở bong bóng bên trái.
 - **Trình duyệt không nghe được.** Javis báo "Trình duyệt không hỗ trợ giọng nói. Dùng Chrome/Edge." Hãy mở dashboard bằng Chrome hoặc Edge.
 - **Micro không hoạt động.** Trình duyệt chặn quyền micro. Vào phần quyền của trang trong trình duyệt và cho phép micro, rồi tải lại trang.
 - **Nhấn Esc mà Javis vẫn nói tiếp.** Đúng như thiết kế hiện tại: Esc không dừng lượt nữa. Bấm nút dừng (ô vuông) trên thanh nhập, hoặc bấm nút loa để tắt tiếng.

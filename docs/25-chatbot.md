@@ -1,5 +1,7 @@
 # Chatbot (Bot chuyên trách)
 
+***Tiếng Việt** · [English](en/25-chatbots.md)*
+
 Đem một **Agent** bạn đã tạo ra đứng trước người ngoài: họ nhắn vào một bot riêng trên **Telegram** hoặc **Zalo**, Agent đó trả lời theo đúng quy định bạn viết cho nó, gặp câu ngoài tầm thì chuyển cho người thật.
 
 Dùng được cho bất cứ việc gì bạn phải trả lời đi trả lời lại cho người khác: hỏi đáp về một sản phẩm hay dịch vụ, giải đáp quy định nội bộ cho đồng nghiệp, trực câu hỏi của học viên, hướng dẫn thành viên trong một cộng đồng, sàng lọc câu hỏi trước khi tới tay bạn.
@@ -302,7 +304,7 @@ Thấy dải vàng đó thì chọn một trong hai: đổi engine ở trang **M
 
 ### Đổi bộ não không đổi trải nghiệm
 
-Bot chạy giống hệt nhau trên **mọi bộ não**: Claude Code, ChatGPT, Gemini CLI, OpenRouter, OpenAI API, Anthropic API, Gemini, Groq, DeepSeek, Ollama. Đổi model ở trang Models thì bot đổi theo, nhưng cách nó làm việc không đổi. Khi công cụ gọi được thì mọi engine cầm **đúng một bộ công cụ** - xem lưu ý ở mục trên về gói ChatGPT.
+Bot chạy giống hệt nhau trên **mọi bộ não**: Claude Code, ChatGPT, Grok Build, Antigravity, Gemini CLI, OpenRouter, OpenAI API, Anthropic API, Gemini, Groq, DeepSeek, Ollama (Cloud + Local trên fork). Đổi model ở trang Models thì bot đổi theo, nhưng cách nó làm việc không đổi. Khi công cụ gọi được thì mọi engine cầm **đúng một bộ công cụ** - xem lưu ý ở mục trên về gói ChatGPT.
 
 Làm được vì lượt của bot đi một đường riêng, chung cho mọi engine: cùng đầu bài từ Agent, cùng tài liệu tra sẵn, cùng lịch sử hội thoại, và công cụ (nếu có) lấy từ cùng một chỗ. Khác biệt còn lại đúng bằng khác biệt giữa các model, không phải giữa các đường ống.
 

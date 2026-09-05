@@ -65,6 +65,12 @@ _DEFAULT = {
         # Model phụ cho việc NỀN (loop/metrics/ingest) - alias Claude qua CLI. "" = dùng mặc định
         # (không đổi). Đặt model rẻ (vd haiku) để tiết kiệm khi chạy nền nhiều.
         "auxiliary": {"model": ""},
+        # Model RIÊNG cho kênh Telegram. provider rỗng = THEO model chính (mặc định, không đổi
+        # gì cho người đang dùng). Đặt provider = GHIM: đổi model trên web không kéo Telegram
+        # theo nữa, và /model trên Telegram sửa ô này chứ không sửa model chính. Ra đời 02/09:
+        # chủ repo đổi model liên tục trên web để thử (cả model local chạy 2-8 chữ/giây), mỗi
+        # lần thử là điện thoại của cả nhà bị kéo theo.
+        "telegram": {"provider": "", "model": ""},
         # --- Tiền bạc: những gì Javis KHÔNG tự biết được và phải hỏi người dùng ---
         # Nhà cung cấp không cho lấy giá gói hay hạn mức gói qua API, nên bốn số này là do
         # người dùng khai. Để 0 = chưa khai, và trang Mức dùng phải nói "chưa khai" chứ đừng
@@ -112,10 +118,20 @@ _DEFAULT = {
         # trong khi phần đông người dùng Javis chạy nó trên VPS, nơi "localhost" là chính cái
         # container chứ không phải máy họ.
         "ollama_key": "",
+        # --- Ollama chạy trên MÁY NHÀ (provider 'ollama-local') ---
+        # Ca đặc biệt mà khối chú thích ngay trên vừa từ chối, nay mở ra nhưng KHÔNG bằng cách
+        # giả định "localhost là máy người dùng". Cái Javis lưu là một ĐỊA CHỈ người dùng tự
+        # khai: có thể là máy đang chạy Javis (bản native), có thể là một máy khác trong nhà.
+        # Nhờ vậy bản Docker/VPS cũng dùng được - trỏ sang máy để bàn ở nhà là xong.
+        "ollama_local_endpoint": "",           # vd http://127.0.0.1:11434 hoặc http://192.168.1.20:11434
+        "ollama_local_key": "",                # chỉ cần khi Ollama nấp sau reverse proxy có auth
+        # Cấu hình máy CHẠY OLLAMA, để gợi ý model vừa sức. `source`:
+        #   auto    - Javis tự đọc được (chỉ khi endpoint là localhost VÀ Javis chạy native)
+        #   manual  - người dùng tự khai (mọi trường hợp còn lại)
+        #   unknown - chưa biết, gợi ý ở mức an toàn
+        "ollama_local_specs": {"source": "unknown", "ram_gb": 0, "has_gpu": False, "vram_gb": 0},
         # Provider 'openai-oauth' - đăng nhập ChatGPT Plus/Pro qua device-code (xem openai_oauth.py).
         "openai_oauth": {"access_token": "", "refresh_token": "", "id_token": "", "account_id": "", "plan": "", "expires_at": 0},
-        # Provider 'gemini-cli' - đăng nhập tài khoản Google ngay trên dashboard (xem gemini_oauth.py).
-        "gemini_oauth": {"access_token": "", "refresh_token": "", "email": "", "expires_at": 0},
         # --- Legacy: giữ đồng bộ với main để engine cũ không vỡ (engine/claude_model/openrouter_model) ---
         "engine": "cli",                       # cli (Claude Code, đủ MCP) | openrouter | anthropic-api
         "claude_model": "",                    # "" = mặc định CLI; hoặc opus/sonnet/haiku/fable
@@ -123,11 +139,17 @@ _DEFAULT = {
         # Catalog model theo provider (Telegram /model dùng key 'claude'+'openrouter'; picker dùng cả 3).
         "catalog": {
             # anthropic-cli: danh sách nền, LUÔN dùng được kể cả khi máy không có API key.
-            # /provider/models hỏi API Anthropic bằng `anthropic_api_key` (nếu có) rồi ghi đè
-            # danh sách THẬT vào đây. Không có key thì giữ nguyên các alias dưới đây - chúng
-            # luôn trỏ tới bản mới nhất của từng dòng nên không bao giờ lạc hậu.
-            "claude": ["opus", "sonnet", "haiku", "fable"],
-            "anthropic-api": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+            # /provider/models lấy danh sách THẬT theo hai đường (API key nếu có, không thì đọc
+            # danh mục model nhúng trong chính binary `claude`) rồi ghi lại vào đây. Danh sách
+            # nhớ được KHÔNG đè danh sách này nữa mà HỢP với nó (xem `provider_models_index`),
+            # vì lần ghi đầu tiên từng khoá vĩnh viễn người dùng vào dàn model của ngày hôm đó.
+            # Alias đứng trước vì alias luôn trỏ bản mới nhất của dòng; id đầy đủ đứng sau để
+            # `_claude_api_model` dịch được alias sang tên thật.
+            "claude": ["fable", "opus", "sonnet", "haiku",
+                       "claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+                       "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
+            "anthropic-api": ["claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+                              "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
             "openai": ["gpt-4o", "gpt-4o-mini", "o3-mini"],                        # OpenAI API
             "gemini": ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview"],  # Google Gemini API (picker load động)
             "groq": ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],  # Groq (picker load động)
@@ -135,10 +157,10 @@ _DEFAULT = {
             # Không ghim model Codex: /provider/models lấy catalog LIVE bằng
             # codex app-server model/list và nhớ lại lần thành công gần nhất.
             "openai-oauth": [],
-            # Gemini CLI: model do chinh CLI khai (xem gemini_cli.MODELS_MAC_DINH).
-            "gemini-cli": [],
             # Antigravity CLI: model hoi thang `agy models`, KHONG chep tay bang nao o day.
             "antigravity-cli": [],
+            # Grok Build CLI: cung ly do, /provider/models hoi CLI roi nho lai.
+            "grok-cli": [],
             # GitHub Copilot CLI: model hoi thang `copilot models`, khong chep tay.
             "copilot-cli": [],
             "openrouter": ["openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash-001", "deepseek/deepseek-chat"],
@@ -156,6 +178,9 @@ _DEFAULT = {
     # max_age_days / max_mb <= 0 = tắt luật tương ứng. enabled=False = không dọn gì cả.
     # staging_days: hạn RIÊNG cho STATE_DIR/.staging - nơi file dán vào khung chat rơi xuống.
     # Ngắn hơn hẳn vì đó là chỗ trung chuyển một lượt chat, không ai mở lại bao giờ.
+    # Kho gói: một tệp JSON công khai. Đổi được sang kho khác; rỗng thì dùng kho
+    # mặc định của Javis. Xem docs/dev/pack-store-index.md.
+    "packs": {"store_url": "", "tokens": {}},
     "media": {"enabled": True, "max_age_days": 30, "max_mb": 300, "staging_days": 3},
     "telegram": {"enabled": False, "token": "", "chat_id": ""},
     # Kênh Zalo Bot của CHỦ (API chính thức bot.zaloplatforms.com). Cùng hình dạng với telegram
@@ -168,12 +193,21 @@ _DEFAULT = {
     "zalo_bot": {"enabled": False, "token": "", "chat_id": ""},
     # Backup brain lên GitHub (repo RIÊNG TƯ). token = GitHub PAT (fine-grained, quyền Contents).
     # Lưu trong settings.json (đã gitignored) - KHÔNG bao giờ đẩy lên brain repo.
+    # sync_images: đồng bộ CẢ ẢNH (jpg/png/gif/webp, mỗi ảnh <= trần ~10MB) lên repo backup.
+    # MẶC ĐỊNH TẮT vì git nhớ mãi mãi - bật là ảnh nằm vĩnh viễn trong lịch sử repo, tắt sau
+    # không đòi lại dung lượng. Dùng nhiều máy chung repo thì bật trên MỌI máy (dù đã có rào
+    # chống máy tắt xoá chéo ảnh của máy bật - xem git_brain._sync_mirror). Khi bật, máy dọn
+    # media tự BỎ QUA attachments/ để ảnh vừa backup không bị dọn rồi lệnh xoá lan đi các máy.
     "backup": {"enabled": False, "repo_url": "", "token": "", "branch": "main",
-               "interval_hours": 6, "last_backup": 0.0, "last_status": ""},
+               "interval_hours": 6, "sync_images": False,
+               "last_backup": 0.0, "last_status": ""},
     "dashboard": {
         # graph_enabled=False → vào thẳng Console, KHÔNG dựng đồ thị (nhẹ cho VPS/điện thoại).
         # Frontend cũng tự ép lite-mode khi màn hình hẹp dù cờ này bật.
         "graph_enabled": True,
+        # Vấp "hết lượt gói thuê bao" thì tự chạy lại câu hỏi khi hạn mức mở. Ô trên thẻ hết
+        # lượt trong khung chat đổi giá trị này.
+        "auto_resume": True,
     },
     # MCP do Javis quản lý (registry connection ở mcp_servers.json). strict=True → CHỈ dùng
     # kết nối của Javis (--strict-mcp-config), bỏ qua config MCP sẵn có của máy.
@@ -444,13 +478,16 @@ _DEFAULT = {
 # Backward-compat: giá trị plaintext cũ đọc vẫn ra nguyên văn; lần ghi kế tiếp tự bọc "enc:".
 # Mất file .secret_key → decrypt trả "" (nhập lại key) - đánh đổi giống MCP secret, an toàn hơn lộ key.
 _SECRET_PATHS = (
+    # Token truy cập kho hoặc repo RIÊNG, một khoá cho mỗi tên máy. Dấu * cuối nghĩa là
+    # "mọi khoá của dict này" - cần vì tên máy do người dùng nhập nên không liệt kê trước
+    # được. Xem `_secret_keys`.
+    "packs.tokens.*",
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
-    "model.groq_api_key", "model.deepseek_api_key", "model.ollama_key",
+    "model.groq_api_key", "model.deepseek_api_key", "model.ollama_key", "model.ollama_local_key",
     "model.copilot_github_token",
     "model.openai_oauth.access_token", "model.openai_oauth.refresh_token", "model.openai_oauth.id_token",
     # Gemini CLI (đăng nhập Google ngay trên dashboard). Refresh token ở đây mở được cả gói
     # Code Assist của tài khoản Google, nên nó ngang hàng mọi secret khác trong danh sách.
-    "model.gemini_oauth.access_token", "model.gemini_oauth.refresh_token",
     "telegram.token", "zalo_bot.token", "backup.token", "voice.elevenlabs_key",
     # Secret TOTP là thứ SINH RA mã đăng nhập, nên nó ngang hàng mật khẩu chứ không phải một
     # tuỳ chọn. Ai đọc được nó thì tự sinh mã 2FA mãi mãi, và chủ máy không hề hay biết.
@@ -458,20 +495,30 @@ _SECRET_PATHS = (
 )
 
 
+def _secret_keys(cfg, path):
+    """(dict cha, tên khoá) cho một đường trong _SECRET_PATHS. Có thể trả nhiều cặp.
+
+    Dấu `*` ở cuối nghĩa là MỌI KHOÁ của dict đó. Cần vì có kho secret mà tên khoá do người
+    dùng đặt nên không liệt kê trước được - `packs.tokens.<host>` là ca đầu tiên."""
+    parts = path.split(".")
+    parent = cfg
+    for p in parts[:-1]:
+        if isinstance(parent, dict) and isinstance(parent.get(p), dict):
+            parent = parent[p]
+        else:
+            return []
+    key = parts[-1]
+    if key == "*":
+        return [(parent, k) for k in list(parent)] if isinstance(parent, dict) else []
+    return [(parent, key)] if isinstance(parent, dict) else []
+
+
 def _transform_secret_fields(cfg, fn):
     """Áp fn (encrypt|decrypt) lên các trường secret theo _SECRET_PATHS, tại chỗ. Bỏ qua nếu thiếu."""
     for path in _SECRET_PATHS:
-        parts = path.split(".")
-        parent = cfg
-        for p in parts[:-1]:
-            if isinstance(parent, dict) and isinstance(parent.get(p), dict):
-                parent = parent[p]
-            else:
-                parent = None
-                break
-        key = parts[-1]
-        if isinstance(parent, dict) and isinstance(parent.get(key), str) and parent.get(key):
-            parent[key] = fn(parent[key])
+        for parent, key in _secret_keys(cfg, path):
+            if isinstance(parent.get(key), str) and parent.get(key):
+                parent[key] = fn(parent[key])
     return cfg
 
 
@@ -602,6 +649,55 @@ def _ap_muc_mac_dinh(cfg: dict) -> bool:
     return doi
 
 
+# Provider đã GỠ khỏi app. Cấu hình của người dùng vẫn trỏ vào đây sau khi cập nhật, nên phải
+# NẮN LẠI lúc đọc - không nắn thì hỏng theo kiểu khó lần nhất: `_provider_def()` trả None, thẻ
+# Models không cái nào mang nhãn MAIN, và lượt chat rơi vào nhánh mặc định `kind="cli"` rồi
+# đưa một tên model của nhà khác cho Claude Code. Không có câu lỗi nào, chỉ có câu trả lời lạ.
+#
+# Nắn ở ĐÂY chứ không ở main.py vì `aux_engine` đọc thẳng settings, không đi qua main.
+_PROVIDER_DA_GO = {
+    # 0.50.0: Google ngắt Gemini CLI với MỌI tài khoản cá nhân từ 18/06/2026.
+    "gemini-cli": "Gemini CLI (Google đã ngắt tài khoản cá nhân)",
+}
+_DA_BAO_GO = set()      # chỉ in cảnh báo MỘT lần mỗi tiến trình: read_settings gọi liên tục
+
+
+def _nan_provider_da_go(cfg: dict) -> None:
+    """Đưa mọi tham chiếu tới provider đã gỡ về mặc định của app, và NÓI RA.
+
+    Về mặc định `anthropic-cli` chứ không về provider thay thế (Grok Build): thay thế thì cần
+    cài binary và đăng nhập, mà người dùng chưa làm - đẩy họ sang một thẻ chưa sẵn sàng chỉ đổi
+    một kiểu hỏng lấy một kiểu hỏng khác. Về mặc định thì chat chạy được ngay, rồi họ tự chọn
+    lại trên trang Models.
+    """
+    m = cfg.get("model") or {}
+    main = m.get("main") or {}
+    da_nan = []
+    if main.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model chính", main["provider"]))
+        m["main"] = {"provider": "", "model": ""}
+    aux = m.get("auxiliary") or {}
+    if aux.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model việc nền", aux["provider"]))
+        m["auxiliary"] = {**aux, "provider": "", "model": ""}
+    tg = m.get("telegram") or {}
+    if tg.get("provider") in _PROVIDER_DA_GO:
+        da_nan.append(("model Telegram", tg["provider"]))
+        m["telegram"] = {"provider": "", "model": ""}   # về "theo model chính", không chết kênh
+    # Trường legacy `engine`: bỏ sót nó là `_effective_main` suy ngược ra provider vừa gỡ.
+    if m.get("engine") in _PROVIDER_DA_GO:
+        da_nan.append(("engine (legacy)", m["engine"]))
+        m["engine"] = "cli"
+    for cho, prov in da_nan:
+        khoa = (cho, prov)
+        if khoa in _DA_BAO_GO:
+            continue
+        _DA_BAO_GO.add(khoa)
+        print(f"[config] {cho} đang trỏ vào provider đã gỡ '{prov}' "
+              f"({_PROVIDER_DA_GO[prov]}) - đã đưa về mặc định. Chọn lại ở trang Models.",
+              file=__import__("sys").stderr)
+
+
 def _no_rong_pham_vi_bo_nao(cfg: dict) -> bool:
     """Nới `provider_kinds` của các mảng tiết kiệm về ÍT NHẤT bằng mặc định hiện tại.
 
@@ -661,6 +757,7 @@ def read_settings():
             _deep_merge(cfg, data or {})
     except Exception:
         pass
+    _nan_provider_da_go(cfg)
     _no_rong_pham_vi_bo_nao(cfg)
     _ap_muc_mac_dinh(cfg)
     # Bản fork từng đổi tên hiển thị sang LYON rồi revert: trả về mặc định Javis OS.
@@ -824,13 +921,17 @@ def secret_paths_hong():
     cfg = read_settings()
     hong = []
     for path in _SECRET_PATHS:
-        parts = path.split(".")
-        r, c = raw, cfg
-        for p in parts:
-            r = r.get(p) if isinstance(r, dict) else None
-            c = c.get(p) if isinstance(c, dict) else None
-        if isinstance(r, str) and r.startswith("enc:") and not (c or ""):
-            hong.append(path)
+        # Bung dấu * ra thành từng khoá thật TRƯỚC khi so, nếu không thì mọi khoá dạng
+        # `packs.tokens.<host>` lặng lẽ rơi khỏi phần báo secret hỏng.
+        for _parent, _k in _secret_keys(cfg, path):
+            duong = path[:-1] + _k if path.endswith("*") else path
+            parts = duong.split(".")
+            r, c = raw, cfg
+            for p in parts:
+                r = r.get(p) if isinstance(r, dict) else None
+                c = c.get(p) if isinstance(c, dict) else None
+            if isinstance(r, str) and r.startswith("enc:") and not (c or ""):
+                hong.append(duong)
     return hong
 
 
@@ -1127,12 +1228,28 @@ def get_or_create_setup_token():
         return None
 
 
+def lam_sach_setup_token(raw):
+    """Gọt thứ người ta THẬT SỰ dán vào ô, về đúng chuỗi mã.
+
+    Mã in ra log nằm CÙNG DÒNG với nhãn: "      SETUP TOKEN:  abc123". Bôi đen một dòng trong
+    terminal là dính cả nhãn, và bản cũ so nguyên cục đó với mã thật rồi báo "sai mã" - đúng
+    thao tác tự nhiên nhất lại là thao tác hỏng. Gọt nhãn KHÔNG nới lỏng bảo mật: phần còn lại
+    vẫn phải khớp tuyệt đối, vẫn so bằng compare_digest.
+    """
+    t = (raw or "").strip()
+    for nhan in ("SETUP TOKEN:", "SETUP_TOKEN:", "setup token:", "MÃ THIẾT LẬP:"):
+        if t.upper().startswith(nhan.upper()):
+            t = t[len(nhan):].strip()
+            break
+    return t.strip().strip("'\"`").strip()
+
+
 def check_setup_token(provided):
     try:
         if not _SETUP_TOKEN_PATH.exists():
             return False
         real = _SETUP_TOKEN_PATH.read_text(encoding="utf-8").strip()
-        return bool(real) and secrets.compare_digest(real, (provided or "").strip())
+        return bool(real) and secrets.compare_digest(real, lam_sach_setup_token(provided))
     except Exception:
         return False
 

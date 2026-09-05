@@ -1,11 +1,13 @@
 # Agents & Workflows
 
+***Tiếng Việt** · [English](en/07-agents-and-workflows.md)*
+
 Đây là nơi bạn tạo ra các trợ lý AI chuyên biệt (Agent) và ghép chúng thành dây chuyền làm việc tự động (Workflow). Ví dụ: một agent chuyên nghiên cứu, một agent chuyên viết bài, một agent chuyên kiểm tra lại, nối thành chuỗi "nghiên cứu > viết > kiểm chứng" chạy một phát ra kết quả.
 
 ## Tính năng này là gì
 
-- **Agent** là một "nhân viên AI" có vai trò cố định. Mỗi agent gồm: một cái tên, một mô tả vai trò, một hướng dẫn làm việc chi tiết (system prompt), danh sách kỹ năng (skill) được phép dùng, một **model chạy**, và một **bộ nhớ riêng** tích luỹ theo thời gian. Model chọn được cả **Claude** (Sonnet/Opus/Haiku/Fable - chạy qua Claude Code) lẫn **ChatGPT/Codex** (GPT-5.x - chạy qua Codex CLI, cần đã đăng nhập ChatGPT ở máy/VPS). Cả hai đều đọc/ghi được file trong vault và dùng được MCP. Model của agent được áp THẬT khi workflow chạy.
-  - Lưu ý an toàn: khi workflow chạy **nền tự động** (dispatcher Kanban, chế độ giới hạn công cụ file), agent luôn dùng Claude Code để giữ giới hạn công cụ an toàn - kể cả khi bạn chọn model Codex. Model Codex chỉ áp khi bạn bấm **▶ Chạy** trực tiếp ở trang Workflows.
+- **Agent** là một "nhân viên AI" có vai trò cố định. Mỗi agent gồm: một cái tên, một mô tả vai trò, một hướng dẫn làm việc chi tiết (system prompt), danh sách kỹ năng (skill) được phép dùng, một **model chạy**, và một **bộ nhớ riêng** tích luỹ theo thời gian. Model chọn được từ **mọi nhà cung cấp bạn đã kết nối** ở trang Models: Claude (Claude Code), ChatGPT (Codex), Grok Build CLI, Antigravity CLI, OpenRouter, Anthropic API, OpenAI, Google Gemini, Groq. Danh sách trong ô chọn lấy thẳng từ các nhà đã kết nối, nên kết nối thêm là có thêm lựa chọn. Nhà nào cũng đọc/ghi được file trong vault và dùng được MCP; riêng Claude Code và Codex có thêm lệnh máy cùng khả năng tự mở web. Nhà đã chọn trục trặc lúc chạy thì Javis tự lùi sang bộ não khác thay vì để agent chết lặng. (Ollama chưa chạy được agent nên không xuất hiện ở đây.) Model của agent được áp THẬT khi workflow chạy.
+  - Lưu ý an toàn: khi workflow chạy **nền tự động** (dispatcher Kanban, chế độ giới hạn công cụ file), agent luôn dùng Claude Code để giữ giới hạn công cụ an toàn - kể cả khi bạn chọn nhà khác. Model bạn chọn chỉ áp khi bạn bấm **▶ Chạy** trực tiếp ở trang Workflows.
 - **Workflow** là một chuỗi nhiều bước, mỗi bước giao cho một agent làm một nhiệm vụ. Kết quả bước trước có thể chảy sang bước sau. Bạn có thể gắn thêm một **bước kiểm chứng**: một agent khác đóng vai người soi lỗi, mặc định giả định kết quả đang sai và phải tự chứng minh; nếu chưa đạt, workflow tự sửa lại vài lần.
 - Mọi agent và workflow được lưu thành **file .md trong vault** (bộ não đang chọn), nên bạn xem được, sửa tay được, và Javis cũng tạo được bằng lời qua chat.
 
@@ -45,6 +47,18 @@ Skill hệ thống kèm theo: `lam-video` (catalog chọn pipeline + **cổng br
 
 Ghi chú: hai skill mà agent mẫu tham chiếu (deep-research, salepage-16-buoc) chỉ là tên gán sẵn. Nếu brain của bạn chưa có hai skill đó thì agent vẫn chạy bình thường, chỉ là không có hướng dẫn chuyên sâu kèm theo.
 
+## Tìm nhanh khi đã có nhiều: cột nhóm và ô tìm
+
+Cả hai trang Agents và Workflows đều có một cột **Nhóm** bên trái, kèm số đếm từng nhóm, và một ô tìm ở trên danh sách. Cách dùng giống hệt trang [Skills](06-skills.md):
+
+- Bấm một nhóm để chỉ xem agent (hoặc workflow) thuộc nhóm đó; bấm **Tất cả** để xem lại toàn bộ.
+- Ô tìm lọc theo tên, slug và vai trò (với workflow là tên, slug và mô tả). Gõ không dấu vẫn ra kết quả có dấu: gõ "viet email" tìm được "Viết email".
+- Nhóm và ô tìm cộng dồn với nhau, nên chọn nhóm rồi gõ tìm là lọc trong đúng nhóm ấy.
+- Nút **Chọn tất cả** (để xuất nhiều mục một gói) chỉ lấy những mục **đang hiện**, tức đúng nhóm và đúng ô tìm.
+- Trên điện thoại, cột nhóm nằm thành một dải chip cuộn ngang ở trên đầu danh sách.
+
+Agent và workflow tạo từ trước bản 0.55.38 chưa có nhóm sẽ nằm trong nhóm **Chung**, không mất đi đâu. Muốn xếp lại thì mở ra sửa và điền ô Nhóm.
+
 ## Tạo một Agent (từng bước, qua form)
 
 1. Mở trang **Agents**.
@@ -55,6 +69,7 @@ Ghi chú: hai skill mà agent mẫu tham chiếu (deep-research, salepage-16-buo
 |---|---|---|
 | **Tên** | Tên agent, hiện trên thẻ. Bắt buộc. | VD: "Chuyên viên email" |
 | **Vai trò (mô tả ngắn)** | Một câu mô tả agent làm gì. | VD: "Viết email bán hàng, giọng thân mật" |
+| **Nhóm** | Tên nhóm để dashboard xếp agent vào cùng một cột bên trái. Gõ tên mới hoặc chọn từ nhóm đang có (ô có gợi ý). Để trống thì agent rơi vào nhóm "Chung". | VD: Marketing, Bán hàng, Nội dung |
 | **System prompt (cách làm việc chi tiết)** | Hướng dẫn dài, chi tiết cách agent làm việc, nguyên tắc, đầu ra mong muốn. | VD: quy tắc viết, cấm dùng từ nào, format đầu ra |
 | **Skills** | Danh sách skill có sẵn trong vault, bấm tick để cho agent được dùng. | Chọn skill hợp với vai trò |
 | **Model** | Ô chọn có 8 lựa chọn, xem bảng ngay dưới. | Sonnet cho cân bằng, Opus khi cần suy luận sâu, Haiku khi cần nhanh và rẻ |
@@ -107,6 +122,7 @@ Cần có ít nhất một agent trước khi tạo workflow. Nếu chưa có ag
 3. Điền:
    - **Tên**: tên workflow. Bắt buộc.
    - **Mô tả**: một dòng nói workflow này làm gì (không bắt buộc nhưng nên có; dòng này hiện trên thẻ workflow).
+   - **Nhóm**: tên nhóm để xếp workflow vào cột nhóm bên trái, gõ tên mới hoặc chọn từ nhóm đang có. Để trống thì nó nằm ở nhóm "Chung".
 4. Ở phần **Các bước (mỗi bước = 1 agent · dùng {{input}} và {{prev}})**, mỗi bước là một khối gồm:
    - Ô **Nhiệm vụ** (task): mô tả bước này phải làm gì. Trong nhiệm vụ, bạn dùng được hai biến đặc biệt:
      - `{{input}}` = đầu vào bạn gõ khi bấm chạy workflow.
@@ -143,7 +159,7 @@ Chữ đang gõ dở không bị mất khi bạn gập/mở, đổi thứ tự h
 
 Mỗi workflow hiện dạng một thẻ, gồm:
 
-- Hàng tiêu đề: tên workflow, một huy hiệu trạng thái (**● Sẵn sàng** khi đang bật hoặc **Lưu trữ** khi đang tắt), và số bước dạng "N bước".
+- Hàng tiêu đề: tên workflow, một huy hiệu trạng thái (**● Sẵn sàng** khi đang bật hoặc **Lưu trữ** khi đang tắt), tên nhóm, và số bước dạng "N bước".
 - Dòng mô tả workflow (nếu bạn có điền ô Mô tả).
 - Sơ đồ dây chuyền: các bước đánh số 01, 02, ... Mỗi ô hiện **nhiệm vụ** làm chữ chính, tên agent làm chữ phụ bên dưới. Trong nhiệm vụ, biến được dịch thành lời cho dễ đọc: `{{input}}` hiện là "đầu vào", `{{prev}}` hiện là "kết quả bước trước"; biến nào khác thì hiện thẳng tên biến.
 - Hàng nút: **▶ Chạy**, **Sửa**, **Lưu trữ** hoặc **Kích hoạt**, **⤓ Xuất**, **Xoá**.
@@ -180,7 +196,7 @@ Bạn không bắt buộc phải dùng form. Trong khung trò chuyện với Jav
 - "Tạo workflow nghiên cứu rồi viết bài."
 - "Thêm bước biên tập vào workflow X."
 
-Khi đó Javis tự ghi file .md tương ứng vào vault, tự đặt slug không dấu, tự gán skill hợp lý từ skill có sẵn, và nếu workflow nhắc tới một agent chưa tồn tại thì tạo agent đó trước. Sau khi làm xong, Javis báo ngắn gọn đã tạo/sửa file nào. Bạn quay lại trang Agents hoặc Workflows là thấy ngay, không cần thao tác thêm.
+Khi đó Javis tự ghi file .md tương ứng vào vault, tự đặt slug không dấu, tự xếp nhóm (đọc nhóm đang dùng trong brain rồi lấy nhóm sát nhất), tự gán skill hợp lý từ skill có sẵn, và nếu workflow nhắc tới một agent chưa tồn tại thì tạo agent đó trước. Sau khi làm xong, Javis báo ngắn gọn đã tạo/sửa file nào. Bạn quay lại trang Agents hoặc Workflows là thấy ngay, không cần thao tác thêm.
 
 Cách này tiện khi bạn mô tả được ý định bằng lời nhưng ngại điền form, hoặc muốn chỉnh nhiều bước cùng lúc.
 
@@ -192,8 +208,10 @@ Trong brain theo cấu trúc mới, mỗi agent là một file `agents/<slug>.md
 
 Vì là file văn bản, bạn có thể mở qua [Quản lý tệp tin](05-quan-ly-tep-tin.md) để xem hoặc sửa tay. Cấu trúc file:
 
-- Agent: phần đầu (frontmatter) chứa tên, vai trò, danh sách skill, model; phần thân là system prompt chi tiết. Bộ nhớ riêng và nhật ký chạy nằm ngoài file này, ở `memory/agents/<slug>/`.
-- Workflow: phần đầu chứa tên, trạng thái (active hoặc off), mô tả và danh sách các bước (mỗi bước có agent, task, và tuỳ chọn agent kiểm chứng cùng số lần sửa).
+- Agent: phần đầu (frontmatter) chứa tên, vai trò, nhóm (`group`), danh sách skill, model; phần thân là system prompt chi tiết. Bộ nhớ riêng và nhật ký chạy nằm ngoài file này, ở `memory/agents/<slug>/`.
+- Workflow: phần đầu chứa tên, trạng thái (active hoặc off), nhóm (`group`), mô tả và danh sách các bước (mỗi bước có agent, task, và tuỳ chọn agent kiểm chứng cùng số lần sửa).
+
+Trường `group` dùng chung một cách viết cho cả agent, workflow và skill, nên sửa tay trong file cũng được: ghi `group: Marketing` là lần tải lại trang sẽ thấy nó nằm đúng nhóm. Thiếu trường này thì nó vào nhóm "Chung".
 
 Sửa file rồi lưu thì trang Agents / Workflows tự nhận nội dung mới ở lần tải lại.
 

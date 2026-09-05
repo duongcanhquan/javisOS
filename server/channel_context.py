@@ -83,6 +83,15 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
         "đúng: (1) LÀM LUÔN trong lượt này rồi trả kết quả thật, hoặc (2) giao thành việc nền "
         "(`javis_task` op=add) / nhắc hẹn (`javis_schedule`) rồi nói rõ đã giao gì và kết quả sẽ "
         "về đâu. Không làm được cả hai thì nói thẳng là chưa làm, đừng hẹn.",
+        "- CHỈ GIAO VIỆC NỀN KHI NGƯỜI DÙNG BẢO LÀM. Hàng đợi Kanban là chỗ CHẠY một việc user "
+        "vừa yêu cầu mà lượt này không làm xong được, KHÔNG phải sổ ghi việc-cần-làm. Kế hoạch, "
+        "khuyến nghị và \"bước tiếp theo\" do CHÍNH BẠN vừa nghĩ ra thì viết thành chữ trong câu "
+        "trả lời; user chưa gật thì đó vẫn là đề xuất. Đừng tự đẻ ra việc kiểu \"áp dụng kế hoạch "
+        "vừa trình bày\", \"cập nhật lại timeline\", \"theo dõi rồi nhắc lại\", \"rà soát tiếp\". "
+        "Một lượt bàn bạc bình thường tạo KHÔNG việc nào mới là đúng.",
+        "- Mỗi việc tạo ra đều bắn thông báo về chuông và về đúng khung chat này khi nó xong hoặc "
+        "kẹt, nên tạo thừa là làm phiền user chứ không phải chăm chỉ. Không chắc user có muốn giao "
+        "hay không thì HỎI MỘT CÂU rồi mới tạo, đừng tạo trước cho chắc.",
         "- Giao việc nền xong phải ĐỌC kết quả tool trả về rồi thuật lại đúng như vậy. Nếu tool "
         "báo điều phối đang TẮT thì việc chỉ nằm xếp hàng chứ chưa chạy - phải nói thẳng câu đó "
         "và bảo user bật \"AI tự vận hành\" ở trang Việc, KHÔNG được rút gọn thành \"việc đang "
@@ -362,6 +371,41 @@ def resolve_vault_relative(text: str, vault_root: str) -> list:
         cand = _vault_markdown_candidate(_md_link_target(m), vault_root)
         if cand:
             out.append(cand)
+    return out
+
+
+# URL http/https trong text. Cắt đuôi bằng dấu câu vì model hay viết "xem tại https://a.vn."
+# và dấu chấm cuối câu không thuộc về địa chỉ. Dấu ) đóng cũng cắt: link trong markdown
+# `[tên](https://...)` sẽ nuốt luôn dấu đóng nếu không chặn.
+_URL_RE = re.compile(r"""https?://[^\s<>"'`\)\]}]+""")
+_URL_DUOI = ".,;:!?…\'\"`"
+
+
+def extract_urls(text: str) -> list:
+    """Mọi URL http/https trong text, giữ thứ tự xuất hiện, không lặp."""
+    seen, out = set(), []
+    for m in _URL_RE.finditer(text or ""):
+        u = m.group(0).rstrip(_URL_DUOI)
+        if len(u) < 11 or u in seen:      # "https://a.b" là ngắn nhất còn có nghĩa
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def markdown_targets(text: str) -> list:
+    """Target của mọi link/ảnh markdown trong text, kèm nhãn: [{"raw","nhan","hinh"}].
+
+    Khác `resolve_vault_relative` (chỉ trả path đã resolve được vào vault): ở đây giữ CẢ
+    target chưa resolve được, vì một file đã bị đổi tên hay dời đi vẫn là thứ người dùng
+    cần thấy - biết nó từng tồn tại còn hơn nó biến mất không dấu vết.
+    """
+    out = []
+    for m in _MD_LINK_RE.finditer(text or ""):
+        raw = _md_link_target(m)
+        if not raw:
+            continue
+        out.append({"raw": raw, "nhan": (m.group(2) or "").strip(), "hinh": m.group(1) == "!"})
     return out
 
 

@@ -39,6 +39,8 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 from claude_cli import CodexCLI, claude_engine, find_claude_cli, find_codex_cli, cancel_all, _empty_mcp_file, auth_status as claude_auth_status, auth_login as claude_auth_login, auth_logout as claude_auth_logout, auth_login_ui_start, auth_login_ui_code, mcp_native_add, mcp_native_remove, mcp_native_status, mcp_open_auth_terminal, mcp_native_list, codex_mcp_native_list, codex_mcp_native_add, codex_mcp_native_remove, codex_mcp_native_status, codex_mcp_open_login_terminal
+import claude_cli   # binary `claude`: tìm đường, auth, và danh mục model nhúng sẵn trong CLI
+import codex_models   # thang effort mà CHÍNH Codex khai cho từng model (model/list)
 import config as cfgmod
 import update_state
 _ver_tuple = update_state.ver_tuple
@@ -66,6 +68,8 @@ import mcp_catalog
 import mcp_hub
 import connect_health   # sức khoẻ kết nối: vòng check nền + phân loại lỗi tiếng người
 import purge          # xoá kết nối cho sạch: chủ sở hữu duy nhất của việc dọn dấu vết
+import core_off       # năng lực MẶC ĐỊNH gỡ được: trạng thái ghi ở STATE_DIR, không sửa cây code
+import packs          # GÓI mở rộng: thả thư mục vào STATE_DIR/packs là có thêm connector
 import cred_exchange   # đổi credential hộ user (vd App Password -> Google master token) khi đấu
 import plugins_host   # hệ PLUGIN: thư mục Python thả vào, tự thêm tool/hook cho mọi engine qua hub
 import web_security   # chống CSRF-to-localhost + DNS-rebinding cho web API cục bộ
@@ -98,6 +102,7 @@ import readonly_orchestrator # Phase 7: checkpointed multi-round read-only DAG
 import adaptive_context_runtime # Phase 8: state + sourced memory + lazy skill canaries
 import agent_runtime           # Phase 11: agent = workflow có quyền replan trong quyền đã cấp
 import limit_learner          # học hạn mức từ chính lỗi nhà cung cấp trả về
+import limit_resume           # tự chạy lại lượt chat khi gói thuê bao mở lại hạn mức
 import quota_scheduler        # sổ cái TPM dùng chung (Việc 6)
 import model_limits           # hạn mức GỢI Ý theo provider, để khai quota profile cho canary
 import model_router           # Phase 12: chọn model theo từng bước, lọc năng lực trước
@@ -1198,8 +1203,13 @@ async def auth_disable():
 # chat vẫn làm với openai-oauth.
 # ============================================================
 PROVIDER_DEFS = [   # thứ tự = thứ tự hiển thị card ở trang Models
+    # default_models của thẻ này là LƯỚI CUỐI, dùng khi không đọc được danh mục của binary
+    # `claude` và máy cũng không có API key. Alias đứng trước (luôn trỏ bản mới nhất của dòng),
+    # rồi tới id đầy đủ để `_claude_api_model` dịch được alias sang tên thật.
     {"id": "anthropic-cli", "label": "Anthropic OAuth (Claude Code)", "kind": "cli", "key_field": None,          "catalog_key": "claude",
-     "default_models": ["opus", "sonnet", "haiku", "fable"]},
+     "default_models": ["fable", "opus", "sonnet", "haiku",
+                        "claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+                        "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"]},
     {"id": "openai-oauth",  "label": "OpenAI OAuth (ChatGPT)",  "kind": "oauth", "key_field": None,             "catalog_key": "openai-oauth",
      "default_models": []},  # model/list của Codex app-server là nguồn chân lý; không ghim version ở đây
     # Antigravity CLI (binary `agy`) - bản Google chỉ định thay cho Gemini CLI sau khi họ ngắt
@@ -1225,7 +1235,8 @@ PROVIDER_DEFS = [   # thứ tự = thứ tự hiển thị card ở trang Models
     {"id": "openrouter",    "label": "OpenRouter",              "kind": "api", "key_field": "openrouter_key",    "catalog_key": "openrouter",
      "default_models": ["openai/gpt-4o-mini"]},
     {"id": "anthropic-api", "label": "Anthropic (API)",         "kind": "api", "key_field": "anthropic_api_key", "catalog_key": "anthropic-api",
-     "default_models": ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"]},
+     "default_models": ["claude-fable-5-1", "claude-opus-5", "claude-sonnet-5",
+                        "claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"]},
     {"id": "openai",        "label": "OpenAI (ChatGPT API)",    "kind": "api", "key_field": "openai_api_key",    "catalog_key": "openai",
      "default_models": ["gpt-4o", "gpt-4o-mini", "o3-mini"]},
     {"id": "gemini",        "label": "Google Gemini (API)",     "kind": "api", "key_field": "gemini_api_key",    "catalog_key": "gemini",
@@ -1581,9 +1592,12 @@ def _claude_api_model(model: str) -> str:
 
     Claude Code hiểu "opus"/"sonnet"/"haiku" và tự chọn bản mới nhất, nhưng /v1/messages thì
     không: gửi "haiku" là ăn 404 model_not_found. Đường gọi thẳng của gói thuê bao đi qua API
-    nên phải dịch. Catalog `claude` đã được /provider/models ghi đè bằng danh sách LIVE (alias
-    đứng trước, id đầy đủ đứng sau), nên chỉ cần lấy id đầy đủ ĐẦU TIÊN cùng dòng - đó chính
-    là bản mới nhất, đúng thứ alias vẫn trỏ tới.
+    nên phải dịch, và tra trong catalog `claude` mà /provider/models vừa nạp.
+
+    Lấy bản MỚI NHẤT cùng dòng chứ KHÔNG phải "cái đầu tiên gặp trong catalog": alias có nghĩa
+    là "bản mới nhất của dòng này", nên dịch nó thành một bản cũ là lặng lẽ ghim người dùng
+    vào model cũ. Catalog nhớ trong settings.json của một máy chạy lâu năm thì trộn cả bản mới
+    lẫn bản cũ và không đảm bảo thứ tự nào cả.
 
     Không tra được thì trả nguyên: thà để nhà cung cấp nói không còn hơn tự đoán một tên khác.
     """
@@ -1594,11 +1608,15 @@ def _claude_api_model(model: str) -> str:
         cat = (cfgmod.read_settings().get("model", {}).get("catalog", {}).get("claude")) or []
     except Exception:  # noqa: BLE001 - tra cứu hỏng không được phá lượt chat
         return m
+    ung_vien = []
     for x in cat:
         x = str(x or "")
-        if "-" in x and x.split("-")[1:2] == [m]:
-            return x
-    return m
+        v = claude_cli.tach_phien_ban(x)
+        if v and v[0] == m:
+            ung_vien.append((claude_cli.bac_phien_ban(v[1]), v[2], x))
+    if not ung_vien:
+        return m
+    return min(ung_vien)[2]
 
 
 def _api_stream(prov, key, model, messages, reasoning="off"):
@@ -1690,7 +1708,7 @@ def _claude_sub_stream(model, messages, reasoning="off", *, brain=None, tag="cha
                         tag=tag, allowed_tools=CLAUDE_SUB_KHONG_TOOL,
                         model=_claude_api_model(model) or None)
     cli.system_prompt_raw = bool(tiet_kiem)
-    return _claude_sub_doc(cli, _cli_think(reasoning, prompt), model)
+    return _claude_sub_doc(cli, _cli_do_sau(cli, reasoning, prompt), model)
 
 
 def _antigravity_sub_stream(model, messages, reasoning="off", *, brain=None, tag="chat",
@@ -1717,7 +1735,7 @@ def _antigravity_sub_stream(model, messages, reasoning="off", *, brain=None, tag
         _apply_antigravity_hub(g, _brain_root(brain), mode=mode)
     # Dùng chung bộ dịch sự kiện với Gemini CLI: hai engine đã phát cùng một hợp đồng
     # {tool_call, final, usage, error}, viết lại là hai bản dễ lệch nhau.
-    return _cli_sub_doc(g, _cli_think(reasoning, prompt), model)
+    return _cli_sub_doc(g, _cli_do_sau_khac(g, antigravity_cli, reasoning, prompt), model)
 
 
 def _copilot_sub_stream(model, messages, reasoning="off", *, brain=None, tag="chat",
@@ -1736,7 +1754,6 @@ def _copilot_sub_stream(model, messages, reasoning="off", *, brain=None, tag="ch
         _apply_copilot_hub(g, _brain_root(brain), mode=mode)
     return _cli_sub_doc(g, _cli_think(reasoning, prompt), model)
 
-
 def _grok_sub_stream(model, messages, reasoning="off", *, brain=None, tag="chat",
                      mode="suggest"):
     """Gói SuperGrok / X Premium+ (Grok Build CLI) cho đường CHAT-THUẦN của `_api_stream`.
@@ -1753,7 +1770,7 @@ def _grok_sub_stream(model, messages, reasoning="off", *, brain=None, tag="chat"
         _apply_grok_hub(g, _brain_root(brain), mode=mode)
     # Dùng chung bộ dịch sự kiện với Gemini/Antigravity: ba engine đã phát cùng một hợp đồng
     # {tool_call, final, usage, error}, viết lại là ba bản dễ lệch nhau.
-    return _cli_sub_doc(g, _cli_think(reasoning, prompt), model)
+    return _cli_sub_doc(g, _cli_do_sau_khac(g, grok_cli, reasoning, prompt), model)
 
 
 async def _cli_sub_doc(g, prompt, model):
@@ -1817,7 +1834,7 @@ def _claude_sub_stream_tools(model, messages, reasoning="off", *, brain=None, ta
     cli.mcp_config = mcp_hub.claude_config_path(mode, vault_root=vault)
     cli.mcp_strict = cli.mcp_config is not None
     cli.disallowed_tools = list(BOT_CAM_NATIVE)
-    return _claude_sub_doc(cli, _cli_think(reasoning, prompt), model)
+    return _claude_sub_doc(cli, _cli_do_sau(cli, reasoning, prompt), model)
 
 
 def _api_stream_goc(prov, key, model, messages, reasoning="off"):
@@ -1876,11 +1893,17 @@ async def _api_stream_mcp(prov, key, model, messages, reasoning="off", brain=Non
         try:
             if _hub_enabled():
                 vault_root = _brain_root(brain) if brain else None
+                # staging=True: đây là đường chat của CHỦ (dashboard + Telegram của chủ), tức
+                # đúng nơi người dùng đính kèm/dán file. Cho javis_read_file với tới vùng nhận
+                # file của khung chat, nếu không thì khối "[File đính kèm để ĐỌC…]" mà chính
+                # dashboard chèn vào câu hỏi là một lời hứa engine API không giữ nổi. Bot
+                # chuyên trách dựng tool ở chỗ khác và KHÔNG truyền cờ này - khách lạ vẫn chỉ
+                # thấy brain của bot.
                 tools, route = await mcp_hub.discover_all(
-                    mode, vault_root=vault_root, force_lazy=force_lazy,
+                    mode, vault_root=vault_root, force_lazy=force_lazy, staging=True
                 )
                 inventory_tools, inventory_route = mcp_hub.registry_inventory(
-                    mode, vault_root=vault_root, force_lazy=force_lazy)
+                    mode, vault_root=vault_root, force_lazy=force_lazy, staging=True)
                 # Lazy: nạp sẵn tool khớp câu hỏi (email/lịch…) — model flash hay bảo thiếu tool.
                 tools, route = mcp_hub.seed_visible_for_query(
                     tools, route, inventory_tools, inventory_route, _last_user_text(messages))
@@ -2753,10 +2776,16 @@ def _reasoning_level(mcfg):
     return r if r in engine.REASONING_LEVELS else "off"
 
 # Từ khoá kích hoạt extended thinking của Claude Code (engine cli không có flag chuẩn).
-# Claude Code leo thang theo đúng bộ từ khoá này, nên hai mức trên cùng KHÁC nhau thật ở đây
-# chứ không phải bịa cho đủ nấc.
+# Bộ từ khoá suy nghĩ của Claude Code. ĐƯỜNG DỰ PHÒNG từ 0.55.40: bản CLI có cờ `--effort`
+# thì đi bằng cờ đó (xem `_cli_do_sau`), vì hai mức trên cùng ở bảng này ra CÙNG một từ khoá
+# `ultrathink` - tức "Rất cao" và "Tối đa" y hệt nhau, người dùng chọn mà không đổi gì.
 _CLI_THINK_KW = {"low": "think", "medium": "think hard", "high": "think harder",
                  "xhigh": "ultrathink", "ultra": "ultrathink"}
+
+# Mức của Javis -> mức của Claude Code (`claude --effort`, cùng thang trong claude-agent-sdk).
+# Trùng khít bốn mức đầu; "ultra" là tên Javis của mức trên cùng, Claude Code gọi là "max".
+_CLI_EFFORT = {"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "ultra": "max"}
+
 
 def _cli_think(reasoning, message):
     """Chèn gợi ý suy nghĩ vào prompt cho engine Claude Code CLI (off = giữ nguyên)."""
@@ -2764,6 +2793,109 @@ def _cli_think(reasoning, message):
     if not kw:
         return message
     return f"{message}\n\n(Suy nghĩ kỹ trước khi trả lời - {kw})"
+
+
+def _cli_do_sau(cli, reasoning, message):
+    """Đặt độ sâu suy nghĩ cho engine Claude Code, rồi trả prompt để gửi đi.
+
+    Một chỗ duy nhất quyết định đi đường nào, vì hai đường KHÔNG được cộng dồn: truyền cờ
+    `--effort` xong còn nhét thêm "ultrathink" vào prompt là vừa tốn token vừa đẩy model lên
+    một mức khác mức người dùng chọn.
+
+    - CLI có `--effort` (bản mới): đặt `cli.effort`, prompt giữ NGUYÊN VĂN. Đây là đường đúng -
+      thang của Claude Code trùng khít thang của Javis nên "Rất cao" và "Tối đa" khác nhau
+      thật, và tin nhắn người dùng không bị dính thêm một câu tiếng Việt ở cuối.
+    - CLI cũ: rơi về từ khoá trong prompt như trước, không mất tính năng.
+    """
+    muc = _CLI_EFFORT.get(reasoning or "")
+    if muc and claude_cli.co_co("--effort"):
+        try:
+            cli.effort = muc
+        except Exception:  # noqa: BLE001 - engine lạ không có thuộc tính này thì rơi về từ khoá
+            return _cli_think(reasoning, message)
+        return message
+    return _cli_think(reasoning, message)
+
+
+# Câu nhắc suy nghĩ TRUNG TÍNH, cho engine CLI không phải Claude Code.
+#
+# Vì sao không dùng chung `_CLI_THINK_KW`: mấy chữ "think hard" / "ultrathink" trong đó là TỪ
+# KHOÁ RIÊNG của Claude Code, engine khác không hiểu. Nhét chúng vào prompt của Grok hay
+# Antigravity chỉ là dán một chữ lạ vào cuối câu hỏi của người dùng, không đổi được gì. Câu
+# tiếng Việt bên dưới thì model nào cũng đọc được, và nó nói rõ ĐỘ SÂU muốn có.
+_GOI_SUY_NGHI = {
+    "low": "Trả lời gọn, không cần cân nhắc nhiều.",
+    "medium": "Suy nghĩ kỹ trước khi trả lời.",
+    "high": "Suy nghĩ thật kỹ, cân nhắc vài hướng rồi mới trả lời.",
+    "xhigh": "Suy nghĩ rất kỹ: liệt kê các hướng có thể, tự phản biện, rồi mới trả lời.",
+    "ultra": ("Dồn công sức tối đa: liệt kê các hướng có thể, tự phản biện từng hướng, "
+              "kiểm lại kết luận một lượt nữa rồi mới trả lời."),
+}
+
+# Thang effort dùng khi nói chuyện với CLI ngoài Claude Code, xếp từ nhẹ tới nặng. Tên lấy
+# theo thang chung của các nhà cung cấp để `co_effort` đối chiếu thẳng với `--help` của CLI.
+_THANG_EFFORT = ("low", "medium", "high", "xhigh", "max")
+_BAC_JAVIS = {"low": 0, "medium": 1, "high": 2, "xhigh": 3, "ultra": 4}
+
+
+def _nhac_suy_nghi(reasoning, message):
+    """Chèn câu nhắc độ sâu vào prompt (off hoặc mức lạ = giữ nguyên)."""
+    cau = _GOI_SUY_NGHI.get(reasoning or "")
+    return f"{message}\n\n({cau})" if cau else message
+
+
+def _co_effort_lui(mod, reasoning):
+    """Cờ effort cao nhất mà bản CLI này THẬT SỰ khai, tính từ mức người dùng chọn lùi xuống.
+
+    Lùi dần là để giữ đúng thứ tự: nếu `ultra` (max) không được khai mà `xhigh` thì có, ultra
+    phải ra xhigh chứ không được rơi thẳng về câu nhắc trong prompt - rơi như thế là nấc TRÊN
+    lại yếu hơn nấc dưới, đúng kiểu vô lý mà người dùng không bao giờ đoán ra.
+    """
+    i = _BAC_JAVIS.get(reasoning or "")
+    if i is None:
+        return []
+    for muc in reversed(_THANG_EFFORT[:i + 1]):
+        co = mod.co_effort(muc)
+        if co:
+            return co
+    return []
+
+
+def _cli_do_sau_khac(cli, mod, reasoning, message):
+    """Độ sâu suy nghĩ cho Grok Build / Antigravity: cờ thật nếu có, không thì câu nhắc.
+
+    `mod` là module của engine (`grok_cli` / `antigravity_cli`) - chính nó giữ `co_effort`, và
+    chính nó biết bản CLI trên máy này khai những gì. Hai đường KHÔNG cộng dồn, cùng lý do đã
+    ghi ở `_cli_do_sau`.
+    """
+    co = _co_effort_lui(mod, reasoning)
+    if co:
+        try:
+            cli.effort = co[1]
+        except Exception:  # noqa: BLE001 - engine lạ thì rơi về câu nhắc, không phá lượt chat
+            return _nhac_suy_nghi(reasoning, message)
+        return message
+    return _nhac_suy_nghi(reasoning, message)
+
+
+def _codex_do_sau(cli, reasoning, message):
+    """Độ sâu suy nghĩ cho Codex CLI: `-c model_reasoning_effort=<mức>`.
+
+    Mức KHÔNG do Javis chọn theo một bảng chép tay mà lấy từ thang chính Codex khai cho đúng
+    model đang chạy (`model/list` -> `supported_reasoning_efforts`), nên không bao giờ gửi một
+    giá trị model không hiểu. Chưa hỏi được danh sách model lần nào thì `muc_cho` trả rỗng và
+    lượt chạy bằng mặc định của Codex, y như trước - kèm câu nhắc trong prompt cho đỡ phí.
+    """
+    try:
+        muc = codex_models.muc_cho(getattr(cli, "model", "") or "", reasoning or "")
+    except Exception:  # noqa: BLE001 - tra cứu hỏng không được phá lượt chat
+        muc = ""
+    if not muc:
+        return _nhac_suy_nghi(reasoning, message)
+    override = f"model_reasoning_effort={muc}"
+    if override not in cli.extra_config:
+        cli.extra_config.append(override)
+    return message
 
 
 def _toml_str(s):
@@ -2894,6 +3026,7 @@ def _apply_copilot_hub(cli, vault_root=None, mode="full"):
     except Exception as e:
         print(f"[copilot hub] {e}", file=__import__('sys').stderr)
     return cli
+
 
 
 def _apply_codex_hub(cli, vault_root=None):
@@ -3320,8 +3453,75 @@ async def hub_mcp(request: Request):
 
 @app.get("/connect/catalog")
 async def connect_catalog():
+    """Kho kết nối cho giao diện, kèm phần người dùng đã GỠ và kết nối đã mồ côi.
+
+    `catalog` đã TRỪ cái đã gỡ (lọc trong `mcp_catalog.load`), còn `removed` là danh sách để vẽ
+    khu "Đã gỡ" có nút Cài lại - nên nó phải đọc từ `tat_ca()` chứ không phải `load()`."""
+    tat_ca = mcp_catalog.tat_ca()
+    da_go = core_off.da_go("connectors")
     return {"catalog": mcp_catalog.public_catalog(), "connections": mcp_store.list_connections(),
+            "removed": sorted(
+                ({"id": i, "name": (tat_ca.get(i) or {}).get("name") or i,
+                  "icon": (tat_ca.get(i) or {}).get("icon") or "plug",
+                  "category": (tat_ca.get(i) or {}).get("category") or "Khác"}
+                 for i in da_go), key=lambda x: x["name"]),
+            "orphans": mcp_store.orphans(),
             "strict": bool(cfgmod.read_settings().get("mcp", {}).get("strict")), "hub": _hub_enabled()}
+
+
+# Trang Gói: xem, cài từ .zip, bật tắt, gỡ. Router riêng vì main.py đã quá dài; xem
+# server/routes/packs.py. Lời gọi phải nằm ĐÚNG chỗ này - route_table.json khoá thứ tự.
+import routes.packs as packs_routes   # noqa: E402
+
+packs_routes.register(app, packs_routes.PacksDeps(
+    # Trang này đòi PHIÊN THẬT, không phụ thuộc `gate_active()`: hàm đó trả False trên bản
+    # local chưa đặt mật khẩu, mà cài một gói là chạy mã lạ trong tiến trình server. Và cố ý
+    # KHÔNG nhận API token - token dành cho tự động hoá, còn "tự động cài gói" là thứ không
+    # nên có đường tồn tại.
+    co_phien=lambda r: cfgmod.valid_session(r.cookies.get("javis_session", "")),
+    lam_moi_hub=lambda: (mcp_hub.invalidate_cache(), _write_codex_profile()),
+    # Lambda chứ không truyền thẳng `_brain_root`: hàm đó định nghĩa ở phía DƯỚI trong
+    # main.py, mà lời gọi register phải nằm đúng chỗ này để giữ thứ tự route. Lambda hoãn
+    # việc tra tên tới lúc thật sự gọi, khi đó hàm đã tồn tại.
+    brain_root=lambda b: _brain_root(b),
+))
+
+
+@app.post("/connect/core-toggle")
+async def connect_core_toggle(request: Request):
+    """Gỡ hoặc cài lại một connector CÓ SẴN của Javis.
+
+    "Gỡ" ở đây KHÔNG xoá file trong `system/`: cây code là read-only trên Docker và bị ghi đè
+    bởi `git pull` trên bản native, nên lựa chọn phải sống ở STATE_DIR mới qua được một lần cập
+    nhật. Chi tiết trong `server/core_off.py`.
+
+    Gỡ khuôn KHÔNG xoá kết nối đã đấu theo nó - kết nối là dữ liệu của người dùng. Chúng thành
+    mồ côi, `mcp_store.resolved` từ chối dựng dial spec cho chúng, và trả về đây để giao diện
+    hỏi lại một câu trước khi gỡ."""
+    data = await request.json()
+    cid = (data.get("id") or "").strip()
+    off = bool(data.get("off"))
+    if cid not in mcp_catalog.tat_ca():
+        return JSONResponse({"ok": False, "error": "Không có connector này trong kho"},
+                            status_code=400)
+    anh_huong = [{"id": c["id"], "label": c.get("label") or c["id"]}
+                 for c in mcp_store.list_connections() if c.get("connector_id") == cid]
+    # XEM TRƯỚC, không đụng gì. Giao diện hỏi lại người dùng TRƯỚC khi gỡ, nên nó cần biết cái
+    # gì sắp dừng - mà đường duy nhất để biết trước đây là gọi thẳng rồi đọc lỗi 409, tức là
+    # với connector KHÔNG có kết nối nào thì lần gọi đó đã gỡ xong trước khi kịp hỏi ai.
+    if data.get("plan"):
+        return {"ok": True, "plan": True, "connections": anh_huong,
+                "off": core_off.la_da_go("connectors", cid)}
+    if off and anh_huong and not data.get("confirm"):
+        return JSONResponse({"ok": False, "need_confirm": True, "connections": anh_huong},
+                            status_code=409)
+    try:
+        core_off.dat("connectors", cid, off)
+    except (OSError, ValueError) as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    mcp_hub.invalidate_cache()
+    _write_codex_profile()
+    return {"ok": True, "off": off, "orphans": mcp_store.orphans()}
 
 
 @app.post("/connect/add")
@@ -3793,6 +3993,8 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         cfg.setdefault("dashboard", {})
         if "graph_enabled" in patch:
             cfg["dashboard"]["graph_enabled"] = bool(patch["graph_enabled"])
+        if "auto_resume" in patch:
+            cfg["dashboard"]["auto_resume"] = bool(patch["auto_resume"])
     elif section == "image":
         cfg.setdefault("image", {})
         if "strip_c2pa" in patch:
@@ -3990,6 +4192,22 @@ async def openrouter_models():
 # Model load ĐỘNG theo provider (không hardcode - provider đổi model không cần sửa code).
 _PROV_MODELS_CACHE = {}   # provider -> {"ids":[...], "ts": float}
 
+# Lọc danh sách model của OpenAI và Gemini theo kiểu LOẠI TRỪ, không phải theo danh sách tiền
+# tố được phép. Đây là bài học từ ca Fable 5.1 (0.55.39), chỉ khác nhà: một danh sách "chỉ giữ
+# mấy cái tên quen" thì mỗi lần nhà cung cấp mở dòng mới là dòng đó biến mất khỏi trình chọn,
+# im lặng, không có gì báo. Còn LOẠI theo công dụng (nhúng, giọng nói, ảnh) thì mấy loại ấy
+# nhiều năm không đổi tên, nên luật không lạc hậu theo từng đợt model mới.
+_OPENAI_KHONG_CHAT = ("embed", "whisper", "tts", "dall-e", "moderation", "image",
+                      "audio", "realtime", "transcribe", "sora", "davinci", "babbage")
+# Gemini đã có `supportedGenerationMethods` nói model nào sinh được nội dung, nên đây chỉ là
+# lưới thứ hai cho vài dòng khai generateContent mà thực tế không chat được.
+_GEMINI_KHONG_CHAT = ("embed", "aqa", "imagen", "veo", "tts")
+
+
+def _loc_model_chat(ids, cam):
+    """Bỏ những model KHÔNG chat được, khớp theo chuỗi con không phân biệt hoa thường."""
+    return [i for i in ids if i and not any(k in i.lower() for k in cam)]
+
 
 async def _fetch_provider_models(provider, m):
     """Danh sách model id LIVE từ API của provider, hoặc None (caller fallback catalog)."""
@@ -4006,9 +4224,10 @@ async def _fetch_provider_models(provider, m):
             r.raise_for_status()
             data = r.json().get("data", [])
         ids = sorted(x.get("id") for x in data if x.get("id"))
-        # lọc model chat (bỏ embedding/whisper/tts/dall-e/moderation...)
-        ids = [i for i in ids if i.startswith(("gpt", "o1", "o3", "o4", "chatgpt"))]
-        return ids or None
+        # LỌC NGƯỢC (xem `_OPENAI_KHONG_CHAT`): bỏ dòng không chat được, thay vì chỉ giữ mấy
+        # tiền tố quen mặt. Bản cũ giữ đúng `gpt/o1/o3/o4/chatgpt` nên OpenAI mở dòng tên khác
+        # là dòng đó biến mất khỏi trình chọn - y hệt ca Fable 5.1, chỉ khác nhà.
+        return _loc_model_chat(ids, _OPENAI_KHONG_CHAT) or None
     if provider == "anthropic-api":
         key = m.get("anthropic_api_key")
         if not key:
@@ -4027,10 +4246,15 @@ async def _fetch_provider_models(provider, m):
             r = await c.get("https://generativelanguage.googleapis.com/v1beta/models", params={"key": key})
             r.raise_for_status()
             data = r.json().get("models", [])
-        # name dạng 'models/gemini-2.5-flash' → lấy đuôi; chỉ giữ model sinh nội dung (bỏ embedding/aqa)
+        # name dạng 'models/gemini-2.5-flash' → lấy đuôi. Chính Google đã nói model nào sinh
+        # được nội dung qua `supportedGenerationMethods`, nên đó là bộ lọc đúng.
+        #
+        # Bản cũ đòi THÊM tên phải bắt đầu bằng "gemini". Điều kiện đó không thêm gì về mặt
+        # đúng-sai mà chỉ chặn: khoá nào được cấp dòng khác (gemma, learnlm, hay một dòng mới
+        # Google đặt tên khác) thì dòng đó không bao giờ hiện ra, im lặng như ca Fable 5.1.
         ids = [(x.get("name") or "").split("/")[-1] for x in data
                if "generateContent" in (x.get("supportedGenerationMethods") or [])]
-        return sorted(i for i in ids if i.startswith("gemini")) or None
+        return sorted(_loc_model_chat(ids, _GEMINI_KHONG_CHAT)) or None
     if provider == "groq":
         key = m.get("groq_api_key")
         if not key:
@@ -4110,10 +4334,30 @@ async def _fetch_provider_models(provider, m):
         # Cùng khuôn `agy`: model hỏi thẳng CLI, không chép tay trong repo.
         return await asyncio.to_thread(copilot_cli.list_models)
     if provider == "anthropic-cli":
-        # Provider này chạy bằng đăng nhập OAuth của Claude Code → mượn chính token đó hỏi
-        # /v1/models, nên Anthropic ra bản mới là picker thấy ngay (trước kẹt ở 4 alias tĩnh).
-        return await claude_models.fetch_models(m.get("anthropic_api_key") or "")
+        # HAI nguồn, thử theo thứ tự đầy đủ dần:
+        #   1. `anthropic_api_key` nếu máy có - /v1/models là danh sách CHÍNH THỨC.
+        #   2. Danh mục model nhúng trong chính binary `claude` - không cần key, không chạm
+        #      credential của ai, và tự mới theo mỗi lần cập nhật Claude Code.
+        # Đường 2 là thứ thay cho việc mượn token OAuth đã gỡ ở 0.26.17: từ đó tới nay gói
+        # thuê bao không có nguồn live nào, nên máy nào lỡ nhớ một catalog cũ là kẹt ở đó
+        # vĩnh viễn - nâng cấp Javis cũng không thấy dòng model mới (Fable 5.1).
+        ids = await claude_models.fetch_models(m.get("anthropic_api_key") or "")
+        if ids:
+            return ids
+        # Chạy ở worker: quét file binary ~200MB, cỡ 0,3 giây lần đầu rồi nhớ theo mtime.
+        return await asyncio.to_thread(claude_cli.list_models)
     return None
+
+
+def _gop_giu_thu_tu(*ds):
+    """Nối các danh sách, bỏ trùng, GIỮ nguyên thứ tự xuất hiện đầu tiên."""
+    ra, thay = [], set()
+    for d in ds:
+        for x in d or []:
+            if x and x not in thay:
+                thay.add(x)
+                ra.append(x)
+    return ra
 
 
 def _remember_catalog(cfg, d, ids):
@@ -4176,7 +4420,14 @@ async def provider_models_index(provider: str, refresh: bool = False) -> dict:
     m = cfg.get("model", {})
     d = _provider_def(provider) or {}
     cat = m.get("catalog", {}) or {}
-    fallback = cat.get(d.get("catalog_key", "")) or d.get("default_models", [])
+    # HỢP hai danh sách chứ không phải "cái nhớ được ĐÈ cái mặc định". Đây là gốc của lỗi
+    # "nâng cấp Javis rồi vẫn không có model mới": `_remember_catalog` ghi danh sách live vào
+    # settings.json, mà `config._deep_merge` thì THAY danh sách chứ không nối - nên từ lần ghi
+    # đó trở đi, bản mặc định mới trong config.py không bao giờ tới được người dùng nữa. Một
+    # model đã ngừng bán mà còn nằm trong danh sách chỉ phiền lúc chọn nhầm; một model MỚI
+    # không bao giờ hiện ra thì không có đường nào chữa ngoài sửa tay settings.json.
+    fallback = _gop_giu_thu_tu(d.get("default_models", []),
+                               cat.get(d.get("catalog_key", "")) or [])
     now = time.time()
     c = _PROV_MODELS_CACHE.get(provider)
     if not refresh and c and (now - c["ts"]) < 600 and c.get("ids"):
@@ -4414,6 +4665,7 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
         import sys, traceback
         traceback.print_exc(file=sys.stderr)
         return {"ok": False, "error": f"Không lưu được file tạm: {e}"}
+
 
 
 # ============================================================
@@ -5105,6 +5357,19 @@ def _today():
     from datetime import date
     return date.today().strftime("%Y-%m-%d")
 
+# NHÓM (field `group` trong frontmatter) - dùng chung cho CẢ BA loại năng lực: skill, agent,
+# workflow. Một brain dùng lâu có vài chục agent và workflow, danh sách phẳng thì tìm bằng mắt.
+# Cố tình dùng ĐÚNG một field và ĐÚNG một tên nhóm mặc định cho cả ba, để trang Studio, chỉ mục
+# Javis/index.md và AI khi tự tạo năng lực đều hiểu giống nhau, không đẻ cách phân loại thứ hai.
+NHOM_MAC_DINH = "Chung"
+
+
+def _nhom_cua(meta) -> str:
+    """Nhóm của một năng lực đọc từ frontmatter. File cũ chưa khai `group` → "Chung"."""
+    g = (meta or {}).get("group")
+    return (str(g).strip() or NHOM_MAC_DINH) if g is not None else NHOM_MAC_DINH
+
+
 def _agents_dir(brain):
     return _brain_sub(_brain_root(brain), "agents", "Javis/agents")
 def _workflows_dir(brain):
@@ -5204,7 +5469,7 @@ def agents_index(brain: str) -> list:
         meta, body = _read_md(f)
         out.append({"slug": f.stem, "name": meta.get("name", f.stem),
                     "role": meta.get("role", ""), "skills": meta.get("skills", []) or [],
-                    "model": meta.get("model", ""),
+                    "model": meta.get("model", ""), "group": _nhom_cua(meta),
                     "model_provider": meta.get("model_provider", ""), "prompt": body})
     return out
 
@@ -5215,7 +5480,8 @@ async def list_agents(brain: str = Query("brain")):
 @app.post("/agents")
 async def save_agent(name: str = Form(...), role: str = Form(""), skills: str = Form(""),
                      model: str = Form(""), slug: str = Form(""), prompt: str = Form(""),
-                     brain: str = Form("brain"), model_provider: str = Form("")):
+                     brain: str = Form("brain"), model_provider: str = Form(""),
+                     group: str = Form(NHOM_MAC_DINH)):
     slug = slug or _slugify(name)
     skills_list = [s.strip() for s in re.split(r"[,\n]", skills) if s.strip()]
     # `model_provider` nói RÕ model thuộc nhà nào - cùng một tên model có thể có ở hai nhà
@@ -5224,6 +5490,7 @@ async def save_agent(name: str = Form(...), role: str = Form(""), skills: str = 
     # chứ không ghi vào file một nhà mà server không chạy được.
     mp = (model_provider or "").strip()
     meta = {"type": "agent", "name": name, "slug": slug, "role": role,
+            "group": (group or "").strip() or NHOM_MAC_DINH,
             "skills": skills_list, "model": model,
             "model_provider": mp if mp in AGENT_PROVIDERS else "",
             "updated": _today()}  # "" = mặc định theo CLI
@@ -6342,6 +6609,7 @@ def workflows_index(brain: str) -> list:
         out.append({"slug": f.stem, "name": meta.get("name", f.stem),
                     "status": meta.get("status", "off"),
                     "description": meta.get("description", ""),
+                    "group": _nhom_cua(meta),
                     "steps": meta.get("steps", []) or []})
     return out
 
@@ -6393,13 +6661,15 @@ async def list_workflows(brain: str = Query("brain")):
 
 @app.post("/workflows")
 async def save_workflow(name: str = Form(...), description: str = Form(""), steps: str = Form("[]"),
-                        status: str = Form("active"), slug: str = Form(""), brain: str = Form("brain")):
+                        status: str = Form("active"), slug: str = Form(""), brain: str = Form("brain"),
+                        group: str = Form(NHOM_MAC_DINH)):
     slug = slug or _slugify(name)
     try:
         steps_list = json.loads(steps)
     except Exception:
         steps_list = []
     meta = {"type": "workflow", "name": name, "slug": slug, "status": status,
+            "group": (group or "").strip() or NHOM_MAC_DINH,
             "description": description, "steps": steps_list, "updated": _today()}
     _write_md(_workflows_dir(brain) / f"{slug}.md", meta, description)
     return {"ok": True, "slug": slug}
@@ -7634,6 +7904,8 @@ async def run_workflow(slug: str = Query(...), brain: str = Query("brain"), inpu
 async def studio_seed(brain: str = Form("brain")):
     """Tạo bộ Agent + Workflow mẫu để bắt đầu."""
     a = _agents_dir(brain)
+    # Bộ mẫu ĐẶT SẴN nhóm "Nội dung": brain mới mở ra là thấy ngay cột nhóm có nghĩa, thay vì
+    # ba agent nằm trong "Chung" khiến người dùng tưởng tính năng nhóm chưa chạy.
     examples = [
         {"name": "Researcher", "role": "Chuyên nghiên cứu sâu lặp (deep research), tìm tư liệu và tổng hợp có nguồn.",
          "skills": ["deep-research", "query-wiki"],
@@ -7649,10 +7921,11 @@ async def studio_seed(brain: str = Form("brain")):
     for ex in examples:
         slug = _slugify(ex["name"])
         meta = {"type": "agent", "name": ex["name"], "slug": slug, "role": ex["role"],
-                "skills": ex["skills"], "model": "sonnet", "updated": _today()}
+                "group": "Nội dung", "skills": ex["skills"], "model": "sonnet", "updated": _today()}
         _write_md(a / f"{slug}.md", meta, ex["prompt"])
     wf_meta = {"type": "workflow", "name": "Research → Write (có kiểm chứng)", "slug": "research-and-write",
-               "status": "active", "description": "Nghiên cứu → viết bài → kiểm chứng độc lập, tự sửa nếu chưa đạt.",
+               "status": "active", "group": "Nội dung",
+               "description": "Nghiên cứu → viết bài → kiểm chứng độc lập, tự sửa nếu chưa đạt.",
                "steps": [
                    {"agent": "researcher",
              "task": "Chạy deep-research (breadth 4, depth 2) cho chủ đề: {{input}}. Trả report + Sources."},
@@ -8337,7 +8610,6 @@ async def _bao_nhac_hen(chat_id, text) -> tuple:
     """Đường BÁO của nhắc hẹn. Cùng chữ ký (chat_id, text) -> (ok, err) như `_tg_send_to` cũ,
     nhưng đi qua `_notify_owner` nên nhắc hẹn được đúng ba thứ mà trước đây nó không có:
     hòm thư ở server, đẩy về khung chat web khi chat_id là "web:<sid>", và thông báo đẩy.
-
     chat_id rỗng / `all` / `*`: gửi CẢ Telegram lẫn Zalo (mọi ID whitelist đã đấu).
     `zalo` / `zalo:all` / `zalo:*`: chỉ Zalo (nhắc hệ thống khi chủ không muốn Telegram).
     chat_id cụ thể (telegram id / zalo:<id> / web:<sid>) vẫn chỉ gửi đúng một kênh như cũ.
@@ -8650,7 +8922,8 @@ def _gather_capabilities(brain: str, skills=None) -> dict:
         for f in sorted(ad.glob("*.md")):
             m, _ = _read_md(f)
             caps["agents"].append({"slug": f.stem, "name": m.get("name", f.stem), "role": m.get("role", ""),
-                                   "model": m.get("model", ""), "skills": m.get("skills", []) or []})
+                                   "model": m.get("model", ""), "group": _nhom_cua(m),
+                                   "skills": m.get("skills", []) or []})
     wd = _workflows_dir(brain)
     if wd.is_dir():
         for f in sorted(wd.glob("*.md")):
@@ -8658,6 +8931,7 @@ def _gather_capabilities(brain: str, skills=None) -> dict:
             steps = m.get("steps", []) or []
             caps["workflows"].append({"slug": f.stem, "name": m.get("name", f.stem),
                                       "status": m.get("status", "active"), "description": m.get("description", ""),
+                                      "group": _nhom_cua(m),
                                       "agents": [s.get("agent") for s in steps if isinstance(s, dict)],
                                       "n_steps": len(steps)})
     # Skill: canonical <root>/skills + fallback .claude/skills + .agents (qua skill_router, de-dup).
@@ -8694,19 +8968,37 @@ def _render_javis_index(caps: dict) -> str:
          f"**Tổng quan:** {len(caps['agents'])} agents · {len(caps['skills'])} skills · "
          f"{len(caps['workflows'])} workflows ({n_on_wf} bật) · {len(caps['loops'])} loops ({n_on_loops} bật) · "
          f"{len(plugins)} plugins ({n_on_plugins} chạy)", ""]
+    # Cả ba loại năng lực xếp theo NHÓM (field `group`). Brain dùng lâu có vài chục agent và
+    # workflow; một danh sách phẳng dài dằng dặc thì chính AI đọc chỉ mục này cũng khó dò ra
+    # cái cần, và người đọc lại càng khó. Chỉ hiện tiêu đề nhóm khi thực sự có nhiều hơn một
+    # nhóm - brain mới toàn "Chung" thì thêm một tầng tiêu đề chỉ tổ rườm.
+    def _theo_nhom(items):
+        by = {}
+        for it in items:
+            by.setdefault(it.get("group") or NHOM_MAC_DINH, []).append(it)
+        return by
+
+    def _do_nhom(items, dong):
+        by = _theo_nhom(items)
+        nhieu_nhom = len(by) > 1
+        for g in sorted(by):
+            if nhieu_nhom:
+                L.append(f"### {g}")
+            for it in by[g]:
+                L.append(dong(it))
+
     L.append("## Agents")
     if caps["agents"]:
-        for a in caps["agents"]:
+        def _dong_agent(a):
             mdl = f" · model {a['model']}" if a["model"] else ""
             sk = f" · skills: {', '.join(a['skills'])}" if a["skills"] else ""
-            L.append(f"- **{a['name']}** (`{a['slug']}`) - {a['role']}{mdl}{sk}")
+            return f"- **{a['name']}** (`{a['slug']}`) - {a['role']}{mdl}{sk}"
+        _do_nhom(caps["agents"], _dong_agent)
     else:
         L.append("_(chưa có)_")
     L.append("\n## Skills")
     if caps["skills"]:
-        by_group = {}
-        for s in caps["skills"]:
-            by_group.setdefault(s["group"], []).append(s)
+        by_group = _theo_nhom(caps["skills"])
         for g in sorted(by_group):
             L.append(f"### {g}")
             for s in by_group[g]:
@@ -8716,9 +9008,11 @@ def _render_javis_index(caps: dict) -> str:
         L.append("_(chưa có)_")
     L.append("\n## Workflows")
     if caps["workflows"]:
-        for w in caps["workflows"]:
-            L.append(f"- **{w['name']}** (`{w['slug']}`) - {w['status']} · {w['n_steps']} bước "
-                     f"[{' -> '.join(x for x in w['agents'] if x)}]" + (f" · {w['description']}" if w["description"] else ""))
+        def _dong_wf(w):
+            return (f"- **{w['name']}** (`{w['slug']}`) - {w['status']} · {w['n_steps']} bước "
+                    f"[{' -> '.join(x for x in w['agents'] if x)}]"
+                    + (f" · {w['description']}" if w["description"] else ""))
+        _do_nhom(caps["workflows"], _dong_wf)
     else:
         L.append("_(chưa có)_")
     L.append("\n## Loops")
@@ -8908,6 +9202,31 @@ async def plugins_toggle(slug: str = Form(...), enabled: str = Form(...), brain:
     return res
 
 
+@app.post("/plugins/remove")
+async def plugins_remove(slug: str = Form(...), removed: str = Form("1"),
+                         brain: str = Form("brain")):
+    """GỠ hoặc CÀI LẠI một plugin, kể cả plugin đi kèm app.
+
+    Khác nút Tắt ở Ý ĐỊNH, và giao diện hiện hai trạng thái đó khác nhau: tắt là "tạm không
+    dùng, vẫn để đó nhìn", gỡ là "tôi không cần thứ này" nên thẻ rời khỏi danh sách chính.
+
+    KHÔNG xoá file trong `system/plugins/`: cây code read-only trên Docker nên xoá là EACCES,
+    còn trên bản native thì `git pull` sau đó mọc lại - một thứ "đã xoá" mà tự quay về thì tệ
+    hơn một thứ đang tắt. Lựa chọn ghi vào `STATE_DIR/plugins.json` nên sống qua cập nhật, và
+    cài lại chỉ mất một cú bấm."""
+    if not plugins_host.valid_slug(slug):
+        return JSONResponse({"error": "slug không hợp lệ"}, status_code=400)
+    res = plugins_host.set_removed(slug, removed in ("1", "true", "True", "on"))
+    if not res.get("ok"):
+        return JSONResponse({"error": res.get("error", "lỗi")}, status_code=400)
+    mcp_hub.invalidate_cache()
+    try:
+        rebuild_javis_index(brain)
+    except Exception:
+        pass
+    return res
+
+
 # Mốc lần dọn media gần nhất. Dùng list 1 phần tử để hàm lồng bên trong _scheduler_loop
 # gán được mà không cần `global`. Khởi tạo 0.0 -> chạy ngay ở tick đầu sau khi server lên.
 _MEDIA_GC_LAST = [0.0]
@@ -9076,6 +9395,14 @@ async def _start_scheduler():
             except Exception as e:
                 print(f"[scheduler] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     asyncio.create_task(_scheduler_loop())
+    try:
+        # Gói khai `compat.app` nhưng `git pull` / `git reset --hard` không bao giờ chạy lại
+        # trình cài, nên không có lượt quét này thì dải đó chỉ có tác dụng ở lần cài đầu.
+        import pack_install
+        for x in pack_install.quet_tuong_thich():
+            print(f"[packs] đã tắt gói '{x['id']}': {x['reason']}")
+    except Exception as e:
+        print(f"[packs compat] {type(e).__name__}: {e}", file=__import__('sys').stderr)
     try:
         restart_telegram()   # bật bot Telegram nếu đã cấu hình
     except Exception as e:
@@ -10168,6 +10495,20 @@ async def _persist_turn(store, conv_sid, brain, user_message, final_text):
     return clean
 
 
+def _persist_limit_notice(store, conv_sid, user_message, notice):
+    """Lưu câu "hết lượt gói thuê bao" của một lượt KHÔNG có câu trả lời.
+
+    Cố ý KHÔNG đi qua _persist_turn: một câu báo lỗi không đáng vào nhật ký Memory hay hàng
+    đợi tự học. Chỉ ghi vào kho phiên (để F5 còn thấy) và đặt tên phiên (phiên mới vẫn có
+    tên ở Lịch sử trong lúc chờ chạy lại). Khi lượt được chạy lại, `_start_resumed_turn` rút
+    câu này ra bằng pop_last_message."""
+    try:
+        store.append_message(conv_sid, "assistant", notice)
+        store.auto_title(conv_sid, user_message)
+    except Exception as _e:
+        print(f"[limit notice] {type(_e).__name__}: {_e}", file=sys.stderr)
+
+
 # ============================================
 # WebSocket - Voice chat với Claude Code
 # ============================================
@@ -10201,6 +10542,8 @@ async def websocket_endpoint(ws: WebSocket):
         "type": "hello",
         "stop_tag": conn_tag,
         "running": _CHAT_RUNTIME.snapshot(),
+        # Lượt đang chờ gói thuê bao mở lại hạn mức, để F5 xong thẻ "tự chạy lại" còn dựng được.
+        "resumes": limit_resume.REGISTRY.snapshot(),
     })
 
     async def send_raw(obj):
@@ -10226,10 +10569,27 @@ async def websocket_endpoint(ws: WebSocket):
 
     try:
         async def _do_turn(conv_sid, user_message, brain, turn_tag, runtime_trace=None,
-                           has_attachments=False):
+                           has_attachments=False, resume_attempt=0):
             ws = _SendProxy(conv_sid, runtime_trace)  # các nhánh engine bên dưới dùng ws proxy này
             _cfg_all = cfgmod.read_settings()
             mcfg = _cfg_all.get("model", {})
+            # Lượt này vấp "hết lượt gói thuê bao"? Bốn nhánh engine thuê bao ghi vào đây qua
+            # `_limit_frame`; cuối lượt đọc ra để lưu câu báo và hẹn tự chạy lại.
+            _limit_state = {}
+
+            def _limit_frame(raw, engine_hint, model=""):
+                """Khung `error` (đã json) cho một lỗi engine. Là lỗi hết lượt gói thuê bao thì
+                dịch sang câu người dùng hiểu, kèm mốc reset để khung chat vẽ thẻ chờ."""
+                noi, lim = _subscription_limit_event(raw or "", engine_hint)
+                frame = {"type": "error", "content": noi or raw or ""}
+                if noi:
+                    _CONTEXT_RUNTIME.record_runtime_event(
+                        runtime_trace, "subscription.limit_reached",
+                        {"engine": engine_hint, "model": model or ""})
+                    _limit_state.update(notice=noi, limit=lim)
+                    frame["limit"] = {"engine": lim.engine, "scope": lim.scope,
+                                      "reset_epoch": float(lim.reset_epoch or 0)}
+                return json.dumps(frame)
             # NGÔN NGỮ chốt MỘT LẦN cho cả lượt, ngay đây. Chốt sớm và chốt một chỗ là để câu
             # trả lời, giọng đọc và các cổng chặn không bao giờ hiểu khác nhau trong cùng một
             # lượt. Không ai ghim gì thì `resolve` trả `theo_nguoi_dung=True` và chính MODEL
@@ -10469,7 +10829,7 @@ async def websocket_endpoint(ws: WebSocket):
                     kcli.session_id = _k_mach or None
                     # Mạch mới thì mồi lại bằng transcript đã lưu, y như Codex/Gemini: không có
                     # bước này là mở mạch mới = mất sạch ngữ cảnh cuộc đang nói dở.
-                    _k_cur = _cli_think(reasoning, user_message)
+                    _k_cur = _cli_do_sau_khac(kcli, grok_cli, reasoning, user_message)
                     _k_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
@@ -10494,15 +10854,8 @@ async def websocket_endpoint(ws: WebSocket):
                             store.set_last_input_tokens(
                                 conv_sid, int(ev.get("input_tokens") or 0))
                         elif et == "error":
-                            _noi = _subscription_limit_message(ev.get("content") or "",
-                                                               "grok-cli")
-                            if _noi:
-                                _CONTEXT_RUNTIME.record_runtime_event(
-                                    runtime_trace, "subscription.limit_reached",
-                                    {"engine": "grok-cli", "model": actual_model or ""})
-                                final_text = final_text or _noi
-                            await ws.send_text(json.dumps({
-                                "type": "error", "content": _noi or ev.get("content", "")}))
+                            await ws.send_text(_limit_frame(
+                                ev.get("content") or "", "grok-cli", actual_model or ""))
                     # CLI phát id mạch trong dòng sự kiện; lưu lại để lượt sau `--resume`.
                     if kcli.session_id:
                         store.set_grok_session_id(conv_sid, kcli.session_id)
@@ -10535,7 +10888,7 @@ async def websocket_endpoint(ws: WebSocket):
                         "model": actual_model or "", "session_id": conv_sid,
                         **_ctx_frame(runtime_trace, _ctx_in)}))
                 else:
-                    _a_cur = _cli_think(reasoning, user_message)
+                    _a_cur = _cli_do_sau_khac(acli, antigravity_cli, reasoning, user_message)
                     _a_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
@@ -10558,12 +10911,8 @@ async def websocket_endpoint(ws: WebSocket):
                             store.set_last_input_tokens(
                                 conv_sid, int(ev.get("input_tokens") or 0))
                         elif et == "error":
-                            _noi = _subscription_limit_message(ev.get("content") or "",
-                                                               "antigravity-cli")
-                            if _noi:
-                                final_text = final_text or _noi
-                            await ws.send_text(json.dumps({
-                                "type": "error", "content": _noi or ev.get("content", "")}))
+                            await ws.send_text(_limit_frame(
+                                ev.get("content") or "", "antigravity-cli", actual_model or ""))
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "antigravity-cli",
                         "model": actual_model or "", "session_id": conv_sid,
@@ -10661,7 +11010,7 @@ async def websocket_endpoint(ws: WebSocket):
                 if not ccli.is_available():
                     await ws.send_text(json.dumps({"type": "error", "content": "Chưa cài Codex CLI trong container. ChatGPT subscription là THỬ NGHIỆM - dùng Claude Code hoặc OpenRouter cho ổn định (đổi ở Models)."}))
                 else:
-                    _codex_current = _cli_think(reasoning, user_message)
+                    _codex_current = _codex_do_sau(ccli, reasoning, user_message)
                     _codex_raw = [{"role": _m["role"], "content": _m["content"]}
                                   for _m in store.get_messages(conv_sid)[:-1]
                                   if _m["role"] in ("user", "assistant") and _m.get("content")]
@@ -10711,14 +11060,8 @@ async def websocket_endpoint(ws: WebSocket):
                                     resume_failed = True
                                     if suppress_resume_error:
                                         continue
-                                _noi = _subscription_limit_message(ev.get("content") or "", "codex")
-                                if _noi:
-                                    _CONTEXT_RUNTIME.record_runtime_event(
-                                        runtime_trace, "subscription.limit_reached",
-                                        {"engine": "codex", "model": actual_model})
-                                    final_text = final_text or _noi
-                                await ws.send_text(json.dumps({
-                                    "type": "error", "content": _noi or ev["content"]}))
+                                await ws.send_text(_limit_frame(
+                                    ev.get("content") or "", "codex", actual_model))
                         return resume_failed
 
                     _resume_failed = await _consume_codex(
@@ -11079,7 +11422,7 @@ async def websocket_endpoint(ws: WebSocket):
                 _streamed = ""      # phần đã stream - phương án dự phòng khi luồng đứt trước 'final'
                 _cli_sid = None
                 _cost = None
-                _cli_prompt = _cli_think(reasoning, user_message)
+                _cli_prompt = _cli_do_sau(cli, reasoning, user_message)
                 if not cli.session_id:
                     # Bỏ --resume là Claude Code mất sạch mạch cũ. Mở mạch mới mà không mang
                     # theo gì thì đó không phải tiết kiệm, đó là làm hỏng hội thoại: người
@@ -11131,16 +11474,10 @@ async def websocket_endpoint(ws: WebSocket):
                     elif etype == "error":
                         # Hết lượt gói Claude thì Claude Code in nguyên văn câu tiếng Anh (có khi
                         # là dạng máy "…reached|<epoch>"). Dịch sang câu nói được TRƯỚC khi đẩy
-                        # ra khung chat, và giữ lại làm final_text để lượt này còn lưu được.
-                        _noi = _subscription_limit_message(event.get("content") or "", "claude-code")
-                        if _noi:
-                            _CONTEXT_RUNTIME.record_runtime_event(
-                                runtime_trace, "subscription.limit_reached",
-                                {"engine": "claude-code",
-                                 "model": cli.model or mcfg.get("claude_model") or "mặc định"})
-                            final_text = final_text or _noi
-                        await ws.send_text(json.dumps({
-                            "type": "error", "content": _noi or event["content"]}))
+                        # ra khung chat; cuối lượt lưu câu đó và hẹn tự chạy lại (xem _limit_state).
+                        await ws.send_text(_limit_frame(
+                            event.get("content") or "", "claude-code",
+                            cli.model or mcfg.get("claude_model") or "mặc định"))
                 # Khung `response` PHẢI nằm NGOÀI vòng lặp. Trước đây nó nằm trong nhánh
                 # `final`, nên luồng đứt trước khi có `final` (engine chết, mạng rớt) là client
                 # không nhận `response` nào cả và bong bóng chat treo mãi - trong khi phần chữ
@@ -11162,6 +11499,25 @@ async def websocket_endpoint(ws: WebSocket):
                     store.set_last_input_tokens(conv_sid, _ctx_in)
                 except Exception as _e:
                     print(f"[last_input_tokens] {type(_e).__name__}: {_e}", file=sys.stderr)
+
+            # Vấp hạn mức gói thuê bao mà KHÔNG có câu trả lời nào: lưu câu báo vào kho phiên
+            # (để F5 còn thấy, đi thẳng vào kho chứ không qua _persist_turn: một câu báo lỗi
+            # không đáng vào nhật ký Memory hay hàng đợi tự học), rồi hẹn chạy lại đúng lượt
+            # này khi hạn mức mở. Có câu trả lời dở dang thì để nguyên như một lượt thường.
+            if _limit_state.get("notice") and not final_text:
+                _noi, _lim = _limit_state["notice"], _limit_state["limit"]
+                _persist_limit_notice(store, conv_sid, user_message, _noi)
+                _auto_pref = bool((_cfg_all.get("dashboard") or {}).get("auto_resume", True))
+                _item = limit_resume.REGISTRY.schedule(
+                    conv_sid, float(getattr(_lim, "reset_epoch", 0) or 0),
+                    lambda attempt, _n=_noi: _start_resumed_turn(
+                        conv_sid, user_message, brain, attempt, _n),
+                    engine=getattr(_lim, "engine", ""), notice=_noi,
+                    scope=getattr(_lim, "scope", ""), attempt=int(resume_attempt or 0),
+                    auto_default=_auto_pref)
+                await ws.send_text(json.dumps({
+                    "type": "resume", "state": "scheduled" if _item.auto else "off",
+                    **_item.payload()}))
 
             # Lưu lượt assistant: kho phiên + title + log Memory + hàng đợi tự học.
             # Đường lưu DÙNG CHUNG với Telegram (_persist_turn) - nó tự bóc khối điều khiển.
@@ -11190,11 +11546,12 @@ async def websocket_endpoint(ws: WebSocket):
             return final_text
 
         async def run_turn(conv_sid, user_message, brain, turn_tag, runtime_trace=None,
-                           has_attachments=False):
+                           has_attachments=False, resume_attempt=0):
             _trace_token = context_runtime.bind_trace(runtime_trace)
             try:
                 final_text = await _do_turn(
-                    conv_sid, user_message, brain, turn_tag, runtime_trace, has_attachments
+                    conv_sid, user_message, brain, turn_tag, runtime_trace, has_attachments,
+                    resume_attempt=resume_attempt,
                 )
                 _record_quality_shadow(
                     runtime_trace, user_message, final_text or "", "dashboard")
@@ -11216,6 +11573,33 @@ async def websocket_endpoint(ws: WebSocket):
                 await send_raw({"type": "turn_done", "session_id": conv_sid,
                                 **context_runtime.event_fields(runtime_trace)})
                 _CHAT_RUNTIME.finish_job(conv_sid, asyncio.current_task())
+
+        async def _start_resumed_turn(conv_sid, user_message, brain, attempt, notice):
+            """Chạy lại một lượt đã vấp hạn mức gói thuê bao (limit_resume gọi tới, khi tới mốc
+            reset hoặc khi người dùng bấm "Chạy lại ngay").
+
+            Là một job chat bình thường của server: đăng ký vào _CHAT_RUNTIME nên tab nào đang
+            mở cũng thấy nó chạy, Stop được, và kết quả lưu vào kho phiên như mọi lượt. Tin
+            người dùng đã nằm trong kho từ lượt gốc nên KHÔNG ghi lại; chỉ rút câu "hết lượt"
+            ra khỏi cuối phiên để lịch sử không kết thúc bằng một câu của trợ lý."""
+            if _CHAT_RUNTIME.get_job(conv_sid):
+                return          # phiên đang bận (vừa có tin mới) - không chen vào giữa
+            try:
+                store.pop_last_message(conv_sid, "assistant", notice)
+            except Exception as _e:
+                print(f"[limit resume] {type(_e).__name__}: {_e}", file=sys.stderr)
+            turn_tag = f"chat:{conv_sid[:12]}:{uuid.uuid4().hex[:8]}"
+            runtime_trace = _CONTEXT_RUNTIME.start_turn(conv_sid, brain, "dashboard")
+            await send_raw({"type": "resume", "session_id": conv_sid, "state": "running",
+                            "attempt": int(attempt or 0)})
+            task = asyncio.create_task(run_turn(
+                conv_sid, user_message, brain, turn_tag, runtime_trace, False,
+                resume_attempt=int(attempt or 0)))
+            _CHAT_RUNTIME.register_job(
+                conv_sid, task, turn_tag,
+                runtime_task_id=runtime_trace.task_id if runtime_trace else "",
+                runtime_step_id=runtime_trace.step_id if runtime_trace else "",
+            )
 
         while True:
             raw = await _real_ws.receive_text()
@@ -11247,6 +11631,33 @@ async def websocket_endpoint(ws: WebSocket):
                 _tag = _CHAT_RUNTIME.cancel_session(_sid)
                 if _tag:
                     cancel_all(_tag)     # giết subprocess engine của đúng lượt đó
+                continue
+            if action == "resume_now":
+                # Nút "Chạy lại ngay" trên thẻ hết lượt: không đợi mốc reset.
+                _sid = payload.get("session_id") or ""
+                if _CHAT_RUNTIME.get_job(_sid):
+                    await send_raw({"type": "error", "session_id": _sid,
+                                    "content": "Phiên này đang trả lời - đợi lượt hiện tại xong đã."})
+                    continue
+                if not await limit_resume.REGISTRY.run_now(_sid):
+                    await send_raw({"type": "resume", "session_id": _sid, "state": "gone"})
+                continue
+            if action == "resume_auto":
+                # Ô "Tự tiếp tục khi hạn mức reset": đổi cho mục đang chờ VÀ nhớ làm mặc định
+                # cho những lần sau, giống ô cùng tên của Claude Code.
+                _sid = payload.get("session_id") or ""
+                _bat = bool(payload.get("enabled"))
+                try:
+                    _cfg_r = cfgmod.read_settings()
+                    _cfg_r.setdefault("dashboard", {})["auto_resume"] = _bat
+                    cfgmod.write_settings(_cfg_r)
+                except Exception as _e:
+                    print(f"[resume_auto] {type(_e).__name__}: {_e}", file=sys.stderr)
+                _item = limit_resume.REGISTRY.set_auto(_sid, _bat)
+                if _item:
+                    await send_raw({"type": "resume",
+                                    "state": "scheduled" if _item.auto else "off",
+                                    **_item.payload()})
                 continue
             user_message = payload.get("message", "").strip()
             if not user_message:
@@ -11295,6 +11706,10 @@ async def websocket_endpoint(ws: WebSocket):
             if _CHAT_RUNTIME.get_job(conv_sid):
                 await send_raw({"type": "error", "content": "Phiên này đang trả lời - đợi lượt hiện tại xong đã.", "session_id": conv_sid})
                 continue
+            # Tin mới thay cho câu hỏi đang chờ hạn mức: bỏ lịch chạy lại, kẻo hai lượt chen
+            # nhau trên cùng một phiên. Muốn hỏi lại câu cũ thì bấm "Gửi lại" ở tin đó.
+            if limit_resume.REGISTRY.cancel(conv_sid):
+                await send_raw({"type": "resume", "session_id": conv_sid, "state": "cancelled"})
             store.append_message(conv_sid, "user", user_message)
             turn_tag = f"chat:{conv_sid[:12]}:{uuid.uuid4().hex[:8]}"
             runtime_trace = _CONTEXT_RUNTIME.start_turn(conv_sid, brain, "dashboard")
@@ -12233,10 +12648,18 @@ async def _uoc_tinh_tiet_kiem(brain: str = "brain") -> dict:
 # giao diện phải nói rõ là ước lượng, và người dùng đặt được số của chính mình qua
 # settings.model.gia_input_1m (USD cho 1 triệu token vào) để đè lên bảng này.
 #
-# Khớp theo CHUỖI CON của tên model, dài trước ngắn sau, nên "claude-opus-5" ăn mục "opus"
-# chứ không rơi về mặc định.
+# Khớp theo CHUỖI CON của tên model, dài trước ngắn sau, nên "claude-opus-5" ăn mục "opus-5"
+# chứ không rơi về mục "opus" trần, càng không rơi về mức mặc định.
+#
+# Dòng Claude khai theo TỪNG BẢN chứ không gộp một mục "opus": Anthropic đã hạ giá dòng Opus
+# từ 15$ xuống 5$ mỗi triệu token đầu vào kể từ 4.5, còn Fable thì ĐẮT HƠN Opus (10$). Gộp
+# một mục là khai vống chi phí của người chạy Opus 5 lên gấp ba, và khai hụt của người chạy
+# Fable đi ba lần - cả hai đều rơi thẳng vào con số tiền trên trang Mức dùng. Mục "opus" trần
+# giữ lại cho các bản 4.1 trở về trước, vẫn đúng giá của chúng.
 _GIA_INPUT_1M = {
-    "opus": 15.0, "sonnet": 3.0, "haiku": 1.0,
+    "fable": 10.0, "mythos": 10.0,
+    "opus-5": 5.0, "opus-4-8": 5.0, "opus-4-7": 5.0, "opus-4-6": 5.0, "opus-4-5": 5.0,
+    "opus": 15.0, "sonnet-5": 2.0, "sonnet": 3.0, "haiku": 1.0,
     "gpt-5-mini": 0.25, "gpt-5": 1.25, "gpt-4o-mini": 0.15, "gpt-4o": 2.5, "o3": 2.0,
     "gemini-2.5-pro": 1.25, "gemini-2.5-flash": 0.30, "gemini": 0.30,
     "deepseek": 0.30, "llama": 0.10, "qwen": 0.20, "mistral": 0.20, "grok": 2.0,
@@ -12525,6 +12948,18 @@ def _configured_api_providers() -> tuple:
     return tuple(out)
 
 
+def _subscription_limit_event(raw: str, engine_hint: str):
+    """(câu người dùng hiểu, SubscriptionLimit) cho lỗi "gói thuê bao hết lượt"; ("", None) nếu
+    không phải loại lỗi này. Khung chat cần cả hai: câu chữ để hiện, mốc reset để hẹn chạy lại."""
+    try:
+        hit = limit_learner.parse_subscription_limit(raw, engine_hint=engine_hint)
+        if not hit:
+            return "", None
+        return model_limits.subscription_blocked_hint(hit, _configured_api_providers()), hit
+    except Exception:   # noqa: BLE001 - không được để câu báo lỗi tự nó nổ
+        return "", None
+
+
 def _subscription_limit_message(raw: str, engine_hint: str) -> str:
     """Đổi lỗi thô "gói thuê bao hết lượt" thành câu người dùng hiểu. "" nếu không phải.
 
@@ -12537,13 +12972,7 @@ def _subscription_limit_message(raw: str, engine_hint: str) -> str:
     tài khoản khác, có khi mất tiền thật - đó là quyết định của người dùng. Việc của câu này
     là nói rõ hết lượt tới bao giờ và bộ não nào đang sẵn sàng.
     """
-    try:
-        hit = limit_learner.parse_subscription_limit(raw, engine_hint=engine_hint)
-        if not hit:
-            return ""
-        return model_limits.subscription_blocked_hint(hit, _configured_api_providers())
-    except Exception:   # noqa: BLE001 - không được để câu báo lỗi tự nó nổ
-        return ""
+    return _subscription_limit_event(raw, engine_hint)[0]
 
 
 def _canary_keys() -> set:
@@ -14165,7 +14594,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                         if m.get("role") in ("user", "assistant") and m.get("content")]
             except Exception:
                 _raw = []
-        _hien_tai = _cli_think(reasoning, text)
+        _hien_tai = _codex_do_sau(ccli, reasoning, text)
         thread_cu = (getattr(ccli, "session_id", None) or "")
         # Chưa có thread (phiên mới, hoặc vừa bị xoá liên kết vì provider khác chen vào) thì
         # seed transcript đúng một lượt; có thread rồi thì resume native, khỏi gửi lại lịch sử.
@@ -14269,7 +14698,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         _streamed = ""   # phần đã stream - phương án dự phòng khi luồng đứt trước 'final'
         loi = []
         _pinged = False
-        _cli_prompt = _cli_think(reasoning, text)
+        _cli_prompt = _cli_do_sau(cli, reasoning, text)
         if not getattr(cli, "session_id", None):
             # Chưa có mạch native (phiên mới, hoặc vừa restart nên object engine dựng lại từ
             # đầu) thì mồi transcript đã lưu vào ĐÚNG MỘT lượt, y như dashboard vẫn làm. Có mạch

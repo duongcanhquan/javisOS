@@ -2,7 +2,7 @@
 
     python tests/run.py antigravity_cli      (KHÔNG mạng, KHÔNG cần cài agy)
 
-File engine này viết trong hoàn cảnh KHÁC hẳn `gemini_cli.py`: máy dựng bản đó có binary trong
+File engine này viết trong hoàn cảnh KHÁC hẳn một driver CLI thường: máy dựng bản đó có binary trong
 tay để đọc `--help` thật, còn ở đây thì không (máy build bị chặn mạng). Nên thiết kế của nó là
 "đo lúc chạy chứ không đoán" - và ĐÚNG CÁI ĐÓ là thứ test này phải canh, vì nó là chỗ duy nhất
 có thể sai lặng lẽ:
@@ -305,47 +305,132 @@ check("is_available() nói đúng sự thật", _g9.is_available() is False)
 
 
 # ============================================================
-# 5. MCP hub cô lập theo brain, không đụng file người dùng
+# 5. MCP hub: ĐÚNG CHỖ, ĐÚNG KHOÁ
 # ============================================================
-# Tắt ghi HOME trong test này: tránh đụng ~/.gemini của máy chạy CI; chỉ soi tầng workspace.
-os.environ["JAVIS_AGY_MCP_HOME"] = "0"
+# Đây là chỗ đã sai BA LẦN liên tiếp và cả ba lần đều hỏng lặng lẽ - `agy` chạy trơn tru, trả
+# lời trôi chảy, mà không có lấy một tool nào của Javis (không Kanban, không MCP, không skill),
+# và không ở đâu có một câu lỗi để lần ra. Hai chỗ sai chồng lên nhau:
+#
+#   khoá:  Javis ghi `httpUrl` (schema của Gemini CLI). `agy` đọc `serverUrl` - tài liệu di trú
+#          Gemini -> Antigravity nói thẳng là `url` được ĐỔI TÊN thành `serverUrl`, và issue #71
+#          của google-antigravity/antigravity-cli dán đúng cấu hình chạy được.
+#   chỗ:   Javis ghi vào brain (`.antigravity/*`, `.agents/mcp_config.json`). `agy` nạp MCP từ
+#          cấu hình tầng HOME `~/.gemini/config/mcp_config.json`; issue #60 ghi nhận nó TÌM THẤY
+#          cấu hình project rồi bỏ qua `mcpServers` trong đó.
+#
+# Nên test này canh cả hai, và canh cả chiều ngược lại (không được có `httpUrl`).
+_home = Path(tempfile.mkdtemp(prefix="javis-agyhome-"))
+os.environ["HOME"] = str(_home)
+os.environ.pop("USERPROFILE", None)
+os.environ.pop("JAVIS_AGY_MCP_CONFIG", None)
+os.environ.pop("JAVIS_AGY_MCP_HOME", None)
+
 _brain = Path(tempfile.mkdtemp(prefix="javis-agybrain-"))
-_hub = antigravity_cli.hub_entry("http://127.0.0.1:7777/mcp",
-                                 {"Authorization": "Bearer x"})
+_hub = antigravity_cli.hub_entry("http://127.0.0.1:7777/hub/mcp",
+                                 {"Authorization": "Bearer x", "X-Javis-Vault": str(_brain)})
+
+check("CANARY: entry dùng khoá `serverUrl` của agy", _hub.get("serverUrl") == "http://127.0.0.1:7777/hub/mcp", _hub)
+check("CANARY: KHÔNG còn `httpUrl` (khoá của Gemini CLI - thủ phạm cũ)", "httpUrl" not in _hub, _hub)
+check("giữ header hub", (_hub.get("headers") or {}).get("Authorization") == "Bearer x", _hub)
+# Chỗ này KHÔNG đo được (máy dựng bản này bị chặn mạng, không tải nổi `agy`), nên phải có
+# một cái lẫy: file cấu hình bị ghi đè mỗi lượt chat nên sửa tay không giữ được.
+os.environ["JAVIS_AGY_MCP_KEY"] = "serverUrl"
+check("JAVIS_AGY_MCP_KEY=serverUrl -> chỉ ghi đúng một khoá",
+      antigravity_cli.hub_entry("http://x").get("url") is None, antigravity_cli.hub_entry("http://x"))
+os.environ["JAVIS_AGY_MCP_KEY"] = "url"
+check("JAVIS_AGY_MCP_KEY=url -> ngược lại",
+      antigravity_cli.hub_entry("http://x").get("serverUrl") is None)
+os.environ.pop("JAVIS_AGY_MCP_KEY")
+
 antigravity_cli.ghi_mcp_settings(_brain, _hub)
-# CANARY: hai đường `.antigravity/*` là bản ĐOÁN cũ - KHÔNG còn ghi vào đó. Chỗ đúng ở tầng
-# workspace là `.agents/mcp_config.json`. Sai đường dẫn thì `agy` chạy mà không có tool Javis.
-_p_moi = _brain / ".agents" / "mcp_config.json"
-check("CANARY: ghi đường dẫn ĐÚNG `.agents/mcp_config.json`", _p_moi.is_file(), _p_moi)
-_doc = json.loads(_p_moi.read_text(encoding="utf-8"))
-check("entry hub tên 'javis' đúng schema agy (serverUrl)",
-      (_doc.get("mcpServers") or {}).get("javis") == _hub, _doc)
+
+_p_home = _home / ".gemini" / "config" / "mcp_config.json"
+_p_cu = _home / ".gemini" / "antigravity-cli" / "mcp_config.json"
+_p_ws = _brain / ".agents" / "mcp_config.json"
+check("CANARY: ghi vào cấu hình HOME `~/.gemini/config/mcp_config.json` (chỗ agy THẬT SỰ nạp)",
+      _p_home.is_file(), _p_home)
+check("và cả đường HOME cũ `~/.gemini/antigravity-cli/mcp_config.json`", _p_cu.is_file(), _p_cu)
+check("và cả workspace `.agents/mcp_config.json` (cho bản vá xong issue #60)", _p_ws.is_file(), _p_ws)
+for _ten, _pp in (("HOME", _p_home), ("HOME cũ", _p_cu), ("workspace", _p_ws)):
+    _d = json.loads(_pp.read_text(encoding="utf-8"))
+    check(f"entry hub tên 'javis' ở {_ten}", (_d.get("mcpServers") or {}).get("javis") == _hub, _d)
 check("CANARY: KHÔNG còn ghi vào `.antigravity/` (đường đoán cũ)",
       not (_brain / ".antigravity").exists() or not list((_brain / ".antigravity").glob("*.json")))
 check("CANARY: có neo `.antigravitycli/` để agy nhận đúng brain làm gốc project",
       (_brain / ".antigravitycli").is_dir())
+check("CANARY: KHÔNG tạo `.antigravitycli/mcp_config.json` (đường project-local bị agy bỏ qua,"
+      " và file rỗng làm bộ đọc 1.x nổ - issue #60/#252)",
+      not (_brain / ".antigravitycli" / "mcp_config.json").exists())
+
+# Giữ nguyên phần người dùng đã tự thêm vào cấu hình HOME - đó là file CỦA HỌ, dùng chung với
+# Antigravity IDE. Javis chỉ được thêm/bớt đúng entry `javis` của mình.
+_d0 = json.loads(_p_home.read_text(encoding="utf-8"))
+_d0["mcpServers"]["cua-toi"] = {"serverUrl": "http://x"}
+_d0["theme"] = "dark"
+_p_home.write_text(json.dumps(_d0), encoding="utf-8")
+antigravity_cli.ghi_mcp_settings(_brain, _hub)
+_d1 = json.loads(_p_home.read_text(encoding="utf-8"))
+check("CANARY: không xoá MCP người dùng tự thêm", "cua-toi" in (_d1.get("mcpServers") or {}), _d1)
+check("và không xoá cấu hình khác của họ", _d1.get("theme") == "dark")
 
 # Giữ nguyên phần người dùng đã tự thêm trong file workspace.
-_doc0 = json.loads(_p_moi.read_text(encoding="utf-8"))
+_doc0 = json.loads(_p_ws.read_text(encoding="utf-8"))
 _doc0["mcpServers"]["cua-toi"] = {"serverUrl": "http://x"}
 _doc0["theme"] = "dark"
-_p_moi.write_text(json.dumps(_doc0), encoding="utf-8")
+_p_ws.write_text(json.dumps(_doc0), encoding="utf-8")
 antigravity_cli.ghi_mcp_settings(_brain, _hub)
-_doc1 = json.loads(_p_moi.read_text(encoding="utf-8"))
-check("CANARY: không xoá MCP người dùng tự thêm",
+_doc1 = json.loads(_p_ws.read_text(encoding="utf-8"))
+check("CANARY: workspace không xoá MCP người dùng tự thêm",
       "cua-toi" in (_doc1.get("mcpServers") or {}), _doc1)
-check("và không xoá cấu hình khác của họ", _doc1.get("theme") == "dark")
+check("và workspace không xoá cấu hình khác của họ", _doc1.get("theme") == "dark")
+
+check("trang_thai_mcp() thấy hub đã đấu", antigravity_cli.trang_thai_mcp(_brain).get("ok") is True)
+# CANARY: soi trạng thái phải nhận CẢ HAI tên khoá, không thì đặt JAVIS_AGY_MCP_KEY=url
+# xong thẻ Models báo "chưa đấu" cho một cấu hình hoàn toàn đúng.
+os.environ["JAVIS_AGY_MCP_KEY"] = "url"
+antigravity_cli.ghi_mcp_settings(_brain, antigravity_cli.hub_entry("http://127.0.0.1:7777/hub/mcp"))
+check("CANARY: entry chỉ có khoá `url` vẫn được tính là đã đấu",
+      antigravity_cli.trang_thai_mcp(_brain).get("ok") is True,
+      antigravity_cli.trang_thai_mcp(_brain))
+os.environ.pop("JAVIS_AGY_MCP_KEY")
+antigravity_cli.ghi_mcp_settings(_brain, _hub)
 
 antigravity_cli.ghi_mcp_settings(_brain, None)
-_doc2 = json.loads(_p_moi.read_text(encoding="utf-8"))
+_d2 = json.loads(_p_home.read_text(encoding="utf-8"))
 check("tắt hub -> gỡ đúng entry javis, giữ phần còn lại",
-      "javis" not in (_doc2.get("mcpServers") or {})
-      and "cua-toi" in (_doc2.get("mcpServers") or {}), _doc2)
+      "javis" not in (_d2.get("mcpServers") or {})
+      and "cua-toi" in (_d2.get("mcpServers") or {}), _d2)
+check("và KHÔNG xoá file HOME của người dùng", _p_home.is_file())
+check("trang_thai_mcp() nói thật khi chưa đấu",
+      antigravity_cli.trang_thai_mcp(_brain).get("ok") is False)
 
 if os.name != "nt":
     check("file chứa hub token bị siết quyền",
-          (_p_moi.stat().st_mode & 0o077) == 0, oct(_p_moi.stat().st_mode))
-os.environ.pop("JAVIS_AGY_MCP_HOME", None)
+          (_p_home.stat().st_mode & 0o077) == 0, oct(_p_home.stat().st_mode))
+
+# Hai đường ĐOÁN của bản cũ nằm TRONG brain và chứa hub token, mà brain có đường sao lưu git đẩy
+# lên remote của người dùng. Nâng cấp lên bản này phải DỌN chúng đi, không phải chỉ ngừng ghi.
+_p_bo = _brain / ".antigravity" / "mcp.json"
+_p_bo.parent.mkdir(parents=True, exist_ok=True)
+_p_bo.write_text(json.dumps({"mcpServers": {"javis": {"httpUrl": "http://cu", "headers":
+                                                      {"Authorization": "Bearer bí-mật"}}}}),
+                 encoding="utf-8")
+_p_bo2 = _brain / ".antigravity" / "settings.json"
+_p_bo2.write_text(json.dumps({"mcpServers": {"javis": {"httpUrl": "http://cu"}}, "theme": "dark"}),
+                  encoding="utf-8")
+antigravity_cli.ghi_mcp_settings(_brain, _hub)
+check("CANARY: dọn file đoán cũ chứa hub token khỏi brain", not _p_bo.exists(), _p_bo)
+check("nhưng file đoán cũ còn cấu hình khác thì chỉ gỡ entry javis, không xoá",
+      _p_bo2.is_file()
+      and "javis" not in (json.loads(_p_bo2.read_text(encoding="utf-8")).get("mcpServers") or {})
+      and json.loads(_p_bo2.read_text(encoding="utf-8")).get("theme") == "dark")
+
+# Cửa thoát cho ai không muốn Javis đụng vào HOME.
+os.environ["JAVIS_AGY_MCP_HOME"] = "0"
+check("JAVIS_AGY_MCP_HOME=0 -> chỉ còn đường workspace",
+      [str(x) for x in antigravity_cli.duong_mcp(_brain)] == [str(_p_ws)],
+      antigravity_cli.duong_mcp(_brain))
+os.environ.pop("JAVIS_AGY_MCP_HOME")
 
 
 # ============================================================
@@ -355,10 +440,8 @@ antigravity_cli.find_antigravity_cli = _that_find
 _main_src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("có trong danh sách provider của trang Models",
       '"id": "antigravity-cli"' in _main_src)
-# Google đã ngắt Gemini CLI hạng cá nhân 18/06/2026 - thẻ đó không còn trong PROVIDER_DEFS;
-# Antigravity là đường thay thế. Canary cũ so thứ tự với gemini-cli nên nổ khi thẻ đó đã gỡ.
-check("CANARY: không còn khai PROVIDER_DEFS id gemini-cli (đường cá nhân đã chết)",
-      '{"id": "gemini-cli"' not in _main_src and "{'id': 'gemini-cli'" not in _main_src)
+check("CANARY: thẻ Gemini CLI đã gỡ hẳn (Google ngắt tài khoản cá nhân 18/06/2026)",
+      '"id": "gemini-cli"' not in _main_src and "{'id': 'gemini-cli'" not in _main_src)
 check("và Antigravity vẫn là provider có id riêng",
       '{"id": "antigravity-cli"' in _main_src)
 check("có nhánh chat riêng", 'elif prov == "antigravity-cli":' in _main_src)
@@ -366,6 +449,18 @@ check("Telegram cũng có nhánh đó", 'if prov == "antigravity-cli":' in _main
 check("đường chat-thuần (_api_stream) có nhánh, không rơi xuống anthropic key rỗng",
       "_antigravity_sub_stream" in _main_src)
 check("có gắn MCP hub", "_apply_antigravity_hub" in _main_src)
+# CANARY chống tái phát: `_apply_antigravity_hub` từng chép nguyên hình dạng entry của
+# `_apply_gemini_hub` (khoá `httpUrl`), và đó là lý do bộ não này chạy suốt 0.30-0.42 mà
+# không có tool nào. Hình dạng entry phải lấy từ module engine, không viết tay ở main.py.
+_agy_hub_fn = _main_src[_main_src.index("def _apply_antigravity_hub("):]
+_agy_hub_fn = _agy_hub_fn[:_agy_hub_fn.index("\ndef ")]
+check("CANARY: entry hub dựng bằng antigravity_cli.hub_entry, không viết tay",
+      "antigravity_cli.hub_entry(" in _agy_hub_fn, _agy_hub_fn[:400])
+check("CANARY: main.py KHÔNG còn ghi `httpUrl` cho agy (khoá của Gemini CLI)",
+      '"httpUrl"' not in _agy_hub_fn, _agy_hub_fn[:400])
+_hub_src = (ROOT / "server" / "mcp_hub.py").read_text(encoding="utf-8")
+check("hub trả danh sách rỗng cho resources/prompts thay vì -32601 (client khó tính vẫn"
+      " giữ kết nối - issue #71)", '"resources/list"' in _hub_src and '"prompts/list"' in _hub_src)
 check("trang Models hỏi được danh sách model", "antigravity_cli.list_models" in _main_src)
 check("có endpoint kiểm tra", "/antigravity/check" in _main_src)
 
@@ -736,6 +831,18 @@ check("CANARY: mở quyền đọc thư mục đó bằng --add-dir (file không
 _gb = (ROOT / "server" / "git_brain.py").read_text(encoding="utf-8")
 check("CANARY: git backup chặn thư mục .javis-agy", "/.javis-agy/" in _gb)
 check("và .gitignore của brain cũng chặn", '".javis-agy/"' in _gb)
+
+# Cùng một hạng rủi ro, chỗ khác: cấu hình MCP Javis ghi vào brain chứa `Bearer <hub token>` và
+# có đuôi .json, mà khối 2 của .gitignore mở lại MỌI file .json. Không chặn thì token đi thẳng
+# lên remote sao lưu của người dùng và git giữ blob vĩnh viễn.
+import git_brain as _gbm  # noqa: E402
+for _rel in (".agents/mcp_config.json", ".antigravity/mcp.json", ".antigravity/settings.json",
+             ".gemini/settings.json"):
+    check(f"CANARY: git backup chặn {_rel} (chứa hub token)", _gbm._backup_skip(_rel) is True)
+    check(f"và .gitignore của brain cũng chặn {_rel}",
+          any(k in _gbm._GITIGNORE for k in (_rel, _rel.split("/")[0] + "/")))
+check("CANARY: nhưng KHÔNG chặn cả `.agents/` - thư mục đó còn chứa skill của brain",
+      _gbm._backup_skip(".agents/skills/viet-email/SKILL.md") is False)
 
 for _f in _tep_ngu_canh():
     _f.unlink()

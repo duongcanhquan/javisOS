@@ -167,6 +167,64 @@ check("CANARY: chữ câu hỏi được escape trước khi dựng danh sách",
   /escHtml\(moc\[i\]\.text\)/.test(JS));
 check("có tôn trọng prefers-reduced-motion", /prefers-reduced-motion/.test(CSS));
 
+// ============================================================
+// 8. KHÔNG được cản việc bôi đen để copy chữ (người dùng báo 2026-08-31)
+// ============================================================
+// Dải mốc nằm đè lên mép phải vùng chữ: quét chuột để copy một câu cũ là đi vào dải, danh sách
+// bung ra che mất và cắt ngang thao tác. Ba tầng chắn, mỗi tầng một canary - bỏ tầng nào lỗi
+// cũng quay lại ở một hình dạng hơi khác.
+check("dải mốc sát mép phải, không lùi vào đè lên chữ",
+  /\.cm-ray \{[^}]*right: 0;/.test(CSS));
+check("và rộng đúng bằng vạch dài nhất (20px), không phải 22px như bản đầu",
+  /\.cm-ray \{[^}]*width: 20px;/.test(CSS));
+check("khung chat chừa lề phải cho dải mốc, nên hai vùng không chồng nhau",
+  /\.transcript\.cm-co-thanh \{ padding-right: \d+px; \}/.test(CSS));
+check("CANARY: đang giữ chuột kéo thì dải mốc trong suốt với chuột",
+  /\.transcript\.cm-dang-chon \.cm-ray[^{]*\{[^}]*pointer-events: none/.test(CSS));
+check("CANARY: mở danh sách phải xét đang-bôi-đen trước",
+  /function moHop\(e\) \{[\s\S]{0,80}if \(dangBoiDen\(e\)\) return;/.test(JS));
+check("nhận ra đang bôi đen qua nút chuột đang giữ", /e\.buttons !== 0/.test(JS));
+check("và qua vùng chọn chữ chưa rỗng", /sel && !sel\.isCollapsed/.test(JS));
+// Nghe hẹp ở chatArea thì cú quét ra ngoài khung không bao giờ nhả class -> dải chết hẳn.
+check("CANARY: theo dõi cú kéo ở DOCUMENT, không phải chỉ trong khung chat",
+  /document\.addEventListener\("mouseup"/.test(JS));
+check("bấm vào chính dải mốc KHÔNG bị tính là bôi đen (còn nhảy về câu cũ được)",
+  /boc\.contains\(e\.target\)\) return;/.test(JS));
+// Gỡ dải mà quên gỡ lề là khung chat chừa chỗ cho một thứ không còn ở đó.
+check("tháo dải thì gỡ luôn lề phải", /classList\.remove\("cm-co-thanh"\)/.test(JS));
+check("điện thoại KHÔNG chừa lề (chế độ nút, không có dải)",
+  /toggle\("cm-co-thanh", !hepQua\(\)\)/.test(JS));
+
+// ============================================================
+// 9. Điện thoại: nút "≡ n/m" đứng TRÊN HÀNG NHÃN, không đè lên bong bóng (ảnh chủ repo 02/09)
+// ============================================================
+// Bản đầu nút sticky ở góc trên-phải TRONG khung cuộn. Bong bóng của mình căn phải, nên cuộn
+// tới đâu nút đè lên chữ tới đó, trong khi hàng nhãn ngay trên lại thừa chỗ. Nay JS cắm nút
+// vào .panel-acts (màn Javis) hoặc .chatpage-bar (trang Trò chuyện), tìm theo khung đang chứa
+// #chatArea vì node chat bị mượn qua lại giữa hai trang.
+check("có hàm tìm chỗ đứng cho nút điện thoại", /function choNut\(\)/.test(JS));
+check("tìm theo KHUNG đang chứa #chatArea, không theo id cố định",
+  /closest\("\.hud-right, \.chatpage-main"\)/.test(JS)
+  && /querySelector\("\.panel-label \.panel-acts, \.chatpage-bar"\)/.test(JS));
+check("CANARY: màn hẹp thì chỗ đứng là hàng nhãn, hết chỗ mới rơi về khung",
+  /var chu = \(hep && choNut\(\)\) \|\| chatArea;/.test(JS));
+check("CANARY: 'đã gắn' xét theo chỗ đứng thật, không mặc định là con của #chatArea",
+  /boc\.parentNode === chu/.test(JS) && !/boc\.parentNode === chatArea/.test(JS));
+check("ở .panel-acts thì đứng TRƯỚC hai nút phóng to/thu",
+  /classList\.contains\("panel-acts"\)\) chu\.insertBefore\(boc, chu\.firstChild\)/.test(JS));
+// Nút đứng ngoài khung nên đổi trang phải dựng lại - mà đổi trang không phải childList của
+// #chatArea. Trang Trò chuyện bật/tắt on-chat ở body: nghe đúng cái đó.
+check("CANARY: theo dõi class body để đổi trang cũng dựng lại nút",
+  /observe\(document\.body, \{ attributes: true, attributeFilter: \["class"\] \}\)/.test(JS));
+// CSS: trong hàng nhãn, khối bọc là ô bình thường (không sticky/cao 0) và nút không tuyệt đối.
+check("CSS: #chatMarks trong hàng nhãn là ô bình thường, không sticky cao 0",
+  /\.panel-acts > #chatMarks, \.chatpage-bar > #chatMarks \{\s*position: static; height: auto; width: auto;/.test(CSS));
+check("CSS: nút trong hàng nhãn không định vị tuyệt đối nữa",
+  /\.panel-acts > #chatMarks \.cm-nut, \.chatpage-bar > #chatMarks \.cm-nut \{\s*position: static;/.test(CSS));
+check("hàng nhãn HỘI THOẠI có nhóm .panel-acts để cắm nút", /<span class="panel-acts">/.test(HTML));
+check("chat-marks.js đã bump cache (>= 3)", (function () {
+  var m = HTML.match(/chat-marks\.js\?v=(\d+)/); return !!m && parseInt(m[1], 10) >= 3; })());
+
 console.log("");
 if (fails.length) { console.log("THẤT BẠI " + fails.length + ": " + fails.join(", ")); process.exit(1); }
 console.log("OK - test_moc_hoi_thoai: tất cả pass");

@@ -26,7 +26,7 @@ Bạn đấu các **kết nối** của riêng mình vào (bán hàng/POS, quả
 
 | | Chatbot thường | **Javis OS** |
 |---|---|---|
-| Bộ não | Khoá cứng 1 model, API gọi rời từng câu | **Đổi được**: 13 nhà cung cấp, cái nào cũng đủ tool, MCP, skill, session |
+| Bộ não | Khoá cứng 1 model, API gọi rời từng câu | **Đổi được**: 11+ nhà cung cấp, cái nào cũng đủ tool, MCP, skill, session - kể cả model chạy ngay trên máy bạn qua Ollama Local (fork) |
 | Trí nhớ | Quên sau mỗi phiên | **Second Brain sống** - nhớ bạn, dày lên qua từng hội thoại |
 | Dữ liệu | Bịa hoặc không có | **Số liệu thật** từ kết nối bạn đấu vào (POS, Ads, Lịch, Zalo…) |
 | Tự cải thiện | Không | **Vòng lặp tự chạy nền** + hàng đợi việc do AI tự vận hành |
@@ -109,14 +109,13 @@ chmod +x install.sh && ./install.sh
 ```
 Script tự cài Python + Node + hai engine CLI (Claude Code, Codex), tạo venv, đăng ký dịch vụ systemd tự chạy khi boot, in ra địa chỉ. Báo Claude chưa đăng nhập thì chạy 1 lần: `claude auth login --claudeai`.
 
-### Cách 4 - Windows / Mac máy cá nhân (không cần Cursor)
+> 🍎 **macOS - mở như một app:** sau khi cài xong, double-click `JAVIS OS.app` (hoặc `Start JAVIS OS.command`) để chạy server + mở dashboard; tự chạy khi đăng nhập máy: `./bin/javis-autostart.sh install`. Chi tiết: [bin/README.md](bin/README.md).
 
-Hướng dẫn ngắn: **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)**.
+### Cách 4 - Windows / Mac máy cá nhân
 
-- **Windows:** ZIP → `1-Cai-dat.bat` (lần đầu) → sau đó `2-Bat-Javis.bat` → http://localhost:7777  
-- **Mac:** ZIP → `1-Cai-dat.command` → sau đó `2-Bat-Javis.command`
+Hướng dẫn ngắn (fork): **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)** — Windows: `1-Cai-dat.bat` → `2-Bat-Javis.bat`; Mac: `1-Cai-dat.command` → `2-Bat-Javis.command`.
 
-Chi tiết Windows (file gốc):
+#### Windows (chi tiết)
 
 ```
 1. Cài Python 3.12 (tick "Add to PATH") + Node.js LTS
@@ -125,6 +124,8 @@ Chi tiết Windows (file gốc):
 3. Mở http://localhost:7777 → trang Models, đăng nhập bộ não muốn dùng
 4. Dừng: stop-javis.bat
 ```
+
+> 🪟 **Windows - mở như một app:** sau khi `setup.bat` chạy xong lần đầu, từ đó về sau chỉ cần double-click **`JAVIS OS.bat`** - server tự chạy nền (không cửa sổ đen) rồi dashboard tự mở thành **cửa sổ riêng** không thanh địa chỉ, có ô riêng trên taskbar. Tự chạy khi đăng nhập máy: `javis-autostart.bat install` (gỡ: `uninstall`).
 
 ### Nhiều bản Javis trên cùng một VPS (mỗi bản một link riêng)
 
@@ -319,6 +320,26 @@ javis-os/
 - **Bộ não:** [Claude Code](https://claude.com/claude-code) và [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) (Anthropic), [Codex CLI](https://developers.openai.com/codex/cli) (OpenAI), cùng API của [OpenRouter](https://openrouter.ai), OpenAI, [Google Gemini](https://ai.google.dev), Anthropic, [Groq](https://groq.com) và [DeepSeek](https://platform.deepseek.com).
 - **Chuẩn công cụ:** [Model Context Protocol](https://modelcontextprotocol.io) - toàn bộ kho Kết nối của Javis chạy trên chuẩn này.
 - Pattern Second Brain + Bullet Journal số hoá.
+
+---
+
+## 📄 Giấy phép
+
+Mã nguồn mở theo giấy phép **MIT** - dùng, sửa, phân phối tự do, chỉ cần giữ dòng ghi công. Xem [LICENSE](LICENSE).
+
+---
+
+## ☕ Ủng hộ Javis OS
+
+Javis OS mã nguồn mở, dùng miễn phí, và mình vẫn đang một mình vừa code vừa gánh chi phí server chạy thử mỗi ngày. Nếu Javis đang giúp được gì cho công việc hay cuộc sống của bạn, một chút ủng hộ sẽ giúp mình có thêm thời gian ngồi sửa bug, viết tính năng mới, thay vì lo tiền server.
+
+Không bắt buộc, không đổi lấy quyền lợi gì cả - đơn giản là một lời cảm ơn gửi bằng tiền cho người đang âm thầm code buổi tối.
+
+- 🏦 **MB Bank**: `6636966369`
+- 📱 **Ví MoMo**: `0372752740`
+- 🌍 **PayPal**: [paypal.me/quy01](https://paypal.me/quy01)
+
+Không tiện donate cũng không sao - dùng Javis, góp ý, hay gửi một Pull Request cũng đã là ủng hộ rồi.
 
 ---
 

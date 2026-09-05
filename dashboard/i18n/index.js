@@ -67,17 +67,28 @@
    * Cố ý dùng textContent chứ không innerHTML: xem luật 3 ở đầu file. */
   function applyDom(goc) {
     var root = goc || document;
+    // t() trả về CHÍNH cái khoá khi cả từ điển gốc cũng thiếu nó. Lúc đó ĐỪNG ghi đè: chữ
+    // tiếng Việt có sẵn trong HTML còn đọc được, còn ghi đè là màn hình đầy `bar.input_ph`.
+    // Ca này có thật chứ không phải phòng hờ: từ điển cũ bị cache qua bản cập nhật (0.52.1).
+    var tra = function (el, attr) {
+      var v = t(el.getAttribute(attr));
+      return v === el.getAttribute(attr) ? null : v;
+    };
     root.querySelectorAll("[data-i18n]").forEach(function (el) {
-      el.textContent = t(el.getAttribute("data-i18n"));
+      var v = tra(el, "data-i18n");
+      if (v !== null) el.textContent = v;
     });
     root.querySelectorAll("[data-i18n-title]").forEach(function (el) {
-      el.setAttribute("title", t(el.getAttribute("data-i18n-title")));
+      var v = tra(el, "data-i18n-title");
+      if (v !== null) el.setAttribute("title", v);
     });
     root.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
-      el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria")));
+      var v = tra(el, "data-i18n-aria");
+      if (v !== null) el.setAttribute("aria-label", v);
     });
     root.querySelectorAll("[data-i18n-ph]").forEach(function (el) {
-      el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph")));
+      var v = tra(el, "data-i18n-ph");
+      if (v !== null) el.setAttribute("placeholder", v);
     });
   }
 
@@ -93,8 +104,9 @@
   }
 
   function _tai(ma) {
-    // `?v=` theo VERSION app: đổi bản là trình duyệt lấy từ điển mới, không ăn cache cũ.
-    return fetch("/static/i18n/" + ma + ".json?v=" + encodeURIComponent(_ver_tai()))
+    // cache: "no-cache" + ?v= theo VERSION app: tránh heuristic cache cũ (upstream 0.52.1)
+    // và vẫn bust khi đổi bản (fork).
+    return fetch("/static/i18n/" + ma + ".json?v=" + encodeURIComponent(_ver_tai()), { cache: "no-cache" })
       .then(function (r) { return r.ok ? r.json() : {}; })
       .catch(function () { return {}; });
   }

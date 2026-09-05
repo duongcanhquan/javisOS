@@ -677,7 +677,9 @@ class RemindersFeature:
                     cli.mcp_config = mcpf
                     cli.mcp_strict = True
         cli = aux_engine.apply(self.deps, cli, mode=mq, tag="reminder")
-        cli.max_wall_s = 900  # Ollama Local CPU: một vòng tool có thể >3 phút
+        # Trần chung cho việc nền (mặc định 1 giờ, env JAVIS_BG_MAX_WALL_S). Ollama Local CPU
+        # có thể cần lâu hơn 300s cũ - xem doc tại aux_engine.bg_max_wall_s.
+        cli.max_wall_s = aux_engine.bg_max_wall_s()
         if not cli.is_available():
             return "", aux_engine.unavailable_message(cli)
         rang_buoc = {

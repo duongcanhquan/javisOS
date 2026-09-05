@@ -138,6 +138,8 @@ check("ba vòng lặp tool đều đọc từ một chỗ",
 
 that_env = os.environ.get("JAVIS_MAX_TOOL_ROUNDS")
 try:
+    # 0.47.1: mặc định 8 -> 30, kẹp trên 40 -> 120. Người dùng chạm trần 8 liên tục với việc
+    # nhiều bước bình thường (27/08); phanh chống kẹt vòng lặp chuyển sang _LapGuard bên dưới.
     for dat, mong in ((None, 30), ("3", 3), ("40", 40), ("999", 120), ("0", 1), ("-5", 1),
                       ("abc", 30), ("", 30)):
         os.environ.pop("JAVIS_MAX_TOOL_ROUNDS", None)
@@ -157,6 +159,37 @@ finally:
     os.environ.pop("JAVIS_MAX_TOOL_ROUNDS", None)
     if that_env is not None:
         os.environ["JAVIS_MAX_TOOL_ROUNDS"] = that_env
+
+# ---- Phanh kẹt vòng lặp (_LapGuard): soi đúng bệnh thay vì đếm số ----
+g = engine._LapGuard()
+g.ghi([("doc_file", '{"path":"a.md"}')])
+check("vòng đầu không nhắc", g.loi_nhac() == "" and not g.ket())
+g.ghi([("doc_file", '{"path":"a.md"}')])
+check("lặp lần 2 chưa nhắc", g.loi_nhac() == "")
+g.ghi([("doc_file", '{"path":"a.md"}')])
+check("lặp y hệt lần 3 thì nhắc", "ĐỪNG gọi lại" in g.loi_nhac())
+g.ghi([("doc_file", '{"path":"a.md"}')])
+check("lần 4 chưa dừng (đã nhắc, cho một cơ hội)", not g.ket())
+g.ghi([("doc_file", '{"path":"a.md"}')])
+check("lặp y hệt lần 5 thì dừng", g.ket())
+check("câu dừng nói rõ kẹt vòng lặp + việc cần làm",
+      "kẹt vòng lặp" in engine._loi_ket_vong() and "đổi model" in engine._loi_ket_vong())
+
+g2 = engine._LapGuard()
+g2.ghi([("doc_file", '{"path":"a.md"}')])
+g2.ghi([("doc_file", '{"path":"a.md"}')])
+g2.ghi([("ghi_file", '{"path":"a.md"}')])   # đổi tool -> chuỗi lặp đứt
+g2.ghi([("doc_file", '{"path":"a.md"}')])   # đọc lại sau khi ghi: hợp lệ, không bị bắt oan
+check("đổi tool/tham số thì chuỗi lặp đứt (đọc-sửa-đọc lại không bị bắt oan)",
+      g2.lap == 1 and g2.loi_nhac() == "" and not g2.ket())
+
+g3 = engine._LapGuard()
+for _ in range(3):
+    g3.ghi([("b", "{}"), ("a", "{}")])   # thứ tự trong 1 vòng không quan trọng - vẫn là lặp
+check("cùng bộ tool khác thứ tự vẫn tính là lặp", g3.lap == 3)
+
+check("cả ba vòng tool đều gắn phanh kẹt vòng lặp",
+      esrc.count("guard = _LapGuard()") == 3, esrc.count("guard = _LapGuard()"))
 
 check("biến mới có trong tài liệu env",
       "JAVIS_MAX_TOOL_ROUNDS" in (ROOT / "docs" / "16-cau-hinh-env.md").read_text(encoding="utf-8"))

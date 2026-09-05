@@ -28,7 +28,7 @@ You wire in **your own connections** (POS/sales, ads, calendar, email, Zalo, not
 
 | | An ordinary chatbot | **Javis OS** |
 |---|---|---|
-| Brain | Hard-wired to one model, one stateless API call per message | **Swappable**: 13 providers, each with the full set of tools, MCP, skills and sessions |
+| Brain | Hard-wired to one model, one stateless API call per message | **Swappable**: 11+ providers, each with the full set of tools, MCP, skills and sessions - including models running on your own machine through Ollama Local (fork) |
 | Memory | Forgets after every session | **A living Second Brain** - remembers you, thickens with every conversation |
 | Data | Made up, or absent | **Real numbers** from the connections you wire in (POS, Ads, Calendar, Zalo…) |
 | Self-improvement | None | **Background loops** + an AI-run work queue |
@@ -121,6 +121,8 @@ The script installs Python + Node + both CLI engines (Claude Code, Codex), creat
 3. Open http://localhost:7777 → the Models page, sign in to the brain you want
 4. To stop: stop-javis.bat
 ```
+
+> 🪟 **Windows - open it like an app:** after the first `setup.bat` run, from then on just double-click **`JAVIS OS.bat`** - the server starts in the background (no black window) and the dashboard opens as its **own window** with no address bar and its own taskbar entry. Start at login: `javis-autostart.bat install` (remove: `uninstall`).
 
 ### Several Javis instances on one VPS (each with its own link)
 
@@ -315,6 +317,26 @@ javis-os/
 - **Brains:** [Claude Code](https://claude.com/claude-code) and the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) (Anthropic), [Codex CLI](https://developers.openai.com/codex/cli) (OpenAI), [Antigravity](https://antigravity.google) (Google), plus the APIs of [OpenRouter](https://openrouter.ai), OpenAI, [Google Gemini](https://ai.google.dev), Anthropic, [Groq](https://groq.com), [DeepSeek](https://platform.deepseek.com) and [Ollama](https://ollama.com).
 - **Tool standard:** [Model Context Protocol](https://modelcontextprotocol.io) - the entire Javis connection store runs on it.
 - The Second Brain and digital Bullet Journal patterns.
+
+---
+
+## 📄 License
+
+Open source under the **MIT License** - use, modify and distribute freely, just keep the copyright notice. See [LICENSE](LICENSE).
+
+---
+
+## ☕ Support Javis OS
+
+Javis OS is open-source and free to use, and it's still just one person (me) writing the code and covering the test server bills every day. If Javis has been useful for your work or your life, a small donation buys me more time to fix bugs and ship new features instead of worrying about server costs.
+
+No obligation, no perks attached - just a thank-you sent as money to someone quietly coding at night.
+
+- 🏦 **MB Bank** (Vietnam): `6636966369`
+- 📱 **MoMo wallet** (Vietnam): `0372752740`
+- 🌍 **PayPal**: [paypal.me/quy01](https://paypal.me/quy01)
+
+Can't donate? No worries - using Javis, sending feedback, or opening a Pull Request counts as support too.
 
 ---
 

@@ -84,6 +84,94 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
         xau.map(([k]) => k).join(", "));
 }
 
+// ---- 6b. index.html: chữ tiếng Việt tĩnh PHẢI mang data-i18n ----
+// Quét xong 0.51.0 thì mọi text node / thuộc tính title-placeholder-aria có dấu Việt trong
+// index.html đều đã gắn khoá từ điển. Chốt lại để một dòng HTML thêm sau không lặng lẽ
+// đứng ngoài bản dịch. Ngoại lệ là TÊN RIÊNG và chỗ JS tự quản (nút đổi tông do theme.js
+// đặt title theo trạng thái sáng/tối - một khoá tĩnh sẽ ghi đè sai một nửa thời gian).
+{
+  const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8")
+    .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/g, "");
+  const NGOAI_LE_TEXT = ["Ngọc Thu", "by Minh Quý", "1.10×"];
+  const chuaGan = [];
+  for (const m of html.matchAll(/<([a-zA-Z0-9]+)((?:[^<>"]|"[^"]*")*)>([^<>]*)/g)) {
+    const [, , attrs, text] = m;
+    if (DAU_VIET.test(text) && !attrs.includes("data-i18n")
+        && !NGOAI_LE_TEXT.some((x) => text.includes(x))) {
+      chuaGan.push(text.trim().slice(0, 50));
+    }
+  }
+  check("index.html: text node tiếng Việt nào cũng có data-i18n", chuaGan.length === 0,
+        chuaGan.slice(0, 5).join(" | "));
+
+  const attrChuaGan = [];
+  for (const m of html.matchAll(/<[a-zA-Z0-9]+((?:[^<>"]|"[^"]*")*)>/g)) {
+    const a = m[1];
+    if (a.includes('id="themeToggle"')) continue;   // theme.js tự đặt title theo tông
+    for (const [att, can] of [["title", "data-i18n-title"], ["placeholder", "data-i18n-ph"],
+                              ["aria-label", "data-i18n-aria"]]) {
+      const mm = a.match(new RegExp('(?<![-\\w])' + att + '="([^"]*)"'));
+      if (mm && DAU_VIET.test(mm[1]) && !a.includes(can)) attrChuaGan.push(`${att}=${mm[1].slice(0, 40)}`);
+    }
+  }
+  check("index.html: title/placeholder/aria tiếng Việt nào cũng có data-i18n-*",
+        attrChuaGan.length === 0, attrChuaGan.slice(0, 5).join(" | "));
+
+  // Khoá nhắc trong HTML phải TỒN TẠI trong vi.json - gõ sai tên khoá là chữ trên màn hình
+  // bị applyDom thay bằng chính cái khoá sai đó, và không test nào khác nhìn thấy.
+  const khoaThieu = [];
+  for (const m of html.matchAll(/data-i18n(?:-title|-ph|-aria)?="([^"]+)"/g)) {
+    if (!(m[1] in vi)) khoaThieu.push(m[1]);
+  }
+  check("mọi khoá data-i18n trong index.html đều có trong vi.json", khoaThieu.length === 0,
+        khoaThieu.slice(0, 6).join(", "));
+}
+
+// ---- 6c. Từ điển KHÔNG được sống sót qua bản cập nhật (khách báo 2026-08-30) ----
+// vi.json được fetch không có ?v=, nên thiếu chốt là trình duyệt cache heuristic giữ bản cũ:
+// code mới gọi khoá mới, màn hình in nguyên mã khoá kiểu `models.st_connected`. Ba tầng chắn,
+// mỗi tầng một canary:
+{
+  const idx = fs.readFileSync(path.join(ROOT, "dashboard", "i18n", "index.js"), "utf8");
+  check("index.js fetch từ điển với cache: no-cache (luôn hỏi lại server, 304 là rẻ)",
+        /fetch\("\/static\/i18n\/" \+ ma \+ "\.json", \{ cache: "no-cache" \}\)/.test(idx));
+  check("applyDom KHÔNG ghi đè khi thiếu bản dịch (giữ chữ có sẵn thay vì in mã khoá)",
+        idx.includes('v === el.getAttribute(attr) ? null : v'));
+
+  const mainPy = fs.readFileSync(path.join(ROOT, "server", "main.py"), "utf8");
+  check("server đóng dấu Cache-Control: no-cache cho /static/i18n/*.json",
+        mainPy.includes('startswith("/static/i18n/")')
+        && mainPy.includes('resp.headers["Cache-Control"] = "no-cache"'));
+
+  // i18n/index.js nạp qua ?v= immutable 1 năm - sửa nội dung file mà quên bump là client cũ
+  // giữ bản cũ VĨNH VIỄN. Bản sửa cache này nằm trong v=2, nên v phải >= 2 từ đây trở đi.
+  const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8");
+  const mV = html.match(/\/static\/i18n\/index\.js\?v=(\d+)/);
+  check("index.html nạp i18n/index.js với v >= 2", mV && parseInt(mV[1], 10) >= 2,
+        mV ? mV[0] : "không thấy");
+}
+
+// ---- 6d. Mọi khoá t("...") trong JS phải TỒN TẠI trong vi.json ----
+// Bản đối xứng của kiểm tra 6b (bên đó lo index.html): gọi một khoá chưa khai là applyDom/t()
+// rơi về chính cái khoá, và không test nào khác nhìn thấy cho tới khi người dùng thấy.
+{
+  const JS_DUNG_T = ["console.js", "studio.js", "theme.js", "app.js", "chat-render.js",
+    "sessions-ui.js", "dataview.js", "brains-ui.js", "file-editor.js", "editor-cmds.js",
+    "chatbots.js", "model-picker.js", "quick-settings.js", "usage.js", "code-term.js",
+    "notifications.js"];
+  const thieuJs = [];
+  for (const f of JS_DUNG_T) {
+    const p = path.join(ROOT, "dashboard", f);
+    if (!fs.existsSync(p)) continue;
+    const src = fs.readFileSync(p, "utf8");
+    for (const m of src.matchAll(/(?<![\w.$])(?:window\.)?t\(\s*"([a-z0-9_.]+)"/g)) {
+      if (m[1].includes(".") && !(m[1] in vi)) thieuJs.push(`${f}:${m[1]}`);
+    }
+  }
+  check("mọi khoá t(...) trong JS đều có trong vi.json", thieuJs.length === 0,
+        thieuJs.slice(0, 6).join(", "));
+}
+
 // ---- 6. CHỐT CHẶN THOÁI LUI ----
 // File nào đã dọn xong thì tên nó vào đây. Từ đó trở đi, nhúng một chuỗi tiếng Việt vào file
 // đó là test đỏ ngay. Dọn thêm file nào thì thêm tên vào danh sách này.

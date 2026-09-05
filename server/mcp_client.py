@@ -27,6 +27,8 @@ from pathlib import Path
 
 import httpx
 
+import winproc
+
 PROTOCOL = "2025-06-18"
 # _IDLE_TTL PHẢI LỚN HƠN connect_health.HEALTH_INTERVAL (600). Khi hai số bằng nhau,
 # session vừa bị dọn xong ngay trước mỗi vòng quét sức khoẻ → vòng nào cũng spawn server
@@ -40,6 +42,7 @@ _DIAL_SONG_SONG = 8      # số connection dò tool CÙNG LÚC (đừng để np
 _DIAL_TRAN = "20"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
 # Docker compose VPS có thể ghi đè lên 45s (Tavily/remote MCP chậm); mặc định code giữ 20
 # để khớp trần khởi động Claude SDK và bộ test.
+_WARM_TRAN = "180"       # giây - trần cho vòng LÀM NÓNG lúc khởi động (xem tran_warm)
 
 
 def sanitize_fn(name):
@@ -81,6 +84,22 @@ def _format_result(res):
     return out or json.dumps(result, ensure_ascii=False)[:2000]
 
 
+class McpHttpError(Exception):
+    """Máy chủ MCP trả mã HTTP lỗi (401, 5xx...). Là LỖI THẬT, không phải kết quả rỗng.
+
+    Vì sao phải là ngoại lệ chứ không phải một dict lặng lẽ: cả hệ thống phía trên đọc
+    "có ném lỗi không" để quyết định dựng lại phiên, đánh dấu nguồn thiếu, và tô đỏ đèn
+    sức khoẻ. Nuốt mã lỗi HTTP rồi trả danh sách tool rỗng là biến một sự cố ồn ào thành
+    một sự cố CÂM - xem `_la_phien_chet` để biết cái giá đã trả.
+    """
+
+
+# Máy chủ nói "phiên của anh không còn": chuẩn Streamable HTTP quy định 404 cho phiên đã bị
+# xoá, nhưng SDK TypeScript (thứ phần lớn máy chủ MCP dùng) lại trả 400 kèm câu có chữ session.
+_PHIEN_CHET_HINTS = ("session not found", "no valid session", "session expired",
+                     "invalid session", "session id", "mcp-session-id", "session has expired")
+
+
 # ============================================================
 # HTTP (Streamable HTTP) - client sống lâu, giữ Mcp-Session-Id
 # ============================================================
@@ -102,7 +121,74 @@ class McpHttpSession:
             h["MCP-Protocol-Version"] = PROTOCOL
         return h
 
-    async def _rpc(self, method, params=None, notify=False):
+    def _la_phien_chet(self, r) -> bool:
+        """Mã lỗi này có nghĩa "bắt tay lại đi" chứ không phải "hỏng thật" không?
+
+        Đây là chỗ đã gây ra vụ 03/09/2026 (Pancake POS "Làng Chài Xưa"): máy chủ MCP có
+        quyền XOÁ PHIÊN bất cứ lúc nào - hết hạn, họ deploy lại, hoặc bộ cân tải đưa ta
+        sang máy khác - và chuẩn quy định lúc đó máy chủ trả 404 còn CLIENT PHẢI TỰ BẮT TAY
+        LẠI. Javis trước đây không hề đọc mã HTTP, nên 404 kèm thân JSON-RPC được `r.json()`
+        nuốt gọn thành một phản hồi bình thường, `tools/list` trả `[]` mà KHÔNG ném lỗi.
+
+        Hậu quả dây chuyền, không có lấy một dòng lỗi ở đâu:
+          - `SessionPool._retry` chỉ dựng lại phiên khi có NGOẠI LỆ → phiên chết nằm lại
+            trong pool, và mỗi lần dùng lại được gia hạn `last` nên vòng quét phiên rảnh
+            (15 phút) không bao giờ dọn tới, chừng nào người dùng còn thử lại.
+          - `discover_resolved` thấy 0 tool thì `continue`, KHÔNG ghi vào `bo_qua` → hub
+            tưởng vòng dò đủ, đóng băng danh sách thiếu nguồn suốt 60 giây.
+          - `connect_health` thấy không có ngoại lệ → `ok=True, tools=0` → trang Kết nối
+            chấm XANH ghi "Hoạt động bình thường (0 công cụ)", `javis_connections` báo "ổn".
+        Đúng cảnh chủ repo gặp nhiều lần: kết nối xanh, quyền đủ, mà không bộ não nào tìm ra
+        một tool POS nào, rồi "để 15-20 phút tự hết" - chính là lúc phiên chết bị dọn.
+        """
+        if not self.session_id:
+            return False          # chưa cầm phiên nào thì 404 là URL sai, không phải phiên chết
+        if r.status_code == 404:
+            return True
+        if r.status_code != 400:
+            return False
+        return any(h in (r.text or "").lower() for h in _PHIEN_CHET_HINTS)
+
+    @staticmethod
+    def _tom_tat_loi(r) -> str:
+        """Câu lỗi ngắn cho người đọc: ưu tiên message trong thân JSON-RPC, không thì thân thô."""
+        try:
+            obj = r.json()
+            msg = ((obj or {}).get("error") or {}).get("message")
+            if msg:
+                return str(msg)[:300]
+        except Exception:
+            pass
+        return (r.text or "").strip()[:300]
+
+    async def _bat_tay(self):
+        """initialize + notifications/initialized. KHÔNG tự giữ khoá, KHÔNG tự làm mới phiên.
+
+        Chỉ đánh dấu `_init_done` khi initialize THẬT SỰ thành công. Bản cũ đánh dấu vô điều
+        kiện, nên một lần initialize trả lỗi (key sai, máy chủ 5xx lúc khởi động) là phiên đó
+        mang cờ "đã bắt tay" suốt đời và mọi lượt sau đều gửi đi trong vô vọng.
+        """
+        res = await self._rpc("initialize", {
+            "protocolVersion": PROTOCOL, "capabilities": {},
+            "clientInfo": {"name": "javis-os", "version": "1.0"},
+        }, cho_lam_moi=False)
+        if isinstance(res, dict) and res.get("error"):
+            raise McpHttpError("initialize lỗi: "
+                               + json.dumps(res["error"], ensure_ascii=False)[:300])
+        await self._rpc("notifications/initialized", notify=True, cho_lam_moi=False)
+        self._init_done = True
+
+    async def _lam_moi_phien(self, sid_cu):
+        """Bắt tay lại sau khi máy chủ báo phiên chết.
+        `sid_cu` là phiên lúc gặp lỗi: người khác đã làm mới trước thì thôi, khỏi bắt tay hai lần."""
+        async with self._lock:
+            if self._init_done and self.session_id != sid_cu:
+                return
+            self.session_id = None
+            self._init_done = False
+            await self._bat_tay()
+
+    async def _rpc(self, method, params=None, notify=False, cho_lam_moi=True):
         self._id += 1
         msg = {"jsonrpc": "2.0", "method": method}
         if not notify:
@@ -113,6 +199,13 @@ class McpHttpSession:
         sid = r.headers.get("mcp-session-id")
         if sid:
             self.session_id = sid
+        if r.status_code >= 400:
+            # `cho_lam_moi` tắt trong lúc đang bắt tay - nếu không thì initialize gặp 404 sẽ
+            # gọi lại chính mình, và `_lam_moi_phien` đợi cái khoá mà `ensure_init` đang giữ.
+            if cho_lam_moi and self._la_phien_chet(r):
+                await self._lam_moi_phien(self.session_id)
+                return await self._rpc(method, params, notify=notify, cho_lam_moi=False)
+            raise McpHttpError(f"HTTP {r.status_code}: {self._tom_tat_loi(r)}")
         if notify:
             return None
         # Google MCP đôi khi trả HTTP 403 nhưng body vẫn là JSON-RPC có "result".
@@ -144,12 +237,7 @@ class McpHttpSession:
         async with self._lock:
             if self._init_done:
                 return
-            await self._rpc("initialize", {
-                "protocolVersion": PROTOCOL, "capabilities": {},
-                "clientInfo": {"name": "javis-os", "version": "1.0"},
-            })
-            await self._rpc("notifications/initialized", notify=True)
-            self._init_done = True
+            await self._bat_tay()
 
     async def list_tools(self):
         await self.ensure_init()
@@ -322,25 +410,8 @@ class McpStdioSession:
         tồn tại chừng nào còn thành viên). Chốt an toàn hai lớp: không bao giờ đụng nhóm
         của chính server, và nếu child không phải leader (bản cũ chưa có session riêng)
         thì nhóm mang id đó không tồn tại → ProcessLookupError → rơi về kill() như cũ."""
-        pid = self.proc.pid
-        if os.name == "nt":
-            # Windows không có process group kiểu POSIX → taskkill /T giết cả cây.
-            try:
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
-                               capture_output=True, timeout=10,
-                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-                return
-            except Exception:
-                pass
-        else:
-            try:
-                if pid != os.getpgid(0):
-                    os.killpg(pid, signal.SIGKILL)
-                    return
-            except ProcessLookupError:
-                pass   # cả nhóm đã chết sạch, hoặc child không phải leader → kill thường
-            except Exception:
-                pass
+        if winproc.kill_tree(self.proc.pid):
+            return
         try:
             self.proc.kill()   # fallback: ít nhất giết launcher như cũ
         except Exception:
@@ -405,7 +476,11 @@ class SessionPool:
 
     def _sweep(self):
         now = time.time()
-        for key in [k for k, v in self._sessions.items() if now - v["last"] > _IDLE_TTL]:
+        # `not v.get("ban")`: phiên đang chạy dở một tool call thì TUYỆT ĐỐI không đóng. Đóng
+        # phiên stdio là SIGKILL cả cây tiến trình (xem `McpStdioSession.close`), tức là giết
+        # luôn cái đơn/tin đang gửi dở. Một tool call dài hơn _IDLE_TTL là hiếm nhưng có thật.
+        for key in [k for k, v in self._sessions.items()
+                    if now - v["last"] > _IDLE_TTL and not v.get("ban")]:
             ent = self._sessions.pop(key, None)
             if ent:
                 self._close_later(ent["obj"])
@@ -434,31 +509,52 @@ class SessionPool:
         ent["last"] = time.time()
         return key, ent["obj"]
 
+    def _danh_dau_ban(self, key, delta):
+        ent = self._sessions.get(key)
+        if ent is not None:
+            ent["ban"] = max(0, int(ent.get("ban", 0)) + delta)
+            ent["last"] = time.time()
+
+    def dang_goi_tool(self, spec) -> bool:
+        """Phiên của spec này có đang chạy dở một tool call không.
+
+        Dùng ở chỗ DÒ TOOL: `tools/list` quá hạn trong lúc phiên đang bận nghĩa là nó mới chỉ
+        XẾP HÀNG chờ khoá chứ chưa gửi đi byte nào - khác hẳn "server treo giữa request"."""
+        ent = self._sessions.get(spec.get("key") or _spec_hash(spec))
+        return bool(ent and ent.get("ban"))
+
+    def tool_da_biet(self, spec):
+        """Danh sách tool của lần dò gần nhất trên phiên này (None nếu chưa dò được lần nào)."""
+        ent = self._sessions.get(spec.get("key") or _spec_hash(spec))
+        return (ent or {}).get("tools")
+
     def invalidate(self, key):
         ent = self._sessions.pop(key, None)
         if ent:
             self._close_later(ent["obj"])
 
     def dang_ban_theo_key(self, key) -> bool:
-        """Session của kết nối này đang gọi tool dở không?
+        """Như `dang_goi_tool` nhưng tra theo KEY thay vì spec.
 
-        Chưa theo dõi in-flight riêng → luôn False (không chặn xoá). Khi có cờ busy thật,
-        `/connect/delete` dùng để tránh rmtree home đang bị tiến trình stdio giữ khoá.
-        """
-        return False
+        Chỗ xoá kết nối chỉ cầm mỗi conn_id: nó không dựng lại được spec (spec cần secret đã
+        giải mã, mà kết nối thì sắp bị xoá). Key của phiên chính là conn_id, nên tra thẳng."""
+        ent = self._sessions.get(key)
+        return bool(ent and ent.get("ban"))
 
     async def close_now(self, key) -> bool:
-        """Đóng session ngay và chờ `close()` xong (khác `invalidate` fire-and-forget).
+        """Đóng phiên và CHỜ tiến trình con chết hẳn, khác `invalidate` là bắn-rồi-quên.
 
-        `purge.purge_connection` cần chờ stdio chết hẳn trước khi dời `connector-home/`.
-        """
+        Vì sao cần cả hai: `invalidate` dùng khi đổi cấu hình, ở đó chờ hay không cũng thế.
+        Còn trước khi `rmtree` thư mục home của một kết nối thì phải chờ thật - tiến trình
+        stdio còn sống là còn giữ khoá trên file trong đó, xoá sẽ trượt trên Windows và tệ hơn
+        là xoá NỬA VỜI trên POSIX. Trả True nếu có phiên để đóng."""
         ent = self._sessions.pop(key, None)
         if not ent:
             return False
         try:
             await ent["obj"].close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[mcp_client] close_now {key}: {type(e).__name__}: {e}", file=sys.stderr)
         return True
 
     async def close_all(self):
@@ -475,27 +571,58 @@ class SessionPool:
         """Lỗi CHẮC CHẮN xảy ra trước khi request chạm server → retry không gây side-effect đôi."""
         return isinstance(e, (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError))
 
-    async def _retry(self, spec, op, idempotent=True):
+    async def _retry(self, spec, op, idempotent=True, ban=False):
         """Chạy op(session); lỗi → dựng session mới, thử lại ĐÚNG 1 lần.
         Tool KHÔNG idempotent (tools/call - có thể là gửi tin/tạo đơn): CHỈ retry khi lỗi
         thuộc pha kết nối (chưa gửi được request) - timeout giữa chừng KHÔNG gọi lại,
-        tránh người thật nhận tin 2 lần / tạo đơn trùng."""
+        tránh người thật nhận tin 2 lần / tạo đơn trùng.
+
+        `ban=True` bật cờ "phiên đang chạy tool" suốt lúc op chạy, để vòng dò tool và vòng
+        quét phiên rảnh biết mà TRÁNH giết phiên này."""
         key, sess = self._get(spec)
         try:
-            return await op(sess)
+            return await self._chay(key, sess, op, ban)
         except Exception as e:
             self.invalidate(key)
             if not (idempotent or self._pre_send_error(e)):
                 raise
             key, sess = self._get(spec)
-            return await op(sess)   # lần 2 lỗi thì raise cho caller xử lý
+            return await self._chay(key, sess, op, ban)   # lần 2 lỗi thì raise cho caller
+
+    async def _chay(self, key, sess, op, ban):
+        if not ban:
+            return await op(sess)
+        self._danh_dau_ban(key, 1)
+        try:
+            return await op(sess)
+        finally:
+            self._danh_dau_ban(key, -1)
 
     async def list_tools(self, spec):
-        return await self._retry(spec, lambda s: s.list_tools(), idempotent=True)
+        tools = await self._retry(spec, lambda s: s.list_tools(), idempotent=True)
+        # Nhớ lại để vòng dò sau còn thứ mà dùng khi phiên đang bận (xem `tool_da_biet`).
+        ent = self._sessions.get(spec.get("key") or _spec_hash(spec))
+        if ent is not None and tools:
+            ent["tools"] = tools
+        return tools
 
     async def call_tool(self, spec, tool, arguments):
+        # Chèn tham số kỹ thuật BẮT BUỘC của connector (catalog `inject_args`) vào đây - đây là
+        # chốt DUY NHẤT mọi đường gọi đi qua: hub `_guard`, nút Test ở `validate_connection`,
+        # meta-tool `run` của lớp lazy, và cả route legacy. Đặt ở `_guard` thôi là nút Test đi
+        # đường vòng rồi báo đỏ trong khi kết nối vẫn tốt. Model đưa gì thì giữ nguyên cái đó.
+        args = arguments or {}
+        inject = spec.get("inject_args") or {}
+        if inject:
+            try:
+                import mcp_catalog
+                args = mcp_catalog.merge_inject_args(args, inject)
+            except Exception as e:
+                print(f"[mcp] inject_args {spec.get('label')}: {type(e).__name__}: {e}",
+                      file=sys.stderr)
         try:
-            return await self._retry(spec, lambda s: s.call_tool(tool, arguments), idempotent=False)
+            return await self._retry(spec, lambda s: s.call_tool(tool, args), idempotent=False,
+                                     ban=True)
         except Exception as e:
             return f"ERROR: gọi tool lỗi: {type(e).__name__}: {e}"
 
@@ -517,6 +644,7 @@ def _conn_spec(conn):
             "command": conn.get("command"), "args": conn.get("args") or [],
             "env": conn.get("env") or {}, "internal": conn.get("internal") or "",
             "secrets": conn.get("secrets") or {}, "config": conn.get("config") or {},
+            "inject_args": conn.get("inject_args") or {},
             "label": conn.get("label", "")}
 
 
@@ -602,9 +730,86 @@ def tran_dial():
     return v if v > 0 else None
 
 
-async def discover_resolved(conns):
+def tran_warm():
+    """Trần MỘT connection ở vòng LÀM NÓNG lúc khởi động (giây). None = không giới hạn.
+
+    Phải RỘNG HƠN HẲN `tran_dial()` vì hai vòng trả lời hai câu hỏi khác nhau. Vòng dò của
+    một lượt chat có người đang ngồi chờ, nên 20 giây là đúng: thà thiếu một nguồn còn hơn
+    treo cả lượt. Vòng làm nóng thì KHÔNG AI CHỜ - nó chạy vài giây sau khi server lên, chỉ
+    để mở sẵn phiên. Cắt nó ở 20 giây là cắt đúng thứ nó sinh ra để làm, vì mọi việc nặng
+    của một phiên nguội đều nằm quá mốc đó: `npx -y` / `uvx` phải TẢI package lần đầu (bản
+    Docker mất sạch cache npm/uv sau mỗi lần đổi ảnh), và máy chủ HTTP phía dịch vụ cũng
+    phải dựng lại phiên từ đầu.
+    """
+    raw = os.getenv("JAVIS_MCP_WARM_TIMEOUT", _WARM_TRAN)
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        v = float(_WARM_TRAN)
+    return v if v > 0 else None
+
+
+async def warm_pool(conns):
+    """Mở sẵn phiên MCP cho từng connection. Trả (id đã nóng, id còn nguội). Không bao giờ raise.
+
+    Đây là vòng chạy NỀN lúc khởi động, không phải đường găng của lượt chat, nên nó khác
+    `discover_resolved` ở đúng hai chỗ: chờ theo `tran_warm()` (rộng gấp nhiều lần) và không
+    quan tâm tool là gì - chỉ cần phiên nằm sẵn trong pool để vòng dò kế tiếp trả lời tức thì.
+
+    Vì sao cần (báo cáo 31/08: "khi update rất hay bị mất kết nối với các MCP"): sau mỗi lần
+    cập nhật, pool rỗng và cache npm/uv trong ảnh Docker cũng mất theo. Nguồn nào nguội quá 20
+    giây là rơi khỏi vòng dò đầu tiên, mà danh sách tool của vòng đó lại được cache và được
+    CLI engine đọc đúng một lần lúc mở phiên - nên nguồn đó biến mất khỏi hộp công cụ suốt cả
+    phiên chat, dù kết nối chẳng hỏng gì.
+    """
+    tran = tran_warm()
+    sem = asyncio.Semaphore(_DIAL_SONG_SONG)
+    nong, con_lanh = [], []
+
+    async def _mo(conn):
+        spec = _conn_spec(conn)
+        if not co_server_de_dial(spec):
+            return                      # connector ảo: không có phiên nào để mở
+
+        async def _lay():
+            spec["headers"].update(await _oauth_headers(conn))
+            return await pool.list_tools(spec)
+
+        async with sem:
+            try:
+                if tran is None:
+                    await _lay()
+                else:
+                    await asyncio.wait_for(_lay(), timeout=tran)
+                nong.append(conn["id"])
+                return
+            except (asyncio.TimeoutError, TimeoutError):
+                # Cùng lý do như `discover_resolved`: huỷ từ ngoài giữa một request NDJSON là
+                # ống stdio lệch pha vĩnh viễn - vứt phiên chứ đừng tái dùng. TRỪ khi phiên
+                # đang chạy dở một tool call: lúc đó `tools/list` mới chỉ chờ khoá, chưa gửi
+                # gì, mà giết phiên là giết luôn việc đang chạy.
+                if pool.dang_goi_tool(spec):
+                    print(f"[mcp warm] {conn.get('label')}: đang chạy tool - để nguyên phiên",
+                          file=sys.stderr)
+                else:
+                    pool.invalidate(spec.get("key") or _spec_hash(spec))
+                    print(f"[mcp warm] {conn.get('label')}: quá hạn làm nóng", file=sys.stderr)
+            except Exception as e:
+                print(f"[mcp warm] {conn.get('label')}: {type(e).__name__}: {e}", file=sys.stderr)
+        con_lanh.append(conn["id"])
+
+    if conns:
+        await asyncio.gather(*(_mo(c) for c in conns))
+    return nong, con_lanh
+
+
+async def discover_resolved(conns, bo_qua=None):
     """conns = mcp_store.resolved() → (tools_spec, route) namespaced theo connection.
     Conn nào không kết nối được thì BỎ QUA (không raise) để nguồn khác vẫn chạy.
+
+    `bo_qua`: truyền vào một set để NHẬN LẠI id những connection đã bị bỏ ở vòng này. Caller
+    cần nó để biết danh sách tool vừa dựng là bản THIẾU chứ không phải bản đủ - `mcp_hub` dùng
+    đúng chỗ đó để cache ngắn hạn thay vì đóng băng một danh sách thiếu nguồn trong 60 giây.
 
     Dò SONG SONG (trước 0.26.18 là tuần tự): tổng thời gian nay xấp xỉ nguồn CHẬM NHẤT chứ
     không còn là tổng của mọi nguồn. Máy đấu chục connector thì đây là khác biệt giữa vài giây
@@ -634,13 +839,32 @@ async def discover_resolved(conns):
                     return spec, await _lay()
                 return spec, await asyncio.wait_for(_lay(), timeout=tran)
             except (asyncio.TimeoutError, TimeoutError):
-                # Huỷ từ NGOÀI cắt ngang giữa một request NDJSON: phiên stdio còn nửa câu trả
-                # lời nằm trong ống, lần sau đọc là lệch pha vĩnh viễn. Vứt phiên, đừng tái dùng.
-                pool.invalidate(spec.get("key") or _spec_hash(spec))
-                print(f"[mcp discover] {conn.get('label')}: quá hạn dò tool - bỏ qua vòng này",
-                      file=sys.stderr)
+                # Quá hạn ở đây có HAI nghĩa khác hẳn nhau, và trước 0.52.8 cả hai bị xử như một.
+                #
+                # (a) Phiên ĐANG CHẠY DỞ một tool call thật (tạo đơn POS, gửi tin...). Khoá
+                #     phiên đang bị cái đó giữ, nên `tools/list` mới chỉ XẾP HÀNG chứ chưa gửi
+                #     đi byte nào: ống stdio không hề lệch pha. Giết phiên lúc này là SIGKILL cả
+                #     cây tiến trình, tức là giết luôn cái đơn đang lên dở - đúng lỗi "lên đơn
+                #     thứ 2 là rớt kết nối" khách của chủ repo báo 01/09/2026. Giữ phiên, và trả
+                #     lại danh sách tool lần dò trước để nguồn KHÔNG biến mất khỏi hộp công cụ
+                #     chỉ vì nó đang bận (biến mất là Javis nói "chưa đấu POS", cũng sai nốt).
+                # (b) Server thật sự treo giữa một request: huỷ từ ngoài để lại nửa câu trả lời
+                #     trong ống, lần sau đọc là lệch pha vĩnh viễn - vứt phiên, đừng tái dùng.
+                if pool.dang_goi_tool(spec):
+                    cu = pool.tool_da_biet(spec)
+                    print(f"[mcp discover] {conn.get('label')}: đang chạy tool - giữ phiên, "
+                          f"dùng lại danh sách tool lần trước ({len(cu or [])} tool)",
+                          file=sys.stderr)
+                    if cu:
+                        return spec, cu
+                else:
+                    pool.invalidate(spec.get("key") or _spec_hash(spec))
+                    print(f"[mcp discover] {conn.get('label')}: quá hạn dò tool - bỏ qua vòng này",
+                          file=sys.stderr)
             except Exception as e:
                 print(f"[mcp discover] {conn.get('label')}: {type(e).__name__}: {e}", file=sys.stderr)
+        if bo_qua is not None:
+            bo_qua.add(conn["id"])
         return spec, None
 
     ket = await asyncio.gather(*(_dial(c) for c in conns)) if conns else []
@@ -648,6 +872,13 @@ async def discover_resolved(conns):
     tools_spec, route = [], {}
     for conn, (spec, tools) in zip(conns, ket):
         if not tools:
+            # Dial được mà KHÔNG có tool nào là một dạng hỏng, không phải một trạng thái bình
+            # thường: nguồn có máy chủ thật thì nó phải có tool, bằng không nó vô dụng. Ghi vào
+            # `bo_qua` để hub biết vòng dò này THIẾU và chỉ cache 10 giây (thay vì đóng băng 60
+            # giây một danh sách vắng nguồn), và để `javis_connections` nói thật với model thay
+            # vì im lặng. Connector ảo (không có gì để dial) không tính - nó vốn không có tool.
+            if bo_qua is not None and co_server_de_dial(spec):
+                bo_qua.add(conn["id"])
             continue
         deny = set(conn.get("deny_tools") or [])
         ns = conn.get("namespace") or conn.get("slug") or conn["id"]

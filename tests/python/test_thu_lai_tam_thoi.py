@@ -212,7 +212,8 @@ def _lam_engine(ten):
 
 
 for _ten in ("openrouter_stream", "openai_stream", "gemini_stream", "groq_stream",
-             "ollama_stream", "openai_responses_stream", "anthropic_stream"):
+             "ollama_stream", "ollama_local_stream", "openai_responses_stream",
+             "anthropic_stream"):
     setattr(main.engine, _ten, _lam_engine(_ten))
 # Gói Claude Code KHÔNG đi qua engine.* nữa: từ 0.26.17 nó chạy binary `claude` (đường mượn
 # token OAuth đã gỡ, xem claude_auth.py). Nó vẫn phải nằm TRONG vòng thử lại - đó chính là
@@ -221,6 +222,7 @@ main._claude_sub_stream = _lam_engine("_claude_sub_stream")
 main._gemini_sub_stream = _lam_engine("_gemini_sub_stream")
 main._antigravity_sub_stream = _lam_engine("_antigravity_sub_stream")
 main._copilot_sub_stream = _lam_engine("_copilot_sub_stream")
+# Grok Build CLI (bộ não thứ 11) cùng cảnh: chạy binary `grok`, không qua engine.*.
 main._grok_sub_stream = _lam_engine("_grok_sub_stream")
 for _ten in ("deepseek_stream", "ollama_local_stream"):
     setattr(main.engine, _ten, _lam_engine(_ten))

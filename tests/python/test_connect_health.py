@@ -226,6 +226,93 @@ def test_probe_khong_de_den_do_do_luot_chay(monkeypatch):
     _reset_engines()
 
 
+def test_probe_api_key_khong_doi_phien_dang_nhap(monkeypatch):
+    """Chọn chạy Claude bằng API KEY thì không có 'phiên đăng nhập CLI' nào để mất - probe
+    không được báo đỏ 'Chưa đăng nhập' dù máy chưa từng đăng nhập Claude Code.
+    Vụ 27/08: user kết nối đủ ở trang Models mà banner 'Chưa kết nối Model AI' vẫn treo."""
+    _reset_engines()
+    import config as _cfg
+    monkeypatch.setattr(_cfg, "read_settings", lambda: {"model": {
+        "main": {"provider": "anthropic-cli"},
+        "claude_auth": "api_key", "anthropic_api_key": "sk-test"}})
+    monkeypatch.setattr(connect_health, "probe_claude_credentials",
+                        lambda path=None: (False, "Chưa đăng nhập Claude Code trên máy này."))
+    connect_health.probe_engines()
+    assert connect_health.engines_snapshot()["claude"]["ok"] is True
+    _reset_engines()
+
+
+def test_banner_chi_soi_main_model(monkeypatch):
+    """Banner 'Chưa kết nối Model AI' chỉ nói về MAIN MODEL. Model việc nền KHÔNG được
+    soi vào đây - kể cả khi trỏ hẳn một model Claude cụ thể (haiku theo gợi ý 'model rẻ
+    đỡ hạn mức' của chính UI): từ 0.43.3 việc nền có _FallbackChain nên Claude chết thì
+    nó tự chạy bằng bộ não chat, Javis vẫn dùng được. Vụ 27/08 bắt oan hai lần đều ở
+    đúng khe này (máy Main Codex, việc nền còn trỏ Claude)."""
+    import config as _cfg
+    for aux in ({"provider": "anthropic-cli", "model": ""},
+                {"provider": "anthropic-cli", "model": "haiku"},
+                {"provider": "gemini-cli", "model": "gemini-2.5-pro"}):
+        monkeypatch.setattr(_cfg, "read_settings", lambda a=aux: {"model": {
+            "main": {"provider": "openai-oauth", "model": "gpt-5.6-terra"}, "auxiliary": a}})
+        assert connect_health.engines_in_use() == {"codex"}, aux
+    # Main là provider API (chạy bằng key, lỗi báo tại chỗ) → không có đèn nào cả.
+    monkeypatch.setattr(_cfg, "read_settings", lambda: {"model": {
+        "main": {"provider": "openrouter", "model": "openai/gpt-4o-mini"}}})
+    assert connect_health.engines_in_use() == set()
+
+
+def test_probe_codex_theo_token_oauth(monkeypatch):
+    """Main Model là gói ChatGPT thì đèn codex phải CÓ THẬT: chưa/mất kết nối OAuth → đỏ,
+    có token → xanh. Trước 0.47.4 đèn này không tồn tại (không probe, flag không ai gọi)
+    nên ngắt ChatGPT thật cũng không banner nào báo."""
+    _reset_engines()
+    import config as _cfg
+    cau_hinh = {"model": {"main": {"provider": "openai-oauth", "model": "gpt-5.6-terra"},
+                          "openai_oauth": {}}}
+    monkeypatch.setattr(_cfg, "read_settings", lambda: cau_hinh)
+    connect_health.probe_engines()
+    rec = connect_health.engines_snapshot().get("codex")
+    assert rec and rec["ok"] is False and "ChatGPT" in rec["message"]
+    # Có token → xanh (status() chỉ đọc settings, không gọi mạng).
+    cau_hinh["model"]["openai_oauth"] = {"access_token": "tok", "refresh_token": "r"}
+    connect_health.probe_engines()
+    assert connect_health.engines_snapshot()["codex"]["ok"] is True
+    _reset_engines()
+
+
+def test_khong_bao_telegram_cho_bo_nao_khong_phai_main(monkeypatch):
+    """Lượt chạy việc nền bằng Claude phát hiện mất đăng nhập trên máy Main Codex: đèn được
+    ghi nhưng KHÔNG bắn Telegram 'Javis chưa dùng được' - câu đó sai với người dùng đó
+    (việc nền đã tự chạy tiếp bằng bộ não chat)."""
+    _reset_engines()
+    import config as _cfg
+    monkeypatch.setattr(_cfg, "read_settings", lambda: {"model": {
+        "main": {"provider": "openai-oauth", "model": "gpt-5.6-terra"}}})
+    calls = []
+    connect_health.on_engine_down = lambda text: calls.append(text)
+    connect_health.flag_engine_auth_error("claude", "failed to authenticate")
+    assert calls == []
+    # Còn đèn của chính Main Model thì vẫn phải báo.
+    connect_health.flag_engine_auth_error("codex", "please log out and sign in again")
+    assert len(calls) == 1 and "codex" in calls[0]
+    _reset_engines()
+
+
+def test_engine_reconnected_xoa_ca_den_do_do_luot_chay(monkeypatch):
+    """Vừa đăng nhập lại / đổi cấu hình ở trang Models thì bằng chứng lỗi cũ (kể cả đèn đỏ
+    source=run) đã lỗi thời: đèn phải xanh NGAY, không chờ vòng probe 10 phút."""
+    _reset_engines()
+    import config as _cfg
+    monkeypatch.setattr(_cfg, "read_settings",
+                        lambda: {"model": {"main": {"provider": "anthropic-cli"}}})
+    monkeypatch.setattr(connect_health, "probe_claude_credentials", lambda path=None: (True, ""))
+    connect_health.flag_engine_auth_error("claude", "failed to authenticate")
+    assert connect_health.engines_snapshot()["claude"]["ok"] is False
+    connect_health.engine_reconnected("claude")
+    assert connect_health.engines_snapshot()["claude"]["ok"] is True
+    _reset_engines()
+
+
 def test_probe_claude_credentials_cac_nhanh(tmp_path, monkeypatch):
     import json as _json
     import time as _time

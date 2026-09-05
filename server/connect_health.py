@@ -95,9 +95,27 @@ async def check_one(conn, pool=None) -> dict:
         spec["headers"].update(await mcp_client._oauth_headers(conn))
         tools = await asyncio.wait_for(pool.list_tools(spec), timeout=_CHECK_TIMEOUT)
         rec.update(ok=True, tools=len(tools))
+        # Nối được nhưng hộp công cụ RỖNG thì không được tô xanh. Đèn xanh ghi "Hoạt động
+        # bình thường (0 công cụ)" là câu nói dối tai hại nhất trang này: người dùng tin là
+        # nguồn ổn nên đi tìm lỗi ở chỗ khác, còn bộ não thì đọc `javis_connections` thấy
+        # "ổn" rồi kết luận bừa (vụ 03/09: "POS ổn nhưng không có tool nào" - model quay ra
+        # đổ cho brain chưa gắn nguồn). Máy chủ có thật mà không có tool là hỏng, nói thẳng.
+        if not tools:
+            rec.update(ok=False, kind="empty",
+                       message="Nối được nhưng máy chủ không đưa ra công cụ nào - phiên có "
+                               "thể vừa bị máy chủ xoá. Bấm Kiểm tra để nối lại.")
     except Exception as e:
-        kind, msg = classify_error(f"{type(e).__name__}: {e}")
-        rec.update(kind=kind, message=msg)
+        # Quá hạn TRONG LÚC phiên đang chạy dở một tool call thật (lên đơn POS, gửi tin): ping
+        # chỉ đang xếp hàng chờ khoá chứ nguồn không hề hỏng. Báo đỏ ở đây là trang Kết nối nói
+        # dối đúng lúc nguồn đang LÀM VIỆC, rồi người dùng đi sửa một thứ không hỏng.
+        ban = (isinstance(e, (asyncio.TimeoutError, TimeoutError))
+               and pool.dang_goi_tool(spec))
+        if ban:
+            rec.update(ok=True, kind="ban",
+                       message="Đang chạy tool nên chưa ping được - không phải lỗi kết nối.")
+        else:
+            kind, msg = classify_error(f"{type(e).__name__}: {e}")
+            rec.update(kind=kind, message=msg)
     _state[conn["id"]] = rec
     return rec
 
@@ -174,6 +192,15 @@ def _set_engine(name, ok, message="", source="probe"):
         rec["notified"] = False   # hồi sinh → lần chết sau lại được báo
     _engines[name] = rec
     if not ok and not rec["notified"] and on_engine_down:
+        # Chỉ báo Telegram khi bộ não này ĐANG là Main Model. Đèn của bộ não khác (vd lượt
+        # chạy việc nền bằng Claude phát hiện mất đăng nhập trên máy Main Codex) vẫn được
+        # ghi lại, nhưng câu "Javis chưa dùng được" là SAI với người dùng đó - việc nền đã
+        # tự chạy tiếp bằng bộ não chat (_FallbackChain, 0.43.3).
+        try:
+            if name not in engines_in_use():
+                return
+        except Exception:
+            pass
         rec["notified"] = True
         try:
             # Nói theo góc NGƯỜI DÙNG: với họ chỉ có một sự thật là chưa dùng được Javis,
@@ -268,27 +295,28 @@ def probe_claude_credentials(path=None) -> tuple[bool, str]:
 # Provider nào có "phiên đăng nhập CLI" để mà mất. Các provider API (openrouter, openai,
 # anthropic-api, gemini) chạy bằng API key: key sai thì lượt chạy báo lỗi ngay tại chỗ,
 # không có phiên nào hết hạn ngầm, nên chúng KHÔNG có đèn báo não.
-_PROVIDER_ENGINE = {"anthropic-cli": "claude", "openai-oauth": "codex", "gemini-cli": "gemini-cli"}
+_PROVIDER_ENGINE = {"anthropic-cli": "claude", "openai-oauth": "codex",
+                    "grok-cli": "grok-cli"}
 
 
 def engines_in_use() -> set:
-    """Tên đèn của những bộ não người dùng THẬT SỰ chọn: Main Model + model việc nền.
+    """Tên đèn của bộ não MAIN MODEL - thứ DUY NHẤT banner 'Chưa kết nối Model AI' nói về.
 
-    Model việc nền chỉ tính khi người dùng đặt provider RÕ RÀNG. Bỏ trống thì aux_engine
-    rơi về Claude, nhưng đó là mặc định của code chứ không phải lựa chọn của người dùng -
-    và việc nền đã có _FallbackChain đỡ (Claude chết thì sang OpenRouter free). Tính cái
-    mặc định ngầm đó vào đây là máy chưa từng cài Claude vẫn bị nagging suốt ngày
-    'bộ não claude mất đăng nhập' dù đang chạy OpenRouter ngon lành."""
+    Model việc nền KHÔNG soi ở đây nữa (0.47.4). Từ 0.43.3 việc nền có _FallbackChain:
+    Claude không sẵn sàng thì nó tự chạy bằng chính bộ não chat - tức 'model việc nền
+    chưa đăng nhập' KHÔNG còn nghĩa là 'Javis chưa dùng được'. Trong khi đó banner đọc
+    đúng nghĩa đen như vậy, và trong một ngày (27/08) đã hai lần bắt oan máy Main Model
+    Codex chỉ vì cấu hình việc nền còn trỏ một model Claude (bản đầu lọc mỗi ca
+    'anthropic-cli + model rỗng' của nút Về mặc định - vẫn sót ca chọn hẳn haiku theo
+    gợi ý 'model rẻ đỡ hạn mức' của chính UI). Sức khoẻ việc nền có chỗ riêng của nó:
+    thẻ Model việc nền ở trang Models."""
     try:
         import config as _cfg
         m = (_cfg.read_settings().get("model") or {})
     except Exception:
         return {"claude"}
-    provs = [(m.get("main") or {}).get("provider") or "anthropic-cli"]
-    aux = (m.get("auxiliary") or {}).get("provider")
-    if aux:
-        provs.append(aux)
-    return {_PROVIDER_ENGINE[p] for p in provs if p in _PROVIDER_ENGINE}
+    prov = (m.get("main") or {}).get("provider") or "anthropic-cli"
+    return {_PROVIDER_ENGINE[prov]} if prov in _PROVIDER_ENGINE else set()
 
 
 def probe_engines() -> None:
@@ -303,13 +331,52 @@ def probe_engines() -> None:
     live = engines_in_use()
     for name in [n for n in _engines if n not in live]:
         _engines.pop(name, None)
+    # Đèn Codex (Main Model là gói ChatGPT): trước 0.47.4 đèn này KHÔNG TỒN TẠI - không
+    # probe, và flag_engine_auth_error("codex") không có ai gọi - nên ngắt ChatGPT thật
+    # cũng không banner nào báo. Probe rẻ: status() chỉ đọc settings (có token hay không),
+    # không gọi mạng, nên không có ca báo đỏ oan vì mạng chập chờn.
+    if "codex" in live:
+        try:
+            import openai_oauth
+            ok = bool(openai_oauth.status().get("connected"))
+            cur = _engines.get("codex") or {}
+            if not (ok and cur.get("source") == "run" and not cur.get("ok")):
+                _set_engine("codex", ok,
+                            "" if ok else "Chưa kết nối ChatGPT (OAuth).", "probe")
+        except Exception:
+            pass
     if "claude" not in live:
         return
-    ok, msg = probe_claude_credentials()
+    # Gói Claude Code chạy bằng API KEY (chọn ở trang Models) thì không có "phiên đăng nhập
+    # CLI" nào để mà mất - probe file token lúc này là soi nhầm chỗ, và nó từng làm banner
+    # 'chưa kết nối' treo mãi trên máy đã dán key đầy đủ. Key sai thì lượt chạy báo tại chỗ
+    # (flag_engine_auth_error có mẫu "invalid api key"), giống mọi provider API khác.
+    try:
+        import claude_auth
+        if claude_auth.che_do() == claude_auth.API_KEY and claude_auth.api_key():
+            ok, msg = True, ""
+        else:
+            ok, msg = probe_claude_credentials()
+    except Exception:
+        ok, msg = probe_claude_credentials()
     cur = _engines.get("claude") or {}
     if ok and cur.get("source") == "run" and not cur.get("ok"):
         return   # đèn đỏ do lượt chạy thật - chờ engine_run_ok tắt, probe không đè
     _set_engine("claude", ok, msg, "probe")
+
+
+def engine_reconnected(name) -> None:
+    """Người dùng vừa đăng nhập lại / đổi cấu hình bộ não này ở trang Models: mọi bằng
+    chứng cũ (kể cả đèn đỏ do lượt chạy bật) đã lỗi thời, xoá đi rồi probe lại ngay.
+
+    Không có hàm này thì banner 'chưa kết nối Model AI' treo thêm tới 10 phút sau khi
+    người dùng ĐÃ kết nối xong (probe chỉ chạy mỗi HEALTH_INTERVAL), và đèn đỏ
+    source=run còn treo vô hạn vì probe không được đè nó."""
+    _engines.pop(name, None)
+    try:
+        probe_engines()
+    except Exception as e:
+        print(f"[engine health] probe sau kết nối lỗi: {e}", file=sys.stderr)
 
 
 def engines_snapshot() -> dict:

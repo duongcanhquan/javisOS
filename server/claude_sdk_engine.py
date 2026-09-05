@@ -177,9 +177,23 @@ def map_message(msg):
         u = msg.usage or {}
         # Đèn báo não: kết quả cuối khớp mẫu lỗi đăng nhập → bật đèn đỏ trên dashboard
         # + Telegram; chạy sạch thì tắt đèn. Não chết không tự báo được nên phải bắt ở đây.
+        # Cuộc ĐUA làm mới token (hai người dùng chung một tài khoản Claude, cùng chat đúng
+        # lúc token hết hạn) KHÔNG phải mất đăng nhập: refresh token bị lượt kia tiêu trước,
+        # còn phiên thì vẫn nguyên. Thắp đèn đỏ và bảo "vào Models kết nối lại" ở ca này là
+        # chỉ sai đường - mà bấm Ngắt còn xoá luôn bản sao lưu của vệ sĩ credentials, tức
+        # đẩy người ta từ một lượt hỏng sang mất đăng nhập thật.
+        dua_token = False
+        try:
+            import claude_token_gate
+            dua_token = (claude_token_gate.la_loi_tranh_lam_moi(msg.result or "")
+                         and claude_token_gate.con_dang_nhap())
+        except Exception:
+            dua_token = False
         try:
             import connect_health
-            if not connect_health.flag_engine_auth_error("claude", msg.result or ""):
+            if dua_token:
+                connect_health.engine_run_ok("claude")
+            elif not connect_health.flag_engine_auth_error("claude", msg.result or ""):
                 if not msg.is_error:
                     connect_health.engine_run_ok("claude")
         except Exception:
@@ -191,9 +205,18 @@ def map_message(msg):
                            "content": f"Claude kết thúc lỗi ({msg.subtype}) - không có nội dung trả về. "
                                       "Gửi lại tin nhắn; nếu vẫn lặp lại, mở hội thoại mới "
                                       "(phiên cũ có thể đã hỏng sau khi bị ngắt giữa chừng)."})
+        ket = msg.result or ""
+        if dua_token:
+            ket = ("Lượt này rơi đúng lúc phiên đăng nhập Claude đang được làm mới nên bị chặn "
+                   "giữa chừng. Phiên KHÔNG mất - gửi lại tin nhắn là chạy tiếp bình thường. "
+                   "Hay gặp khi hai người cùng chat trên một tài khoản Claude.")
         events.append({
             "type": "final",
-            "content": msg.result or "",
+            "content": ket,
+            # Cờ MÁY ĐỌC ĐƯỢC, để chuỗi dự phòng của việc nền không phải đoán qua chữ. Với
+            # người ngồi chat thì câu trên đã đủ (gửi lại là xong), nhưng việc nền KHÔNG gửi
+            # lại được - nó phải biết mà nhảy sang bộ não kế tiếp.
+            "dua_token": dua_token,
             "session_id": msg.session_id,
             "cost_usd": msg.total_cost_usd,
             "duration_ms": msg.duration_ms,
@@ -219,6 +242,9 @@ class ClaudeSDK:
         self.mcp_strict = False
         self.disallowed_tools = None
         self.max_wall_s = None
+        # Độ sâu suy nghĩ (low|medium|high|xhigh|max) - `main._cli_do_sau` đặt. None = không
+        # truyền gì, để Claude Code dùng mặc định của chính nó.
+        self.effort = None
         self.javis_mode = None    # _apply_mcp đặt (suggest|auto|full) - enforce min_mode plugin in-process
         self.javis_vault = None   # _apply_mcp đặt - brain đang làm việc, cho ctx của plugin
         # True = gửi system_prompt TRẦN, bỏ preset claude_code. Đường tiết kiệm token dùng cái
@@ -432,6 +458,17 @@ class ClaudeSDK:
             kw["env"] = {**os.environ, **_env}
         if self.model:
             kw["model"] = self.model
+        # Độ sâu suy nghĩ đi bằng CỜ THẬT của Claude Code (`--effort`), không phải bằng mấy từ
+        # khoá "think harder" nhét vào prompt như bản cũ. Ba cái lợi: thang của SDK trùng khít
+        # thang của Javis (low|medium|high|xhigh|max) nên hai mức trên cùng khác nhau THẬT chứ
+        # không cùng ra "ultrathink"; không tốn token nhắc trong mỗi prompt; và không có câu
+        # tiếng Việt lạ dính vào cuối tin nhắn người dùng.
+        #
+        # Hai lớp chắn cho bản CLI cũ: `main._cli_do_sau` dò `--effort` trong `claude --help`
+        # trước khi đặt, và ở đây còn kiểm SDK có trường này không. Truyền một cờ CLI chưa biết
+        # là nó thoát ngay với "unknown option", tức hỏng trọn lượt chat.
+        if self.effort and "effort" in fields:
+            kw["effort"] = self.effort
         if self.session_id:
             kw["resume"] = self.session_id
         servers, strict = self._mcp_servers()
@@ -480,6 +517,16 @@ class ClaudeSDK:
         tools_running = 0   # số tool đã gọi mà CHƯA thấy kết quả về
         da_co_chu = False   # đã nhận được sự kiện đầu tiên chưa (quyết định dùng trần nào)
         try:
+            # Xếp hàng ĐÚNG lúc token sắp hết hạn: hai lượt cùng làm mới thì lượt sau ăn
+            # "refresh token was already used" và người dùng bị báo mất đăng nhập oan.
+            # Ngoài cửa sổ hẹp đó hàm này trả về ngay, không tốn gì. Xem claude_token_gate.
+            try:
+                import claude_token_gate
+                nhan = await claude_token_gate.xep_hang()
+                if nhan:
+                    print(f"[claude token] xếp hàng làm mới: {nhan}", file=sys.stderr)
+            except Exception:
+                pass
             await client.connect()
             with _LOCK:
                 _ACTIVE[client] = (self.tag, loop)

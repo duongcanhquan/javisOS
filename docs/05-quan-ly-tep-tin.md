@@ -1,5 +1,7 @@
 # Quản lý tệp tin
 
+***Tiếng Việt** · [English](en/05-file-manager.md)*
+
 Trang "Tệp tin" là trình quản lý tệp ngay trong dashboard Javis. Bạn tìm file, duyệt thư mục, mở và sửa file văn bản (.md, .txt...) trực tiếp trên trình duyệt rồi lưu, tải file lên, tải file về (mọi loại file), tải cả thư mục về dạng .zip, tạo thư mục, đổi tên và xoá. Điểm vào luôn là "brain" (bộ não) bạn đang chọn, không cần mở File Explorer hay dùng lệnh.
 
 ## Tính năng này là gì
@@ -103,6 +105,7 @@ Vài điều nên biết về tìm kiếm:
 - Tìm theo **nội dung** chỉ quét file dạng chữ (.md, .txt, .json, .yaml, .csv, .py, .js...), bỏ qua file nặng hơn 1MB, và bỏ qua các thư mục kỹ thuật `.git`, `node_modules`, `__pycache__`, `.obsidian`, `.trash`, `.venv` cùng mọi thư mục ẩn.
 - Chế độ **Nội dung** cần ít nhất 2 ký tự. Gõ 1 ký tự thì Javis nhắc "Nhập ít nhất 2 ký tự để tìm trong nội dung."
 - Không có kết quả thì hiện `Không tìm thấy file phù hợp với "<từ khoá>".`
+- Ô **Tìm note...** ở cột VAULT bên trái dùng chung đường tìm này từ bản **0.52.9**. Trước đó nó tự bò cả vault từ trình duyệt, mỗi thư mục một lượt hỏi máy chủ, nên qua mạng tới VPS thì chậm hẳn so với ô tìm ở trang này. Nay hai ô nhanh như nhau.
 
 ### Duyệt thư mục
 
@@ -157,6 +160,8 @@ Bản này đã bịt đường đó. Với file lỡ hỏng rồi:
 1. Vào trang **Tệp tin**. Javis tự soi cả brain một lượt ngay khi bạn vào. **Không có file nào hỏng thì không hiện gì cả** - im lặng là tin tốt.
 2. Có thì hiện một khung vàng ở đầu trang, kèm danh sách file và hỏng ở chỗ nào.
 3. Bấm **Chữa hết N file**. Javis dựng lại khối thuộc tính và gỡ dấu gạch chéo thừa, rồi báo lại số file đã chữa.
+
+Từ 0.52.8, brain nào soi ra **sạch** thì Javis nhớ và **thôi soi lại** ở những lần mở trang sau. Vòng soi này đọc toàn bộ file `.md` của brain, nên với brain vài nghìn note nó làm trang Tệp tin mở chậm hẳn và cả ô tìm kiếm cũng ì theo. Vết hỏng thì do một bản không còn tồn tại gây ra, nên sạch một lần là sạch hẳn. Brain còn file hỏng thì vẫn soi lại mỗi lần vào, tới khi bạn bấm chữa. Chép một vault cũ từ máy khác vào và muốn soi lại thì mở `/files/md-hong?force=1`.
 
 Javis chỉ sửa thứ mà **chỉ lỗi đó mới tạo ra được**: khối `* * *` ở ngay đầu file kẹp giữa toàn dòng trông như metadata, và chuỗi từ hai dấu gạch chéo trở lên. Đường kẻ ngang giữa bài, file có frontmatter còn lành, hay một dấu gạch chéo lẻ bạn cố ý gõ - đều không bị đụng tới.
 

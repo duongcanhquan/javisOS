@@ -34,6 +34,12 @@ from config import STATE_DIR
 _TOKEN_PATH = STATE_DIR / ".hub_token"
 _AUDIT_PATH = STATE_DIR / "mcp_audit.jsonl"
 _CACHE_TTL = 60
+# Vòng dò có nguồn bị BỎ QUA (quá hạn/lỗi) thì danh sách tool là bản THIẾU. Cache nó đủ 60
+# giây là đóng băng cái thiếu đó: mọi lượt chat mở trong cửa sổ ấy nhận một hộp công cụ vắng
+# nguồn, mà CLI engine chỉ đọc danh sách MỘT LẦN lúc mở phiên nên cả phiên chat đó coi như
+# mất nguồn. Bản thiếu vẫn phải cache (không thì một nguồn chết là mỗi lượt lại đi dò lại từ
+# đầu), chỉ là cache NGẮN để lượt sau còn cơ hội thấy nguồn đã hồi.
+_CACHE_TTL_THIEU = 10
 _cache = {}          # (mode, vault_root) -> {"tools", "route", "ts", "mtime"}
 _rate = {}           # conn_id -> deque[timestamps]
 
@@ -92,6 +98,59 @@ def _audit_append(rec):
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
         print(f"[hub audit] {e}", file=sys.stderr)
+
+
+def forget_rate(conn_id) -> None:
+    """Quên bộ đếm tần suất của một connection đã bị xoá.
+
+    Nhỏ nhưng có thật: `_rate` là dict theo conn_id và không ai pop nó bao giờ, nên id của
+    mọi kết nối từng dùng tool sẽ nằm lại trong RAM tới lúc khởi động lại."""
+    _rate.pop(conn_id, None)
+
+
+def audit_scrub(conn_id, drop=False) -> int:
+    """Dọn nhật ký cho một connection đã xoá. Trả về số dòng đã chạm.
+
+    MẶC ĐỊNH CHỈ XOÁ NHÃN, không xoá dòng. Nhãn là thứ duy nhất trong bản ghi mang tên người
+    hoặc tên cửa hàng; bỏ nó đi là hết dữ liệu cá nhân, mà vẫn còn lại dấu vết "kết nối này
+    từng gọi tool kia lúc đó". Một nhật ký mà thao tác xoá tự quét sạch được thì không còn là
+    nhật ký - nên `drop=True` phải do người dùng tự tick.
+
+    Ghi lại bằng tmp + replace vì `_audit_append` mở file ở chế độ append KHÔNG khoá: sửa tại
+    chỗ mà gặp đúng lúc một tool call đang ghi là mất dòng đó.
+    """
+    if not conn_id or not _AUDIT_PATH.exists():
+        return 0
+    try:
+        lines = _AUDIT_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError as e:
+        print(f"[hub audit] doc de don: {e}", file=sys.stderr)
+        return 0
+    out, touched = [], 0
+    for line in lines:
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            out.append(line)      # dòng hỏng: giữ nguyên, không phải việc của hàm này
+            continue
+        if rec.get("conn_id") != conn_id:
+            out.append(line)
+            continue
+        touched += 1
+        if drop:
+            continue
+        rec["label"] = ""
+        out.append(json.dumps(rec, ensure_ascii=False))
+    if not touched:
+        return 0
+    try:
+        tmp = _AUDIT_PATH.with_suffix(".jsonl.tmp")
+        tmp.write_text((("\n".join(out)) + "\n") if out else "", encoding="utf-8")
+        tmp.replace(_AUDIT_PATH)
+    except OSError as e:
+        print(f"[hub audit] ghi lai: {e}", file=sys.stderr)
+        return 0
+    return touched
 
 
 def audit_tail(limit=50, conn_id=None):
@@ -299,15 +358,95 @@ def _safe_path(vault_root, p):
     return target
 
 
-def _connections_json(include_ambient=False, hidden=None):
+def _vung_nhan_file():
+    """`STATE_DIR/.staging` - vùng NHẬN FILE của khung chat, đã resolve. None nếu không có.
+
+    Mọi file người dùng đưa vào khung chat dashboard đều rơi xuống đây trước khi engine đọc:
+    kéo-thả, dán ảnh, và cả dán một đoạn văn dài (app.js tự cắt thành `van-ban-dan-*.txt`).
+    Thư mục này nằm NGOÀI vault, nên nó vô hình với `_safe_path`.
+    """
+    try:
+        return (Path(STATE_DIR) / ".staging").resolve()
+    except Exception:
+        return None
+
+
+def _safe_read_path(vault_root, p, cho_phep_staging=False):
+    """Như `_safe_path` nhưng cho ĐỌC, và biết thêm vùng nhận file của khung chat.
+
+    Vì sao phải có: dashboard chèn vào câu hỏi khối "[File đính kèm để ĐỌC (đường dẫn): …]"
+    với ĐƯỜNG DẪN TUYỆT ĐỐI trong `.staging` rồi dặn model "đọc thẳng file rồi trả lời".
+    Sáu engine API không có tool đọc file nào ngoài `javis_read_file`, mà tool đó khoá trong
+    vault - nên lượt nào đính kèm file cũng nổ `ValueError: nằm ngoài vault`, và model đọc
+    lỗi đó xong quay ra bảo người dùng "chuyển file vào thư mục Brain đi rồi tôi đọc". Người
+    dùng báo đúng cảnh này 23/08 với một đoạn văn dán dài.
+
+    Nới ĐÚNG một thư mục và CHỈ cho đọc: file trong đó là file chính chủ vừa gửi lên ở lượt
+    này, cùng mức tin cậy với file trong vault. Ghi vẫn khoá trong vault như cũ. Và phải xin
+    tường minh (`cho_phep_staging`) chứ không mặc định - bot chuyên trách nói chuyện với
+    người lạ cũng gọi hub bằng chính nhóm tool này, mở sẵn cho nó là biến tài liệu chủ vừa
+    dán thành thứ khách đoán tên file là đọc được.
+    """
+    trong_vault, loi = None, None
+    try:
+        trong_vault = _safe_path(vault_root, p)
+        if trong_vault.exists():
+            return trong_vault          # vault LUÔN thắng: không để staging che file thật
+    except ValueError as e:
+        loi = e
+    if cho_phep_staging:
+        stage = _vung_nhan_file()
+        raw = str(p or "").strip().replace("\\", "/")
+        if stage and raw:
+            q = Path(raw)
+            # Đường dẫn tuyệt đối của CHÍNH máy này (ca thường gặp), rồi tới tên file trần -
+            # đủ cho ca engine cầm đường dẫn của một máy khác (Docker) mà tên file vẫn đúng.
+            for ung_vien in ([q] if q.is_absolute() else [stage / q]) + [stage / q.name]:
+                try:
+                    t = ung_vien.resolve()
+                except OSError:
+                    continue
+                if (t == stage or stage in t.parents) and t.is_file():
+                    return t
+    if loi:
+        raise loi
+    return trong_vault                  # trong vault nhưng không tồn tại: để chỗ gọi báo
+
+
+def _connections_json(include_ambient=False, hidden=None, bo_qua=None):
     hidden = hidden or {}
-    out = []
+    bo_qua = set(bo_qua or ())
+    # Sức khoẻ từng nguồn (vòng check định kỳ). Import trong hàm: connect_health import
+    # mcp_client/mcp_store, kéo lên đầu file là thêm một cạnh nữa cho đồ thị import đã căng.
+    try:
+        import connect_health
+        suc_khoe = connect_health.snapshot()
+    except Exception:
+        suc_khoe = {}
+    # Vụ 02/09: một brain không thấy tool POS, model kết luận "nguồn chưa được gắn vào brain
+    # này" rồi còn ghi điều đó vào bộ nhớ dài hạn. KHÔNG có khái niệm ấy: hub dựng tool từ
+    # mcp_store.resolved() cho MỌI vault như nhau. Không thấy tool chỉ có hai lý do thật -
+    # nguồn đang tắt, hoặc nguồn đang hỏng lúc dò - và cả hai đều phải nói ra ở đây.
+    out = [{"ghi_chu": ("Kết nối là của CẢ Javis, dùng chung cho MỌI brain. Không có chuyện "
+                        "'gắn nguồn vào brain' - đừng bao giờ nói vậy. Nguồn có mặt ở danh sách "
+                        "này mà không thấy tool của nó thì xem trang_thai: đang TẮT (bật lại ở "
+                        "trang Kết nối) hoặc đang HỎNG lúc dò (bảo người dùng bấm Kiểm tra ở "
+                        "trang Kết nối). Sai ở nguồn, không phải ở brain.")}]
     for c in mcp_store.list_connections():
         con = mcp_catalog.get(c.get("connector_id")) or {}
         rec = {"connector": con.get("name") or c.get("connector_id"), "label": c.get("label"),
                "namespace": c.get("slug"), "perm": c.get("perm"), "enabled": c.get("enabled"),
                "is_default": c.get("is_default"), "transport": c.get("transport"),
                "source": "javis_hub"}
+        sk = suc_khoe.get(c.get("id")) or {}
+        if not c.get("enabled"):
+            rec["trang_thai"] = "ĐANG TẮT - bật lại ở trang Kết nối là mọi brain dùng được ngay."
+        elif c.get("id") in bo_qua:
+            rec["trang_thai"] = ("KHÔNG DÒ ĐƯỢC lúc này nên tool của nguồn này đang vắng. Nói "
+                                 "thẳng là nguồn đang hỏng/không nối được, bảo người dùng bấm "
+                                 "Kiểm tra ở trang Kết nối. " + (sk.get("message") or ""))
+        elif sk:
+            rec["trang_thai"] = "ổn" if sk.get("ok") else f"lỗi: {sk.get('message') or sk.get('kind')}"
         # Tool bị mức quyền GIẤU khỏi danh sách. Không kể ra thì model tưởng nguồn này không
         # làm được việc đó và đi đường vòng (vụ Lịch mức Chỉ đọc: create_event biến mất, model
         # loay hoay tìm tool tạo sự kiện rồi kết luận sai là kết nối hỏng).
@@ -338,13 +477,16 @@ def _list_skills(vault_root):
     return skill_router.enabled_slugs(vault_root)
 
 
-def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""):
+def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang="", staging=False,
+                   bo_qua=None):
     """(tools_spec, route) các tool nội bộ cho engine API. Claude/Codex có tool file native
     nên hub HTTP không trả nhóm này (chỉ meta javis_connections).
     include_ambient=True (đường engine Claude): javis_connections kèm cả connector tài khoản
     Claude (Drive/Gmail...) để model biết chúng tồn tại (gọi qua tool native mcp__*, không qua hub).
     hidden: {conn_id: {perm, tools}} tool bị mức quyền lọc khỏi danh sách - kể ra trong
-    javis_connections để model biết mà nói đúng lý do thay vì tưởng nguồn thiếu năng lực."""
+    javis_connections để model biết mà nói đúng lý do thay vì tưởng nguồn thiếu năng lực.
+    staging=True: `javis_read_file` đọc được thêm file trong vùng nhận file của khung chat
+    (xem `_safe_read_path`). CHỈ đường chat của CHỦ bật; bot chuyên trách để nguyên False."""
     tools, route = [], {}
 
     def add(name, description, props, required, call, effect="read"):
@@ -362,19 +504,30 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
         }
 
     add("javis_connections", "Liệt kê các nguồn dữ liệu (connector/tài khoản MCP) đang đấu vào Javis, "
-        "kèm mức quyền và các tool đang bị mức quyền ẩn (tool_bi_an_do_quyen). Gồm cả connector đấu "
+        "kèm mức quyền, trạng thái sống/hỏng, và các tool đang bị mức quyền ẩn (tool_bi_an_do_quyen). "
+        "Kết nối DÙNG CHUNG cho mọi brain - không có khái niệm gắn nguồn vào brain. Gồm cả connector đấu "
         "vào TÀI KHOẢN Claude (Drive/Gmail/lịch...) - loại source='claude_account' gọi THẲNG qua "
         "tool native mcp__<tên>__*, KHÔNG qua javis_run_tool. Dùng khi cần biết đang có nguồn nào / "
         "tài khoản nào là mặc định, hoặc khi không tìm thấy tool tưởng phải có.",
-        {}, [], lambda args: _async_const(_connections_json(include_ambient, hidden)))
+        {}, [], lambda args: _async_const(_connections_json(include_ambient, hidden, bo_qua)))
 
     if not vault_root:
         return tools, route
 
     async def _read(args):
-        p = _safe_path(vault_root, (args or {}).get("path"))
+        rel = (args or {}).get("path")
+        try:
+            p = _safe_read_path(vault_root, rel, cho_phep_staging=staging)
+        except ValueError:
+            # Nói THẲNG đây là ranh giới brain, kèm việc-cần-làm. Bản cũ để ValueError rơi ra
+            # nguyên văn "nằm ngoài vault", model đọc xong tự dựng một lời khuyên sai (bảo
+            # người dùng tự chép file vào thư mục Brain rồi mới đọc được).
+            return (f"ERROR: '{rel}' nằm ngoài bộ não đang làm việc nên tool này không đọc "
+                    f"được. Javis khoá tool file trong brain để một lượt chat không đọc lung "
+                    f"tung trên máy. Đọc được: đường dẫn tương đối trong brain, và file người "
+                    f"dùng vừa đính kèm vào khung chat.")
         if not p.is_file():
-            return f"ERROR: không có file '{(args or {}).get('path')}'"
+            return f"ERROR: không có file '{rel}'"
         text = p.read_text(encoding="utf-8", errors="replace")
         return text[:100_000] + (f"\n… [cắt, file dài {len(text):,} ký tự]" if len(text) > 100_000 else "")
 
@@ -424,7 +577,8 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
         await asyncio.to_thread(skill_usage.bump, vault_root, f.parent.name)
         return text
 
-    add("javis_read_file", "Đọc 1 file trong vault (Second Brain). path tương đối so với gốc vault.",
+    add("javis_read_file", "Đọc 1 file trong vault (Second Brain). path tương đối so với gốc vault; "
+        "nhận CẢ đường dẫn tuyệt đối của file người dùng vừa đính kèm/dán vào khung chat.",
         {"path": {"type": "string"}}, ["path"], _read)
     add("javis_list_dir", "Liệt kê file/thư mục trong vault. path tương đối, bỏ trống = gốc vault.",
         {"path": {"type": "string"}}, [], _ls)
@@ -567,6 +721,11 @@ def _connector_menu(pool, ambient=None):
         if ns not in seen:
             con = mcp_catalog.get(t.get("connector_id")) or {}
             desc = (con.get("description") or con.get("name") or "").strip()
+            # Plugin không có connector trong catalog nên tự mang theo mô tả của manifest
+            # (`group_desc`, do plugins_host gắn). Không đọc nó thì mọi plugin hiện trơ là
+            # "<slug> (<tên>, N tool)" và model vẫn phải đoán bên trong có gì.
+            if not desc:
+                desc = str(t.get("group_desc") or "").strip()
             if not desc and ns in _LOCAL_GROUP_DESC:
                 # Nhóm nội bộ (builtin/plugin) không có connector trong catalog nên trước đây
                 # hiện trơ là "javis (javis, N tool)" - model không đoán được skill nằm trong
@@ -731,21 +890,34 @@ def _apply_lazy(tools_spec, route, include_ambient=False, hidden=None, force=Fal
 # Discover (cache) - gộp MCP connections + builtin
 # ============================================================
 def _store_mtime():
-    try:
-        return mcp_store.STORE.stat().st_mtime
-    except OSError:
-        return 0
+    """Mốc thời gian để biết bảng tool có cần dựng lại không.
+
+    Gộp cả kho GÓI và sổ ĐÃ GỠ, không chỉ file kết nối: cả hai đều đổi được danh sách connector
+    mà không ai đụng tới `mcp_servers.json`. Ba lệnh stat, chạy trên đường nóng nên không đi
+    quét sâu - `discover_all` gọi hàm này mỗi lượt chat.
+
+    Đây là đường CHẬM (trong TTL 60 giây sẵn có), dành cho ca thả thư mục vào bằng tay. Đổi qua
+    endpoint thì đã gọi thẳng `invalidate_cache()` nên có hiệu lực ngay."""
+    tong = 0.0
+    for f in (mcp_store.STORE, STATE_DIR / "core-off.json", STATE_DIR / "packs"):
+        try:
+            tong += f.stat().st_mtime
+        except OSError:
+            pass
+    return tong
 
 
 async def discover_all(mode="full", vault_root=None, include_plugins=True, include_ambient=False,
-                       force_refresh=False, force_lazy=False):
+                       force_refresh=False, force_lazy=False, staging=False):
     """(tools_spec, route) đầy đủ cho 1 mode. route entries ĐÃ bọc quyền + audit.
     include_plugins=False: bỏ nhóm tool plugin - dùng khi engine SDK đã đấu plugin
     IN-PROCESS (header X-Javis-No-Plugins) để model không thấy tool trùng chức năng.
     include_ambient=True (đường engine Claude, header X-Javis-Engine=claude): javis_connections +
     lazy search kèm connector tài khoản Claude (Drive/Gmail...) - chúng là tool native mcp__* của
     engine, KHÔNG qua hub, hub chỉ mách chỗ cho model. Engine API (in-process) để False (không có
-    tool native để mà chỉ tới)."""
+    tool native để mà chỉ tới).
+    staging=True: cho `javis_read_file` đọc thêm vùng nhận file của khung chat - CHỈ đường chat
+    của chủ truyền vào (xem `_safe_read_path`)."""
     mode = (mode or "full").strip().lower()
     # Ngôn ngữ đọc từ CẤU HÌNH, không truyền từ lượt chat: danh sách tool được cache dùng chung
     # cho mọi lượt, nên nó không thể mang ngôn ngữ dò được của riêng một câu. Đổi lại, ngôn ngữ
@@ -757,15 +929,16 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
     except Exception:
         lang = ""
     key = (mode, str(vault_root or ""), bool(include_plugins), bool(include_ambient),
-           bool(force_lazy), lang)
+           bool(force_lazy), lang, bool(staging))
     ent = _cache.get(key)
     mt = _store_mtime()
-    if (not force_refresh and ent and time.time() - ent["ts"] < _CACHE_TTL
+    if (not force_refresh and ent and time.time() - ent["ts"] < ent.get("ttl", _CACHE_TTL)
             and ent["mtime"] == mt):
         return ent["tools"], ent["route"]
 
     conns = mcp_store.resolved(enabled_only=True)
-    raw_tools, raw_route = await mcp_client.discover_resolved(conns)
+    bo_qua = set()
+    raw_tools, raw_route = await mcp_client.discover_resolved(conns, bo_qua=bo_qua)
 
     tools_spec, route = [], {}
     hidden = {}          # conn_id -> {"perm", "ns", "tools"} - tool CÓ THẬT nhưng bị quyền lọc
@@ -799,7 +972,7 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
             "health": "healthy",
         }
 
-    b_tools, b_route = _builtin_tools(mode, vault_root, include_ambient, hidden, lang)
+    b_tools, b_route = _builtin_tools(mode, vault_root, include_ambient, hidden, lang, staging, bo_qua)
     tools_spec += b_tools
     route.update(b_route)
 
@@ -835,24 +1008,26 @@ async def discover_all(mode="full", vault_root=None, include_plugins=True, inclu
     # được vì _run đóng gói route đầy đủ). Đổi setting → làm mới theo TTL cache (60s) hoặc invalidate.
     tools_spec, route = _apply_lazy(tools_spec, route, include_ambient, hidden, force=force_lazy)
     _cache[key] = {"tools": tools_spec, "route": route, "ts": time.time(), "mtime": mt,
+                   "ttl": _CACHE_TTL_THIEU if bo_qua else _CACHE_TTL,
                    "inventory_tools": inventory_tools, "inventory_route": inventory_route}
     return tools_spec, route
 
 
 def registry_inventory(mode="full", vault_root=None, include_plugins=True, include_ambient=False,
-                       force_lazy=False):
+                       force_lazy=False, staging=False):
     """Trả snapshot pre-lazy đã cache; không discover I/O và không lộ ra model.
 
-    Khoá cache phải khớp `discover_all` (kể cả ngôn ngữ) - thiếu lang thì luôn miss,
+    Khoá cache phải khớp `discover_all` (kể cả ngôn ngữ + staging) - thiếu lang thì luôn miss,
     inventory rỗng, shadow/seed tool theo câu hỏi không chạy được.
     """
+    mode = (mode or "full").strip().lower()
     try:
         import localefmt
         lang = localefmt.ngon_ngu_tra_loi()
     except Exception:
         lang = ""
-    key = ((mode or "full").strip().lower(), str(vault_root or ""),
-           bool(include_plugins), bool(include_ambient), bool(force_lazy), lang)
+    key = (mode, str(vault_root or ""), bool(include_plugins), bool(include_ambient),
+           bool(force_lazy), lang, bool(staging))
     ent = _cache.get(key) or {}
     return list(ent.get("inventory_tools") or ent.get("tools") or []), dict(
         ent.get("inventory_route") or ent.get("route") or {}
@@ -953,6 +1128,15 @@ async def _handle_one(msg, mode, include_plugins=True, include_ambient=False, va
         return None
     if method == "ping":
         return {"jsonrpc": "2.0", "id": mid, "result": {}}
+    # Hub chỉ khai năng lực `tools`, nên theo đúng spec thì client KHÔNG được hỏi resources/
+    # prompts. Nhiều client vẫn hỏi, và trả -32601 cho chúng là cách nhanh nhất để bị coi là
+    # "server không tuân thủ" rồi bị đóng kết nối - đúng hạng lỗi issue #71 của antigravity-cli
+    # mô tả (tool thấy đủ nhưng gọi thì báo "not enabled for server"). Trả danh sách RỖNG vừa
+    # đúng sự thật vừa không cho ai cái cớ đóng kết nối.
+    if method in ("resources/list", "resources/templates/list", "prompts/list"):
+        khoa = {"resources/list": "resources", "resources/templates/list": "resourceTemplates",
+                "prompts/list": "prompts"}[method]
+        return {"jsonrpc": "2.0", "id": mid, "result": {khoa: []}}
     if method == "tools/list":
         tools, _ = await discover_all(mode, vault_root=vault_root, include_plugins=include_plugins,
                                       include_ambient=include_ambient)   # Claude/Codex có tool file native → không builtin file
@@ -1065,6 +1249,42 @@ def claude_config_path(mode="full", vault_root=None):
     }}}, ensure_ascii=False), encoding="utf-8")
     try:
         os.chmod(p, 0o600)   # file chứa hub token - siết như .hub_token
+    except Exception:
+        pass
+    return str(p)
+
+
+def antigravity_config_path(mode="full", vault_root=None):
+    """File mcp_config RIÊNG cho một lượt `agy`, tách theo brain (hậu tố băm như Claude).
+
+    Chỉ có tác dụng nếu bản `agy` trên máy khai một cờ nhận file cấu hình - `AntigravityCLI.
+    _build_args` hỏi `co_co()` rồi mới truyền. Vì sao vẫn ghi dù chưa chắc dùng được: cấu hình
+    HOME mà `agy` thật sự nạp là file DÙNG CHUNG, nên hai brain chạy đồng thời sẽ ghi đè header
+    X-Javis-Vault của nhau. Bên Codex chỗ này chữa bằng override argv; ở đây file per-brain là
+    thứ tương đương, và nó nằm sẵn đó cho ngày cờ kia có thật.
+
+    Hình dạng entry lấy từ `antigravity_cli.hub_entry` - KHÔNG viết tay `httpUrl` như bên Gemini.
+    """
+    mode = (mode or "full").strip().lower()
+    headers = {"Authorization": f"Bearer {hub_token()}", "X-Javis-Mode": mode}
+    hau_to = ""
+    if vault_root:
+        try:
+            vault = str(Path(vault_root).expanduser().resolve())
+        except Exception:
+            vault = str(vault_root)
+        headers["X-Javis-Vault"] = vault
+        hau_to = "_" + hashlib.sha1(vault.encode("utf-8")).hexdigest()[:10]
+    try:
+        import antigravity_cli
+        entry = antigravity_cli.hub_entry(hub_url(), headers)
+    except Exception:
+        entry = {"serverUrl": hub_url(), "url": hub_url(), "headers": headers, "disabled": False}
+    p = STATE_DIR / f".mcp_agy_{mode}{hau_to}.json"
+    p.write_text(json.dumps({"mcpServers": {"javis": entry}}, ensure_ascii=False),
+                 encoding="utf-8")
+    try:
+        os.chmod(p, 0o600)   # chứa hub token
     except Exception:
         pass
     return str(p)

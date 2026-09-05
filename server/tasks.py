@@ -18,6 +18,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 import time
 import uuid
 from dataclasses import dataclass
@@ -42,6 +43,25 @@ WORKER_TIMEOUT_SECONDS = 900
 ARCHIVE_TERMINAL_AFTER_DAYS = 3.0
 CAPABILITIES = {"auto", "files", "research", "mcp-read", "code", "external-write"}
 EXECUTION_MODES = {"suggest", "auto", "full"}
+# Gom thông báo việc KẸT: chờ ngần này giây kể từ việc kẹt đầu tiên rồi mới bắn MỘT tin cho
+# cả chùm. Điều phối lấy việc ra chạy theo lô nên việc kẹt hay kẹt thành chùm trong cùng một
+# phút; mỗi việc một tiếng chuông là kể lại cùng một sự kiện năm lần. 120 giây đủ rộng để hứng
+# trọn một lô, và vẫn đủ hẹp để việc kẹt lúc 9h không bị dính chung tin với việc kẹt lúc 15h.
+BAO_GOM_GIAY = 120
+BAO_GOM_LIET_KE = 5      # số việc liệt kê tên trong tin gộp, phần còn lại đếm gọn
+
+# Thang quyền từ nhẹ tới nặng. Có thứ tự mới KẸP TRẦN được: specifier chỉ được HẠ mức, không
+# bao giờ được nâng lên trên mức đã chốt lúc tạo việc. Xem `_kep_quyen`.
+MODE_RANK = ("suggest", "auto", "full")
+
+# Câu nói với NGƯỜI khi một việc cần thao tác thật ra ngoài mà chưa được cấp quyền. Cố ý viết
+# thành việc-phải-làm chứ không phải tình trạng máy: bản cũ ("Chỉ worker mode=full mới được
+# thực thi") đúng về kỹ thuật nhưng người đọc không rút ra được là mình phải bấm gì.
+LY_DO_CAN_QUYEN = (
+    "Việc này cần thao tác THẬT ra ngoài (gửi tin, đăng bài, tạo đơn hoặc đổi dữ liệu ở dịch "
+    "vụ khác) nên nó dừng lại chờ bạn. Bấm \"Cho phép chạy thật\" để cấp toàn quyền cho riêng "
+    "việc này rồi nó chạy tiếp, hoặc xoá khỏi bảng nếu bạn đã xử lý xong trong khung chat."
+)
 
 
 @dataclass
@@ -74,6 +94,9 @@ class TasksFeature:
         self._wake = asyncio.Event()
         self._closing = False
         self._snap_locks: dict[str, asyncio.Lock] = {}
+        # Rổ gom thông báo việc KẸT, theo TỪNG người nhận (xem `_gom_bao`).
+        self._ro_bao: dict[str, list[dict]] = {}
+        self._hen_bao: dict[str, asyncio.Task] = {}
         self.router = self._make_router()
 
     # ------------------------------------------------------------------
@@ -217,6 +240,10 @@ class TasksFeature:
     async def shutdown(self) -> None:
         self._closing = True
         self._wake.set()
+        try:
+            await self.xa_het_bao()   # việc kẹt còn treo trong rổ: bắn nốt, đừng nuốt
+        except Exception as e:
+            print(f"[kanban] xả rổ báo lúc tắt lỗi: {type(e).__name__}: {e}", file=sys.stderr)
         if self._dispatcher_task:
             self._dispatcher_task.cancel()
         for task in list(self._workers.values()):
@@ -371,7 +398,9 @@ class TasksFeature:
                         worker_id,
                         spec["intent"],
                         spec["capability"],
-                        spec["execution_mode"],
+                        # Kẹp ở ĐÂY, chỗ DUY NHẤT mức quyền của specifier đi vào kho - đặt trong
+                        # `_specify` thì nhánh heuristic (trả thẳng "auto") đi vòng qua được.
+                        self._kep_quyen(task.get("execution_mode"), spec["execution_mode"]),
                         metadata={
                             "acceptance": spec.get("acceptance", []),
                             "specifier": spec.get("specifier", "ai"),
@@ -384,10 +413,7 @@ class TasksFeature:
                 and task.get("execution_mode") != "full"
             ):
                 final_task = self.store.block(
-                    tid,
-                    worker_id,
-                    "capability",
-                    "Task cần hành động ra ngoài. Chỉ worker mode=full mới được thực thi.",
+                    tid, worker_id, "capability", LY_DO_CAN_QUYEN,
                 )
                 return
 
@@ -470,7 +496,9 @@ class TasksFeature:
                 cli.mcp_strict = True
         cli = aux_engine.apply(self.deps, cli, mode=mode, tag=cli.tag)
         try:
-            cli.max_wall_s = 600
+            # Trần chung cho fork nền (mặc định 1 giờ, env JAVIS_BG_MAX_WALL_S) - việc Kanban
+            # thật có thể chạy 30-60 phút, 600s cũ chặt ngang giữa chừng.
+            cli.max_wall_s = aux_engine.bg_max_wall_s()
         except Exception:
             pass
         return cli
@@ -561,6 +589,37 @@ nói rõ đã được phép tự hành động; nếu không thì để auto đ
             "acceptance": parsed.get("acceptance") if isinstance(parsed.get("acceptance"), list) else [],
             "specifier": "ai",
         }, ""
+
+    @staticmethod
+    def _kep_quyen(tran: str, xin: str) -> str:
+        """Mức quyền specifier đề xuất, KẸP xuống không quá mức đã chốt lúc tạo việc.
+
+        Vì sao phải kẹp, và đây là hai lỗi tách rời nhau:
+
+        1. NÓI MỘT ĐẰNG CHẠY MỘT NẺO. `javis_task` tạo việc mức `suggest` rồi báo lại với
+           người dùng đúng chữ "chỉ đọc và đề xuất". Nhưng `prepared()` ghi đè execution_mode
+           bằng thứ specifier trả về, mà prompt của specifier lại dặn "files/research/mcp-read/
+           code dùng auto" - nên gần như MỌI việc tạo từ chat đều lặng lẽ chạy ở mức auto (được
+           ghi file trong brain). Người dùng được hứa một mức và nhận một mức khác.
+
+        2. MỘT MODEL TỰ CẤP `full`. `full` là mức tháo sạch rào (`_lane_tools` trả None) để
+           việc tự thao tác thật ra ngoài. `javis_task` cố ý TỪ CHỐI tạo mức đó, và CLAUDE.md
+           ghi rõ full "phải do chính người dùng đặt ở trang Việc". Vậy mà specifier - cũng là
+           một model - chỉ cần trả về chuỗi "full" là có, chốt chặn duy nhất là một câu dặn
+           trong prompt cộng một bộ lọc từ khoá. Kẹp trần biến luật đó thành luật của MÃ.
+
+        Chiều ngược lại vẫn mở: specifier HẠ mức xuống thì cứ hạ, ít quyền hơn không bao giờ là
+        rủi ro. Người muốn nâng thì nâng ở trang Việc (`grant_full`), nơi họ thấy mình cho phép gì.
+        """
+        try:
+            i_tran = MODE_RANK.index(str(tran or "auto"))
+        except ValueError:
+            i_tran = MODE_RANK.index("auto")
+        try:
+            i_xin = MODE_RANK.index(str(xin or "auto"))
+        except ValueError:
+            i_xin = MODE_RANK.index("auto")
+        return MODE_RANK[min(i_tran, i_xin)]
 
     def _heuristic_spec(self, task: dict) -> dict:
         text = (
@@ -771,10 +830,79 @@ gì, dữ liệu/file/artifact nào được tạo và cách đã kiểm chứng
                     continue
         return artifacts[:50]
 
+    async def _gom_bao(self, task: dict) -> None:
+        """Xếp một việc BỊ CHẶN vào rổ chờ, rồi hẹn giờ bắn MỘT tin cho cả rổ.
+
+        Vì sao gom (chủ repo báo 01/09, kèm ảnh hòm thư đầy chữ "bị chặn, cần bạn xem"): điều
+        phối lấy việc ra chạy theo lô, nên việc kẹt hay kẹt thành CHÙM - vài việc liền nhau
+        trong cùng một phút. Mỗi việc một tiếng chuông thì cùng một sự kiện ("hàng đợi đang
+        kẹt") bị kể lại năm lần, và người đang chat bị ngắt năm lần.
+
+        Cố ý CHỈ gom nhánh `blocked`. `review` là việc đã làm xong đang chờ duyệt, tin của nó
+        mang theo kết quả người dùng cần đọc; nhét vào một danh sách gạch đầu dòng là làm hỏng
+        đúng thứ đáng đọc. `done` thì vốn đã báo lặng từ trước.
+
+        Gom theo TỪNG người nhận: hai việc của hai kênh khác nhau không được trộn vào một tin.
+        """
+        chat_id = str(task.get("chat_id") or "")
+        self._ro_bao.setdefault(chat_id, []).append({
+            "title": str(task.get("title") or ""),
+            "reason": str(task.get("block_reason") or task.get("block_kind") or "").strip(),
+        })
+        cu = self._hen_bao.get(chat_id)
+        if cu and not cu.done():
+            return       # đã có hẹn cho rổ này - việc vừa rơi vào sẽ đi chung chuyến đó
+        self._hen_bao[chat_id] = asyncio.ensure_future(self._xa_bao_sau(chat_id))
+
+    async def _xa_bao_sau(self, chat_id: str) -> None:
+        try:
+            await asyncio.sleep(BAO_GOM_GIAY)
+        except asyncio.CancelledError:
+            pass
+        await self._xa_bao(chat_id)
+
+    async def _xa_bao(self, chat_id: str) -> None:
+        """Bắn rổ đã gom. MỘT việc thì giữ nguyên câu cũ - đừng biến nó thành danh sách một dòng."""
+        items = self._ro_bao.pop(chat_id, [])
+        self._hen_bao.pop(chat_id, None)
+        if not items or not self.deps.report:
+            return
+        if len(items) == 1:
+            parts = [f"⚠ Việc '{items[0]['title']}' bị chặn, cần bạn xem.",
+                     "Lý do: " + (items[0]["reason"][:240] or "không rõ"),
+                     "Xem chi tiết ở trang Việc."]
+        else:
+            dong = [f"⚠ {len(items)} việc đang chờ bạn xử lý:"]
+            for it in items[:BAO_GOM_LIET_KE]:
+                dong.append(f"- {it['title']}: " + (it["reason"][:120] or "không rõ lý do"))
+            con = len(items) - BAO_GOM_LIET_KE
+            if con > 0:
+                dong.append(f"…và {con} việc nữa.")
+            dong.append("Xem chi tiết ở trang Việc.")
+            parts = dong
+        try:
+            await self.deps.report(
+                chat_id, channel_context.strip_control_blocks("\n\n".join(parts)), quiet=False)
+        except Exception as e:
+            print(f"[kanban] báo gộp việc kẹt lỗi: {type(e).__name__}: {e}", file=sys.stderr)
+
+    async def xa_het_bao(self) -> None:
+        """Bắn hết mọi rổ còn treo. Gọi lúc tắt server - hẹn giờ chết theo tiến trình, không
+        xả ở đây là mấy việc kẹt cuối cùng im lặng biến mất."""
+        for cid in list(self._ro_bao):
+            hen = self._hen_bao.get(cid)
+            if hen and not hen.done():
+                hen.cancel()
+            self._hen_bao.pop(cid, None)
+            await self._xa_bao(cid)
+
     async def _report(self, task: dict) -> None:
         if not self.deps.report:
             return
         status = str(task.get("status") or "")
+        if status == "blocked":
+            await self._gom_bao(task)
+            return
         labels = {
             "review": "đã làm xong, cần duyệt ngoại lệ",
             "done": "đã hoàn thành",
@@ -795,13 +923,23 @@ gì, dữ liệu/file/artifact nào được tạo và cách đã kiểm chứng
             if head:
                 parts.append(head)
         parts.append("Xem chi tiết ở trang Việc.")
+        # Việc chạy xong TRÓT LỌT thì báo LẶNG: kết quả vẫn rơi vào khung chat đã giao việc và
+        # vẫn vào hòm thư, nhưng không nổi chấm đỏ trên chuông và không rung thông báo đẩy.
+        # Chỉ `blocked` (kẹt, cần gỡ) và `review` (chờ duyệt) mới kêu, vì đó là thứ CẦN người
+        # dùng ra tay. Chủ repo chốt 01/09/2026: đang chat mà chuông kêu liên hồi vì mấy việc
+        # nền tự chạy xong là phiền, trong khi anh đã thấy kết quả ngay trong khung chat rồi.
         try:
             await self.deps.report(
                 task.get("chat_id", ""),
                 channel_context.strip_control_blocks("\n\n".join(parts)),
+                quiet=(status == "done"),
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # KHÔNG nuốt im: đây là đường DUY NHẤT để kết quả việc nền quay về với người dùng,
+            # nuốt lỗi ở đây là việc chạy xong mà không ai biết - đúng lỗi mà hòm thư sinh ra
+            # để chấm dứt. Vẫn không ném lên (một cái báo hỏng không được kéo theo cả worker).
+            print(f"[kanban] báo kết quả việc {task.get('id', '')} lỗi: "
+                  f"{type(e).__name__}: {e}", file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Views and operator API
@@ -951,6 +1089,54 @@ gì, dữ liệu/file/artifact nào được tạo và cách đã kiểm chứng
                 return {"ok": False, "error": "không thể archive task đang chạy"}
             await self._asnapshot(root)
             return {"ok": True, "archived": True}
+
+        @router.post("/kanban/task/grant")
+        async def kanban_grant(id: str = Form(...), brain: str = Form("brain")):
+            """Chủ CẤP TOÀN QUYỀN cho đúng một việc rồi cho nó chạy lại.
+
+            Nửa còn thiếu của thiết kế cũ: prompt của specifier dặn thẳng là việc cần thao tác
+            ra ngoài thì "để kernel chặn và xin quyền", nhưng chưa từng có đường nào để XIN.
+            Việc nằm mãi ở cột Cần bạn xử lý, còn nút Thử lại thì chạy lại đúng nhánh chặn ấy
+            rồi chặn lại y hệt - một vòng không có lối ra, và mỗi vòng lại kêu một tiếng chuông.
+
+            Chỉ mở cho việc ĐANG BỊ CHẶN vì thiếu quyền (`block_kind == "capability"`). Không
+            phải để tiện tay: đây là lệnh cấp quyền tự thao tác thật ra ngoài, thứ không hoàn
+            tác được, nên nó chỉ được xuất hiện đúng lúc người dùng đang nhìn thấy việc đó dừng
+            lại vì lý do gì.
+            """
+            root = self._ensure(brain)
+            task = self.store.get_task(id)
+            if not task or task.get("brain_root") != root:
+                return {"ok": False, "error": "not found"}
+            if str(task.get("block_kind") or "") != "capability":
+                return {"ok": False, "error": "việc này không bị chặn vì thiếu quyền"}
+            if not self.store.grant_full(id):
+                return {"ok": False, "error": "không cấp quyền được cho task đang chạy"}
+            await self._asnapshot(root)
+            self.wake()
+            return {"ok": True, "execution_mode": "full"}
+
+        @router.post("/kanban/panel/clear")
+        async def kanban_panel_clear(panel: str = Form(...), brain: str = Form("brain")):
+            """Nút "Xoá tất cả" của một khu trên bảng Việc.
+
+            Hai khu, hai cách dọn khác nhau vì hai loại việc khác nhau:
+              - `attention` (kẹt + chờ duyệt): ARCHIVE, y hệt nút "Xoá khỏi bảng" từng dòng.
+                Việc còn tra lại được, chỉ là hết chắn màn hình.
+              - `history` (xong + đã huỷ + đã archive): XOÁ HẲN. Đây vốn là khu chỉ để liếc
+                lại, giữ bản ghi chết trong kho không đổi lấy được gì.
+            """
+            root = self._ensure(brain)
+            khu = str(panel or "").strip().lower()
+            if khu == "attention":
+                removed = self.store.archive_by_status(root, ("blocked", "review"))
+            elif khu == "history":
+                removed = self.store.purge_terminal(
+                    root, statuses=("archived", "cancelled", "done"))
+            else:
+                return {"ok": False, "error": "panel phải là 'attention' hoặc 'history'"}
+            await self._asnapshot(root)
+            return {"ok": True, "removed": removed}
 
         @router.post("/kanban/purge")
         async def kanban_purge(

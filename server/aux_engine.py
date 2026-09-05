@@ -19,6 +19,9 @@ Ba loại engine, khác nhau ở CÔNG CỤ có được - đây là chỗ phả
 - gemini-cli: Gemini CLI chạy bằng đăng nhập Google. Cũng agent thật (tool file + MCP hub qua
   .gemini/settings.json trong brain). Mức quyền ánh xạ thẳng vào --approval-mode của nó:
   suggest -> plan (chỉ đọc), auto -> auto_edit, full -> yolo.
+- grok-cli: Grok Build CLI chạy bằng gói SuperGrok / X Premium+. Cũng agent thật (tool file +
+  MCP hub qua .grok/config.toml trong brain). Mức quyền xuống thẳng cờ chặn của CLI:
+  suggest -> chặn Write/Edit/Bash, auto -> chặn Bash, full -> không chặn ở tầng CLI.
 - antigravity-cli: Antigravity CLI (`agy`) - gói Google hiện tại. Agent thật + MCP hub.
   Mức quyền qua sandbox / skip-permissions (không có nấc plan cứng như Gemini).
 - copilot-cli: GitHub Copilot CLI (`copilot`) - gói Copilot chính chủ. Agent thật + MCP hub.
@@ -34,6 +37,7 @@ Hợp đồng sự kiện giữ y như ClaudeSDK để nơi gọi không phải 
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 import time
@@ -44,6 +48,7 @@ import config as cfgmod
 CLAUDE = "anthropic-cli"
 CODEX = "openai-oauth"
 GEMINI_CLI = "gemini-cli"
+GROK_CLI = "grok-cli"
 ANTIGRAVITY = "antigravity-cli"
 COPILOT = "copilot-cli"
 API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api",
@@ -58,12 +63,60 @@ _KEY_FIELD = {
     "deepseek": "deepseek_api_key",
     "anthropic-api": "anthropic_api_key",
     "ollama": "ollama_key",
-    # ollama-local xác thực bằng endpoint; key tuỳ chọn (proxy). Xem api_key_for().
+    # Bản chạy MÁY NHÀ. Trường này thường RỖNG - Ollama trần không có xác thực - và điều đó
+    # là bình thường chứ không phải "chưa cấu hình": thứ xác định nó dùng được hay không là
+    # ĐỊA CHỈ (`ollama_local_endpoint`), còn khoá chỉ cần khi ai đó đặt Ollama sau reverse
+    # proxy. Xem `_key_of` bên dưới, chỗ ollama-local được miễn kiểm khoá rỗng.
+    "ollama-local": "ollama_local_key",
 }
 
 # mode của Javis -> sandbox của Codex CLI. Bản đồ thật nằm ở `claude_cli.codex_sandbox_cho_mode`
 # (nó còn đọc cờ JAVIS_CODEX_SANDBOX); giữ dict này để mã cũ đọc tên mức vẫn chạy.
 _CODEX_SANDBOX = {"suggest": "read-only", "auto": "workspace-write", "full": None}
+
+# ── Final "mất đăng nhập" phải bị coi là engine CHẾT, không phải kết quả ──────────────────
+# Claude Code chưa đăng nhập KHÔNG trả event error: ResultMessage lỗi vẫn có chữ nên
+# claude_sdk_engine map thành một FINAL ngắn "Not logged in · Please run /login".
+# _FallbackChain mà tin final đó là thành công thì mắt sau không bao giờ được thử.
+# Ca thật 26/08: máy chỉ đăng nhập Gemini, việc nền mặc định Claude → vòng tự học nào
+# cũng chết với đúng câu này, nhật ký chỉ ghi "không parse được manifest" khó hiểu.
+# Danh sách mẫu đồng bộ TAY với connect_health._ENGINE_AUTH_PATTERNS (không import -
+# module này phải test đứng một mình được, xem tests/python/test_aux_fallback.py).
+_AUTH_FINAL_PATTERNS = ("please run /login", "not logged in", "invalid api key",
+                        "api key not found", "failed to authenticate",
+                        "oauth session expired", "oauth token has expired",
+                        "could not be refreshed", "refresh token was already used",
+                        "log out and sign in again")
+_AUTH_FINAL_MAX = 400   # câu lỗi đăng nhập luôn ngắn; final dài là nội dung thật, đừng nghi oan
+
+
+def final_loi_dang_nhap(text: str) -> bool:
+    """Final này có phải câu báo mất đăng nhập của engine CLI không."""
+    t = (text or "").strip()
+    if not t or len(t) > _AUTH_FINAL_MAX:
+        return False
+    low = t.lower()
+    return any(p in low for p in _AUTH_FINAL_PATTERNS)
+
+# ── Trần wall-clock cho fork NỀN (nhắc hẹn/cron, việc Kanban, bước workflow) ──────────────
+# Mặc định 3600s (1 giờ). Trước đây mỗi nơi ghim một số cứng (nhắc hẹn 300, workflow 300,
+# Kanban 600) và 300s giết chết việc nền THẬT của người dùng: quét 11 phân mục Meta Ads +
+# ghi Google Sheet + gửi Telegram bị chặt ngang lúc đang ghi dở, result rỗng (báo 18/08).
+# Trần này là LƯỚI ĐỠ chống fork treo vô hạn, không phải công cụ quản chi phí - fork đơ
+# thật thì watchdog idle-timeout của engine bắt sớm hơn nhiều, nên đặt trần theo việc nền
+# DÀI NHẤT hợp lệ chứ không theo việc trung bình. Chỉnh qua env JAVIS_BG_MAX_WALL_S
+# (giây; giá trị rác hoặc <= 0 thì về mặc định).
+BG_MAX_WALL_S_DEFAULT = 3600
+
+
+def bg_max_wall_s() -> int:
+    try:
+        v = int(os.getenv("JAVIS_BG_MAX_WALL_S", "") or 0)
+        if v > 0:
+            return v
+    except (TypeError, ValueError):
+        pass
+    return BG_MAX_WALL_S_DEFAULT
 
 # ── Chọn model FREE mạnh nhất trên OpenRouter (mắt xích cuối của router việc nền) ──
 # Xếp hạng theo HỌ model (đầu danh sách = mạnh nhất) rồi tới cỡ tham số trong id, rồi context.
@@ -180,6 +233,27 @@ def _co_binary(prov: str) -> bool:
     except Exception:   # noqa: BLE001 - không dò được thì coi như không có, rồi thử mắt sau
         return False
     return False
+
+
+def main_spec(settings: dict = None) -> dict:
+    """{'provider','model'} của MAIN MODEL (bộ não người dùng chọn ở trang Models).
+
+    Bản rút của main._effective_main - chép lại thay vì import main (module này không được
+    import main, tránh vòng). Dùng làm MẮT DỰ PHÒNG cho việc nền: người để trống model phụ
+    thì aux mặc định Claude, nhưng máy chỉ đăng nhập Gemini/OpenAI... thì Claude chết và
+    việc nền chết theo dù bộ não CHÍNH vẫn chạy ngon - chuỗi fallback phải biết tới nó.
+    """
+    s = settings if settings is not None else cfgmod.read_settings()
+    m = s.get("model", {}) or {}
+    main = m.get("main") or {}
+    if main.get("provider"):
+        return {"provider": main["provider"], "model": main.get("model") or ""}
+    eng = m.get("engine")
+    if eng == "openrouter":
+        return {"provider": "openrouter", "model": m.get("openrouter_model") or ""}
+    if eng == "anthropic-api":
+        return {"provider": "anthropic-api", "model": m.get("claude_model") or ""}
+    return {"provider": CLAUDE, "model": m.get("claude_model") or ""}
 
 
 def is_claude(spec: dict) -> bool:
@@ -345,14 +419,33 @@ def availability(spec: dict, settings: dict = None) -> tuple:
         except Exception:
             return False, "Không kiểm tra được Codex CLI."
         return True, ""
-    if prov == GEMINI_CLI:
+    if prov == GROK_CLI:
         try:
-            import gemini_cli as _g
+            import grok_cli as _g
             st = _g.auth_status()
             if not st.get("connected"):
-                return False, st.get("error") or "Gemini CLI chưa sẵn sàng."
+                return False, st.get("error") or "Grok Build CLI chưa sẵn sàng."
         except Exception:
-            return False, "Không kiểm tra được Gemini CLI."
+            return False, "Không kiểm tra được Grok Build CLI."
+        return True, ""
+    if prov == ANTIGRAVITY:
+        try:
+            import antigravity_cli as _a
+            if not _a.find_antigravity_cli():
+                return False, "Chưa cài Antigravity CLI (`agy`) trên máy chạy Javis."
+            st = _a.auth_status()
+            if not st.get("connected"):
+                return False, st.get("error") or "Antigravity CLI chưa đăng nhập Google."
+        except Exception:
+            return False, "Không kiểm tra được Antigravity CLI."
+        return True, ""
+    # Ollama máy nhà xét theo ĐỊA CHỈ, không theo khoá: Ollama trần không có xác thực nên
+    # khoá rỗng là trạng thái BÌNH THƯỜNG. Để nó rơi vào nhánh kiểm khoá bên dưới thì mọi
+    # agent dùng model local đều bị báo "chưa có API key" dù đang chạy ngon.
+    if prov == "ollama-local":
+        s = settings if settings is not None else cfgmod.read_settings()
+        if not (s.get("model", {}) or {}).get("ollama_local_endpoint"):
+            return False, "Chưa đặt địa chỉ Ollama - vào trang Models, tab Local Model."
         return True, ""
     if prov == ANTIGRAVITY:
         try:
@@ -611,11 +704,27 @@ class _FallbackChain:
                     continue
                 got_final, got_error = False, None
                 async for ev in e.query(prompt):
-                    if (ev or {}).get("type") == "error":
+                    t = (ev or {}).get("type")
+                    if t == "error":
                         got_error = ev.get("content") or f"{self._name(e)} trả error"
                         break
+                    # Engine CLI chưa đăng nhập trả một FINAL ngắn kiểu "Not logged in ·
+                    # Please run /login" chứ không phải error - nuốt nó lại và coi là mắt
+                    # chết, kẻo chuỗi dự phòng tưởng thành công rồi dừng (xem chú thích
+                    # ở _AUTH_FINAL_PATTERNS).
+                    # Cuộc đua làm mới token Claude: phiên KHÔNG mất, nhưng lượt này hỏng và
+                    # việc nền không tự gửi lại được -> vẫn phải nhảy sang mắt kế tiếp. Đọc CỜ
+                    # chứ không khớp chữ: câu người đọc đã được viết lại cho dễ hiểu.
+                    if t == "final" and ev.get("dua_token"):
+                        got_error = (f"{self._name(e)} trùng lúc làm mới phiên đăng nhập "
+                                     "(hai lượt cùng dùng một tài khoản)")
+                        break
+                    if t == "final" and final_loi_dang_nhap(ev.get("content")):
+                        got_error = (f"{self._name(e)} mất đăng nhập: "
+                                     + (ev.get("content") or "").strip()[:200])
+                        break
                     yield ev
-                    if (ev or {}).get("type") == "final":
+                    if t == "final":
                         got_final = True
                 if got_final:
                     return                                       # mắt này chạy ngon → xong
@@ -663,50 +772,60 @@ def _build_codex(spec, claude_cli_obj, mode, tag, codex_profile=None):
     return cc
 
 
-def _build_gemini(spec, claude_cli_obj, mode, tag):
-    """Engine việc nền chạy bằng Gemini CLI.
+def _build_grok(spec, claude_cli_obj, mode, tag):
+    """Engine việc nền/agent chạy bằng Grok Build CLI (`grok`).
 
-    Mức quyền của Javis đi thẳng vào `--approval-mode` của CLI chứ không phải một lời hứa
-    trong prompt: `plan` là chế độ CHỈ ĐỌC do chính CLI cưỡng chế. Cùng vai với sandbox của
-    Codex - lớp chặn thật sự duy nhất, vì Gemini CLI cũng không có allowlist per-call.
+    Mức quyền xuống thẳng cờ `--deny` của CLI chứ không phải một lời hứa trong prompt, và
+    `grok_cli.permission_cho_mode` fail-closed (mode lạ về nấc chặt nhất). Cùng vai với sandbox
+    của Codex - lớp chặn tool NATIVE, còn rào tiền/đơn/đăng bài vẫn nằm ở MCP Hub.
+
+    Entry MCP dựng bằng `grok_cli.hub_entry()` chứ KHÔNG viết tay: Grok đọc khoá `url`, còn
+    `agy` đọc `serverUrl`. Chép nhầm khoá giữa hai engine là không có lấy một tool nào của
+    Javis mà không một câu lỗi nào - đúng thứ đã xảy ra với `agy` mấy bản liền.
     """
-    import gemini_cli as _g
+    import grok_cli as _g
     muc = mode or getattr(claude_cli_obj, "javis_mode", None) or "full"
-    gc = _g.GeminiCLI(cwd=getattr(claude_cli_obj, "cwd", None),
-                      tag=tag or getattr(claude_cli_obj, "tag", "aux"),
-                      model=spec.get("model") or None,
-                      instructions=getattr(claude_cli_obj, "system_prompt", None))
-    gc.approval_mode = _g.approval_cho_mode(muc)
+    gc = _g.GrokCLI(cwd=getattr(claude_cli_obj, "cwd", None),
+                    tag=tag or getattr(claude_cli_obj, "tag", "aux"),
+                    model=spec.get("model") or None,
+                    instructions=getattr(claude_cli_obj, "system_prompt", None))
+    gc.mode = muc
     vault = getattr(claude_cli_obj, "javis_vault", None) or getattr(claude_cli_obj, "cwd", None)
     if vault:
         try:
             import mcp_hub
             hub = None
             if bool(cfgmod.read_settings().get("mcp", {}).get("hub", True)):
-                hub = {"httpUrl": mcp_hub.hub_url(),
-                       "headers": {"Authorization": f"Bearer {mcp_hub.hub_token()}",
-                                   "X-Javis-Mode": muc, "X-Javis-Vault": str(vault)},
-                       "trust": True, "timeout": 20000}
+                hub = _g.hub_entry(mcp_hub.hub_url(),
+                                   {"Authorization": f"Bearer {mcp_hub.hub_token()}",
+                                    "X-Javis-Mode": muc, "X-Javis-Vault": str(vault)})
             _g.ghi_mcp_settings(vault, hub)
         except Exception as e:
-            print(f"[aux gemini mcp] {e}", file=sys.stderr)
+            print(f"[aux grok mcp] {e}", file=sys.stderr)
     return gc
 
 
 def _build_antigravity(spec, claude_cli_obj, mode, tag):
-    """Engine việc nền chạy bằng Antigravity CLI (`agy`).
+    """Engine việc nền/agent chạy bằng Antigravity CLI (`agy`).
 
-    Cùng vai với `_build_gemini`: đọc thuộc tính an toàn từ engine Claude đã dựng sẵn,
-    rồi dựng AntigravityCLI + đấu MCP hub. `suggest`/`auto` đi qua sandbox của `agy`
-    (không có nấc plan cứng như Gemini) - xem `antigravity_cli.co_quyen_cho_mode`.
+    Khác `_build_grok` ở hai chỗ, và cả hai đều là lý do phải viết riêng thay vì dùng chung:
+
+    - **Mức quyền yếu hơn thật.** `agy` KHÔNG có cờ chặn per-tool như `--deny` của Grok;
+      `suggest` ở đây chỉ được siết bằng `--sandbox` cộng lời dặn trong prompt. Xem
+      `antigravity_cli.co_quyen_cho_mode` - nó nói thẳng chuyện này, và rào tiền/đơn/đăng bài
+      vẫn nằm ở MCP Hub chứ không ở CLI.
+    - **Hình dạng entry MCP khác hẳn.** `agy` đọc khoá `serverUrl`, Grok đọc `url`. Chép nhầm
+      khoá là engine chạy trơn tru mà không có lấy một tool nào của Javis, không một tiếng
+      động - đúng thứ đã xảy ra mấy bản liền. Nên dựng entry bằng `antigravity_cli.hub_entry()`
+      chứ không viết tay.
     """
     import antigravity_cli as _a
     muc = mode or getattr(claude_cli_obj, "javis_mode", None) or "full"
-    ag = _a.AntigravityCLI(cwd=getattr(claude_cli_obj, "cwd", None),
-                            tag=tag or getattr(claude_cli_obj, "tag", "aux"),
-                            model=spec.get("model") or None,
-                            instructions=getattr(claude_cli_obj, "system_prompt", None))
-    ag.mode = muc
+    ac = _a.AntigravityCLI(cwd=getattr(claude_cli_obj, "cwd", None),
+                           tag=tag or getattr(claude_cli_obj, "tag", "aux"),
+                           model=spec.get("model") or None,
+                           instructions=getattr(claude_cli_obj, "system_prompt", None))
+    ac.mode = muc
     vault = getattr(claude_cli_obj, "javis_vault", None) or getattr(claude_cli_obj, "cwd", None)
     if vault:
         try:
@@ -720,10 +839,10 @@ def _build_antigravity(spec, claude_cli_obj, mode, tag):
                 )
             mcpf = _a.ghi_mcp_settings(vault, hub)
             if mcpf:
-                ag.mcp_config = mcpf
+                ac.mcp_config = mcpf
         except Exception as e:
             print(f"[aux antigravity mcp] {e}", file=sys.stderr)
-    return ag
+    return ac
 
 
 def _build_copilot(spec, claude_cli_obj, mode, tag):
@@ -767,6 +886,39 @@ def apply(deps, cli, mode: str = None, tag: str = None):
     return cli
 
 
+def _main_fallback_engine(cli, mode, tag, settings, exclude, codex_profile=None):
+    """Mắt dự phòng dựng từ BỘ NÃO CHÍNH của người dùng, hoặc None nếu không dựng được.
+
+    exclude = tập provider đã có mặt trong chuỗi (aux + Claude) - trùng thì khỏi thêm.
+    Provider không có builder nền (ollama, antigravity-cli) trả None, chuỗi còn lại lo.
+    """
+    sp = main_spec(settings)
+    prov = sp.get("provider") or ""
+    if not prov or prov == CLAUDE or prov in (exclude or set()):
+        return None
+    ok, _why = availability(sp, settings)
+    if not ok:
+        return None
+    t = (tag or getattr(cli, "tag", "aux")) + "-main"
+    try:
+        if prov == CODEX:
+            return _build_codex(sp, cli, mode, t, codex_profile)
+        if prov == GROK_CLI:
+            return _build_grok(sp, cli, mode, t)
+        if prov in API_PROVIDERS:
+            return _build_api(sp, cli, mode, t)
+    except Exception as e:
+        print(f"[aux router] không dựng được mắt não-chính ({prov}): {e}", file=sys.stderr)
+    return None
+
+
+def _co_mat_orfree(chain) -> bool:
+    """Chuỗi đã chứa một mắt OpenRouter model trống (= tự chọn free) chưa - có rồi thì
+    mắt or_free cuối trùng hệt, khỏi thêm."""
+    return any(getattr(e, "provider", "") == "openrouter"
+               and not (getattr(e, "model", "") or "").strip() for e in chain)
+
+
 def _openrouter_free_engine(cli, mode, tag, settings):
     """Mắt xích CUỐI của router: OpenRouter model free (model '' = tự chọn free mạnh nhất
     lúc chạy, xem _ApiAuxEngine.query). Chưa có key OpenRouter thì không có mắt này."""
@@ -787,9 +939,12 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
     """Engine Claude đã dựng -> ROUTER việc nền theo model phụ người dùng chọn.
 
     Chuỗi fallback (mắt trước chết lúc chạy thì mắt sau tiếp quản, xem _FallbackChain):
-      engine phụ user chọn → Claude → OpenRouter model free mạnh nhất (nếu có key).
-    Mặc định Claude + không có key OpenRouter thì trả NGUYÊN engine Claude như xưa;
-    hỏng cấu hình kiểu gì việc nền cũng phải chạy được chứ không chết.
+      engine phụ user chọn → Claude → BỘ NÃO CHÍNH đang chat (nếu khác hai mắt trước)
+      → OpenRouter model free mạnh nhất (nếu có key).
+    Mắt não-chính là để máy KHÔNG đăng nhập Claude (chỉ chạy Gemini/OpenAI/Groq...) vẫn
+    tự học và chạy việc nền được bằng đúng bộ não người dùng đang dùng, thay vì chết lặng
+    với "Not logged in". Mặc định Claude + không dựng được mắt nào khác thì trả NGUYÊN
+    engine Claude như xưa; hỏng cấu hình kiểu gì việc nền cũng phải chạy được chứ không chết.
     """
     try:
         sp = spec if spec is not None else read_spec(settings)
@@ -817,6 +972,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
                 return _build_codex(sp, cli, mode, tag, codex_profile)
             if prov == GEMINI_CLI:
                 return _build_gemini(sp, cli, mode, tag)
+            if prov == GROK_CLI:
+                return _build_grok(sp, cli, mode, tag)
             if prov == ANTIGRAVITY:
                 return _build_antigravity(sp, cli, mode, tag)
             if prov == COPILOT:
@@ -826,8 +983,16 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             return cli
         if prov == CLAUDE:
             cli.model = sp.get("model") or None
+            # Máy có thể CHƯA đăng nhập Claude (người dùng chỉ chạy Gemini/OpenAI...):
+            # thêm bộ não CHÍNH làm mắt kế để việc nền đi theo đúng bộ não đang sống.
+            chain = [cli]
+            mn = _main_fallback_engine(cli, mode, tag, settings, {CLAUDE}, codex_profile)
+            if mn:
+                chain.append(mn)
             or_free = _openrouter_free_engine(cli, mode, tag, settings)
-            return _FallbackChain([cli, or_free]) if or_free else cli
+            if or_free and not _co_mat_orfree(chain):
+                chain.append(or_free)
+            return _FallbackChain(chain) if len(chain) > 1 else cli
         ok, why = availability(sp, settings)
         if not ok:
             return _fallback_when_aux_unavailable(cli, prov, why, mode, tag, settings)
@@ -835,6 +1000,8 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             primary = _build_codex(sp, cli, mode, tag, codex_profile)
         elif prov == GEMINI_CLI:
             primary = _build_gemini(sp, cli, mode, tag)
+        elif prov == GROK_CLI:
+            primary = _build_grok(sp, cli, mode, tag)
         elif prov == ANTIGRAVITY:
             primary = _build_antigravity(sp, cli, mode, tag)
         elif prov == COPILOT:
@@ -850,9 +1017,12 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
         else:
             print("[aux] Claude chưa dùng được - bỏ khỏi chuỗi fallback việc nền.",
                   file=sys.stderr)
+        mn = _main_fallback_engine(cli, mode, tag, settings, {CLAUDE, prov}, codex_profile)
+        if mn:
+            chain.append(mn)
         or_free = _openrouter_free_engine(cli, mode, tag, settings)
-        # Phụ ĐANG là openrouter với model trống thì mắt or_free trùng hệt → khỏi thêm.
-        if or_free and not (prov == "openrouter" and not (sp.get("model") or "").strip()):
+        # Chuỗi đã có mắt openrouter model trống (tự chọn free) thì or_free trùng hệt → khỏi thêm.
+        if or_free and not _co_mat_orfree(chain):
             chain.append(or_free)
         return chain[0] if len(chain) == 1 else _FallbackChain(chain)
     except Exception as e:

@@ -1,5 +1,7 @@
 # Nhóm Code: Terminal ngay trong dashboard
 
+***Tiếng Việt** · [English](en/27-code-terminal.md)*
+
 **Code** là một nhóm riêng trên thanh điều hướng - khu vực làm việc kiểu lập trình viên của Javis. Mục đầu tiên trong nhóm là **Terminal**: một dòng lệnh thật, chạy trên đúng máy đang chạy Javis, mở ngay trong trình duyệt. Không cần mở SSH ở cửa sổ khác nữa.
 
 ## Tính năng này là gì
@@ -21,25 +23,35 @@ Nhóm Code dựng sẵn theo hướng còn mở rộng: hôm nay trong nhóm m�
 
 Shell mở sẵn ở **thư mục HOME của user đang chạy Javis** - đúng như một terminal bình thường của máy, hợp nhất cho việc chính của tab này: cài và đăng nhập CLI (`agy`, `codex login`...). Cần vào brain thì gõ `cd "$JAVIS_BRAIN"` - biến này luôn trỏ về gốc brain đang chọn.
 
+## Nhiều tab, mỗi tab một shell riêng
+
+Ngay trên khung terminal có một dải tab, giống tab của trình duyệt:
+
+- Bấm nút **+** để mở thêm tab - mỗi tab là một shell hoàn toàn riêng, việc tab này không đụng tab kia. Tiện khi vừa `tail -f` log ở một tab, vừa gõ lệnh ở tab khác.
+- Bấm vào tên tab để chuyển qua lại. Tab đang khuất vẫn chạy bình thường: lệnh không dừng, output không mất.
+- Bấm dấu **x** trên tab là đóng hẳn phiên đó (giết shell). Đóng tab cuối cùng thì Javis tự mở một tab sạch thay vào.
+- Tối đa **4 tab** (đúng trần số phiên của server, tính chung mọi cửa sổ trình duyệt). Chạm trần thì nút **+** tự khoá.
+- F5 hay đổi trang rồi quay lại: nguyên dàn tab được mở lại, tab nào đang xem vẫn đang xem.
+
 ## Thanh trên cùng
 
 | Thứ | Ý nghĩa |
 |---|---|
-| Chấm tròn + chữ trạng thái | Xanh = đang chạy. Đỏ = mất kết nối (Javis tự nối lại). Xám = shell đã thoát. |
+| Chấm tròn + chữ trạng thái | Của tab đang xem. Xanh = đang chạy. Đỏ = mất kết nối (Javis tự nối lại). Xám = shell đã thoát. |
 | Đường dẫn | Thư mục shell đang đứng lúc mở. Màn hình hẹp thì ẩn đi để nhường chỗ cho nút. |
-| **Xoá** | Xoá màn hình, giống lệnh `clear`. |
-| **Phiên mới** | Đóng hẳn phiên hiện tại (giết shell) rồi mở một phiên sạch. Dùng khi shell treo hoặc muốn bắt đầu lại. |
+| **Xoá** | Xoá màn hình của tab đang xem, giống lệnh `clear`. |
+| **Khởi động lại** | Đóng hẳn phiên của tab đang xem (giết shell) rồi mở một phiên sạch trong cùng tab. Dùng khi shell treo hoặc muốn bắt đầu lại. |
 
 ## Phiên chạy tiếp khi bạn rời tab
 
 Đây là điểm quan trọng nhất khi dùng hằng ngày: **đổi trang hay tải lại trang KHÔNG giết shell.**
 
-- Đang `npm install` mà bấm sang trang Trò chuyện: lệnh vẫn chạy. Quay lại tab Code là thấy nguyên màn hình cũ, chạy tới đâu hiện tới đó.
-- Mất mạng, đóng máy, F5: Javis tự nối lại vào đúng phiên đó.
+- Đang `npm install` mà bấm sang trang Trò chuyện: lệnh vẫn chạy - ở MỌI tab, không riêng tab đang xem. Quay lại tab Code là thấy nguyên dàn tab cũ, chạy tới đâu hiện tới đó.
+- Mất mạng, đóng máy, F5: Javis tự nối lại vào đúng các phiên đó.
 - Không ai quay lại trong **30 phút** thì Javis mới đóng phiên để khỏi bỏ quên tiến trình chạy hoài.
-- Muốn đóng ngay thì bấm **Phiên mới**, hoặc gõ `exit`.
+- Muốn đóng ngay thì bấm dấu **x** trên tab, bấm **Khởi động lại**, hoặc gõ `exit`.
 
-Mở tối đa **4 phiên** cùng lúc. Chạm trần thì Javis báo rõ thay vì im lặng mở thêm.
+Mở tối đa **4 phiên** cùng lúc (tính chung mọi cửa sổ trình duyệt). Chạm trần thì Javis báo rõ thay vì im lặng mở thêm.
 
 ## Chế độ đơn giản trên Windows
 
@@ -66,6 +78,7 @@ Terminal là chỗ chạy lệnh tuỳ ý trên máy chủ, tức là quyền ca
 | `JAVIS_TERMINAL` | `0`/`off`/`false`/`no` = tắt hẳn terminal | Bật |
 | `JAVIS_TERMINAL_SHELL` | Đường dẫn shell muốn chạy | `$SHELL`, không có thì `bash`/`sh`. Windows: `powershell.exe` rồi `cmd.exe` |
 | `JAVIS_TERMINAL_CWD` | Thư mục shell mở ra | HOME của user chạy Javis |
+| `JAVIS_TERMINAL_REMOTE` | Khai với các CLI rằng người dùng ngồi ở máy khác (`SSH_CONNECTION`), để đăng nhập Google/Anthropic hỏi chỗ dán mã thay vì chờ trình duyệt cùng máy | Tự đoán: bật trên máy chủ không có màn hình (VPS, Docker), tắt trên Windows/macOS chạy thẳng và Linux có màn hình |
 
 Chi tiết cách đặt biến xem [Cấu hình .env](16-cau-hinh-env.md).
 
@@ -73,13 +86,15 @@ Chi tiết cách đặt biến xem [Cấu hình .env](16-cau-hinh-env.md).
 
 **Vào mục Terminal thấy "Terminal đang tắt trên máy này".** Máy chủ có `JAVIS_TERMINAL=0`. Bỏ biến đó trong `.env` rồi khởi động lại Javis.
 
-**Báo "Đang mở 4 phiên terminal rồi".** Có phiên cũ còn sống ở tab trình duyệt khác. Bấm **Phiên mới** ở tab đó, hoặc chờ 30 phút để Javis tự dọn.
+**Báo "Đang mở 4 phiên terminal rồi".** Trần 4 phiên tính chung mọi cửa sổ trình duyệt. Đóng bớt một tab (dấu **x**) ở cửa sổ đang mở nó, hoặc chờ 30 phút để Javis tự dọn phiên không ai xem.
 
 **Chữ gãy dòng, viền bảng lệch.** Bấm vào khung terminal rồi đổi cỡ cửa sổ trình duyệt một nhát để nó đo lại. Nếu vẫn lệch, gõ `clear`.
 
 **Gõ Tab mà không có gợi ý.** Bạn đang ở chế độ đơn giản (Windows). Đó là giới hạn của hệ điều hành, không phải lỗi cấu hình.
 
 **Shell thoát ngay khi vừa mở.** Xem `JAVIS_TERMINAL_SHELL` có trỏ đúng file thực thi không, và thư mục ở `JAVIS_TERMINAL_CWD` có tồn tại không.
+
+**Gõ `agy` (Antigravity) ra link rồi đứng im, không có chỗ dán mã.** `agy` nhận mã về qua một cổng loopback trên chính máy chạy nó, mà trình duyệt của bạn lại ở máy khác nên không với tới. Từ 0.55.46 terminal tự khai là phiên từ xa nên `agy` hỏi chỗ dán: đăng nhập Google xong, copy nguyên địa chỉ `http://localhost:...` mà trình duyệt báo không mở được rồi dán vào terminal. Bản `agy` cũ không hỏi thì mở thêm một phiên terminal và chạy `curl "<địa chỉ vừa copy>"`.
 
 ## Liên quan
 
