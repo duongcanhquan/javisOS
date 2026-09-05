@@ -39,8 +39,16 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
+            # Pin đúng commit kích hoạt workflow - tránh race fetch origin/main chưa kịp có bản mới.
+            WANT_SHA="${{ github.sha }}"
             git fetch --all --prune 2>/dev/null || true
-            git reset --hard origin/main 2>/dev/null || true
+            if [ -n "$WANT_SHA" ] && git cat-file -e "${WANT_SHA}^{commit}" 2>/dev/null; then
+              git reset --hard "$WANT_SHA"
+            else
+              git fetch origin "$WANT_SHA" 2>/dev/null || git fetch origin main 2>/dev/null || true
+              git reset --hard "$WANT_SHA" 2>/dev/null || git reset --hard origin/main 2>/dev/null || true
+            fi
+            echo "==> install script @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
             chmod +x scripts/install-ollama-vps.sh
             export JAVIS_OLLAMA_DRY_RUN="${DRY:-0}"
             if [ -n "${MODEL:-}" ]; then
