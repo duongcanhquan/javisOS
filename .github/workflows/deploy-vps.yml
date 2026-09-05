@@ -39,3 +39,7 @@ jobs:
               chmod +x scripts/enable-learn-vps.sh
               bash scripts/enable-learn-vps.sh || echo "WARN: enable-learn skipped"
             fi
+            if [ -f scripts/seed-morning-brief-vps.sh ]; then
+              chmod +x scripts/seed-morning-brief-vps.sh
+              bash scripts/seed-morning-brief-vps.sh || echo "WARN: seed-morning-brief skipped"
+            fi

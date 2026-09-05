@@ -8051,13 +8051,48 @@ def _notify_live_warn() -> str:
         return ""
 
 
+async def _gui_moi_kenh_ngoai(text) -> tuple:
+    """Gửi text tới mọi kênh ngoài đã bật (Telegram + Zalo). Thành công nếu ≥1 kênh OK.
+
+    Dùng cho nhắc hệ thống (chat_id rỗng / all) như tổng kết sáng: chủ muốn nhận cùng một
+    báo cáo trên điện thoại qua cả hai app nếu đã đấu cả hai, không phải chọn một.
+    """
+    errs = []
+    ok_any = False
+    for send, ten in ((_tg_send_to, "Telegram"), (_zalo_send_to, "Zalo")):
+        try:
+            ok, err = await send("", text)
+        except Exception as e:
+            ok, err = False, f"{type(e).__name__}: {e}"
+        if ok:
+            ok_any = True
+        elif err:
+            errs.append(f"{ten}: {err}")
+    if ok_any:
+        return True, ""
+    return False, "; ".join(errs) or "Chưa bật Telegram hoặc Zalo"
+
+
 async def _bao_nhac_hen(chat_id, text) -> tuple:
     """Đường BÁO của nhắc hẹn. Cùng chữ ký (chat_id, text) -> (ok, err) như `_tg_send_to` cũ,
     nhưng đi qua `_notify_owner` nên nhắc hẹn được đúng ba thứ mà trước đây nó không có:
     hòm thư ở server, đẩy về khung chat web khi chat_id là "web:<sid>", và thông báo đẩy.
-    Trước bản này nhắc hẹn là thứ DUY NHẤT còn gọi thẳng Telegram - đó cũng là lý do
-    reminders.py phải chặn không cho tạo khi chưa đấu bot."""
-    return await _notify_owner(chat_id, text, kind="report", source="reminder")
+
+    chat_id rỗng / `all` / `*`: gửi CẢ Telegram lẫn Zalo (mọi ID whitelist đã đấu). Đây là
+    đường của nhắc hệ thống như tổng kết sáng 8h - không gắn một người chat cụ thể, mà báo
+    cho chủ trên mọi kênh đang sống. chat_id cụ thể (telegram id / zalo:<id> / web:<sid>)
+    vẫn chỉ gửi đúng một kênh như cũ.
+    """
+    cid = str(chat_id or "").strip()
+    if cid in ("", "all", "*"):
+        vao = await _bo_vao_hom_thu("", text, kind="report", source="reminder")
+        ok, err = await _gui_moi_kenh_ngoai(text)
+        if ok or vao:
+            if err and not ok:
+                print(f"[reminder] hòm thư đã giữ tin, kênh ngoài: {err}", file=sys.stderr)
+            return True, ""
+        return False, err
+    return await _notify_owner(cid, text, kind="report", source="reminder")
 
 
 reminders_feature = reminders_mod.register(app, reminders_mod.RemindersDeps(

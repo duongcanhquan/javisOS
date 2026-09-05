@@ -101,4 +101,11 @@ fi
 echo
 echo "==> tunnel URL (if any)"
 docker compose logs tunnel 2>&1 | grep -i trycloudflare | tail -n 3 || true
+
+if [ -f "$ROOT/scripts/seed-morning-brief-vps.sh" ]; then
+  echo "==> seed morning brief reminder"
+  chmod +x "$ROOT/scripts/seed-morning-brief-vps.sh"
+  bash "$ROOT/scripts/seed-morning-brief-vps.sh" || echo "WARN: seed-morning-brief skipped"
+fi
+
 echo "==> done"

@@ -140,18 +140,23 @@ finally:
     main._zalo_send_to = _that_send
 
 
-# ---- 5. Cửa "đủ điều kiện mới tạo lịch" chấp nhận Zalo ----
+# ---- 5. Cửa "đủ điều kiện mới tạo lịch" + kênh ngoài ----
+# Từ 0.49.0 hòm thư luôn có → `_notify_ready` không còn chặn tạo. Phần soi Telegram/Zalo
+# nằm ở `_kenh_con_thieu` (hiển thị ở trang Việc), không phải rào tạo nữa.
+
+san, ly_do = main._notify_ready()
+check("_notify_ready luôn sẵn (hòm thư mặc định)", san is True, (san, ly_do))
 
 main.cfgmod.read_settings = lambda: {"telegram": {}, "zalo_bot": {}}
-san, ly_do = main._notify_ready()
-check("chưa đấu kênh nào thì vẫn chặn", not san and ly_do, (san, ly_do))
+co, thieu = main._kenh_con_thieu()
+check("chưa đấu kênh ngoài nào thì báo thiếu", not co and thieu, (co, thieu))
 check("lý do nêu CẢ HAI kênh, không chỉ Telegram",
-      "Telegram" in ly_do and "Zalo" in ly_do, ly_do)
+      "Telegram" in thieu and "Zalo" in thieu, thieu)
 
 main.cfgmod.read_settings = lambda: {
     "telegram": {}, "zalo_bot": {"enabled": True, "token": "t", "chat_id": "abc"}}
-san, ly_do = main._notify_ready()
-check("chỉ đấu Zalo (không có Telegram) là ĐỦ để tạo nhắc hẹn", san, (san, ly_do))
+co, thieu = main._kenh_con_thieu()
+check("chỉ đấu Zalo (không có Telegram) là ĐỦ kênh ngoài", co, (co, thieu))
 
 main.cfgmod.read_settings = _read_that
 
@@ -187,6 +192,46 @@ _MAIN = (Path(SERVER) / "main.py").read_text(encoding="utf-8")
 _khoi_zalo = _MAIN[_MAIN.index("# Kênh Zalo Bot của CHỦ"):_MAIN.index("def restart_telegram():")]
 check("khối Zalo không có em dash (luật CLAUDE.md)", "—" not in _khoi_zalo)
 check("khối Zalo thật sự là phần mới, không rỗng", len(_khoi_zalo) > 3000, len(_khoi_zalo))
+
+
+# ---- 8. Nhắc hệ thống (chat_id=all) gửi CẢ Telegram lẫn Zalo ----
+
+_gui = []
+
+
+async def _fake_tg(cid, text):
+    _gui.append(("tg", cid, text))
+    return True, ""
+
+
+async def _fake_zalo(cid, text):
+    _gui.append(("zalo", cid, text))
+    return True, ""
+
+
+async def _fake_hom(*a, **k):
+    return True
+
+
+_tg_that, _zalo_that = main._tg_send_to, main._zalo_send_to
+_hom_that = main._bo_vao_hom_thu
+main._tg_send_to = _fake_tg
+main._zalo_send_to = _fake_zalo
+main._bo_vao_hom_thu = _fake_hom
+try:
+    ok, err = asyncio.run(main._bao_nhac_hen("all", "Tổng kết sáng test"))
+    check("chat_id=all báo thành công", ok and not err, (ok, err))
+    check("chat_id=all gọi Telegram", any(c[0] == "tg" for c in _gui), _gui)
+    check("chat_id=all gọi Zalo", any(c[0] == "zalo" for c in _gui), _gui)
+    _gui.clear()
+    ok2, err2 = asyncio.run(main._bao_nhac_hen("", "nhắc hệ thống"))
+    check("chat_id rỗng cũng gửi cả hai kênh",
+          ok2 and any(c[0] == "tg" for c in _gui) and any(c[0] == "zalo" for c in _gui),
+          (ok2, _gui))
+finally:
+    main._tg_send_to = _tg_that
+    main._zalo_send_to = _zalo_that
+    main._bo_vao_hom_thu = _hom_that
 
 
 print()
