@@ -353,8 +353,14 @@ class _ApiAuxEngine:
 
         tools, route = [], {}
         try:
-            tools, route = await mcp_hub.discover_all(self.javis_mode or "full",
-                                                      vault_root=self.vault_root)
+            # Ollama Local: ép lazy tools - schema MCP đầy đủ dễ >10k token, cộng system
+            # prompt là đủ để nổ context dù num_ctx=16384.
+            _lazy = self.provider == "ollama-local"
+            tools, route = await mcp_hub.discover_all(
+                self.javis_mode or "full",
+                vault_root=self.vault_root,
+                force_lazy=_lazy,
+            )
         except Exception as e:
             print(f"[aux discover] {e}", file=sys.stderr)
 
@@ -364,22 +370,29 @@ class _ApiAuxEngine:
         # prompt → 400 exceed_context_size dù đã nâng num_ctx. Rút gọn cho việc nền local.
         if self.provider == "ollama-local":
             sysprompt = _compact_ollama_local_sys(sysprompt, self.vault_root)
-        # Khai THẬT năng lực của engine này. Không có dòng này, model chỉ thấy "gọi tool X
-        # không được" rồi tự dựng một lý do nghe hợp lý mà sai - hay gặp nhất là đổ cho quyền
-        # ("phiên này bị chặn quyền"), khiến chủ đi sửa mức quyền trong khi mức quyền không hề
-        # sai. Nói rõ THIẾU GÌ và VÌ SAO thì câu báo về mới dẫn đúng tới việc cần làm.
-        sysprompt += (
-            "\n\n[Sự thật hệ thống - năng lực của phiên này] Bạn đang chạy bằng engine API "
-            f"'{self.provider}', KHÔNG phải Claude Code. Bạn có: các tool qua MCP Hub của Javis "
-            "(gồm tool đọc/ghi file trong vault và mọi MCP người dùng đã đấu vào Javis). "
-            "Bạn KHÔNG có: lệnh máy (Bash), tự mở URL (WebFetch/WebSearch), và KHÔNG có các "
-            "connector gắn thẳng vào TÀI KHOẢN Claude - Gmail, Google Drive, Google Calendar "
-            "gọi bằng tool native `mcp__<tên>__*` chỉ tồn tại trên engine Claude Code. "
-            "Nếu việc được giao cần một trong những thứ đó, hãy nói THẲNG là engine hiện tại "
-            "không có công cụ ấy và chủ cần đổi model việc nền sang Claude Code. TUYỆT ĐỐI "
-            "không mô tả chuyện này là bị chặn quyền hay thiếu quyền: mức quyền không liên "
-            "quan, đây là chuyện engine nào có tool nào."
-        )
+            # Bản đầy đủ của đoạn "Sự thật hệ thống" ~400 token - cắt ngắn trên local.
+            sysprompt += (
+                "\n[Engine] Ollama Local qua MCP Hub (có tool vault + search/run). "
+                "Không có Bash/WebFetch hay connector tài khoản Claude. "
+                "Thiếu tool thì nói thẳng, đừng đổ lỗi quyền.\n"
+            )
+        else:
+            # Khai THẬT năng lực của engine này. Không có dòng này, model chỉ thấy "gọi tool X
+            # không được" rồi tự dựng một lý do nghe hợp lý mà sai - hay gặp nhất là đổ cho quyền
+            # ("phiên này bị chặn quyền"), khiến chủ đi sửa mức quyền trong khi mức quyền không hề
+            # sai. Nói rõ THIẾU GÌ và VÌ SAO thì câu báo về mới dẫn đúng tới việc cần làm.
+            sysprompt += (
+                "\n\n[Sự thật hệ thống - năng lực của phiên này] Bạn đang chạy bằng engine API "
+                f"'{self.provider}', KHÔNG phải Claude Code. Bạn có: các tool qua MCP Hub của Javis "
+                "(gồm tool đọc/ghi file trong vault và mọi MCP người dùng đã đấu vào Javis). "
+                "Bạn KHÔNG có: lệnh máy (Bash), tự mở URL (WebFetch/WebSearch), và KHÔNG có các "
+                "connector gắn thẳng vào TÀI KHOẢN Claude - Gmail, Google Drive, Google Calendar "
+                "gọi bằng tool native `mcp__<tên>__*` chỉ tồn tại trên engine Claude Code. "
+                "Nếu việc được giao cần một trong những thứ đó, hãy nói THẲNG là engine hiện tại "
+                "không có công cụ ấy và chủ cần đổi model việc nền sang Claude Code. TUYỆT ĐỐI "
+                "không mô tả chuyện này là bị chặn quyền hay thiếu quyền: mức quyền không liên "
+                "quan, đây là chuyện engine nào có tool nào."
+            )
         if sysprompt.strip():
             messages.append({"role": "system", "content": sysprompt})
         messages.append({"role": "user", "content": prompt})

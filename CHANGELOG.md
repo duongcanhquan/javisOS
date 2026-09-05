@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.48] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi 12744 > 4096.** Chuyển local sang `/api/chat` (tôn trọng `num_ctx`), tạo model Modelfile bake 16k, ép lazy tool + rút disclaimer việc nền. `/v1` trước đó bỏ qua `options.num_ctx` nên vẫn kẹt 4096 dù đã gửi 16384.
+
 ## [0.35.47] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi vượt context 4096.** Tự gửi `num_ctx=16384` và rút gọn system prompt việc nền (CLAUDE.md ~10k token trước đây làm nổ 400).

@@ -260,6 +260,29 @@ _short = "Ngắn thôi."
 check("system prompt ngắn giữ nguyên",
       aux_engine._compact_ollama_local_sys(_short, None) == _short)
 
+# ---- 11. Ollama Local: /api/chat native + adapter (v1 bỏ num_ctx) ----
+# Ca thật sau #16: vẫn 12744 > 4096 vì /v1/chat/completions bỏ options.num_ctx.
+check("native URL dùng /api/chat",
+      _eng.ollama_local_native_url().endswith("/api/chat")
+      if _eng.ollama_local_endpoint() else True)
+_native = _eng._ollama_native_to_openai({
+    "message": {
+        "role": "assistant", "content": "",
+        "tool_calls": [{"function": {"name": "javis_read_file",
+                                     "arguments": {"path": "a.md"}}}],
+    },
+    "prompt_eval_count": 100, "eval_count": 5,
+})
+_msg = ((_native.get("choices") or [{}])[0].get("message") or {})
+_tc = ((_msg.get("tool_calls") or [{}])[0])
+check("adapter đổi tool_calls sang OpenAI shape",
+      (_tc.get("function") or {}).get("name") == "javis_read_file"
+      and isinstance((_tc.get("function") or {}).get("arguments"), str)
+      and '"path"' in (_tc.get("function") or {}).get("arguments", "")
+      and _tc.get("id"))
+check("adapter map usage token",
+      (_native.get("usage") or {}).get("prompt_tokens") == 100)
+
 print()
 if _fails:
     print(f"THẤT BẠI {len(_fails)}: {_fails}")
