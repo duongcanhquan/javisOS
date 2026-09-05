@@ -1255,6 +1255,12 @@ def chan_doan_loi(err, conn_id=""):
         return ("Lỗi kiểm tra kết nối Google Chat (tham số tool đã đổi: dùng spaceNameQuery, "
                 "không còn query). Cập nhật Javis rồi bấm Test / Kết nối lại - không phải OAuth "
                 "Client ID/Secret sai.")
+    # Google Chat MCP: OAuth JSON đúng nhưng chưa cấu hình Chat app trong cùng Cloud project.
+    if "chat app not found" in low:
+        return ("OAuth đã đúng - còn thiếu Chat app trong Google Cloud. Vào Google Chat API > "
+                "Configuration: App name = Chat MCP, tắt Enable interactive features, Save. "
+                "Rồi bấm Test lại (không cần tạo Client JSON mới). "
+                "Mở: https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat")
     return ""
 
 

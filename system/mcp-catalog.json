@@ -878,17 +878,17 @@
           { "key": "client_id", "label": "OAuth Client ID", "placeholder": "Ví dụ: xxxx.apps.googleusercontent.com" },
           { "key": "client_secret", "label": "OAuth Client Secret", "placeholder": "Ví dụ: GOCSPX-..." }
         ],
-        "guide": "Server MCP Chat của Google đang ở giai đoạn Developer Preview. CHỈ hoạt động với tài khoản Google Workspace (email tên miền công ty), không dùng được @gmail.com cá nhân.\n\nLàm 1 lần, khoảng 15 phút:\n1. Ghi danh Google Workspace Developer Preview bằng ĐÚNG tài khoản Workspace sẽ đăng nhập.\n2. Bật Google Chat API và Google Chat MCP API trong project.\n3. Màn hình đồng ý OAuth: External + Test users.\n4. Quyền dữ liệu: dán 5 phạm vi Chat (spaces.readonly, memberships.readonly, messages.readonly, messages.create, users.readstate).\n5. Tạo OAuth client loại Ứng dụng web, thêm URI chuyển hướng dashboard.\n6. (Tuỳ chọn) Cấu hình Chat app nếu sau này muốn GỬI tin - chỉ đọc/tìm thì không bắt buộc.\n7. Dán Client ID + Secret, bấm Kết nối.\n\nCó thể DÙNG LẠI OAuth client đã tạo cho Lịch/Gmail, chỉ bật thêm API Chat + phạm vi Chat.",
+        "guide": "Server MCP Chat của Google đang ở giai đoạn Developer Preview. CHỈ hoạt động với tài khoản Google Workspace (email tên miền công ty), không dùng được @gmail.com cá nhân.\n\nLàm 1 lần, khoảng 15 phút:\n1. Ghi danh Google Workspace Developer Preview bằng ĐÚNG tài khoản Workspace sẽ đăng nhập.\n2. Bật Google Chat API và Google Chat MCP API trong project.\n3. BẮT BUỘC: vào Google Chat API > Configuration, tạo Chat app (App name: Chat MCP, tắt interactive features) rồi Save. Thiếu bước này Test sẽ báo Chat app not found dù OAuth JSON đã đúng.\n4. Màn hình đồng ý OAuth: External + Test users.\n5. Quyền dữ liệu: dán 5 phạm vi Chat.\n6. Tạo OAuth client loại Ứng dụng web, thêm URI chuyển hướng dashboard.\n7. Dán Client ID + Secret, bấm Kết nối.\n\nCó thể DÙNG LẠI OAuth client đã tạo cho Lịch/Gmail, chỉ bật thêm API Chat + phạm vi Chat + cấu hình Chat app.",
         "guide_url": "https://developers.google.com/workspace/chat/api/guides/configure-mcp-server",
         "steps": [
           { "text": "Cần tài khoản Google Workspace (email @tên-miền-công-ty). @gmail.com cá nhân Google Chat API từ chối - không phải lỗi Javis." },
-          { "text": "Đã đấu Google Calendar hoặc Gmail rồi thì DÙNG LẠI key (nút bên dưới), chỉ làm thêm bước bật API Chat.", "link": "", "link_label": "" },
+          { "text": "Đã đấu Google Calendar hoặc Gmail rồi thì DÙNG LẠI key (nút bên dưới), chỉ làm thêm bước bật API Chat + cấu hình Chat app.", "link": "", "link_label": "" },
           { "text": "Ghi danh Google Workspace Developer Preview (miễn phí) bằng ĐÚNG tài khoản Workspace sẽ đăng nhập.", "link": "https://developers.google.com/workspace/preview", "link_label": "Mở trang ghi danh" },
           { "text": "Bật Google Chat API và Google Chat MCP API trong cùng project.", "link": "https://console.cloud.google.com/apis/library/chatmcp.googleapis.com", "link_label": "Bật Chat MCP API" },
+          { "text": "BẮT BUỘC - Google Chat API > Configuration: App name = Chat MCP, Avatar URL bất kỳ (vd ảnh quickstart Google), Description = Chat MCP server, TẮT Enable interactive features, Save. Thiếu bước này Test báo Chat app not found dù JSON OAuth đã đúng.", "link": "https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat", "link_label": "Cấu hình Chat app" },
           { "text": "Màn hình đồng ý OAuth: chọn External, thêm email Workspace của bạn vào Test users.", "link": "https://console.cloud.google.com/auth/audience", "link_label": "Mở màn hình đồng ý" },
           { "text": "Quyền dữ liệu > Thêm hoặc bớt phạm vi: dán đủ 5 phạm vi Chat (chat.spaces.readonly, chat.memberships.readonly, chat.messages.readonly, chat.messages.create, chat.users.readstate).", "link": "https://console.cloud.google.com/auth/scopes", "link_label": "Mở trang Quyền dữ liệu" },
           { "text": "Tạo OAuth client loại 'Ứng dụng web', thêm địa chỉ dưới đây vào ô 'URI chuyển hướng được ủy quyền'.", "link": "https://console.cloud.google.com/apis/credentials/oauthclient", "link_label": "Tạo OAuth client", "copy": "redirect" },
-          { "text": "Muốn Javis GỬI tin Chat sau này: vào Google Chat API > Configuration, tạo Chat app (tên Chat MCP, tắt interactive features). Chỉ đọc/tìm tin thì bỏ qua bước này.", "link": "https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat", "link_label": "Cấu hình Chat app" },
           { "text": "Đọc hướng dẫn chính chủ Google về Chat MCP nếu cần chi tiết kỹ thuật.", "link": "https://developers.google.com/workspace/chat/api/guides/configure-mcp-server", "link_label": "Hướng dẫn Chat MCP" },
           { "text": "Tải file JSON client (hoặc copy Client ID + Secret), kéo thả vào ô bên dưới rồi bấm Kết nối. Gặp 'ứng dụng chưa được xác minh' thì Nâng cao > Tiếp tục, TICK HẾT ô quyền." },
           { "text": "ĐĂNG NHẬP LẠI MÀ GOOGLE KHÔNG HIỆN LẠI CÁC Ô TICK QUYỀN? Gỡ Javis ở trang quyền Google rồi Kết nối lại.", "link": "https://myaccount.google.com/permissions", "link_label": "Gỡ quyền cũ ở Google" }
@@ -897,6 +897,7 @@
           "links": [
             { "label": "Ghi danh Developer Preview", "url": "https://developers.google.com/workspace/preview" },
             { "label": "Bật Google Chat MCP API", "url": "https://console.cloud.google.com/apis/library/chatmcp.googleapis.com" },
+            { "label": "Cấu hình Chat app", "url": "https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat" },
             { "label": "Hướng dẫn Chat MCP", "url": "https://developers.google.com/workspace/chat/api/guides/configure-mcp-server" }
           ]
         }

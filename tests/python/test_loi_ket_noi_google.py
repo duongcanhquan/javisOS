@@ -112,6 +112,12 @@ chat = next(c for c in cat["connectors"] if c["id"] == "google-chat")
 vargs = (chat.get("validate") or {}).get("args") or {}
 check("catalog google-chat validate không gửi field query", "query" not in vargs)
 
+loi_app = "Google Chat app not found. To create a Chat app, you must turn on the Chat API and configure the app in the Google Cloud console."
+msg_app = f(loi_app)
+check("Chat app not found → không đổ Key sai", "Key chưa đúng" not in msg_app)
+check("Chat app not found → chỉ đường Configuration",
+      "Configuration" in msg_app or "Chat MCP" in msg_app)
+
 # ---- 4c. Chẩn đoán phải tới được chỗ GỌI TOOL THẬT, không chỉ nút Test ----
 # Đây mới là chỗ người dùng và model gặp lỗi. Trước đây _guard trả nguyên văn lỗi tiếng Anh
 # nên model tự suy diễn và suy sai.

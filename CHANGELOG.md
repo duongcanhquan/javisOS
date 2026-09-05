@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.83] - 2026-09-05
+### Sửa lỗi
+- **Google Chat: thông báo đúng khi thiếu Chat app.** OAuth JSON đúng mà Test báo lỗi thì hướng dẫn cấu hình Chat app trong Cloud Console (bước bắt buộc), không còn đổ oan key.
+
+
 ## [0.35.82] - 2026-09-05
 ### Sửa lỗi
 - **CI: test xóa cuộc họp nạp đúng module `meetings`.** Trước đó `python test_meetings_delete.py` không thấy `server/` nên cả bước Python đỏ dù JS đã xanh.
