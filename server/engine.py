@@ -1962,7 +1962,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
     guard = _LapGuard()   # phanh chống kẹt vòng lặp (xem _LapGuard)
     # Chỉ chờ cửa sổ hạn mức MỘT lần mỗi lượt: chờ hai lần là người dùng ngồi nhìn màn hình
     # đứng im nửa phút mà không hiểu chuyện gì.
-    waited_for_window = False
+    waited_for_window = 0  # số lần đã chờ cửa sổ TPM/RPM (chờ ngắn có thể cần vài nhịp)
     # Số lần model bịa sai cú pháp gọi tool. 0 -> thử lại; 1 -> bỏ tool; 2 -> chịu, báo lỗi.
     tool_fumbles = 0
     requirement = _tool_requirement(messages, mcp_tools)
@@ -2081,14 +2081,26 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                     # CỬA SỔ ĐẦY thì co nhỏ gần như vô ích: lượt này đã vừa hạn mức rồi, chỉ
                     # là các lượt TRƯỚC chưa trôi qua. Việc đúng là chờ, và nhà cung cấp đã
                     # nói chờ bao lâu. Chờ vài giây rồi trả lời được vẫn hơn hẳn ném lỗi.
+                    # TPM Groq hay báo "315ms" nhưng cửa sổ trượt cần thêm 1-2s mới đủ chỗ;
+                    # cho tối đa 3 lần chờ ngắn thay vì bỏ cuộc sau một nhịp.
+                    _cho_toi_da = 3 if _fact.kind in ("tpm", "rpm") else 1
                     if (_fact.remedy == "wait" and _fact.retry_after
                             and _fact.retry_after <= _WINDOW_WAIT_MAX
-                            and not waited_for_window):
-                        waited_for_window = True
+                            and waited_for_window < _cho_toi_da):
+                        waited_for_window += 1
+                        cho = float(_fact.retry_after)
+                        if _fact.kind == "tpm":
+                            cho = max(cho + 0.5, 2.0)
+                        else:
+                            cho = cho + 0.5
+                        if cho < 1:
+                            nhan_cho = f"{int(cho * 1000)}ms"
+                        else:
+                            nhan_cho = f"{cho:.0f}s"
                         yield {"type": "tool_call", "name": "javis_wait_quota",
                                "content": (f"⚙ Hạn mức phút này đã đầy, chờ "
-                                           f"{_fact.retry_after:.0f}s rồi thử lại...")}
-                        await asyncio.sleep(_fact.retry_after + 0.5)
+                                           f"{nhan_cho} rồi thử lại...")}
+                        await asyncio.sleep(cho)
                         continue
                     yield {"type": "limit_exceeded", "provider": label, "model": model,
                            "kind": _fact.kind, "limit": _fact.limit,

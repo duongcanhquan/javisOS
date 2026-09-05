@@ -88,7 +88,8 @@ _KEY = {
     "openrouter": "openrouter_key",
 }
 _MAC_DINH_MSG = {
-    "groq": "openai/gpt-oss-120b",
+    # 20b: nhẹ hơn 120b, ít đốt TPM free-tier (8000) khi chat Zalo/Telegram + tool.
+    "groq": "openai/gpt-oss-20b",
     "gemini": "gemini-2.5-flash",
     "deepseek": "deepseek-v4-flash",
     "openrouter": "google/gemini-2.0-flash-001",
@@ -116,9 +117,11 @@ if not msg_p:
 if msg_p:
     if not msg_mod:
         msg_mod = _MAC_DINH_MSG.get(msg_p) or ""
-    # Ghim cũ còn Llama (đã gỡ trên Groq) → ép sang mặc định mới, đừng giữ id chết.
-    if msg_p == "groq" and "llama" in (msg_mod or "").lower():
-        print("messaging: bỏ Llama đã gỡ", msg_mod, "->", _MAC_DINH_MSG["groq"])
+    # Ghim cũ còn Llama (đã gỡ trên Groq) hoặc 120b quá nặng TPM free → ép mặc định nhắn tin.
+    if msg_p == "groq" and (
+            "llama" in (msg_mod or "").lower()
+            or "gpt-oss-120b" in (msg_mod or "").lower()):
+        print("messaging: đổi model Groq nặng", msg_mod, "->", _MAC_DINH_MSG["groq"])
         msg_mod = _MAC_DINH_MSG["groq"]
     m["telegram"] = {"provider": msg_p, "model": msg_mod}
     print("messaging (Telegram+Zalo):", old_tg, "->", m["telegram"])
@@ -144,11 +147,20 @@ for slot in ("main", "auxiliary", "telegram"):
         block["model"] = _MAC_DINH_MSG["groq"]
         m[slot] = block
         print(f"scrub {slot}: bỏ Llama →", block["model"])
+# Nhắn tin: 120b trên free-tier TPM 8k dễ 429 liên tục → hạ 20b.
+tg = dict(m.get("telegram") or {})
+if (tg.get("provider") or "") == "groq" and "gpt-oss-120b" in (tg.get("model") or "").lower():
+    tg["model"] = _MAC_DINH_MSG["groq"]
+    m["telegram"] = tg
+    print("messaging: hạ gpt-oss-120b →", tg["model"])
 cat = m.setdefault("catalog", {})
 old_g = list(cat.get("groq") or [])
 neu_g = [x for x in old_g if "llama" not in str(x).lower()]
 if not neu_g:
-    neu_g = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+    neu_g = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b"]
+elif "openai/gpt-oss-20b" in neu_g:
+    # Đưa 20b lên đầu catalog để picker ưu tiên model nhẹ cho chat.
+    neu_g = ["openai/gpt-oss-20b"] + [x for x in neu_g if x != "openai/gpt-oss-20b"]
 if neu_g != old_g:
     cat["groq"] = neu_g
     print("catalog.groq:", old_g, "->", neu_g)
