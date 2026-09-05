@@ -522,15 +522,6 @@ class RemindersFeature:
         body, err = "", ""
         deliver, msg = True, ""
         if mode == "task":
-            # Báo đang chạy ngay - Ollama Local CPU có thể mất vài phút; im lặng = tưởng treo.
-            chat_id = rem.get("chat_id", "")
-            if chat_id:
-                try:
-                    await self.deps.send_telegram(
-                        chat_id,
-                        "⏳ Đang xử lý nhắc hẹn… (Ollama Local trên CPU có thể mất vài phút)")
-                except Exception:
-                    pass
             async with self.lock:
                 body, err = await self._run_task(brain, text, muc_quyen_cua(rem))
             if body:
