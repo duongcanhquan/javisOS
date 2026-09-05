@@ -4388,6 +4388,14 @@ async def meetings_list(brain: str = Query("brain"), limit: int = Query(20)):
         return {"ok": False, "error": str(e), "items": []}
 
 
+@app.post("/meetings/delete")
+async def meetings_delete(path: str = Form(""), brain: str = Form("brain")):
+    try:
+        return meetings.delete_files(_brain_root(brain), path)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def _duong_staging(name: str) -> Path:
     """Tên file trong staging -> đường tuyệt đối. ValueError nếu tên không hợp lệ.
 

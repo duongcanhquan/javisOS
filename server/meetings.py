@@ -445,6 +445,48 @@ async def analyze_with_ollama(
     }
 
 
+def delete_files(brain_root: str, rel_path: str) -> dict:
+    """Xóa file cuộc họp (transcript/summary) trong sources/meetings/."""
+    root = Path(brain_root).resolve()
+    rel = (rel_path or "").strip().replace("\\", "/").lstrip("/")
+    if not rel or ".." in rel.split("/"):
+        return {"ok": False, "error": "Đường dẫn không hợp lệ"}
+    p = (root / rel).resolve()
+    try:
+        p.relative_to(root)
+    except ValueError:
+        return {"ok": False, "error": "Đường dẫn ngoài brain"}
+    if not p.is_file() or p.suffix.lower() != ".md":
+        return {"ok": False, "error": "Chỉ xóa file .md cuộc họp"}
+    parts = [x.lower() for x in p.parts]
+    if "meetings" not in parts:
+        return {"ok": False, "error": "Chỉ xóa file trong thư mục meetings"}
+    deleted: list[str] = []
+    try:
+        p.unlink()
+        deleted.append(rel)
+    except OSError as e:
+        return {"ok": False, "error": f"Xóa lỗi: {e}"}
+    stem = p.stem
+    if stem.endswith("-summary"):
+        return {"ok": True, "deleted": deleted}
+    jl = p.parent / f"{stem}.jsonl"
+    if jl.is_file():
+        try:
+            jl.unlink()
+            deleted.append(str(jl.relative_to(root)).replace("\\", "/"))
+        except OSError:
+            pass
+    summ = p.parent / f"{stem}-summary.md"
+    if summ.is_file():
+        try:
+            summ.unlink()
+            deleted.append(str(summ.relative_to(root)).replace("\\", "/"))
+        except OSError:
+            pass
+    return {"ok": True, "deleted": deleted}
+
+
 def list_recent(brain_root: str, limit: int = 20) -> list[dict]:
     d = meetings_dir(brain_root)
     files = sorted(d.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)

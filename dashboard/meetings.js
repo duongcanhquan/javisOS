@@ -3,7 +3,10 @@
 (function () {
   "use strict";
 
-  var CDN = "https://cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm@0.1.5/dist/index.js";
+  var CDN = "/static/vendor/moonshine-wasm/dist/index.js";
+  var CDN_FALLBACK =
+    "https://cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm@0.1.5/dist/index.js";
+  var MOONSHINE_LOAD_TIMEOUT_MS = 90000;
   var state = {
     meetingId: null,
     path: "",
@@ -17,6 +20,8 @@
     moonshineReady: false,
     moonshinePreloading: false,
     moonshinePreloadError: null,
+    _moonshineLoadPromise: null,
+    abortRequested: false,
     running: false,
     stopped: false,
     loading: false,
@@ -521,8 +526,63 @@
 
   async function importMoonshineModule() {
     if (state.moonshineMod) return state.moonshineMod;
-    state.moonshineMod = await import(/* webpackIgnore: true */ CDN);
-    return state.moonshineMod;
+    try {
+      state.moonshineMod = await import(/* webpackIgnore: true */ CDN);
+      return state.moonshineMod;
+    } catch (e) {
+      state.moonshineMod = await import(/* webpackIgnore: true */ CDN_FALLBACK);
+      return state.moonshineMod;
+    }
+  }
+
+  function ensureMoonshineTranscriber(root, onProgress) {
+    if (state.moonshineTranscriber) {
+      return Promise.resolve(state.moonshineTranscriber);
+    }
+    if (state._moonshineLoadPromise) return state._moonshineLoadPromise;
+
+    var started = Date.now();
+    var tick = null;
+    if (onProgress) {
+      tick = setInterval(function () {
+        var sec = Math.round((Date.now() - started) / 1000);
+        onProgress(0, "đang tải… " + sec + "s");
+      }, 1000);
+    }
+
+    state._moonshineLoadPromise = (async function () {
+      var mod = await importMoonshineModule();
+      var prog =
+        onProgress ||
+        function (frac) {
+          updateMoonshinePreloadHint(root, frac);
+        };
+      var transcriber = await mod.Transcriber.load({
+        language: "vi",
+        modelArch: mod.ModelArch.Base,
+        options: MOONSHINE_VI_OPTS,
+        onProgress: function (loaded, total, file) {
+          var frac = total ? Math.min(1, loaded / total) : 0;
+          if (typeof frac === "number" && frac > 0) prog(frac, file || "");
+          else prog(0, file || "");
+        },
+      });
+      state.moonshineTranscriber = transcriber;
+      state.moonshineReady = true;
+      state.moonshinePreloadError = null;
+      updateMoonshinePreloadHint(root, 1);
+      return transcriber;
+    })()
+      .catch(function (e) {
+        state._moonshineLoadPromise = null;
+        state.moonshinePreloadError = e;
+        throw e;
+      })
+      .finally(function () {
+        if (tick) clearInterval(tick);
+      });
+
+    return state._moonshineLoadPromise;
   }
 
   function updateMoonshinePreloadHint(root, frac) {
@@ -545,31 +605,8 @@
     }
   }
 
-  async function ensureMoonshineTranscriber(root, onProgress) {
-    if (state.moonshineTranscriber) return state.moonshineTranscriber;
-    var mod = await importMoonshineModule();
-    var prog =
-      onProgress ||
-      function (frac) {
-        updateMoonshinePreloadHint(root, frac);
-      };
-    state.moonshineTranscriber = await mod.Transcriber.load({
-      language: "vi",
-      modelArch: mod.ModelArch.Base,
-      options: MOONSHINE_VI_OPTS,
-      onProgress: function (loaded, total) {
-        var frac = total ? Math.min(1, loaded / total) : 0;
-        prog(frac);
-      },
-    });
-    state.moonshineReady = true;
-    state.moonshinePreloadError = null;
-    updateMoonshinePreloadHint(root, 1);
-    return state.moonshineTranscriber;
-  }
-
   function preloadMoonshine(root) {
-    if (state.moonshineReady || state.moonshinePreloading) return;
+    if (state.moonshineReady || state.moonshinePreloading || state._moonshineLoadPromise) return;
     state.moonshinePreloading = true;
     ensureMoonshineTranscriber(root)
       .catch(function (e) {
@@ -760,17 +797,27 @@
   }
 
   async function startMoonshine(root) {
+    if (state.abortRequested) throw new Error("Đã hủy");
     var mod = await importMoonshineModule();
     if (!state.moonshineReady) {
       setStatus(root, "Nạp model Moonshine (tiếng Việt, ~70MB)…");
     }
     var transcriber = await promiseTimeout(
-      ensureMoonshineTranscriber(root, function (frac) {
-        setStatus(root, "Tải model tiếng Việt… " + Math.round((frac || 0) * 100) + "%");
+      ensureMoonshineTranscriber(root, function (frac, hint) {
+        if (state.abortRequested) return;
+        if (frac > 0) {
+          setStatus(root, "Tải model tiếng Việt… " + Math.round(frac * 100) + "%");
+        } else {
+          setStatus(
+            root,
+            "Tải model Moonshine (tiếng Việt, ~70MB)… " + (hint || "")
+          );
+        }
       }),
-      120000,
-      "Moonshine không tải được trong 2 phút. Kiểm tra mạng hoặc thử lại."
+      MOONSHINE_LOAD_TIMEOUT_MS,
+      "Moonshine không tải được trong 90 giây. Kiểm tra mạng hoặc dùng Web Speech."
     );
+    if (state.abortRequested) throw new Error("Đã hủy");
 
     var mic = new mod.MicTranscriber()
       .useTranscriber(transcriber)
@@ -822,6 +869,56 @@
     });
   }
 
+  async function cleanupAudio() {
+    stopWebSpeech();
+    stopWhisper();
+    await stopMoonshineMic();
+    state.sttEngine = "";
+  }
+
+  async function stopOrCancelMeeting(root) {
+    if (!state.loading && !state.running && !state.meetingId) return;
+    state.abortRequested = true;
+    state.running = false;
+    var stopBtn = root.querySelector("#mtStop");
+    var startBtn = root.querySelector("#mtStart");
+    if (stopBtn) stopBtn.disabled = true;
+    await cleanupAudio();
+    state.lineBuffer = [];
+    setPartial(root, "");
+    if (state.meetingId) {
+      try {
+        var f = new FormData();
+        f.append("brain", fbrain());
+        await fetch("/meetings/" + encodeURIComponent(state.meetingId) + "/stop", {
+          method: "POST",
+          body: f,
+        });
+      } catch (e) {}
+      state.stopped = true;
+      setPhase(root, "stopped");
+      setStatus(
+        root,
+        "Đã dừng ghi" +
+          (state.lines ? " · " + state.lines + " đoạn" : "") +
+          " — bấm Tổng kết hoặc Cuộc họp mới.",
+        "ok"
+      );
+    } else {
+      state.meetingId = null;
+      setPhase(root, "setup");
+      setStatus(root, "Đã hủy.", "ok");
+    }
+    if (startBtn) startBtn.disabled = false;
+    state.loading = false;
+    if (state.ws) {
+      try {
+        state.ws.close();
+      } catch (e) {}
+      state.ws = null;
+    }
+  }
+
   async function startMeeting(root) {
     if (state.running || state.loading) return;
     if (
@@ -847,10 +944,13 @@
 
     state.loading = true;
     state.stopped = false;
+    state.abortRequested = false;
     state.lineBuffer = [];
     seedSpeakersFromInput(root);
     var startBtn = root.querySelector("#mtStart");
+    var stopBtnEarly = root.querySelector("#mtStop");
     if (startBtn) startBtn.disabled = true;
+    if (stopBtnEarly) stopBtnEarly.disabled = false;
 
     releaseMicConflicts();
 
@@ -874,33 +974,7 @@
       });
     }
     try {
-      // Moonshine trước: model VI Base on-device + phân biệt người nói. Bật STT trong cử chỉ bấm.
-      try {
-        setStatus(root, "Bật Moonshine…");
-        await startMoonshine(root);
-        state.running = true;
-        sttStarted = true;
-        var stopBtnM = root.querySelector("#mtStop");
-        if (stopBtnM) stopBtnM.disabled = false;
-      } catch (moonErr) {
-        moonshineFail = moonErr;
-        await stopMoonshineMic();
-        if (hasWebSpeech()) {
-          setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
-          startWebSpeechSafe(root);
-          state.running = true;
-          sttStarted = true;
-          var stopBtnWs = root.querySelector("#mtStop");
-          if (stopBtnWs) stopBtnWs.disabled = false;
-        }
-      }
-
-      setStatus(
-        root,
-        sttStarted
-          ? "Đang nghe — tạo file ghi chú trên server…"
-          : "Tạo file ghi chú trên server…"
-      );
+      setStatus(root, "Tạo file ghi chú trên server…");
       var f = new FormData();
       f.append("title", title);
       f.append("notes", notes);
@@ -909,6 +983,7 @@
       f.append("brain", fbrain());
       var r = await (await fetch("/meetings/start", { method: "POST", body: f })).json();
       if (!r.ok) throw new Error(r.error || "Không tạo được phiên");
+      if (state.abortRequested) throw new Error("Đã hủy");
       state.meetingId = r.id;
       state.path = r.path || "";
       state.lines = 0;
@@ -916,6 +991,24 @@
       if (pathEl) pathEl.textContent = r.path || "";
       var countEl = root.querySelector("#mtCount");
       if (countEl) countEl.textContent = "0";
+
+      try {
+        setStatus(root, "Bật Moonshine…");
+        await startMoonshine(root);
+        if (state.abortRequested) throw new Error("Đã hủy");
+        state.running = true;
+        sttStarted = true;
+      } catch (moonErr) {
+        moonshineFail = moonErr;
+        await stopMoonshineMic();
+        if (state.abortRequested) throw moonErr;
+        if (hasWebSpeech()) {
+          setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
+          startWebSpeechSafe(root);
+          state.running = true;
+          sttStarted = true;
+        }
+      }
 
       await flushLineBuffer();
 
@@ -926,8 +1019,6 @@
             await startWhisperMeeting(root, micPromise);
             state.running = true;
             sttStarted = true;
-            var stopBtnW = root.querySelector("#mtStop");
-            if (stopBtnW) stopBtnW.disabled = false;
           } catch (whErr) {
             if (micPromise && micPromise.catch) {
               try {
@@ -952,79 +1043,44 @@
       } else if (state.sttEngine === "webspeech") {
         setStatus(
           root,
-          "Đang nghe (Web Speech). Không phân biệt người nói — dùng Moonshine khi tải model xong.",
+          "Đang nghe (Web Speech). Không phân biệt người nói — Moonshine sẽ dùng lại khi tải xong.",
           "ok"
         );
       }
       await ensureWs();
+      refreshList(root);
     } catch (e) {
       state.running = false;
-      stopWebSpeech();
-      stopWhisper();
-      await stopMoonshineMic();
+      await cleanupAudio();
       state.sttEngine = "";
       state.lineBuffer = [];
-      setStatus(root, "Không bắt đầu được: " + (e.message || e), "err");
+      if (state.meetingId && !state.abortRequested) {
+        try {
+          var fStop = new FormData();
+          fStop.append("brain", fbrain());
+          await fetch("/meetings/" + encodeURIComponent(state.meetingId) + "/stop", {
+            method: "POST",
+            body: fStop,
+          });
+        } catch (err) {}
+      }
+      setStatus(
+        root,
+        state.abortRequested ? "Đã hủy." : "Không bắt đầu được: " + (e.message || e),
+        state.abortRequested ? "ok" : "err"
+      );
       if (startBtn) startBtn.disabled = false;
-      state.meetingId = null;
-      setPhase(root, "setup");
+      if (!state.abortRequested) state.meetingId = null;
+      setPhase(root, state.abortRequested && state.meetingId ? "stopped" : "setup");
     } finally {
       state.loading = false;
+      var stopBtnFin = root.querySelector("#mtStop");
+      if (stopBtnFin && !state.running && !state.stopped) stopBtnFin.disabled = true;
     }
   }
 
   async function stopRecording(root) {
-    if (!state.meetingId) return;
-    var stopBtn = root.querySelector("#mtStop");
-    if (stopBtn) stopBtn.disabled = true;
-    try {
-      state.running = false;
-      if (state.speechRec) {
-        stopWebSpeech();
-      }
-      stopWhisper();
-      if (state.mic) {
-        try {
-          await state.mic.stop();
-        } catch (e) {}
-        try {
-          state.mic.close();
-        } catch (e) {}
-        state.mic = null;
-      }
-      state.sttEngine = "";
-      setPartial(root, "");
-      var f = new FormData();
-      f.append("brain", fbrain());
-      var r = await (
-        await fetch("/meetings/" + encodeURIComponent(state.meetingId) + "/stop", {
-          method: "POST",
-          body: f,
-        })
-      ).json();
-      if (!r.ok) throw new Error(r.error || "Dừng lỗi");
-      state.stopped = true;
-      setPhase(root, "stopped");
-      setStatus(
-        root,
-        "Đã dừng ghi · " +
-          (r.line_count || 0) +
-          " đoạn · " +
-          (r.path || "") +
-          " — bấm Tổng kết cuộc họp.",
-        "ok"
-      );
-    } catch (e) {
-      setStatus(root, "Dừng lỗi: " + (e.message || e), "err");
-      if (stopBtn) stopBtn.disabled = false;
-    } finally {
-      if (state.ws) {
-        try {
-          state.ws.close();
-        } catch (e) {}
-        state.ws = null;
-      }
-    }
+    await stopOrCancelMeeting(root);
   }
 
   async function runAnalyze(root) {
@@ -1118,6 +1174,25 @@
     }
   }
 
+  async function deleteMeetingFile(root, relPath) {
+    if (!relPath) return;
+    var label = relPath.split("/").pop() || relPath;
+    if (!window.confirm("Xóa file cuộc họp \"" + label + "\"? Không hoàn tác.")) return;
+    try {
+      var f = new FormData();
+      f.append("path", relPath);
+      f.append("brain", fbrain());
+      var r = await (
+        await fetch("/meetings/delete", { method: "POST", body: f })
+      ).json();
+      if (!r.ok) throw new Error(r.error || "Xóa lỗi");
+      setStatus(root, "Đã xóa " + (r.deleted || []).length + " file.", "ok");
+      refreshList(root);
+    } catch (e) {
+      setStatus(root, "Xóa lỗi: " + (e.message || e), "err");
+    }
+  }
+
   async function refreshList(root) {
     var el = root.querySelector("#mtRecent");
     if (!el) return;
@@ -1133,14 +1208,26 @@
       el.innerHTML = items
         .map(function (it) {
           return (
-            '<div class="mt-recent-row"><span class="mt-kind">' +
+            '<div class="mt-recent-row">' +
+            '<span class="mt-kind">' +
             esc(it.kind) +
-            "</span> <code>" +
+            "</span> " +
+            '<code class="mt-recent-path">' +
             esc(it.path) +
-            "</code></div>"
+            "</code> " +
+            '<button type="button" class="mt-del s-btn-ghost" data-path="' +
+            esc(it.path) +
+            '" title="Xóa file">' +
+            ic("trash-2") +
+            " Xóa</button></div>"
           );
         })
         .join("");
+      el.querySelectorAll(".mt-del").forEach(function (btn) {
+        btn.onclick = function () {
+          deleteMeetingFile(root, btn.getAttribute("data-path"));
+        };
+      });
     } catch (e) {
       el.innerHTML = '<div class="dim">Không tải danh sách.</div>';
     }
@@ -1168,7 +1255,7 @@
       ".mt-spk{margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:13px}" +
       ".mt-spk:hover{border-color:var(--accent-ink,var(--text2))}" +
       ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px;margin:8px 0 0}" +
-      ".mt-recent-row{font-size:13px;margin:4px 0;color:var(--text2)}.mt-kind{display:inline-block;min-width:72px;color:var(--text3)}" +
+      ".mt-recent-row{font-size:13px;margin:6px 0;color:var(--text2);display:flex;flex-wrap:wrap;align-items:center;gap:8px}.mt-kind{display:inline-block;min-width:72px;color:var(--text3)}.mt-recent-path{flex:1;min-width:160px;word-break:break-all}.mt-del{font-size:12px;padding:3px 8px;color:var(--warn-ink,var(--text3))}" +
       "#mtStatus{font-size:13.5px;margin:8px 0 0;min-height:1.3em}" +
       ".mt-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--text3)}" +
       ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}";
@@ -1215,9 +1302,9 @@
       '<div class="mt-live" id="mtLines"><div class="mt-empty dim">Chưa có dòng nào.</div></div>' +
       '<div class="mt-partial" id="mtPartial"></div>' +
       '<div class="mt-toolbar" style="margin-top:12px">' +
-      '<button class="s-btn-ghost" id="mtStop" type="button">' +
+      '<button class="s-btn-ghost" id="mtStop" type="button" disabled>' +
       ic("circle-stop") +
-      " Dừng ghi</button>" +
+      " Dừng / Hủy</button>" +
       "</div></div>" +
       '<div id="mtAfter" hidden>' +
       '<div class="mt-toolbar" style="margin-top:8px">' +

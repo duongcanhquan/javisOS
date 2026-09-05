@@ -79,6 +79,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App source.
 COPY . .
 
+# Moonshine WASM cùng origin với dashboard — tránh worker WASM cross-origin từ CDN.
+RUN mkdir -p /tmp/ms && cd /tmp/ms \
+    && npm pack @moonshine-ai/moonshine-wasm@0.1.5 \
+    && tar -xzf moonshine-ai-moonshine-wasm-*.tgz \
+    && mkdir -p /app/dashboard/vendor/moonshine-wasm \
+    && mv package/dist /app/dashboard/vendor/moonshine-wasm/dist \
+    && rm -rf /tmp/ms
+
 # Non-root runtime user. Code stays root-owned + read-only; state on volumes.
 RUN useradd -u 10001 -m -d /home/javis javis \
     && mkdir -p /data/state /data/vault /brains /home/javis/.claude /home/javis/.codex \
