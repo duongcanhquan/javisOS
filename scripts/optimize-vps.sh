@@ -15,56 +15,31 @@ RAM_GB=$(awk -v m="$RAM_MB" 'BEGIN { printf "%.1f", m/1024 }')
 FREE_GB=$(df -BG / 2>/dev/null | awk 'NR==2 {gsub(/G/,"",$4); print $4}' || echo "?")
 echo "RAM: ${RAM_GB} GB (${RAM_MB} MB) · đĩa trống: ~${FREE_GB} GB"
 
-# --- Gỡ Ollama local còn sót (timeout, không treo deploy) ---
-if [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
+# Cleanup gộp: gỡ Ollama local, scrub Llama, routing, prune Docker, verify hàm sống.
+if [ -f "$ROOT/scripts/cleanup-vps.sh" ]; then
   echo
-  echo "==> Gỡ Ollama local (settings + cache)"
-  chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
-  timeout 90 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
-    || echo "WARN: uninstall-ollama skipped"
-fi
-
-# --- Javis settings: routing cloud ---
-echo
-echo "==> Áp phân tầng model (Main + Việc nền = Antigravity)"
-if [ -f "$ROOT/scripts/apply-model-routing-vps.sh" ]; then
+  chmod +x "$ROOT/scripts/cleanup-vps.sh"
+  bash "$ROOT/scripts/cleanup-vps.sh" || echo "WARN: cleanup-vps skipped"
+elif [ -f "$ROOT/scripts/apply-model-routing-vps.sh" ]; then
+  echo
+  echo "==> Áp phân tầng model (fallback không có cleanup-vps.sh)"
   chmod +x "$ROOT/scripts/apply-model-routing-vps.sh"
   bash "$ROOT/scripts/apply-model-routing-vps.sh" || echo "WARN: apply-model-routing skipped"
-fi
-
-if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-  echo
-  echo "==> Kiểm tra settings trong container"
-  docker exec -i -u javis "$CONTAINER" python - <<'PY'
-import sys
-sys.path.insert(0, "/app/server")
-import config as cfg
-
-s = cfg.read_settings()
-m = s.get("model") or {}
-print("main:", m.get("main"))
-print("auxiliary:", m.get("auxiliary"))
-ep = (m.get("ollama_local_endpoint") or "").strip()
-print("ollama_local_endpoint:", ep or "(đã xóa - OK)")
-if ep:
-    print("WARN: vẫn còn ollama_local_endpoint - chạy lại uninstall-ollama-vps.sh")
-PY
-else
-  echo "WARN: container '$CONTAINER' chưa chạy - bỏ qua kiểm tra settings"
 fi
 
 echo
 echo "==> Health snapshot"
 if [ -f "$ROOT/scripts/check-vps-health.sh" ]; then
   chmod +x "$ROOT/scripts/check-vps-health.sh"
-  bash "$ROOT/scripts/check-vps-health.sh" 2>&1 | tail -40 || true
+  bash "$ROOT/scripts/check-vps-health.sh" 2>&1 | tail -50 || true
 fi
 
 echo
 echo "============================================"
 echo " XONG - gợi ý sử dụng (VPS ${RAM_GB}GB)"
 echo "  Chat / MCP / việc nền  → Antigravity (Main)"
+echo "  Nhắn tin nhanh         → Groq gpt-oss (nếu có key), không Llama"
 echo "  Ghi họp               → Moonshine (browser)"
-echo "  Tổng kết họp          → Antigravity (nhanh hơn Ollama CPU)"
+echo "  Tổng kết họp          → Antigravity"
 echo "  Ollama local          → đã gỡ khỏi VPS"
 echo "============================================"

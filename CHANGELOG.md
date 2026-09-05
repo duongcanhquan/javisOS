@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.68] - 2026-09-05
+### Cải thiện
+- **Dọn VPS một lệnh:** scrub Llama/Ollama local, prune Docker (giữ volume), kiểm tra hàm xoá kết nối / remap Groq còn sống - deploy tự chạy qua optimize.
+
+
 ## [0.35.67] - 2026-09-05
 ### Sửa lỗi
 - **Gỡ sạch Llama khỏi Groq.** Ghim/catalog cũ còn `llama-*` tự đổi sang `openai/gpt-oss-120b`; picker không còn hiện dòng Llama (Groq đã shutdown, gọi là 404).

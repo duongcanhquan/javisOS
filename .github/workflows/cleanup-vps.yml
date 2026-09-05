@@ -1,0 +1,26 @@
+# Dọn VPS: scrub Llama/Ollama local, prune Docker, kiểm tra hàm sống.
+name: Cleanup VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
+            chmod +x scripts/cleanup-vps.sh
+            bash scripts/cleanup-vps.sh
