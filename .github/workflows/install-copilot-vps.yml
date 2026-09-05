@@ -1,0 +1,54 @@
+# Cài GitHub Copilot CLI (`copilot`) vào container Javis trên VPS (workflow_dispatch).
+name: Install Copilot on VPS
+
+on:
+  workflow_dispatch:
+
+# Một hàng SSH vào VPS tại một thời điểm (không đua với Deploy).
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install copilot in javis container
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            CONTAINER="${JAVIS_CONTAINER:-javis}"
+            echo "==> container: $CONTAINER"
+            docker ps --format '{{.Names}}' | grep -qx "$CONTAINER" || {
+              echo "ERROR: container '$CONTAINER' không chạy"
+              exit 1
+            }
+            if [ -f scripts/install-copilot-vps.sh ]; then
+              chmod +x scripts/install-copilot-vps.sh
+              bash scripts/install-copilot-vps.sh
+              exit 0
+            fi
+            echo "==> script chưa có trên VPS - cài trực tiếp"
+            docker exec -u javis "$CONTAINER" bash -lc '
+              set -euo pipefail
+              export PATH="$HOME/.local/bin:$PATH"
+              mkdir -p "$HOME/.local/bin" "$HOME/.copilot"
+              if command -v copilot >/dev/null 2>&1; then
+                echo "copilot đã có: $(command -v copilot)"
+                copilot --version 2>&1 | head -3 || true
+                exit 0
+              fi
+              npm install -g @github/copilot --prefix "$HOME/.local"
+              export PATH="$HOME/.local/bin:$PATH"
+              command -v copilot >/dev/null 2>&1 || { echo "ERROR: không thấy copilot"; exit 1; }
+              copilot --version 2>&1 | head -5 || true
+            '
+            echo "==> XONG. Đăng nhập sau: Models hoặc terminal: copilot login"

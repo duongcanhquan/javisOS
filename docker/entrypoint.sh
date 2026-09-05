@@ -21,7 +21,8 @@ PERSIST_ROOT="${JAVIS_HOME_PERSIST:-/data/home}"
 
 # .gemini: agy (Antigravity CLI) lưu token file khi GEMINI_FORCE_FILE_STORAGE=true
 # (Docker/headless không có keyring → không persist thì phải copy code OAuth mỗi lần).
-for d in .local .antigravity .config .gemini; do
+# .copilot: GitHub Copilot CLI (binary `copilot`) - MCP config + phiên đăng nhập nếu có.
+for d in .local .antigravity .config .gemini .copilot; do
     src="$HOME/$d"
     dst="$PERSIST_ROOT/$d"
     # Đã là symlink (boot thứ hai trở đi) → xong từ lâu.
