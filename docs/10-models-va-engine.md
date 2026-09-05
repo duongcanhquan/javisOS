@@ -220,9 +220,9 @@ Khối **◆ Model việc nền** quyết định model nào chạy những vi�
 
 Vài điều cần biết:
 
-- **Chọn được MỌI provider bạn đã đấu**, không riêng Claude: Claude Code, ChatGPT/Codex, OpenRouter, OpenAI, Gemini, Anthropic API. Chọn nhà cung cấp khác thì việc nền chạy bằng gói hoặc khoá của nhà đó, không ăn vào hạn mức Claude nữa.
+- **Chọn được MỌI provider bạn đã đấu**, không riêng Claude: Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Gemini, Anthropic API, Groq, DeepSeek, Ollama Cloud. Chọn nhà cung cấp khác thì việc nền chạy bằng gói hoặc khoá của nhà đó, không ăn vào hạn mức Claude nữa.
 - Nếu bạn chọn một provider **chưa kết nối**, khối này hiện cảnh báo "⚠ nhà cung cấp này chưa kết nối - việc nền sẽ tự dùng lại Claude". Việc nền không chết, chỉ là không tiết kiệm được.
-- **Công cụ không giống nhau giữa các đường.** Claude Code và Codex đọc/ghi file trực tiếp trong brain. Các model API (OpenRouter, OpenAI, Gemini, Anthropic API) đọc/ghi qua công cụ vault của Javis và **không chạy được lệnh máy**, nên hợp với việc đọc - tổng hợp - ghi ghi chú; việc nền nào cần chạy lệnh thì cứ để Claude.
+- **Công cụ không giống nhau giữa các đường.** Claude Code, Codex và Antigravity CLI đọc/ghi file trực tiếp trong brain và chạy được lệnh máy. Các model API (OpenRouter, OpenAI, Gemini, Anthropic API, Groq, DeepSeek, Ollama Cloud) đọc/ghi qua công cụ vault của Javis và **không chạy được lệnh máy**, nên hợp với việc đọc - tổng hợp - ghi ghi chú; việc nền nào cần chạy lệnh thì cứ để một engine CLI.
 - Với đường API, công cụ ghi file tự khoá lại khi loop đang ở mức `suggest`, đúng như khi chạy bằng Claude.
 
 ### F. Đặt mức Suy nghĩ (reasoning)

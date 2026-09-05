@@ -1,0 +1,44 @@
+# Áp phân tầng model trên VPS: Main=Antigravity, Việc nền=Ollama.
+# Tuỳ chọn reset mật khẩu dashboard (input admin_password).
+name: Apply model routing on VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      admin_password:
+        description: "Mật khẩu dashboard mới (để trống = không đổi)"
+        required: false
+        default: ""
+      aux_model:
+        description: "Model Ollama Cloud cho việc nền"
+        required: false
+        default: "gpt-oss:120b-cloud"
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply Antigravity Main + Ollama aux (+ optional password)
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          NEW_PW: ${{ inputs.admin_password }}
+          AUX_MODEL: ${{ inputs.aux_model }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          envs: NEW_PW,AUX_MODEL
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
+            chmod +x scripts/apply-model-routing-vps.sh
+            export JAVIS_AUX_MODEL="${AUX_MODEL:-gpt-oss:120b-cloud}"
+            if [ -n "${NEW_PW:-}" ]; then
+              export JAVIS_NEW_ADMIN_PASSWORD="$NEW_PW"
+            fi
+            bash scripts/apply-model-routing-vps.sh
