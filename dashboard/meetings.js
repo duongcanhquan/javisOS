@@ -750,7 +750,7 @@
       try {
         transcriber = await loadMoonshineTranscriberOnce(root, prog, lang, cfg.opts);
       } catch (e1) {
-        state._moonshineLoadPromise = null;
+        // Không null _moonshineLoadPromise ở đây — tránh caller thứ hai nạp song song khi retry.
         var lite =
           lang === "vi"
             ? MOONSHINE_VI_OPTS_LITE
@@ -1215,6 +1215,8 @@
       setStatus(root, "Đã hủy.", "ok");
     }
     if (startBtn) startBtn.disabled = false;
+    var lsUnlock = root.querySelector("#mtLang");
+    if (lsUnlock) lsUnlock.disabled = false;
     state.loading = false;
     if (state.ws) {
       try {
@@ -1224,11 +1226,11 @@
     }
   }
 
-  async function beginSttFast(root) {
+  async function beginSttFast(root, langFixed) {
     if (state.abortRequested) return null;
-    var lang = meetingLang();
+    var lang = normalizeLang(langFixed || meetingLang());
 
-    // English / ngoại ngữ: Web Speech trước — ghi ngay, không treo "Nạp model Moonshine…".
+    // English / ngoại ngữ trên Chrome/Edge: Web Speech ghi ngay.
     if (!preferMoonshineFirst(lang) && hasWebSpeech()) {
       startWebSpeechSafe(root);
       setStatus(
@@ -1239,7 +1241,17 @@
       return "webspeech";
     }
 
-    // Tiếng Việt (hoặc không có Web Speech): Moonshine.
+    // Safari / không Web Speech + không phải VI: bỏ Moonshine (tránh treo 45s) → Whisper sau.
+    if (!preferMoonshineFirst(lang) && !hasWebSpeech()) {
+      setStatus(
+        root,
+        "Trình duyệt không hỗ trợ Web Speech. Dùng Chrome/Edge, hoặc File ghi âm → chữ.",
+        "err"
+      );
+      return null;
+    }
+
+    // Tiếng Việt: Moonshine.
     if (moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
@@ -1255,10 +1267,22 @@
             (e.message || ""),
           "err"
         );
+        startWebSpeechSafe(root);
+        setStatus(
+          root,
+          "Đang ghi (Web Speech · " + langLabel(lang) + "). Nói rõ từng câu.",
+          "ok"
+        );
+        return "webspeech";
       }
     }
     if (hasWebSpeech()) {
       startWebSpeechSafe(root);
+      setStatus(
+        root,
+        "Đang ghi (Web Speech · " + langLabel(lang) + "). Nói rõ từng câu.",
+        "ok"
+      );
       return "webspeech";
     }
     return null;
@@ -1292,6 +1316,9 @@
     state.abortRequested = false;
     state.lineBuffer = [];
     seedSpeakersFromInput(root);
+    var langAtStart = meetingLang();
+    var langSelLock = root.querySelector("#mtLang");
+    if (langSelLock) langSelLock.disabled = true;
     var startBtn = root.querySelector("#mtStart");
     var stopBtnEarly = root.querySelector("#mtStop");
     if (startBtn) startBtn.disabled = true;
@@ -1329,14 +1356,14 @@
       state.running = true;
       setStatus(
         root,
-        state.moonshineReady
+        preferMoonshineFirst(langAtStart) && state.moonshineReady
           ? "Bật Moonshine…"
           : hasWebSpeech()
             ? "Bật micro (Web Speech)…"
             : "Bật micro…"
       );
       try {
-        sttEngine = await beginSttFast(root);
+        sttEngine = await beginSttFast(root, langAtStart);
         if (sttEngine) sttStarted = true;
       } catch (fastErr) {
         moonshineFail = fastErr;
@@ -1351,7 +1378,7 @@
       f.append("title", title);
       f.append("notes", notes);
       f.append("attendees", people);
-      f.append("language", meetingLang());
+      f.append("language", langAtStart);
       f.append("brain", fbrain());
       var r = await (await fetch("/meetings/start", { method: "POST", body: f })).json();
       if (!r.ok) throw new Error(r.error || "Không tạo được phiên");
@@ -1368,45 +1395,11 @@
 
       if (!sttStarted) {
         state.running = true;
-        var lang2 = meetingLang();
-        // Fallback giống beginSttFast: VI → Moonshine; EN → Web Speech trước.
-        if (!preferMoonshineFirst(lang2) && hasWebSpeech()) {
-          startWebSpeechSafe(root);
-          sttStarted = true;
-          sttEngine = "webspeech";
-        } else if (preferMoonshineFirst(lang2) || moonshineSupports(lang2)) {
-          try {
-            setStatus(
-              root,
-              preferMoonshineFirst(lang2)
-                ? "Bật Moonshine (" + langLabel(lang2) + ")…"
-                : "Bật micro…"
-            );
-            if (preferMoonshineFirst(lang2) || !hasWebSpeech()) {
-              await startMoonshine(root);
-              if (state.abortRequested) throw new Error("Đã hủy");
-              sttStarted = true;
-              sttEngine = "moonshine";
-            } else {
-              startWebSpeechSafe(root);
-              sttStarted = true;
-              sttEngine = "webspeech";
-            }
-          } catch (moonErr) {
-            moonshineFail = moonErr;
-            await stopMoonshineMic();
-            if (state.abortRequested) throw moonErr;
-            if (hasWebSpeech()) {
-              setStatus(root, "Moonshine không khả dụng — chuyển Web Speech…");
-              startWebSpeechSafe(root);
-              sttStarted = true;
-              sttEngine = "webspeech";
-            }
-          }
-        } else if (hasWebSpeech()) {
-          startWebSpeechSafe(root);
-          sttStarted = true;
-          sttEngine = "webspeech";
+        try {
+          sttEngine = await beginSttFast(root, langAtStart);
+          if (sttEngine) sttStarted = true;
+        } catch (e2) {
+          moonshineFail = e2;
         }
       }
 
@@ -1485,6 +1478,10 @@
       state.loading = false;
       var stopBtnFin = root.querySelector("#mtStop");
       if (stopBtnFin && !state.running && !state.stopped) stopBtnFin.disabled = true;
+      if (!state.running) {
+        var ls = root.querySelector("#mtLang");
+        if (ls) ls.disabled = false;
+      }
     }
   }
 
@@ -2119,9 +2116,21 @@
     if (langSel) {
       langSel.value = savedLang;
       langSel.onchange = function () {
-        saveMeetingLang(langSel.value);
-        if (moonshineSupports(langSel.value)) preloadMoonshine(el);
-        else updateMoonshinePreloadHint(el, 0, langSel.value);
+        var neu = langSel.value;
+        saveMeetingLang(neu);
+        if (
+          state.moonshineLang &&
+          state.moonshineLang !== normalizeLang(neu)
+        ) {
+          resetMoonshineCache();
+        } else if (
+          state.moonshineLoadingLang &&
+          state.moonshineLoadingLang !== normalizeLang(neu)
+        ) {
+          resetMoonshineCache();
+        }
+        if (preferMoonshineFirst(neu)) preloadMoonshine(el);
+        else updateMoonshinePreloadHint(el, 0, neu);
       };
     }
     preloadMoonshine(el);
