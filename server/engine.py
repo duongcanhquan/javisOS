@@ -519,6 +519,18 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 # Google Gemini qua endpoint TƯƠNG THÍCH OpenAI → dùng lại nguyên logic Chat Completions
 # (stream, usage, tool-calling) như OpenAI, chỉ khác base URL + auth Bearer bằng Gemini API key.
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+# Gemini API (AI Studio): Google ngừng bán 2.5-flash cho user mới → 404 NOT_FOUND.
+# Mặc định + đổi ID cũ; picker vẫn nạp danh sách LIVE từ /v1beta/models.
+GEMINI_DEFAULT_MODEL = "gemini-3.6-flash"
+_GEMINI_DOI_MODEL = {
+    "gemini-2.5-flash": "gemini-3.6-flash",
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+    "gemini-2.5-pro": "gemini-3.1-pro-preview",
+    "gemini-2.0-flash": "gemini-3.6-flash",
+    "gemini-2.0-flash-001": "gemini-3.6-flash",
+    "gemini-1.5-flash": "gemini-3.6-flash",
+    "gemini-1.5-pro": "gemini-3.1-pro-preview",
+}
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # Groq đổi tên / gỡ model khá nhanh. Mặc định + bảng đổi ID cũ → ID còn sống; picker vẫn nạp
 # danh sách LIVE từ /openai/v1/models. Tra ngày 2026-09-05 (sau đợt gỡ Llama 3.3 / Qwen3-32b).
@@ -546,6 +558,20 @@ def groq_resolve_model(model: str | None) -> str:
     low = m.lower()
     if "llama" in low:
         return GROQ_DEFAULT_MODEL
+    return m
+
+
+def gemini_resolve_model(model: str | None) -> str:
+    """ID Gemini API còn mở cho user mới. Telegram/settings cũ còn ghim 2.5-flash → 3.6-flash.
+
+    Google trả 404 `no longer available to new users` với models/gemini-2.5-flash.
+    Bóc prefix `models/` nếu có (body lỗi hay ghi dạng đó).
+    """
+    m = (model or "").strip() or GEMINI_DEFAULT_MODEL
+    if m.startswith("models/"):
+        m = m[len("models/"):]
+    if m in _GEMINI_DOI_MODEL:
+        return _GEMINI_DOI_MODEL[m]
     return m
 
 
@@ -1162,8 +1188,9 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
 
 async def gemini_stream(api_key, model, messages, reasoning="off"):
     """Google Gemini qua endpoint OpenAI-compatible (provider 'gemini') - chat thuần, cùng định dạng."""
-    async for ev in _openai_compat_stream(GEMINI_URL, "Gemini", api_key, model or "gemini-2.5-flash",
-                                          messages, reasoning, _gemini_is_reasoning(model)):
+    mdl = gemini_resolve_model(model)
+    async for ev in _openai_compat_stream(GEMINI_URL, "Gemini", api_key, mdl,
+                                          messages, reasoning, _gemini_is_reasoning(mdl)):
         yield ev
 
 
@@ -1310,7 +1337,7 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
     endpoints = {
         "openai": (OPENAI_URL, model or "gpt-4o-mini"),
         "groq": (GROQ_URL, groq_resolve_model(model)),
-        "gemini": (GEMINI_URL, model or "gemini-2.5-flash"),
+        "gemini": (GEMINI_URL, gemini_resolve_model(model)),
         "openrouter": (OPENROUTER_URL, model or "openai/gpt-4o-mini"),
         "ollama": (OLLAMA_URL, model),
         "deepseek": (DEEPSEEK_URL, model or DEEPSEEK_DEFAULT_MODEL),
@@ -2301,12 +2328,13 @@ async def ollama_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
 async def gemini_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
     """Google Gemini (endpoint OpenAI-compat) + vòng tool-calling MCP - Gemini cũng thành
     agent dùng MCP của Javis, y như OpenAI. Non-stream từng vòng (dùng _cc_tool_loop chung)."""
+    model = gemini_resolve_model(model)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     extra = {}
     if reasoning not in (None, "", "off") and _gemini_is_reasoning(model):
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(GEMINI_URL, headers, model or "gemini-2.5-flash", messages, mcp_tools, mcp_route, extra, "Gemini"):
+    async for ev in _cc_tool_loop(GEMINI_URL, headers, model, messages, mcp_tools, mcp_route, extra, "Gemini"):
         yield ev
 
 
