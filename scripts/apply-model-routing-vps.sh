@@ -46,6 +46,12 @@ new_pw = os.environ.get("JAVIS_NEW_ADMIN_PASSWORD") or ""
 
 # --- Main ---
 old_main = dict(m.get("main") or {})
+# Để trống MAIN_MODEL = giữ model đang dùng nếu cùng provider Antigravity (tránh xoá lựa chọn sẵn).
+if not main_mod and old_main.get("provider") == main_p and (old_main.get("model") or "").strip():
+    main_mod = (old_main.get("model") or "").strip()
+# Lần deploy trước từng xoá model → nếu vẫn trống thì đặt lại model Antigravity phổ biến.
+if main_p == "antigravity-cli" and not main_mod:
+    main_mod = "gemini-3.8-flash-high"
 m["main"] = {"provider": main_p, "model": main_mod}
 m["engine"] = main_p if main_p != "anthropic-cli" else "cli"
 print("main:", old_main, "->", m["main"])
