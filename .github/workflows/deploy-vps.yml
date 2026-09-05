@@ -54,6 +54,10 @@ jobs:
               chmod +x scripts/seed-morning-brief-vps.sh
               bash scripts/seed-morning-brief-vps.sh || echo "WARN: seed-morning-brief skipped"
             fi
+            if [ -f scripts/seed-chat-brief-vps.sh ]; then
+              chmod +x scripts/seed-chat-brief-vps.sh
+              bash scripts/seed-chat-brief-vps.sh || echo "WARN: seed-chat-brief skipped"
+            fi
             if [ -f scripts/force-morning-brief-today-vps.sh ]; then
               chmod +x scripts/force-morning-brief-today-vps.sh
               bash scripts/force-morning-brief-today-vps.sh || echo "WARN: force-morning-brief-today skipped"

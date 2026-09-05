@@ -53,10 +53,15 @@ for s in ("gmail.modify", "gmail.readonly", "gmail.compose", "gmail.labels"):
 
 # Cả hai vẫn phải giữ prompt=consent, nếu không Google đi đường tắt và KHÔNG cấp scope mới
 # cho người đã từng đồng ý - đúng bẫy làm "đăng nhập lại" trở nên vô nghĩa.
-for cid in ("google-calendar", "gmail"):
+for cid in ("google-calendar", "gmail", "google-chat"):
     ap = ((by_id[cid].get("auth") or {}).get("authorize_params") or {})
     check(f"{cid}: giữ prompt=consent để đăng nhập lại thật sự xin lại quyền",
           ap.get("prompt") == "consent")
+
+chat_scopes = (by_id["google-chat"].get("auth") or {}).get("scopes") or []
+for s in ("chat.spaces.readonly", "chat.messages.readonly", "chat.messages.create",
+          "chat.memberships.readonly", "chat.users.readstate"):
+    check(f"Chat: xin {s}", f"https://www.googleapis.com/auth/{s}" in chat_scopes)
 
 # ---- 2. scope_report: so scope ĐƯỢC CẤP với scope catalog xin ----
 _conn_gia = {"id": "c1", "connector": {"auth": {"scopes": ["openid", "email", CAL, FREEBUSY]}}}
@@ -115,7 +120,7 @@ health_src = (SERVER / "connect_health.py").read_text(encoding="utf-8")
 check("vòng check sức khoẻ cũng chỉ đường gỡ quyền cũ",
       "myaccount.google.com/permissions" in health_src)
 cat_raw = (ROOT / "system" / "mcp-catalog.json").read_text(encoding="utf-8")
-for cid in ("google-calendar", "gmail"):
+for cid in ("google-calendar", "gmail", "google-chat"):
     con = by_id[cid]
     steps_txt = " ".join(s.get("text", "") for s in ((con.get("auth") or {}).get("steps") or []))
     links = [s.get("link", "") for s in ((con.get("auth") or {}).get("steps") or [])]

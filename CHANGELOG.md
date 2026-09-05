@@ -70,6 +70,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ### Sửa lỗi
 - **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
 
+## [Unreleased]
+### Thêm mới
+- **Google Chat trong Kết nối.** Đấu MCP chính chủ của Google để đọc space/DM, tìm tin và biết ai nhắc bạn (cần email Workspace).
+- **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
+
 ## [0.35.39] - 2026-09-05
 ### Thêm mới
 - **Nhắc tổng kết sáng 8h hàng ngày.** Mỗi sáng Javis đọc email hôm qua, lịch hôm nay và ngày mai, rồi gửi báo cáo ngắn (việc cần làm / đã xử lý). Skill `tong-ket-sang` + seed tự chạy khi deploy VPS.

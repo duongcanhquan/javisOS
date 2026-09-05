@@ -117,6 +117,12 @@ if [ -f "$ROOT/scripts/seed-morning-brief-vps.sh" ]; then
   bash "$ROOT/scripts/seed-morning-brief-vps.sh" || echo "WARN: seed-morning-brief skipped"
 fi
 
+if [ -f "$ROOT/scripts/seed-chat-brief-vps.sh" ]; then
+  echo "==> seed chat brief reminder"
+  chmod +x "$ROOT/scripts/seed-chat-brief-vps.sh"
+  bash "$ROOT/scripts/seed-chat-brief-vps.sh" || echo "WARN: seed-chat-brief skipped"
+fi
+
 if [ -f "$ROOT/scripts/force-morning-brief-today-vps.sh" ]; then
   echo "==> force morning brief today (send soon)"
   chmod +x "$ROOT/scripts/force-morning-brief-today-vps.sh"

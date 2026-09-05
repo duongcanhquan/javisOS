@@ -7,9 +7,9 @@ import mcp_catalog
 import mcp_store
 
 GOOGLE_GROUP = {"google-workspace", "google-tasks", "google-calendar",
-                "gmail", "google-keep", "google-sheets"}
+                "gmail", "google-chat", "google-keep", "google-sheets"}
 STEP_CONNECTORS = {"google-workspace", "google-tasks", "google-calendar",
-                   "gmail", "google-keep"}
+                   "gmail", "google-chat", "google-keep"}
 
 
 def _public():
@@ -76,7 +76,7 @@ def test_oauth_byo_co_buoc_redirect():
     """Connector oauth BYO (Google lẫn Facebook) phải có đúng MỘT bước chèn ô copy
     Redirect URI - thiếu là user không biết dán gì, thừa là rối."""
     pc = _public()
-    for cid in ("google-calendar", "gmail", "meta-ads-graph", "facebook-pages"):
+    for cid in ("google-calendar", "gmail", "google-chat", "meta-ads-graph", "facebook-pages"):
         n = sum(1 for s in pc[cid]["steps"] if s.get("copy") == "redirect")
         assert n == 1, cid
 

@@ -1587,7 +1587,7 @@ def _tool_requirement(messages, mcp_tools):
                 return "javis_schedule"
 
     live_source = any(x in q for x in (
-        "google", "gmail", "drive", "calendar", "keep", "task", "mcp", "pos",
+        "google", "gmail", "drive", "calendar", "chat", "keep", "task", "mcp", "pos",
         "don hang", "doanh thu", "ton kho", "lich dang chay", "du lieu hien tai",
     ))
     if action and live_source and names:

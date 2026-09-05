@@ -3712,7 +3712,7 @@
   // ── Nhóm connector (khối B): mọi dịch vụ Google gom về MỘT card, bấm vào chọn dịch vụ ──
   const GROUP_META = {
     google: { name: "Google", icon: '<span class="gico">G</span>', category: "Văn phòng",
-              desc: "Lịch, Gmail, Tasks, Drive/Docs, Sheets, Keep - chọn dịch vụ cần đấu, các dịch vụ dùng chung được một key đăng nhập." },
+              desc: "Lịch, Gmail, Chat, Tasks, Drive/Docs, Sheets, Keep - chọn dịch vụ cần đấu, các dịch vụ dùng chung được một key đăng nhập." },
   };
   function catSolo(cat) { return cat.filter(c => !c.group); }
   function groupCards(cat, conns) {
