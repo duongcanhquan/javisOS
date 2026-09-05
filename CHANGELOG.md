@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.54] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.55] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi hết giờ (ReadTimeout) trên CPU.** Tăng timeout HTTP 3 phút → 15 phút, giảm vòng tool và độ dài câu trả lời, báo rõ model đang chạy chậm thay vì stack trace.
+
+
+## [0.35.54] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi 500 unexpected EOF trên VPS 6GB.** Hạ `num_ctx` mặc định 8k→4k, tạo swap 2G khi cài, tự thử lại với ctx nhỏ hơn khi runner bị OOM, và thông báo rõ hết RAM thay vì JSON thô.
 

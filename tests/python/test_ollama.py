@@ -17,6 +17,7 @@ trong im lặng. Hai, phần máy nhà đã đi sạch, không để lại mẩu
 from _paths import ROOT, SERVER  # noqa: E402,F401
 import asyncio
 import json
+import httpx
 import os
 import sys
 import tempfile
@@ -258,7 +259,7 @@ check("extra giữ model nóng keep_alive",
 check("extra cắt num_predict",
       (_eng._ollama_local_extra().get("options") or {}).get("num_predict", 0) > 0)
 check("local giới hạn vòng tool",
-      1 <= _eng.ollama_local_max_tool_rounds() <= 12)
+      1 <= _eng.ollama_local_max_tool_rounds() <= 8)
 _huge = "X" * 20000
 _c = aux_engine._compact_ollama_local_sys(_huge, "/vault/test")
 check("system prompt việc nền local được rút gọn",
@@ -335,6 +336,21 @@ check("payload bỏ key nội bộ _ctx_shrinks",
 _msg = _eng._ollama_runner_crash_user_msg(500, _eof)
 check("thông báo EOF nói hết RAM",
       "RAM" in _msg and "500" in _msg)
+
+
+# ---- 14. Ollama Local: HTTP timeout dài cho CPU (tránh ReadTimeout 180s) ----
+_to = _eng.ollama_local_http_timeout()
+check("HTTP timeout local >= 600s", float(_to.read) >= 600)
+check("nhận diện ReadTimeout",
+      _eng._is_ollama_timeout(httpx.ReadTimeout("timed out")))
+check("nhận diện deadline exceeded",
+      _eng._is_ollama_timeout(RuntimeError("Cancelled via cancel scope; reason: deadline exceeded")))
+check("thông báo timeout nói CPU",
+      "CPU" in _eng._ollama_timeout_user_msg(httpx.ReadTimeout("x")))
+check("max tool rounds local <= 4",
+      _eng.ollama_local_max_tool_rounds() <= 4)
+check("num_predict local <= 256",
+      (_eng._ollama_local_extra().get("options") or {}).get("num_predict", 0) <= 256)
 
 print()
 if _fails:

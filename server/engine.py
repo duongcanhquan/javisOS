@@ -585,10 +585,13 @@ def ollama_local_native_url() -> str:
 _OLLAMA_LOCAL_NUM_CTX_DEFAULT = 4096
 # Giữ model nóng vừa đủ giữa các nhắc hẹn; 30m trên máy 6GB giữ KV chiếm RAM lâu.
 _OLLAMA_LOCAL_KEEP_ALIVE = "10m"
-# Câu trả lời Telegram/việc nền ngắn; không để sinh hàng nghìn token trên CPU.
-_OLLAMA_LOCAL_NUM_PREDICT = 512
+# Câu trả lời Telegram/việc nền ngắn; CPU chậm - cắt output để sớm xong vòng.
+_OLLAMA_LOCAL_NUM_PREDICT = 256
 # Trần vòng tool cho local - mỗi vòng = 1 lần prefill chậm trên CPU.
-_OLLAMA_LOCAL_MAX_TOOL_ROUNDS = 8
+_OLLAMA_LOCAL_MAX_TOOL_ROUNDS = 4
+# HTTP timeout cho Ollama Local trên CPU: cold start + prefill tool schema dễ >3 phút.
+# 180s cũ → ReadTimeout / "deadline exceeded" trên VPS 6GB. Ghi đè: JAVIS_OLLAMA_HTTP_TIMEOUT.
+_OLLAMA_LOCAL_HTTP_TIMEOUT_DEFAULT = 900.0
 
 
 def ollama_local_num_ctx() -> int:
@@ -625,6 +628,45 @@ def ollama_local_max_tool_rounds() -> int:
     except Exception:
         pass
     return _OLLAMA_LOCAL_MAX_TOOL_ROUNDS
+
+
+def ollama_local_http_timeout() -> "httpx.Timeout":
+    """Timeout HTTP cho Ollama Local (CPU). connect ngắn; read dài vì stream=False chờ cả vòng sinh."""
+    try:
+        n = float(os.environ.get("JAVIS_OLLAMA_HTTP_TIMEOUT") or "0")
+        if n >= 60:
+            read = min(n, 3600.0)
+        else:
+            read = _OLLAMA_LOCAL_HTTP_TIMEOUT_DEFAULT
+    except Exception:
+        read = _OLLAMA_LOCAL_HTTP_TIMEOUT_DEFAULT
+    try:
+        import config as cfgmod
+        n = float((cfgmod.read_settings().get("model", {}) or {}).get("ollama_local_http_timeout") or 0)
+        if n >= 60:
+            read = min(n, 3600.0)
+    except Exception:
+        pass
+    return httpx.Timeout(read, connect=30.0)
+
+
+def _is_ollama_timeout(exc) -> bool:
+    """True nếu lỗi là hết hạn chờ đọc/ghi HTTP (httpx hoặc anyio cancel scope)."""
+    if isinstance(exc, (httpx.ReadTimeout, httpx.WriteTimeout, httpx.TimeoutException)):
+        return True
+    low = _describe_exc(exc).casefold()
+    return any(s in low for s in (
+        "readtimeout", "timeouterror", "timeout error",
+        "deadline exceeded", "cancel scope",
+    ))
+
+
+def _ollama_timeout_user_msg(exc) -> str:
+    return (
+        "Ollama (Local) hết thời gian chờ trên CPU (model chạy chậm / đang nạp). "
+        "Thử lại lần nữa hoặc rút gọn nhiệm vụ nhắc hẹn. "
+        f"Chi tiết: {_describe_exc(exc)}"
+    )
 
 
 def _ollama_local_extra() -> dict:
@@ -905,7 +947,7 @@ async def _ollama_native_stream(url, api_key, model, messages, extra=None):
     if extra:
         payload.update(extra)
     try:
-        timeout = httpx.Timeout(180.0, connect=15.0)
+        timeout = ollama_local_http_timeout()
         async with httpx.AsyncClient(timeout=timeout) as client:
             async with client.stream("POST", url, headers=headers, json=payload) as r:
                 if r.status_code != 200:
@@ -936,7 +978,10 @@ async def _ollama_native_stream(url, api_key, model, messages, extra=None):
                     yield {"type": "error",
                            "content": "Ollama (Local) trả về rỗng. Thử model khác."}
     except Exception as e:
-        yield ev_loi_exc("Ollama (Local) lỗi", e)
+        if _is_ollama_timeout(e):
+            yield {"type": "error", "content": _ollama_timeout_user_msg(e), "tam_thoi": True}
+        else:
+            yield ev_loi_exc("Ollama (Local) lỗi", e)
 
 
 async def ollama_local_stream(api_key, model, messages, reasoning="off"):
@@ -990,7 +1035,8 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
                                   "Ollama (Local)",
                                   response_adapter=_ollama_native_to_openai,
                                   messages_adapter=_ollama_messages_for_native,
-                                  max_rounds=ollama_local_max_tool_rounds()):
+                                  max_rounds=ollama_local_max_tool_rounds(),
+                                  http_timeout=ollama_local_http_timeout()):
         yield ev
 
 
@@ -1781,13 +1827,14 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
 
 async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, reasoning_extra, label,
                         cache_system=False, response_adapter=None, messages_adapter=None,
-                        max_rounds=None):
+                        max_rounds=None, http_timeout=None):
     """Vòng Chat Completions + tool (OpenAI/OpenRouter). Non-stream từng vòng; yield tool_call + text cuối.
     cache_system=True (OpenRouter + model Claude): đánh cache_control lên system - OpenAI/Gemini
     tự cache nên không cần.
     response_adapter: gọi trên JSON response (vd Ollama native → OpenAI shape).
     messages_adapter: đổi msgs trước mỗi POST (vd Ollama: arguments object, không stringify).
-    max_rounds: trần vòng tool (None = JAVIS_MAX_TOOL_ROUNDS); Ollama Local truyền 8."""
+    max_rounds: trần vòng tool (None = JAVIS_MAX_TOOL_ROUNDS); Ollama Local truyền 4.
+    http_timeout: httpx.Timeout tuỳ provider (Ollama Local CPU dùng 900s)."""
     import mcp_client
     tools = _mcp_to_openai_tools(mcp_tools)
     msgs = _or_mark_system(messages) if cache_system else list(messages)
@@ -1869,7 +1916,8 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
             )
         payload.update(_ollama_extra_for_payload(reasoning_extra) if reasoning_extra else {})
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=15)) as client:
+            _http_to = http_timeout if http_timeout is not None else httpx.Timeout(180, connect=15)
+            async with httpx.AsyncClient(timeout=_http_to) as client:
                 r = await client.post(url, headers=headers, json=payload)
                 # Một số endpoint OpenAI-compatible chỉ nhận "required", không nhận named choice.
                 if (r.status_code in (400, 422) and requirement_pending
@@ -1935,7 +1983,10 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
             if response_adapter:
                 data = response_adapter(data)
         except Exception as e:
-            yield ev_loi_exc(f"{label} lỗi", e)
+            if "Ollama" in (label or "") and _is_ollama_timeout(e):
+                yield {"type": "error", "content": _ollama_timeout_user_msg(e), "tam_thoi": True}
+            else:
+                yield ev_loi_exc(f"{label} lỗi", e)
             return
         u = data.get("usage") or {}   # cộng dồn token mọi vòng (kể cả vòng gọi tool)
         usage_in += u.get("prompt_tokens", 0) or 0

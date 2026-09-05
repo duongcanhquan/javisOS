@@ -528,7 +528,7 @@ class RemindersFeature:
                 try:
                     await self.deps.send_telegram(
                         chat_id,
-                        "⏳ Đang xử lý nhắc hẹn… (máy local có thể mất 1–2 phút)")
+                        "⏳ Đang xử lý nhắc hẹn… (Ollama Local trên CPU có thể mất vài phút)")
                 except Exception:
                     pass
             async with self.lock:
@@ -686,7 +686,7 @@ class RemindersFeature:
                     cli.mcp_config = mcpf
                     cli.mcp_strict = True
         cli = aux_engine.apply(self.deps, cli, mode=mq, tag="reminder")
-        cli.max_wall_s = 300
+        cli.max_wall_s = 900  # Ollama Local CPU: một vòng tool có thể >3 phút
         if not cli.is_available():
             return "", "Claude CLI chưa cài"
         rang_buoc = {
