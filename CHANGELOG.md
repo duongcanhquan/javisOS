@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.44] - 2026-09-05
+### Cải thiện
+- **Ollama trên VPS đĩa chật:** tự dọn Docker cache, hạ ngưỡng giữ đĩa, thêm model siêu nhẹ (1B–3B) khi không đủ chỗ cho bản lớn.
+
 ## [0.35.43] - 2026-09-05
 ### Thêm mới
 - **Cài Ollama trên VPS + kéo model mạnh nhất vừa máy.** Script tự đọc đĩa/RAM/GPU, chọn model phù hợp, kéo về local, trỏ Javis việc nền sang Ollama (Local). Workflow chạy khi đẩy script lên main.

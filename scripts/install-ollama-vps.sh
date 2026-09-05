@@ -17,8 +17,10 @@ OLLAMA_HOST_BIND="${OLLAMA_HOST:-0.0.0.0}"
 ENDPOINT_FROM_CONTAINER="${JAVIS_OLLAMA_ENDPOINT:-http://172.17.0.1:11434}"
 DRY="${JAVIS_OLLAMA_DRY_RUN:-0}"
 FORCE_MODEL="${JAVIS_OLLAMA_MODEL:-}"
-# Giữ lại tối thiểu bao nhiêu GB trống sau khi kéo model
+# Giữ lại tối thiểu bao nhiêu GB trống sau khi kéo model (có thể hạ tự động nếu đĩa chật)
 MIN_FREE_AFTER_GB="${JAVIS_OLLAMA_MIN_FREE_GB:-8}"
+# 1 = dọn Docker image/build cache không dùng (không đụng container đang chạy)
+PRUNE_DOCKER="${JAVIS_OLLAMA_PRUNE_DOCKER:-1}"
 
 echo "============================================"
 echo " Ollama trên VPS - kiểm tra tài nguyên"
@@ -31,6 +33,30 @@ echo
 FREE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
 FREE_GB=$(awk -v k="$FREE_KB" 'BEGIN { printf "%.1f", k/1024/1024 }')
 echo "Trống trên / : ${FREE_GB} GB"
+
+if command -v docker >/dev/null 2>&1; then
+  echo
+  echo "==> Docker disk"
+  docker system df 2>/dev/null || true
+  if [ "$PRUNE_DOCKER" = "1" ] && [ "$DRY" != "1" ]; then
+    echo
+    echo "==> Dọn Docker (image/build cache không dùng, giữ container đang chạy)"
+    docker container prune -f 2>/dev/null || true
+    docker image prune -af 2>/dev/null || true
+    docker builder prune -af 2>/dev/null || true
+    FREE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
+    FREE_GB=$(awk -v k="$FREE_KB" 'BEGIN { printf "%.1f", k/1024/1024 }')
+    echo "Trống sau dọn Docker: ${FREE_GB} GB"
+    df -h / | awk 'NR==1 || /^\/dev/ || $6=="/"'
+  fi
+fi
+
+# Đĩa chật: hạ ngưỡng giữ lại để còn cơ hội kéo model nhỏ
+if awk -v f="$FREE_GB" -v m="$MIN_FREE_AFTER_GB" 'BEGIN { exit !(f < m + 3) }'; then
+  OLD_MIN="$MIN_FREE_AFTER_GB"
+  MIN_FREE_AFTER_GB=$(awk -v f="$FREE_GB" 'BEGIN { v=f*0.15; if (v<0.5) v=0.5; if (v>2) v=2; printf "%.1f", v }')
+  echo "WARN: đĩa chật (trống ${FREE_GB}GB) - hạ mức giữ lại ${OLD_MIN}GB → ${MIN_FREE_AFTER_GB}GB"
+fi
 
 echo
 echo "==> RAM"
@@ -82,7 +108,10 @@ pick_model() {
     "qwen3:8b|5.2|6|Nhẹ-vừa, hợp VPS phổ thông"
     "llama3.1:8b|4.9|6|Phổ thông Meta"
     "deepseek-r1:8b|5.2|6|Suy luận nhẹ"
-    "qwen3:4b-instruct|2.5|2|Nhẹ nhất còn dùng được"
+    "qwen3:4b-instruct|2.5|2|Nhẹ, còn dùng được"
+    "llama3.2:3b|2.0|2|Rất nhẹ"
+    "qwen2.5:1.5b|1.0|1|Siêu nhẹ - VPS đĩa/RAM chật"
+    "llama3.2:1b|1.3|1|Siêu nhẹ Meta"
   )
 
   local best=""
@@ -119,6 +148,11 @@ else
   if [ -z "$PICK" ]; then
     echo "ERROR: Đĩa/RAM không đủ để kéo bất kỳ model nào trong danh sách."
     echo "       Trống=${FREE_GB}GB, RAM=${RAM_GB}GB, giữ lại tối thiểu ${MIN_FREE_AFTER_GB}GB."
+    echo
+    echo "Gợi ý:"
+    echo "  1) Nâng cấp đĩa VPS (cần trống >= 10GB cho model 4B–8B; >= 50GB + 48GB RAM cho 70B)."
+    echo "  2) Dùng Ollama Cloud (API) cho việc nền - không cần tải model về máy."
+    echo "  3) Dọn thêm: docker system df ; journalctl --vacuum-size=100M"
     exit 1
   fi
   IFS='|' read -r CHOSEN CHOSEN_SIZE _need CHOSEN_NOTE <<<"$PICK"
