@@ -3918,9 +3918,11 @@ async def _fetch_provider_models(provider, m):
             r.raise_for_status()
             data = r.json().get("data", [])
         # Groq phục vụ cả model whisper (chuyển giọng thành chữ) và guard trên cùng endpoint -
-        # lọc ra kẻo picker chat hiện model không chat được.
+        # lọc ra kẻo picker chat hiện model không chat được. Dòng Llama trên Groq đã gỡ hết
+        # (404 model_not_found) → không hiện trong picker.
         ids = [x.get("id") for x in data if x.get("id")
-               and not any(s in x["id"].lower() for s in ("whisper", "tts", "guard", "embed"))]
+               and not any(s in x["id"].lower()
+                           for s in ("whisper", "tts", "guard", "embed", "llama"))]
         return sorted(ids) or None
     if provider == "ollama":
         key = m.get("ollama_key")

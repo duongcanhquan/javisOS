@@ -116,6 +116,10 @@ if not msg_p:
 if msg_p:
     if not msg_mod:
         msg_mod = _MAC_DINH_MSG.get(msg_p) or ""
+    # Ghim cũ còn Llama (đã gỡ trên Groq) → ép sang mặc định mới, đừng giữ id chết.
+    if msg_p == "groq" and "llama" in (msg_mod or "").lower():
+        print("messaging: bỏ Llama đã gỡ", msg_mod, "->", _MAC_DINH_MSG["groq"])
+        msg_mod = _MAC_DINH_MSG["groq"]
     m["telegram"] = {"provider": msg_p, "model": msg_mod}
     print("messaging (Telegram+Zalo):", old_tg, "->", m["telegram"])
 else:
@@ -126,7 +130,28 @@ else:
         m["telegram"] = {"provider": "", "model": ""}
         print("messaging: gỡ ghim cũ (hết key)", old_tg)
     else:
-        print("messaging: giữ", old_tg or "(theo Main/Antigravity - chưa có API key flash)")
+        # Vẫn đang giữ Groq+Llama từ lần ghim trước → sửa tại chỗ.
+        if cu == "groq" and "llama" in (old_tg.get("model") or "").lower() and _co_key("groq"):
+            m["telegram"] = {"provider": "groq", "model": _MAC_DINH_MSG["groq"]}
+            print("messaging: scrub Llama", old_tg, "->", m["telegram"])
+        else:
+            print("messaging: giữ", old_tg or "(theo Main/Antigravity - chưa có API key flash)")
+
+# --- Scrub mọi chỗ còn ghim Llama trên Groq (Main / Aux / catalog) ---
+for slot in ("main", "auxiliary", "telegram"):
+    block = dict(m.get(slot) or {})
+    if (block.get("provider") or "") == "groq" and "llama" in (block.get("model") or "").lower():
+        block["model"] = _MAC_DINH_MSG["groq"]
+        m[slot] = block
+        print(f"scrub {slot}: bỏ Llama →", block["model"])
+cat = m.setdefault("catalog", {})
+old_g = list(cat.get("groq") or [])
+neu_g = [x for x in old_g if "llama" not in str(x).lower()]
+if not neu_g:
+    neu_g = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
+if neu_g != old_g:
+    cat["groq"] = neu_g
+    print("catalog.groq:", old_g, "->", neu_g)
 
 # --- Xóa Ollama local (VPS không dùng) ---
 cleared = []

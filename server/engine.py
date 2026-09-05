@@ -533,9 +533,18 @@ _GROQ_DOI_MODEL = {
 
 
 def groq_resolve_model(model: str | None) -> str:
-    """ID Groq còn dùng được. Settings/VPS cũ còn ghim model đã gỡ → đổi im sang bản thay."""
+    """ID Groq còn dùng được. Settings/VPS cũ còn ghim Llama/Qwen đã gỡ → đổi sang gpt-oss.
+
+    Groq đã shutdown dòng Llama (và vài Qwen cũ). Mọi id còn chữ `llama` đều coi là chết,
+    không chỉ đúng vài chuỗi trong bảng remap.
+    """
     m = (model or "").strip() or GROQ_DEFAULT_MODEL
-    return _GROQ_DOI_MODEL.get(m, m)
+    if m in _GROQ_DOI_MODEL:
+        return _GROQ_DOI_MODEL[m]
+    low = m.lower()
+    if "llama" in low:
+        return GROQ_DEFAULT_MODEL
+    return m
 
 # DeepSeek API (OpenAI-compatible). Tài liệu chính dùng /chat/completions; /v1 là alias.
 # Model id cũ deepseek-chat / deepseek-reasoner đã gỡ từ 24/07/2026.
