@@ -345,6 +345,6 @@ Không tiện donate cũng không sao - dùng Javis, góp ý, hay gửi một Pu
 
 <div align="center">
 
-Made with ☕ by **[Minh Quý](https://minhquy.vn)** · Repo: `github.com/blogminhquy/javis-os`
+Javis OS
 
 </div>

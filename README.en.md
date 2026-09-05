@@ -342,6 +342,6 @@ Can't donate? No worries - using Javis, sending feedback, or opening a Pull Requ
 
 <div align="center">
 
-Made with ☕ by **[Minh Quý](https://minhquy.vn)** · Repo: `github.com/blogminhquy/javis-os`
+Javis OS
 
 </div>

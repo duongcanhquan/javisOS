@@ -159,7 +159,6 @@ def _attachments_dir(vault: Path) -> Path:
 
 
 BRAND_SOFTWARE = "Javis OS"
-BRAND_SOURCE = "https://javisos.com"
 
 
 def _strip_c2pa_on() -> bool:
@@ -222,7 +221,7 @@ def strip_c2pa_png(raw: bytes) -> bytes:
 
 
 def brand_png(raw: bytes) -> bytes:
-    """Gắn thông tin tác giả (Javis OS / javisos.com) vào PNG, chèn ngay sau IHDR.
+    """Gắn nhãn phần mềm (Javis OS) vào PNG, chèn ngay sau IHDR.
 
     CHỈ THÊM, không gỡ chunk nào - phần Content Credentials (C2PA) mà nhà cung cấp
     ảnh nhúng sẵn vẫn nằm nguyên trong file. Lưu ý: vì thêm chunk làm đổi byte của
@@ -239,7 +238,6 @@ def brand_png(raw: bytes) -> bytes:
         if raw[12:16] != b"IHDR" or end > len(raw):
             return raw
         block = (_png_text_chunk("Software", BRAND_SOFTWARE)
-                 + _png_text_chunk("Source", BRAND_SOURCE)
                  + _png_text_chunk("Creation Time", time.strftime("%Y-%m-%dT%H:%M:%S%z")))
         return raw[:end] + block + raw[end:]
     except Exception:

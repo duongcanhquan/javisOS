@@ -134,7 +134,7 @@ It is safe: it only moves when the destination does not exist, it never overwrit
 
 - The default is **Keep the mark**: images carry a record that they were AI-generated. Facebook reads it and labels posts "AI-generated content".
 - Press **Strip the mark** and new images no longer carry it, so platforms usually stop showing the label. Images generated earlier are unchanged.
-- Either way the `javisos.com` author tag stays, and you remain responsible for disclosing AI content under the law and the terms of whatever platform you post to.
+- Either way the `Javis OS` software tag stays, and you remain responsible for disclosing AI content under the law and the terms of whatever platform you post to.
 
 ### Group 3: Voice, branding & access
 
