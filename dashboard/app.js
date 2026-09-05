@@ -16,7 +16,9 @@ function setSessionRunning(sid, on) {
 }
 
 // Lưu & khôi phục phiên gần nhất (hội thoại + số liệu + session Claude)
-const SESSION_KEY = "javis.session.v1";
+const SESSION_KEY = "javis.session.v1";          // legacy (1 slot) — migrate → MAP
+const SESSION_MAP_KEY = "javis.session.byBrain.v2"; // { [brainPath]: { convo, sessionId, brain, savedAt } }
+const VIEW_BY_BRAIN_KEY = "javis.viewByBrain.v1";   // { [brainPath]: sessionId }
 let convo = [];            // [{role:"user"|"javis", text, atts}]
 let savedSessionId = null; // session_id của Claude để resume sau khi F5
 const stopBtn = document.getElementById("stopBtn");
@@ -405,16 +407,62 @@ window.JavisWsSend = function (obj) {
 // ============================================
 // Lưu / khôi phục phiên
 // ============================================
+function normBrainKey(p) {
+  return String(p || "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+}
+function sameBrain(a, b) {
+  const na = normBrainKey(a), nb = normBrainKey(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.endsWith("/" + nb) || nb.endsWith("/" + na)) return true;
+  const la = na.split("/").pop(), lb = nb.split("/").pop();
+  if (la && lb && la === lb) return true;
+  // Dropdown mặc định value="brain" ↔ cột DB lưu đường dẫn tuyệt đối (.../Brain Default).
+  if (na === "brain" || nb === "brain") {
+    const other = na === "brain" ? nb : na;
+    if (other === "brain" || other.endsWith("/brain") || other.endsWith("/brain default")) return true;
+  }
+  return false;
+}
+function loadSessionMap() {
+  let map = {};
+  try { map = JSON.parse(localStorage.getItem(SESSION_MAP_KEY) || "{}") || {}; } catch (e) { map = {}; }
+  if (typeof map !== "object" || Array.isArray(map)) map = {};
+  // Migrate bản cũ (1 slot toàn cục) → map theo brain, chỉ 1 lần.
+  try {
+    const legacy = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (legacy && (legacy.sessionId || (legacy.convo && legacy.convo.length))) {
+      const bk = legacy.brain || "brain";
+      if (!map[bk]) map[bk] = legacy;
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.setItem(SESSION_MAP_KEY, JSON.stringify(map));
+    }
+  } catch (e) {}
+  return map;
+}
+function saveSessionMap(map) {
+  try { localStorage.setItem(SESSION_MAP_KEY, JSON.stringify(map || {})); } catch (e) {}
+}
+function loadViewByBrain() {
+  try {
+    const o = JSON.parse(localStorage.getItem(VIEW_BY_BRAIN_KEY) || "{}") || {};
+    return (typeof o === "object" && !Array.isArray(o)) ? o : {};
+  } catch (e) { return {}; }
+}
+function saveViewByBrain(o) {
+  try { localStorage.setItem(VIEW_BY_BRAIN_KEY, JSON.stringify(o || {})); } catch (e) {}
+}
 function persistSession() {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
+    const b = (typeof currentBrainPath === "function" ? currentBrainPath() : "") || "brain";
+    const map = loadSessionMap();
+    map[b] = {
       convo: convo.slice(-200),
       sessionId: savedSessionId,
-      // Brain của phiên đang mở. Ảnh trong tin nhắn là đường dẫn TƯƠNG ĐỐI nên phải biết
-      // gốc là brain nào; thiếu nó thì F5 xong đổi brain là ảnh cũ tro sai chỗ rồi 404.
-      brain: (typeof currentBrainPath === "function" ? currentBrainPath() : ""),
+      brain: b,
       savedAt: Date.now(),
-    }));
+    };
+    saveSessionMap(map);
   } catch (e) {}
 }
 function recordTurn(role, text, atts, ask) {
@@ -423,23 +471,26 @@ function recordTurn(role, text, atts, ask) {
   persistSession();
 }
 function restoreSession() {
-  let s = null;
-  try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch (e) {}
+  const want = (typeof currentBrainPath === "function" ? currentBrainPath() : "") || "brain";
+  const map = loadSessionMap();
+  let s = map[want] || null;
+  if (!s) {
+    for (const k of Object.keys(map)) {
+      if (sameBrain(k, want) || (map[k] && sameBrain(map[k].brain, want))) { s = map[k]; break; }
+    }
+  }
   if (!s) return;
+  // Không bao giờ khôi phục chat của brain khác lên khung đang mở.
+  if (s.brain && !sameBrain(s.brain, want)) return;
   convo = Array.isArray(s.convo) ? s.convo : [];
   savedSessionId = s.sessionId || null;
-  // Dựng lại bong bóng hội thoại
+  chatArea.innerHTML = "";
   convo.forEach((t, i) => {
-    // t.ts vắng mặt ở tin lưu từ trước bản này -> truyền 0 để ẩn giờ thay vì hiện giờ F5.
     if (t.role === "user") { appendUserMessage(t.text, t.atts || [], t.ts || 0); return; }
-    // t.brain vắng ở tin lưu từ trước bản này -> rơi về brain của cả phiên, rồi mới tới
-    // brain đang chọn. Không có thì hành vi y như cũ, không hỏng thêm gì.
     const el = appendJavisMessage(t.text, t.ts || 0, t.brain || s.brain);
-    // Chip chỉ sống lại ở tin CUỐI: có tin sau nó nghĩa là câu hỏi đã được trả lời rồi.
     if (t.ask) window.JavisAsk.render(el, t.ask, i === convo.length - 1);
   });
   if (convo.length) scrollBottom(true);
-  // hello thường tới SAU bước này; nếu tới trước (kết nối nhanh) thì thẻ "tự chạy lại" gắn ở đây.
   try { if (window.JavisResume && savedSessionId) window.JavisResume.renderFor(savedSessionId); } catch (e) {}
   notifySessions();   // panel Lịch sử tô đúng phiên đang xem thay vì không tô cái nào
   syncActiveUI();
@@ -452,6 +503,12 @@ async function openStoredSession(id) {
   try {
     const sess = await (await fetch(`/sessions/${encodeURIComponent(id)}`)).json();
     if (!sess || sess.error) return;
+    const cur = (typeof currentBrainPath === "function" ? currentBrainPath() : "") || "brain";
+    // Chặn mở hội thoại của brain khác (tránh trộn khung + ghi tiếp nhầm).
+    if (sess.brain && !sameBrain(sess.brain, cur)) {
+      console.warn("[javis] bỏ qua session khác brain", sess.brain, "≠", cur);
+      return false;
+    }
     convo = [];
     hideActivity();
     chatArea.innerHTML = "";
@@ -470,6 +527,10 @@ async function openStoredSession(id) {
       else if (m.role === "assistant") { appendJavisMessage(m.content || "", ts, sess.brain); convo.push({ role: "javis", text: m.content || "", atts: [], ts, brain: sess.brain }); }
     });
     savedSessionId = id;          // lượt gửi tiếp theo → server resume đúng phiên này
+    try {
+      _viewByBrain[cur] = id;
+      saveViewByBrain(_viewByBrain);
+    } catch (e) {}
     try { if (window.JavisInbox) window.JavisInbox.docPhien(id); } catch (e) {}
     // Phiên này đang generate NỀN → gắn bong bóng SỐNG (kèm phần đã stream) để xem tiếp trực tiếp.
     const t = turns[id];
@@ -488,16 +549,18 @@ async function openStoredSession(id) {
     // Dải việc nền đánh dấu "việc CỦA hội thoại này" theo chat_id, nên đổi phiên là nó sai
     // ngay. Xoá rồi hỏi lại thay vì để chip của phiên trước nằm lại vài giây.
     try { if (window.JavisBackground) window.JavisBackground.reset(); } catch (e) {}
-  } catch (e) {}
+    return true;
+  } catch (e) { return false; }
 }
 // Xoá trắng khung chat về trạng thái "hội thoại mới" - dùng chung cho nút + Hội thoại mới
 // và lúc ĐỔI BRAIN (không focus input để đổi brain không bật bàn phím trên mobile).
-function resetChatView() {
+function resetChatView(opts) {
   convo = [];
   hideActivity();          // dọn chip + timer trước khi xoá trắng khung
   chatArea.innerHTML = "";
   savedSessionId = null;
-  persistSession();
+  // Đổi brain: KHÔNG persist rỗng vào slot brain mới (trước đây ghi đè / xoá snapshot).
+  if (!(opts && opts.skipPersist)) persistSession();
   notifySessions();
   syncActiveUI();
   try { if (window.JavisBackground) window.JavisBackground.reset(); } catch (e) {}
@@ -1080,15 +1143,59 @@ async function reloadGraph() {
 // TRONG TRANG (cố ý không persist - giữ luật boot "mỗi lần tải trang là hội thoại mới"):
 // sang brain lạ thì khung trắng, quay lại brain cũ thì mở lại đúng phiên đang xem từ server.
 let _lastBrain = currentBrainPath();
-const _viewByBrain = {};   // brain -> session id đang xem gần nhất trong phiên trang này
+const _viewByBrain = loadViewByBrain();   // brain -> session id (bền qua F5)
 graphSource.addEventListener("change", () => {
   localStorage.setItem("javis.graphSource", graphSource.value);
   const nb = currentBrainPath();
   if (nb !== _lastBrain) {
+    // 1) Chốt snapshot brain CŨ trước khi xoá khung (tránh mất / đè dữ liệu).
+    try {
+      const map = loadSessionMap();
+      map[_lastBrain] = {
+        convo: convo.slice(-200),
+        sessionId: savedSessionId,
+        brain: _lastBrain,
+        savedAt: Date.now(),
+      };
+      saveSessionMap(map);
+    } catch (e) {}
     if (savedSessionId) _viewByBrain[_lastBrain] = savedSessionId;
+    saveViewByBrain(_viewByBrain);
     _lastBrain = nb;
-    resetChatView();                                       // xoá ngay khung của brain cũ
-    if (_viewByBrain[nb]) openStoredSession(_viewByBrain[nb]);   // brain quen → mở lại phiên đang dở
+    // 2) Xoá khung, không ghi rỗng vào localStorage.
+    resetChatView({ skipPersist: true });
+    // 3) Khôi phục đúng brain mới: ưu tiên snapshot local, rồi session id đã nhớ.
+    const map2 = loadSessionMap();
+    let snap = map2[nb];
+    if (!snap) {
+      for (const k of Object.keys(map2)) {
+        if (sameBrain(k, nb)) { snap = map2[k]; break; }
+      }
+    }
+    const wantId = (snap && snap.sessionId) || _viewByBrain[nb] || null;
+    if (wantId) {
+      openStoredSession(wantId).then(function (ok) {
+        if (ok === false) {
+          // id lệch brain → khung trống + persist slot mới
+          persistSession();
+        }
+      });
+    } else if (snap && Array.isArray(snap.convo) && snap.convo.length) {
+      // Có bong bóng local nhưng chưa có session id (hiếm) → vẽ lại, không gọi server.
+      convo = snap.convo.slice();
+      savedSessionId = null;
+      chatArea.innerHTML = "";
+      convo.forEach((t, i) => {
+        if (t.role === "user") { appendUserMessage(t.text, t.atts || [], t.ts || 0); return; }
+        const el = appendJavisMessage(t.text, t.ts || 0, t.brain || snap.brain);
+        if (t.ask) window.JavisAsk.render(el, t.ask, i === convo.length - 1);
+      });
+      if (convo.length) scrollBottom(true);
+      persistSession();
+      notifySessions();
+    } else {
+      persistSession(); // slot trống cho brain mới
+    }
   }
   reloadGraph();
   connectGraphWatch();   // theo dõi realtime trên nguồn mới

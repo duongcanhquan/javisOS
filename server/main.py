@@ -11747,8 +11747,18 @@ async def websocket_endpoint(ws: WebSocket):
                             else "antigravity-cli" if prov == "antigravity-cli"
                             else prov if ((kind == "api" and api_key) or kind == "oauth")
                             else "cli")
+            conv_sid_in = payload.get("session_id")
+            # Chặn trộn brain: client gửi session_id của brain A trong khi đang ở brain B
+            # → get_or_create cũ vẫn append vào A (lệch / "mất" chat khi xem đúng brain).
+            if conv_sid_in:
+                _row_chk = store.get_session(conv_sid_in) or {}
+                _sb = (_row_chk.get("brain") or "").strip()
+                if _sb and _sb not in _brain_keys(brain):
+                    print(f"[chat] bỏ session {conv_sid_in[:8]}… brain={_sb!r} ≠ "
+                          f"request={brain!r} — mở phiên mới", file=sys.stderr)
+                    conv_sid_in = None
             conv_sid = store.get_or_create(
-                payload.get("session_id"), brain=_brain_key(brain), engine=engine_label,
+                conv_sid_in, brain=_brain_key(brain), engine=engine_label,
                 model=(api_model or mcfg.get("claude_model")))
             # ĐÓNG DẤU model từ tin đầu (chủ chốt 16/08): mỗi lượt bảo đảm ghim của
             # phiên == model ĐANG CHẠY THẬT của lượt này. Phủ một lúc ba ca:
