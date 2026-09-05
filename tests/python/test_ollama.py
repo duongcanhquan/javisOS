@@ -258,6 +258,12 @@ check("extra giữ model nóng keep_alive",
       bool(_eng._ollama_local_extra().get("keep_alive")))
 check("extra cắt num_predict",
       (_eng._ollama_local_extra().get("options") or {}).get("num_predict", 0) > 0)
+check("summarize extra num_predict cao",
+      (_eng._ollama_local_extra_summarize("javis-qwen3-8b").get("options") or {}).get("num_predict", 0) >= 2048)
+check("summarize qwen3 tắt think",
+      _eng._ollama_local_extra_summarize("javis-qwen3-8b").get("think") is False)
+check("summarize model thường không ép think",
+      "think" not in _eng._ollama_local_extra_summarize("llama3.2:3b"))
 check("local giới hạn vòng tool",
       1 <= _eng.ollama_local_max_tool_rounds() <= 8)
 _huge = "X" * 20000

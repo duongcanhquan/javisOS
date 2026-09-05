@@ -587,6 +587,8 @@ _OLLAMA_LOCAL_NUM_CTX_DEFAULT = 4096
 _OLLAMA_LOCAL_KEEP_ALIVE = "10m"
 # Câu trả lời Telegram/việc nền ngắn; CPU chậm - cắt output để sớm xong vòng.
 _OLLAMA_LOCAL_NUM_PREDICT = 256
+# Tổng kết cuộc họp / merge dài: Qwen3 thinking ăn hết 256 token → content rỗng.
+_OLLAMA_LOCAL_NUM_PREDICT_SUMMARIZE = 4096
 # Trần vòng tool cho local - mỗi vòng = 1 lần prefill chậm trên CPU.
 _OLLAMA_LOCAL_MAX_TOOL_ROUNDS = 4
 # HTTP timeout cho Ollama Local trên CPU: cold start + prefill tool schema dễ >3 phút.
@@ -678,6 +680,23 @@ def _ollama_local_extra() -> dict:
             "num_predict": _OLLAMA_LOCAL_NUM_PREDICT,
         },
     }
+
+
+def _ollama_model_may_think(model: str) -> bool:
+    """Model suy luận (Qwen3, R1…) có thể chỉ stream `thinking`, để `content` rỗng."""
+    m = (model or "").lower()
+    return any(x in m for x in ("qwen3", "deepseek-r1", "thinking", "gpt-oss"))
+
+
+def _ollama_local_extra_summarize(model: str = "") -> dict:
+    """Ollama cho tổng kết dài: nâng num_predict + tắt thinking để không ăn hết quota output."""
+    ex = dict(_ollama_local_extra())
+    opts = dict(ex.get("options") or {})
+    opts["num_predict"] = _OLLAMA_LOCAL_NUM_PREDICT_SUMMARIZE
+    ex["options"] = opts
+    if _ollama_model_may_think(model):
+        ex["think"] = False
+    return ex
 
 
 def _ollama_parse_tool_args(args):
@@ -984,18 +1003,18 @@ async def _ollama_native_stream(url, api_key, model, messages, extra=None):
             yield ev_loi_exc("Ollama (Local) lỗi", e)
 
 
-async def ollama_local_stream(api_key, model, messages, reasoning="off"):
+async def ollama_local_stream(api_key, model, messages, reasoning="off", extra=None):
     """Ollama trên máy nhà - nhánh KHÔNG tool. Dùng `/api/chat` để num_ctx có hiệu lực."""
     url = ollama_local_native_url()
     if not url:
         yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
         return
-    extra = _ollama_local_extra()
+    base_extra = extra if extra is not None else _ollama_local_extra()
     while True:
         crash_ev = None
         async for ev in _ollama_native_stream(
                 url, api_key, model, messages,
-                extra=_ollama_extra_for_payload(extra)):
+                extra=_ollama_extra_for_payload(base_extra)):
             if (ev.get("type") == "error"
                     and _is_ollama_runner_crash(ev.get("content") or "")):
                 crash_ev = ev
@@ -1005,7 +1024,7 @@ async def ollama_local_stream(api_key, model, messages, reasoning="off"):
                 return
         else:
             return
-        new_ctx = _shrink_ollama_local_ctx(extra)
+        new_ctx = _shrink_ollama_local_ctx(base_extra)
         if not new_ctx:
             raw = (crash_ev or {}).get("content") or ""
             # Lấy status nếu có dạng "Ollama (Local) 500: ..."
@@ -1015,6 +1034,14 @@ async def ollama_local_stream(api_key, model, messages, reasoning="off"):
         yield {"type": "tool_call", "name": "javis_ollama_shrink_ctx",
                "content": f"⚙ Ollama hết RAM / runner crash, hạ num_ctx → {new_ctx} rồi thử lại..."}
         await asyncio.sleep(1.0)
+
+
+async def ollama_local_summarize_stream(api_key, model, messages, reasoning="off"):
+    """Ollama local cho tổng kết dài (cuộc họp): num_predict cao, tắt thinking Qwen3."""
+    async for ev in ollama_local_stream(
+            api_key, model, messages, reasoning,
+            extra=_ollama_local_extra_summarize(model)):
+        yield ev
 
 
 async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):

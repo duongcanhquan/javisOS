@@ -2,7 +2,12 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [0.35.57] - 2026-09-05
+Định dạng: mỗi phiên bản là một khối `## [0.35.58] - 2026-09-05
+### Sửa lỗi
+- **Tổng kết cuộc họp không còn báo Ollama trả về rỗng.** Model Qwen3 trước đó bị giới hạn 256 token output và chỉ suy nghĩ; giờ tắt thinking và cho phép viết báo cáo dài.
+
+
+## [0.35.57] - 2026-09-05
 ### Sửa lỗi
 - **Deploy không còn tự gửi tin Zalo lỗi kỹ thuật.** Bỏ ép "Tổng kết sáng" mỗi lần deploy; nhắc 8h vẫn giữ, chỉ chạy ngay khi bạn bật tay.
 

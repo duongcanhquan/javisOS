@@ -4345,7 +4345,7 @@ async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
     mdl = (model or "").strip() or ollama_local.default_javis_model({"model": mcfg})
     try:
         return await meetings.analyze_with_ollama(
-            meeting_id, stream_fn=engine.ollama_local_stream, model=mdl, api_key=key)
+            meeting_id, stream_fn=engine.ollama_local_summarize_stream, model=mdl, api_key=key)
     except Exception as e:
         import sys, traceback
         traceback.print_exc(file=sys.stderr)

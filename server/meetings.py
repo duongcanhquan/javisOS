@@ -350,7 +350,7 @@ async def analyze_with_ollama(
     if sess.get("notes"):
         meta += f"Ghi chú trước họp: {sess.get('notes')}\n"
 
-    chunks = chunk_text(body, 12000)
+    chunks = chunk_text(body, 6000)
     system = _skill_system_prompt(sess.get("brain_root") or "")
     partials: list[str] = []
     for i, ch in enumerate(chunks):

@@ -1195,7 +1195,7 @@
     if (state.running) {
       await stopRecording(root);
     }
-    setStatus(root, "Đang tổng kết bằng Ollama (javis-qwen3-8b)… có thể mất 1–2 phút.");
+    setStatus(root, "Đang tổng kết bằng Ollama local… có thể mất 1–3 phút.");
     var box = root.querySelector("#mtSummary");
     if (box) box.innerHTML = '<div class="dim">Trợ lý đang đọc transcript và viết tổng kết…</div>';
     var btn = root.querySelector("#mtAnalyze");
@@ -1203,7 +1203,6 @@
     try {
       var f = new FormData();
       f.append("brain", fbrain());
-      f.append("model", "javis-qwen3-8b");
       var r = await (
         await fetch("/meetings/" + encodeURIComponent(mid) + "/analyze", {
           method: "POST",
