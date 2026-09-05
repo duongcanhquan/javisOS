@@ -67,6 +67,26 @@ SWAP_MB=$(awk '/SwapTotal/ {print int($2/1024)}' /proc/meminfo)
 echo "RAM vật lý : ${RAM_GB} GB (${RAM_MB} MB)"
 echo "Swap       : ${SWAP_MB} MB"
 
+# VPS ≤8GB không swap: model 4B + ctx lớn → OOM → "unexpected EOF". Tạo swap 2G (trừ khi bỏ qua).
+if [ "${SWAP_MB:-0}" -eq 0 ] && awk -v r="$RAM_GB" 'BEGIN { exit !(r <= 8) }'; then
+  if [ "${JAVIS_OLLAMA_SKIP_SWAP:-0}" != "1" ]; then
+    echo
+    echo "==> Tạo swap 2G (RAM ≤8GB, không có swap - tránh OOM runner)"
+    if [ ! -f /swapfile-javis ]; then
+      fallocate -l 2G /swapfile-javis 2>/dev/null || dd if=/dev/zero of=/swapfile-javis bs=1M count=2048 status=none
+      chmod 600 /swapfile-javis
+      mkswap /swapfile-javis
+    fi
+    swapon /swapfile-javis 2>/dev/null || true
+    if ! grep -q swapfile-javis /etc/fstab 2>/dev/null; then
+      echo "/swapfile-javis none swap sw 0 0" >> /etc/fstab
+    fi
+    free -h | head -3 || true
+  else
+    echo "WARN: JAVIS_OLLAMA_SKIP_SWAP=1 - bỏ qua tạo swap"
+  fi
+fi
+
 echo
 echo "==> CPU"
 nproc
@@ -192,8 +212,8 @@ if [ -d /etc/systemd/system ]; then
   cat >/etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment="OLLAMA_HOST=${OLLAMA_HOST_BIND}:11434"
-# 8192 đủ việc nền (sys rút + lazy tools) trên VPS ~6GB; 16384 dễ swap → chậm. Đồng bộ engine.
-Environment="OLLAMA_CONTEXT_LENGTH=8192"
+# 4096 an toàn việc nền trên VPS ~6GB không swap; 8192 dễ OOM → unexpected EOF. Đồng bộ engine.
+Environment="OLLAMA_CONTEXT_LENGTH=4096"
 EOF
   systemctl daemon-reload 2>/dev/null || true
   systemctl enable ollama 2>/dev/null || true
@@ -249,9 +269,16 @@ case "$CHOSEN" in
 esac
 
 # /v1/chat/completions bỏ qua options.num_ctx. Tạo biến thể Modelfile bake num_ctx
-# để cả đường OpenAI-compat lẫn native đều mở cửa sổ 16k. Đồng thời unload model đang
+# để cả đường OpenAI-compat lẫn native đều mở cửa sổ đúng NUM_CTX. Đồng thời unload model đang
 # nạp - không thì OLLAMA_CONTEXT_LENGTH vừa set vẫn bị model cũ giữ 4096.
-NUM_CTX="${JAVIS_OLLAMA_NUM_CTX:-8192}"
+# ≤8GB RAM: 4096; máy to hơn: 8192. Ghi đè bằng JAVIS_OLLAMA_NUM_CTX.
+if [ -n "${JAVIS_OLLAMA_NUM_CTX:-}" ]; then
+  NUM_CTX="${JAVIS_OLLAMA_NUM_CTX}"
+elif awk -v r="$RAM_GB" 'BEGIN { exit !(r < 8) }'; then
+  NUM_CTX=4096
+else
+  NUM_CTX=8192
+fi
 # JAVIS_MODEL fingerprint - bake num_ctx vào model (không phụ thuộc /v1).
 JAVIS_MODEL="javis-${CHOSEN//:/-}"
 echo
@@ -270,6 +297,19 @@ fi
 rm -f "$TMP_MF"
 
 echo
+
+# Gỡ bản trùng/cũ cùng nhà nếu đã có javis-* (tiết kiệm đĩa; không ảnh hưởng RAM khi đã unload).
+if [ "$JAVIS_MODEL" != "$CHOSEN" ]; then
+  for _dup in "$CHOSEN" "qwen3:4b" "qwen2.5:3b"; do
+    [ "$_dup" = "$JAVIS_MODEL" ] && continue
+    # Giữ base CHOSEN - cần để recreate Modelfile. Chỉ gỡ bản dư khác.
+    [ "$_dup" = "$CHOSEN" ] && continue
+    if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$_dup"; then
+      echo "  - gỡ trùng $_dup"
+      ollama rm "$_dup" 2>/dev/null || true
+    fi
+  done
+fi
 echo "==> Unload model đang nạp (để OLLAMA_CONTEXT_LENGTH / num_ctx mới có hiệu lực)"
 if ollama ps >/dev/null 2>&1; then
   ollama ps 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do

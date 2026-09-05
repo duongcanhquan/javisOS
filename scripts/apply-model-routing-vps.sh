@@ -135,11 +135,11 @@ if not aux_mod:
 
 m["auxiliary"] = {"provider": aux_p, "model": aux_mod}
 if aux_p == "ollama-local":
-    # VPS ~6GB: ctx >8k dễ swap → chậm; việc nền đã rút prompt nên 8k đủ
+    # VPS ~6GB + 0 swap: ctx 8192 dễ OOM → "unexpected EOF". Việc nền đã rút prompt nên 4096 đủ.
     cur_ctx = int(m.get("ollama_local_num_ctx") or 0)
-    if cur_ctx <= 0 or cur_ctx > 8192:
-        m["ollama_local_num_ctx"] = 8192
-        print("ollama_local_num_ctx -> 8192 (tránh swap trên VPS 6GB)")
+    if cur_ctx <= 0 or cur_ctx > 4096:
+        m["ollama_local_num_ctx"] = 4096
+        print("ollama_local_num_ctx -> 4096 (tránh OOM/unexpected EOF trên VPS 6GB)")
 print("auxiliary:", old_aux, "->", m["auxiliary"])
 print("ollama_local_endpoint:", local_ep or "(trống)")
 print("ollama_key:", "có" if key else "không")
@@ -175,3 +175,13 @@ print("OK - đã ghi settings")
 PY
 
 echo "==> xong. Kiểm tra nhanh trên dashboard: Models → Main + Model việc nền."
+
+# Unload model đang giữ KV lớn (8192) để lần gọi sau nạp lại với num_ctx=4096.
+if command -v ollama >/dev/null 2>&1; then
+  echo "==> unload Ollama models (áp num_ctx mới)"
+  ollama ps 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do
+    [ -n "$_m" ] || continue
+    echo "  - stop $_m"
+    ollama stop "$_m" 2>/dev/null || true
+  done
+fi

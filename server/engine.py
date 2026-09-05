@@ -195,6 +195,66 @@ def _is_tool_syntax_failure(body_text: str) -> bool:
     return any(p in low for p in _TOOL_SYNTAX_FAIL)
 
 
+# Runner Ollama chết giữa chừng (hay gặp trên VPS ~6GB không swap khi num_ctx quá lớn).
+# HTTP 500 kèm "unexpected EOF" / "error was encountered while running the model".
+_OLLAMA_RUNNER_CRASH = (
+    "unexpected eof",
+    "error was encountered while running the model",
+    "llama runner process has terminated",
+    "model runner has unexpectedly stopped",
+    "out of memory",
+    "not enough memory",
+)
+
+
+def _is_ollama_runner_crash(body_text: str) -> bool:
+    low = str(body_text or "").casefold()
+    return any(p in low for p in _OLLAMA_RUNNER_CRASH)
+
+
+def _ollama_runner_crash_user_msg(status, body_text: str) -> str:
+    """Telegram/user-facing: giải thích OOM thay vì chỉ phơi JSON Ollama."""
+    detail = str(body_text or "").replace("\n", " ").strip()
+    if len(detail) > 160:
+        detail = detail[:160] + "…"
+    return (
+        f"Ollama (Local) {status}: model dừng giữa chừng (thường hết RAM trên VPS). "
+        f"Hãy hạ num_ctx / thêm swap / dùng model nhỏ hơn. Chi tiết: {detail}"
+    )
+
+
+def _shrink_ollama_local_ctx(extra: dict | None, floor: int = 2048) -> int | None:
+    """Hạ options.num_ctx còn một nửa (tại chỗ). Trả ctx mới, hoặc None nếu không hạ thêm được."""
+    if not isinstance(extra, dict):
+        return None
+    opts = extra.get("options")
+    if not isinstance(opts, dict):
+        opts = {}
+        extra["options"] = opts
+    try:
+        cur = int(opts.get("num_ctx") or 0)
+    except (TypeError, ValueError):
+        return None
+    if cur <= floor:
+        return None
+    shrinks = int(extra.get("_ctx_shrinks") or 0)
+    if shrinks >= 2:
+        return None
+    new = max(floor, cur // 2)
+    if new >= cur:
+        return None
+    opts["num_ctx"] = new
+    extra["_ctx_shrinks"] = shrinks + 1
+    return new
+
+
+def _ollama_extra_for_payload(extra: dict | None) -> dict:
+    """Bỏ key nội bộ (_ctx_shrinks…) trước khi gửi Ollama."""
+    if not isinstance(extra, dict):
+        return {}
+    return {k: v for k, v in extra.items() if not str(k).startswith("_")}
+
+
 class _RetryStream(Exception):
     """Sentinel để thoát các async with lồng nhau và quay lại vòng retry.
     retry_after: giây provider yêu cầu chờ (từ header Retry-After) - None thì dùng jittered backoff."""
@@ -514,16 +574,17 @@ def ollama_local_native_url() -> str:
     return (ep + "/api/chat") if ep else ""
 
 
-# Ollama mặc định num_ctx=4096. Việc nền đã rút system + ép lazy tools nên 8192 đủ trên
-# VPS ~6GB RAM (CPU). 16384 từng làm KV ~2.4GB + weights ~2.5GB → swap → nhắc hẹn cực chậm.
-# Muốn cao hơn (máy 12GB+) đặt model.ollama_local_num_ctx hoặc JAVIS_OLLAMA_NUM_CTX.
+# Ollama mặc định num_ctx=4096. Việc nền đã rút system + ép lazy tools.
+# VPS ~6GB RAM + 0 swap: 8192 (KV + weights 4B + container Javis) dễ OOM → runner chết
+# "unexpected EOF". Mặc định 4096; máy 12GB+ đặt model.ollama_local_num_ctx hoặc
+# JAVIS_OLLAMA_NUM_CTX.
 #
 # Quan trọng: endpoint OpenAI-compat `/v1/chat/completions` BỎ QUA options.num_ctx
 # (bám spec OpenAI). Chỉ `/api/chat` native + Modelfile PARAMETER num_ctx / OLLAMA_CONTEXT_LENGTH
 # (sau khi unload model) mới nâng được cửa sổ thật.
-_OLLAMA_LOCAL_NUM_CTX_DEFAULT = 8192
-# Giữ model nóng giữa các nhắc hẹn thưa; mặc định Ollama ~5 phút rồi unload → cold start lại.
-_OLLAMA_LOCAL_KEEP_ALIVE = "30m"
+_OLLAMA_LOCAL_NUM_CTX_DEFAULT = 4096
+# Giữ model nóng vừa đủ giữa các nhắc hẹn; 30m trên máy 6GB giữ KV chiếm RAM lâu.
+_OLLAMA_LOCAL_KEEP_ALIVE = "10m"
 # Câu trả lời Telegram/việc nền ngắn; không để sinh hàng nghìn token trên CPU.
 _OLLAMA_LOCAL_NUM_PREDICT = 512
 # Trần vòng tool cho local - mỗi vòng = 1 lần prefill chậm trên CPU.
@@ -884,9 +945,31 @@ async def ollama_local_stream(api_key, model, messages, reasoning="off"):
     if not url:
         yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
         return
-    async for ev in _ollama_native_stream(url, api_key, model, messages,
-                                          extra=_ollama_local_extra()):
-        yield ev
+    extra = _ollama_local_extra()
+    while True:
+        crash_ev = None
+        async for ev in _ollama_native_stream(
+                url, api_key, model, messages,
+                extra=_ollama_extra_for_payload(extra)):
+            if (ev.get("type") == "error"
+                    and _is_ollama_runner_crash(ev.get("content") or "")):
+                crash_ev = ev
+                break
+            yield ev
+            if ev.get("type") == "error":
+                return
+        else:
+            return
+        new_ctx = _shrink_ollama_local_ctx(extra)
+        if not new_ctx:
+            raw = (crash_ev or {}).get("content") or ""
+            # Lấy status nếu có dạng "Ollama (Local) 500: ..."
+            status = 500
+            yield {"type": "error", "content": _ollama_runner_crash_user_msg(status, raw)}
+            return
+        yield {"type": "tool_call", "name": "javis_ollama_shrink_ctx",
+               "content": f"⚙ Ollama hết RAM / runner crash, hạ num_ctx → {new_ctx} rồi thử lại..."}
+        await asyncio.sleep(1.0)
 
 
 async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
@@ -1784,7 +1867,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                 {"type": "function", "function": {"name": requirement}}
                 if requirement != "required" else "required"
             )
-        payload.update(reasoning_extra or {})
+        payload.update(_ollama_extra_for_payload(reasoning_extra) if reasoning_extra else {})
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=15)) as client:
                 r = await client.post(url, headers=headers, json=payload)
@@ -1812,6 +1895,18 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
                         yield {"type": "tool_call", "name": "javis_no_tools",
                                "content": "⚙ Model vấp cú pháp gọi công cụ, trả lời không dùng công cụ..."}
                     continue
+                # Ollama Local trên VPS nhỏ: 500 unexpected EOF = runner OOM. Hạ num_ctx rồi thử lại.
+                if ("Ollama" in (label or "") and _is_ollama_runner_crash(body_text)):
+                    new_ctx = _shrink_ollama_local_ctx(reasoning_extra)
+                    if new_ctx:
+                        yield {"type": "tool_call", "name": "javis_ollama_shrink_ctx",
+                               "content": (f"⚙ Ollama hết RAM / runner crash, hạ num_ctx "
+                                           f"→ {new_ctx} rồi thử lại...")}
+                        await asyncio.sleep(1.0)
+                        continue
+                    yield {"type": "error",
+                           "content": _ollama_runner_crash_user_msg(r.status_code, body_text)}
+                    return
                 _fact = limit_learner.parse_limit_error(r.status_code, body_text)
                 if _fact:
                     limit_learner.remember(label, model, _fact)

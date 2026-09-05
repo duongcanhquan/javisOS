@@ -250,9 +250,9 @@ finally:
 # Ca thật: nhắc hẹn gửi ~12k token system (CLAUDE.md) trong khi Ollama mặc định 4096 → 400.
 import engine as _eng  # noqa: E402
 
-check("num_ctx mặc định == 8192 (VPS 6GB không swap)", _eng.ollama_local_num_ctx() == 8192)
+check("num_ctx mặc định == 4096 (VPS 6GB không swap, tránh OOM)", _eng.ollama_local_num_ctx() == 4096)
 check("extra có options.num_ctx",
-      (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) == 8192)
+      (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) == 4096)
 check("extra giữ model nóng keep_alive",
       bool(_eng._ollama_local_extra().get("keep_alive")))
 check("extra cắt num_predict",
@@ -312,6 +312,29 @@ check("parse args hỏng → vẫn object (không nổ)",
 check("bắt lỗi Ollama thiếu closing brace như tool-syntax",
       _eng._is_tool_syntax_failure(
           'Value looks like object, but can\'t find closing \'}\' symbol'))
+
+
+# ---- 13. Ollama Local: 500 unexpected EOF = runner OOM → hạ num_ctx ----
+# Ca Telegram: Ollama (Local) 500 {"error":"... unexpected EOF"} trên VPS 5.8GB/0 swap.
+_eof = '{"error":"an error was encountered while running the model: unexpected EOF"}'
+check("nhận diện runner crash unexpected EOF",
+      _eng._is_ollama_runner_crash(_eof))
+check("không nhận nhầm lỗi thiếu } là runner crash",
+      not _eng._is_ollama_runner_crash(
+          "Value looks like object, but can't find closing '}' symbol"))
+_ex = {"keep_alive": "10m", "options": {"num_ctx": 8192, "num_predict": 512}}
+check("shrink 8192 → 4096",
+      _eng._shrink_ollama_local_ctx(_ex) == 4096
+      and _ex["options"]["num_ctx"] == 4096)
+check("shrink 4096 → 2048",
+      _eng._shrink_ollama_local_ctx(_ex) == 2048)
+check("shrink chạm sàn thì dừng",
+      _eng._shrink_ollama_local_ctx(_ex) is None)
+check("payload bỏ key nội bộ _ctx_shrinks",
+      "_ctx_shrinks" not in _eng._ollama_extra_for_payload(_ex))
+_msg = _eng._ollama_runner_crash_user_msg(500, _eof)
+check("thông báo EOF nói hết RAM",
+      "RAM" in _msg and "500" in _msg)
 
 print()
 if _fails:
