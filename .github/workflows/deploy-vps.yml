@@ -11,10 +11,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Cùng nhóm Install/Routing Ollama - tránh đụng .git/index.lock trên VPS.
-concurrency:
-  group: javis-vps-host
-  cancel-in-progress: false
 
 jobs:
   deploy:

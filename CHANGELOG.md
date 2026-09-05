@@ -2,7 +2,11 @@
 
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
-Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
+Định dạng: mỗi phiên bản là một khối `## [0.35.52] - 2026-09-05
+### Sửa lỗi
+- **Install Ollama không còn bị huỷ vì xếp hàng chung với Deploy.** Bỏ concurrency group (GitHub huỷ pending cũ); giữ retry `index.lock` để Install chạy xong và tạo model `javis-*`.
+
+## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
 ## [0.35.51] - 2026-09-05
 ### Sửa lỗi

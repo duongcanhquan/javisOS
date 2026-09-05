@@ -23,10 +23,6 @@ on:
       - "scripts/apply-model-routing-vps.sh"
       - ".github/workflows/apply-model-routing-vps.yml"
 
-# Cùng nhóm Deploy/Install - tránh đụng .git/index.lock trên VPS.
-concurrency:
-  group: javis-vps-host
-  cancel-in-progress: false
 
 jobs:
   apply:

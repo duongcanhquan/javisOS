@@ -19,10 +19,6 @@ on:
       - "scripts/install-ollama-vps.sh"
       - ".github/workflows/install-ollama-vps.yml"
 
-# Cùng nhóm với Deploy/Routing: tránh đụng .git/index.lock trên VPS (PR #18/#19 fail vì vậy).
-concurrency:
-  group: javis-vps-host
-  cancel-in-progress: false
 
 jobs:
   install:
@@ -44,6 +40,8 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
+            # Cho Deploy chiếm git trước vài giây; sau đó retry nếu còn index.lock.
+            sleep 20
             # Pin đúng commit kích hoạt workflow. Retry khi Deploy đang giữ index.lock.
             WANT_SHA="${{ github.sha }}"
             ok=0
