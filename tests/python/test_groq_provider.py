@@ -133,7 +133,10 @@ async def _run():
     check("và trả về chữ sau khi có kết quả tool", "text" in kinds)
 
     # reasoning_effort gửi nhầm cho model thường là Groq trả 400 -> phải lọc theo model.
-    for mdl, want in (("llama-3.3-70b-versatile", None), ("qwen3-32b", "high")):
+    # llama-3.3 đã gỡ → resolve sang gpt-oss (có reasoning). Model thường không có chuỗi suy luận.
+    check("đổi model Groq đã gỡ",
+          engine.groq_resolve_model("llama-3.3-70b-versatile") == "openai/gpt-oss-120b")
+    for mdl, want in (("openai/gpt-oss-120b", "high"), ("gemma2-9b-it", None)):
         SEEN.clear()
         async for _ in engine.groq_chat_with_mcp("gsk_test", mdl, [{"role": "user", "content": "x"}],
                                                  "high", TOOLS, ROUTE):

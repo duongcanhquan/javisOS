@@ -520,9 +520,22 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 # (stream, usage, tool-calling) như OpenAI, chỉ khác base URL + auth Bearer bằng Gemini API key.
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-# Groq đổi tên model khá nhanh (model cũ bị deprecate rồi gỡ). Để một chỗ duy nhất, và
-# picker vẫn nạp danh sách LIVE từ /openai/v1/models nên mặc định này chỉ là lưới an toàn.
-GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# Groq đổi tên / gỡ model khá nhanh. Mặc định + bảng đổi ID cũ → ID còn sống; picker vẫn nạp
+# danh sách LIVE từ /openai/v1/models. Tra ngày 2026-09-05 (sau đợt gỡ Llama 3.3 / Qwen3-32b).
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
+_GROQ_DOI_MODEL = {
+    "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+    "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+    "qwen3-32b": "openai/gpt-oss-120b",
+    "qwen/qwen3-32b": "openai/gpt-oss-120b",
+    "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
+}
+
+
+def groq_resolve_model(model: str | None) -> str:
+    """ID Groq còn dùng được. Settings/VPS cũ còn ghim model đã gỡ → đổi im sang bản thay."""
+    m = (model or "").strip() or GROQ_DEFAULT_MODEL
+    return _GROQ_DOI_MODEL.get(m, m)
 
 # DeepSeek API (OpenAI-compatible). Tài liệu chính dùng /chat/completions; /v1 là alias.
 # Model id cũ deepseek-chat / deepseek-reasoner đã gỡ từ 24/07/2026.
@@ -965,8 +978,9 @@ async def openai_stream(api_key, model, messages, reasoning="off"):
 async def groq_stream(api_key, model, messages, reasoning="off"):
     """Groq (endpoint OpenAI-compatible, provider 'groq') - nhánh KHÔNG tool (dự phòng khi hub
     không có tool nào; đường thường là groq_chat_with_mcp)."""
-    async for ev in _openai_compat_stream(GROQ_URL, "Groq", api_key, model or GROQ_DEFAULT_MODEL,
-                                          messages, reasoning, _groq_is_reasoning(model)):
+    mdl = groq_resolve_model(model)
+    async for ev in _openai_compat_stream(GROQ_URL, "Groq", api_key, mdl,
+                                          messages, reasoning, _groq_is_reasoning(mdl)):
         yield ev
 
 
@@ -1248,7 +1262,7 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
 
     endpoints = {
         "openai": (OPENAI_URL, model or "gpt-4o-mini"),
-        "groq": (GROQ_URL, model or GROQ_DEFAULT_MODEL),
+        "groq": (GROQ_URL, groq_resolve_model(model)),
         "gemini": (GEMINI_URL, model or "gemini-2.5-flash"),
         "openrouter": (OPENROUTER_URL, model or "openai/gpt-4o-mini"),
         "ollama": (OLLAMA_URL, model),
@@ -2193,12 +2207,13 @@ async def openai_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
 async def groq_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp_route):
     """Groq (endpoint OpenAI-compat) + vòng tool-calling MCP - Groq cũng là agent đủ đồ nghề
     của Javis y như OpenAI/Gemini. Non-stream từng vòng (dùng _cc_tool_loop chung)."""
+    mdl = groq_resolve_model(model)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     extra = {}
-    if reasoning not in (None, "", "off") and _groq_is_reasoning(model):
+    if reasoning not in (None, "", "off") and _groq_is_reasoning(mdl):
         extra["reasoning_effort"] = api_effort(reasoning)
-    yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(GROQ_URL, headers, model or GROQ_DEFAULT_MODEL, messages, mcp_tools, mcp_route, extra, "Groq"):
+    yield {"type": "meta", "model": mdl}
+    async for ev in _cc_tool_loop(GROQ_URL, headers, mdl, messages, mcp_tools, mcp_route, extra, "Groq"):
         yield ev
 
 

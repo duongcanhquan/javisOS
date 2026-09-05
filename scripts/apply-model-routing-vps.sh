@@ -88,7 +88,7 @@ _KEY = {
     "openrouter": "openrouter_key",
 }
 _MAC_DINH_MSG = {
-    "groq": "llama-3.3-70b-versatile",
+    "groq": "openai/gpt-oss-120b",
     "gemini": "gemini-2.5-flash",
     "deepseek": "deepseek-v4-flash",
     "openrouter": "google/gemini-2.0-flash-001",

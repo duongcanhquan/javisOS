@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.66] - 2026-09-05
+### Sửa lỗi
+- **Groq không còn gọi model đã gỡ.** `llama-3.3-70b-versatile` (và vài id Llama/Qwen cũ) tự đổi sang `openai/gpt-oss-120b` - hết lỗi 404 model_not_found.
+
+
 ## [0.35.65] - 2026-09-05
 ### Sửa lỗi
 - **Xoá kết nối Google Chat (và kết nối khác) không còn lỗi JSON / Internal Server Error.** Nút Xoá trên trang Kết nối chạy được để cài lại từ đầu.
