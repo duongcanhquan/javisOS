@@ -31,7 +31,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
 fi
 
 echo "==> seed nhắc hẹn: $LABEL (cron $CRON, muc_quyen=$MUC_QUYEN, brain=$BRAIN)"
-docker exec -u javis \
+docker exec -i -u javis \
   -e "JAVIS_PORT=$PORT" \
   -e "MORNING_LABEL=$LABEL" \
   -e "MORNING_CRON=$CRON" \
