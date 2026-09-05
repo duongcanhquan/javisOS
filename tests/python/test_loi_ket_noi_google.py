@@ -97,6 +97,21 @@ check("thiếu scope vẫn ra nhánh scope dù status cũng là PERMISSION_DENIE
 check("CANARY: lỗi lạ -> chan_doan_loi trả rỗng, không bịa",
       mcp_hub.chan_doan_loi("something exploded: HTTP 500") == "")
 
+# ---- 4d. Google Chat validate gửi sai field `query` (API dùng spaceNameQuery) ----
+loi_query = (
+    'Invalid JSON payload received. Unknown name "query": Cannot find field.'
+)
+msg_query = f(loi_query)
+check("Unknown name query → không đổ 'Key chưa đúng'",
+      "Key chưa đúng" not in msg_query)
+check("Unknown name query → nói schema Google Chat / spaceNameQuery",
+      "spaceNameQuery" in msg_query and "Google Chat" in msg_query)
+import json
+cat = json.loads((ROOT / "system" / "mcp-catalog.json").read_text(encoding="utf-8"))
+chat = next(c for c in cat["connectors"] if c["id"] == "google-chat")
+vargs = (chat.get("validate") or {}).get("args") or {}
+check("catalog google-chat validate không gửi field query", "query" not in vargs)
+
 # ---- 4c. Chẩn đoán phải tới được chỗ GỌI TOOL THẬT, không chỉ nút Test ----
 # Đây mới là chỗ người dùng và model gặp lỗi. Trước đây _guard trả nguyên văn lỗi tiếng Anh
 # nên model tự suy diễn và suy sai.

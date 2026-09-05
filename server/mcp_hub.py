@@ -1248,6 +1248,13 @@ def chan_doan_loi(err, conn_id=""):
                 " khoản khác là phải ghi danh lại cho tài khoản mới. Nếu là email theo tên miền"
                 " riêng (Workspace) thì quản trị viên của miền phải cho phép nữa."
                 " Ghi danh: https://developers.google.com/workspace/preview")
+    # Google Chat MCP: field tìm tên space là spaceNameQuery, không phải query. Validate cũ
+    # gửi {"query":"..."} → Invalid JSON / Unknown name "query" - dễ hiểu nhầm là key sai.
+    if 'unknown name "query"' in low or ("unknown name" in low and "query" in low
+                                          and "cannot find field" in low):
+        return ("Lỗi kiểm tra kết nối Google Chat (tham số tool đã đổi: dùng spaceNameQuery, "
+                "không còn query). Cập nhật Javis rồi bấm Test / Kết nối lại - không phải OAuth "
+                "Client ID/Secret sai.")
     return ""
 
 

@@ -903,7 +903,7 @@
       },
       "validate": {
         "tool": "search_conversations",
-        "args": { "query": " " }
+        "args": { "pageSize": 1 }
       },
       "tool_meta": {
         "read": ["search_conversations", "list_messages", "search_messages", "list_memberships"],

@@ -24,7 +24,7 @@ Báo cáo nhắc hệ thống mặc định (`chat_id=zalo`) chỉ gửi **Zalo*
 
 ## Cách chạy (tool Google Chat MCP)
 
-1. **Khám phá space:** `search_conversations` hoặc liệt kê space/DM đang hoạt động (ưu tiên space làm việc, DM nhóm).
+1. **Khám phá space:** `search_conversations` với `spaceNameQuery` (tìm theo tên) hoặc để trống/`pageSize` để liệt kê space/DM đang tham gia. Không dùng tham số `query` (Google Chat MCP không nhận field đó).
 2. **Tin trong ngày:** với mỗi space quan trọng, dùng `list_messages` / `search_messages` lọc theo ngày hôm nay (hoặc query có từ khóa + thời gian nếu tool hỗ trợ).
 3. **Ai nhắc tôi:** tìm mention tên user, @email, hoặc reply trực tiếp tới user. Ghi rõ **ai**, **space nào**, **nội dung ngắn**.
 4. **Tổng hợp chủ đề:** gom theo space hoặc chủ đề (dự án, phòng ban), không chép nguyên văn từng tin dài.
