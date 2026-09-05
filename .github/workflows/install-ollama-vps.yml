@@ -1,0 +1,54 @@
+# Cài Ollama trên VPS: check đĩa/RAM/GPU, kéo model mạnh nhất vừa máy, trỏ Javis Local.
+# Chạy khi push các file liên quan lên main (agent không dispatch workflow_dispatch được).
+name: Install Ollama on VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Chỉ kiểm tra dung lượng, không kéo model (1/0)"
+        required: false
+        default: "0"
+      model:
+        description: "Ép model cụ thể (để trống = tự chọn mạnh nhất vừa máy)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "scripts/install-ollama-vps.sh"
+      - ".github/workflows/install-ollama-vps.yml"
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check disk/RAM + install Ollama + pull strongest fitting model
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DRY: ${{ github.event.inputs.dry_run || '0' }}
+          MODEL: ${{ github.event.inputs.model || '' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 180m
+          envs: DRY,MODEL
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
+            chmod +x scripts/install-ollama-vps.sh
+            export JAVIS_OLLAMA_DRY_RUN="${DRY:-0}"
+            if [ -n "${MODEL:-}" ]; then
+              export JAVIS_OLLAMA_MODEL="$MODEL"
+            fi
+            # Cần root để cài ollama + systemd; nếu user không phải root thì sudo.
+            if [ "$(id -u)" -eq 0 ]; then
+              bash scripts/install-ollama-vps.sh
+            else
+              sudo -E bash scripts/install-ollama-vps.sh
+            fi

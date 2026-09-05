@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.43] - 2026-09-05
+### Thêm mới
+- **Cài Ollama trên VPS + kéo model mạnh nhất vừa máy.** Script tự đọc đĩa/RAM/GPU, chọn model phù hợp, kéo về local, trỏ Javis việc nền sang Ollama (Local). Workflow chạy khi đẩy script lên main.
+
 ## [0.35.42] - 2026-09-05
 ### Thêm mới
 - **Chốt phân tầng model trên VPS:** Main = Antigravity, việc nền = Ollama Cloud. Script `apply-model-routing-vps.sh` + workflow bấm tay (có thể reset mật khẩu dashboard).

@@ -44,7 +44,7 @@ CODEX = "openai-oauth"
 GEMINI_CLI = "gemini-cli"
 ANTIGRAVITY = "antigravity-cli"
 API_PROVIDERS = ("openrouter", "openai", "gemini", "groq", "deepseek", "anthropic-api",
-                 "ollama")
+                 "ollama", "ollama-local")
 
 # provider -> tên trường chứa API key trong settings["model"]
 _KEY_FIELD = {
@@ -55,6 +55,7 @@ _KEY_FIELD = {
     "deepseek": "deepseek_api_key",
     "anthropic-api": "anthropic_api_key",
     "ollama": "ollama_key",
+    # ollama-local xác thực bằng endpoint; key tuỳ chọn (proxy). Xem api_key_for().
 }
 
 # mode của Javis -> sandbox của Codex CLI. Bản đồ thật nằm ở `claude_cli.codex_sandbox_cho_mode`
@@ -123,6 +124,9 @@ def read_spec(settings: dict = None) -> dict:
     s = settings if settings is not None else cfgmod.read_settings()
     aux = (s.get("model", {}) or {}).get("auxiliary") or {}
     spec = {"provider": (aux.get("provider") or CLAUDE), "model": (aux.get("model") or "")}
+    # Ollama local không tính tiền theo token - khỏi dính phanh ngân sách.
+    if spec["provider"] == "ollama-local":
+        return spec
     if spec["provider"] not in API_PROVIDERS:
         return spec                      # gói thuê bao: không tính tiền theo token, kệ phanh
     try:
@@ -177,11 +181,17 @@ def is_claude(spec: dict) -> bool:
 
 
 def api_key_for(provider: str, settings: dict = None) -> str:
+    s = settings if settings is not None else cfgmod.read_settings()
+    mcfg = (s.get("model", {}) or {})
+    # Ollama máy nhà: có endpoint là đủ; key chỉ khi nấp sau proxy.
+    if provider == "ollama-local":
+        if not (mcfg.get("ollama_local_endpoint") or "").strip():
+            return ""
+        return (mcfg.get("ollama_local_key") or "").strip() or "local"
     field = _KEY_FIELD.get(provider)
     if not field:
         return ""
-    s = settings if settings is not None else cfgmod.read_settings()
-    return (s.get("model", {}) or {}).get(field) or ""
+    return mcfg.get(field) or ""
 
 
 def availability(spec: dict, settings: dict = None) -> tuple:
@@ -217,6 +227,10 @@ def availability(spec: dict, settings: dict = None) -> tuple:
                 return False, st.get("error") or "Antigravity CLI chưa đăng nhập Google."
         except Exception:
             return False, "Không kiểm tra được Antigravity CLI."
+        return True, ""
+    if prov == "ollama-local":
+        if not api_key_for(prov, settings):
+            return False, "Chưa đặt địa chỉ Ollama (Local) ở trang Models."
         return True, ""
     if prov in API_PROVIDERS:
         if not api_key_for(prov, settings):
@@ -310,14 +324,16 @@ class _ApiAuxEngine:
                   "gemini": eng.gemini_chat_with_mcp, "groq": eng.groq_chat_with_mcp,
                   "deepseek": eng.deepseek_chat_with_mcp,
                   "anthropic-api": eng.anthropic_chat_with_mcp,
-                  "ollama": eng.ollama_chat_with_mcp}[self.provider]
+                  "ollama": eng.ollama_chat_with_mcp,
+                  "ollama-local": eng.ollama_local_chat_with_mcp}[self.provider]
             stream = fn(key, self.model, messages, self.reasoning, tools, route)
         else:
             fn = {"openrouter": eng.openrouter_stream, "openai": eng.openai_stream,
                   "gemini": eng.gemini_stream, "groq": eng.groq_stream,
                   "deepseek": eng.deepseek_stream,
                   "anthropic-api": eng.anthropic_stream,
-                  "ollama": eng.ollama_stream}[self.provider]
+                  "ollama": eng.ollama_stream,
+                  "ollama-local": eng.ollama_local_stream}[self.provider]
             stream = fn(key, self.model, messages, self.reasoning)
 
         # Đường API sinh "text" theo mảnh; việc nền chỉ đọc "final" nên gom lại rồi phát MỘT lần.
