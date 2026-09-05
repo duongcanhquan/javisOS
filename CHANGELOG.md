@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.46] - 2026-09-05
+### Cải thiện
+- **Ollama trên VPS 12GB:** chọn lại model mạnh nhất vừa máy (thường `qwen3:8b`), gỡ bản 1B–4B cũ cho đỡ đầy đĩa 60GB NVMe.
+
 ## [0.35.45] - 2026-09-05
 ### Sửa lỗi
 - **Hết lỗi `Not logged in · Please run /login` khi việc nền dùng Ollama.** Deploy không còn ép Ollama Cloud lúc chưa có key (rồi âm thầm rơi về Claude). Máy đã cài Ollama local thì việc nền ưu tiên local; Claude chưa login thì không còn bị kéo vào làm fallback.
