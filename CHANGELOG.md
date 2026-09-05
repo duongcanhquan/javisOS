@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.73] - 2026-09-05
+### Cải thiện
+- **Dashboard và VPS nhẹ hơn.** Tắt Pixelle mặc định trên VPS (nhường RAM), giảm poll Việc/Bot, sửa MCP không đóng hết phiên mỗi lần đổi nhãn, và `/mcp/ambient` không còn chặn cả app khi hỏi `claude mcp list`.
+
+
 ## [0.35.72] - 2026-09-05
 ### Cải thiện
 - **Telegram/Zalo về Antigravity, bỏ ghim Groq.** Chat nhắn tin dùng chung gói Google ổn định; mic dashboard ưu tiên nhận giọng trình duyệt, không bắt dán key Groq.

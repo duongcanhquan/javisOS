@@ -911,11 +911,21 @@ def seed_visible_for_query(tools_spec, route, inventory_tools, inventory_route, 
     return new_tools, new_route
 
 
-def invalidate_cache():
-    """Gọi sau khi thêm/sửa/xoá connection - làm mới tool list + đóng session cũ."""
+def invalidate_cache(*, drop_sessions: bool = True, conn_id: str | None = None):
+    """Làm mới tool list sau khi thêm/sửa/xoá connection.
+
+    drop_sessions=False: chỉ xoá cache danh sách tool (đổi nhãn/mức quyền) - không đóng
+    phiên MCP đang sống. Đóng hết session mỗi lần bấm toggle/sửa là làm chat/UI chậm rõ.
+    conn_id: chỉ invalidate một kết nối (toggle/xoá một cái), không đụng cả pool.
+    """
     _cache.clear()
     _ambient_cache["ts"] = 0.0   # ép nạp lại danh sách connector tài khoản ở lần discover kế
+    if not drop_sessions:
+        return
     try:
+        if conn_id:
+            mcp_client.pool.invalidate(conn_id)
+            return
         for c in mcp_store.list_connections():
             mcp_client.pool.invalidate(c["id"])
     except Exception:

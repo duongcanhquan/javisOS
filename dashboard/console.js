@@ -2580,8 +2580,8 @@
         clearInterval(poll);
         cleanupDrawer();
       }
-      else load();
-    }, 3000);
+      else if (!document.hidden) load();
+    }, 12000);
   }
 
   async function freshSettings() {

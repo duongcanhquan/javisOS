@@ -3175,11 +3175,19 @@ async def mcp_strict(request: Request):
 
 
 @app.get("/mcp/ambient")
-def mcp_ambient():
+async def mcp_ambient():
     """MCP sẵn của từng CLI - chỉ hiển thị. servers = Claude Code (đồng bộ claude.ai);
     codex_servers = kho MCP gốc của Codex (~/.codex/config.toml, user tự `codex mcp add`).
-    Engine ChatGPT nạp kho gốc đó vì profile javis chỉ phủ THÊM lên config gốc."""
-    return {"servers": mcp_native_list(), "codex_servers": codex_mcp_native_list()}
+    Engine ChatGPT nạp kho gốc đó vì profile javis chỉ phủ THÊM lên config gốc.
+
+    Chạy subprocess trong thread: trước đây `def` đồng bộ + `claude mcp list` (timeout 60s)
+    chặn cả event loop → mọi API dashboard đứng im khi mở mục ambient.
+    """
+    servers, codex_servers = await asyncio.gather(
+        asyncio.to_thread(mcp_native_list),
+        asyncio.to_thread(codex_mcp_native_list),
+    )
+    return {"servers": servers, "codex_servers": codex_servers}
 
 
 @app.get("/mcp/native-status")
@@ -3337,15 +3345,17 @@ async def connect_substack_resolve_uid(q: str = Query("")):
 async def connect_update(request: Request):
     data = await request.json()
     ok = mcp_store.update_connection(data.get("id"), data)
-    mcp_hub.invalidate_cache()
+    # Đổi nhãn/perm: chỉ làm mới danh sách tool, giữ phiên MCP (tránh cold rediscovery).
+    mcp_hub.invalidate_cache(drop_sessions=False)
     return {"ok": ok}
 
 
 @app.post("/connect/toggle")
 async def connect_toggle(request: Request):
     data = await request.json()
-    en = mcp_store.toggle_connection(data.get("id"))
-    mcp_hub.invalidate_cache()
+    cid = data.get("id")
+    en = mcp_store.toggle_connection(cid)
+    mcp_hub.invalidate_cache(conn_id=cid)
     _write_codex_profile()
     return {"ok": en is not None, "enabled": en}
 

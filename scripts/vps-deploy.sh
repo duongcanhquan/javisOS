@@ -36,10 +36,17 @@ git fetch --all --prune
 git reset --hard origin/main 2>/dev/null || true
 git pull --ff-only origin main
 
-# Pixelle đầy đủ (API :8000 + WebUI :8501) trừ khi .env tắt rõ.
-ENABLE_PIXELLE=true
-if [ -f "$ENV_FILE" ] && grep -q '^JAVIS_ENABLE_PIXELLE=false' "$ENV_FILE" 2>/dev/null; then
-  ENABLE_PIXELLE=false
+# Pixelle (API + WebUI) mặc định TẮT trên VPS - 2 container nặng làm máy chậm.
+# Bật video AI: đặt JAVIS_ENABLE_PIXELLE=true trong .env rồi redeploy.
+ENABLE_PIXELLE=false
+if [ -f "$ENV_FILE" ] && grep -q '^JAVIS_ENABLE_PIXELLE=true' "$ENV_FILE" 2>/dev/null; then
+  ENABLE_PIXELLE=true
+else
+  if grep -q '^JAVIS_ENABLE_PIXELLE=' "$ENV_FILE" 2>/dev/null; then
+    sed -i.bak 's/^JAVIS_ENABLE_PIXELLE=.*/JAVIS_ENABLE_PIXELLE=false/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  else
+    printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
+  fi
 fi
 
 COMPOSE_FILES=(
