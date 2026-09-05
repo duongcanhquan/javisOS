@@ -137,7 +137,10 @@ check("relogin KHÔNG xoá connection (chỉ vứt token)",
 # ---- 6. UI: nút chỉ hiện cho connector có kho token riêng ----
 js = (DASHBOARD / "console.js").read_text(encoding="utf-8", errors="replace")
 check("dashboard có nút Đăng nhập lại", 'data-m="relogin"' in js)
-check("nút gắn cờ cred_dir nên nguồn khác không mọc nút thừa", "con.cred_dir ?" in js)
+# Nút hiện khi connector có cred_dir RIÊNG (workspace-mcp) HOẶC OAuth Google (Gmail/Lịch/Chat)
+# vì token thiếu scope cũng phải xoá được mà không xoá cả kết nối.
+check("nút hiện cho cred_dir hoặc OAuth Google (không mọc bừa cho mọi nguồn)",
+      "con.cred_dir" in js and "oauth" in js and "/google/" in js)
 check("nút gọi đúng endpoint", '"/connect/relogin"' in js)
 check("có hỏi xác nhận trước khi vứt token", 'act === "relogin"' in js and "confirm(" in js)
 

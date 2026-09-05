@@ -51,8 +51,6 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 - **Nhắc hẹn Ollama Local hết lỗi 500 unexpected EOF trên VPS 6GB.** Hạ `num_ctx` mặc định 8k→4k, tạo swap 2G khi cài, tự thử lại với ctx nhỏ hơn khi runner bị OOM, và thông báo rõ hết RAM thay vì JSON thô.
 
 
-## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
-
 ## [0.35.53] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi 400 thiếu `}`.** Khi gọi tool nhiều vòng, gửi lại `arguments` dạng object (Ollama native) thay vì JSON string kiểu OpenAI.
@@ -105,16 +103,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.35.40] - 2026-09-05
 ### Thêm mới
 - **Tổng kết sáng gửi cả Telegram và Zalo.** Nhắc hệ thống (`chat_id=all`) báo cáo lên mọi kênh ngoài đã đấu, không chỉ một app.
-
-### Sửa lỗi
-- **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
-
-## [Unreleased]
-### Thêm mới
 - **Google Chat trong Kết nối.** Đấu MCP chính chủ của Google để đọc space/DM, tìm tin và biết ai nhắc bạn (cần email Workspace).
 - **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
 
 ### Sửa lỗi
+- **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
 - **Cuộc họp kẹt "Nạp model".** Trước đó MicTranscriber tải nhầm model English Medium (~270MB) thay model tiếng Việt Base (~70MB) nên treo. Nay dùng đúng Moonshine VI + phân biệt người nói; tải nền khi mở trang.
 - **Cuộc họp: Dừng/Hủy khi đang tải model; nút Xóa file họp cũ.** Tạo file transcript trước khi tải Moonshine; WASM chạy cùng origin với dashboard (không phụ thuộc CDN).
 - **Lưu trữ cuộc họp theo ngày + tìm kiếm.** Tab Lưu trữ: lọc hôm nay/7 ngày/30 ngày, tìm theo tên/người/nội dung transcript, xem chi tiết và xóa từng cuộc họp.
