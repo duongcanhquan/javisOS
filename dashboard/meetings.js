@@ -31,6 +31,15 @@
     lineBuffer: [], // dòng chờ meetingId (STT bật trước fetch)
   };
 
+  var archiveState = {
+    tab: "new",
+    q: "",
+    period: "all",
+    debounce: null,
+    openPath: "",
+    total: 0,
+  };
+
   // Tiếng Việt chỉ có model Base (~70MB). MicTranscriber mặc định MediumStreaming (~270MB, chỉ có en).
   var MOONSHINE_VI_OPTS = {
     max_tokens_per_second: "13.0",
@@ -1177,7 +1186,7 @@
   async function deleteMeetingFile(root, relPath) {
     if (!relPath) return;
     var label = relPath.split("/").pop() || relPath;
-    if (!window.confirm("Xóa file cuộc họp \"" + label + "\"? Không hoàn tác.")) return;
+    if (!window.confirm("Xóa cuộc họp \"" + label + "\"? Xóa transcript, tổng kết và file jsonl. Không hoàn tác.")) return;
     try {
       var f = new FormData();
       f.append("path", relPath);
@@ -1187,50 +1196,295 @@
       ).json();
       if (!r.ok) throw new Error(r.error || "Xóa lỗi");
       setStatus(root, "Đã xóa " + (r.deleted || []).length + " file.", "ok");
-      refreshList(root);
+      if (archiveState.openPath === relPath) {
+        archiveState.openPath = "";
+        var det = root.querySelector("#mtArchiveDetail");
+        if (det) det.hidden = true;
+      }
+      loadArchive(root);
     } catch (e) {
       setStatus(root, "Xóa lỗi: " + (e.message || e), "err");
     }
   }
 
-  async function refreshList(root) {
-    var el = root.querySelector("#mtRecent");
-    if (!el) return;
+  function todayIso() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function daysAgoIso(n) {
+    var d = new Date();
+    d.setDate(d.getDate() - n);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function formatDateGroupLabel(dateKey) {
+    if (!dateKey) return "Không rõ ngày";
+    var today = todayIso();
+    var yest = daysAgoIso(1);
+    var parts = dateKey.split("-");
+    var nice =
+      parts.length === 3
+        ? parts[2] + "/" + parts[1] + "/" + parts[0]
+        : dateKey;
+    if (dateKey === today) return "Hôm nay · " + nice;
+    if (dateKey === yest) return "Hôm qua · " + nice;
     try {
-      var r = await (
-        await fetch("/meetings/list?brain=" + encodeURIComponent(fbrain()) + "&limit=15")
-      ).json();
-      var items = r.items || [];
-      if (!items.length) {
-        el.innerHTML = '<div class="dim">Chưa có file cuộc họp.</div>';
+      var dt = new Date(dateKey + "T12:00:00");
+      var wd = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][dt.getDay()];
+      return wd + " · " + nice;
+    } catch (e) {
+      return nice;
+    }
+  }
+
+  function archiveQueryParams() {
+    var p = new URLSearchParams();
+    p.set("brain", fbrain());
+    p.set("limit", "80");
+    if (archiveState.q) p.set("q", archiveState.q);
+    if (archiveState.period === "today") {
+      p.set("date", todayIso());
+    } else if (archiveState.period === "week") {
+      p.set("date_from", daysAgoIso(6));
+      p.set("date_to", todayIso());
+    } else if (archiveState.period === "month") {
+      p.set("date_from", daysAgoIso(29));
+      p.set("date_to", todayIso());
+    }
+    return p.toString();
+  }
+
+  function setMtTab(root, tab) {
+    archiveState.tab = tab;
+    root.querySelectorAll(".mt-tab").forEach(function (btn) {
+      var on = btn.getAttribute("data-mt-tab") === tab;
+      btn.classList.toggle("mt-tab-active", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    var panelNew = root.querySelector("#mtPanelNew");
+    var panelArch = root.querySelector("#mtPanelArchive");
+    if (panelNew) panelNew.hidden = tab !== "new";
+    if (panelArch) panelArch.hidden = tab !== "archive";
+    if (tab === "archive") loadArchive(root);
+  }
+
+  function openMeetingEditor(relPath) {
+    if (!relPath) return;
+    try {
+      if (window.JavisEditFile) {
+        window.JavisEditFile(relPath);
         return;
       }
-      el.innerHTML = items
-        .map(function (it) {
-          return (
-            '<div class="mt-recent-row">' +
-            '<span class="mt-kind">' +
-            esc(it.kind) +
-            "</span> " +
-            '<code class="mt-recent-path">' +
-            esc(it.path) +
-            "</code> " +
-            '<button type="button" class="mt-del s-btn-ghost" data-path="' +
-            esc(it.path) +
-            '" title="Xóa file">' +
-            ic("trash-2") +
-            " Xóa</button></div>"
-          );
-        })
-        .join("");
-      el.querySelectorAll(".mt-del").forEach(function (btn) {
+    } catch (e) {}
+    var url =
+      "/files/raw?brain=" +
+      encodeURIComponent(fbrain()) +
+      "&path=" +
+      encodeURIComponent(relPath.replace(/^\.?\//, ""));
+    window.open(url, "_blank");
+  }
+
+  async function openMeetingDetail(root, relPath) {
+    if (!relPath) return;
+    archiveState.openPath = relPath;
+    var box = root.querySelector("#mtArchiveDetail");
+    if (!box) return;
+    box.hidden = false;
+    box.innerHTML = '<div class="dim">Đang mở cuộc họp…</div>';
+    try {
+      var r = await (
+        await fetch(
+          "/meetings/detail?brain=" +
+            encodeURIComponent(fbrain()) +
+            "&path=" +
+            encodeURIComponent(relPath)
+        )
+      ).json();
+      if (!r.ok) throw new Error(r.error || "Không đọc được");
+      var people = (r.attendees || []).join(", ") || "—";
+      var tabs =
+        '<div class="mt-detail-tabs">' +
+        '<button type="button" class="mt-dtab mt-dtab-active" data-dtab="transcript">Transcript</button>' +
+        (r.has_summary
+          ? '<button type="button" class="mt-dtab" data-dtab="summary">Tổng kết</button>'
+          : "") +
+        (r.notes_full
+          ? '<button type="button" class="mt-dtab" data-dtab="notes">Ghi chú</button>'
+          : "") +
+        "</div>";
+      box.innerHTML =
+        '<div class="mt-detail-head">' +
+        '<div class="mt-detail-title">' +
+        esc(r.title || "") +
+        "</div>" +
+        '<div class="mt-detail-meta">' +
+        esc(r.date || "") +
+        (r.time ? " · " + esc(r.time) : "") +
+        " · " +
+        esc(people) +
+        (r.line_count ? " · " + r.line_count + " đoạn" : "") +
+        "</div>" +
+        '<div class="mt-detail-actions">' +
+        '<button type="button" class="s-btn-ghost mt-detail-edit">Sửa file</button>' +
+        '<button type="button" class="s-btn-ghost mt-detail-del">Xóa</button>' +
+        '<button type="button" class="s-btn-ghost mt-detail-close">Đóng</button>' +
+        "</div></div>" +
+        tabs +
+        '<div class="mt-detail-body" id="mtDetailBody"><pre class="mt-detail-pre">' +
+        esc(r.transcript || "(Chưa có transcript)") +
+        "</pre></div>";
+      box.querySelector(".mt-detail-close").onclick = function () {
+        archiveState.openPath = "";
+        box.hidden = true;
+      };
+      box.querySelector(".mt-detail-edit").onclick = function () {
+        openMeetingEditor(r.path);
+      };
+      box.querySelector(".mt-detail-del").onclick = function () {
+        deleteMeetingFile(root, r.path);
+      };
+      var bodies = {
+        transcript: r.transcript || "(Chưa có transcript)",
+        summary: r.summary || "(Chưa có tổng kết)",
+        notes: r.notes_full || "(Không có ghi chú)",
+      };
+      box.querySelectorAll(".mt-dtab").forEach(function (btn) {
         btn.onclick = function () {
-          deleteMeetingFile(root, btn.getAttribute("data-path"));
+          box.querySelectorAll(".mt-dtab").forEach(function (b) {
+            b.classList.remove("mt-dtab-active");
+          });
+          btn.classList.add("mt-dtab-active");
+          var key = btn.getAttribute("data-dtab");
+          var body = box.querySelector("#mtDetailBody");
+          if (body) {
+            body.innerHTML =
+              '<pre class="mt-detail-pre">' + esc(bodies[key] || "") + "</pre>";
+          }
         };
       });
+      box.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {
-      el.innerHTML = '<div class="dim">Không tải danh sách.</div>';
+      box.innerHTML =
+        '<div class="dim">Không mở được: ' + esc(e.message || e) + "</div>";
     }
+  }
+
+  function renderArchiveGroups(root, data) {
+    var el = root.querySelector("#mtArchiveList");
+    if (!el) return;
+    var groups = (data && data.groups) || [];
+    archiveState.total = (data && data.total) || 0;
+    var badge = root.querySelector("#mtArchiveBadge");
+    if (badge) badge.textContent = archiveState.total ? String(archiveState.total) : "";
+    if (!groups.length) {
+      el.innerHTML =
+        '<div class="mt-archive-empty">' +
+        ic("search", { size: 28 }) +
+        "<p>Không tìm thấy cuộc họp.</p>" +
+        '<p class="dim">Thử đổi từ khóa hoặc bộ lọc ngày.</p></div>';
+      return;
+    }
+    el.innerHTML = groups
+      .map(function (g) {
+        var cards = (g.items || [])
+          .map(function (it) {
+            var tags = "";
+            if (it.has_summary) tags += '<span class="mt-tag mt-tag-ok">Tổng kết</span>';
+            else tags += '<span class="mt-tag">Chưa tổng kết</span>';
+            if (it.line_count) tags += '<span class="mt-tag">' + it.line_count + " đoạn</span>";
+            var people = (it.attendees || []).slice(0, 4).map(function (n) {
+              return '<span class="mt-chip">' + esc(n) + "</span>";
+            }).join("");
+            if ((it.attendees || []).length > 4) {
+              people += '<span class="mt-chip dim">+' + (it.attendees.length - 4) + "</span>";
+            }
+            return (
+              '<article class="mt-card-item" data-path="' +
+              esc(it.path) +
+              '">' +
+              '<div class="mt-card-top">' +
+              '<span class="mt-card-time">' +
+              esc(it.time || "—") +
+              "</span>" +
+              '<h4 class="mt-card-title">' +
+              esc(it.title || it.path) +
+              "</h4>" +
+              "</div>" +
+              '<div class="mt-card-tags">' +
+              tags +
+              "</div>" +
+              (people ? '<div class="mt-card-people">' + people + "</div>" : "") +
+              '<p class="mt-card-excerpt">' +
+              esc(it.excerpt || "Chưa có nội dung ghi.") +
+              "</p>" +
+              '<div class="mt-card-actions">' +
+              '<button type="button" class="s-btn mt-card-open">Xem</button>' +
+              '<button type="button" class="s-btn-ghost mt-card-edit">Sửa</button>' +
+              '<button type="button" class="s-btn-ghost mt-card-del">Xóa</button>' +
+              "</div></article>"
+            );
+          })
+          .join("");
+        return (
+          '<section class="mt-day-group">' +
+          '<h3 class="mt-day-label">' +
+          esc(formatDateGroupLabel(g.date)) +
+          "</h3>" +
+          '<div class="mt-day-cards">' +
+          cards +
+          "</div></section>"
+        );
+      })
+      .join("");
+    el.querySelectorAll(".mt-card-open").forEach(function (btn) {
+      btn.onclick = function () {
+        var card = btn.closest(".mt-card-item");
+        openMeetingDetail(root, card && card.getAttribute("data-path"));
+      };
+    });
+    el.querySelectorAll(".mt-card-edit").forEach(function (btn) {
+      btn.onclick = function () {
+        var card = btn.closest(".mt-card-item");
+        openMeetingEditor(card && card.getAttribute("data-path"));
+      };
+    });
+    el.querySelectorAll(".mt-card-del").forEach(function (btn) {
+      btn.onclick = function () {
+        var card = btn.closest(".mt-card-item");
+        deleteMeetingFile(root, card && card.getAttribute("data-path"));
+      };
+    });
+    el.querySelectorAll(".mt-card-item").forEach(function (card) {
+      card.onclick = function (ev) {
+        if (ev.target.closest("button")) return;
+        openMeetingDetail(root, card.getAttribute("data-path"));
+      };
+    });
+  }
+
+  async function loadArchive(root) {
+    var el = root.querySelector("#mtArchiveList");
+    if (el) el.innerHTML = '<div class="dim">Đang tải lưu trữ…</div>';
+    try {
+      var r = await (
+        await fetch("/meetings/archive?" + archiveQueryParams())
+      ).json();
+      if (!r.ok) throw new Error(r.error || "Lỗi tải");
+      renderArchiveGroups(root, r);
+    } catch (e) {
+      if (el) el.innerHTML = '<div class="dim">Không tải được: ' + esc(e.message || e) + "</div>";
+    }
+  }
+
+  function refreshList(root) {
+    loadArchive(root);
   }
 
   function injectCss() {
@@ -1238,10 +1492,49 @@
     var s = document.createElement("style");
     s.id = "mt-css";
     s.textContent =
-      ".mt-wrap{max-width:780px}" +
+      ".mt-wrap{max-width:920px}" +
       ".mt-hero{margin:0 0 16px}" +
       ".mt-hero h2{margin:0 0 6px;font-size:22px;color:var(--text)}" +
-      ".mt-hint{font-size:14px;color:var(--text3);line-height:1.6;margin:0 0 14px;max-width:640px}" +
+      ".mt-hint{font-size:14px;color:var(--text3);line-height:1.6;margin:0 0 14px;max-width:720px}" +
+      ".mt-tabs{display:flex;gap:8px;margin:0 0 16px;border-bottom:1px solid var(--border);padding-bottom:0}" +
+      ".mt-tab{appearance:none;border:none;background:transparent;color:var(--text3);font:inherit;font-size:14px;padding:10px 14px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0}" +
+      ".mt-tab:hover{color:var(--text)}" +
+      ".mt-tab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
+      ".mt-tab-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;background:var(--surface-2,var(--border));color:var(--text3)}" +
+      ".mt-archive-toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px;align-items:center}" +
+      ".mt-search-wrap{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:8px 12px;background:var(--bg,var(--surface-0,#111))}" +
+      ".mt-search-wrap input{flex:1;border:none;background:transparent;color:var(--text);font:inherit;outline:none;min-width:0}" +
+      ".mt-filter-row{display:flex;flex-wrap:wrap;gap:6px}" +
+      ".mt-filter{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:12.5px;cursor:pointer}" +
+      ".mt-filter-active{border-color:var(--accent-ink,var(--text2));color:var(--text);background:var(--surface-2,var(--surface-1))}" +
+      ".mt-day-group{margin:0 0 22px}" +
+      ".mt-day-label{font-size:13px;font-weight:600;color:var(--text2);margin:0 0 10px;padding:0 2px}" +
+      ".mt-day-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}" +
+      ".mt-card-item{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:14px 14px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s}" +
+      ".mt-card-item:hover{border-color:var(--accent-ink,var(--text3));box-shadow:0 2px 12px rgba(0,0,0,.06)}" +
+      ".mt-card-top{display:flex;gap:10px;align-items:flex-start;margin:0 0 8px}" +
+      ".mt-card-time{font-size:12px;color:var(--text3);min-width:42px;padding-top:2px;font-variant-numeric:tabular-nums}" +
+      ".mt-card-title{margin:0;font-size:15px;font-weight:600;color:var(--text);line-height:1.35;flex:1}" +
+      ".mt-card-tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}" +
+      ".mt-tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--text3)}" +
+      ".mt-tag-ok{border-color:var(--ok-ink,var(--border));color:var(--ok-ink,var(--text2))}" +
+      ".mt-chip{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--surface-2,var(--border));color:var(--text2)}" +
+      ".mt-card-people{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}" +
+      ".mt-card-excerpt{font-size:13px;color:var(--text3);line-height:1.5;margin:0 0 10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}" +
+      ".mt-card-actions{display:flex;gap:8px;flex-wrap:wrap}" +
+      ".mt-card-actions .s-btn,.mt-card-actions .s-btn-ghost{font-size:12.5px;padding:5px 10px}" +
+      ".mt-archive-empty{text-align:center;padding:36px 16px;color:var(--text3)}" +
+      ".mt-archive-empty p{margin:8px 0 0}" +
+      "#mtArchiveDetail{margin:16px 0 0;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:16px}" +
+      ".mt-detail-head{margin:0 0 12px}" +
+      ".mt-detail-title{font-size:17px;font-weight:600;color:var(--text);margin:0 0 4px}" +
+      ".mt-detail-meta{font-size:13px;color:var(--text3);margin:0 0 10px}" +
+      ".mt-detail-actions{display:flex;flex-wrap:wrap;gap:8px}" +
+      ".mt-detail-tabs{display:flex;gap:6px;margin:12px 0 10px;border-bottom:1px solid var(--border)}" +
+      ".mt-dtab{border:none;background:transparent;color:var(--text3);font:inherit;font-size:13px;padding:8px 10px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer}" +
+      ".mt-dtab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
+      ".mt-detail-body{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111))}" +
+      ".mt-detail-pre{margin:0;padding:14px;font-size:13px;line-height:1.55;white-space:pre-wrap;font-family:inherit;color:var(--text)}" +
       ".mt-card{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:16px 16px 14px;margin:0 0 14px}" +
       ".mt-field{margin:0 0 12px}.mt-field label{display:block;font-size:13px;color:var(--text2);margin:0 0 5px}" +
       ".mt-field input,.mt-field textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit}" +
@@ -1255,7 +1548,6 @@
       ".mt-spk{margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:13px}" +
       ".mt-spk:hover{border-color:var(--accent-ink,var(--text2))}" +
       ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px;margin:8px 0 0}" +
-      ".mt-recent-row{font-size:13px;margin:6px 0;color:var(--text2);display:flex;flex-wrap:wrap;align-items:center;gap:8px}.mt-kind{display:inline-block;min-width:72px;color:var(--text3)}.mt-recent-path{flex:1;min-width:160px;word-break:break-all}.mt-del{font-size:12px;padding:3px 8px;color:var(--warn-ink,var(--text3))}" +
       "#mtStatus{font-size:13.5px;margin:8px 0 0;min-height:1.3em}" +
       ".mt-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--text3)}" +
       ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}";
@@ -1281,6 +1573,15 @@
       '<p class="mt-hint dim" id="mtMoonshinePreload" style="margin-top:-6px;font-size:13px"></p>' +
       '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span></div>' +
       "</div>" +
+      '<nav class="mt-tabs" role="tablist">' +
+      '<button type="button" class="mt-tab mt-tab-active" data-mt-tab="new" role="tab" aria-selected="true">' +
+      ic("mic") +
+      " Ghi mới</button>" +
+      '<button type="button" class="mt-tab" data-mt-tab="archive" role="tab" aria-selected="false">' +
+      ic("folder-open") +
+      ' Lưu trữ <span class="mt-tab-badge" id="mtArchiveBadge"></span></button>' +
+      "</nav>" +
+      '<div id="mtPanelNew">' +
       '<div class="mt-card" id="mtSetup">' +
       '<div class="mt-field"><label>Tiêu đề cuộc họp *</label>' +
       '<input type="text" id="mtTitle" placeholder="Vd: Họp kế hoạch Q3 — Marketing"></div>' +
@@ -1316,7 +1617,22 @@
       '<div class="mt-sum" id="mtSummary" style="margin-top:12px"></div>' +
       "</div>" +
       '<div id="mtStatus"></div>' +
-      '<div class="si-log" style="margin-top:22px"><h3 style="font-size:15px;color:var(--text)">File cuộc họp gần đây</h3><div id="mtRecent">Đang tải…</div></div>' +
+      "</div>" +
+      '<div id="mtPanelArchive" hidden>' +
+      '<div class="mt-archive-toolbar">' +
+      '<label class="mt-search-wrap">' +
+      ic("search") +
+      '<input type="search" id="mtArchiveSearch" placeholder="Tìm tiêu đề, người tham dự, nội dung transcript…" autocomplete="off">' +
+      "</label>" +
+      '<div class="mt-filter-row">' +
+      '<button type="button" class="mt-filter mt-filter-active" data-period="all">Tất cả</button>' +
+      '<button type="button" class="mt-filter" data-period="today">Hôm nay</button>' +
+      '<button type="button" class="mt-filter" data-period="week">7 ngày</button>' +
+      '<button type="button" class="mt-filter" data-period="month">30 ngày</button>' +
+      "</div></div>" +
+      '<div id="mtArchiveList"><div class="dim">Đang tải…</div></div>' +
+      '<div id="mtArchiveDetail" hidden></div>' +
+      "</div>" +
       "</div>";
 
     el.querySelector("#mtStart").onclick = function () {
@@ -1338,8 +1654,36 @@
       ev.target.value = "";
     };
 
+    el.querySelectorAll(".mt-tab").forEach(function (btn) {
+      btn.onclick = function () {
+        setMtTab(el, btn.getAttribute("data-mt-tab"));
+      };
+    });
+    var searchIn = el.querySelector("#mtArchiveSearch");
+    if (searchIn) {
+      searchIn.oninput = function () {
+        archiveState.q = searchIn.value.trim();
+        if (archiveState.debounce) clearTimeout(archiveState.debounce);
+        archiveState.debounce = setTimeout(function () {
+          loadArchive(el);
+        }, 320);
+      };
+    }
+    el.querySelectorAll(".mt-filter").forEach(function (btn) {
+      btn.onclick = function () {
+        archiveState.period = btn.getAttribute("data-period") || "all";
+        el.querySelectorAll(".mt-filter").forEach(function (b) {
+          b.classList.toggle(
+            "mt-filter-active",
+            b.getAttribute("data-period") === archiveState.period
+          );
+        });
+        loadArchive(el);
+      };
+    });
+
     setPhase(el, "setup");
-    refreshList(el);
+    setMtTab(el, archiveState.tab || "new");
     setStatus(el, "Điền thông tin rồi bấm Bắt đầu cuộc họp.");
     preloadMoonshine(el);
   }

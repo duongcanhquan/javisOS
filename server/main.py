@@ -4388,6 +4388,31 @@ async def meetings_list(brain: str = Query("brain"), limit: int = Query(20)):
         return {"ok": False, "error": str(e), "items": []}
 
 
+@app.get("/meetings/archive")
+async def meetings_archive(
+    brain: str = Query("brain"),
+    q: str = Query(""),
+    date: str = Query(""),
+    date_from: str = Query(""),
+    date_to: str = Query(""),
+    limit: int = Query(80),
+):
+    try:
+        return meetings.archive(
+            _brain_root(brain), q=q, date=date,
+            date_from=date_from, date_to=date_to, limit=limit)
+    except Exception as e:
+        return {"ok": False, "error": str(e), "total": 0, "groups": []}
+
+
+@app.get("/meetings/detail")
+async def meetings_detail(brain: str = Query("brain"), path: str = Query("")):
+    try:
+        return meetings.meeting_detail(_brain_root(brain), path)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/meetings/delete")
 async def meetings_delete(path: str = Form(""), brain: str = Form("brain")):
     try:

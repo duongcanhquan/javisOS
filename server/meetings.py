@@ -488,17 +488,244 @@ def delete_files(brain_root: str, rel_path: str) -> dict:
 
 
 def list_recent(brain_root: str, limit: int = 20) -> list[dict]:
+    arch = archive(brain_root, limit=limit)
+    flat = []
+    for g in arch.get("groups") or []:
+        for it in g.get("items") or []:
+            flat.append({
+                "name": Path(it["path"]).name,
+                "path": it["path"],
+                "kind": "transcript",
+                "mtime": it.get("mtime") or 0,
+                "size": it.get("size") or 0,
+                "title": it.get("title") or "",
+            })
+    return flat
+
+
+def _parse_simple_frontmatter(raw: str) -> tuple[dict, str]:
+    meta: dict = {}
+    body = raw
+    if raw.startswith("---"):
+        parts = raw.split("---", 2)
+        if len(parts) >= 3:
+            body = parts[2]
+            for line in parts[1].splitlines():
+                if ":" not in line:
+                    continue
+                k, v = line.split(":", 1)
+                k, v = k.strip(), v.strip()
+                if not k:
+                    continue
+                if v.startswith("[") or v.startswith('"'):
+                    try:
+                        meta[k] = json.loads(v)
+                    except json.JSONDecodeError:
+                        meta[k] = v.strip('"')
+                else:
+                    meta[k] = v
+    return meta, body
+
+
+def _date_time_from_file(name: str, meta: dict) -> tuple[str, str]:
+    """Trả (YYYY-MM-DD, HH:MM) từ frontmatter hoặc tên file."""
+    created = str(meta.get("created") or "")
+    m = re.match(r"(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})", created)
+    if m:
+        return m.group(1), m.group(2)
+    m = re.match(r"(\d{4}-\d{2}-\d{2})-(\d{4})", name)
+    if m:
+        t = m.group(2)
+        return m.group(1), f"{t[:2]}:{t[2:]}"
+    m = re.match(r"(\d{4}-\d{2}-\d{2})", name)
+    if m:
+        return m.group(1), ""
+    return "", ""
+
+
+def _extract_meeting_sections(body: str) -> tuple[str, str, str]:
+    """notes, transcript, heading title line."""
+    heading = ""
+    for line in body.splitlines():
+        if line.startswith("# "):
+            heading = line[2:].strip()
+            break
+    notes = ""
+    if "## Ghi chú trước họp" in body:
+        chunk = body.split("## Ghi chú trước họp", 1)[1]
+        if "## Transcript" in chunk:
+            notes = chunk.split("## Transcript", 1)[0].strip()
+        else:
+            notes = chunk.strip()
+    transcript = ""
+    if "## Transcript" in body:
+        transcript = body.split("## Transcript", 1)[1]
+        transcript = re.sub(r"\n_Kết thúc:.*$", "", transcript, flags=re.S).strip()
+    return notes, transcript, heading
+
+
+def _count_transcript_lines(transcript: str) -> int:
+    if not transcript:
+        return 0
+    n = len(re.findall(r"^\*\*\[", transcript, flags=re.M))
+    if n:
+        return n
+    return len([ln for ln in transcript.splitlines() if ln.strip()])
+
+
+def _read_text_limited(path: Path, max_bytes: int = 512_000) -> str:
+    try:
+        data = path.read_bytes()
+        if len(data) > max_bytes:
+            data = data[:max_bytes]
+        return data.decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _meeting_item_from_path(brain_root: str, p: Path) -> Optional[dict]:
+    if p.name.endswith("-summary.md"):
+        return None
+    raw = _read_text_limited(p)
+    if not raw:
+        return None
+    meta, body = _parse_simple_frontmatter(raw)
+    notes, transcript, heading = _extract_meeting_sections(body)
+    title = meta.get("title") or heading or p.stem
+    if isinstance(title, str):
+        title = title.strip()
+    else:
+        title = str(title)
+    attendees = meta.get("attendees") or []
+    if isinstance(attendees, str):
+        attendees = _parse_attendees(attendees)
+    elif not isinstance(attendees, list):
+        attendees = []
+    date_key, time_label = _date_time_from_file(p.name, meta)
+    if not date_key:
+        date_key = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d")
+    rel = str(p.relative_to(Path(brain_root))).replace("\\", "/")
+    stem = p.stem
+    summ_path = p.parent / f"{stem}-summary.md"
+    summ_rel = ""
+    summ_excerpt = ""
+    has_summary = summ_path.is_file()
+    if has_summary:
+        summ_rel = str(summ_path.relative_to(Path(brain_root))).replace("\\", "/")
+        summ_body = _read_text_limited(summ_path, 120_000)
+        _, summ_text, _ = _extract_meeting_sections(summ_body)
+        summ_excerpt = re.sub(r"\s+", " ", summ_text)[:280]
+    excerpt_src = transcript or notes or summ_excerpt
+    excerpt = re.sub(r"\s+", " ", excerpt_src)[:280]
+    line_count = _count_transcript_lines(transcript)
+    st = meta.get("status") or "unprocessed"
+    return {
+        "id": str(meta.get("meeting_id") or stem),
+        "title": title or p.stem,
+        "path": rel,
+        "summary_path": summ_rel or None,
+        "has_summary": has_summary,
+        "attendees": attendees[:20],
+        "notes": (notes or "")[:500],
+        "created": str(meta.get("created") or ""),
+        "date": date_key,
+        "time": time_label,
+        "line_count": line_count,
+        "excerpt": excerpt,
+        "status": st,
+        "mtime": p.stat().st_mtime,
+        "size": p.stat().st_size,
+    }
+
+
+def _in_date_range(date_key: str, date: str = "", date_from: str = "",
+                   date_to: str = "") -> bool:
+    if date and date_key != date:
+        return False
+    if date_from and date_key < date_from:
+        return False
+    if date_to and date_key > date_to:
+        return False
+    return True
+
+
+def archive(brain_root: str, q: str = "", date: str = "", date_from: str = "",
+            date_to: str = "", limit: int = 80) -> dict:
+    """Danh sách cuộc họp nhóm theo ngày, có tìm kiếm."""
     d = meetings_dir(brain_root)
-    files = sorted(d.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-    out = []
-    for p in files[: max(1, min(limit, 50))]:
-        kind = "summary" if p.name.endswith("-summary.md") else "transcript"
-        rel = str(p.relative_to(Path(brain_root))).replace("\\", "/")
-        out.append({
-            "name": p.name,
-            "path": rel,
-            "kind": kind,
-            "mtime": p.stat().st_mtime,
-            "size": p.stat().st_size,
-        })
-    return out
+    query = (q or "").strip().lower()
+    limit = max(1, min(int(limit or 80), 200))
+    items: list[dict] = []
+    for p in sorted(d.glob("*.md"), key=lambda x: x.stat().st_mtime, reverse=True):
+        it = _meeting_item_from_path(brain_root, p)
+        if not it:
+            continue
+        if not _in_date_range(it["date"], date, date_from, date_to):
+            continue
+        if query:
+            hay = " ".join([
+                it.get("title") or "",
+                " ".join(it.get("attendees") or []),
+                it.get("notes") or "",
+                it.get("excerpt") or "",
+                it.get("path") or "",
+                it.get("date") or "",
+            ]).lower()
+            if it.get("summary_path"):
+                sp = Path(brain_root) / it["summary_path"]
+                if sp.is_file():
+                    hay += " " + _read_text_limited(sp, 200_000).lower()
+            if it.get("path"):
+                tp = Path(brain_root) / it["path"]
+                if tp.is_file():
+                    hay += " " + _read_text_limited(tp, 300_000).lower()
+            if query not in hay:
+                continue
+        items.append(it)
+        if len(items) >= limit:
+            break
+    groups_map: dict[str, list] = {}
+    for it in items:
+        groups_map.setdefault(it["date"], []).append(it)
+    groups = []
+    for dk in sorted(groups_map.keys(), reverse=True):
+        groups.append({"date": dk, "items": groups_map[dk]})
+    return {"ok": True, "total": len(items), "groups": groups}
+
+
+def meeting_detail(brain_root: str, rel_path: str) -> dict:
+    root = Path(brain_root).resolve()
+    rel = (rel_path or "").strip().replace("\\", "/").lstrip("/")
+    if not rel or ".." in rel.split("/"):
+        return {"ok": False, "error": "Đường dẫn không hợp lệ"}
+    p = (root / rel).resolve()
+    try:
+        p.relative_to(root)
+    except ValueError:
+        return {"ok": False, "error": "Đường dẫn ngoài brain"}
+    if not p.is_file() or p.suffix.lower() != ".md":
+        return {"ok": False, "error": "Không tìm thấy file"}
+    if "meetings" not in [x.lower() for x in p.parts]:
+        return {"ok": False, "error": "Không phải file cuộc họp"}
+    if p.name.endswith("-summary.md"):
+        return {"ok": False, "error": "Chọn file transcript, không phải summary"}
+    it = _meeting_item_from_path(brain_root, p)
+    if not it:
+        return {"ok": False, "error": "Đọc file lỗi"}
+    raw = _read_text_limited(p, 800_000)
+    meta, body = _parse_simple_frontmatter(raw)
+    notes, transcript, _ = _extract_meeting_sections(body)
+    summary = ""
+    if it.get("summary_path"):
+        sp = root / it["summary_path"]
+        if sp.is_file():
+            _, summary, _ = _extract_meeting_sections(_read_text_limited(sp, 800_000))
+    return {
+        "ok": True,
+        **it,
+        "notes_full": notes,
+        "transcript": transcript,
+        "summary": summary,
+    }
+
+

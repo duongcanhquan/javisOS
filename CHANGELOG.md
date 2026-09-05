@@ -78,6 +78,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ### Sửa lỗi
 - **Cuộc họp kẹt "Nạp model".** Trước đó MicTranscriber tải nhầm model English Medium (~270MB) thay model tiếng Việt Base (~70MB) nên treo. Nay dùng đúng Moonshine VI + phân biệt người nói; tải nền khi mở trang.
 - **Cuộc họp: Dừng/Hủy khi đang tải model; nút Xóa file họp cũ.** Tạo file transcript trước khi tải Moonshine; WASM chạy cùng origin với dashboard (không phụ thuộc CDN).
+- **Lưu trữ cuộc họp theo ngày + tìm kiếm.** Tab Lưu trữ: lọc hôm nay/7 ngày/30 ngày, tìm theo tên/người/nội dung transcript, xem chi tiết và xóa từng cuộc họp.
 
 ## [0.35.39] - 2026-09-05
 ### Thêm mới
