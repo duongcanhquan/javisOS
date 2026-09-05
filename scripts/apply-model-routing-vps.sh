@@ -62,6 +62,17 @@ old_aux = dict(m.get("auxiliary") or {})
 local_ep = (m.get("ollama_local_endpoint") or "").strip()
 key = (m.get("ollama_key") or "").strip()
 
+ram_mb = 0
+try:
+    with open("/proc/meminfo", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("MemTotal:"):
+                ram_mb = int(line.split()[1]) // 1024
+                break
+except OSError:
+    ram_mb = 0
+print(f"host RAM ~{ram_mb} MB")
+
 
 def _ollama_has(name: str) -> bool:
     """True nếu Ollama local đã có model (kể cả :latest). Lỗi mạng → False."""
@@ -97,7 +108,7 @@ def _pick_local_model():
             # Base tag (vd qwen3:4b-instruct) → biến thể Modelfile bake num_ctx
             cand = "javis-" + prev.replace(":", "-")
         else:
-            cand = "javis-qwen3-4b-instruct"
+            cand = "javis-qwen3-8b" if ram_mb >= 10000 else "javis-qwen3-4b-instruct"
     # Install từng fail vì index.lock → routing trỏ javis-* nhưng model chưa tạo.
     # Dùng tạm base đã kéo (qwen3:4b-instruct) thay vì để nhắc hẹn 404/fallback Claude.
     if cand.startswith("javis-") and not _ollama_has(cand):
@@ -135,11 +146,14 @@ if not aux_mod:
 
 m["auxiliary"] = {"provider": aux_p, "model": aux_mod}
 if aux_p == "ollama-local":
-    # VPS ~6GB + 0 swap: ctx 8192 dễ OOM → "unexpected EOF". Việc nền đã rút prompt nên 4096 đủ.
+    target_ctx = 8192 if ram_mb >= 10000 else 4096
     cur_ctx = int(m.get("ollama_local_num_ctx") or 0)
-    if cur_ctx <= 0 or cur_ctx > 4096:
-        m["ollama_local_num_ctx"] = 4096
-        print("ollama_local_num_ctx -> 4096 (tránh OOM/unexpected EOF trên VPS 6GB)")
+    if cur_ctx != target_ctx:
+        m["ollama_local_num_ctx"] = target_ctx
+        print(f"ollama_local_num_ctx -> {target_ctx} (RAM host ~{ram_mb} MB)")
+    elif cur_ctx <= 0:
+        m["ollama_local_num_ctx"] = target_ctx
+        print(f"ollama_local_num_ctx -> {target_ctx}")
 print("auxiliary:", old_aux, "->", m["auxiliary"])
 print("ollama_local_endpoint:", local_ep or "(trống)")
 print("ollama_key:", "có" if key else "không")

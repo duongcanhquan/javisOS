@@ -199,6 +199,16 @@ if [ "$DRY" = "1" ]; then
   exit 0
 fi
 
+# num_ctx: ≤8GB RAM → 4096; ≥8GB → 8192 (VPS 12GB chạy qwen3:8b ổn với 8192).
+if [ -n "${JAVIS_OLLAMA_NUM_CTX:-}" ]; then
+  NUM_CTX="${JAVIS_OLLAMA_NUM_CTX}"
+elif awk -v r="$RAM_GB" 'BEGIN { exit !(r < 8) }'; then
+  NUM_CTX=4096
+else
+  NUM_CTX=8192
+fi
+echo "num_ctx Javis/Ollama: $NUM_CTX (RAM ${RAM_GB} GB)"
+
 echo "==> Cài Ollama trên host (nếu chưa có)"
 if ! command -v ollama >/dev/null 2>&1; then
   curl -fsSL https://ollama.com/install.sh | sh
@@ -212,8 +222,7 @@ if [ -d /etc/systemd/system ]; then
   cat >/etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment="OLLAMA_HOST=${OLLAMA_HOST_BIND}:11434"
-# 4096 an toàn việc nền trên VPS ~6GB không swap; 8192 dễ OOM → unexpected EOF. Đồng bộ engine.
-Environment="OLLAMA_CONTEXT_LENGTH=4096"
+Environment="OLLAMA_CONTEXT_LENGTH=${NUM_CTX}"
 EOF
   systemctl daemon-reload 2>/dev/null || true
   systemctl enable ollama 2>/dev/null || true
@@ -269,16 +278,8 @@ case "$CHOSEN" in
 esac
 
 # /v1/chat/completions bỏ qua options.num_ctx. Tạo biến thể Modelfile bake num_ctx
-# để cả đường OpenAI-compat lẫn native đều mở cửa sổ đúng NUM_CTX. Đồng thời unload model đang
-# nạp - không thì OLLAMA_CONTEXT_LENGTH vừa set vẫn bị model cũ giữ 4096.
-# ≤8GB RAM: 4096; máy to hơn: 8192. Ghi đè bằng JAVIS_OLLAMA_NUM_CTX.
-if [ -n "${JAVIS_OLLAMA_NUM_CTX:-}" ]; then
-  NUM_CTX="${JAVIS_OLLAMA_NUM_CTX}"
-elif awk -v r="$RAM_GB" 'BEGIN { exit !(r < 8) }'; then
-  NUM_CTX=4096
-else
-  NUM_CTX=8192
-fi
+# để cả đường OpenAI-compat lẫn native đều mở cửa sổ đúng NUM_CTX.
+# NUM_CTX đã tính ở trên theo RAM.
 # JAVIS_MODEL fingerprint - bake num_ctx vào model (không phụ thuộc /v1).
 JAVIS_MODEL="javis-${CHOSEN//:/-}"
 echo
@@ -295,6 +296,19 @@ else
   JAVIS_MODEL="$CHOSEN"
 fi
 rm -f "$TMP_MF"
+
+# Gỡ mọi model cũ không còn dùng (upgrade VPS / đổi model) - tiết kiệm đĩa 60GB.
+if [ "${JAVIS_OLLAMA_PURGE_UNUSED:-1}" = "1" ]; then
+  echo
+  echo "==> Gỡ model Ollama không còn dùng (giữ $CHOSEN + $JAVIS_MODEL)"
+  ollama list 2>/dev/null | awk 'NR>1 {print $1}' | while read -r _m; do
+    [ -n "$_m" ] || continue
+    [ "$_m" = "$CHOSEN" ] && continue
+    [ "$_m" = "$JAVIS_MODEL" ] && continue
+    echo "  - gỡ $_m"
+    ollama rm "$_m" 2>/dev/null || true
+  done
+fi
 
 echo
 
