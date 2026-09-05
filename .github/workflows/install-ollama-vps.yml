@@ -39,6 +39,8 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             cd "$DIR"
+            # Deploy/Install chạy song song dễ đụng index.lock → gỡ lock cũ trước khi reset.
+            rm -f .git/index.lock 2>/dev/null || true
             # Pin đúng commit kích hoạt workflow - tránh race fetch origin/main chưa kịp có bản mới.
             WANT_SHA="${{ github.sha }}"
             git fetch --all --prune 2>/dev/null || true

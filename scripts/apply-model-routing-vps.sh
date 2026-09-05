@@ -100,6 +100,12 @@ if not aux_mod:
     aux_mod = _pick_local_model() if aux_p == "ollama-local" else "gpt-oss:120b-cloud"
 
 m["auxiliary"] = {"provider": aux_p, "model": aux_mod}
+if aux_p == "ollama-local":
+    # VPS ~6GB: ctx >8k dễ swap → chậm; việc nền đã rút prompt nên 8k đủ
+    cur_ctx = int(m.get("ollama_local_num_ctx") or 0)
+    if cur_ctx <= 0 or cur_ctx > 8192:
+        m["ollama_local_num_ctx"] = 8192
+        print("ollama_local_num_ctx -> 8192 (tránh swap trên VPS 6GB)")
 print("auxiliary:", old_aux, "->", m["auxiliary"])
 print("ollama_local_endpoint:", local_ep or "(trống)")
 print("ollama_key:", "có" if key else "không")

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - ngày`, bên dưới nhóm thay đổi theo `### Thêm mới / Sửa lỗi / Cải thiện / Bảo mật`.
 
+## [0.35.49] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết chạy cực chậm trên VPS 6GB.** Hạ `num_ctx` 16k→8k (tránh swap), giữ model nóng 30 phút, cắt `num_predict`, giới hạn 8 vòng tool, báo "đang xử lý" ngay trên Telegram.
+
 ## [0.35.48] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi 12744 > 4096.** Chuyển local sang `/api/chat` (tôn trọng `num_ctx`), tạo model Modelfile bake 16k, ép lazy tool + rút disclaimer việc nền. `/v1` trước đó bỏ qua `options.num_ctx` nên vẫn kẹt 4096 dù đã gửi 16384.
