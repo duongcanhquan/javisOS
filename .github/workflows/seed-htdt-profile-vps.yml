@@ -1,0 +1,26 @@
+# Ghi Memory + agent/skill hồ sơ HTĐT (CĐ Việt Mỹ HN) lên brain VPS.
+name: Seed HTĐT profile on VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed memory/agents/skills over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune
+            git reset --hard origin/main
+            chmod +x scripts/seed-htdt-profile-vps.sh
+            bash scripts/seed-htdt-profile-vps.sh
