@@ -2925,7 +2925,7 @@
       `<button class="seg-btn ${reasoning === v ? "sel" : ""}" data-reason="${v}" title="${esc(d)}">` +
       `<span class="seg-lb">${l}</span><span class="seg-d">${esc(d)}</span></button>`).join("");
 
-    const KEYFIELD = { "openrouter": "openrouter_key", "anthropic-api": "anthropic_api_key", "openai": "openai_api_key", "gemini": "gemini_api_key", "groq": "groq_api_key", "deepseek": "deepseek_api_key", "ollama": "ollama_key" };
+    const KEYFIELD = { "openrouter": "openrouter_key", "anthropic-api": "anthropic_api_key", "openai": "openai_api_key", "gemini": "gemini_api_key", "groq": "groq_api_key", "deepseek": "deepseek_api_key", "ollama": "ollama_key", "copilot-cli": "copilot_github_token" };
     const provHead = (p, on, kindLabel, statusText) => `
         <div class="prov-head">
           <span class="prov-shield ${on ? "on" : ""}">${_shield(on)}</span>
@@ -2991,26 +2991,33 @@
         </div>`;
       }
       if (p.id === "copilot-cli") {
-        // GitHub Copilot CLI: dùng gói Copilot (subscription), không dán API key. Đăng nhập
-        // bằng `copilot login` hoặc token env trên máy chạy Javis - thẻ chỉ Kiểm tra lại.
+        // Hai lối như Antigravity (gói) + thẻ API (dán token): `copilot login` hoặc PAT.
         const dn = p.dang_nhap || {};
+        const tokOn = !!(p.token_set || (m.copilot_github_token_set));
+        const masked = (m.copilot_github_token || "").slice(-4);
         const st = on
-          ? "● Đã đăng nhập" + (p.auth_method ? " · " + esc(p.auth_method) : "")
+          ? "● Đã kết nối" + (p.auth_method ? " · " + esc(p.auth_method) : "")
             + " · " + p.models.length + " model"
-          : (p.cli_found ? "○ Đã cài CLI, chưa đăng nhập" : "○ Chưa cài GitHub Copilot CLI");
+          : (p.cli_found ? "○ Đã cài CLI, chưa kết nối" : "○ Chưa cài GitHub Copilot CLI");
         return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "MCP/skill", st)}
-          <div class="prov-note">Dùng <b>gói Copilot sẵn có</b> qua binary <code>copilot</code>. Không dán API key.</div>
+          <div class="prov-note">Giống Antigravity: dùng <b>gói Copilot</b> qua binary <code>copilot</code>,
+            hoặc dán <b>token GitHub</b> (fine-grained PAT, quyền Copilot Requests) ngay dưới.</div>
           ${p.cli_found ? "" : `<div class="prov-steps">
             <div>Cài: <code>${esc(p.cai_lenh || "npm install -g @github/copilot")}</code></div>
             ${dn.cai_shell ? `<div>Hoặc: <code>${esc(dn.cai_shell)}</code></div>` : ""}
           </div>`}
-          ${on ? "" : `<div class="prov-steps">
-            <div>Đăng nhập trên máy chạy Javis: <code>${esc(dn.dang_nhap || "copilot login")}</code> rồi bấm Kiểm tra lại.</div>
-            <div>Hoặc đặt <code>COPILOT_GITHUB_TOKEN</code> (cũng nhận <code>GH_TOKEN</code> / <code>GITHUB_TOKEN</code>).</div>
+          <div class="prov-steps">
+            <div><b>Lối 1 - gói:</b> trên máy chạy Javis gõ <code>${esc(dn.dang_nhap || "copilot login")}</code> rồi bấm Kiểm tra lại.</div>
+            <div><b>Lối 2 - token:</b> tạo fine-grained PAT (resource owner = tài khoản cá nhân, quyền Account → Copilot Requests), dán vào ô dưới.</div>
             ${dn.ghi_chu ? `<div class="dim">${esc(dn.ghi_chu)}</div>` : ""}
-          </div>`}
+          </div>
           <div class="prov-action" style="flex-wrap:wrap">
+            <input class="js-input" id="pk-copilot-cli" type="password"
+              placeholder="${tokOn ? "Đổi token (•••" + esc(masked) + ")" : "Dán GitHub token (github_pat_…)"}"
+              style="flex:1;min-width:180px;margin:0">
+            <button class="gcard-btn" data-pk="copilot-cli">${tokOn ? "Đổi token" : "Kết nối"}</button>
+            ${tokOn ? `<button class="gcard-btn ghost" data-disc="copilot-cli">Ngắt</button>` : ""}
             <button class="gcard-btn ghost" data-copilotcheck="1">Kiểm tra lại</button>
             <span id="copilotMsg" class="gcard-meta" style="margin-left:10px;flex:1;min-width:140px">${on ? "" : esc(p.auth_error || "")}</span>
           </div>
@@ -3096,7 +3103,7 @@
       <div class="md-page">
         <header class="jx-page-head">
           <div><h2 class="jx-page-title">Models</h2>
-          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp. GitHub Copilot CLI nằm ở tab <b>Chưa kết nối</b> (hoặc Đã kết nối sau khi đăng nhập).</p></div>
+          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp. GitHub Copilot CLI: tab <b>Chưa kết nối</b> - cài gói rồi <code>copilot login</code>, hoặc dán token GitHub trên thẻ.</p></div>
         </header>
         <div class="jx-split-2 md-top-grid">
           <section class="cview-section jx-pane">

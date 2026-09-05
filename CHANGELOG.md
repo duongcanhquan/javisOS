@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.89] - 2026-09-05
+### Cải tiến
+- **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
+- **Menu icon:** rê chuột vào thì bung rộng thật và hiện chữ tiêu đề (sửa lỗi hover vẫn kẹt 60px).
+
+
 ## [0.35.88] - 2026-09-05
 ### Cải tiến
 - **Menu trái:** thu còn icon theo nhóm; rê chuột vào thì bung rộng hiện chữ (giữ accordion).

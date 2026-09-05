@@ -1218,8 +1218,10 @@ PROVIDER_DEFS = [   # thứ tự = thứ tự hiển thị card ở trang Models
      "catalog_key": "grok-cli", "default_models": []},
     {"id": "antigravity-cli", "label": "Google Antigravity CLI", "kind": "cli", "key_field": None,
      "catalog_key": "antigravity-cli", "default_models": []},
-    {"id": "copilot-cli", "label": "GitHub Copilot CLI", "kind": "cli", "key_field": None,
-     "catalog_key": "copilot-cli", "default_models": []},
+    # key_field = token dán ở Models (fine-grained PAT). Vẫn kết nối được bằng `copilot login`
+    # không cần token: nhánh configured ở `_providers_view` gom cả hai lối.
+    {"id": "copilot-cli", "label": "GitHub Copilot CLI", "kind": "cli",
+     "key_field": "copilot_github_token", "catalog_key": "copilot-cli", "default_models": []},
     {"id": "openrouter",    "label": "OpenRouter",              "kind": "api", "key_field": "openrouter_key",    "catalog_key": "openrouter",
      "default_models": ["openai/gpt-4o-mini"]},
     {"id": "anthropic-api", "label": "Anthropic (API)",         "kind": "api", "key_field": "anthropic_api_key", "catalog_key": "anthropic-api",
@@ -1292,10 +1294,10 @@ def _providers_view(cfg):
             # cache ngay và tự làm mới ở thread nền.
             configured = bool(antigravity_cli.auth_status_nen().get("connected"))
         elif p["id"] == "copilot-cli":
-            # GitHub Copilot CLI cũng là một binary giữ phiên ngoài Javis. Cùng bài học với
-            # `agy`: không hỏi CLI trong luồng render trang Models, vì một binary kẹt login là
-            # đủ kéo chậm cả dashboard. auth_status_nen trả cache ngay và tự làm mới ở nền.
-            configured = bool(copilot_cli.auth_status_nen().get("connected"))
+            # Hai lối như Claude (gói / key): token dán trong settings HOẶC phiên `copilot login`
+            # (keyring). Không hỏi CLI trong handler /settings - auth_status_nen cache + nền.
+            configured = bool((m.get("copilot_github_token") or "").strip()) or bool(
+                copilot_cli.auth_status_nen().get("connected"))
         elif p["id"] == "ollama-local":
             # Thứ xác thực nó là ĐỊA CHỈ. Để rơi vào nhánh key_field=None bên dưới là "đã kết
             # nối" cho mọi máy, kể cả máy chưa hề đặt địa chỉ - ô chọn model liền bày một nhà
@@ -1351,12 +1353,16 @@ def _providers_view(cfg):
             item["dang_nhap"] = antigravity_cli.login_huong_dan()
         if p["id"] == "copilot-cli":
             _c = copilot_cli.auth_status_nen()
+            _tok = bool((m.get("copilot_github_token") or "").strip())
             item["cli_found"] = bool(copilot_cli.find_copilot_cli())
-            item["auth_method"] = _c.get("method", "")
-            item["auth_error"] = _c.get("error", "")
+            item["auth_method"] = ("token (Models)" if _tok else (_c.get("method", "") or ""))
+            item["auth_error"] = "" if (_tok or _c.get("connected")) else (_c.get("error", "") or "")
             item["cai_lenh"] = copilot_cli.lenh_cai()
             item["dang_nhap"] = copilot_cli.login_huong_dan()
-            item["auth_by_javis"] = False
+            # Ngắt chỉ xoá token Javis giữ. Phiên `copilot login` nằm keyring - không gỡ hộ.
+            item["auth_by_javis"] = _tok
+            item["token_set"] = _tok
+            item["needs_key"] = True   # thẻ Models hiện ô dán token (song song lối gói)
         if p["id"] == "anthropic-cli":
             # Gói Claude Code chạy bằng gì, và có đang gánh việc nền không. Trang Models vẽ ô
             # chọn + cảnh báo từ ba field này. Cảnh báo đi kèm DỮ LIỆU chứ không hardcode ở
@@ -3649,7 +3655,8 @@ async def settings_get():
     # Gói locale (múi giờ, tiền tệ, locale định dạng số). Dashboard KHÔNG tự suy nó từ ngôn
     # ngữ: hai thứ đó tách rời, người dùng đọc tiếng Anh mà vẫn ngồi ở UTC+7 là bình thường.
     safe["locale_fmt"] = localefmt.cho_giao_dien()
-    for kf in ("openrouter_key", "anthropic_api_key", "openai_api_key", "gemini_api_key", "groq_api_key"):
+    for kf in ("openrouter_key", "anthropic_api_key", "openai_api_key", "gemini_api_key",
+               "groq_api_key", "deepseek_api_key", "ollama_key", "copilot_github_token"):
         k = cfg["model"].get(kf, "")
         safe["model"][kf] = ("••••" + k[-4:]) if k else ""
         safe["model"][kf + "_set"] = bool(k)
@@ -3712,14 +3719,25 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             if _provider_def(prov) and mod:
                 _set_main_model(cfg, prov, mod)
         # Nhập credential provider (chỉ ghi khi có giá trị mới - tránh xoá bằng giá trị che ••••)
-        for kf in ("openrouter_key", "anthropic_api_key", "openai_api_key", "gemini_api_key", "groq_api_key"):
+        for kf in ("openrouter_key", "anthropic_api_key", "openai_api_key", "gemini_api_key",
+                   "groq_api_key", "deepseek_api_key", "ollama_key", "copilot_github_token"):
             if patch.get(kf):
                 m[kf] = patch[kf]
+                if kf == "copilot_github_token":
+                    try:
+                        copilot_cli.xoa_cache_auth()
+                    except Exception:
+                        pass
         # Ngắt kết nối 1 provider (xoá key). Nếu nó đang là MAIN → quay về Claude Code CLI để chat không gãy.
         if patch.get("clear_key"):
             d = _provider_def(patch["clear_key"])
             if d and d.get("key_field"):
                 m[d["key_field"]] = ""
+                if patch["clear_key"] == "copilot-cli":
+                    try:
+                        copilot_cli.xoa_cache_auth()
+                    except Exception:
+                        pass
                 if _effective_main(cfg).get("provider") == patch["clear_key"]:
                     _set_main_model(cfg, "anthropic-cli", m.get("claude_model") or "opus")
         # Gói Claude Code xác thực bằng gì: phiên subscription sẵn có, hay API key riêng.

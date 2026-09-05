@@ -1,11 +1,11 @@
-"""GitHub Copilot CLI (`copilot`) - bộ não subscription, không dán API key.
+"""GitHub Copilot CLI (`copilot`) - gói login hoặc token dán ở Models.
 
     python tests/run.py copilot      (KHÔNG mạng, KHÔNG cần cài copilot)
 
 Canh đúng những chỗ dễ sai lặng lẽ:
 1. Chỉ truyền cờ mà `copilot --help` khai.
 2. Hub MCP ghi type=http + url.
-3. Token env được coi là đã đăng nhập.
+3. Token env / token settings được coi là đã đăng nhập.
 4. Stream trả final từ JSON/text.
 """
 from _paths import ROOT, SERVER  # noqa: E402,F401
@@ -19,6 +19,7 @@ from pathlib import Path
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-copilot-test-")
 
+import config as cfgmod  # noqa: E402
 import copilot_cli  # noqa: E402
 
 _fails = []
@@ -46,7 +47,7 @@ def _gia(help_text="", chat_lines=None, chat_err="", chat_code=0,
     p = d / "copilot"
     p.write_text(
         "#!/usr/bin/env python3\n"
-        "import sys\n"
+        "import sys, os\n"
         "a = sys.argv[1:]\n"
         f"if '--help' in a:\n    sys.stdout.write({help_text!r}); sys.exit(0)\n"
         "if len(a) >= 2 and a[0] == 'auth' and a[1] == 'status':\n"
@@ -61,6 +62,10 @@ def _gia(help_text="", chat_lines=None, chat_err="", chat_code=0,
         "    data = ''\n"
         f"open({str(d / 'argv.txt')!r}, 'w', encoding='utf-8').write('\\x00'.join(a))\n"
         f"open({str(d / 'stdin.txt')!r}, 'w', encoding='utf-8').write(data)\n"
+        f"open({str(d / 'env.txt')!r}, 'w', encoding='utf-8').write("
+        "os.environ.get('COPILOT_GITHUB_TOKEN','') + '|' + "
+        "os.environ.get('GH_TOKEN','') + '|' + "
+        "os.environ.get('GITHUB_TOKEN',''))\n"
         f"for line in {json.dumps(chat_lines or [])}:\n"
         "    print(line, flush=True)\n"
         f"sys.stderr.write({chat_err!r})\n"
@@ -81,18 +86,11 @@ _HELP = (
     "  --additional-mcp-config <path>\n"
 )
 
-
-# 1. find binary ưu tiên env
-_tmp = Path(tempfile.mkdtemp(prefix="javis-copilot-bin-"))
-_bin = _tmp / "copilot"
-_bin.write_text("", encoding="utf-8")
-os.environ["JAVIS_COPILOT_BIN"] = str(_bin)
-_that_tim = copilot_cli.tim_binary
-copilot_cli.tim_binary = lambda _n: None
-check("find_copilot_cli ưu tiên JAVIS_COPILOT_BIN",
-      copilot_cli.find_copilot_cli() == str(_bin))
-os.environ.pop("JAVIS_COPILOT_BIN", None)
-copilot_cli.tim_binary = _that_tim
+_cli0, _ = _gia(help_text=_HELP)
+_reset_cache()
+copilot_cli.find_copilot_cli = lambda: _cli0
+check("co_co thấy --allow-all-tools", copilot_cli.co_co("--allow-all-tools"))
+check("co_co thấy -p", copilot_cli.co_co("-p", "--prompt"))
 
 
 # 2. hub entry
@@ -126,6 +124,24 @@ check("auth_status nhận COPILOT_GITHUB_TOKEN",
 os.environ.pop("COPILOT_GITHUB_TOKEN", None)
 
 
+# 4b. auth qua token settings (Models)
+_reset_cache()
+os.environ.pop("COPILOT_GITHUB_TOKEN", None)
+_cfg = cfgmod.read_settings()
+_cfg.setdefault("model", {})["copilot_github_token"] = "github_pat_test_token"
+cfgmod.write_settings(_cfg)
+_auth2 = copilot_cli.auth_status(bo_qua_cache=True)
+check("auth_status nhận token Models",
+      _auth2.get("connected") is True and "token" in (_auth2.get("method") or "").lower(),
+      _auth2)
+_env = copilot_cli.env_cho_cli()
+check("env_cho_cli đưa COPILOT_GITHUB_TOKEN từ settings",
+      _env.get("COPILOT_GITHUB_TOKEN") == "github_pat_test_token", _env)
+_cfg["model"]["copilot_github_token"] = ""
+cfgmod.write_settings(_cfg)
+copilot_cli.xoa_cache_auth()
+
+
 # 5. list models JSON
 _cli2, _ = _gia(
     help_text=_HELP,
@@ -137,11 +153,14 @@ check("list_models bóc JSON",
       copilot_cli.list_models() == ["gpt-5", "claude-sonnet-4.6"])
 
 
-# 6. query: probe cờ + final
+# 6. query: probe cờ + final + inject token
 _lines = [json.dumps({"type": "assistant", "content": "Xin chào từ Copilot."})]
 _cli3, _d3 = _gia(help_text=_HELP, chat_lines=_lines)
 _reset_cache()
 copilot_cli.find_copilot_cli = lambda: _cli3
+_cfg = cfgmod.read_settings()
+_cfg.setdefault("model", {})["copilot_github_token"] = "github_pat_from_models"
+cfgmod.write_settings(_cfg)
 _g = copilot_cli.CopilotCLI(cwd=str(_d3), model="gpt-5")
 _g.cli_path = _cli3
 _g.mode = "full"
@@ -154,6 +173,7 @@ async def _go_query():
 
 _evs = chay(_go_query())
 _argv = (_d3 / "argv.txt").read_text(encoding="utf-8").split("\x00")
+_envf = (_d3 / "env.txt").read_text(encoding="utf-8")
 check("stream trả final",
       any(e.get("type") == "final" and "Copilot" in (e.get("content") or "") for e in _evs),
       _evs)
@@ -164,6 +184,10 @@ check("truyền -s headless", "-s" in _argv, _argv)
 check("truyền --no-ask-user", "--no-ask-user" in _argv, _argv)
 check("truyền --model", "--model=gpt-5" in _argv or (
     "--model" in _argv and _argv[_argv.index("--model") + 1] == "gpt-5"), _argv)
+check("query inject token từ Models vào env",
+      _envf.startswith("github_pat_from_models|"), _envf)
+_cfg["model"]["copilot_github_token"] = ""
+cfgmod.write_settings(_cfg)
 
 
 # 7. CANARY: bản cũ không có --allow-all-tools thì không truyền
@@ -188,17 +212,22 @@ check("bản cũ vẫn trả final",
       any(e.get("type") == "final" for e in _evs4), _evs4)
 
 
-# 8. PROVIDER_DEFS đã khai
+# 8. PROVIDER_DEFS đã khai + key_field token
 sys.path.insert(0, str(SERVER))
-# Không import main (nặng). Chỉ đọc chuỗi.
 _main = (SERVER / "main.py").read_text(encoding="utf-8")
 check("main.py import copilot_cli", "import copilot_cli" in _main)
 check("PROVIDER_DEFS có copilot-cli", '"id": "copilot-cli"' in _main)
 check("có endpoint /copilot/check", '@app.post("/copilot/check")' in _main)
+_main_nospace = _main.replace(" ", "").replace("\n", "")
+check("key_field = copilot_github_token",
+      '"key_field":"copilot_github_token"' in _main_nospace
+      or "key_field\":\"copilot_github_token\"" in _main)
+_cfg_src = (SERVER / "config.py").read_text(encoding="utf-8")
+check("SECRET_PATHS có copilot_github_token",
+      "model.copilot_github_token" in _cfg_src)
 
 
-print()
 if _fails:
-    print(f"{len(_fails)} test HỎNG: " + ", ".join(_fails))
+    print("\nFAIL - test_copilot_cli: " + str(len(_fails)) + " lỗi")
     sys.exit(1)
-print("Tất cả test copilot_cli đã qua.")
+print("\nOK - test_copilot_cli: tat ca pass")

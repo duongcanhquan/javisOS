@@ -4,8 +4,9 @@
    Cockpit (.hud) giữ nguyên; layer này bọc thêm bên ngoài.
    ============================================ */
 :root {
-  --rail-w: 160px;
-  --rail-w-collapsed: 60px;
+  --rail-w-open: 160px;           /* bề ngang đầy đủ (có chữ) */
+  --rail-w-collapsed: 60px;       /* chỉ icon */
+  --rail-w: var(--rail-w-open);   /* layout (hud/cview) bám theo; thu gọn thì gán lại ở body */
   --font-ui: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   --rail-bg: rgba(6, 8, 15, 0.78);
   --glass: rgba(12, 16, 28, 0.58);
@@ -381,7 +382,9 @@ body.in-console .hud-actions { display: none; }
 .rail-tip.show { opacity: 1; transform: translateY(-50%) translateX(0); }
 
 /* ===== Chế độ THU GỌN sidebar (chỉ desktop): hẹp = icon; rê chuột vào rail → bung rộng hiện chữ.
-   Vẫn giữ nhóm accordion như lúc mở rộng (không dàn phẳng mọi mục). */
+   Vẫn giữ nhóm accordion khi thu; lúc hover tạm xổ mọi mục để nhìn được tên.
+   LƯU Ý: body.rail-collapsed gán --rail-w = hẹp (cho hud/cview). Hover PHẢI dùng
+   --rail-w-open, không dùng --rail-w - nếu không rail "bung" vẫn đúng 60px (bug 0.35.88). */
 @media (min-width: 861px) {
   body.rail-collapsed { --rail-w: var(--rail-w-collapsed); }
   .rail.collapsed {
@@ -389,10 +392,10 @@ body.in-console .hud-actions { display: none; }
     transition: width var(--rail-anim), box-shadow var(--rail-anim);
     overflow-x: hidden;
   }
-  /* Rê chuột / focus: bung đè lên nội dung, hiện chữ + tên nhóm */
+  /* Rê chuột / focus: bung đè lên nội dung bằng bề ngang ĐẦY ĐỦ, hiện chữ + tên nhóm */
   .rail.collapsed:hover,
   .rail.collapsed:focus-within {
-    width: var(--rail-w);
+    width: var(--rail-w-open);
     z-index: 90;
     box-shadow: 8px 0 28px rgba(0, 0, 0, 0.35);
   }
@@ -409,7 +412,7 @@ body.in-console .hud-actions { display: none; }
   .rail.collapsed:not(:hover):not(:focus-within) .rail-item .rail-lbl { display: none; }
   .rail.collapsed:not(:hover):not(:focus-within) .rf-meta { display: none; }
   .rail.collapsed:not(:hover):not(:focus-within) .rail-foot { justify-content: center; }
-  /* Hover: hiện lại chữ như rail mở */
+  /* Hover: hiện lại chữ như rail mở; tạm xổ mọi nhóm để thấy hết tiêu đề */
   .rail.collapsed:hover .rail-grp-lbl,
   .rail.collapsed:focus-within .rail-grp-lbl {
     justify-content: flex-start; padding: 8px 8px 8px 5px;
@@ -420,6 +423,10 @@ body.in-console .hud-actions { display: none; }
   .rail.collapsed:focus-within .rail-grp-lbl .grp-name { display: inline; }
   .rail.collapsed:hover .rail-grp-ico,
   .rail.collapsed:focus-within .rail-grp-ico { margin-right: 9px; }
+  .rail.collapsed:hover .rail-grp-items,
+  .rail.collapsed:focus-within .rail-grp-items {
+    max-height: 420px; opacity: 1; overflow: visible; padding: 2px 0 4px;
+  }
   .rail.collapsed:hover .rail-item,
   .rail.collapsed:focus-within .rail-item {
     justify-content: flex-start; padding: 7px 8px 7px 16px; gap: 10px;
@@ -431,7 +438,6 @@ body.in-console .hud-actions { display: none; }
   .rail.collapsed:hover .rail-foot,
   .rail.collapsed:focus-within .rail-foot { justify-content: space-between; }
   /* Đã bung chữ: tắt tip nổi (tránh đôi nhãn) */
-  .rail.collapsed:hover ~ #railTip,
   body.rail-collapsed:has(.rail.collapsed:hover) #railTip,
   body.rail-collapsed:has(.rail.collapsed:focus-within) #railTip { opacity: 0 !important; pointer-events: none; }
 }

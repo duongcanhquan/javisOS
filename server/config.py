@@ -102,6 +102,11 @@ _DEFAULT = {
         "gemini_api_key": "",                  # provider Google Gemini (endpoint OpenAI-compat)
         "groq_api_key": "",                    # provider Groq (endpoint OpenAI-compat, suy luận rất nhanh)
         "deepseek_api_key": "",                # provider DeepSeek (endpoint OpenAI-compat)
+        # GitHub Copilot CLI: fine-grained PAT (quyền Copilot Requests) dán ở trang Models.
+        # CLI nhận qua COPILOT_GITHUB_TOKEN - cùng đường GitHub khuyến nghị cho VPS/headless.
+        # Vẫn có lối `copilot login` (gói) như Antigravity, không bắt buộc dán token.
+        "copilot_github_token": "",
+
         # Provider 'ollama' = Ollama Cloud (ollama.com). Bản chạy trên máy nhà KHÔNG được đấu,
         # cố ý: nó đòi thêm một ô địa chỉ - ca đặc biệt duy nhất của cả lớp nhà cung cấp -
         # trong khi phần đông người dùng Javis chạy nó trên VPS, nơi "localhost" là chính cái
@@ -441,6 +446,7 @@ _DEFAULT = {
 _SECRET_PATHS = (
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
     "model.groq_api_key", "model.deepseek_api_key", "model.ollama_key",
+    "model.copilot_github_token",
     "model.openai_oauth.access_token", "model.openai_oauth.refresh_token", "model.openai_oauth.id_token",
     # Gemini CLI (đăng nhập Google ngay trên dashboard). Refresh token ở đây mở được cả gói
     # Code Assist của tài khoản Google, nên nó ngang hàng mọi secret khác trong danh sách.
