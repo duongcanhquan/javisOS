@@ -2188,7 +2188,7 @@
       '<option value="auto">Tự nhận diện</option>' +
       "</optgroup>" +
       "</select>" +
-      '<div class="dim" style="font-size:12.5px;margin-top:6px"><b>Tiếng Việt</b>: Moonshine trên máy (có nhãn người nói). <b>English và ngôn ngữ khác</b>: Web Speech ghi ngay trên Chrome/Edge — không chờ tải model. File ghi âm → Whisper (Groq) hỗ trợ mọi ngôn ngữ.</div></div>' +
+      "</div>" +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
