@@ -502,6 +502,35 @@ def ollama_local_url() -> str:
     ep = ep.rstrip("/")
     return (ep + "/v1/chat/completions") if ep else ""
 
+
+# Ollama mặc định num_ctx=4096. System prompt Javis (CLAUDE.md + memory + skill) dễ >10k
+# token → nhắc hẹn/việc nền nổ exceed_context_size_error. 16384 đủ cho việc nền trên VPS
+# 6–12GB; muốn cao hơn đặt model.ollama_local_num_ctx hoặc JAVIS_OLLAMA_NUM_CTX.
+_OLLAMA_LOCAL_NUM_CTX_DEFAULT = 16384
+
+
+def ollama_local_num_ctx() -> int:
+    """Cửa sổ ngữ cảnh gửi kèm mỗi lời gọi Ollama Local."""
+    try:
+        import config as cfgmod
+        n = int((cfgmod.read_settings().get("model", {}) or {}).get("ollama_local_num_ctx") or 0)
+        if n >= 2048:
+            return min(n, 131072)
+    except Exception:
+        pass
+    try:
+        n = int(os.environ.get("JAVIS_OLLAMA_NUM_CTX") or "0")
+        if n >= 2048:
+            return min(n, 131072)
+    except Exception:
+        pass
+    return _OLLAMA_LOCAL_NUM_CTX_DEFAULT
+
+
+def _ollama_local_extra() -> dict:
+    """Payload phụ cho Ollama Local: nâng num_ctx khỏi mặc định 4096."""
+    return {"options": {"num_ctx": ollama_local_num_ctx()}}
+
 # Model Anthropic hỗ trợ adaptive thinking + output_config.effort (khỏi budget_tokens).
 _ADAPTIVE_THINKING = ("opus-4-8", "opus-4-7", "opus-4-6", "opus-4-5", "sonnet-4-6", "fable-5", "mythos-5")
 
@@ -677,7 +706,8 @@ async def ollama_local_stream(api_key, model, messages, reasoning="off"):
         yield {"type": "error", "content": "Chưa đặt địa chỉ Ollama trong trang Models."}
         return
     async for ev in _openai_compat_stream(url, "Ollama (Local)", api_key, model,
-                                          messages, reasoning, False):
+                                          messages, reasoning, False,
+                                          extra=_ollama_local_extra()):
         yield ev
 
 
@@ -693,7 +723,8 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
         headers["Authorization"] = f"Bearer {api_key}"
     yield {"type": "meta", "model": model}
     async for ev in _cc_tool_loop(url, headers, model, messages,
-                                  mcp_tools, mcp_route, {}, "Ollama (Local)"):
+                                  mcp_tools, mcp_route, _ollama_local_extra(),
+                                  "Ollama (Local)"):
         yield ev
 
 

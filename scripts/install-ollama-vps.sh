@@ -192,6 +192,8 @@ if [ -d /etc/systemd/system ]; then
   cat >/etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment="OLLAMA_HOST=${OLLAMA_HOST_BIND}:11434"
+# Mặc định Ollama 4096 quá hẹp cho system prompt Javis (~10k+). Đồng bộ với engine.ollama_local_num_ctx.
+Environment="OLLAMA_CONTEXT_LENGTH=16384"
 EOF
   systemctl daemon-reload 2>/dev/null || true
   systemctl enable ollama 2>/dev/null || true

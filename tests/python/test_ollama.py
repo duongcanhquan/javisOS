@@ -245,6 +245,21 @@ try:
 finally:
     aux_engine._claude_session_ready = _real_ready
 
+# ---- 10. Ollama Local: num_ctx + rút system prompt việc nền ----
+# Ca thật: nhắc hẹn gửi ~12k token system (CLAUDE.md) trong khi Ollama mặc định 4096 → 400.
+import engine as _eng  # noqa: E402
+
+check("num_ctx mặc định >= 16384", _eng.ollama_local_num_ctx() >= 16384)
+check("extra có options.num_ctx",
+      (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) >= 16384)
+_huge = "X" * 20000
+_c = aux_engine._compact_ollama_local_sys(_huge, "/vault/test")
+check("system prompt việc nền local được rút gọn",
+      len(_c) < 2000 and "Javis" in _c and "/vault/test" in _c)
+_short = "Ngắn thôi."
+check("system prompt ngắn giữ nguyên",
+      aux_engine._compact_ollama_local_sys(_short, None) == _short)
+
 print()
 if _fails:
     print(f"THẤT BẠI {len(_fails)}: {_fails}")
