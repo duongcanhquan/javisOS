@@ -4262,7 +4262,7 @@
     // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
     // Gemini) đi native hoặc hub; provider API đi qua vòng gọi tool + hub. Antigravity/Gemini
     // CLI từng rơi vào nhánh vàng vì thiếu ở đây dù server đã gắn hub (_apply_antigravity_hub).
-    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local", "copilot-cli"];
+    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
@@ -4473,7 +4473,7 @@
               <label class="js-lbl">Bot token ${tg.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
               <input class="js-input" id="tgToken" type="password" placeholder="${tg.token_set ? "Để trống nếu không đổi" : "123456:ABC..."}">
               <label class="js-lbl">Chat ID được phép <span class="dim">(cách nhau dấu phẩy)</span></label>
-              <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="123456789, 987654321">
+              <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="Ví dụ: 123456789, 987654321">
               <div class="js-actions"><button class="gcard-btn" id="tgSave">Lưu & bật</button><button class="gcard-btn ghost" id="tgTest">Gửi test</button></div>
               <div class="gcard-meta" id="tgStatus"></div>
             </div>

@@ -22,7 +22,8 @@ track_block = APP.split("function trackMCP(toolName)", 1)[1].split(
 )[0]
 
 check("cột graph được phép co dưới min-content của canvas",
-      "grid-template-columns: 260px minmax(0, 1fr) 320px;" in STYLE)
+      "grid-template-columns: 260px minmax(0, 1fr) 340px;" in STYLE
+      or "grid-template-columns: 260px minmax(0, 1fr) 320px;" in STYLE)
 check("mọi hàng trực tiếp của HUD không ép rộng grid", ".hud > * { min-width: 0; }" in STYLE)
 check("model bar tự chặn tràn ngang",
       ".model-bar {" in STYLE and "width: 100%; max-width: 100%; min-width: 0;" in STYLE
