@@ -249,9 +249,15 @@ finally:
 # Ca thật: nhắc hẹn gửi ~12k token system (CLAUDE.md) trong khi Ollama mặc định 4096 → 400.
 import engine as _eng  # noqa: E402
 
-check("num_ctx mặc định >= 16384", _eng.ollama_local_num_ctx() >= 16384)
+check("num_ctx mặc định == 8192 (VPS 6GB không swap)", _eng.ollama_local_num_ctx() == 8192)
 check("extra có options.num_ctx",
-      (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) >= 16384)
+      (_eng._ollama_local_extra().get("options") or {}).get("num_ctx", 0) == 8192)
+check("extra giữ model nóng keep_alive",
+      bool(_eng._ollama_local_extra().get("keep_alive")))
+check("extra cắt num_predict",
+      (_eng._ollama_local_extra().get("options") or {}).get("num_predict", 0) > 0)
+check("local giới hạn vòng tool",
+      1 <= _eng.ollama_local_max_tool_rounds() <= 12)
 _huge = "X" * 20000
 _c = aux_engine._compact_ollama_local_sys(_huge, "/vault/test")
 check("system prompt việc nền local được rút gọn",

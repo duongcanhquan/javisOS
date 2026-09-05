@@ -512,14 +512,20 @@ def ollama_local_native_url() -> str:
     return (ep + "/api/chat") if ep else ""
 
 
-# Ollama mặc định num_ctx=4096. System prompt Javis (CLAUDE.md + memory + skill) dễ >10k
-# token → nhắc hẹn/việc nền nổ exceed_context_size_error. 16384 đủ cho việc nền trên VPS
-# 6–12GB; muốn cao hơn đặt model.ollama_local_num_ctx hoặc JAVIS_OLLAMA_NUM_CTX.
+# Ollama mặc định num_ctx=4096. Việc nền đã rút system + ép lazy tools nên 8192 đủ trên
+# VPS ~6GB RAM (CPU). 16384 từng làm KV ~2.4GB + weights ~2.5GB → swap → nhắc hẹn cực chậm.
+# Muốn cao hơn (máy 12GB+) đặt model.ollama_local_num_ctx hoặc JAVIS_OLLAMA_NUM_CTX.
 #
 # Quan trọng: endpoint OpenAI-compat `/v1/chat/completions` BỎ QUA options.num_ctx
 # (bám spec OpenAI). Chỉ `/api/chat` native + Modelfile PARAMETER num_ctx / OLLAMA_CONTEXT_LENGTH
 # (sau khi unload model) mới nâng được cửa sổ thật.
-_OLLAMA_LOCAL_NUM_CTX_DEFAULT = 16384
+_OLLAMA_LOCAL_NUM_CTX_DEFAULT = 8192
+# Giữ model nóng giữa các nhắc hẹn thưa; mặc định Ollama ~5 phút rồi unload → cold start lại.
+_OLLAMA_LOCAL_KEEP_ALIVE = "30m"
+# Câu trả lời Telegram/việc nền ngắn; không để sinh hàng nghìn token trên CPU.
+_OLLAMA_LOCAL_NUM_PREDICT = 512
+# Trần vòng tool cho local - mỗi vòng = 1 lần prefill chậm trên CPU.
+_OLLAMA_LOCAL_MAX_TOOL_ROUNDS = 8
 
 
 def ollama_local_num_ctx() -> int:
@@ -540,9 +546,33 @@ def ollama_local_num_ctx() -> int:
     return _OLLAMA_LOCAL_NUM_CTX_DEFAULT
 
 
+def ollama_local_max_tool_rounds() -> int:
+    """Trần vòng tool cho Ollama Local (CPU nhỏ - mỗi vòng rất đắt)."""
+    try:
+        import config as cfgmod
+        n = int((cfgmod.read_settings().get("model", {}) or {}).get("ollama_local_max_tool_rounds") or 0)
+        if n >= 1:
+            return min(n, 30)
+    except Exception:
+        pass
+    try:
+        n = int(os.environ.get("JAVIS_OLLAMA_LOCAL_MAX_TOOL_ROUNDS") or "0")
+        if n >= 1:
+            return min(n, 30)
+    except Exception:
+        pass
+    return _OLLAMA_LOCAL_MAX_TOOL_ROUNDS
+
+
 def _ollama_local_extra() -> dict:
-    """Payload phụ cho Ollama Local: nâng num_ctx khỏi mặc định 4096 (chỉ hiệu lực trên /api/chat)."""
-    return {"options": {"num_ctx": ollama_local_num_ctx()}}
+    """Payload phụ cho Ollama Local trên `/api/chat`: num_ctx vừa RAM + giữ model nóng + cắt output."""
+    return {
+        "keep_alive": _OLLAMA_LOCAL_KEEP_ALIVE,
+        "options": {
+            "num_ctx": ollama_local_num_ctx(),
+            "num_predict": _OLLAMA_LOCAL_NUM_PREDICT,
+        },
+    }
 
 
 def _ollama_native_to_openai(data: dict) -> dict:
@@ -823,7 +853,8 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
     async for ev in _cc_tool_loop(url, headers, model, messages,
                                   mcp_tools, mcp_route, _ollama_local_extra(),
                                   "Ollama (Local)",
-                                  response_adapter=_ollama_native_to_openai):
+                                  response_adapter=_ollama_native_to_openai,
+                                  max_rounds=ollama_local_max_tool_rounds()):
         yield ev
 
 
@@ -1613,11 +1644,12 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
 
 
 async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, reasoning_extra, label,
-                        cache_system=False, response_adapter=None):
+                        cache_system=False, response_adapter=None, max_rounds=None):
     """Vòng Chat Completions + tool (OpenAI/OpenRouter). Non-stream từng vòng; yield tool_call + text cuối.
     cache_system=True (OpenRouter + model Claude): đánh cache_control lên system - OpenAI/Gemini
     tự cache nên không cần.
-    response_adapter: gọi trên JSON response (vd Ollama native → OpenAI shape)."""
+    response_adapter: gọi trên JSON response (vd Ollama native → OpenAI shape).
+    max_rounds: trần vòng tool (None = JAVIS_MAX_TOOL_ROUNDS); Ollama Local truyền 8."""
     import mcp_client
     tools = _mcp_to_openai_tools(mcp_tools)
     msgs = _or_mark_system(messages) if cache_system else list(messages)
@@ -1685,7 +1717,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
             ),
         })
         requirement_pending = False
-    for _ in range(_max_tool_rounds()):
+    for _ in range(max_rounds if max_rounds is not None else _max_tool_rounds()):
         payload = {"model": model, "messages": msgs, "stream": False}
         # Bỏ hẳn khoá "tools" khi rỗng: vài endpoint OpenAI-compat từ chối mảng rỗng, và
         # nhánh cứu hộ ở dưới (model vấp cú pháp gọi tool) dựa vào đúng chỗ này.

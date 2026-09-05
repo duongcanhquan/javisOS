@@ -192,8 +192,8 @@ if [ -d /etc/systemd/system ]; then
   cat >/etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment="OLLAMA_HOST=${OLLAMA_HOST_BIND}:11434"
-# Mặc định Ollama 4096 quá hẹp cho system prompt Javis (~10k+). Đồng bộ với engine.ollama_local_num_ctx.
-Environment="OLLAMA_CONTEXT_LENGTH=16384"
+# 8192 đủ việc nền (sys rút + lazy tools) trên VPS ~6GB; 16384 dễ swap → chậm. Đồng bộ engine.
+Environment="OLLAMA_CONTEXT_LENGTH=8192"
 EOF
   systemctl daemon-reload 2>/dev/null || true
   systemctl enable ollama 2>/dev/null || true
@@ -251,7 +251,7 @@ esac
 # /v1/chat/completions bỏ qua options.num_ctx. Tạo biến thể Modelfile bake num_ctx
 # để cả đường OpenAI-compat lẫn native đều mở cửa sổ 16k. Đồng thời unload model đang
 # nạp - không thì OLLAMA_CONTEXT_LENGTH vừa set vẫn bị model cũ giữ 4096.
-NUM_CTX="${JAVIS_OLLAMA_NUM_CTX:-16384}"
+NUM_CTX="${JAVIS_OLLAMA_NUM_CTX:-8192}"
 # JAVIS_MODEL fingerprint - bake num_ctx vào model (không phụ thuộc /v1).
 JAVIS_MODEL="javis-${CHOSEN//:/-}"
 echo
