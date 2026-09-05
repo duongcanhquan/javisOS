@@ -66,9 +66,12 @@ key = (m.get("ollama_key") or "").strip()
 def _pick_local_model():
     if aux_mod and "cloud" not in aux_mod:
         return aux_mod
-    if old_aux.get("provider") == "ollama-local" and (old_aux.get("model") or "").strip():
-        return (old_aux.get("model") or "").strip()
-    # Model Modelfile bake num_ctx=16k (install-ollama-vps.sh). Base tag vẫn 4096.
+    prev = (old_aux.get("model") or "").strip() if old_aux.get("provider") == "ollama-local" else ""
+    if prev.startswith("javis-"):
+        return prev
+    # Base tag (vd qwen3:4b-instruct) → biến thể Modelfile bake num_ctx 16k
+    if prev and "cloud" not in prev:
+        return "javis-" + prev.replace(":", "-")
     return "javis-qwen3-4b-instruct"
 
 

@@ -252,6 +252,7 @@ esac
 # để cả đường OpenAI-compat lẫn native đều mở cửa sổ 16k. Đồng thời unload model đang
 # nạp - không thì OLLAMA_CONTEXT_LENGTH vừa set vẫn bị model cũ giữ 4096.
 NUM_CTX="${JAVIS_OLLAMA_NUM_CTX:-16384}"
+# JAVIS_MODEL fingerprint - bake num_ctx vào model (không phụ thuộc /v1).
 JAVIS_MODEL="javis-${CHOSEN//:/-}"
 echo
 echo "==> Tạo model Javis với num_ctx=${NUM_CTX}: $JAVIS_MODEL"
