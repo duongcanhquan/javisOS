@@ -2143,10 +2143,6 @@
       "<h2>" +
       ic("mic") +
       " Cuộc họp</h2>" +
-      '<p class="mt-hint"><b>Chỉ lưu chữ</b> (markdown trong <code>sources/meetings/</code>) — <b>không lưu file ghi âm</b> trên server. <b>Tổng kết</b> bằng Antigravity. Sau đó bấm <b>Đưa vào kiến thức</b> để chưng vào Wiki và (tuỳ chọn) gắn dự án — Javis mới “học” lâu dài.</p>' +
-      '<p class="mt-hint" style="margin-top:-6px"><b>Cần HTTPS</b> (vd <code>https://javis.vietmycollege.com</code>) và cho phép micro khi trình duyệt hỏi. Họp online (Zoom/Meet): micro thường chỉ nghe rõ bạn — ghi file rồi “File → chữ” nếu cần bắt cả phòng.</p>' +
-      '<p class="mt-hint dim" id="mtMoonshinePreload" style="margin-top:-6px;font-size:13px"></p>' +
-      '<div class="mt-steps"><span>1. Ghi chú</span><span>2. Ghi chữ</span><span>3. Dừng</span><span>4. Tổng kết</span><span>5. Kiến thức</span></div>' +
       "</div>" +
       '<nav class="mt-tabs" role="tablist">' +
       '<button type="button" class="mt-tab mt-tab-active" data-mt-tab="new" role="tab" aria-selected="true">' +

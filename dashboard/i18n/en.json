@@ -31,7 +31,7 @@
   "page.learn.sub": "Rewire Memory · Wiki · Skills (safe, undoable)",
   "page.meetings.label": "Meetings",
   "page.meetings.title": "Meetings",
-  "page.meetings.sub": "Record · transcript · Ollama summary",
+  "page.meetings.sub": "",
   "page.kanban.label": "Tasks",
   "page.kanban.title": "Tasks (Kanban)",
   "page.kanban.sub": "Javis writes the spec, dispatches and runs background tasks",
