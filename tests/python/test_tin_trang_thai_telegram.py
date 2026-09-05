@@ -123,8 +123,9 @@ check("KHÔNG còn gọi deleteMessage", not c.goi("deleteMessage"),
 gui = c.goi("sendMessage")
 check("tin trạng thái gửi IM LẶNG", bool(gui) and gui[0].get("disable_notification") is True,
       gui[0] if gui else None)
-check("tin trạng thái mở đầu bằng 'đang xử lý'",
-      bool(gui) and "đang xử lý" in (gui[0].get("text") or "").lower(), gui[0] if gui else None)
+check("tin trạng thái mở đầu bằng 'đang thực hiện yêu cầu'",
+      bool(gui) and "đang thực hiện yêu cầu" in (gui[0].get("text") or "").lower(),
+      gui[0] if gui else None)
 
 check("câu trả lời là tin MỚI, không phải sửa tin cũ", len(gui) == 2, len(gui))
 check("tin cuối cùng chính là câu trả lời",

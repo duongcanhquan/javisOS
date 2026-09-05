@@ -685,7 +685,7 @@ class TelegramBot(HangLuot):
         if self.giau_trang_thai:
             giu = asyncio.create_task(self._giu_typing(client, chat))
         else:
-            status_mid = await self._send_status(client, chat, "🤔 Javis đang xử lý…")
+            status_mid = await self._send_status(client, chat, "Em đang thực hiện yêu cầu…")
         _last = [0.0]
         t0 = time.monotonic()
         tools = []          # tên công cụ đã gọi trong lượt, giữ thứ tự, không trùng

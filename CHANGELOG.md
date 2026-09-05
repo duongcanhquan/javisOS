@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.78] - 2026-09-05
+### Cải thiện
+- **Telegram báo chờ thân thiện hơn.** Tin trạng thái đổi từ "Javis đang xử lý…" sang "Em đang thực hiện yêu cầu…".
+
+
 ## [0.35.77] - 2026-09-05
 ### Sửa lỗi
 - **Gemini API hết báo 404 model 2.5-flash.** Google đã ngừng bán `gemini-2.5-flash` cho tài khoản mới; Javis tự đổi sang `gemini-3.6-flash` (và cập nhật danh sách mặc định trên Telegram/Models).
