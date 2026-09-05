@@ -32,10 +32,11 @@ FILES["memory/MEMORY.md"] = """# Bộ nhớ Javis - Index
 
 > Chỉ mục bộ nhớ dài hạn của Javis. Mỗi dòng = 1 ký ức, trỏ tới file trong `facts/`.
 > Nội dung file này được nạp vào đầu mỗi câu hỏi để Javis nhớ ngữ cảnh.
+> Link trỏ `memory/facts/...` (đường từ gốc brain) để trang Tệp tin mở đúng.
 
-- [Dương Cảnh Quân - Trưởng phòng HTĐT & Trưởng ban Công nghệ](facts/user-duong-canh-quan-htdt.md) - CĐ Việt Mỹ Hà Nội
-- [Nhiệm vụ Phòng HTĐT (6 nhóm)](facts/business-nhiem-vu-phong-htdt.md) - thực tập, DN, dự án, quốc tế, BGH, công nghệ
-- [Cách hỗ trợ công việc HTĐT](facts/preference-ho-tro-htdt.md) - đề xuất/kế hoạch, map đúng vai, dùng Gmail/Lịch
+- [Dương Cảnh Quân - Trưởng phòng HTĐT & Trưởng ban Công nghệ](memory/facts/user-duong-canh-quan-htdt.md) - CĐ Việt Mỹ Hà Nội
+- [Nhiệm vụ Phòng HTĐT (6 nhóm)](memory/facts/business-nhiem-vu-phong-htdt.md) - thực tập, DN, dự án, quốc tế, BGH, công nghệ
+- [Cách hỗ trợ công việc HTĐT](memory/facts/preference-ho-tro-htdt.md) - đề xuất/kế hoạch, map đúng vai, dùng Gmail/Lịch
 """
 
 FILES["memory/facts/user-duong-canh-quan-htdt.md"] = """---

@@ -4190,7 +4190,7 @@
     // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
     // Gemini) đi native hoặc hub; provider API đi qua vòng gọi tool + hub. Antigravity/Gemini
     // CLI từng rơi vào nhánh vàng vì thiếu ở đây dù server đã gắn hub (_apply_antigravity_hub).
-    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek"];
+    const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
@@ -5769,6 +5769,7 @@
     document.getElementById("neBody").innerHTML = ""; document.getElementById("neActions").innerHTML = "";
     _neSaveFn = null;
     _neOpenRel = "";
+    try { window.JavisNoteOpenRel = ""; } catch (e) {}
     _neLayNoiDung = null; _neGocText = null;
     // Vệt đường đi SỐNG QUA lần đóng: đóng trình sửa để quay sang chat về chính note đó rồi mở
     // lại là luồng thường gặp nhất, xoá vệt ở đây là bắt người ta đi lại từ đầu.
@@ -6071,6 +6072,7 @@
     _neVeNutLui();
     ed.hidden = false; ed.classList.remove("ne-full");
     _neOpenRel = rel || "";     // để chip "file đang mở" biết có cần nạp lại hay chỉ cần đưa mắt về
+    try { window.JavisNoteOpenRel = _neOpenRel; } catch (e) {}
     _neLayNoiDung = null; _neGocText = null;   // file mới: mốc so sánh dựng lại ở dưới
     // Đang ở trang Trò chuyện thì trình sửa chiếm chỗ khung chat thay vì đè lên visual não
     // (thứ không hề hiện ở trang này). Trang Tệp tin cũng vậy: chiếm chỗ danh sách file.

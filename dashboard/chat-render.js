@@ -785,6 +785,10 @@
   }
 
   function moFileVault(rel) {
+    // Link markdown trong note hay ghi tương đối kiểu Obsidian: từ memory/MEMORY.md
+    // ghi (facts/x.md) nghĩa là memory/facts/x.md, không phải facts/ ở gốc brain.
+    // Khi đang mở một note, ghép với thư mục của note đó trước khi mở.
+    rel = resolveVaultRelTuNoteDangMo(rel);
     // Duong CHINH: console.js quyet dinh (file sua duoc -> trinh sua, con lai -> trang Tep tin).
     // Gom ve mot cho vi deep-link `#open=` cung goi dung ham do; hai ban sao luat se lech nhau,
     // ma trieu chung cua lech la "cung mot file luc thi sua duoc luc thi ve thu muc".
@@ -795,6 +799,28 @@
     if (!hep && typeof window.JavisOpenNote === "function") { window.JavisOpenNote(rel); return; }
     if (typeof window.JavisEditFile === "function") { window.JavisEditFile(rel); return; }
     if (typeof window.JavisOpenFiles === "function") window.JavisOpenFiles(rel);
+  }
+
+  function resolveVaultRelTuNoteDangMo(rel) {
+    rel = String(rel || "").replace(/\\/g, "/").replace(/^\.?\//, "");
+    if (!rel || /^(https?:|mailto:|data:|blob:)/i.test(rel)) return rel;
+    if (rel.charAt(0) === "/") return rel.replace(/^\/+/, "");
+    var base = "";
+    try { base = String(window.JavisNoteOpenRel || ""); } catch (e) { base = ""; }
+    base = base.replace(/\\/g, "/");
+    if (!base) return rel;
+    // Đã là đường từ gốc brain (memory/…, agents/…) thì giữ nguyên.
+    if (/^(memory|agents|skills|workflows|wiki|sources|attachments|Javis)\//i.test(rel)) return rel;
+    var dir = base.indexOf("/") >= 0 ? base.replace(/\/[^/]+$/, "") : "";
+    if (!dir) return rel;
+    var parts = (dir + "/" + rel).split("/");
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i] || parts[i] === ".") continue;
+      if (parts[i] === "..") { if (out.length) out.pop(); continue; }
+      out.push(parts[i]);
+    }
+    return out.join("/");
   }
 
   // ---------------------------------------------------------------- lightbox xem anh
