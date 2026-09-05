@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.35.64] - 2026-09-05
+### Cải thiện
+- **Chat Zalo/Telegram tách tầng tốc độ.** VPS tự ghim kênh nhắn tin sang API flash (Groq/Gemini/DeepSeek…) nếu đã có key - phản hồi nhanh, vẫn gọi MCP; Antigravity giữ cho dashboard và việc nền.
+
+
 ## [0.35.63] - 2026-09-05
 ### Cải thiện
 - **Chat Telegram/Zalo nhanh hơn.** Zalo cũng đi được chế độ Siêu tiết kiệm (trước bị sót); ghim model trên Telegram áp luôn cho Zalo; VPS ép lazy MCP để bớt schema tool mỗi lượt.

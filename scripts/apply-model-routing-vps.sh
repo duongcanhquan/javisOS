@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Áp phân tầng model trên VPS (cloud-first, không Ollama local):
-#   Main     = Antigravity CLI (chat / MCP / lệnh máy / tra web)
+#   Main     = Antigravity CLI (dashboard / MCP nặng / lệnh máy)
 #   Việc nền = Antigravity CLI (nhắc hẹn, loop, Kanban, tự học, tổng kết sáng)
+#   Nhắn tin = API flash nhanh (Groq/Gemini/DeepSeek/OpenRouter nếu có key)
+#              → Telegram + Zalo phản hồi nhanh nhưng VẪN gọi MCP qua hub
 #   Họp      = Antigravity (trang Cuộc họp → Tổng kết)
-#   STT họp  = Moonshine (browser) hoặc Groq Whisper (upload file âm)
 #
-# Tuỳ chọn: JAVIS_NEW_ADMIN_PASSWORD=... để reset mật khẩu đăng nhập dashboard.
+# Tuỳ chọn env:
+#   JAVIS_MSG_PROVIDER / JAVIS_MSG_MODEL  - ép provider/model cho Telegram+Zalo
+#   JAVIS_NEW_ADMIN_PASSWORD              - reset mật khẩu dashboard
 # Idempotent. Chạy trong thư mục repo trên VPS (cần docker container javis đang chạy).
 set -euo pipefail
 
@@ -14,6 +17,8 @@ MAIN_PROVIDER="${JAVIS_MAIN_PROVIDER:-antigravity-cli}"
 MAIN_MODEL="${JAVIS_MAIN_MODEL:-}"
 AUX_PROVIDER="${JAVIS_AUX_PROVIDER:-antigravity-cli}"
 AUX_MODEL="${JAVIS_AUX_MODEL:-}"
+MSG_PROVIDER="${JAVIS_MSG_PROVIDER:-}"
+MSG_MODEL="${JAVIS_MSG_MODEL:-}"
 
 echo "==> container: $CONTAINER"
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
@@ -21,12 +26,14 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   exit 1
 fi
 
-echo "==> áp Main=$MAIN_PROVIDER | Việc nền=$AUX_PROVIDER (cloud, không Ollama local)"
+echo "==> áp Main=$MAIN_PROVIDER | Việc nền=$AUX_PROVIDER | Nhắn tin=${MSG_PROVIDER:-auto}"
 docker exec -i -u javis \
   -e "JAVIS_MAIN_PROVIDER=$MAIN_PROVIDER" \
   -e "JAVIS_MAIN_MODEL=$MAIN_MODEL" \
   -e "JAVIS_AUX_PROVIDER=$AUX_PROVIDER" \
   -e "JAVIS_AUX_MODEL=$AUX_MODEL" \
+  -e "JAVIS_MSG_PROVIDER=$MSG_PROVIDER" \
+  -e "JAVIS_MSG_MODEL=$MSG_MODEL" \
   -e "JAVIS_NEW_ADMIN_PASSWORD=${JAVIS_NEW_ADMIN_PASSWORD:-}" \
   "$CONTAINER" python - <<'PY'
 import os
@@ -42,6 +49,8 @@ main_p = (os.environ.get("JAVIS_MAIN_PROVIDER") or "antigravity-cli").strip()
 main_mod = (os.environ.get("JAVIS_MAIN_MODEL") or "").strip()
 aux_p = (os.environ.get("JAVIS_AUX_PROVIDER") or "antigravity-cli").strip()
 aux_mod = (os.environ.get("JAVIS_AUX_MODEL") or "").strip()
+msg_p = (os.environ.get("JAVIS_MSG_PROVIDER") or "").strip()
+msg_mod = (os.environ.get("JAVIS_MSG_MODEL") or "").strip()
 new_pw = os.environ.get("JAVIS_NEW_ADMIN_PASSWORD") or ""
 
 # --- Main ---
@@ -67,6 +76,57 @@ if not aux_mod:
         aux_mod = main_mod or "gemini-3.8-flash-high"
 m["auxiliary"] = {"provider": aux_p, "model": aux_mod}
 print("auxiliary:", old_aux, "->", m["auxiliary"])
+
+# --- Nhắn tin (Telegram + Zalo): API flash nếu có key, không thì giữ Antigravity ---
+# Ưu tiên tốc độ TTFT: Groq > Gemini API > DeepSeek > OpenRouter. API đi HTTP, không spawn
+# `agy` mỗi tin → phản hồi nhanh; MCP hub vẫn gắn nên đọc lịch/Gmail/Chat vẫn được.
+# Thiếu Bash/WebFetch/Task của CLI - đủ cho hầu hết tin nhắn; việc nặng để dashboard/nền.
+_KEY = {
+    "groq": "groq_api_key",
+    "gemini": "gemini_api_key",
+    "deepseek": "deepseek_api_key",
+    "openrouter": "openrouter_key",
+}
+_MAC_DINH_MSG = {
+    "groq": "llama-3.3-70b-versatile",
+    "gemini": "gemini-2.5-flash",
+    "deepseek": "deepseek-v4-flash",
+    "openrouter": "google/gemini-2.0-flash-001",
+}
+
+
+def _co_key(prov: str) -> bool:
+    k = _KEY.get(prov)
+    return bool(k and str(m.get(k) or "").strip())
+
+
+old_tg = dict(m.get("telegram") or {})
+if msg_p:
+    if msg_p not in _MAC_DINH_MSG and msg_p != "antigravity-cli":
+        print("WARN: JAVIS_MSG_PROVIDER lạ", msg_p, "- bỏ qua ghim nhắn tin")
+        msg_p = ""
+    elif msg_p in _KEY and not _co_key(msg_p):
+        print("WARN: JAVIS_MSG_PROVIDER=", msg_p, "nhưng chưa có API key - bỏ qua")
+        msg_p = ""
+if not msg_p:
+    for ung in ("groq", "gemini", "deepseek", "openrouter"):
+        if _co_key(ung):
+            msg_p = ung
+            break
+if msg_p:
+    if not msg_mod:
+        msg_mod = _MAC_DINH_MSG.get(msg_p) or ""
+    m["telegram"] = {"provider": msg_p, "model": msg_mod}
+    print("messaging (Telegram+Zalo):", old_tg, "->", m["telegram"])
+else:
+    # Không có API key nào: đừng ghim Antigravity (trùng Main, vô ích). Giữ/xoá ghim cũ
+    # nếu ghim cũ trỏ API đã mất key.
+    cu = (old_tg.get("provider") or "").strip()
+    if cu in _KEY and not _co_key(cu):
+        m["telegram"] = {"provider": "", "model": ""}
+        print("messaging: gỡ ghim cũ (hết key)", old_tg)
+    else:
+        print("messaging: giữ", old_tg or "(theo Main/Antigravity - chưa có API key flash)")
 
 # --- Xóa Ollama local (VPS không dùng) ---
 cleared = []
@@ -115,7 +175,7 @@ else:
     cfg.write_settings(s)
     print("auth: không đổi (không truyền JAVIS_NEW_ADMIN_PASSWORD)")
 
-print("OK - đã ghi settings (cloud-first)")
+print("OK - đã ghi settings (cloud-first, nhắn tin tách tầng)")
 PY
 
-echo "==> xong. Kiểm tra: Models → Main + Model việc nền = Antigravity."
+echo "==> xong. Main/Aux = Antigravity; Telegram+Zalo = API flash (nếu có key)."
