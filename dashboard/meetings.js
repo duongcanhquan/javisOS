@@ -16,6 +16,7 @@
     ws: null,
     lines: 0,
     speakers: {}, // index -> name
+    lineBuffer: [], // dòng chờ meetingId (STT bật trước fetch)
   };
 
   function hasWebSpeech() {
@@ -197,6 +198,40 @@
     });
   }
 
+  /** Trả mic cho SpeechRecognition — chat voice (app.js) giữ getUserMedia thì SR im lặng. */
+  function releaseMicConflicts() {
+    try {
+      if (typeof voice !== "undefined" && voice) {
+        if (voice.stopListening) voice.stopListening();
+        if (voice._stopMicMeter) voice._stopMicMeter();
+      }
+    } catch (e) {}
+  }
+
+  function queueLine(text, t0, t1, speaker, speakerIndex) {
+    if (!(text || "").trim()) return;
+    if (!state.meetingId) {
+      state.lineBuffer.push({
+        text: text,
+        t0: t0 || 0,
+        t1: t1 || 0,
+        speaker: speaker || "",
+        speakerIndex: speakerIndex == null ? -1 : speakerIndex,
+      });
+      return;
+    }
+    sendLine(text, t0, t1, speaker, speakerIndex);
+  }
+
+  async function flushLineBuffer() {
+    var buf = state.lineBuffer || [];
+    state.lineBuffer = [];
+    for (var i = 0; i < buf.length; i++) {
+      var ln = buf[i];
+      await sendLine(ln.text, ln.t0, ln.t1, ln.speaker, ln.speakerIndex);
+    }
+  }
+
   async function sendLine(text, t0, t1, speaker, speakerIndex) {
     var mid = state.meetingId;
     if (!mid || !(text || "").trim()) return;
@@ -259,7 +294,16 @@
     rec.lang = "vi-VN";
     rec.continuous = true;
     rec.interimResults = true;
-    rec.maxAlternatives = 1;
+    rec.maxAlternatives = 3;
+
+    rec.onstart = function () {
+      setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
+    };
+
+    rec.onspeechstart = function () {
+      var partial = root.querySelector("#mtPartial");
+      if (partial && !partial.textContent) partial.textContent = "…";
+    };
 
     rec.onresult = function (ev) {
       if (!state.running) return;
@@ -282,7 +326,7 @@
           second: "2-digit",
         });
         appendFinal(root, tx, wall, "");
-        sendLine(tx, 0, 0, "", -1);
+        queueLine(tx, 0, 0, "", -1);
       });
     };
 
@@ -293,6 +337,12 @@
         setStatus(root, "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ).", "err");
       } else if (err === "audio-capture") {
         setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
+      } else if (err === "network") {
+        setStatus(
+          root,
+          "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối hoặc dùng File ghi âm → chữ.",
+          "err"
+        );
       } else {
         setStatus(root, "Nhận giọng: " + err, "err");
       }
@@ -306,7 +356,72 @@
       }
     };
 
-    rec.start();
+    try {
+      rec.start();
+    } catch (e1) {
+      stopWebSpeech();
+      rec = new SR();
+      rec.lang = "vi-VN";
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 3;
+      rec.onstart = function () {
+        setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
+      };
+      rec.onspeechstart = function () {
+        var partial = root.querySelector("#mtPartial");
+        if (partial && !partial.textContent) partial.textContent = "…";
+      };
+      rec.onresult = function (ev) {
+        if (!state.running) return;
+        var interim = "";
+        var finals = [];
+        for (var i = ev.resultIndex; i < ev.results.length; i++) {
+          var piece = ((ev.results[i][0] && ev.results[i][0].transcript) || "").trim();
+          if (!piece) continue;
+          if (ev.results[i].isFinal) finals.push(piece);
+          else interim += piece;
+        }
+        if (interim) setPartial(root, interim.replace(/\s+/g, " ").trim(), "");
+        finals.forEach(function (tx) {
+          tx = tx.replace(/\s+/g, " ").trim();
+          if (!tx) return;
+          setPartial(root, "");
+          var wall = new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+          appendFinal(root, tx, wall, "");
+          queueLine(tx, 0, 0, "", -1);
+        });
+      };
+      rec.onerror = function (ev) {
+        var err = (ev && ev.error) || "";
+        if (err === "no-speech" || err === "aborted") return;
+        if (err === "not-allowed") {
+          setStatus(root, "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ).", "err");
+        } else if (err === "audio-capture") {
+          setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
+        } else if (err === "network") {
+          setStatus(
+            root,
+            "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối hoặc dùng File ghi âm → chữ.",
+            "err"
+          );
+        } else {
+          setStatus(root, "Nhận giọng: " + err, "err");
+        }
+      };
+      rec.onend = function () {
+        if (state.running && state.speechRec === rec) {
+          try {
+            rec.start();
+          } catch (e) {}
+        }
+      };
+      rec.start();
+    }
     state.speechRec = rec;
     state.sttEngine = "webspeech";
   }
@@ -353,7 +468,7 @@
           second: "2-digit",
         });
         appendFinal(root, tx, wall, who);
-        sendLine(tx, t0, t1, who, idx);
+        queueLine(tx, t0, t1, who, idx);
       })
       .onError(function (err) {
         setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
@@ -402,11 +517,37 @@
 
     state.loading = true;
     state.stopped = false;
+    state.lineBuffer = [];
     seedSpeakersFromInput(root);
     var startBtn = root.querySelector("#mtStart");
     if (startBtn) startBtn.disabled = true;
+
+    releaseMicConflicts();
+
+    setPhase(root, "live");
+    root.querySelector("#mtLines").innerHTML =
+      '<div class="mt-empty dim">Đang nghe… mỗi câu sẽ ghi vào file transcript.</div>';
+    root.querySelector("#mtSummary").innerHTML = "";
+    refreshSpeakerBar(root);
+
+    var sttStarted = false;
     try {
-      setStatus(root, "Tạo file ghi chú trên server…");
+      // Bật STT ngay trong cử chỉ bấm — await fetch trước đó khiến Chrome không thu tiếng (voice.js).
+      if (hasWebSpeech()) {
+        setStatus(root, "Bật micro (Web Speech)…");
+        startWebSpeechSafe(root);
+        state.running = true;
+        sttStarted = true;
+        var stopBtn = root.querySelector("#mtStop");
+        if (stopBtn) stopBtn.disabled = false;
+      }
+
+      setStatus(
+        root,
+        sttStarted
+          ? "Đang nghe — tạo file ghi chú trên server…"
+          : "Tạo file ghi chú trên server…"
+      );
       var f = new FormData();
       f.append("title", title);
       f.append("notes", notes);
@@ -422,25 +563,10 @@
       if (pathEl) pathEl.textContent = r.path || "";
       var countEl = root.querySelector("#mtCount");
       if (countEl) countEl.textContent = "0";
-      root.querySelector("#mtLines").innerHTML =
-        '<div class="mt-empty dim">Đang nghe… mỗi câu sẽ ghi vào file transcript.</div>';
-      root.querySelector("#mtSummary").innerHTML = "";
-      refreshSpeakerBar(root);
-      setPhase(root, "live");
 
-      if (hasWebSpeech()) {
-        setStatus(root, "Bật micro (Web Speech)…");
-        startWebSpeechSafe(root);
-        state.running = true;
-        var stopBtn = root.querySelector("#mtStop");
-        if (stopBtn) stopBtn.disabled = false;
-        setStatus(
-          root,
-          "Đang nghe qua micro (Chrome/Edge). Nói rõ; mỗi câu sẽ ghi vào file transcript.",
-          "ok"
-        );
-        await ensureWs();
-      } else {
+      await flushLineBuffer();
+
+      if (!sttStarted) {
         try {
           await startMoonshine(root);
           state.running = true;
@@ -451,15 +577,22 @@
             "Đang ghi (Moonshine). Nói rõ; hệ thống gắn nhãn người nói khi phân biệt được.",
             "ok"
           );
-          await ensureWs();
         } catch (moonErr) {
           throw new Error(
             (moonErr && moonErr.message) ||
               "Không tải được Moonshine. Dùng Chrome/Edge hoặc chọn File ghi âm → chữ."
           );
         }
+      } else {
+        setStatus(
+          root,
+          "Đang nghe qua micro (Chrome/Edge). Nói rõ; mỗi câu sẽ ghi vào file transcript.",
+          "ok"
+        );
       }
+      await ensureWs();
     } catch (e) {
+      state.running = false;
       stopWebSpeech();
       if (state.mic) {
         try {
@@ -471,6 +604,7 @@
         state.mic = null;
       }
       state.sttEngine = "";
+      state.lineBuffer = [];
       setStatus(root, "Không bắt đầu được: " + (e.message || e), "err");
       if (startBtn) startBtn.disabled = false;
       state.meetingId = null;
@@ -763,6 +897,8 @@
 
   function roi() {
     state.running = false;
+    state.lineBuffer = [];
+    releaseMicConflicts();
     stopWebSpeech();
     if (state.mic) {
       try {
