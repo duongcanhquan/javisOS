@@ -108,9 +108,9 @@ fi
 
 echo "==> health"
 ok_health=0
-# App mới thường sẵn trong ~10-25s; đợi ngắn rồi poll dày.
-sleep 3
-for i in $(seq 1 24); do
+# Startup có thể >1 phút (system sync skills/binary). Đợi dài hơn trước khi báo HEALTH_FAIL.
+sleep 8
+for i in $(seq 1 45); do
   if curl -fsS -m 3 http://127.0.0.1:7777/health >/dev/null; then
     curl -fsS -m 3 http://127.0.0.1:7777/health || true
     echo
@@ -118,7 +118,7 @@ for i in $(seq 1 24); do
     break
   fi
   echo "waiting health... ($i)"
-  sleep 2
+  sleep 3
 done
 if [ "$ok_health" != "1" ]; then
   echo "HEALTH_FAIL"
