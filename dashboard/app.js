@@ -249,9 +249,8 @@ function handleMessage(data) {
       if (!t.bubble) { t.bubble = createStreamingBubble(); showActivity(Icons.msg("pen-line", "Đang soạn câu trả lời...")); }
       t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
       scrollBottom();
-      // Gom tới hết câu rồi mới đọc. Đọc từng mẩu stream sẽ khựng giữa câu.
+      // Đọc theo stream: chữ tới đâu loa đọc tới đó (voice.feedStream gom cụm ngắn).
       if (voice.ttsEnabled && data.tts !== false) {
-        // Cắt câu chờ filler để khỏi nối liền với câu trả lời thật.
         if (t.waitFiller) { voice.stopSpeaking(); t.waitFiller = false; }
         setOrbState("speaking", "ĐANG NÓI");
         const safeChunk = (data.content || "").replace(/<!--[\s\S]*/, "");
@@ -393,13 +392,10 @@ function sendMessage(text) {
   turns[sid] = { text: "", bubble: null, spoke: false, running: true, waitFiller: false };
   setSessionRunning(sid, true);
   setOrbState("thinking", "ĐANG SUY NGHĨ");
-  // Câu chờ giọng nói: giảm cảm giác im lặng trước khi có chữ (chip hiện ngay, TTS đọc nếu đang bật).
+  // Chip chờ hiện ngay. KHÔNG đọc filler bằng TTS — đọc rồi cắt khi chữ thật tới
+  // làm chậm và không tự nhiên. Loa chỉ nói nội dung trả lời (stream).
   const waitLine = "Cho em chút thời gian để trả lời.";
   showActivity(waitLine);
-  if (voice.ttsEnabled) {
-    voice.enqueueSpeak(waitLine);
-    turns[sid].waitFiller = true;
-  }
   syncActiveUI();
   // Server đóng dấu model đang chạy cho phiên ngay từ tin đầu -> bar hiện "ghim" tại chỗ.
   try { if (window.JavisModelBar) window.JavisModelBar.noteStamped(sid); } catch (e) {}

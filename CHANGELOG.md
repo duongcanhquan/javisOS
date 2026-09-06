@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.86] - 2026-09-06
+### Cải tiến
+- **Giọng đọc theo stream:** chữ ra đến đâu đọc đến đó (cụm ngắn hơn, prefetch sớm); bỏ TTS câu chờ filler để khỏi cắt rồi mới nói — hội thoại nhanh/tự nhiên hơn.
 ## [0.55.85] - 2026-09-06
 ### Sửa lỗi
 - **Brief báo chí Telegram/Zalo có link bấm được:** tin mới dùng `[tiêu đề](url)` + dòng Đọc chi tiết; Zalo không còn cắt mất phần sau 1900 ký tự (chia nhiều tin); Telegram nhắc hẹn gửi MarkdownV2 + chia đoạn.

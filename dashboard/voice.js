@@ -33,7 +33,7 @@ class JavisVoice {
     // Edge TTS backend (server)
     this.ttsBackend = opts.ttsBackend || "/tts"; // "/tts" hoặc null để dùng browser
     this.ttsVoice = opts.ttsVoice || "vi-VN-HoaiMyNeural"; // nhãn UI: Ngọc Thu (nữ) | Nam Minh (nam)
-    this.ttsRate = opts.ttsRate || "+25%";
+    this.ttsRate = opts.ttsRate || "+35%";
     this.currentAudio = null;
     this.ttsQueue = [];
     this.speechQueue = [];   // hàng đợi đọc nối tiếp (các bước trung gian + kết quả)
@@ -674,15 +674,15 @@ class JavisVoice {
       }
       const nextI = (this._chunkIndex == null ? 0 : this._chunkIndex) + 1;
       const next = this.ttsChunks[nextI] || "";
-      if (next.length >= 360) this._prefetch(nextI);
+      if (next.length >= 120) this._prefetch(nextI);
       return;
     }
     this.speechQueue.push(clean);
     if (!this.isPlaying) this._pumpQueue();
   }
 
-  // Stream token: gom thành cụm ~550 ký tự rồi mới gọi TTS.
-  // Tách từng câu là nguyên nhân đọc xong dòng 1 rồi im vài giây chờ Edge TTS câu sau.
+  // Stream token: đọc SỚM khi đã đủ cụm ngắn; không đợi hết cả đoạn.
+  // Cụm quá nhỏ → nhiều request Edge TTS (khựng). Cụm quá lớn → trễ loa so với chữ.
   feedStream(raw, opts = {}) {
     if (!this.ttsEnabled && !opts.force) return;
     this._streamOpen = true;
@@ -706,33 +706,32 @@ class JavisVoice {
     const started = this.isPlaying || (this.speechQueue && this.speechQueue.length)
       || (this.ttsChunks && this.ttsChunks.length);
     if (!started) {
-      // Đọc SỚM ngay khi UI đã hiện dòng đầu (xuống dòng) hoặc hết câu ngắn —
-      // khỏi chờ cả đoạn rồi mới gọi Edge TTS.
-      const line = clean.match(/^[\s\S]{8,140}?(?:\n+|$)/);
-      if (line && (/\n/.test(line[0]) || /[.!?…]["'\)]*\s*$/.test(line[0].trim()))) {
+      // Bắt đầu đọc càng sớm càng tốt: xuống dòng / hết câu / cụm ~20–55 ký tự.
+      const line = clean.match(/^[\s\S]{6,100}?(?:\n+|$)/);
+      if (line && (/\n/.test(line[0]) || /[.!?…,;:]["'\)]*\s*$/.test(line[0].trim()))) {
         const piece = line[0].replace(/\n+$/, " ").trim();
-        if (piece.length >= 8) {
+        if (piece.length >= 6) {
           this._streamBuf = clean.slice(line[0].length);
           this.enqueueSpeak(piece, opts);
           return;
         }
       }
-      const sent = clean.match(/^[\s\S]{12,140}?[.!?…]["'\)]*(?:\s+|$)/);
+      const sent = clean.match(/^[\s\S]{8,90}?[.!?…]["'\)]*(?:\s+|$)/);
       if (sent) {
         this._streamBuf = clean.slice(sent[0].length);
         this.enqueueSpeak(sent[0].trim(), opts);
         return;
       }
-      // Chưa có dấu câu: cắt sớm (~40–90 ký tự) để loa ra gần với chữ trên màn.
-      if (clean.length < 40) return;
-      const n = this._cutChunk(clean, 40, 90);
+      // Chưa có dấu câu: cắt sớm để loa bắt kịp chữ trên màn.
+      if (clean.length < 20) return;
+      const n = this._cutChunk(clean, 20, 55);
       this._streamBuf = clean.slice(n);
       this.enqueueSpeak(clean.slice(0, n).trim(), opts);
       return;
     }
-    // Tiếp nối: cụm vừa phải + prefetch chunk sau (trong enqueueSpeak/_speakBackend).
-    if (clean.length < 220) return;
-    const n = this._cutChunk(clean, 160, 360);
+    // Đang đọc: đẩy cụm tiếp theo sớm hơn (prefetch che latency Edge TTS).
+    if (clean.length < 70) return;
+    const n = this._cutChunk(clean, 55, 140);
     this._streamBuf = clean.slice(n);
     this.enqueueSpeak(clean.slice(0, n).trim(), opts);
   }
@@ -946,13 +945,13 @@ class JavisVoice {
 
   _splitHeadThenRest(text) {
     if (!text) return [];
-    if (text.length <= 100) return [text];
-    // Câu/đầu dòng rất ngắn → Edge TTS trả về sớm, loa ra gần lúc chữ hiện.
-    const n = this._cutChunk(text, 36, 100);
+    if (text.length <= 70) return [text];
+    // Đầu rất ngắn → Edge TTS trả sớm, loa gần lúc chữ hiện; phần sau prefetch song song.
+    const n = this._cutChunk(text, 24, 70);
     const head = text.slice(0, n).trim();
     const rest = text.slice(n).trim();
     const chunks = head ? [head] : [];
-    if (rest) chunks.push(...this._splitIntoChunks(rest, 520));
+    if (rest) chunks.push(...this._splitIntoChunks(rest, 280));
     return chunks.filter(Boolean);
   }
 
@@ -1075,7 +1074,7 @@ class JavisVoice {
       const utter = new SpeechSynthesisUtterance(chunks[idx++]);
       utter.lang = this.lang;
       if (this.vietnameseVoice) utter.voice = this.vietnameseVoice;
-      utter.rate = 1.25;
+      utter.rate = 1.35;
       utter.onend = playNext;
       utter.onerror = playNext;
       this.synth.speak(utter);
