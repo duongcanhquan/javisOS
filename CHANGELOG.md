@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.72] - 2026-09-06
+### Thêm mới
+- **Tổng hợp báo chí RSS:** skill lọc tin hôm trước đến 8h sáng theo chủ đề (mặc định giáo dục CĐ-ĐH), tối đa 10 link; nhắc 8h và `/run brief-bao-chi-sang`.
+
 ## [0.55.71] - 2026-09-06
 ### Cải tiến
 - **Tách Model nghiên cứu khỏi việc nền:** trang Models có ô riêng cho workflow/Studio; form sửa workflow chọn được model; danh sách workflow hiện 2 cột trên màn rộng.
