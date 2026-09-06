@@ -47,6 +47,10 @@ Skill hệ thống kèm theo: `lam-video` (catalog chọn pipeline + **cổng br
 
 Ghi chú: hai skill mà agent mẫu tham chiếu (deep-research, salepage-16-buoc) chỉ là tên gán sẵn. Nếu brain của bạn chưa có hai skill đó thì agent vẫn chạy bình thường, chỉ là không có hướng dẫn chuyên sâu kèm theo.
 
+### Bộ Pháp chế
+
+Trên trang **Workflows**, bấm **Bộ Pháp chế** (hoặc `POST /studio/seed-phap-che`) để tạo agent **Pháp chế** (nhóm Pháp chế) gắn skills `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`, `query-wiki`, `ingest-source`, đồng thời scaffold `sources/phap-che/README.md` nếu chưa có. Chi tiết kho Drive + wiki + RAG: [Pháp chế cá nhân](28-phap-che-ca-nhan.md).
+
 ## Tìm nhanh khi đã có nhiều: cột nhóm và ô tìm
 
 Cả hai trang Agents và Workflows đều có một cột **Nhóm** bên trái, kèm số đếm từng nhóm, và một ô tìm ở trên danh sách. Cách dùng giống hệt trang [Skills](06-skills.md):

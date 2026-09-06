@@ -1,7 +1,7 @@
 // ============================================
 // JAVIS OS - Voice Layer
 // Nghe: ưu tiên Web Speech (trình duyệt, không cần API key).
-// Có Groq key thì vẫn có thể dùng Whisper qua /stt (sttMode=whisper|auto khi available).
+// Cloud STT qua /stt khi có Gemini (ưu tiên) / OpenAI / Groq tuỳ chọn — sttMode=whisper|auto.
 // Đọc: Edge TTS (server) / browser.
 // ============================================
 
@@ -43,14 +43,15 @@ class JavisVoice {
     this._resumeAfterTTS = false;  // mic đang mở khi TTS bắt đầu → đọc xong tự mở nghe lại
     this._resumeTimer = null;
 
-    // STT: mặc định Web Speech (không phụ thuộc Groq). Whisper chỉ khi sttMode=whisper
-    // hoặc auto + server báo có key Groq.
+    // STT: mặc định Web Speech (không phụ thuộc Groq/Gemini). Cloud STT chỉ khi sttMode=whisper
+    // hoặc auto + server báo có key.
     // sttMode: "auto" | "whisper" | "browser"
     this.sttBackend = opts.sttBackend || "/stt";
     this.sttMode = opts.sttMode || "browser";
     this._whisperReady = null;   // null=chưa hỏi, true/false
+    this._sttProviderLabel = "";
     this._sttEngine = "browser"; // engine đang dùng cho lượt nghe hiện tại
-    this._transcribing = false;  // đang upload/nhận dạng Whisper — chặn restart hands-free
+    this._transcribing = false;  // đang upload/nhận dạng cloud — chặn restart hands-free
     this._mediaRecorder = null;
     this._recChunks = [];
     this._speechSeen = false;
@@ -76,6 +77,7 @@ class JavisVoice {
       this._whisperReady = !!d.available;
       this._sttHint = d.hint || "";
       this._sttModel = d.model || "";
+      this._sttProviderLabel = d.label || d.provider || "";
       return this._whisperReady;
     } catch (e) {
       this._whisperReady = false;
@@ -90,7 +92,9 @@ class JavisVoice {
   }
 
   sttEngineLabel() {
-    if (this._useWhisper()) return "Whisper (Groq) · chuẩn";
+    if (this._useWhisper()) {
+      return (this._sttProviderLabel || "Cloud STT") + " · chuẩn";
+    }
     return "Web Speech (trình duyệt) · dự phòng";
   }
 

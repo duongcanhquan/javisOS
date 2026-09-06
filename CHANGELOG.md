@@ -4,6 +4,18 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.105] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp chắc chắn hơn:** không cần Groq; VI thiếu Moonshine → Cloud STT Gemini trước Web Speech; failover Moonshine→Gemini→Web Speech; tổng kết nhận Antigravity hoặc Gemini API.
+## [0.55.104] - 2026-09-06
+### Cải tiến
+- **STT không bắt buộc Groq:** Cloud STT ưu tiên Gemini (rồi OpenAI); cuộc họp = Moonshine → Web Speech → cloud; mic chat mặc định Web Speech.
+## [0.55.103] - 2026-09-06
+### Cải tiến
+- **Pháp chế cá nhân:** `sources/phap-che` scaffold, skills phap-che / so sánh / snapshot web, plugin + API search hybrid (wiki + RAG sidecar), sync rclone, seed agent **Bộ Pháp chế**.
+## [0.55.102] - 2026-09-06
+### Cải tiến
+- **Khoang não ngân hà:** nền starfield + tinh vân chảy; đồ thị xoáy chậm + shimmer dây nối; tắt khi lite/mobile/reduced-motion.
 ## [0.55.101] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp / Moonshine:** gửi COOP/COEP (credentialless) + MIME `.ort`/`.wasm` để WASM threads chạy; bỏ qua Moonshine khi thiếu `crossOriginIsolated`.

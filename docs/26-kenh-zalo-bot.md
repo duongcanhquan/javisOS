@@ -81,7 +81,7 @@ Kết quả việc nền và nhắc hẹn đặt từ Zalo sẽ **tự về đú
 
 Bấm giữ micro trong Zalo, nói, thả tay. Javis nghe câu đó thành chữ và làm y như bạn gõ tay.
 
-**Cần API key của Groq** - chỗ Javis mượn để chuyển giọng nói thành chữ (model Whisper). Vào dashboard, trang **Models**, mục **Groq (API)**, dán key lấy ở [console.groq.com](https://console.groq.com) rồi lưu. Chưa đấu thì gửi tin thoại Javis sẽ nói rõ là cần dán key, không im lặng. Dán xong dùng được ngay, không cần tắt bật lại bot.
+**Cần API key Google Gemini** (ưu tiên) hoặc OpenAI ở trang **Models** để chuyển giọng thành chữ. Không bắt buộc Groq. Chưa đấu thì gửi tin thoại Javis sẽ nói rõ; dán xong dùng ngay, không cần tắt bot.
 
 Đây là **cùng một key với kênh Telegram**: đấu một lần là hai kênh cùng nghe được.
 

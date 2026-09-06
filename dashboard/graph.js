@@ -139,6 +139,30 @@ function _centerGravity(strength) {
   return force;
 }
 
+// Xoáy rất nhẹ quanh tâm (thiên hà) — tangential, không đẩy bán kính. strength ~0.008–0.02.
+function _swirlForce(strength) {
+  let _nodes = [];
+  const force = () => {
+    // Không nhân alpha: giữ drift chậm sau khi simulation nguội (alpha≈0).
+    const k = strength;
+    for (let i = 0; i < _nodes.length; i++) {
+      const n = _nodes[i];
+      if (n.fx != null || n.fy != null) continue;
+      n.vx += -n.y * k;
+      n.vy += n.x * k;
+    }
+  };
+  force.initialize = (ns) => { _nodes = ns; };
+  force.strength = (_) => { if (_ != null) strength = _; return force; };
+  return force;
+}
+
+function _prefersReducedMotion() {
+  try {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  } catch (e) { return false; }
+}
+
 class JavisGraph {
   constructor(container) {
     this.container = container;
@@ -150,6 +174,10 @@ class JavisGraph {
     this._hoverId = null;
     this._nbrs = new Set();
     this._catFilter = null;
+    this._swirl = null;
+    this._swirlOn = false;
+    this._lite = false;
+    this._reducedMotion = _prefersReducedMotion();
     window.__javisGraph = this;
     try { window.dispatchEvent(new Event("javis-graph-created")); } catch (e) {}
   }
@@ -199,10 +227,22 @@ class JavisGraph {
         .cooldownTime(5000)
         .linkColor(l => {
           if (self._hoverId != null) {
-            const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
-            return (s === self._hoverId || t === self._hoverId) ? INK.linkOn : INK.linkOff;
+            const s = (l.source && l.source.id) || l.source, tg = (l.target && l.target.id) || l.target;
+            return (s === self._hoverId || tg === self._hoverId) ? INK.linkOn : INK.linkOff;
           }
-          return INK.linkIdle;                      // dây nối mờ hơn (đỡ đậm)
+          if (self._swirlOn && !self._reducedMotion) {
+            const t = (typeof performance !== "undefined" ? performance.now() : Date.now());
+            const shimmer = 0.72 + 0.28 * Math.sin(t / 1800 + (l.__ph || 0));
+            const m = String(INK.linkIdle).match(/rgba?\(([^)]+)\)/);
+            if (m) {
+              const parts = m[1].split(",").map((x) => x.trim());
+              if (parts.length >= 4) {
+                const a = Math.min(0.2, parseFloat(parts[3]) * shimmer * 1.35);
+                return "rgba(" + parts[0] + "," + parts[1] + "," + parts[2] + "," + a.toFixed(3) + ")";
+              }
+            }
+          }
+          return INK.linkIdle;
         })
         .linkWidth(l => {
           if (self._hoverId != null) {
@@ -232,6 +272,7 @@ class JavisGraph {
           if (self._fitted) return;
           self._fitted = true;
           self._fit(500);
+          self._keepSwirlAlive();
         });
 
       // Lực đẩy vừa (node gần nhau, không văng) + hút MẠNH về tâm (co thành khối TRÒN, kéo node lẻ vào)
@@ -239,13 +280,17 @@ class JavisGraph {
       try { this.graph.d3Force("charge").strength(-70); } catch (e) {}
       try { const lf = this.graph.d3Force("link"); if (lf) lf.distance(26); } catch (e) {}
       try { this.graph.d3Force("gravity", _centerGravity(0.1)); } catch (e) {}           // hút mạnh hơn → kéo cụm rời/xa vào gần
+      this._swirl = _swirlForce(0.012);
+      this._applySwirlGate();
       this.resize();
     }
 
     this._fitted = false;
     this._t0 = (typeof performance !== "undefined" ? performance.now() : Date.now());
     try { this.graph.minZoom(0.05); } catch (e) {}   // mở lại giới hạn để lần fit mới không bị kẹp
+    links.forEach((l, i) => { l.__ph = ((i * 17) % 628) / 100; });
     this.graph.graphData({ nodes, links });
+    this._applySwirlGate();
     this.resize();
     return data;
   }
@@ -259,7 +304,8 @@ class JavisGraph {
     const isNbr = hovering && this._nbrs.has(n.id);
     const catDim = this._catFilter && n.__cat !== this._catFilter && !isHover && !isNbr;
     const dim = (hovering && !isHover && !isNbr) || catDim;
-    const breathe = 1 + 0.05 * Math.sin(t / 650 + (n.__ph || 0));       // thở nhẹ, lệch pha
+    const breathe = 1 + (this._swirlOn && !this._reducedMotion ? 0.08 : 0.05)
+      * Math.sin(t / 650 + (n.__ph || 0));       // thở nhẹ, lệch pha (mạnh hơn khi ngân hà bật)
     const pulse = this._thinking ? (1 + (0.16 + 0.3 * this.level) * Math.sin(t / 220)) : (1 + 0.25 * this.level);
     let born = 1;
     if (n.__born) { const age = (t - n.__born) / 500; born = age < 1 ? age : 1; if (age >= 1) n.__born = 0; }  // nảy sinh
@@ -357,11 +403,50 @@ class JavisGraph {
   // --- Điều khiển vòng đời đồ thị ---
   pause() {
     if (this.graph) { try { this.graph.pauseAnimation(); } catch (e) {} }
+    this._setSwirlActive(false);
   }
-  wake() { if (this.graph) { try { this.graph.resumeAnimation(); } catch (e) {} } }
+  wake() {
+    if (this.graph) { try { this.graph.resumeAnimation(); } catch (e) {} }
+    this._applySwirlGate();
+  }
   resume() { this.wake(); }
   setThinking(active) { this._thinking = !!active; }
   setLevel(l) { this.level = l || 0; }
+
+  /** Lite/mobile: tắt xoáy ngân hà (starfield cũng nhận qua console). */
+  setLite(on) {
+    this._lite = !!on;
+    this._applySwirlGate();
+  }
+
+  _applySwirlGate() {
+    this._reducedMotion = _prefersReducedMotion();
+    const want = !this._lite && !this._reducedMotion;
+    this._setSwirlActive(want);
+  }
+
+  _setSwirlActive(on) {
+    this._swirlOn = !!on && !!this.graph;
+    if (!this.graph) return;
+    try {
+      if (this._swirlOn) {
+        this.graph.d3Force("swirl", this._swirl || _swirlForce(0.012));
+        this._keepSwirlAlive();
+      } else {
+        this.graph.d3Force("swirl", null);
+        try { this.graph.d3AlphaTarget(0); } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  _keepSwirlAlive() {
+    if (!this.graph || !this._swirlOn || this._reducedMotion) return;
+    try {
+      // alphaTarget nhỏ: simulation không tắt hẳn → swirl + shimmer tiếp tục
+      this.graph.d3AlphaTarget(0.018);
+      this.graph.d3ReheatSimulation();
+    } catch (e) {}
+  }
 
   // Rọi sáng một danh mục (bấm nhãn PERSONAL/SALES... quanh não). null = bỏ lọc.
   spotlightCategory(cat) {

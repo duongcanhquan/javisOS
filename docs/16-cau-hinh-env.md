@@ -145,6 +145,7 @@ Lưu ý: hai biến TTS này áp cho giọng Edge TTS miễn phí mặc định.
 | `JAVIS_YOUTUBE_PROXY` | Proxy RIÊNG cho phần đọc phụ đề YouTube, dạng `http://user:mat-khau@may-chu:cong`. Chỉ lưu lượng đi YouTube mới qua đây | (trống, đi thẳng) | Javis báo "YouTube nghi máy chủ này là robot" lặp đi lặp lại. Gốc rễ của lỗi đó là **danh tiếng địa chỉ IP**: YouTube đánh dấu dải IP của các nhà cung cấp máy chủ (AWS, Google Cloud, Azure, VPS giá rẻ), nên cùng một đoạn mã chạy ở nhà thì trôi chảy còn chạy trên VPS thì bị hỏi giấy. Trỏ qua một proxy dân cư là đứng ở chỗ khác trên Internet. Đừng dùng `HTTPS_PROXY` của hệ thống cho việc này: nó đẩy **toàn bộ** lưu lượng của Javis qua đó, gồm cả gọi model và MCP, vừa chậm vừa lộ dữ liệu cho bên thứ ba. Xem [Trò chuyện](02-tro-chuyen-va-giong-noi.md). |
 | `JAVIS_IMAGE_HOST_MODEL` | Model chat "chủ" dùng để gọi tool tạo ảnh qua gói ChatGPT | `gpt-5.5` | Nhà cung cấp đổi tên model làm chức năng tạo ảnh hỏng. |
 | `JAVIS_IMAGE_MODEL` | Model sinh ảnh thật sự | `gpt-image-2` | Như trên. |
+| `JAVIS_PHAP_CHE_RAG_URL` | Base URL RAG sidecar pháp chế (`POST /retrieve`). Để trống = chỉ tìm `sources/phap-che` + wiki | (trống) | Kho PDF lớn / scan: sync Drive bằng `scripts/sync-phap-che-drive.sh`, chạy LightRAG/RAG-Anything (hoặc stub `scripts/phap_che_rag_sidecar_example.py`), rồi đặt URL. Xem [Pháp chế cá nhân](28-phap-che-ca-nhan.md). |
 
 Ghi chú: `JAVIS_ENABLE_USER_PLUGINS` cũng là biến nâng cao nhưng vì nó là rào bảo mật nên đã nằm ở nhóm 3.
 

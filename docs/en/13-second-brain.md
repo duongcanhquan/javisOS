@@ -12,9 +12,9 @@ A Second Brain (a "brain" or "vault" for short) is a folder on your machine or V
 
 | Layer | Folder | Role |
 |---|---|---|
-| Sources | `sources/` | Raw notes: articles, screenshots, files you drop in. These are the "originals". |
+| Sources | `sources/` | Raw notes: articles, screenshots, files you drop in. These are the "originals". Legal corpus: `sources/phap-che/` (see [Personal legal counsel](28-personal-legal-counsel.md)). |
 | Wiki | `wiki/` | Distilled knowledge: concepts, frameworks, procedures, cross-linked with `[[...]]`. |
-| Memory | `memory/` | Living memory: what Javis remembers about you and the business. |
+| Memory | `memory/` | Living memory: what Javis remembers about you and the business. Do **not** dump a statute library here. |
 | Agents / Workflows | `agents/`, `workflows/` | The operating layer (see [Agents and Workflows](07-agents-and-workflows.md)). |
 | Skills | `skills/` | The canonical copy of each skill, one folder per skill at `skills/<slug>/SKILL.md`. Javis mirrors them into `.claude/skills` so Claude Code loads them natively (see [Skills](06-skills.md)). |
 | Operating layer | `Javis/` | Whatever chat creates: loops at `Javis/loops/<slug>.md`, per-chat Zalo rules at `Javis/zalo/<slug>.md`, reminders at `Javis/reminders.json`, and the capability index `Javis/index.md` (auto-generated from files, do not edit by hand). |

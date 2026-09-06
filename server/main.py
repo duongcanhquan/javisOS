@@ -77,8 +77,9 @@ import image_gen      # tạo ảnh bằng gói ChatGPT (OAuth) - Codex Response
 import media_gc       # dọn vùng cache media (attachments/ + inbox/) theo hạn tuổi + trần dung lượng
 import inbox         # hòm thư: mọi kết quả chạy nền để lại một mẩu thư bền ở server
 import webpush       # thông báo đẩy trình duyệt (Web Push, tự mã hoá - không thêm thư viện)
-import stt            # nghe tin thoại (Whisper qua Groq) -> chữ, cho kênh Telegram/Zalo
+import stt            # nghe tin thoại (Gemini ưu tiên; OpenAI/Groq tuỳ chọn) -> chữ
 import meetings       # cuộc họp: transcript Moonshine WASM + tổng hợp Ollama local
+import phap_che       # kho pháp chế: search local md + RAG sidecar tuỳ chọn
 import instant_social # chào/cảm ơn thuần → trả ngay, không spawn CLI
 import zalo_login
 import oauth_mcp
@@ -4748,45 +4749,43 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
 
 
 # ============================================================
-# STT dashboard (mic chat + Cuộc họp): Groq Whisper qua /stt
+# STT dashboard (mic chat + Cuộc họp): Gemini (ưu tiên) / OpenAI / Groq tuỳ chọn
 # ============================================================
 @app.get("/stt/status")
 async def stt_status():
-    """Mic dashboard và Cuộc họp hỏi trước khi bật Whisper."""
+    """Mic dashboard và Cuộc họp hỏi trước khi bật cloud STT (không bắt buộc Groq)."""
     mcfg = cfgmod.read_settings().get("model") or {}
-    key = (mcfg.get("groq_api_key") or "").strip()
-    return {"ok": True, "available": bool(key)}
+    return stt.status_from_settings(mcfg)
 
 
 @app.post("/stt")
 async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
-    """Nhận đoạn âm thanh ngắn từ browser → chữ (Whisper large-v3 qua Groq)."""
+    """Nhận đoạn âm thanh ngắn từ browser → chữ (Gemini multimodal hoặc Whisper)."""
     try:
         data = await file.read()
     except Exception as e:
         return {"ok": False, "error": f"Đọc file lỗi: {e}"}
     ten = file.filename or "voice.webm"
     mcfg = cfgmod.read_settings().get("model") or {}
-    key = (mcfg.get("groq_api_key") or "").strip()
-    if not key:
+    if not stt.pick_provider(mcfg).get("available"):
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=503,
-            content={"detail": "Chưa cấu hình Groq API key (trang Models → Groq)."},
+            content={"detail": "Chưa cấu hình Gemini API key (trang Models → Google Gemini). "
+                               "Cuộc họp vẫn dùng Moonshine / Web Speech."},
         )
-    # Chuoi rong / auto = Whisper tu do (cuoc hop ngoai ngu).
     raw = (lang if isinstance(lang, str) else "vi").strip().lower()
     if raw in ("", "auto"):
         ngon = ""
     else:
         ngon = raw or "vi"
-    ket = await stt.groq_nghe(
-        data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
+    ket = await stt.nghe(data, ten, mcfg, ngon_ngu=ngon, prefer_quality=True)
     if not ket.get("ok"):
         from fastapi.responses import JSONResponse
         msg = ket.get("noi_voi_javis") or ket.get("ly_do") or "stt_failed"
         return JSONResponse(status_code=400, content={"detail": str(msg)[:500]})
-    return {"ok": True, "text": ket.get("text") or "", "model": ket.get("model") or ""}
+    return {"ok": True, "text": ket.get("text") or "", "model": ket.get("model") or "",
+            "provider": ket.get("provider") or ""}
 
 
 # ============================================================
@@ -4829,37 +4828,78 @@ async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
 @app.post("/meetings/{meeting_id}/analyze")
 async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
                            model: str = Form("")):
-    """Dừng (nếu chưa) + gọi Antigravity (hoặc Main model) tóm tắt theo skill phan-tich-cuoc-hop."""
+    """Dừng (nếu chưa) + tổng kết bằng Antigravity hoặc Gemini/API (Main / Việc nền)."""
     mcfg = cfgmod.read_settings().get("model") or {}
     main = dict(mcfg.get("main") or {})
     aux = dict(mcfg.get("auxiliary") or {})
-    prov = (main.get("provider") or "").strip()
-    mdl = (model or "").strip() or (main.get("model") or "").strip()
-    if prov != "antigravity-cli":
-        prov = (aux.get("provider") or "").strip()
-        mdl = (model or "").strip() or (aux.get("model") or "").strip() or mdl
-    if prov != "antigravity-cli":
+    want = (model or "").strip()
+
+    def _key_for(prov: str) -> str:
+        return {
+            "gemini": (mcfg.get("gemini_api_key") or "").strip(),
+            "openai": (mcfg.get("openai_api_key") or "").strip(),
+            "openrouter": (mcfg.get("openrouter_key") or "").strip(),
+            "anthropic-api": (mcfg.get("anthropic_api_key") or "").strip(),
+            "groq": (mcfg.get("groq_api_key") or "").strip(),
+            "deepseek": (mcfg.get("deepseek_api_key") or "").strip(),
+            "ollama": (mcfg.get("ollama_key") or "").strip(),
+        }.get(prov, "")
+
+    # Ưu tiên đúng stack người dùng: Antigravity → Gemini API → các API khác đã cấu hình.
+    order = []
+    for src in (main, aux):
+        p = (src.get("provider") or "").strip()
+        m = (src.get("model") or "").strip()
+        if p and (p, m) not in [(x[0], x[1]) for x in order]:
+            order.append((p, m))
+    # Fallback cứng nếu Main không phải Antigravity/Gemini nhưng đã có key Gemini.
+    if not any(p == "antigravity-cli" for p, _ in order):
+        order.append(("antigravity-cli", "gemini-3.8-flash-high"))
+    if not any(p == "gemini" for p, _ in order):
+        order.append(("gemini", "gemini-3.6-flash"))
+
+    pick_prov, pick_model, pick_key = "", "", ""
+    last_err = ""
+    for p, m in order:
+        mdl = want or m
+        if p == "antigravity-cli":
+            try:
+                import antigravity_cli as ag
+                if not ag.find_antigravity_cli():
+                    last_err = "Antigravity CLI chưa cài."
+                    continue
+            except Exception as e:
+                last_err = f"Antigravity: {e}"
+                continue
+            pick_prov, pick_model, pick_key = p, (mdl or "gemini-3.8-flash-high"), ""
+            break
+        if p in ("gemini", "openai", "openrouter", "anthropic-api", "groq", "deepseek", "ollama"):
+            k = _key_for(p)
+            if not k and p != "ollama":
+                last_err = f"Chưa có API key cho {p}."
+                continue
+            pick_prov, pick_model, pick_key = p, mdl or m, k
+            break
+        if p in ("anthropic-cli", "openai-oauth", "copilot-cli", "grok-cli"):
+            pick_prov, pick_model, pick_key = p, mdl or m, ""
+            break
+
+    if not pick_prov:
         return {
             "ok": False,
-            "error": "Tổng kết cuộc họp cần Antigravity CLI. Vào Models → Main hoặc Việc nền = Antigravity.",
+            "error": (
+                "Tổng kết cần Antigravity CLI hoặc Google Gemini (API) ở trang Models. "
+                + (last_err or "")
+            ).strip(),
         }
-    if not mdl:
-        mdl = "gemini-3.8-flash-high"
-    try:
-        import antigravity_cli as ag
-        if not ag.find_antigravity_cli():
-            return {"ok": False, "error": "Antigravity CLI chưa cài. Trang Models → Kiểm tra lại."}
-    except Exception:
-        pass
 
     async def _stream(_key, _model, messages, reasoning="off"):
-        async for ev in _antigravity_sub_stream(
-                _model, messages, reasoning, tag="meeting-analyze", mode="suggest"):
+        async for ev in _api_stream_goc(pick_prov, pick_key or _key, _model or pick_model, messages, reasoning):
             yield ev
 
     try:
         return await meetings.analyze_transcript(
-            meeting_id, stream_fn=_stream, model=mdl, api_key="")
+            meeting_id, stream_fn=_stream, model=pick_model, api_key=pick_key or "")
     except Exception as e:
         import sys, traceback
         traceback.print_exc(file=sys.stderr)
@@ -4870,7 +4910,7 @@ async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
 async def meetings_upload_stt(meeting_id: str, file: UploadFile = File(...),
                               brain: str = Form("brain"),
                               lang: str = Form("vi")):
-    """Fallback: upload audio → Groq Whisper → ghi đè transcript → sẵn sàng analyze."""
+    """Fallback: upload audio → cloud STT (Gemini ưu tiên) → ghi đè transcript → analyze."""
     if not meetings.get_active(meeting_id):
         return {"ok": False, "error": "Không tìm thấy phiên họp."}
     try:
@@ -4879,25 +4919,25 @@ async def meetings_upload_stt(meeting_id: str, file: UploadFile = File(...),
         return {"ok": False, "error": f"Đọc file lỗi: {e}"}
     ten = file.filename or "meeting-audio.webm"
     mcfg = cfgmod.read_settings().get("model") or {}
-    key = (mcfg.get("groq_api_key") or "").strip()
     raw = (lang if isinstance(lang, str) else "vi").strip().lower()
     if raw in ("", "auto"):
         ngon = ""
     else:
         ngon = raw or "vi"
-    # large-v3 cho cuộc họp (độ chính xác > turbo); cùng module stt.py.
-    ket = await stt.groq_nghe(data, ten, key, model=stt.STT_MODEL_CHUAN, ngon_ngu=ngon)
+    ket = await stt.nghe(data, ten, mcfg, ngon_ngu=ngon, prefer_quality=True)
     if not ket.get("ok"):
         return {"ok": False,
                 "error": ket.get("noi_voi_javis") or ket.get("ly_do") or "STT lỗi",
                 "ly_do": ket.get("ly_do"),
                 "noi_voi_javis": ket.get("noi_voi_javis")}
     text = (ket.get("text") or "").strip()
-    r = meetings.replace_transcript_from_stt(meeting_id, text, source="groq")
+    src = ket.get("provider") or "cloud-stt"
+    r = meetings.replace_transcript_from_stt(meeting_id, text, source=src)
     if not r.get("ok"):
         return r
     return {"ok": True, "text": text, "chars": len(text),
-            "path": r.get("path"), "model": ket.get("model")}
+            "path": r.get("path"), "model": ket.get("model"),
+            "provider": ket.get("provider")}
 
 
 @app.get("/meetings/list")
@@ -5201,6 +5241,21 @@ def _ensure_brain_scaffold(root):
         _brain_memory_dir(str(root))   # memory/ + MEMORY.md seed
     except Exception:
         pass
+    try:
+        # Kho pháp chế: README create-if-missing (không ghi đè nếu user đã sửa)
+        pc = root / "sources" / "phap-che"
+        pc.mkdir(parents=True, exist_ok=True)
+        readme = pc / "README.md"
+        if not readme.exists():
+            tmpl = Path(__file__).parent.parent / "system" / "templates" / "phap-che" / "sources-README.md"
+            if tmpl.is_file():
+                readme.write_text(tmpl.read_text(encoding="utf-8"), encoding="utf-8")
+            else:
+                readme.write_text(
+                    "# Kho pháp chế\n\nĐặt file .md văn bản pháp lý tại đây. Xem docs/28-phap-che-ca-nhan.md.\n",
+                    encoding="utf-8")
+    except Exception as e:
+        print(f"[brain scaffold] phap-che: {e}", file=__import__('sys').stderr)
     try:
         # Năng lực HỆ THỐNG (skill javis-builder/ingest/query/lint + loop tự-cải-tiến): nguồn chuẩn
         # nằm ở tầng app (.claude/skills + system/loops, đi theo phiên bản), mirror vào brain qua
@@ -8142,6 +8197,58 @@ async def studio_seed(brain: str = Form("brain")):
                ], "updated": _today()}
     _write_md(_workflows_dir(brain) / "research-and-write.md", wf_meta, wf_meta["description"])
     return {"ok": True}
+
+
+@app.post("/studio/seed-phap-che")
+async def studio_seed_phap_che(brain: str = Form("brain")):
+    """Tạo agent Pháp chế + gợi ý cấu trúc sources/phap-che (create-if-missing README)."""
+    root = Path(_brain_root(brain))
+    _ensure_brain_scaffold(root)
+    a = _agents_dir(brain)
+    prompt = (
+        "Bạn là pháp chế nội bộ của người dùng (không phải luật sư).\n"
+        "BẮT BUỘC tuân skill phap-che:\n"
+        "- Chỉ khẳng định khi có căn cứ trong wiki / sources/phap-che / tool phap_che_search.\n"
+        "- Mỗi điểm cụ thể ghi số hiệu văn bản + Điều/Khoản (+ [[wikilink]] nếu có).\n"
+        "- Thiếu trong kho → nói rõ và đề xuất đưa file vào Drive/sources rồi INGEST.\n"
+        "- Không nhồi luật vào memory/MEMORY.md.\n"
+        "- Cuối trả lời: disclaimer tham khảo nội bộ, không thay thế tư vấn pháp lý chính thức.\n"
+        "Khi chạy dự án: bảng rủi ro | căn cứ | mức chắc | việc cần làm.\n"
+        "So sánh văn bản: dùng skill so-sanh-van-ban-phap-ly."
+    )
+    meta = {
+        "type": "agent", "name": "Pháp chế", "slug": "phap-che",
+        "role": "Tư vấn / tham chiếu văn bản pháp lý từ kho cá nhân; cite điều khoản; không bịa.",
+        "group": "Pháp chế",
+        "skills": ["phap-che", "so-sanh-van-ban-phap-ly", "snapshot-van-ban-web",
+                   "query-wiki", "ingest-source"],
+        "model": "sonnet", "updated": _today(),
+    }
+    _write_md(a / "phap-che.md", meta, prompt)
+    return {"ok": True, "agent": "phap-che", "sources": str(root / "sources" / "phap-che")}
+
+
+@app.get("/phap-che/status")
+async def phap_che_status_api(brain: str = Query("brain")):
+    """Trạng thái kho pháp chế + RAG sidecar."""
+    root = _brain_root(brain)
+    data = phap_che.status()
+    p = Path(root) / "sources" / "phap-che"
+    n = sum(1 for _ in p.rglob("*.md")) if p.is_dir() else 0
+    data["local_md_files"] = n
+    data["local_dir"] = str(p)
+    data["brain"] = root
+    return data
+
+
+@app.post("/phap-che/search")
+async def phap_che_search_api(request: Request, brain: str = Form("brain"),
+                              query: str = Form(...), top_k: int = Form(8),
+                              include_sidecar: str = Form("true")):
+    """Tìm local + sidecar (cùng logic tool phap_che_search)."""
+    root = _brain_root(brain)
+    inc = str(include_sidecar or "true").lower() not in ("0", "false", "no")
+    return phap_che.search(root, query, top_k=int(top_k or 8), include_sidecar=inc)
 
 
 @app.post("/studio/seed-strategy")
@@ -15797,29 +15904,20 @@ def _tg_inbox_dir(chat=None):
 
 
 async def _stt_nghe(data, ten=""):
-    """Nghe tin thoại của kênh chat -> chữ. Đọc key Groq TẠI THỜI ĐIỂM GỌI, cố ý.
+    """Nghe tin thoại kênh chat → chữ. Đọc key TẠI THỜI ĐIỂM GỌI (Gemini → OpenAI → Groq).
 
-    Dán key ở trang Models xong là tin thoại tiếp theo nghe được ngay, không phải tắt bật lại
-    bot. Đọc lúc dựng bot thì key mới dán nằm im tới lần khởi động sau, mà chẳng có gì trên
-    màn hình nói cho người ta biết điều đó.
+    Dán key ở trang Models xong là tin thoại tiếp theo nghe được ngay, không phải restart bot.
     """
     _cfg = cfgmod.read_settings()
-    key = (_cfg.get("model") or {}).get("groq_api_key") or ""
-    # Gợi ý ngôn ngữ theo cấu hình. reply_lang="auto" -> truyền "" để Whisper TỰ DÒ, thay vì
-    # ép "vi" như trước: người nói tiếng Anh vào một Javis đang để "auto" thì cái ép đó biến
-    # câu của họ thành một câu tiếng Việt sai nghĩa.
+    mcfg = _cfg.get("model") or {}
     _lc2 = _cfg.get("locale") or {}
-    # Thứ tự: ngôn ngữ trả lời đã GHIM -> ngôn ngữ giao diện -> để Whisper tự dò.
-    #
-    # `ui_lang` ở giữa là để CHỮA MỘT HỒI QUY chứ không phải cho đẹp: `reply_lang` mặc định
-    # là "auto", nên nếu chỉ đọc mỗi nó thì mọi máy đang chạy đột nhiên mất gợi ý "vi" mà chủ
-    # máy không đổi cài đặt gì. Whisper không có gợi ý thì câu tiếng Việt NGẮN hay bị đoán
-    # nhầm sang tiếng khác rồi dịch luôn, ra một câu không ai gõ bao giờ - đúng lý do gợi ý
-    # này tồn tại từ đầu.
     _ma = (lang_registry.chuan_hoa(_lc2.get("reply_lang") or "")
            or lang_registry.chuan_hoa(_lc2.get("ui_lang") or ""))
-    return await stt.groq_nghe(data, ten, key,
-                               ngon_ngu=(lang_registry.get(_ma).stt if _ma else ""))
+    return await stt.nghe(
+        data, ten, mcfg,
+        ngon_ngu=(lang_registry.get(_ma).stt if _ma else ""),
+        prefer_quality=False,
+    )
 
 
 # ============================================================

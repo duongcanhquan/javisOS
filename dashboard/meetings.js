@@ -244,19 +244,19 @@
   }
 
   /**
-   * Điện thoại: Whisper (MediaRecorder + Groq) ổn hơn Moonshine WASM và continuous Web Speech.
-   * Chrome trên iOS cũng là WebKit — cùng hạn chế.
+   * Không ưu tiên cloud STT trên mobile nữa (trước từng ép Groq Whisper).
+   * Chuỗi phổ thông: Moonshine (desktop) → Cloud STT Gemini (VI khi thiếu WASM) → Web Speech.
    */
   function preferWhisperLive() {
-    return isMobileLike();
+    return false;
   }
 
   /**
    * Desktop + ngôn ngữ có model Moonshine local trên VPS → Moonshine trước.
-   * Mobile / thiếu isolation: Whisper / Web Speech.
+   * Mobile / thiếu isolation: không Moonshine trước.
    */
   function preferMoonshineFirst(lang) {
-    if (preferWhisperLive()) return false;
+    if (isMobileLike()) return false;
     if (!moonshineRuntimeOk()) return false;
     lang = normalizeLang(lang);
     if (MOONSHINE_LOCAL[lang]) return true;
@@ -266,6 +266,55 @@
   /** Failover: mọi ngôn ngữ Moonshine hỗ trợ (ưu tiên khi đã có file local + isolation). */
   function preferMoonshineFailover(lang) {
     return moonshineRuntimeOk() && moonshineSupports(lang);
+  }
+
+  /**
+   * Khi Moonshine không chạy được: VI/CJK Web Speech hay lỗi network → thử Cloud STT (Gemini) trước.
+   */
+  function preferCloudBeforeWebSpeech(lang) {
+    if (preferMoonshineFirst(lang)) return false;
+    lang = normalizeLang(lang);
+    return (
+      lang === "vi" ||
+      lang === "zh" ||
+      lang === "ja" ||
+      lang === "ko" ||
+      lang === "ar" ||
+      lang === "uk"
+    );
+  }
+
+  function micConstraints() {
+    return {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    };
+  }
+
+  async function tryStartCloudStt(root, micPromise) {
+    state._whisperReady = null;
+    var ok = await fetchWhisperReady();
+    if (!ok) return null;
+    var mp = micPromise;
+    if (!mp && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      mp = navigator.mediaDevices.getUserMedia(micConstraints());
+    }
+    if (!mp) return null;
+    try {
+      await startWhisperMeeting(root, mp);
+      setStatus(root, "Đang ghi (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
+      return "whisper";
+    } catch (e) {
+      stopWhisper();
+      try {
+        await discardMicStream(mp);
+      } catch (e2) {}
+      return null;
+    }
   }
 
   function armAudioSessionForMic() {
@@ -629,11 +678,16 @@
       }
       var d = await r.json();
       state._whisperReady = !!(d && d.available);
+      state._sttProviderLabel = (d && (d.label || d.provider)) || "Cloud STT";
       return state._whisperReady;
     } catch (e) {
       state._whisperReady = false;
       return false;
     }
+  }
+
+  function cloudSttLabel() {
+    return state._sttProviderLabel || "Cloud STT";
   }
 
   function pickRecorderMime() {
@@ -774,7 +828,7 @@
           if (r.status === 503) {
             return r.json().then(function (j) {
               throw new Error(
-                (j && j.detail) || "Chưa cấu hình Groq API key. Vào trang Models → Groq."
+                (j && j.detail) || "Cloud STT chưa sẵn sàng. Models → Gemini, hoặc dùng Web Speech / Moonshine."
               );
             });
           }
@@ -790,7 +844,7 @@
           setPartial(root, "");
           if (tx) appendWhisperLine(root, tx);
           if (state.running && state.sttEngine === "whisper") {
-            setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
+            setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
             restartWhisperRecorder(w);
           }
         })
@@ -843,7 +897,7 @@
 
     restartWhisperRecorder(w);
     startWhisperVad(root, w);
-    setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
+    setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
   }
 
   async function importMoonshineModule() {
@@ -965,20 +1019,27 @@
       el.textContent =
         "Ngôn ngữ " +
         label +
-        ": dùng Web Speech hoặc Whisper (Groq).";
+        ": dùng Web Speech hoặc Cloud STT (Gemini ở Models).";
       el.style.color = "var(--text3)";
       return;
     }
-    if (preferWhisperLive()) {
+    if (isMobileLike()) {
       el.textContent =
-        "Điện thoại: Bắt đầu dùng Whisper (cần Groq ở Models) hoặc Web Speech. Moonshine WASM thường im trên mobile.";
+        "Điện thoại: ưu tiên Cloud STT (Gemini ở Models) hoặc Web Speech. Moonshine WASM thường im trên mobile.";
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
     if (!moonshineRuntimeOk()) {
       el.textContent =
-        "Moonshine cần tải lại trang (WASM threads). Nếu vẫn vậy: dùng Chrome/Edge + Web Speech, hoặc dán Groq key ở Models.";
+        "Moonshine tắt (thiếu WASM threads) — sẽ dùng Cloud STT (Gemini) hoặc Web Speech. Ctrl+F5 nếu cần bật Moonshine.";
       el.style.color = "var(--warn-ink, var(--text3))";
+      return;
+    }
+    if (preferCloudBeforeWebSpeech(lang) && !preferMoonshineFirst(lang)) {
+      el.textContent =
+        label +
+        " — ưu tiên Cloud STT (Gemini) rồi Web Speech. Moonshine không khả dụng trên thiết bị này.";
+      el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
     if (!preferMoonshineFirst(lang)) {
@@ -1008,7 +1069,7 @@
 
   function preloadMoonshine(root) {
     var lang = meetingLang();
-    if (preferWhisperLive()) {
+    if (isMobileLike()) {
       updateMoonshinePreloadHint(root, 0, lang);
       return;
     }
@@ -1125,27 +1186,35 @@
         } else if (err === "audio-capture") {
           setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
         } else if (err === "network" || err === "language-not-supported" || err === "service-not-allowed") {
-          // vi-VN trên Web Speech hay lỗi network ngay (Google STT). Chuyển Moonshine local.
+          // vi-VN trên Web Speech hay lỗi network (Google STT). Moonshine → Cloud STT.
           var langNow = meetingLang();
-          if (
-            state.running &&
-            !state._sttFailoverDone &&
-            preferMoonshineFailover(langNow) &&
-            moonshineSupports(langNow)
-          ) {
+          if (state.running && !state._sttFailoverDone) {
             state._sttFailoverDone = true;
-            setStatus(root, "Web Speech lỗi (" + err + ") — chuyển Moonshine (máy local)…", "err");
+            setStatus(root, "Web Speech lỗi (" + err + ") — đang chuyển…", "err");
             (async function () {
               try {
                 clearSttWatchdog();
                 stopWebSpeech();
-                await startMoonshine(root);
-                armSttWatchdog(root);
-                setStatus(root, "Đã chuyển Moonshine (tiếng Việt · local).", "ok");
+                if (preferMoonshineFailover(langNow) && moonshineSupports(langNow)) {
+                  await startMoonshine(root);
+                  armSttWatchdog(root);
+                  setStatus(root, "Đã chuyển Moonshine (local).", "ok");
+                  return;
+                }
+                var cloud = await tryStartCloudStt(root, null);
+                if (cloud) {
+                  armSttWatchdog(root);
+                  return;
+                }
+                setStatus(
+                  root,
+                  "Nhận giọng cần mạng hoặc Models → Gemini. Thử File ghi âm → chữ.",
+                  "err"
+                );
               } catch (e) {
                 setStatus(
                   root,
-                  "Moonshine cũng lỗi: " +
+                  "Chuyển STT lỗi: " +
                     ((e && e.message) || e) +
                     " — thử File ghi âm → chữ.",
                   "err"
@@ -1156,7 +1225,7 @@
           }
           setStatus(
             root,
-            "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối hoặc dùng File ghi âm → chữ.",
+            "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối, Models → Gemini, hoặc File ghi âm → chữ.",
             "err"
           );
         } else {
@@ -1212,7 +1281,7 @@
     if (state.abortRequested) throw new Error("Đã hủy");
     if (!moonshineRuntimeOk()) {
       throw new Error(
-        "Trình duyệt chưa bật WASM threads (crossOriginIsolated=false). Tải lại trang hoặc dùng Web Speech / Groq."
+        "Trình duyệt chưa bật WASM threads (crossOriginIsolated=false). Tải lại trang hoặc dùng Web Speech (Chrome/Edge)."
       );
     }
     var lang = meetingLang();
@@ -1363,7 +1432,7 @@
       if (state._sttFailoverDone) {
         setStatus(
           root,
-          "Vẫn chưa ghi được lời. Cho phép micro, kiểm tra Groq (Models), hoặc dùng File ghi âm → chữ.",
+          "Vẫn chưa ghi được lời. Cho phép micro, dùng Chrome/Edge (Web Speech), hoặc File ghi âm → chữ.",
           "err"
         );
         return;
@@ -1376,70 +1445,43 @@
           await cleanupAudio();
           state.running = true;
           var langNow = meetingLang();
-          // Web Speech im + tiếng Việt → Moonshine local (đừng restart Google STT mãi).
-          if (
-            prev === "webspeech" &&
-            preferMoonshineFailover(langNow) &&
-            moonshineSupports(langNow)
-          ) {
-            await startMoonshine(root);
-            setStatus(root, "Đã chuyển Moonshine (tiếng Việt · local).", "ok");
-            return;
-          }
-          if (prev !== "whisper") {
-            var ok = await fetchWhisperReady();
-            if (ok && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-              var mp = navigator.mediaDevices.getUserMedia({
-                audio: {
-                  echoCancellation: true,
-                  noiseSuppression: true,
-                  autoGainControl: true,
-                  channelCount: 1,
-                },
-              });
-              await startWhisperMeeting(root, mp);
-              setStatus(root, "Đã chuyển Whisper — nói rõ từng câu.", "ok");
-              return;
-            }
-          }
-          if (prev !== "webspeech" && hasWebSpeech()) {
-            startWebSpeechSafe(root);
-            setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
-            return;
-          }
-          // Web Speech đã chạy mà im (không phải VI / không Moonshine): bật lại một lần.
-          if (prev === "webspeech" && hasWebSpeech()) {
-            startWebSpeechSafe(root);
-            setStatus(
-              root,
-              "Đã bật lại Web Speech — nói rõ từng câu (Chrome/Edge).",
-              "ok"
-            );
-            return;
-          }
+          // Thứ tự failover: Moonshine → Cloud STT → Web Speech (không kẹt Google STT).
           if (
             prev !== "moonshine" &&
             preferMoonshineFailover(langNow) &&
             moonshineSupports(langNow)
           ) {
-            await startMoonshine(root);
-            setStatus(root, "Đã chuyển Moonshine (tiếng Việt).", "ok");
+            try {
+              await startMoonshine(root);
+              setStatus(root, "Đã chuyển Moonshine (local).", "ok");
+              armSttWatchdog(root);
+              return;
+            } catch (eM) {}
+          }
+          if (prev !== "whisper") {
+            var cloud = await tryStartCloudStt(root, null);
+            if (cloud) {
+              armSttWatchdog(root);
+              return;
+            }
+          }
+          if (hasWebSpeech()) {
+            startWebSpeechSafe(root);
+            setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
+            armSttWatchdog(root);
             return;
           }
           setStatus(
             root,
-            "Vẫn chưa ghi được lời. Cho phép micro (ổ khóa trên thanh địa chỉ), nói rõ hơn, " +
-              "hoặc dùng File ghi âm → chữ" +
-              (preferWhisperLive() ? " / cấu hình Groq ở Models." : "."),
+            "Vẫn chưa ghi được lời. Cho phép micro, Models → Gemini, hoặc File ghi âm → chữ.",
             "err"
           );
         } catch (e) {
           var msg = String((e && e.message) || e || "");
-          // Không để timeout Moonshine EN hiện như lỗi chính — hướng về Web Speech / File.
           if (/Moonshine|tải quá lâu|timeout/i.test(msg)) {
             setStatus(
               root,
-              "Không tải được nhận dạng trên máy. Dùng Chrome/Edge (Web Speech) hoặc File ghi âm → chữ.",
+              "Không tải được Moonshine. Dùng Models → Gemini (Cloud STT) hoặc File ghi âm → chữ.",
               "err"
             );
             return;
@@ -1502,37 +1544,9 @@
     var micPromise = opts.micPromise || null;
 
     armAudioSessionForMic();
+    state._whisperReady = null; // luôn hỏi lại /stt/status (user có thể vừa dán Gemini)
 
-    // 1) Điện thoại: Whisper trước (MediaRecorder). Giữ getUserMedia sẽ làm Web Speech im → chỉ giữ khi dùng Whisper.
-    if (preferWhisperLive() && micPromise) {
-      var whisperOk = await fetchWhisperReady();
-      if (whisperOk) {
-        try {
-          await startWhisperMeeting(root, micPromise);
-          setStatus(root, "Đang ghi (Whisper) — nói rõ từng câu.", "ok");
-          return "whisper";
-        } catch (e) {
-          stopWhisper();
-          await discardMicStream(micPromise);
-          micPromise = null;
-          setStatus(
-            root,
-            "Whisper lỗi — thử Web Speech… " + ((e && e.message) || ""),
-            "err"
-          );
-        }
-      } else {
-        await discardMicStream(micPromise);
-        micPromise = null;
-        setStatus(
-          root,
-          "Chưa có Groq key — dùng Web Speech. (Models → Groq để Whisper trên điện thoại ổn hơn.)",
-          "err"
-        );
-      }
-    }
-
-    // 2) Desktop + isolation OK: Moonshine (model trên VPS). Lỗi → cleanup micro rồi Whisper/Web Speech.
+    // 1) Desktop + isolation OK: Moonshine. Lỗi → Web Speech / Cloud STT.
     if (preferMoonshineFirst(lang) && moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
@@ -1541,31 +1555,17 @@
         await cleanupAudio();
         resetMoonshineCache();
         releaseMicConflicts();
-        // Cho trình duyệt nhả micro trước khi engine khác xin lại.
         await new Promise(function (r) {
           setTimeout(r, 350);
         });
-        var whisperOk = await fetchWhisperReady();
-        if (whisperOk && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          try {
-            var mp = navigator.mediaDevices.getUserMedia({
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-                channelCount: 1,
-              },
-            });
-            await startWhisperMeeting(root, mp);
-            setStatus(
-              root,
-              "Moonshine lỗi — đang ghi Whisper. " + ((e && e.message) || ""),
-              "err"
-            );
-            return "whisper";
-          } catch (whErr) {
-            stopWhisper();
-          }
+        var afterMoon = await tryStartCloudStt(root, null);
+        if (afterMoon) {
+          setStatus(
+            root,
+            "Moonshine lỗi — đang ghi " + cloudSttLabel() + ". " + ((e && e.message) || ""),
+            "err"
+          );
+          return afterMoon;
         }
         if (hasWebSpeech()) {
           try {
@@ -1589,8 +1589,29 @@
       }
     }
 
-    // 3) EN / ngôn ngữ khác (hoặc hết Moonshine): Web Speech.
+    // 2) VI/CJK khi không Moonshine: Cloud STT (Gemini) trước — Web Speech VI hay network-fail.
+    if (preferCloudBeforeWebSpeech(lang)) {
+      if (micPromise) {
+        // Cloud STT cần MediaRecorder; giữ micPromise.
+        var cloud1 = await tryStartCloudStt(root, micPromise);
+        if (cloud1) return cloud1;
+        micPromise = null;
+      } else {
+        var cloud2 = await tryStartCloudStt(root, null);
+        if (cloud2) return cloud2;
+      }
+    } else if (micPromise) {
+      // Sắp dùng Web Speech → nhả mic sớm kẻo Chrome im.
+      await discardMicStream(micPromise);
+      micPromise = null;
+    }
+
+    // 3) Web Speech (phổ thông, không cần API key).
     if (hasWebSpeech()) {
+      if (micPromise) {
+        await discardMicStream(micPromise);
+        micPromise = null;
+      }
       startWebSpeechSafe(root);
       setStatus(
         root,
@@ -1600,17 +1621,19 @@
       return "webspeech";
     }
 
-    // 4) Không Web Speech: Moonshine chỉ với tiếng Việt.
+    // 4) Không Web Speech: cloud STT.
+    var cloud3 = await tryStartCloudStt(root, micPromise);
+    if (cloud3) return cloud3;
+
+    // 5) Moonshine VI nếu còn (thiếu Web Speech nhưng có isolation).
     if (preferMoonshineFailover(lang) && moonshineSupports(lang)) {
-      try {
-        await startMoonshine(root);
-        return "moonshine";
-      } catch (e) {
-        await stopMoonshineMic();
-        throw e;
-      }
+      await startMoonshine(root);
+      return "moonshine";
     }
-    return null;
+
+    throw new Error(
+      "Không nhận dạng được giọng. Dùng Chrome/Edge qua HTTPS; Models → Gemini cho Cloud STT; hoặc tải lại trang để bật Moonshine."
+    );
   }
 
   async function startMeeting(root) {
@@ -1664,34 +1687,24 @@
     var moonshineFail = null;
     var sttEngine = null;
     var micPromise = null;
-    // Mobile: xin mic sớm cho Whisper. Desktop Chrome: KHÔNG getUserMedia trước Web Speech (sẽ im).
-    // Safari desktop không WS: xin mic sớm cho Whisper/Moonshine.
+    // Xin mic sớm khi sắp dùng Cloud STT (MediaRecorder). Web Speech: không xin trước (Chrome im).
     if (
-      (preferWhisperLive() || !hasWebSpeech()) &&
+      (preferCloudBeforeWebSpeech(langAtStart) || !hasWebSpeech()) &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia
     ) {
-      micPromise = navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
-        },
-      });
+      micPromise = navigator.mediaDevices.getUserMedia(micConstraints());
     }
     try {
       // STT trong cử chỉ bấm — TRƯỚC await fetch (voice.js: await fetch làm Chrome im lặng).
       state.running = true;
       setStatus(
         root,
-        preferWhisperLive()
-          ? "Bật micro (Whisper / Web Speech)…"
-          : preferMoonshineFirst(langAtStart)
-            ? "Bật micro (Moonshine)…"
-            : hasWebSpeech()
-              ? "Bật micro (Web Speech)…"
-              : "Bật micro…"
+        preferMoonshineFirst(langAtStart)
+          ? "Bật micro (Moonshine)…"
+          : hasWebSpeech()
+            ? "Bật micro (Web Speech)…"
+            : "Bật micro…"
       );
       try {
         sttEngine = await beginSttFast(root, langAtStart, { micPromise: micPromise });
@@ -1734,42 +1747,26 @@
       }
 
       if (!sttStarted) {
-        var whisperOk = await fetchWhisperReady();
-        var mp = micPromise;
-        if (whisperOk && !mp && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          mp = navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-              channelCount: 1,
-            },
-          });
-        }
-        if (whisperOk && mp) {
+        var cloudLast = await tryStartCloudStt(root, micPromise);
+        if (cloudLast) {
+          sttStarted = true;
+          sttEngine = cloudLast;
+        } else if (hasWebSpeech()) {
           try {
-            await startWhisperMeeting(root, mp);
+            startWebSpeechSafe(root);
             sttStarted = true;
-            sttEngine = "whisper";
-          } catch (whErr) {
-            if (mp && mp.catch) {
-              try {
-                await discardMicStream(mp);
-              } catch (e) {}
-            }
+            sttEngine = "webspeech";
+          } catch (wsErr) {
             throw new Error(
-              (whErr && whErr.message) ||
-                "Không bật được micro Whisper. Cho phép micro hoặc dán key Groq ở trang Models."
+              (moonshineFail && moonshineFail.message) ||
+                ((wsErr && wsErr.message) ||
+                  "Không nghe được micro. Cho phép micro, Models → Gemini, hoặc Chrome/Edge HTTPS.")
             );
           }
-        } else if (whisperOk && !mp) {
-          throw new Error(
-            "Trình duyệt không hỗ trợ micro. Dùng Chrome/Edge hoặc File ghi âm → chữ."
-          );
         } else {
           throw new Error(
             (moonshineFail && moonshineFail.message) ||
-              "Không nghe được micro. Cho phép micro, dùng Chrome/Edge qua HTTPS, hoặc dán key Groq ở Models."
+              "Không nghe được micro. Cho phép micro, Models → Gemini, hoặc File ghi âm → chữ."
           );
         }
       }
@@ -1788,7 +1785,7 @@
           "ok"
         );
       } else if (sttEngine === "whisper") {
-        setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
+        setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
       }
       armSttWatchdog(root);
       await ensureWs();
@@ -2010,7 +2007,7 @@
   async function uploadFallback(root, file) {
     if (!file) return;
     state.loading = true;
-    setStatus(root, "Upload + Groq Whisper…");
+    setStatus(root, "Upload + Cloud STT…");
     try {
       if (!state.meetingId) {
         var title =
@@ -2044,11 +2041,11 @@
       var box = root.querySelector("#mtLines");
       if (box) {
         box.innerHTML = "";
-        appendFinal(root, r.text || "(trống)", "Groq", "");
+        appendFinal(root, r.text || "(trống)", r.provider || cloudSttLabel() || "STT", "");
       }
       state.stopped = true;
       setPhase(root, "stopped");
-      setStatus(root, "Đã nhận transcript Groq. Bấm Tổng kết cuộc họp.", "ok");
+      setStatus(root, "Đã nhận transcript (" + (r.provider || cloudSttLabel() || "STT") + "). Bấm Tổng kết cuộc họp.", "ok");
     } catch (e) {
       setStatus(root, "Fallback lỗi: " + (e.message || e), "err");
     } finally {
@@ -2551,17 +2548,17 @@
       '<textarea id="mtNotes" placeholder="Agenda ngắn…" rows="2"></textarea></div>' +
       '<div class="mt-field"><label>Ngôn ngữ</label>' +
       '<select id="mtLang">' +
-      '<optgroup label="Moonshine (máy local)">' +
+      '<optgroup label="Moonshine local (máy chủ)">' +
       '<option value="vi">Tiếng Việt</option>' +
-      "</optgroup>" +
-      '<optgroup label="Web Speech / Whisper">' +
-      '<option value="en">English</option>' +
-      '<option value="es">Español</option>' +
       '<option value="zh">中文</option>' +
       '<option value="ja">日本語</option>' +
       '<option value="ko">한국어</option>' +
+      '<option value="es">Español</option>' +
       '<option value="ar">العربية</option>' +
       '<option value="uk">Українська</option>' +
+      '<option value="en">English (Moonshine Tiny)</option>' +
+      "</optgroup>" +
+      '<optgroup label="Web Speech / Cloud STT">' +
       '<option value="fr">Français</option>' +
       '<option value="de">Deutsch</option>' +
       '<option value="th">ไทย</option>' +
@@ -2578,6 +2575,7 @@
       "</optgroup>" +
       "</select>" +
       "</div>" +
+      '<div id="mtMoonshinePreload" class="dim" style="font-size:12.5px;margin:0 0 10px;line-height:1.4"></div>' +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -2705,6 +2703,11 @@
         else updateMoonshinePreloadHint(el, 0, neu);
       };
     }
+    // Làm mới trạng thái Cloud STT + gợi ý engine mỗi lần mở tab.
+    state._whisperReady = null;
+    fetchWhisperReady().then(function () {
+      updateMoonshinePreloadHint(el, 0, savedLang);
+    });
     preloadMoonshine(el);
   }
 

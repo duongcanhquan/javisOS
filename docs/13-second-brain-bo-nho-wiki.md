@@ -12,9 +12,9 @@ Một Second Brain (gọi tắt là "brain" hay "vault") là một thư mục tr
 
 | Lớp | Thư mục | Vai trò |
 |---|---|---|
-| Sources | `sources/` | Ghi chú thô: bài viết, ảnh chụp, file bạn thả vào. Đây là "bản gốc". |
+| Sources | `sources/` | Ghi chú thô: bài viết, ảnh chụp, file bạn thả vào. Đây là "bản gốc". Riêng kho luật: `sources/phap-che/` (xem [Pháp chế cá nhân](28-phap-che-ca-nhan.md)). |
 | Wiki | `wiki/` | Tri thức đã chưng cất: khái niệm, framework, quy trình, có liên kết chéo `[[...]]`. |
-| Memory | `memory/` | Bộ nhớ sống: những gì Javis nhớ về bạn và doanh nghiệp. |
+| Memory | `memory/` | Bộ nhớ sống: những gì Javis nhớ về bạn và doanh nghiệp. **Không** nhồi thư viện luật vào đây. |
 | Agents / Workflows | `agents/`, `workflows/` | Lớp vận hành (xem [Agents & Workflows](07-agents-va-workflows.md)). |
 | Skills | `skills/` | Bản chuẩn của kỹ năng, mỗi skill một thư mục `skills/<slug>/SKILL.md`. Javis tự mirror sang `.claude/skills` cho Claude Code nạp native (xem [Skills](06-skills.md)). |
 | Tầng vận hành | `Javis/` | Thứ do chat sinh ra: việc lặp `Javis/loops/<slug>.md`, luật từng cuộc chat Zalo `Javis/zalo/<slug>.md`, nhắc hẹn `Javis/reminders.json`, và chỉ mục năng lực `Javis/index.md` (tự sinh từ file, đừng sửa tay). |

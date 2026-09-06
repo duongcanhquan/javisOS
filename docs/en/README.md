@@ -43,6 +43,7 @@ The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant
 
 ### The brain and data
 - [13 - Second Brain: memory, Wiki, INGEST](13-second-brain.md) - multiple brains, living memory, digesting knowledge.
+- [28 - Personal legal counsel](28-personal-legal-counsel.md) - Drive + sources/phap-che + wiki; optional RAG sidecar; Pháp chế agent.
 - [18 - Backing the brain up to GitHub](18-github-backup.md) - two-way sync to a private repo, recovering after losing a machine or VPS.
 - [19 - Tasks and Dataview in notes](19-tasks-and-dataview.md) - Obsidian-style self-saving checkboxes, ```dataview blocks that really run.
 

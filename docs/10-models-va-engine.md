@@ -66,8 +66,8 @@ Khối **Providers** liệt kê 12 nhà cung cấp. **Cái nào đã kết nối
 | **OpenRouter** | Dán API key | Nhiều model 1 chỗ, MCP + tool file + skill qua hub |
 | **Anthropic (API)** | Dán API key | MCP + tool file + skill qua hub (từ 0.9) |
 | **OpenAI (ChatGPT API)** | Dán API key | MCP + tool file + skill qua hub |
-| **Google Gemini (API)** | Dán API key | MCP + tool file + skill qua hub |
-| **Groq (API)** | Dán API key | MCP + tool file + skill qua hub. Suy luận rất nhanh, hợp làm model việc nền. Key này còn là thứ cho phép **ra lệnh bằng ghi âm trên Telegram và Zalo** (Whisper nghe giọng thành chữ) - xem [Telegram](11-telegram.md) và [Kênh Zalo Bot](26-kenh-zalo-bot.md); đấu key là đủ, không bắt buộc đổi model chính sang Groq |
+| **Google Gemini (API)** | Dán API key | MCP + tool file + skill. Key này cũng dùng cho **Cloud STT** (tin thoại Telegram/Zalo, upload cuộc họp) khi không dùng Moonshine / Web Speech. |
+| **Groq (API)** | Dán API key | MCP + tool file + skill qua hub. Tuỳ chọn. **Không bắt buộc** để nghe giọng: tin thoại / Cloud STT ưu tiên **Gemini** (xem [Telegram](11-telegram.md)). |
 | **DeepSeek (API)** | Dán API key lấy ở platform.deepseek.com | MCP + tool file + skill qua hub. Model `deepseek-v4-flash` (nhanh, rẻ) và `deepseek-v4-pro` (suy luận sâu). Ô Suy nghĩ trên trang Models bật/tắt thinking của DeepSeek |
 | **Ollama Cloud** | Dán API key lấy ở ollama.com | MCP + tool file + skill qua hub. Model mã nguồn mở cỡ lớn (gpt-oss, qwen3-coder, deepseek) chạy trên máy chủ của Ollama |
 

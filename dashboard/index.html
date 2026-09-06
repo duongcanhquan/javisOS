@@ -30,7 +30,7 @@
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=85">
+  <link rel="stylesheet" href="/static/style.css?v=86">
   <link rel="stylesheet" href="/static/console.css?v=56">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
@@ -211,6 +211,7 @@
 
       <!-- CENTER: knowledge graph -->
       <div class="hud-center">
+        <div class="brain-nebula" aria-hidden="true"></div>
         <canvas id="starfield"></canvas>
         <div id="graph2d"></div>
         <div class="concept-labels" id="conceptLabels"></div>
@@ -789,8 +790,9 @@
        hàm vẽ lại theo tông ngay lúc parse, nếu window.javisTheme chưa có thì chúng
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
   <script src="/static/theme.js?v=2"></script>
-  <script src="/static/voice.js?v=19"></script>
-  <script src="/static/graph.js?v=16"></script>
+  <script src="/static/starfield.js?v=1"></script>
+  <script src="/static/voice.js?v=20"></script>
+  <script src="/static/graph.js?v=17"></script>
   <script src="/static/chat-render.js?v=12"></script>
   <script src="/static/code-hl.js?v=1"></script>
   <script src="/static/dataview.js?v=1"></script>
@@ -813,7 +815,7 @@
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
   <script src="/static/sessions-ui.js?v=17"></script>
-  <script src="/static/studio.js?v=34"></script>
+  <script src="/static/studio.js?v=35"></script>
   <script src="/static/packs.js?v=1"></script>
   <script src="/static/chatbots.js?v=10"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
@@ -821,10 +823,10 @@
   <!-- Trang Code (terminal): nạp TRƯỚC console.js để renderCode ủy quyền được. File này CHỈ có
        phần khung - xterm.js (285KB) nạp lười ở lần đầu mở tab, không nằm trong đường khởi động. -->
   <script src="/static/code-term.js?v=2"></script>
-  <!-- Trang Cuộc họp (Moonshine WASM + Ollama): nạp TRƯỚC console.js. -->
-  <script src="/static/meetings.js?v=23"></script>
+  <!-- Trang Cuộc họp (Moonshine / Web Speech / Cloud STT Gemini): nạp TRƯỚC console.js. -->
+  <script src="/static/meetings.js?v=25"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=136"></script>
+  <script src="/static/console.js?v=137"></script>
   <script src="/static/mobile-chat.js?v=8"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/push.js?v=2"></script>

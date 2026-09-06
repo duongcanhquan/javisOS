@@ -259,15 +259,23 @@
   // dừng luôn, khỏi ngốn pin/GPU trong lúc Alpine đang tải. _animate có guard _paused nên
   // dù load() chạy xong gọi lại cũng không bật lại.
   if (isNarrow() && window.__javisGraph) { try { window.__javisGraph.pause(); } catch (e) {} }
+  if (isNarrow() && window.JavisStarfield) { try { window.JavisStarfield.setLite(true); window.JavisStarfield.pause(); } catch (e) {} }
 
   // ---- Điều khiển graph: chỉ chạy khi đang ở cockpit + không lite + không mở Studio ----
   function recomputeGraph() {
     const g = window.__javisGraph;
-    if (!g) return;
+    const sf = window.JavisStarfield;
     const studioOpen = !!document.getElementById("studio")?.classList.contains("open");
     const active = window.Alpine ? Alpine.store("nav").active : "home";
     const shouldRun = !liteMode() && active === "home" && !studioOpen;
-    if (shouldRun) g.wake(); else g.pause();
+    if (g) {
+      try { if (g.setLite) g.setLite(liteMode()); } catch (e) {}
+      if (shouldRun) g.wake(); else g.pause();
+    }
+    if (sf) {
+      try { sf.setLite(liteMode()); } catch (e) {}
+      if (shouldRun) sf.wake(); else sf.pause();
+    }
   }
 
   // ---- Chuyển trang (có View Transition cho mượt) ----
@@ -7379,6 +7387,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     document.removeEventListener("keydown", _neKeyHandler, true);
     document.addEventListener("keydown", _neKeyHandler, true);
     try { if (window.__javisGraph && window.__javisGraph.pause) window.__javisGraph.pause(); } catch (e) {}
+    try { if (window.JavisStarfield && window.JavisStarfield.pause) window.JavisStarfield.pause(); } catch (e) {}
     document.getElementById("neTitle").innerHTML = `<span class="vt-ico">${_fileIcon(ext)}</span>${esc(it.name || rel)}`;
     const actions = document.getElementById("neActions"); const body = document.getElementById("neBody");
     actions.innerHTML = ""; body.innerHTML = ""; body.className = "ne-body"; _neSaveFn = null;

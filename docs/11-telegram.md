@@ -129,22 +129,21 @@ Giới hạn cần nhớ:
 
 Bấm giữ nút micro trong Telegram, nói, rồi thả tay. Javis nghe câu đó thành chữ và làm y như bạn gõ tay - tiện nhất lúc đang lái xe hoặc tay bận.
 
-**Cần một thứ: API key của Groq.** Groq là chỗ Javis mượn để chuyển giọng nói thành chữ (model Whisper). Chưa đấu thì gửi tin thoại Javis sẽ trả lời là cần dán key, kèm chỉ dẫn - chứ không im lặng.
+**Cần một trong:** API key **Google Gemini** (ưu tiên), hoặc OpenAI, ở trang Models. Cloud STT chuyển giọng → chữ cho tin thoại. Chưa có key thì gửi tin thoại Javis sẽ nói rõ và nhờ gõ chữ — không bắt buộc Groq.
 
 Cách đấu, làm một lần:
 
-1. Vào [console.groq.com](https://console.groq.com), đăng nhập, tạo một API key.
-2. Mở dashboard Javis, vào trang **Models**, tìm nhà cung cấp **Groq (API)**, dán key vào rồi lưu.
-3. Xong. Gửi tin thoại tiếp theo là nghe được ngay, **không cần tắt bật lại bot**.
+1. Mở dashboard Javis, trang **Models**, mục **Google Gemini (API)**, dán key rồi lưu.
+2. Xong. Gửi tin thoại tiếp theo là nghe được ngay, **không cần tắt bật lại bot**.
 
 Vài điều nên biết:
 
-- **Key này dùng chung với phần chat.** Đã đấu Groq làm bộ não thì tin thoại chạy luôn, không phải làm gì thêm. Ngược lại, đấu key chỉ để nghe giọng cũng được - không bắt buộc phải đổi model chính sang Groq.
-- **Javis nghe tiếng Việt** (có gợi ý ngôn ngữ cho Whisper nên câu ngắn không bị đoán nhầm sang tiếng khác rồi dịch luôn).
-- **Việc có tác động ra ngoài thì Javis hỏi lại trước.** Gửi tin, đăng bài, đặt lịch, tiêu tiền, sửa file: Javis mở đầu bằng một dòng "Em nghe: ..." rồi chờ bạn xác nhận. Máy vẫn nghe nhầm được, mà mấy việc đó lỡ làm rồi thì không rút lại. Hỏi số liệu, tra cứu, tóm tắt thì làm thẳng, không hỏi lại.
+- **Key Gemini dùng chung với phần chat API.** Đã đấu Gemini thì tin thoại chạy luôn. Dashboard/cuộc họp vẫn ưu tiên Moonshine local + Web Speech trình duyệt (không cần key).
+- **Javis nghe tiếng Việt** (có gợi ý ngôn ngữ nên câu ngắn ít bị đoán nhầm).
+- **Việc có tác động ra ngoài thì Javis hỏi lại trước.** Gửi tin, đăng bài, đặt lịch, tiêu tiền, sửa file: Javis mở đầu bằng một dòng "Em nghe: ..." rồi chờ bạn xác nhận.
 - **File ghi âm không được lưu vào brain.** Javis nghe xong lấy chữ, không để lại file `.ogg` trong `inbox/`.
 - Gửi tin thoại kèm caption `/notes` vẫn chạy đúng lệnh, với nội dung là câu bạn vừa nói.
-- Nghe không ra chữ (im lặng, quá ồn) hay Groq trả lỗi thì bot nói rõ lý do và nhờ bạn gõ chữ. Không có ngả nào im lặng.
+- Nghe không ra chữ (im lặng, quá ồn) hay API lỗi thì bot nói rõ lý do và nhờ bạn gõ chữ. Không có ngả nào im lặng.
 
 Kênh Zalo cũng nghe được tin thoại, dùng **chung một key Groq** - đấu một lần là hai kênh cùng chạy. Xem [Kênh Zalo Bot](26-kenh-zalo-bot.md).
 
@@ -304,7 +303,7 @@ Nhóm **Hệ thống** ở đầu trang **Cài đặt** cũng hiện nhanh Teleg
 
 **Gửi file lên bot mà Javis nói không đọc được.** Kiểm tra 2 thứ: file có quá 20MB không (trần tải về của Telegram bot API), và có phải video/video note không (Javis chưa xem được hai loại này, hãy gửi dạng file tài liệu hoặc gõ chữ).
 
-**Gửi tin thoại mà Javis nói cần API key Groq.** Đúng như vậy: phần nghe giọng chạy bằng Whisper của Groq. Vào trang **Models**, mục **Groq (API)**, dán key lấy ở console.groq.com rồi lưu. Không cần tắt bật lại bot.
+**Gửi tin thoại mà Javis nói cần API key.** Cần key **Google Gemini** (hoặc OpenAI) ở trang **Models**. Không bắt buộc Groq. Cuộc họp trên dashboard dùng Moonshine / Web Speech, không cần key.
 
 **Javis nghe sai chữ.** Thu lại gần micro hơn, nói chậm và tránh chỗ ồn. Câu quá ngắn (một hai từ) cũng dễ nghe nhầm - nói trọn một câu thì chuẩn hơn hẳn. Với việc có tác động ra ngoài, Javis đọc lại câu nghe được rồi mới làm, nên bạn có cơ hội bắt lỗi trước.
 

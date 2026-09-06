@@ -189,7 +189,7 @@
   function renderWorkflowUI() {
     const panel = document.getElementById("panel-workflows");
     const all = _wfState.wfs;
-    panel.innerHTML = `<div class="panel-bar"><h3>Workflows</h3><div class="pb-actions"><button class="s-btn-ghost" id="wfSelAll" title="${esc(t("studio.selall_title"))}">${esc(t("studio.selall"))}</button><button class="s-btn-ghost" id="wfDl" disabled title="${esc(t("studio.dl_title"))}">${esc(t("studio.dl_sel"))}</button><button class="s-btn-ghost" id="wfImport">${esc(t("studio.import"))}</button><button class="s-btn-ghost" id="seedBtn">${esc(t("studio.seed"))}</button><button class="s-btn-ghost" id="seedStrategyBtn" title="NCTT → chiến lược KD/MKT → proposal">Bộ Proposal</button><button class="s-btn-ghost" id="seedVideoBtn" title="Nghiên cứu → kịch bản → đạo diễn đa pipeline">Bộ Video</button><button class="s-btn" id="newWf">+ Workflow</button></div></div>
+    panel.innerHTML = `<div class="panel-bar"><h3>Workflows</h3><div class="pb-actions"><button class="s-btn-ghost" id="wfSelAll" title="${esc(t("studio.selall_title"))}">${esc(t("studio.selall"))}</button><button class="s-btn-ghost" id="wfDl" disabled title="${esc(t("studio.dl_title"))}">${esc(t("studio.dl_sel"))}</button><button class="s-btn-ghost" id="wfImport">${esc(t("studio.import"))}</button><button class="s-btn-ghost" id="seedBtn">${esc(t("studio.seed"))}</button><button class="s-btn-ghost" id="seedStrategyBtn" title="NCTT → chiến lược KD/MKT → proposal">Bộ Proposal</button><button class="s-btn-ghost" id="seedVideoBtn" title="Nghiên cứu → kịch bản → đạo diễn đa pipeline">Bộ Video</button><button class="s-btn-ghost" id="seedPhapCheBtn" title="Agent Pháp chế + sources/phap-che">Bộ Pháp chế</button><button class="s-btn" id="newWf">+ Workflow</button></div></div>
       ${all.length ? khungNhomHtml(all, _wfState, { bodyId: "wfCards", bodyCls: "wf-list",
                                                     searchId: "wfSearch", searchPh: t("studio.wf_search_ph") })
       : `<div class="empty">${esc(t("studio.wf_empty"))}</div>`}`;
@@ -208,6 +208,16 @@
         loadWorkflows(); loadAgents?.();
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = "Bộ Video"; }
+      }
+    };
+    document.getElementById("seedPhapCheBtn").onclick = async () => {
+      const btn = document.getElementById("seedPhapCheBtn");
+      if (btn) { btn.disabled = true; btn.textContent = "Đang tạo…"; }
+      try {
+        await api("/studio/seed-phap-che", { method: "POST", body: fd({ brain: brain() }) });
+        loadWorkflows(); loadAgents?.();
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "Bộ Pháp chế"; }
       }
     };
     document.getElementById("wfDl").onclick = () => taiDaChon("workflow");

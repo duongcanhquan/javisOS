@@ -1,0 +1,11 @@
+name: Pháp chế (kho luật)
+slug: phap-che
+version: 1.0.0
+description: Tìm trong sources/phap-che + wiki pháp chế; tuỳ chọn gọi RAG sidecar (JAVIS_PHAP_CHE_RAG_URL). Readonly.
+author: Javis (bundled)
+enabled: true
+min_mode: readonly
+tools:
+  - phap_che_search
+  - phap_che_status
+hooks: []
