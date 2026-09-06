@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.101] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp / Moonshine:** gửi COOP/COEP (credentialless) + MIME `.ort`/`.wasm` để WASM threads chạy; bỏ qua Moonshine khi thiếu `crossOriginIsolated`.
 ## [0.55.100] - 2026-09-06
 ### Cải tiến
 - **Popup Kết nối:** hộp chi tiết / test kết nối rộng ~2× (1040px), vùng thông báo riêng không cắt chữ.

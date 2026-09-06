@@ -241,8 +241,12 @@ def _token_ok(request, path: str) -> bool:
 
 DASHBOARD_PATH = Path(__file__).parent.parent / "dashboard"
 # Windows/mimetypes không biết .webp -> StaticFiles trả text/plain; khai rõ để logo webp đúng kiểu ảnh.
+# .ort/.wasm/.bin: Moonshine model + WASM — tránh text/plain (hỏng binary / MIME sai).
 import mimetypes
 mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("application/octet-stream", ".ort")
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("application/octet-stream", ".bin")
 app.mount("/static", StaticFiles(directory=str(DASHBOARD_PATH)), name="static")
 
 
@@ -250,8 +254,18 @@ app.mount("/static", StaticFiles(directory=str(DASHBOARD_PATH)), name="static")
 async def _static_cache_headers(request: Request, call_next):
     """Asset tĩnh có ?v= (cache-bust theo VERSION, index.html tự gắn) → cho cache 1 năm immutable.
     Không có ?v= thì giữ nguyên (ETag/Last-Modified của StaticFiles vẫn lo revalidate).
-    Thiếu header này trình duyệt phải hỏi lại ~27 file JS/CSS mỗi lần mở trang."""
+    Thiếu header này trình duyệt phải hỏi lại ~27 file JS/CSS mỗi lần mở trang.
+
+    COOP/COEP: Moonshine WASM (pthread) cần SharedArrayBuffer → crossOriginIsolated.
+    Dùng credentialless (ít phá CDN hơn require-corp). CORP trên /static để tài nguyên
+    cùng origin vẫn nhúng được khi trang đã isolate.
+    """
     resp = await call_next(request)
+    # Isolation cho cả document HTML lẫn module/worker cùng origin.
+    resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    resp.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
+    if request.url.path.startswith("/static/"):
+        resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     if request.url.path == "/static/freshness.js":
         # Người gác cổng mà cũ theo thì nó gác cái gì. Nạp KHÔNG kèm `?v=` và luôn hỏi lại.
         resp.headers["Cache-Control"] = "no-cache"

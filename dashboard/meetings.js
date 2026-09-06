@@ -230,6 +230,20 @@
   }
 
   /**
+   * Moonshine WASM build có pthread → cần SharedArrayBuffer (= crossOriginIsolated).
+   * Thiếu COOP/COEP trên document thì load() có thể “thành công” giả hoặc im, không ra chữ.
+   */
+  function moonshineRuntimeOk() {
+    try {
+      if (typeof SharedArrayBuffer === "undefined") return false;
+      if (typeof crossOriginIsolated !== "undefined" && !crossOriginIsolated) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Điện thoại: Whisper (MediaRecorder + Groq) ổn hơn Moonshine WASM và continuous Web Speech.
    * Chrome trên iOS cũng là WebKit — cùng hạn chế.
    */
@@ -239,18 +253,19 @@
 
   /**
    * Desktop + ngôn ngữ có model Moonshine local trên VPS → Moonshine trước.
-   * Mobile: Whisper / Web Speech.
+   * Mobile / thiếu isolation: Whisper / Web Speech.
    */
   function preferMoonshineFirst(lang) {
     if (preferWhisperLive()) return false;
+    if (!moonshineRuntimeOk()) return false;
     lang = normalizeLang(lang);
     if (MOONSHINE_LOCAL[lang]) return true;
     return lang === "vi";
   }
 
-  /** Failover: mọi ngôn ngữ Moonshine hỗ trợ (ưu tiên khi đã có file local). */
+  /** Failover: mọi ngôn ngữ Moonshine hỗ trợ (ưu tiên khi đã có file local + isolation). */
   function preferMoonshineFailover(lang) {
-    return moonshineSupports(lang);
+    return moonshineRuntimeOk() && moonshineSupports(lang);
   }
 
   function armAudioSessionForMic() {
@@ -960,6 +975,12 @@
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
+    if (!moonshineRuntimeOk()) {
+      el.textContent =
+        "Moonshine cần tải lại trang (WASM threads). Nếu vẫn vậy: dùng Chrome/Edge + Web Speech, hoặc dán Groq key ở Models.";
+      el.style.color = "var(--warn-ink, var(--text3))";
+      return;
+    }
     if (!preferMoonshineFirst(lang)) {
       el.textContent =
         label +
@@ -1189,6 +1210,11 @@
 
   async function startMoonshine(root) {
     if (state.abortRequested) throw new Error("Đã hủy");
+    if (!moonshineRuntimeOk()) {
+      throw new Error(
+        "Trình duyệt chưa bật WASM threads (crossOriginIsolated=false). Tải lại trang hoặc dùng Web Speech / Groq."
+      );
+    }
     var lang = meetingLang();
     var label = langLabel(lang);
     var mod = await importMoonshineModule();
@@ -1506,7 +1532,7 @@
       }
     }
 
-    // 2) Desktop tiếng Việt: Moonshine (model trên VPS). Lỗi → cleanup micro rồi Whisper/Web Speech.
+    // 2) Desktop + isolation OK: Moonshine (model trên VPS). Lỗi → cleanup micro rồi Whisper/Web Speech.
     if (preferMoonshineFirst(lang) && moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
