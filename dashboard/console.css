@@ -373,7 +373,16 @@ body.in-console .hud-actions { display: none; }
 .rail-collapse-btn:hover { color: var(--text); background: var(--surface-2); }
 .rail-collapse-btn svg { width: 18px; height: 18px; }
 .rail-foot .rf-meta { order: 1; text-align: left; min-width: 0; }
-.rail-foot .rf-ver { font-size: 11px; color: var(--text2); }
+.rail-foot .rf-ver {
+  font-size: 11px; color: var(--text2); line-height: 1.35;
+  white-space: normal; overflow: hidden; max-width: 140px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+}
+.rail-foot .rf-host { color: var(--text2); }
+.rail-foot .rf-sep { display: none; }
+.rail-foot .rf-deploy {
+  color: var(--text3); font-variant-numeric: tabular-nums; font-size: 10.5px;
+}
 
 /* Tooltip nhanh cho rail thu gọn (JS đặt vị trí; body-level nên không bị overflow rail cắt) */
 .rail-tip {
@@ -609,8 +618,8 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .hud-top .brand,
 .hud-top .studio-open-btn,
 .hud-top #settingsBtn { display: none; }
-/* Studio panels render trong cview: bỏ căn giữa cứng cho hợp khung trang */
-.cview-body .stab-panel { max-width: 1100px; margin: 0; }
+/* Studio panels trong cview: full chiều ngang (workflow/agent/skill xếp nhiều cột). */
+.cview-body .stab-panel { max-width: none; width: 100%; margin: 0; }
 
 /* ============================================
    NHÓM CODE trên rail (hôm nay có Terminal)
@@ -1208,9 +1217,9 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .cat-chip { border: 1px solid var(--border); background: transparent; color: inherit;
   border-radius: 14px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; opacity: .8; }
 .cat-chip.on { border-color: var(--accent); color: var(--accent); opacity: 1; }
-.cat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px; margin-top: 12px; max-width: none; width: 100%; }
-/* Trang Kết nối: lưới 3 cột full chiều ngang (tablet 2, mobile 1) */
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px; margin-top: 12px; max-width: none; width: 100%; }
+/* Trang Kết nối: giữ 3 cột rõ (tablet 2, mobile 1) — không dùng auto-fill của Store */
 .galaxy-nexus .conn-grid,
 .cat-grid.conn-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1220,7 +1229,6 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   width: 100%;
 }
 @media (max-width: 1100px) {
-  .cat-grid,
   .galaxy-nexus .conn-grid,
   .cat-grid.conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -1851,18 +1859,18 @@ body.on-mcp .cview-body > .cview-placeholder {
 .kho-navdem { font-size: 12px; color: var(--text3); }
 .kho-chinh { flex: 1; min-width: 0; }
 
-.kho-the { gap: 10px; }
-.kho-dau { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.kho-nhom { font-size: 12px; color: var(--text3); border: 1px solid var(--border);
-  border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
-.kho-ten { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px;
-  flex-wrap: wrap; }
-.kho-ava { width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid;
-  place-items: center; font-weight: 700; font-size: 15px; color: #fff; letter-spacing: -.02em; }
+.kho-the { gap: 6px; padding: 10px; border-radius: 10px; }
+.kho-dau { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+.kho-nhom { font-size: 11px; color: var(--text3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.kho-ten { font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap; line-height: 1.25; }
+.kho-ava { width: 32px; height: 32px; flex: none; border-radius: 8px; display: grid;
+  place-items: center; font-weight: 700; font-size: 13px; color: #fff; letter-spacing: -.02em; }
 /* Logo thật thì KHÔNG tô nền: nền màu sau một logo có nền trắng trông như lỗi in. */
 .kho-ava-img { background: none; }
-.kho-ava-img svg, .kho-ava-img img { width: 34px; height: 34px; object-fit: contain; }
-.kho-daicai { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+.kho-ava-img svg, .kho-ava-img img { width: 26px; height: 26px; object-fit: contain; }
+.kho-daicai { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
   color: var(--ok-ink, #2f855a); }
 /* Có bản mới: đổi MÀU chứ không chỉ đổi chữ. Xanh lá đọc là "xong rồi, yên tâm", nên để
    nguyên xanh cho một dòng đang bảo người ta phải làm gì đó là tự triệt tiêu chính nó. */
@@ -1884,27 +1892,26 @@ body.on-mcp .cview-body > .cview-placeholder {
    dính nhau đọc thành một số duy nhất vô nghĩa. */
 .kho-dem.moi { color: var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent) !important; }
-.kho-nut { display: flex; gap: 8px; }
-.kho-btn { flex: 1; padding: 11px; border-radius: 10px; font: inherit; font-size: 14px;
+.kho-nut { display: flex; gap: 6px; }
+.kho-btn { flex: 1; padding: 7px 8px; border-radius: 8px; font: inherit; font-size: 12.5px;
   font-weight: 600; cursor: pointer; border: 1px solid transparent; }
 /* Bật/tắt tạm: việc HIẾM hơn hẳn cài và gỡ, nên nó nhỏ lại và không tranh chỗ. */
-.kho-btn-phu { flex: none; padding: 11px 16px; background: var(--surface-2); color: var(--text2);
+.kho-btn-phu { flex: none; padding: 7px 10px; background: var(--surface-2); color: var(--text2);
   border-color: var(--border); }
 .kho-btn-chinh { background: var(--accent); color: #fff; }
 .kho-btn-go { background: transparent; color: var(--danger-ink, #b3261e);
   border-color: var(--border); }
 .kho-btn-go:hover { border-color: var(--danger-ink, #b3261e); }
+.kho-the .cat-desc { font-size: 12.5px; line-height: 1.4; opacity: .82; display: -webkit-box;
+  -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kho-the .prov-meta { font-size: 11.5px; }
+.kho-the .prov-kind { font-size: 10.5px; padding: 1px 5px; }
 
 .kho-trang { display: flex; align-items: center; gap: 6px; margin-top: 22px; padding-top: 16px;
   border-top: 1px solid var(--border); flex-wrap: wrap; }
 .kho-so { min-width: 36px; height: 36px; padding: 0 11px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--surface-1); color: inherit;
   font: inherit; font-size: 14px; cursor: pointer; }
-
-/* Chữ trong thẻ của kho to hơn thẻ danh mục thường: đây là chỗ người ta ĐỌC để quyết định có
-   cài hay không, không phải một dòng nhãn liếc qua. */
-.kho-the .cat-desc { font-size: 13.5px; opacity: .82; }
-.kho-the .prov-meta { font-size: 12.5px; }
 
 /* Nút quay lại trang vừa đi ra. */
 .kho-quaylai { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;

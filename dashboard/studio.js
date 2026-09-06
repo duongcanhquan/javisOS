@@ -275,9 +275,57 @@
     return parts.join("\n\n");
   }
 
+  function _wfBriefDraftKey(slug) {
+    return "javis.wf.brief." + String(slug || "unknown");
+  }
+
+  function _loadWfBriefDraft(slug) {
+    try {
+      const raw = sessionStorage.getItem(_wfBriefDraftKey(slug));
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      if (!d || typeof d !== "object") return null;
+      return {
+        goal: String(d.goal || ""),
+        scope: String(d.scope || ""),
+        constraints: String(d.constraints || ""),
+        notes: String(d.notes || ""),
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function _saveWfBriefDraft(slug, fields) {
+    try {
+      const payload = {
+        goal: (fields.goal || "").trim(),
+        scope: (fields.scope || "").trim(),
+        constraints: (fields.constraints || "").trim(),
+        notes: (fields.notes || "").trim(),
+      };
+      if (!payload.goal && !payload.scope && !payload.constraints && !payload.notes) {
+        sessionStorage.removeItem(_wfBriefDraftKey(slug));
+        return;
+      }
+      sessionStorage.setItem(_wfBriefDraftKey(slug), JSON.stringify(payload));
+    } catch (e) { /* quota / private mode */ }
+  }
+
+  function _clearWfBriefDraft(slug) {
+    try {
+      sessionStorage.removeItem(_wfBriefDraftKey(slug));
+    } catch (e) {}
+  }
+
   function _askWfBrief(w) {
     return new Promise((resolve) => {
       let modal = document.getElementById("wfRunModal");
+      // Bản cũ không có ô nháp → tạo lại modal một lần.
+      if (modal && !modal.querySelector("#wfRunDraftHint")) {
+        modal.remove();
+        modal = null;
+      }
       if (!modal) {
         modal = document.createElement("div");
         modal.id = "wfRunModal";
@@ -292,6 +340,7 @@
               <button type="button" class="wf-run-x" id="wfRunClose" aria-label="Close">×</button>
             </div>
             <div class="wf-run-body">
+              <p class="wf-run-draft-hint" id="wfRunDraftHint" hidden></p>
               <label for="wfGoal">${esc(t("studio.brief_goal"))} <span class="req">*</span></label>
               <textarea id="wfGoal" rows="3" placeholder="${esc(t("studio.brief_goal_ph"))}"></textarea>
               <label for="wfScope">${esc(t("studio.brief_scope"))}</label>
@@ -321,22 +370,53 @@
       const notes = modal.querySelector("#wfNotes");
       const preview = modal.querySelector("#wfBriefPreview");
       const err = modal.querySelector("#wfRunErr");
+      const draftHint = modal.querySelector("#wfRunDraftHint");
+      const slug = w.slug || w.name || "";
       title.textContent = t("studio.run_brief_title", { ten: w.name || w.slug });
       desc.textContent = (w.description || "").trim();
       desc.hidden = !desc.textContent;
-      goal.value = ""; scope.value = ""; constraints.value = ""; notes.value = "";
+
+      const draft = _loadWfBriefDraft(slug);
+      goal.value = draft ? draft.goal : "";
+      scope.value = draft ? draft.scope : "";
+      constraints.value = draft ? draft.constraints : "";
+      notes.value = draft ? draft.notes : "";
+      if (draftHint) {
+        const hasDraft = !!(
+          draft &&
+          (draft.goal || draft.scope || draft.constraints || draft.notes)
+        );
+        draftHint.hidden = !hasDraft;
+        draftHint.textContent = hasDraft
+          ? "Đã khôi phục bản nháp trong phiên này (bấm ra ngoài vẫn giữ)."
+          : "";
+      }
       preview.textContent = "";
       err.hidden = true; err.textContent = "";
+
+      const readFields = () => ({
+        goal: goal.value,
+        scope: scope.value,
+        constraints: constraints.value,
+        notes: notes.value,
+      });
       const syncPreview = () => {
         preview.textContent = _composeWfBrief(goal.value.trim(), scope.value.trim(),
           constraints.value.trim(), notes.value.trim()) || t("studio.brief_preview_empty");
       };
+      const persistDraft = () => _saveWfBriefDraft(slug, readFields());
       [goal, scope, constraints, notes].forEach((el) => {
-        el.oninput = syncPreview;
+        el.oninput = () => {
+          syncPreview();
+          persistDraft();
+        };
       });
       syncPreview();
 
       const close = (val) => {
+        // Đóng mà chưa chạy → giữ nháp session. Chạy xong → xóa nháp.
+        if (val == null) persistDraft();
+        else _clearWfBriefDraft(slug);
         modal.classList.remove("open");
         document.removeEventListener("keydown", onKey);
         resolve(val);
@@ -363,37 +443,321 @@
     });
   }
 
+  // ===== Run workflow: modal brief → SSE (panel rộng; đóng = thu nhỏ, vẫn chạy) =====
+  let _wfActive = null; // { es, card, badge, w, status, result, stepTexts, brief }
+
+  function _wfHideDrawerKeepRun() {
+    const drawer = document.getElementById("runDrawer");
+    if (drawer) drawer.classList.remove("open");
+    _wfSyncFloat();
+  }
+
+  function _wfShowDrawer() {
+    const drawer = document.getElementById("runDrawer");
+    if (drawer) drawer.classList.add("open");
+    const fl = document.getElementById("runFloat");
+    if (fl) fl.hidden = true;
+    if (_wfActive) _wfActive.floatAck = true;
+  }
+
+  function _wfSyncFloat() {
+    const fl = document.getElementById("runFloat");
+    const lbl = document.getElementById("runFloatLabel");
+    const btn = document.getElementById("runFloatOpen");
+    if (!fl || !btn) return;
+    const drawerOpen = !!(document.getElementById("runDrawer") &&
+      document.getElementById("runDrawer").classList.contains("open"));
+    if (!_wfActive || drawerOpen) {
+      fl.hidden = true;
+      return;
+    }
+    const st = _wfActive.status;
+    // Chỉ hiện chip khi đang chạy / chờ duyệt, hoặc vừa xong/lỗi mà user chưa mở lại.
+    if (st === "done" || st === "error") {
+      if (_wfActive.floatAck) { fl.hidden = true; return; }
+    } else if (st !== "running" && st !== "wait") {
+      fl.hidden = true;
+      return;
+    }
+    fl.hidden = false;
+    btn.classList.remove("done", "err");
+    if (st === "done") {
+      btn.classList.add("done");
+      if (lbl) lbl.textContent = t("studio.float_done");
+    } else if (st === "error") {
+      btn.classList.add("err");
+      if (lbl) lbl.textContent = t("studio.float_err");
+    } else if (st === "wait") {
+      if (lbl) lbl.textContent = t("studio.float_wait");
+    } else {
+      const name = (_wfActive.w && _wfActive.w.name) || "Workflow";
+      if (lbl) lbl.textContent = t("studio.float_running", { name });
+    }
+  }
+
+  function _extractReportLinks(text) {
+    const seen = new Set();
+    const out = [];
+    const add = (href, label, kind) => {
+      const key = kind + "|" + href;
+      if (!href || seen.has(key)) return;
+      seen.add(key);
+      out.push({ href, label: label || href, kind });
+    };
+    const s = String(text || "");
+    // Markdown [label](url)
+    s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi, (_, lab, url) => {
+      add(url, lab, "url");
+      return "";
+    });
+    // Bare URLs
+    s.replace(/https?:\/\/[^\s<>"'`)\]}]+/gi, (url) => {
+      add(url.replace(/[.,;:!?)]+$/, ""), url.replace(/[.,;:!?)]+$/, ""), "url");
+      return "";
+    });
+    // Vault-ish paths ending in known extensions
+    s.replace(/(?:^|[\s("'`])((?:[\w./-]+\.(?:md|html|htm|pdf|png|jpg|jpeg|webp|svg|csv|json|txt|docx?))(?::\d+)?)/gim, (_, p) => {
+      const path = p.replace(/:\d+$/, "").replace(/^\.\//, "");
+      if (path.startsWith("http")) return "";
+      add("#open=" + encodeURIComponent(path), path, "vault");
+      return "";
+    });
+    // Wikilinks [[path]] / [[path|alias]]
+    s.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, alias) => {
+      const tgt = String(target || "").trim();
+      if (!tgt) return "";
+      add("#open=" + encodeURIComponent(tgt), alias || tgt, "vault");
+      return "";
+    });
+    return out;
+  }
+
+  function _buildWfReportMd(w, brief, stepTexts, result) {
+    const lines = [
+      "# " + (w.name || w.slug || "Workflow"),
+      "",
+      "- Slug: `" + (w.slug || "") + "`",
+      "- Thời gian: " + new Date().toLocaleString(LOC()),
+      "",
+    ];
+    if (brief) {
+      lines.push("## Brief", "", brief, "");
+    }
+    (stepTexts || []).forEach((st, i) => {
+      if (!st) return;
+      lines.push("## Bước " + (i + 1) + (st.agent ? " — " + st.agent : ""), "");
+      if (st.task) lines.push("*" + st.task + "*", "");
+      lines.push(st.text || "(trống)", "");
+    });
+    if (result) {
+      lines.push("## Tổng kết", "", result, "");
+    }
+    const links = _extractReportLinks(
+      [result || ""].concat((stepTexts || []).map((x) => (x && x.text) || "")).join("\n")
+    );
+    if (links.length) {
+      lines.push("## Liên kết", "");
+      links.forEach((L) => {
+        if (L.kind === "url") lines.push("- [" + L.label + "](" + L.href + ")");
+        else lines.push("- [[" + L.label + "]] (`" + decodeURIComponent(L.href.replace(/^#open=/, "")) + "`)");
+      });
+      lines.push("");
+    }
+    return lines.join("\n");
+  }
+
+  function _downloadText(filename, content, mime) {
+    const blob = new Blob([content], { type: mime || "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+
+  function _reportHtmlDoc(title, mdBody) {
+    let raw = String(mdBody || "");
+    const imgs = [];
+    const links = [];
+    raw = raw.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) => {
+      const i = imgs.length;
+      imgs.push({ alt, src });
+      return "%%IMG" + i + "%%";
+    });
+    raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, lab, url) => {
+      const i = links.length;
+      links.push({ lab, url });
+      return "%%A" + i + "%%";
+    });
+    let html = esc(raw);
+    html = html
+      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+      .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+      .replace(/\n/g, "<br>\n");
+    imgs.forEach((im, i) => {
+      html = html.split("%%IMG" + i + "%%").join(
+        `<img src="${esc(im.src)}" alt="${esc(im.alt)}" style="max-width:100%;height:auto;margin:12px 0">`
+      );
+    });
+    links.forEach((L, i) => {
+      html = html.split("%%A" + i + "%%").join(
+        `<a href="${esc(L.url)}" target="_blank" rel="noopener">${esc(L.lab)}</a>`
+      );
+    });
+    return `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
+<title>${esc(title)}</title>
+<style>
+  body{font-family:Georgia,"Times New Roman",serif;max-width:820px;margin:32px auto;padding:0 20px;line-height:1.55;color:#1a1a1a;background:#fff}
+  h1{font-size:1.6rem} h2{font-size:1.25rem;margin-top:1.6em;border-bottom:1px solid #ddd;padding-bottom:.25em}
+  h3{font-size:1.1rem;margin-top:1.2em}
+  a{color:#0b57d0} img{max-width:100%;height:auto;display:block}
+  .meta{color:#555;font-size:.9rem}
+  @media print{body{margin:12mm;max-width:none}}
+</style></head><body>
+<p class="meta">${esc(new Date().toLocaleString(LOC()))} · Javis OS · ${esc(title)}</p>
+<article>${html}</article>
+</body></html>`;
+  }
+
+  function _renderRunExportFoot(w) {
+    const foot = document.getElementById("runFoot");
+    if (!foot || !_wfActive) return;
+    foot.hidden = false;
+    foot.innerHTML =
+      `<button type="button" class="s-btn" id="runDlMd">${esc(t("studio.dl_md"))}</button>` +
+      `<button type="button" class="s-btn-ghost" id="runDlHtml">${esc(t("studio.dl_html"))}</button>` +
+      `<button type="button" class="s-btn-ghost" id="runDlPdf">${esc(t("studio.dl_pdf"))}</button>` +
+      `<button type="button" class="s-btn-ghost" id="runSaveVault">${esc(t("studio.save_vault"))}</button>`;
+    const md = () =>
+      _buildWfReportMd(w, _wfActive.brief, _wfActive.stepTexts, _wfActive.result);
+    const base = (w.slug || "workflow") + "-bao-cao-" + new Date().toISOString().slice(0, 10);
+    foot.querySelector("#runDlMd").onclick = () => _downloadText(base + ".md", md(), "text/markdown;charset=utf-8");
+    foot.querySelector("#runDlHtml").onclick = () =>
+      _downloadText(base + ".html", _reportHtmlDoc(w.name || w.slug, md()), "text/html;charset=utf-8");
+    foot.querySelector("#runDlPdf").onclick = () => {
+      const html = _reportHtmlDoc(w.name || w.slug, md());
+      const win = window.open("", "_blank");
+      if (!win) { alert(t("studio.popup_blocked")); return; }
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => { try { win.focus(); win.print(); } catch (e) {} }, 350);
+    };
+    foot.querySelector("#runSaveVault").onclick = async () => {
+      const path = "Javis/workflow-runs/" + base + ".md";
+      const f = fd({ brain: brain(), path, content: md() });
+      const r = await fetch("/files/write", { method: "POST", body: f, credentials: "same-origin" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) {
+        alert(t("studio.save_fail") + " " + (d.error || r.status));
+        return;
+      }
+      alert(t("studio.save_ok", { path }));
+      try {
+        if (typeof window.openVaultTarget === "function") window.openVaultTarget(path);
+        else location.hash = "#open=" + encodeURIComponent(path);
+      } catch (e) {}
+    };
+  }
+
+  function _appendRunSummary(w, resultText) {
+    const stepsEl = document.getElementById("runSteps");
+    if (!stepsEl) return;
+    const links = _extractReportLinks(
+      [resultText || ""]
+        .concat((_wfActive && _wfActive.stepTexts || []).map((x) => (x && x.text) || ""))
+        .join("\n")
+    );
+    let linksHtml = "";
+    if (links.length) {
+      linksHtml =
+        `<div class="run-summary-links"><div class="rsl-lbl">${esc(t("studio.summary_links"))}</div>` +
+        links
+          .map((L) => {
+            if (L.kind === "url") {
+              return `<a href="${esc(L.href)}" target="_blank" rel="noopener noreferrer">${esc(L.label)}</a>`;
+            }
+            return `<a href="${esc(L.href)}" data-vault-path="${esc(decodeURIComponent(L.href.replace(/^#open=/, "")))}">${esc(L.label)}</a>`;
+          })
+          .join("") +
+        `</div>`;
+    }
+    const body = (resultText || "").trim() || t("studio.summary_empty");
+    stepsEl.insertAdjacentHTML(
+      "beforeend",
+      `<div class="run-summary" id="runSummary">` +
+        `<h4>${ic("check", { cls: "ic-ok" })} ${esc(t("studio.done"))}</h4>` +
+        `<div class="run-summary-body">${esc(body)}</div>` +
+        linksHtml +
+        `</div>`
+    );
+    stepsEl.querySelectorAll(".rs-out").forEach((el) => el.classList.add("full"));
+    stepsEl.scrollTop = stepsEl.scrollHeight;
+    _renderRunExportFoot(w);
+  }
+
   async function runWorkflow(w, card) {
+    if (_wfActive && (_wfActive.status === "running" || _wfActive.status === "wait")) {
+      _wfShowDrawer();
+      alert(t("studio.already_running"));
+      return;
+    }
+
     const input = await _askWfBrief(w);
     if (input === null) return;
 
-    // Card chuyển sang trạng thái running
     const badge = card && card.querySelector(".wf-badge");
-    if (card) { card.classList.add("running"); }
-    if (badge) { badge.className = "wf-badge running"; badge.innerHTML = ic("loader", { cls: "ic-spin" }) + " " + esc(t("studio.running")); }
+    if (card) card.classList.add("running");
+    if (badge) {
+      badge.className = "wf-badge running";
+      badge.innerHTML = ic("loader", { cls: "ic-spin" }) + " " + esc(t("studio.running"));
+    }
 
-    const endRun = () => {
-      if (card) { card.classList.remove("running"); }
-      if (badge) { badge.className = "wf-badge ready"; badge.textContent = t("studio.ready"); }
-      card && card.querySelectorAll(".wf-pstep").forEach(el => el.classList.remove("active"));
+    const endRun = (ok) => {
+      if (card) card.classList.remove("running");
+      if (badge) {
+        badge.className = "wf-badge ready";
+        badge.textContent = ok === false ? t("studio.err_stop") : t("studio.ready");
+      }
+      card && card.querySelectorAll(".wf-pstep").forEach((el) => el.classList.remove("active"));
     };
 
     const drawer = document.getElementById("runDrawer");
     const stepsEl = document.getElementById("runSteps");
+    const foot = document.getElementById("runFoot");
     document.getElementById("runTitle").textContent = `▶ ${w.name}`;
     stepsEl.innerHTML = `<div class="run-info">${esc(t("studio.starting"))}</div>`;
+    if (foot) { foot.hidden = true; foot.innerHTML = ""; }
     drawer.classList.add("open");
-    const url = `/workflows/run?slug=${encodeURIComponent(w.slug)}&brain=${encodeURIComponent(brain())}&input=${encodeURIComponent(input)}`;
+
+    const url =
+      `/workflows/run?slug=${encodeURIComponent(w.slug)}&brain=${encodeURIComponent(brain())}&input=${encodeURIComponent(input)}`;
     const es = new EventSource(url);
     const stepDivs = {};
-    es.onmessage = (e) => {
+    _wfActive = {
+      es, card, badge, w, status: "running", result: "", stepTexts: [], brief: input, floatAck: false,
+    };
+
+    const bindClose = () => {
+      // Đóng / thu nhỏ = ẨN panel, KHÔNG huỷ EventSource → server tiếp tục chạy.
+      const hide = () => _wfHideDrawerKeepRun();
+      const minBtn = document.getElementById("runMinimize");
+      const closeBtn = document.getElementById("runClose");
+      if (minBtn) minBtn.onclick = hide;
+      if (closeBtn) closeBtn.onclick = hide;
+      const flOpen = document.getElementById("runFloatOpen");
+      if (flOpen) flOpen.onclick = () => _wfShowDrawer();
+    };
+    bindClose();
+
+    const onMsg = (e) => {
       const d = JSON.parse(e.data);
       if (d.type === "start") {
         stepsEl.innerHTML = `<div class="run-info">${d.steps} ${esc(t("studio.steps"))} · workflow ${esc(d.workflow)}</div>`;
       } else if (d.type === "step_start") {
-        // Pipeline card: sáng bước đang chạy
         if (card) {
-          card.querySelectorAll(".wf-pstep").forEach(el => el.classList.remove("active"));
+          card.querySelectorAll(".wf-pstep").forEach((el) => el.classList.remove("active"));
           const ps = card.querySelector(`.wf-pstep[data-i="${d.i}"]`);
           if (ps) ps.classList.add("active");
           if (badge) badge.innerHTML = `${ic("loader", { cls: "ic-spin" })} ${esc(t("studio.step_n", { a: d.i + 1, b: w.steps.length }))}`;
@@ -401,11 +765,23 @@
         const div = document.createElement("div");
         div.className = "run-step";
         div.innerHTML = `<div class="rs-head"><span class="rs-num">${d.i + 1}</span><span class="rs-agent">${esc(d.agent)}</span><span class="rs-spin"></span></div><div class="rs-task">${esc(d.task)}</div><div class="rs-out" id="rs-out-${d.i}"></div>`;
-        stepsEl.appendChild(div); stepDivs[d.i] = div;
+        stepsEl.appendChild(div);
+        stepDivs[d.i] = div;
+        if (!_wfActive.stepTexts[d.i]) _wfActive.stepTexts[d.i] = { agent: d.agent, task: d.task, text: "" };
+        else {
+          _wfActive.stepTexts[d.i].agent = d.agent;
+          _wfActive.stepTexts[d.i].task = d.task;
+        }
         stepsEl.scrollTop = stepsEl.scrollHeight;
+        _wfSyncFloat();
       } else if (d.type === "step_text") {
         const out = document.getElementById(`rs-out-${d.i}`);
-        if (out) { out.textContent += d.content; stepsEl.scrollTop = stepsEl.scrollHeight; }
+        if (out) {
+          out.textContent += d.content;
+          stepsEl.scrollTop = stepsEl.scrollHeight;
+        }
+        if (!_wfActive.stepTexts[d.i]) _wfActive.stepTexts[d.i] = { agent: "", task: "", text: "" };
+        _wfActive.stepTexts[d.i].text += d.content || "";
       } else if (d.type === "step_tool") {
         const div = stepDivs[d.i];
         if (div) div.querySelector(".rs-head").insertAdjacentHTML("beforeend", `<span class="rs-tool">${ic("settings")} ${esc(d.tool)}</span>`);
@@ -415,12 +791,15 @@
           `<span class="rs-verify" id="rs-vf-${d.i}">${ic("search")} ${esc(d.agent)} ${esc(t("studio.verifying"))}${d.attempt ? ` ${esc(t("studio.attempt_n", { n: d.attempt + 1 }))}` : ""}...</span>`);
       } else if (d.type === "step_verify_result") {
         const vf = document.getElementById(`rs-vf-${d.i}`);
-        if (vf) { vf.className = "rs-verify " + (d.passed ? "ok" : "fail"); vf.innerHTML = (d.passed ? ic("check", { cls: "ic-ok" }) + " " + esc(t("studio.pass")) : ic("circle-x", { cls: "ic-err" }) + " " + esc(t("studio.fail"))) + (d.reason ? ": " + esc(d.reason) : ""); vf.removeAttribute("id"); }
+        if (vf) {
+          vf.className = "rs-verify " + (d.passed ? "ok" : "fail");
+          vf.innerHTML = (d.passed ? ic("check", { cls: "ic-ok" }) + " " + esc(t("studio.pass")) : ic("circle-x", { cls: "ic-err" }) + " " + esc(t("studio.fail"))) + (d.reason ? ": " + esc(d.reason) : "");
+          vf.removeAttribute("id");
+        }
       } else if (d.type === "step_retry") {
         const out = document.getElementById(`rs-out-${d.i}`);
         if (out) out.insertAdjacentHTML("beforebegin", `<div class="rs-retry">↻ ${esc(t("studio.retry_n", { n: d.attempt }))}...</div>`);
       } else if (d.type === "step_done") {
-        // Pipeline card: bước xong → xanh
         if (card) {
           const ps = card.querySelector(`.wf-pstep[data-i="${d.i}"]`);
           if (ps) { ps.classList.remove("active"); ps.classList.add("done"); }
@@ -428,14 +807,19 @@
         const div = stepDivs[d.i];
         if (div) {
           div.classList.add("done");
-          const sp = div.querySelector(".rs-spin"); if (sp) sp.outerHTML = `<span class="rs-ok">${ic("check", { cls: "ic-ok" })}</span>`;
+          const sp = div.querySelector(".rs-spin");
+          if (sp) sp.outerHTML = `<span class="rs-ok">${ic("check", { cls: "ic-ok" })}</span>`;
           if (d.verified === false) div.insertAdjacentHTML("beforeend", `<div class="rs-warn">${ic("triangle-alert", { cls: "ic-warn" })} ${esc(t("studio.verify_fail"))}</div>`);
-          const out = document.getElementById(`rs-out-${d.i}`); if (out && !out.textContent.trim()) out.textContent = d.output;
+          const out = document.getElementById(`rs-out-${d.i}`);
+          if (out && !out.textContent.trim()) out.textContent = d.output || "";
+          if (d.output && _wfActive.stepTexts[d.i] && !_wfActive.stepTexts[d.i].text.trim()) {
+            _wfActive.stepTexts[d.i].text = d.output;
+          }
         }
       } else if (d.type === "step_error") {
-        const out = document.getElementById(`rs-out-${d.i}`); if (out) out.innerHTML += `<div class="rs-err">${ic("triangle-alert", { cls: "ic-warn" })} ${esc(d.content)}</div>`;
+        const out = document.getElementById(`rs-out-${d.i}`);
+        if (out) out.innerHTML += `<div class="rs-err">${ic("triangle-alert", { cls: "ic-warn" })} ${esc(d.content)}</div>`;
       } else if (d.type === "step_model") {
-        // Router chọn model khác model mặc định của agent - nói rõ để khỏi ngờ ngợ.
         const div = stepDivs[d.i];
         if (div) div.querySelector(".rs-head").insertAdjacentHTML("beforeend",
           `<span class="rs-tool">${ic("settings")} model: ${esc(d.model)}</span>`);
@@ -444,9 +828,8 @@
       } else if (d.type === "replan") {
         stepsEl.insertAdjacentHTML("beforeend", `<div class="run-info">${ic("search")} ${esc(t("studio.replan", { n: (d.added || []).length, r: d.round }))}</div>`);
       } else if (d.type === "wait_user") {
-        // Dừng chờ duyệt KHÔNG được trông giống bị sập: phải nói rõ đang chờ gì,
-        // và nếu duyệt được thì cho bấm ngay tại đây.
         es.close();
+        _wfActive.status = "wait";
         endRun();
         const canApprove = d.code && d.task_id;
         stepsEl.insertAdjacentHTML("beforeend",
@@ -460,36 +843,68 @@
             : "") +
           `</div>`);
         stepsEl.scrollTop = stepsEl.scrollHeight;
+        _wfShowDrawer();
+        _wfSyncFloat();
       } else if (d.type === "escalation") {
         stepsEl.insertAdjacentHTML("beforeend", `<div class="run-info">${ic("triangle-alert", { cls: "ic-warn" })} ${esc(t("studio.escalation"))} ${esc(d.reason || "")}</div>`);
       } else if (d.type === "error") {
-        es.close();
-        endRun();
+        try { es.close(); } catch (err) {}
+        _wfActive.status = "error";
+        endRun(false);
         stepsEl.insertAdjacentHTML("beforeend", `<div class="run-info">${ic("circle-x", { cls: "ic-err" })} ${esc(d.content || t("studio.err_stop"))}</div>`);
         stepsEl.scrollTop = stepsEl.scrollHeight;
+        _wfSyncFloat();
       } else if (d.type === "done") {
-        es.close();
-        endRun();
-        stepsEl.insertAdjacentHTML("beforeend", `<div class="run-info done">${ic("check", { cls: "ic-ok" })} ${esc(t("studio.done"))}</div>`);
-        stepsEl.scrollTop = stepsEl.scrollHeight;
+        try { es.close(); } catch (err) {}
+        _wfActive.status = "done";
+        _wfActive.result = d.result || (_wfActive.stepTexts.slice(-1)[0] || {}).text || "";
+        endRun(true);
+        _appendRunSummary(w, _wfActive.result);
+        _wfSyncFloat();
       }
     };
-    es.onerror = () => { es.close(); endRun(); };
-    // Nút Duyệt: mã nằm trên chính nút, nên một cú bấm gắn với ĐÚNG node đang chờ.
+
+    es.onmessage = onMsg;
+    es.onerror = () => {
+      if (_wfActive && (_wfActive.status === "done" || _wfActive.status === "error" || _wfActive.status === "wait")) return;
+      try { es.close(); } catch (err) {}
+      if (_wfActive) _wfActive.status = "error";
+      endRun(false);
+      _wfSyncFloat();
+    };
+
     stepsEl.onclick = (ev) => {
       const btn = ev.target.closest ? ev.target.closest(".wf-approve") : null;
-      if (!btn || btn.disabled) return;
-      btn.disabled = true;
-      btn.textContent = t("studio.running");
-      const q = new URLSearchParams({
-        task_id: btn.dataset.task, node: btn.dataset.node, code: btn.dataset.code,
-        slug: w.slug, brain: brain(),
-      });
-      const es2 = new EventSource(`/workflows/resume?${q}`);
-      es2.onmessage = es.onmessage;
-      es2.onerror = () => { es2.close(); endRun(); };
+      if (btn && !btn.disabled) {
+        btn.disabled = true;
+        btn.textContent = t("studio.running");
+        const q = new URLSearchParams({
+          task_id: btn.dataset.task, node: btn.dataset.node, code: btn.dataset.code,
+          slug: w.slug, brain: brain(),
+        });
+        const es2 = new EventSource(`/workflows/resume?${q}`);
+        _wfActive.es = es2;
+        _wfActive.status = "running";
+        es2.onmessage = onMsg;
+        es2.onerror = () => {
+          if (_wfActive && (_wfActive.status === "done" || _wfActive.status === "wait")) return;
+          try { es2.close(); } catch (err) {}
+          if (_wfActive) _wfActive.status = "error";
+          endRun(false);
+          _wfSyncFloat();
+        };
+        return;
+      }
+      const a = ev.target.closest ? ev.target.closest("a[data-vault-path]") : null;
+      if (a) {
+        ev.preventDefault();
+        const p = a.getAttribute("data-vault-path") || "";
+        try {
+          if (typeof window.openVaultTarget === "function") window.openVaultTarget(p);
+          else location.hash = "#open=" + encodeURIComponent(p);
+        } catch (err) {}
+      }
     };
-    document.getElementById("runClose").onclick = () => { es.close(); endRun(); drawer.classList.remove("open"); };
   }
 
   // ===== Workflow editor =====
@@ -891,6 +1306,8 @@
     .wf-run-preview summary{cursor:pointer;color:var(--text2);font-size:13px}
     .wf-run-preview pre{margin:8px 0 0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:var(--text3);line-height:1.45}
     .wf-run-err{margin:8px 0 0;color:var(--red,#e07070);font-size:13px}
+    .wf-run-draft-hint{margin:0 0 4px;padding:8px 10px;border-radius:8px;font-size:12.5px;line-height:1.4;
+      color:var(--text2);background:var(--surface-2,rgba(127,127,127,.1));border:1px solid var(--border)}
     .wf-run-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--hairline)}
     .sysb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--link-ink);background:var(--info-wash);border:1px solid var(--info-line);vertical-align:2px}
     .sk-usage{font-size:11px;color:var(--text3);margin-left:8px}

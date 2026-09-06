@@ -666,14 +666,31 @@
     mmQueue.push(cb);
     if (mmState === 1) return;
     mmState = 1;
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js";
-    s.onload = function () {
-      try { window.mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict" }); } catch (e) {}
-      mmState = 2; var q = mmQueue; mmQueue = []; q.forEach(function (c) { c(true); });
-    };
-    s.onerror = function () { mmState = 3; var q = mmQueue; mmQueue = []; q.forEach(function (c) { c(false); }); };
-    document.head.appendChild(s);
+    var sources = [
+      "/static/vendor/mermaid/mermaid.min.js",
+      "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
+    ];
+    function tryNext(i) {
+      if (i >= sources.length) {
+        mmState = 3;
+        var qFail = mmQueue;
+        mmQueue = [];
+        qFail.forEach(function (c) { c(false); });
+        return;
+      }
+      var s = document.createElement("script");
+      s.src = sources[i];
+      s.onload = function () {
+        try { window.mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict" }); } catch (e) {}
+        mmState = 2;
+        var qOk = mmQueue;
+        mmQueue = [];
+        qOk.forEach(function (c) { c(true); });
+      };
+      s.onerror = function () { tryNext(i + 1); };
+      document.head.appendChild(s);
+    }
+    tryNext(0);
   }
   function renderMermaid(code, host) {
     if (!host) return;

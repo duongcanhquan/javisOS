@@ -6,8 +6,11 @@
   var CDN = "/static/vendor/moonshine-wasm/dist/index.js";
   var CDN_FALLBACK =
     "https://cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm@0.1.5/dist/index.js";
+  // Model Moonshine host sẵn trên VPS (cùng origin) — tránh tải HuggingFace/CDN ngoài.
+  // (chi tiết từng ngôn ngữ: MOONSHINE_LOCAL)
+  var MOONSHINE_VI_LOCAL = null; // legacy alias — dùng moonshineLocalUrls("vi")
   var MOONSHINE_LOAD_TIMEOUT_MS = 90000;
-  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 45000;
+  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 60000;
   var state = {
     meetingId: null,
     path: "",
@@ -48,12 +51,67 @@
     total: 0,
   };
 
-  // Moonshine WASM: VI ổn định (Base + nhãn người nói). EN và ngôn ngữ khác ưu tiên
-  // Web Speech khi Bắt đầu (tránh treo tải model lớn); Moonshine chỉ dự phòng.
+  // Model Moonshine host sẵn trên VPS (cùng origin). Không có → CDN ngoài (chậm / hay treo).
+  var MOONSHINE_LOCAL = {
+    vi: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    zh: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    ja: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    ar: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    uk: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    es: {
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    ko: {
+      arch: "Tiny",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
+    },
+    en: {
+      arch: "TinyStreaming",
+      files: [
+        "frontend.ort",
+        "encoder.ort",
+        "adapter.ort",
+        "cross_kv.ort",
+        "decoder_kv.ort",
+        "streaming_config.json",
+        "tokenizer.bin",
+      ],
+    },
+  };
+
+  function moonshineLocalUrls(lang) {
+    lang = normalizeLang(lang);
+    var cfg = MOONSHINE_LOCAL[lang];
+    if (!cfg) return null;
+    var out = {};
+    (cfg.files || []).forEach(function (f) {
+      out[f] = "/static/vendor/moonshine-models/" + lang + "/" + f;
+    });
+    return out;
+  }
+
+  // Moonshine WASM: ngôn ngữ có model local trên VPS → ưu tiên Moonshine (nhanh).
+  // EN / ngôn ngữ khác chưa local: Web Speech trước.
   var MOONSHINE_LANG = {
     vi: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "true" }, label: "Tiếng Việt" },
     en: { arch: "TinyStreaming", opts: {}, label: "English" },
-    es: { arch: "TinyStreaming", opts: {}, label: "Español" },
+    es: { arch: "Base", opts: {}, label: "Español" },
     zh: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "中文" },
     ja: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "日本語" },
     ko: { arch: "Tiny", opts: { max_tokens_per_second: "13.0" }, label: "한국어" },
@@ -180,17 +238,19 @@
   }
 
   /**
-   * Moonshine không còn mặc định khi Bắt đầu: dễ hiện "Đang nghe" mà không ra chữ
-   * (mobile WASM / tranh mic). Chỉ dùng làm dự phòng.
+   * Desktop + ngôn ngữ có model Moonshine local trên VPS → Moonshine trước.
+   * Mobile: Whisper / Web Speech.
    */
   function preferMoonshineFirst(lang) {
-    return false;
+    if (preferWhisperLive()) return false;
+    lang = normalizeLang(lang);
+    if (MOONSHINE_LOCAL[lang]) return true;
+    return lang === "vi";
   }
 
-  /** Failover sau 12s im: chỉ thử Moonshine với tiếng Việt (Base nhỏ). EN/ngôn ngữ khác
-   * tải TinyStreaming/Base quá lâu → lỗi "Moonshine English tải quá lâu" làm người dùng sợ. */
+  /** Failover: mọi ngôn ngữ Moonshine hỗ trợ (ưu tiên khi đã có file local). */
   function preferMoonshineFailover(lang) {
-    return normalizeLang(lang) === "vi";
+    return moonshineSupports(lang);
   }
 
   function armAudioSessionForMic() {
@@ -531,10 +591,13 @@
   }
 
   function promiseTimeout(promise, ms, message) {
+    var timer = null;
     return Promise.race([
-      promise,
+      Promise.resolve(promise).finally(function () {
+        if (timer) clearTimeout(timer);
+      }),
       new Promise(function (_, reject) {
-        setTimeout(function () {
+        timer = setTimeout(function () {
           reject(new Error(message || "Hết thời gian chờ"));
         }, ms);
       }),
@@ -924,12 +987,10 @@
 
   function preloadMoonshine(root) {
     var lang = meetingLang();
-    // Mobile: đừng tải Moonshine (nặng + thường im) — Whisper/Web Speech lo.
     if (preferWhisperLive()) {
       updateMoonshinePreloadHint(root, 0, lang);
       return;
     }
-    // Chỉ preload tiếng Việt — EN/ngôn ngữ khác dùng Web Speech khi họp (không treo tải model).
     if (!preferMoonshineFirst(lang)) {
       updateMoonshinePreloadHint(root, 0, lang);
       return;
@@ -938,23 +999,29 @@
       updateMoonshinePreloadHint(root, 0, lang);
       return;
     }
-    if (
-      (state.moonshineReady && state.moonshineLang === lang) ||
-      state.moonshinePreloading ||
-      (state._moonshineLoadPromise && state.moonshineLoadingLang === lang)
-    ) {
-      updateMoonshinePreloadHint(root, state.moonshineReady ? 1 : 0, lang);
+    if (state.moonshineReady && state.moonshineLang === lang) {
+      updateMoonshinePreloadHint(root, 1, lang);
       return;
     }
-    state.moonshinePreloading = true;
-    ensureMoonshineTranscriber(root, null, lang)
-      .catch(function (e) {
-        state.moonshinePreloadError = e;
-      })
-      .finally(function () {
-        state.moonshinePreloading = false;
-        updateMoonshinePreloadHint(root, state.moonshineReady ? 1 : 0, lang);
-      });
+    var el = root && root.querySelector("#mtMoonshinePreload");
+    if (el) {
+      el.textContent = moonshineLocalUrls(lang)
+        ? langLabel(lang) +
+          " · Moonshine: model đã sẵn trên máy chủ. Bấm Bắt đầu là ghi."
+        : langLabel(lang) +
+          " · Moonshine sẽ tải từ mạng lần đầu (có thể chậm).";
+      el.style.color = "var(--ok-ink, var(--text3))";
+    }
+    // Nạp WASM JS + HEAD model local để warmup cache trình duyệt.
+    importMoonshineModule().catch(function () {});
+    try {
+      var urls = moonshineLocalUrls(lang);
+      if (urls) {
+        Object.keys(urls).forEach(function (k) {
+          fetch(urls[k], { method: "HEAD", credentials: "same-origin" }).catch(function () {});
+        });
+      }
+    } catch (e) {}
   }
 
   async function stopMoonshineMic() {
@@ -1036,7 +1103,36 @@
           setStatus(root, "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ).", "err");
         } else if (err === "audio-capture") {
           setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
-        } else if (err === "network") {
+        } else if (err === "network" || err === "language-not-supported" || err === "service-not-allowed") {
+          // vi-VN trên Web Speech hay lỗi network ngay (Google STT). Chuyển Moonshine local.
+          var langNow = meetingLang();
+          if (
+            state.running &&
+            !state._sttFailoverDone &&
+            preferMoonshineFailover(langNow) &&
+            moonshineSupports(langNow)
+          ) {
+            state._sttFailoverDone = true;
+            setStatus(root, "Web Speech lỗi (" + err + ") — chuyển Moonshine (máy local)…", "err");
+            (async function () {
+              try {
+                clearSttWatchdog();
+                stopWebSpeech();
+                await startMoonshine(root);
+                armSttWatchdog(root);
+                setStatus(root, "Đã chuyển Moonshine (tiếng Việt · local).", "ok");
+              } catch (e) {
+                setStatus(
+                  root,
+                  "Moonshine cũng lỗi: " +
+                    ((e && e.message) || e) +
+                    " — thử File ghi âm → chữ.",
+                  "err"
+                );
+              }
+            })();
+            return;
+          }
           setStatus(
             root,
             "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối hoặc dùng File ghi âm → chữ.",
@@ -1099,94 +1195,56 @@
     var timeoutMs =
       lang === "vi" ? MOONSHINE_LOAD_TIMEOUT_MS : MOONSHINE_LOAD_TIMEOUT_OTHER_MS;
 
-    // EN / ngôn ngữ khác: MicTranscriber fluent (TinyStreaming) — tránh treo Transcriber.load.
-    if (lang !== "vi") {
-      if (!state.moonshineReady || state.moonshineLang !== lang) {
-        setStatus(root, "Nạp Moonshine (" + label + ", bản nhẹ)…");
-      }
-      var cfg = MOONSHINE_LANG[lang] || { arch: "TinyStreaming" };
-      var archName = cfg.arch || "TinyStreaming";
-      var arch =
-        (mod.ModelArch && mod.ModelArch[archName]) ||
-        (mod.ModelArch && mod.ModelArch.TinyStreaming) ||
-        (mod.ModelArch && mod.ModelArch.Base);
-      var micOther = new mod.MicTranscriber()
-        .language(lang)
-        .modelArch(arch)
-        .onProgress(function (frac, file) {
-          if (state.abortRequested) return;
-          if (frac > 0) {
-            setStatus(
-              root,
-              "Tải model " + label + "… " + Math.round(frac * 100) + "%"
-            );
-          } else {
-            setStatus(root, "Tải Moonshine (" + label + ")… " + (file || ""));
-          }
-        })
-        .onText(function (text) {
-          setPartial(root, text || "", "");
-        })
-        .onLine(function (line) {
-          if (!state.running && !state.loading) return;
-          var tx = (line && line.text) || "";
-          if (!tx.trim()) return;
-          setPartial(root, "");
-          var t0 = line.startTime || 0;
-          var t1 = t0 + (line.duration || 0);
-          var wall = new Date().toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
-          appendFinal(root, tx, wall, "");
-          queueLine(tx, t0, t1, "", -1);
-        })
-        .onError(function (err) {
-          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
-        });
-      await promiseTimeout(
-        micOther.load(),
-        timeoutMs,
-        "Moonshine " +
-          label +
-          " tải quá lâu. Dùng Web Speech (Chrome) hoặc File → chữ."
-      );
-      if (state.abortRequested) throw new Error("Đã hủy");
-      setStatus(root, "Xin quyền micro…");
-      await micOther.start();
-      state.mic = micOther;
-      state.sttEngine = "moonshine";
-      state.moonshineReady = true;
-      state.moonshineLang = lang;
-      setStatus(root, "Đang ghi (Moonshine · " + label + ").", "ok");
-      return;
-    }
-
-    // Tiếng Việt: giữ Transcriber.load đã chạy ổn (có nhãn người nói).
+    // MicTranscriber + model local trên VPS khi có (không kéo CDN ngoài).
+    var localUrls = moonshineLocalUrls(lang);
+    var localCfg = MOONSHINE_LOCAL[lang];
     if (!state.moonshineReady || state.moonshineLang !== lang) {
-      setStatus(root, "Nạp model Moonshine (" + label + ")…");
-    }
-    var transcriber = await promiseTimeout(
-      ensureMoonshineTranscriber(
+      if (state._moonshineLoadPromise) resetMoonshineCache();
+      setStatus(
         root,
-        function (frac, hint) {
-          if (state.abortRequested) return;
-          if (frac > 0) {
-            setStatus(root, "Tải model " + label + "… " + Math.round(frac * 100) + "%");
-          } else {
-            setStatus(root, "Tải model Moonshine (" + label + ")… " + (hint || ""));
-          }
-        },
-        lang
-      ),
-      timeoutMs,
-      "Moonshine không tải được trong thời gian chờ. Kiểm tra mạng hoặc dùng Web Speech."
-    );
-    if (state.abortRequested) throw new Error("Đã hủy");
+        localUrls
+          ? "Nạp Moonshine (" + label + ", máy chủ)… 0s"
+          : "Nạp Moonshine (" + label + ")… 0s"
+      );
+    }
 
-    var mic = new mod.MicTranscriber()
-      .useTranscriber(transcriber)
+    var cfg = MOONSHINE_LANG[lang] || { arch: "Base" };
+    var archName =
+      (localCfg && localCfg.arch) || cfg.arch || (lang === "vi" ? "Base" : "TinyStreaming");
+    var arch =
+      (mod.ModelArch && mod.ModelArch[archName]) ||
+      (mod.ModelArch && mod.ModelArch.Base) ||
+      (mod.ModelArch && mod.ModelArch.TinyStreaming);
+
+    var startedAt = Date.now();
+    var beat = setInterval(function () {
+      if (state.abortRequested) return;
+      var sec = Math.round((Date.now() - startedAt) / 1000);
+      setStatus(
+        root,
+        localUrls
+          ? "Nạp Moonshine (" + label + ", máy chủ)… " + sec + "s"
+          : "Nạp Moonshine (" + label + ")… " + sec + "s — tải model từ mạng."
+      );
+    }, 1000);
+
+    var mic = new mod.MicTranscriber().language(lang).modelArch(arch);
+    if (localUrls && typeof mic.modelsFrom === "function") {
+      mic.modelsFrom(localUrls);
+    }
+    mic
+      .onProgress(function (frac, file) {
+        if (state.abortRequested) return;
+        if (typeof frac === "number" && frac > 0) {
+          setStatus(
+            root,
+            "Tải model " + label + "… " + Math.round(frac * 100) + "%" +
+              (file ? " · " + file : "")
+          );
+        } else if (file) {
+          setStatus(root, "Tải Moonshine (" + label + ")… " + file);
+        }
+      })
       .onText(function (text) {
         setPartial(root, text || "", "");
       })
@@ -1194,7 +1252,7 @@
         if (!state.running && !state.loading) return;
         var tx = (line && line.text) || "";
         if (!tx.trim()) return;
-        var idx = dominantSpeakerIndex(line);
+        var idx = lang === "vi" ? dominantSpeakerIndex(line) : -1;
         if (idx >= 0 && state.speakers[idx] == null) {
           state.speakers[idx] = "Người " + (idx + 1);
           refreshSpeakerBar(root);
@@ -1215,13 +1273,38 @@
         setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
       });
 
-    setStatus(root, "Xin quyền micro…");
-    await mic.start();
+    try {
+      await promiseTimeout(
+        mic.load(),
+        timeoutMs,
+        "Moonshine " +
+          label +
+          " tải quá lâu (" +
+          Math.round(timeoutMs / 1000) +
+          "s)."
+      );
+      if (state.abortRequested) throw new Error("Đã hủy");
+      setStatus(root, "Xin quyền micro…");
+      await mic.start();
+    } catch (e) {
+      try {
+        mic.close();
+      } catch (e2) {}
+      resetMoonshineCache();
+      throw e;
+    } finally {
+      clearInterval(beat);
+    }
+
     state.mic = mic;
     state.sttEngine = "moonshine";
+    state.moonshineReady = true;
+    state.moonshineLang = lang;
+    state._moonshineLoadPromise = null;
+    state.moonshineLoadingLang = null;
     setStatus(
       root,
-      "Đang ghi (Moonshine · " + label + "). Nói rõ; gắn nhãn người nói khi phân biệt được.",
+      "Đang ghi (Moonshine · " + label + "). Nói rõ từng câu.",
       "ok"
     );
   }
@@ -1266,6 +1349,17 @@
         try {
           await cleanupAudio();
           state.running = true;
+          var langNow = meetingLang();
+          // Web Speech im + tiếng Việt → Moonshine local (đừng restart Google STT mãi).
+          if (
+            prev === "webspeech" &&
+            preferMoonshineFailover(langNow) &&
+            moonshineSupports(langNow)
+          ) {
+            await startMoonshine(root);
+            setStatus(root, "Đã chuyển Moonshine (tiếng Việt · local).", "ok");
+            return;
+          }
           if (prev !== "whisper") {
             var ok = await fetchWhisperReady();
             if (ok && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -1287,7 +1381,7 @@
             setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
             return;
           }
-          // Web Speech đã chạy mà im: thử bật lại một lần (Chrome hay cần restart).
+          // Web Speech đã chạy mà im (không phải VI / không Moonshine): bật lại một lần.
           if (prev === "webspeech" && hasWebSpeech()) {
             startWebSpeechSafe(root);
             setStatus(
@@ -1297,7 +1391,6 @@
             );
             return;
           }
-          var langNow = meetingLang();
           if (
             prev !== "moonshine" &&
             preferMoonshineFailover(langNow) &&
@@ -1413,7 +1506,64 @@
       }
     }
 
-    // 2) Web Speech — mặc định desktop (kể cả tiếng Việt). Tránh Moonshine "Đang nghe" mà im.
+    // 2) Desktop tiếng Việt: Moonshine (model trên VPS). Lỗi → cleanup micro rồi Whisper/Web Speech.
+    if (preferMoonshineFirst(lang) && moonshineSupports(lang)) {
+      try {
+        await startMoonshine(root);
+        return "moonshine";
+      } catch (e) {
+        await cleanupAudio();
+        resetMoonshineCache();
+        releaseMicConflicts();
+        // Cho trình duyệt nhả micro trước khi engine khác xin lại.
+        await new Promise(function (r) {
+          setTimeout(r, 350);
+        });
+        var whisperOk = await fetchWhisperReady();
+        if (whisperOk && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try {
+            var mp = navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                channelCount: 1,
+              },
+            });
+            await startWhisperMeeting(root, mp);
+            setStatus(
+              root,
+              "Moonshine lỗi — đang ghi Whisper. " + ((e && e.message) || ""),
+              "err"
+            );
+            return "whisper";
+          } catch (whErr) {
+            stopWhisper();
+          }
+        }
+        if (hasWebSpeech()) {
+          try {
+            startWebSpeechSafe(root);
+            setStatus(
+              root,
+              "Moonshine lỗi — đang ghi Web Speech. " + ((e && e.message) || ""),
+              "err"
+            );
+            return "webspeech";
+          } catch (wsErr) {
+            throw new Error(
+              "Moonshine và Web Speech đều lỗi: " +
+                ((e && e.message) || e) +
+                " / " +
+                ((wsErr && wsErr.message) || wsErr)
+            );
+          }
+        }
+        throw e;
+      }
+    }
+
+    // 3) EN / ngôn ngữ khác (hoặc hết Moonshine): Web Speech.
     if (hasWebSpeech()) {
       startWebSpeechSafe(root);
       setStatus(
@@ -1424,7 +1574,7 @@
       return "webspeech";
     }
 
-    // 3) Không Web Speech: Moonshine chỉ ổn với tiếng Việt; EN/khác dễ timeout tải model.
+    // 4) Không Web Speech: Moonshine chỉ với tiếng Việt.
     if (preferMoonshineFailover(lang) && moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
@@ -1511,9 +1661,11 @@
         root,
         preferWhisperLive()
           ? "Bật micro (Whisper / Web Speech)…"
-          : hasWebSpeech()
-            ? "Bật micro (Web Speech)…"
-            : "Bật micro…"
+          : preferMoonshineFirst(langAtStart)
+            ? "Bật micro (Moonshine)…"
+            : hasWebSpeech()
+              ? "Bật micro (Web Speech)…"
+              : "Bật micro…"
       );
       try {
         sttEngine = await beginSttFast(root, langAtStart, { micPromise: micPromise });
@@ -1957,16 +2109,25 @@
   }
 
   function setMtTab(root, tab) {
-    archiveState.tab = tab;
+    archiveState.tab = tab === "archive" ? "archive" : "new";
+    tab = archiveState.tab;
     root.querySelectorAll(".mt-tab").forEach(function (btn) {
       var on = btn.getAttribute("data-mt-tab") === tab;
       btn.classList.toggle("mt-tab-active", on);
       btn.setAttribute("aria-selected", on ? "true" : "false");
+      btn.setAttribute("tabindex", on ? "0" : "-1");
     });
     var panelNew = root.querySelector("#mtPanelNew");
     var panelArch = root.querySelector("#mtPanelArchive");
-    if (panelNew) panelNew.hidden = tab !== "new";
-    if (panelArch) panelArch.hidden = tab !== "archive";
+    // Ẩn hẳn panel không chọn — không chồng nội dung dưới tab kia.
+    if (panelNew) {
+      panelNew.hidden = tab !== "new";
+      panelNew.setAttribute("aria-hidden", tab !== "new" ? "true" : "false");
+    }
+    if (panelArch) {
+      panelArch.hidden = tab !== "archive";
+      panelArch.setAttribute("aria-hidden", tab !== "archive" ? "true" : "false");
+    }
     var wrap = root.querySelector(".mt-wrap") || root;
     wrap.classList.toggle("mt-on-archive", tab === "archive");
     if (tab === "archive") loadArchive(root);
@@ -2227,17 +2388,26 @@
       ".mt-wrap{max-width:none;width:100%;box-sizing:border-box;display:flex;flex-direction:column;min-height:0;" +
       "height:calc(100dvh - 108px);max-height:calc(100dvh - 108px)}" +
       ".mt-wrap.mt-on-archive{height:auto;max-height:none;overflow:visible}" +
-      "#mtPanelArchive{flex:1;min-height:0;overflow:auto}" +
-      ".mt-hero{margin:0 0 6px;flex:none}" +
-      ".mt-hero h2{margin:0;font-size:18px;font-weight:650;color:var(--text);display:flex;align-items:center;gap:8px}" +
+      /* display:grid trên panel đè [hidden] mặc định → hai tab chồng nhau */
+      "#mtPanelNew[hidden],#mtPanelArchive[hidden]{display:none!important}" +
+      "#mtPanelArchive:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}" +
+      /* Ghi mới: 2 cột — trái form (1) | phải transcript (3). Không dùng flex kẻo đè grid. */
+      "#mtPanelNew:not([hidden]){flex:1;min-height:0;display:grid;" +
+      "grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;align-items:stretch;overflow:hidden}" +
       ".mt-hint{font-size:13px;color:var(--text3);line-height:1.45;margin:0 0 8px}" +
-      ".mt-tabs{display:flex;gap:4px;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:0;flex:none}" +
-      ".mt-tab{appearance:none;border:none;background:transparent;color:var(--text3);font:inherit;font-size:13px;padding:8px 12px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0}" +
-      ".mt-tab:hover{color:var(--text)}" +
-      ".mt-tab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
-      ".mt-tab-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;background:var(--surface-2,var(--border));color:var(--text3)}" +
-      /* —— Split: trái thông tin (nhỏ) | phải transcript —— */
-      ".mt-stage{display:grid;grid-template-columns:minmax(240px,30%) minmax(0,1fr);gap:12px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
+      ".mt-tabs{display:flex;gap:6px;margin:0 0 14px;padding:4px;flex:none;align-self:flex-start;" +
+      "border:1px solid var(--border);border-radius:10px;background:var(--surface-1,var(--bg))}" +
+      ".mt-tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--text3);" +
+      "font:inherit;font-size:13.5px;font-weight:500;padding:8px 16px;margin:0;cursor:pointer;" +
+      "border-radius:8px;display:inline-flex;align-items:center;gap:6px;line-height:1.2}" +
+      ".mt-tab:hover{color:var(--text);background:var(--surface-2,rgba(127,127,127,.08))}" +
+      ".mt-tab-active{color:var(--text);background:var(--bg,var(--surface-0,#111));" +
+      "border-color:var(--border);font-weight:650;box-shadow:0 1px 2px rgba(0,0,0,.06)}" +
+      ".mt-tab-badge{display:inline-block;margin-left:2px;padding:1px 7px;border-radius:999px;font-size:11px;" +
+      "background:var(--surface-2,var(--border));color:var(--text3);font-weight:600}" +
+      ".mt-tab-active .mt-tab-badge{background:var(--surface-2,var(--border));color:var(--text2)}" +
+      /* —— Split: trái thông tin (~1/4) | phải transcript (~3/4) —— */
+      ".mt-stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
       ".mt-col-info{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;overflow:auto;padding-right:2px}" +
       ".mt-col-live{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}" +
       ".mt-live-shell{flex:1;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:10px 12px;overflow:hidden}" +
@@ -2316,7 +2486,7 @@
       /* Mobile: xếp dọc, cho cuộn trang */
       "@media (max-width:900px){" +
       ".mt-wrap{height:auto;max-height:none;overflow:visible}" +
-      ".mt-stage{grid-template-columns:1fr;overflow:visible;height:auto}" +
+      "#mtPanelNew:not([hidden]),.mt-stage{grid-template-columns:1fr;overflow:visible;height:auto}" +
       ".mt-col-info{overflow:visible;max-height:none}" +
       ".mt-col-live{min-height:280px}" +
       ".mt-live-shell{min-height:280px}" +
@@ -2336,20 +2506,15 @@
 
     el.innerHTML =
       '<div class="cview-section mt-wrap">' +
-      '<div class="mt-hero">' +
-      "<h2>" +
-      ic("mic") +
-      " Cuộc họp</h2>" +
-      "</div>" +
-      '<nav class="mt-tabs" role="tablist">' +
-      '<button type="button" class="mt-tab mt-tab-active" data-mt-tab="new" role="tab" aria-selected="true">' +
+      '<nav class="mt-tabs" role="tablist" aria-label="Chế độ cuộc họp">' +
+      '<button type="button" class="mt-tab mt-tab-active" id="mtTabNew" data-mt-tab="new" role="tab" aria-selected="true" aria-controls="mtPanelNew">' +
       ic("mic") +
       " Ghi mới</button>" +
-      '<button type="button" class="mt-tab" data-mt-tab="archive" role="tab" aria-selected="false">' +
+      '<button type="button" class="mt-tab" id="mtTabArchive" data-mt-tab="archive" role="tab" aria-selected="false" aria-controls="mtPanelArchive">' +
       ic("folder-open") +
       ' Lưu trữ <span class="mt-tab-badge" id="mtArchiveBadge"></span></button>' +
       "</nav>" +
-      '<div id="mtPanelNew" class="mt-stage mt-phase-setup">' +
+      '<div id="mtPanelNew" class="mt-stage mt-phase-setup" role="tabpanel" aria-labelledby="mtTabNew">' +
       '<aside class="mt-col mt-col-info">' +
       '<div class="mt-card" id="mtSetup">' +
       '<div class="mt-field"><label>Tiêu đề *</label>' +
@@ -2360,8 +2525,10 @@
       '<textarea id="mtNotes" placeholder="Agenda ngắn…" rows="2"></textarea></div>' +
       '<div class="mt-field"><label>Ngôn ngữ</label>' +
       '<select id="mtLang">' +
-      '<optgroup label="Web Speech / Whisper">' +
+      '<optgroup label="Moonshine (máy local)">' +
       '<option value="vi">Tiếng Việt</option>' +
+      "</optgroup>" +
+      '<optgroup label="Web Speech / Whisper">' +
       '<option value="en">English</option>' +
       '<option value="es">Español</option>' +
       '<option value="zh">中文</option>' +
@@ -2423,7 +2590,7 @@
       "</div></div></div>" +
       "</section>" +
       "</div>" +
-      '<div id="mtPanelArchive" hidden>' +
+      '<div id="mtPanelArchive" hidden role="tabpanel" aria-labelledby="mtTabArchive">' +
       '<div class="mt-archive-toolbar">' +
       '<label class="mt-search-wrap">' +
       ic("search") +

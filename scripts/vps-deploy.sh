@@ -126,6 +126,23 @@ if [ "$ok_health" != "1" ]; then
   exit 1
 fi
 
+# Model Moonshine + vendor CDN đã persist trên host → copy lại vào container (nhanh, không tải lại).
+if [ -f "$ROOT/scripts/fetch-moonshine-models.sh" ]; then
+  echo "==> restore Moonshine models (copy-only)"
+  chmod +x "$ROOT/scripts/fetch-moonshine-models.sh"
+  bash "$ROOT/scripts/fetch-moonshine-models.sh" --copy-only || echo "WARN: moonshine copy-only skipped"
+fi
+if [ -d /root/javis-data/dashboard-vendor ]; then
+  echo "==> restore dashboard CDN vendor"
+  docker exec -u root "${JAVIS_NAME:-javis}" mkdir -p /app/dashboard/vendor
+  for d in mermaid turndown fonts; do
+    if [ -d "/root/javis-data/dashboard-vendor/$d" ]; then
+      docker cp "/root/javis-data/dashboard-vendor/$d" "${JAVIS_NAME:-javis}:/app/dashboard/vendor/" || true
+    fi
+  done
+  docker exec -u root "${JAVIS_NAME:-javis}" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts 2>/dev/null || true
+fi
+
 # Seed / optimize: TẮT mặc định (trước đây làm deploy chậm + prune image + health 2 lần).
 # Bật khi cần: JAVIS_DEPLOY_EXTRAS=1 bash scripts/vps-deploy.sh
 if [ "${JAVIS_DEPLOY_EXTRAS:-0}" = "1" ]; then

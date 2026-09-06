@@ -4,6 +4,38 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.96] - 2026-09-06
+### Sửa lỗi
+- **Rà soát trước ship:** chip workflow chỉ nhắc khi cần; HTML báo cáo placeholder ổn định; turndown local không reject ảo; gom Moonshine đa ngôn ngữ + vendor CDN + panel chạy rộng/export.
+## [0.55.95] - 2026-09-06
+### Cải tiến
+- **Workflow chạy: panel rộng hơn**, đóng/thu nhỏ không dừng chạy (chip nổi mở lại); tổng kết có link; nút tải Markdown/HTML, In→PDF, lưu vault; version dưới Quan.Duong.
+## [0.55.94] - 2026-09-06
+### Cải tiến
+- **Nạp sẵn Moonshine đa ngôn ngữ trên VPS** (vi/zh/ja/ar/uk/es/ko/en) + mermaid/turndown/Montserrat cùng origin; deploy tự copy-only từ `/root/javis-data`.
+## [0.55.93] - 2026-09-06
+### Cải tiến
+- **Workflow ▶ Chạy: giữ bản nháp trong phiên:** gõ mục tiêu/phạm vi rồi bấm ra ngoài popup vẫn còn khi mở lại (sessionStorage theo từng workflow); chạy xong mới xóa nháp.
+## [0.55.92] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp VI: host model Moonshine trên VPS** (~140MB Base) — browser tải cùng origin, không còn treo CDN/HuggingFace ngoài; fallback cleanup micro rồi Whisper → Web Speech.
+## [0.55.91] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp VI hết kẹt "Nạp model Moonshine…":** dùng `MicTranscriber` (có % + đếm giây), timeout 35s rồi tự Web Speech; bỏ preload model nền (hay treo promise); hủy cache khi tải lỗi.
+## [0.55.90] - 2026-09-06
+### Cải tiến
+- **Rail:** cạnh `Quan.Duong` hiện bản deploy (`v…` từ `/app-version`).
+- **Cuộc họp · Ghi mới:** sửa lưới 2 cột thật (trái form : phải transcript = **1 : 3**); trước đó `display:flex` đè mất grid nên xếp dọc.
+## [0.55.89] - 2026-09-06
+### Cải tiến
+- **Workflow full màn hình:** bỏ trần 1100px; lưới 4→3→2→1 cột theo độ rộng — theo dõi nhiều quy trình trên một dòng.
+- **Store gọn hơn:** thẻ nhỏ hơn, `auto-fill` ~200px → nhiều gói trên một hàng (Kết nối vẫn 3 cột).
+## [0.55.88] - 2026-09-06
+### Cải tiến
+- **Cuộc họp tab rõ hơn:** bỏ tiêu đề/icon trùng dưới trang; Ghi mới / Lưu trữ dạng segmented; Lưu trữ chỉ hiện panel riêng (không còn chồng danh sách dưới form ghi — sửa CSS `display` đè `[hidden]`).
+## [0.55.87] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp tiếng Việt lại dùng Moonshine:** desktop chọn VI → Moonshine local trước (không ép Web Speech Google); Web Speech lỗi network/`language-not-supported` hoặc 12s im thì chuyển Moonshine; English vẫn Web Speech trước.
 ## [0.55.86] - 2026-09-06
 ### Cải tiến
 - **Giọng đọc theo stream:** chữ ra đến đâu đọc đến đó (cụm ngắn hơn, prefetch sớm); bỏ TTS câu chờ filler để khỏi cắt rồi mới nói — hội thoại nhanh/tự nhiên hơn.

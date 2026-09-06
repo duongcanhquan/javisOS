@@ -7151,9 +7151,24 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   function _ensureTurndown() {
     if (window.TurndownService) return Promise.resolve();
     if (_tdPromise) return _tdPromise;
-    const load = (src) => new Promise((res) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = res; document.head.appendChild(s); });
-    _tdPromise = load("https://unpkg.com/turndown@7.2.0/dist/turndown.js")
-      .then(() => load("https://unpkg.com/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"));
+    const load = (src) => new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = () => res();
+      s.onerror = () => rej(new Error("load " + src));
+      document.head.appendChild(s);
+    });
+    const loadFirst = (urls) => {
+      if (!urls.length) return Promise.reject(new Error("no urls"));
+      return urls.slice(1).reduce((p, u) => p.catch(() => load(u)), load(urls[0]));
+    };
+    _tdPromise = loadFirst([
+      "/static/vendor/turndown/turndown.js",
+      "https://unpkg.com/turndown@7.2.0/dist/turndown.js",
+    ]).then(() => loadFirst([
+      "/static/vendor/turndown/turndown-plugin-gfm.js",
+      "https://unpkg.com/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js",
+    ])).catch(() => {});
     return _tdPromise;
   }
   // HTML (bản render đang sửa) → markdown. GIỮ [[wikilink]] và ![[ảnh]] qua luật riêng theo data-vault-path.
@@ -7574,8 +7589,22 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (_eb) _eb.addEventListener("click", () => navigateTo("models"));
     const ver = document.getElementById("railVersion");
     if (ver) {
-      // Nhãn chủ máy (không hiện số VERSION kỹ thuật trên rail)
+      // Nhãn chủ máy + bản đang deploy (VERSION trên máy chủ).
       ver.textContent = "Quan.Duong";
+      ver.title = "Đang tải số bản…";
+      fetch("/app-version", { credentials: "same-origin", cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          var v = (d && d.version) ? String(d.version).trim() : "";
+          if (!v) return;
+          ver.innerHTML =
+            '<span class="rf-host">Quan.Duong</span>' +
+            '<span class="rf-deploy" title="Bản đang chạy trên máy chủ">v' +
+            v.replace(/[<>&"']/g, "") +
+            "</span>";
+          ver.title = "Máy chủ đang chạy v" + v;
+        })
+        .catch(function () { /* giữ Quan.Duong nếu mất mạng */ });
     }
     // Theo dõi Studio mở/đóng → bật/tắt graph theo
     const st = document.getElementById("studio");
