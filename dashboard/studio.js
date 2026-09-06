@@ -231,11 +231,17 @@
       const div = document.createElement("div");
       div.className = "wf-row" + (active ? "" : " archived");
       div.dataset.slug = w.slug;
+      const mdl = (w.model || "").trim();
+      const mprov = (w.model_provider || "").trim();
+      const mdlLabel = mdl
+        ? `${mprov ? mprov + " · " : ""}${mdl}`
+        : t("studio.wf_model_follow");
       div.innerHTML = `
         <div class="wf-header">
           <input type="checkbox" class="wf-sel" data-slug="${esc(w.slug)}" title="${esc(t("studio.sel_one"))}">
           <div class="wf-name">${esc(w.name)}</div>
           <span class="wf-badge ${active ? "ready" : "off"}">${esc(active ? t("studio.ready") : t("studio.archived"))}</span>
+          <span class="wf-model${mdl ? " set" : ""}" title="${esc(t("studio.wf_model_hint"))}">${esc(mdlLabel)}</span>
           <span class="wf-group">${ic("folder-open")} ${esc(nhomCua(w))}</span>
           <span class="wf-count">${(w.steps || []).length} ${esc(t("studio.steps"))}</span>
           <div class="wf-spacer"></div>
@@ -489,7 +495,10 @@
   // ===== Workflow editor =====
   let agentsCache = [];
   async function editWorkflow(w) {
-    const ad = await api(`/agents?brain=${encodeURIComponent(brain())}`);
+    const [ad, st] = await Promise.all([
+      api(`/agents?brain=${encodeURIComponent(brain())}`),
+      api("/settings"),
+    ]);
     agentsCache = ad.agents || [];
     if (!agentsCache.length) { alert(t("studio.no_agents")); return; }
     const box = document.getElementById("editorBox");
@@ -497,16 +506,27 @@
     const opts = (sel) => agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const optsV = (sel) => `<option value="">${esc(t("studio.no_verify"))}</option>` + agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const agentName = (slug) => { const a = agentsCache.find(x => x.slug === slug); return a ? a.name : (slug || "?"); };
-    // Bước gập lại để thấy toàn cảnh; bấm vào bước nào thì mở bước đó ra sửa. Workflow mới
-    // chỉ có 1 bước nên mở sẵn. Các ô input VẪN nằm trong DOM khi gập (chỉ ẩn bằng CSS) -
-    // captureSteps() đọc value của chúng, render kiểu chỉ-vẽ-bước-đang-mở sẽ làm nó vỡ.
+    const MODEL_SEP = "::";
+    const uniq = (xs) => [...new Set((xs || []).filter(Boolean))];
+    const provs = ((st.model || {}).providers || []).filter(p => p.agent_ok && p.configured);
+    const live = await Promise.all(provs.map(p =>
+      api(`/provider/models?provider=${encodeURIComponent(p.id)}` + (p.id === "openai-oauth" ? "&refresh=1" : ""))
+        .then(d => uniq(d.models)).catch(() => [])));
+    const nhomM = provs.map((p, i) => ({ id: p.id, label: p.label, models: uniq(live[i].concat(p.models || [])) }))
+                      .filter(g => g.models.length);
+    const mVal = (pid, m) => pid + MODEL_SEP + m;
+    const modelOptionsHtml = [
+      `<option value="">${esc(t("studio.wf_model_default"))}</option>`,
+      ...nhomM.map(g => `<optgroup label="${esc(g.label)}">${g.models.map(m =>
+        `<option value="${esc(mVal(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`),
+    ].join("");
     let openIdx = w ? null : 0;
-    // Tên/mô tả/nhóm giữ trong BIẾN, không đọc lại từ `w` mỗi lần vẽ: render() chạy lại mỗi
-    // khi thêm/xoá/đảo bước, nên lấy giá trị từ `w` là chữ vừa gõ ở ba ô này bị vẽ đè về giá
-    // trị cũ, im lặng - đúng cái bẫy mà captureSteps() đang giữ cho phần các bước.
     let ten = w ? (w.name || "") : "";
     let mota = w ? (w.description || "") : "";
     let nhom = w ? nhomCua(w) : NHOM_MD;
+    let wfModelVal = (w && w.model)
+      ? mVal(w.model_provider || "", w.model)
+      : "";
     function move(i, d) {
       const j = i + d;
       if (j < 0 || j >= steps.length) return;
@@ -523,10 +543,21 @@
         <label>${esc(t("studio.groups"))}</label>
         <input id="wfGroup" list="wfGroupList" value="${esc(nhom)}" placeholder="${esc(t("studio.group_ph"))}">
         ${nhomDatalist(_wfState.wfs, "wfGroupList")}
+        <label>${esc(t("studio.wf_model_lbl"))}</label>
+        <select id="wfModel">${modelOptionsHtml}</select>
+        <div class="dim" style="font-size:12px;margin-top:4px">${esc(t("studio.wf_model_note"))}</div>
         <label>${esc(t("studio.steps_label"))}</label>
         <div id="stepList"></div>
         <button class="s-btn-ghost" id="addStep">${esc(t("studio.add_step"))}</button>
         <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveWf">${esc(t("common.save"))}</button></div>`;
+      const selM = box.querySelector("#wfModel");
+      if (selM) {
+        selM.value = wfModelVal;
+        if (wfModelVal && !selM.value && w && w.model) {
+          const hit = [...selM.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === w.model);
+          if (hit) selM.value = hit.value;
+        }
+      }
       const sl = box.querySelector("#stepList"); sl.innerHTML = "";
       steps.forEach((st, i) => {
         const open = i === openIdx;
@@ -555,8 +586,6 @@
           captureSteps(); openIdx = open ? null : i; render();
         };
         row.querySelectorAll(".st-move").forEach(b => { b.onclick = () => move(i, parseInt(b.dataset.d, 10)); });
-        // captureSteps() TRƯỚC khi splice: thiếu nó thì chữ đang gõ dở ở các bước khác
-        // bị render() vẽ đè lại bằng giá trị cũ trong mảng steps, tức mất trắng.
         row.querySelector(".st-del").onclick = () => {
           captureSteps();
           steps.splice(i, 1);
@@ -571,17 +600,26 @@
       box.querySelector("#saveWf").onclick = async () => {
         captureSteps();
         if (!ten.trim()) return alert(t("studio.need_name"));
+        const raw = (box.querySelector("#wfModel") || {}).value || "";
+        let mProv = "", mName = "";
+        if (raw.includes(MODEL_SEP)) {
+          const i = raw.indexOf(MODEL_SEP);
+          mProv = raw.slice(0, i); mName = raw.slice(i + MODEL_SEP.length);
+        }
         await api("/workflows", { method: "POST", body: fd({ name: ten.trim(), description: mota,
           group: nhom.trim() || NHOM_MD, steps: JSON.stringify(steps),
-          status: w ? w.status : "active", slug: w ? w.slug : "", brain: brain() }) });
+          status: w ? w.status : "active", slug: w ? w.slug : "", brain: brain(),
+          model: mName, model_provider: mProv }) });
         editor.classList.remove("open"); loadWorkflows();
       };
     }
     function captureSteps() {
       const oNe = box.querySelector("#wfName"), oMo = box.querySelector("#wfDesc"), oNh = box.querySelector("#wfGroup");
+      const oMd = box.querySelector("#wfModel");
       if (oNe) ten = oNe.value;
       if (oMo) mota = oMo.value;
       if (oNh) nhom = oNh.value;
+      if (oMd) wfModelVal = oMd.value;
       box.querySelectorAll(".step-row").forEach((r, i) => {
         const va = r.querySelector(".st-verify-agent").value;
         steps[i] = { agent: r.querySelector(".st-agent").value, task: r.querySelector(".st-task").value };

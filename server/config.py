@@ -65,6 +65,10 @@ _DEFAULT = {
         # Model phụ cho việc NỀN (loop/metrics/ingest) - alias Claude qua CLI. "" = dùng mặc định
         # (không đổi). Đặt model rẻ (vd haiku) để tiết kiệm khi chạy nền nhiều.
         "auxiliary": {"model": ""},
+        # Model NGHIÊN CỨU / workflow / agent để trống. Tách khỏi việc nền: Pro cho
+        # /run workflow, Studio ▶ Chạy; việc nền (loop/Kanban/nhắc) vẫn dùng auxiliary.
+        # provider rỗng = theo auxiliary (rồi Claude). Workflow có thể ghi đè bằng frontmatter.
+        "research": {"provider": "", "model": ""},
         # Model RIÊNG cho kênh Telegram. provider rỗng = THEO model chính (mặc định, không đổi
         # gì cho người đang dùng). Đặt provider = GHIM: đổi model trên web không kéo Telegram
         # theo nữa, và /model trên Telegram sửa ô này chứ không sửa model chính. Ra đời 02/09:

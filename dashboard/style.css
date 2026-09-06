@@ -1557,12 +1557,41 @@ pstream/main
 .empty { color: var(--text3); font-size: 15px; padding: 30px; text-align: center; grid-column: 1/-1; line-height: 1.7; }
 .dim { color: var(--text3); font-size: 13px; }
 
-/* Workflow row: mỗi workflow một hàng đầy chiều rộng (KHÔNG dùng lưới .cards như
-   Agents/Lịch - pipeline nằm ngang nên cần trọn bề ngang, cột hẹp sẽ bóp nát nó). */
-.wf-list { display: flex; flex-direction: column; gap: 14px; }
-.wf-row { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; transition: border-color 0.3s; }
+/* Workflow: 2 cột trên màn rộng (1 dòng = 2 workflow), 1 cột trên hẹp. */
+.wf-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .wf-list { grid-template-columns: 1fr; }
+}
+.wf-row {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  transition: border-color 0.3s;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .wf-row.archived { opacity: 0.5; }
 .wf-row.running { border-color: var(--accent); }
+.wf-model {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--font);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wf-model.set { color: var(--accent2-ink); border-color: var(--accent2-line); background: var(--accent2-wash); }
 
 /* Workflow card (tab Lịch vẫn dùng) */
 .wf-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; transition: border-color 0.3s; }
@@ -1589,7 +1618,7 @@ pstream/main
    trước đây flex:1 chia đều nên 11 bước bóp mỗi ô còn ~35px, chữ bị ellipsis mất sạch
    và chỉ còn lại mấy cột rỗng. Dùng grid auto-fill chứ KHÔNG dùng flex-wrap: với flex,
    ô lẻ ở hàng cuối bị flex-grow kéo giãn ra full-width (11 bước → ô cuối rộng 1650px). */
-.wf-pipeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 10px 0 0; }
+.wf-pipeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin: 10px 0 0; }
 .wf-pstep { min-width: 0; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: left; transition: border-color 0.3s, background 0.3s; }
 .wf-pstep.active { border-color: var(--accent); background: var(--accent2-wash); animation: wf-pulse 1.3s ease-in-out infinite; }
 .wf-pstep.done { border-color: var(--green); background: var(--ok-wash); }

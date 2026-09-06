@@ -3516,12 +3516,18 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const auxCfg = m.auxiliary || {};
     const aux = auxCfg.model || "";
     const auxProv = auxCfg.provider || "anthropic-cli";
+    const rsCfg = m.research || {};
+    const rs = rsCfg.model || "";
+    const rsProv = rsCfg.provider || "";
+    const rsPinned = !!rsProv;
     // Việc nền chạy được trên MỌI provider đã đấu, không riêng Claude. Nhưng OpenRouter một
     // mình đã vài trăm model, phơi hết ra thành chip thì tràn trang và không tìm nổi - nên ở
     // đây chỉ hiện LỰA CHỌN HIỆN TẠI, còn việc chọn giao cho openModelPicker (có ô lọc, có
     // cột provider, tự nạp model live) - đúng cái đang dùng cho model chính ngay phía trên.
     const auxProvDef = providers.find(p => p.id === auxProv) || {};
     const auxReady = auxProv === "anthropic-cli" || auxProvDef.configured;
+    const rsProvDef = providers.find(p => p.id === rsProv) || {};
+    const rsReady = !rsPinned || rsProv === "anthropic-cli" || !!rsProvDef.configured;
     // Model RIÊNG cho Telegram. provider rỗng = theo model chính (mặc định). Ghim thì đổi
     // model trên web không kéo Telegram theo - chủ repo đổi model liên tục để thử, mỗi lần
     // thử là điện thoại của cả nhà bị kéo theo (02/09).
@@ -3746,7 +3752,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       <div class="md-page">
         <header class="jx-page-head">
           <div><h2 class="jx-page-title">Models</h2>
-          <p class="jx-page-lead">Chọn bộ não chính, việc nền và kết nối nhà cung cấp. GitHub Copilot CLI: tab <b>Chưa kết nối</b> - cài gói rồi <code>copilot login</code>, hoặc dán token GitHub trên thẻ.</p></div>
+          <p class="jx-page-lead">Ba lớp model: <b>chính</b> (chat), <b>nghiên cứu</b> (workflow / Studio), <b>việc nền</b> (loop · Kanban · nhắc). Kết nối nhà cung cấp ở tab bên dưới.</p></div>
         </header>
         <div class="jx-split-2 md-top-grid">
           <section class="cview-section jx-pane">
@@ -3757,7 +3763,22 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
               <button class="gcard-btn" id="mdChange">Đổi model ▾</button>
             </div>
             <div class="gcard aux-card md-aux-card" style="margin-top:10px">
-              <div class="gcard-meta" style="margin:0 0 6px"><b>Việc nền</b> · loop · Kanban · nhắc hẹn</div>
+              <div class="gcard-meta" style="margin:0 0 6px"><b>${esc(t("models.h_research"))}</b> · ${esc(t("models.h_research_sub"))}</div>
+              <div class="aux-now" style="margin-top:0">
+                <div class="aux-now-txt">
+                  <div class="aux-now-model">${rsPinned ? esc(rs || "-") : esc(t("models.rs_follow"))}</div>
+                  <div class="aux-now-prov">${rsPinned ? esc(rsProvDef.label || rsProv) : esc(t("models.rs_follow_sub"))}</div>
+                </div>
+                <div class="aux-now-act">
+                  ${rsPinned ? `<button class="gcard-btn ghost" id="rsReset">${esc(t("models.rs_reset"))}</button>` : ""}
+                  <button class="gcard-btn" id="rsChange">${esc(rsPinned ? t("models.change_model") : t("models.rs_pin"))}</button>
+                </div>
+              </div>
+              ${rsReady ? "" : `<div class="aux-note warn">${WARN_ICON} ${esc(t("models.rs_warn"))}</div>`}
+              <div class="aux-note" style="margin-top:8px">${esc(t("models.rs_note"))}</div>
+            </div>
+            <div class="gcard aux-card md-aux-card" style="margin-top:10px">
+              <div class="gcard-meta" style="margin:0 0 6px"><b>${esc(t("models.h_aux"))}</b> · ${esc(t("models.h_aux_sub"))}</div>
               <div class="aux-now" style="margin-top:0">
                 <div class="aux-now-txt">
                   <div class="aux-now-model">${aux ? esc(aux) : esc(t("models.aux_default"))}</div>
@@ -3842,6 +3863,20 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const auxRst = document.getElementById("auxReset");
     if (auxRst) auxRst.onclick = async () => {
       await saveSetting("model", { auxiliary: { provider: "anthropic-cli", model: "" } });
+      renderModelsCloudTab(el);
+    };
+    const rsChg = document.getElementById("rsChange");
+    if (rsChg) rsChg.onclick = () => openModelPicker(provList, {
+      provider: rsPinned ? rsProv : (auxProv || main.provider),
+      model: rsPinned ? rs : (aux || main.model || ""),
+    }, () => renderModelsCloudTab(el), {
+      title: t("models.rs_title"),
+      note: t("models.rs_note2"),
+      save: (prov, mod) => saveSetting("model", { research: { provider: prov, model: mod } }),
+    });
+    const rsRst = document.getElementById("rsReset");
+    if (rsRst) rsRst.onclick = async () => {
+      await saveSetting("model", { research: { provider: "", model: "" } });
       renderModelsCloudTab(el);
     };
     const tgChg = document.getElementById("tgChange");

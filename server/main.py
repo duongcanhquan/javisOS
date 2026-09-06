@@ -3954,6 +3954,16 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             # Thiếu provider (client cũ) = Claude, đúng hành vi trước khi mở nhiều provider.
             prov = aux_patch.get("provider") or aux_engine.CLAUDE
             aux["provider"] = prov if _provider_def(prov) else aux_engine.CLAUDE
+        if "research" in patch:   # model nghiên cứu / workflow (tách khỏi việc nền)
+            rs_patch = patch["research"] or {}
+            rs = m.setdefault("research", {})
+            prov = (rs_patch.get("provider") or "").strip()
+            if prov and _provider_def(prov):
+                rs["provider"] = prov
+                rs["model"] = (rs_patch.get("model") or "").strip()
+            else:
+                rs["provider"] = ""
+                rs["model"] = ""
         if "telegram" in patch:   # model riêng cho kênh Telegram; provider rỗng = theo model chính
             tg_patch = patch["telegram"] or {}
             tg = m.setdefault("telegram", {})
@@ -6664,6 +6674,8 @@ def workflows_index(brain: str) -> list:
                     "status": meta.get("status", "off"),
                     "description": meta.get("description", ""),
                     "group": _nhom_cua(meta),
+                    "model": meta.get("model", "") or "",
+                    "model_provider": meta.get("model_provider", "") or "",
                     "steps": meta.get("steps", []) or []})
     return out
 
@@ -6716,15 +6728,19 @@ async def list_workflows(brain: str = Query("brain")):
 @app.post("/workflows")
 async def save_workflow(name: str = Form(...), description: str = Form(""), steps: str = Form("[]"),
                         status: str = Form("active"), slug: str = Form(""), brain: str = Form("brain"),
-                        group: str = Form(NHOM_MAC_DINH)):
+                        group: str = Form(NHOM_MAC_DINH),
+                        model: str = Form(""), model_provider: str = Form("")):
     slug = slug or _slugify(name)
     try:
         steps_list = json.loads(steps)
     except Exception:
         steps_list = []
+    mp = (model_provider or "").strip()
     meta = {"type": "workflow", "name": name, "slug": slug, "status": status,
             "group": (group or "").strip() or NHOM_MAC_DINH,
-            "description": description, "steps": steps_list, "updated": _today()}
+            "description": description, "steps": steps_list, "updated": _today(),
+            "model": (model or "").strip(),
+            "model_provider": mp if mp in AGENT_PROVIDERS else ""}
     _write_md(_workflows_dir(brain) / f"{slug}.md", meta, description)
     return {"ok": True, "slug": slug}
 
@@ -7459,24 +7475,29 @@ async def _run_workflow_step(node, prompt, mk, agent_sysprompt, sink, router=Non
             "agent_name": agent_name}
 
 
-def _workflow_agent_helpers(brain, tools):
+def _workflow_agent_helpers(brain, tools, wf_model=None, wf_provider=""):
     """Trả (_mk, _agent_sysprompt) dùng CHUNG cho runner cũ và đường graph Phase 10.
 
     Tương đương giữa hai đường phải đến từ việc dùng chung code, không phải từ việc
     chép cho giống. Mọi thay đổi ở đây tự động áp cho cả hai.
+    wf_model / wf_provider: model ghi trên file workflow (ghi đè khi agent để trống).
     """
     vault_root = str(_brain_root(brain))
+    wf_model = (wf_model or "").strip() or None
+    wf_provider = (wf_provider or "").strip()
 
     def _mk(sysprompt, model=None, provider=""):
         model = (model or "").strip() or None
         provider = (provider or "").strip()
-        # Agent để trống (= "Mặc định (theo model việc nền)" trên Studio) → lấy ĐÚNG
-        # Model việc nền (Gemini / Antigravity / OpenRouter...). Trước đây trống = luôn
-        # Claude Code nên đặt Gemini ở trang Models vẫn ra "Not logged in · Please run /login".
+        # Ưu tiên: model agent → model workflow → Model nghiên cứu (settings) → việc nền.
         if not model and not provider:
-            sp = aux_engine.read_spec()
-            provider = (sp.get("provider") or "").strip()
-            model = (sp.get("model") or "").strip() or None
+            if wf_provider or wf_model:
+                provider = wf_provider
+                model = wf_model
+            else:
+                sp = aux_engine.research_spec()
+                provider = (sp.get("provider") or "").strip()
+                model = (sp.get("model") or "").strip() or None
         prov = _agent_model_provider(model or "", provider)
         if prov == "openai-oauth" and model and tools is None and find_codex_cli():
             openai_oauth.write_codex_auth()
@@ -7574,7 +7595,11 @@ async def execute_workflow_graph(brain, slug, input="", tools=None, session_id="
     if admission.action != "execute":
         _CONTEXT_RUNTIME.finish(trace, "COMPLETED", admission.reason)
         return
-    mk, agent_sysprompt, log_run, learn = _workflow_agent_helpers(brain, tools)
+    wf_meta, _ = _read_md(_workflows_dir(brain) / f"{slug}.md")
+    mk, agent_sysprompt, log_run, learn = _workflow_agent_helpers(
+        brain, tools,
+        wf_meta.get("model") or "",
+        wf_meta.get("model_provider") or "")
     agent_policy = agent_runtime.AgentPolicy.from_settings(cfgmod.read_settings() or {})
     agent_admitted = graph.allows_replan and agent_policy.admits(
         graph.slug, session_id or f"wf:{slug}")[0]
@@ -7760,7 +7785,8 @@ async def execute_workflow(brain, slug, input="", tools=None, session_id=""):
     except Exception:
         pass
 
-    _mk, _agent_sysprompt, _log, _learn = _workflow_agent_helpers(brain, tools)
+    _mk, _agent_sysprompt, _log, _learn = _workflow_agent_helpers(
+        brain, tools, meta.get("model") or "", meta.get("model_provider") or "")
 
     yield {"type": "start", "workflow": meta.get("name", slug), "steps": len(steps)}
     prev = ""
@@ -7875,7 +7901,9 @@ async def execute_workflow_resume(brain, slug, task_id, node_id, code, tools=Non
         yield {"type": "error", "content": "Không tìm thấy hoặc không resume được task này."}
         return
     canary = _get_workflow_canary(brain)
-    mk, agent_sysprompt, log_run, learn = _workflow_agent_helpers(brain, tools)
+    wf_meta, _ = _read_md(_workflows_dir(brain) / f"{slug}.md")
+    mk, agent_sysprompt, log_run, learn = _workflow_agent_helpers(
+        brain, tools, wf_meta.get("model") or "", wf_meta.get("model_provider") or "")
     queue: asyncio.Queue = asyncio.Queue()
 
     async def sink(event):

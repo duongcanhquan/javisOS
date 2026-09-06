@@ -116,23 +116,31 @@ try:
 
     nhan.clear()
     _read_that = aux_engine.read_spec
+    _rs_that = getattr(aux_engine, "research_spec", None)
     aux_engine.read_spec = lambda settings=None: {"provider": "anthropic-cli", "model": ""}
+    if _rs_that:
+        aux_engine.research_spec = lambda settings=None: {"provider": "anthropic-cli", "model": ""}
     try:
         cli3 = mk("x", "", "")
-        check("Mặc định + việc nền Claude → giữ Claude (không swap)", not nhan, nhan)
+        check("Mặc định + nghiên cứu/việc nền Claude → giữ Claude (không swap)", not nhan, nhan)
     finally:
         aux_engine.read_spec = _read_that
+        if _rs_that:
+            aux_engine.research_spec = _rs_that
 
     nhan.clear()
-    aux_engine.read_spec = lambda settings=None: {
+    aux_engine.research_spec = lambda settings=None: {
         "provider": "gemini", "model": "gemini-2.5-pro"}
     try:
         mk("x", "", "")
-        check("Mặc định + việc nền Gemini → swap đúng Gemini (Studio hứa theo việc nền)",
+        check("Mặc định + Model nghiên cứu Gemini → swap đúng Gemini",
               nhan.get("provider") == "gemini" and nhan.get("model") == "gemini-2.5-pro",
               nhan)
     finally:
-        aux_engine.read_spec = _read_that
+        if _rs_that:
+            aux_engine.research_spec = _rs_that
+        else:
+            delattr(aux_engine, "research_spec")
 
     # Rào an toàn đã hứa ở docs/07: workflow chạy NỀN ở chế độ giới hạn công cụ thì agent
     # luôn là Claude Code, kể cả khi chọn nhà khác - giới hạn nằm ở allowed_tools/

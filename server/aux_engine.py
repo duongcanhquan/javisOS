@@ -167,6 +167,20 @@ async def pick_openrouter_free(key: str = "") -> str:
     return best
 
 
+def research_spec(settings: dict = None) -> dict:
+    """{'provider','model'} cho nghiên cứu / workflow / agent để trống.
+
+    Tách khỏi việc nền (read_spec): Pro/Gemini cho chuỗi nghiên cứu, Flash/rẻ cho loop.
+    Chưa đặt research → rơi về model việc nền (read_spec), rồi Claude như cũ.
+    """
+    s = settings if settings is not None else cfgmod.read_settings()
+    r = (s.get("model", {}) or {}).get("research") or {}
+    prov = (r.get("provider") or "").strip()
+    if prov:
+        return {"provider": prov, "model": (r.get("model") or "").strip()}
+    return read_spec(s)
+
+
 def read_spec(settings: dict = None) -> dict:
     """{'provider','model'} của model việc nền. Cấu hình cũ chỉ có 'model' (luôn là alias
     Claude) nên thiếu provider = anthropic-cli - giữ nguyên hành vi bản cũ.
