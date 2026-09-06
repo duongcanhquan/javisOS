@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.62] - 2026-09-06
+### Tính năng
+- **Skill Tạo ảnh minh họa:** viết prompt theo khối rồi gọi `javis_generate_image` cho poster, cảnh video hoặc hình proposal.
+- **Ba bộ mẫu Studio chạy được ngay:** Bộ Video (thêm bước ảnh từng cảnh), Bộ Proposal (thêm minh họa rồi nhúng vào đề xuất), Bộ Poster (brief → gen → kiểm chứng). Nút **Bộ Poster** trên trang Workflows.
+
 ## [0.35.89] - 2026-09-05
 ### Cải tiến
 - **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
