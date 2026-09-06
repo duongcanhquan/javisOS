@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.85] - 2026-09-06
+### Sửa lỗi
+- **Brief báo chí Telegram/Zalo có link bấm được:** tin mới dùng `[tiêu đề](url)` + dòng Đọc chi tiết; Zalo không còn cắt mất phần sau 1900 ký tự (chia nhiều tin); Telegram nhắc hẹn gửi MarkdownV2 + chia đoạn.
 ## [0.55.84] - 2026-09-06
 ### Sửa lỗi
 - **console.css:** gỡ chuỗi rác `pstream/main` cuối file (làm hỏng CSS).

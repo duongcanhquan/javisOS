@@ -8294,6 +8294,9 @@ async def _tg_send_to(chat_id, text) -> tuple:
     Nhắc hẹn đặt TỪ Zalo mang chat_id có tiền tố `zalo:` - rẽ sang bot Zalo ngay tại đây. Tên
     hàm giữ nguyên vì nó là cửa duy nhất `reminders.py` biết; đổi tên chỉ để đúng chính tả là
     phải sửa cả một tầng không liên quan.
+
+    Chia nhỏ + MarkdownV2 (link [chữ](url) bấm được). Trước đây gửi plain một phát → tin dài
+    (brief báo chí) dễ mất / URL không thành hyperlink đẹp.
     """
     cid_raw = str(chat_id or "").strip()
     if cid_raw.startswith(ZALO_CHAT_PREFIX):
@@ -8307,21 +8310,38 @@ async def _tg_send_to(chat_id, text) -> tuple:
     targets = [cid] if (cid and (not ids or cid in ids)) else (ids or ([cid] if cid else []))
     if not targets:
         return False, "Chưa có chat_id đích"
+    from telegram_bot import md_to_mdv2
+    body = str(text or "")
+    chunks = [body[i:i + 3500] for i in range(0, len(body), 3500)] or [body]
     import httpx
     ok_any, errs = False, []
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             for t in targets:
-                try:
-                    r = await c.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                                     json={"chat_id": t, "text": text})
-                    d = r.json() if r.content else {}
-                    if d.get("ok"):
-                        ok_any = True
-                    else:
-                        errs.append(str(d.get("description") or f"HTTP {r.status_code}")[:80])
-                except Exception as e:
-                    errs.append(type(e).__name__)
+                for chunk in chunks:
+                    sent = False
+                    for use_md in (True, False):
+                        payload = {"chat_id": t, "text": md_to_mdv2(chunk) if use_md else chunk}
+                        if use_md:
+                            payload["parse_mode"] = "MarkdownV2"
+                        try:
+                            r = await c.post(
+                                f"https://api.telegram.org/bot{token}/sendMessage", json=payload
+                            )
+                            d = r.json() if r.content else {}
+                            if d.get("ok"):
+                                ok_any = True
+                                sent = True
+                                break
+                            if not use_md:
+                                errs.append(
+                                    str(d.get("description") or f"HTTP {r.status_code}")[:80]
+                                )
+                        except Exception as e:
+                            if not use_md:
+                                errs.append(type(e).__name__)
+                    if not sent and not errs:
+                        errs.append("sendMessage thất bại")
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
     return ok_any, "; ".join(e for e in errs if e)[:200]
@@ -8355,7 +8375,11 @@ WEB_CHAT_PREFIX = "web:"   # owner_chat của việc giao từ dashboard: "web:<
 
 
 async def _zalo_send_to(chat_id, text) -> tuple:
-    """Gửi 1 tin Zalo tới ĐÚNG chat_id. Trả (ok, error). Đối xứng với `_tg_send_to`."""
+    """Gửi 1 tin Zalo tới ĐÚNG chat_id. Trả (ok, error). Đối xứng với `_tg_send_to`.
+
+    Chia nhỏ theo trần ~1900 (API Zalo). Bản cũ `text[:1900]` CẮT MẤT phần sau — đúng chỗ
+    brief báo chí mất hết link bài.
+    """
     z = cfgmod.read_settings().get("zalo_bot", {})
     token = z.get("token")
     ids = tg_parse_ids(z.get("chat_id"))
@@ -8365,21 +8389,36 @@ async def _zalo_send_to(chat_id, text) -> tuple:
     targets = [cid] if (cid and (not ids or cid in ids)) else (ids or ([cid] if cid else []))
     if not targets:
         return False, "Chưa có chat_id đích"
+    body = str(text or "")
+    chunks = [body[i:i + 1900] for i in range(0, len(body), 1900)] or [body]
     import httpx
     ok_any, errs = False, []
     url = f"https://bot-api.zaloplatforms.com/bot{token}/sendMessage"
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             for t in targets:
-                try:
-                    r = await c.post(url, json={"chat_id": t, "text": text[:1900]})
-                    d = r.json() if r.content else {}
-                    if d.get("ok"):
-                        ok_any = True
-                    else:
-                        errs.append(str(d.get("description") or f"HTTP {r.status_code}")[:120])
-                except Exception as e:
-                    errs.append(f"{type(e).__name__}: {e}")
+                for chunk in chunks:
+                    sent = False
+                    for co_md in (True, False):
+                        payload = {"chat_id": t, "text": chunk}
+                        if co_md:
+                            payload["parse_mode"] = "markdown"
+                        try:
+                            r = await c.post(url, json=payload)
+                            d = r.json() if r.content else {}
+                            if d.get("ok"):
+                                ok_any = True
+                                sent = True
+                                break
+                            if not co_md:
+                                errs.append(
+                                    str(d.get("description") or f"HTTP {r.status_code}")[:120]
+                                )
+                        except Exception as e:
+                            if not co_md:
+                                errs.append(f"{type(e).__name__}: {e}")
+                    if not sent and not errs:
+                        errs.append("sendMessage thất bại")
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
     return ok_any, "; ".join(errs)[:200]
@@ -8497,17 +8536,7 @@ async def _gui_qua_kenh(owner_chat, text) -> tuple:
     if not (tg.get("enabled") and token and ids):
         return False, "Bot Telegram chưa bật hoặc chưa có chat_id"
     target = cid if (cid and cid in ids) else ids[0]
-    import httpx
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                             json={"chat_id": target, "text": text})
-            d = r.json() if r.content else {}
-            if d.get("ok"):
-                return True, ""
-            return False, str(d.get("description") or f"HTTP {r.status_code}")[:200]
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+    return await _tg_send_to(target, text)
 
 
 def _loop_mcp_allow():

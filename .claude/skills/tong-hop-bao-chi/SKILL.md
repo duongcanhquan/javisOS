@@ -14,14 +14,14 @@ Nguồn RSS **tách theo danh mục** trong `Javis/bao-chi-cau-hinh.md`.
 
 - Workflow/nhắc 8h `brief-bao-chi-sang` → danh mục **`giao-duc`**.
 - User gọi tay: «tổng hợp báo chí tài chính», «RSS bất động sản».
-- Cần tối đa **10 bài mới**, mỗi bài **bắt buộc** có: tên báo + giờ xuất bản + **link đọc**.
+- Cần tối đa **10 bài mới**, mỗi bài **bắt buộc** có: tên báo + giờ xuất bản + **link đọc bấm được**.
 
 ## Chuẩn bị
 
 1. Đọc `Javis/bao-chi-cau-hinh.md`. Thiếu → tạo từ `references/cau-hinh-mau.md`.
 2. Chọn **danh mục** (`slug`): brief sáng → `giao-duc`; user nêu lĩnh vực → map slug.
 3. Cửa sổ giờ VN: **00:00 hôm qua → 08:00 hôm nay**.
-4. Kênh gửi: nhắc hẹn đẩy kết quả qua `chat_id`.
+4. Kênh gửi: nhắc hẹn đẩy kết quả qua `chat_id` (Telegram/Zalo).
 
 ## Cách chạy
 
@@ -34,13 +34,13 @@ python skills/tong-hop-bao-chi/scripts/fetch_rss.py \
 
 JSON có:
 - `articles[]`: `title`, `link`, `source_name`, `published_human`, `summary`
-- **`tin_moi_markdown`**: khối Tin mới đã đủ Báo / Xuất bản / Link - **DÁN NGUYÊN VĂN**
+- **`tin_moi_markdown`**: khối Tin mới đã gắn `[tiêu đề](url)` + dòng `Đọc chi tiết: https://...` — **DÁN NGUYÊN VĂN**
 
 ## Quy trình (bắt buộc)
 
 1. Chạy script → lấy JSON.
 2. Viết **Tóm tắt** 4-8 bullet (không bịa số ngoài feed).
-3. Mục **Tin mới**: **copy nguyên** field `tin_moi_markdown`. Không viết lại, không rút gọn, không bỏ dòng Link.
+3. Mục **Tin mới**: **copy nguyên** field `tin_moi_markdown`. Không viết lại, không rút gọn, không bỏ URL.
 4. Feed lỗi → mục Nguồn lỗi từ `errors`.
 
 ## Định dạng đầu ra
@@ -62,15 +62,15 @@ JSON có:
 
 ## CẤM
 
-- CẤM tự viết lại danh sách tin (model hay quên URL).
-- CẤM bỏ dòng `Link:` hoặc thay bằng «xem tại nguồn».
-- CẤM gộp «nguồn · giờ» trên một dòng.
+- CẤM tự viết lại danh sách tin (model hay quên URL → Telegram/Zalo không bấm được).
+- CẤM bỏ dòng `Đọc chi tiết:` / `Link:` hoặc thay bằng «xem tại nguồn».
+- CẤM gộp «nguồn · giờ» trên một dòng mà mất URL.
 - CẤM paste URL feed RSS làm tên báo; dùng `source_name`.
 - Brief 8h chỉ danh mục `giao-duc`.
 
 ## Kiểm chứng trước khi gửi
 
-- Trong phần Tin mới, **mỗi** bài có đúng 1 dòng bắt đầu bằng `- Link: https://` chưa?
+- Mỗi bài trong Tin mới có **URL `https://`** (trong tiêu đề markdown hoặc dòng Đọc chi tiết) chưa?
 - Nếu thiếu → dán lại `tin_moi_markdown`, không gửi bản thiếu link.
 
 ## Thêm danh mục mới

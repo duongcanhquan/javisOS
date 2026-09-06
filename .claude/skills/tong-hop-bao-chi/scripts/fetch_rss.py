@@ -130,27 +130,34 @@ def published_human(iso_or_ts: str | float | int | None) -> str:
 
 
 def format_tin_moi_markdown(articles: list[dict[str, Any]]) -> str:
-    """Khối Tin mới đã có Báo / Xuất bản / Link - agent DÁN NGUYÊN, không viết lại.
+    """Khối Tin mới có link BẤM ĐƯỢC (markdown) + URL trần.
 
-    Model Flash hay bỏ URL khi tự format; script in sẵn URL đầy đủ để brief không mất link.
+    Model hay bỏ URL khi tự format; script in sẵn. Telegram/Zalo cần [chữ](url) hoặc
+    URL trần đầy đủ — tiêu đề gắn link + dòng Đọc riêng để chắc chắn click được.
     """
     if not articles:
         return "_Không có bài trong cửa sổ / khớp từ khóa._"
     lines: list[str] = ["**Tin mới (tối đa 10)**", ""]
     for i, a in enumerate(articles, 1):
-        title = (a.get("title") or "Không rõ tiêu đề").strip()
+        title = (a.get("title") or "Không rõ tiêu đề").strip().replace("[", "(").replace("]", ")")
         bao = (a.get("source_name") or "không rõ").strip()
         gio = (a.get("published_human") or "không rõ giờ").strip()
-        link = (a.get("link") or "").strip() or "không rõ"
+        link = (a.get("link") or "").strip()
         tom = (a.get("summary") or "").strip()
-        if len(tom) > 180:
-            tom = tom[:177].rstrip() + "…"
-        lines.append(f"{i}. **{title}**")
-        lines.append(f"   - Báo: {bao}")
-        lines.append(f"   - Xuất bản: {gio}")
-        lines.append(f"   - Link: {link}")
+        if len(tom) > 140:
+            tom = tom[:137].rstrip() + "…"
+        if link.startswith("http"):
+            lines.append(f"{i}. [{title}]({link})")
+            lines.append(f"   - Báo: {bao}")
+            lines.append(f"   - Xuất bản: {gio}")
+            lines.append(f"   - Đọc chi tiết: {link}")
+        else:
+            lines.append(f"{i}. **{title}**")
+            lines.append(f"   - Báo: {bao}")
+            lines.append(f"   - Xuất bản: {gio}")
+            lines.append("   - Link: không rõ (RSS thiếu URL)")
         if tom:
-            lines.append(f"   - Tóm tắt 1 câu: {tom}")
+            lines.append(f"   - Tóm tắt: {tom}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

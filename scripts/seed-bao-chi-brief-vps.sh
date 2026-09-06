@@ -19,13 +19,11 @@ Chạy workflow brief-bao-chi-sang / skill tong-hop-bao-chi với danh mục C�
 2) Cửa sổ giờ VN: 00:00 HÔM QUA → 08:00 HÔM NAY.
 3) Chạy fetch_rss.py --config Javis/bao-chi-cau-hinh.md --category giao-duc --limit 10.
 4) Viết báo cáo theo khuôn skill:
-   - Phần Tóm tắt (bullet)
-   - Phần Tin mới: MỖI bài phải có đủ 3 dòng bắt buộc:
-     · Báo: tên tờ (VnExpress, Tuổi Trẻ…) từ source_name
-     · Xuất bản: giờ từ published_human
-     · Link: URL bài đầy đủ (bấm được)
-     · Tóm tắt 1 câu
-   Không gộp mơ hồ. Không bịa. Không trộn RSS tài chính/BĐS.
+   - Phần Tóm tắt (bullet ngắn)
+   - Phần Tin mới: DÁN NGUYÊN field tin_moi_markdown từ JSON script
+     (mỗi bài đã có [tiêu đề](url) + dòng Đọc chi tiết: https://...).
+     CẤM viết lại danh sách tin. CẤM bỏ URL — Telegram/Zalo cần link để bấm đọc.
+   Không bịa. Không trộn RSS tài chính/BĐS.
 
 Chỉ ĐỌC RSS và tóm tắt. Kết quả do hệ thống nhắc đẩy về kênh. Tiếng Việt, ngắn như tin nhắn.
 EOF
