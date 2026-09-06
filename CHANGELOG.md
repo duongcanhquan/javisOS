@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.100] - 2026-09-06
+### Cải tiến
+- **Popup Kết nối:** hộp chi tiết / test kết nối rộng ~2× (1040px), vùng thông báo riêng không cắt chữ.
 ## [0.55.99] - 2026-09-06
 ### Cải tiến
 - **Đổi tên brain mặc định:** `POST /brains/rename` (kể cả Brain Default → ví dụ APC.HN); tên mới lưu state, alias `brain` vẫn đúng.

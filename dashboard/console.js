@@ -4459,9 +4459,12 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   function connModal(html, maxw) {
     let m = document.getElementById("connectModal");
     if (!m) { m = document.createElement("div"); m.id = "connectModal"; m.className = "mp-overlay"; document.body.appendChild(m); }
-    m.innerHTML = '<div class="mp-box" style="max-width:' + (maxw || 520) + 'px">' + html + '</div>';
+    // Mặc định ~2× bản cũ (520): đủ chỗ đọc guide / kết quả test, không cắt chữ ở footer.
+    const w = maxw || 1040;
+    m.innerHTML = '<div class="mp-box connect-mp-box" style="max-width:' + w + 'px;width:min(' + w + 'px,96vw)">' + html + '</div>';
     m.classList.add("open");
     m.querySelectorAll('[data-act="close"]').forEach(b => b.onclick = closeConnModal);
+    m.onclick = (e) => { if (e.target === m) closeConnModal(); };
     return m;
   }
   function mHead(title) {
@@ -4989,14 +4992,28 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       + '<button class="conn-menu-btn" data-m="audit">' + ic("scroll") + ' Nhật ký gọi tool</button>'
       + '<button class="conn-menu-btn" data-m="toggle">' + (c.enabled ? "○ Tắt tạm" : "● Bật lại") + '</button>'
       + '<button class="conn-menu-btn danger" data-m="del">' + ic("trash-2") + ' Xoá kết nối</button>'
-      + '</div><div class="mp-foot"><span class="mp-note" id="cmNote"></span><button class="mp-btn" data-act="close">Đóng</button></div>');
+      + '</div>'
+      + '<div class="conn-result" id="cmNote" role="status" aria-live="polite"></div>'
+      + '<div class="mp-foot"><button class="mp-btn" data-act="close">Đóng</button></div>');
     const note = m.querySelector("#cmNote");
+    const setNote = (html, kind) => {
+      note.classList.remove("ok", "bad", "busy");
+      if (kind) note.classList.add(kind);
+      note.innerHTML = html || "";
+    };
     m.querySelectorAll("[data-m]").forEach(b => b.onclick = async () => {
       const act = b.dataset.m;
       if (act === "test") {
-        note.textContent = "Đang test…";
+        setNote("Đang test kết nối…", "busy");
         const r = await postJson("/connect/test", { id: c.id });
-        note.innerHTML = r.ok ? CHECK_ICON + " OK - " + (r.tools || 0) + " công cụ" + (r.label ? " (" + r.label + ")" : "") : WARN_ICON + " " + esc(r.error || "lỗi");
+        if (r.ok) {
+          setNote(CHECK_ICON + " OK - " + (r.tools || 0) + " công cụ"
+            + (r.label ? " (" + esc(r.label) + ")" : "")
+            + (r.detail ? "<br>" + esc(String(r.detail)) : "")
+            + (r.message ? "<br>" + esc(String(r.message)) : ""), "ok");
+        } else {
+          setNote(WARN_ICON + " " + esc(r.error || r.message || "Lỗi test kết nối"), "bad");
+        }
       } else if (act === "rekey") {
         closeConnModal(); reconnectAccount(el, c, con);
       } else if (act === "default") {
@@ -5018,9 +5035,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         if (!confirm('Xoá đăng nhập Google của "' + (c.label || "") + '"?\n\n'
           + 'Kết nối giữ nguyên. Lần sau nhờ Javis làm việc với nguồn này, trình duyệt trên MÁY '
           + 'CHẠY JAVIS sẽ mở để bạn cấp lại quyền - nhớ tick hết các ô.')) return;
-        note.textContent = "Đang xoá…";
+        setNote("Đang xoá phiên đăng nhập…", "busy");
         const r = await postJson("/connect/relogin", { id: c.id });
-        note.innerHTML = (r && r.ok ? CHECK_ICON : WARN_ICON) + " " + esc((r && (r.message || r.error)) || "Lỗi");
+        setNote((r && r.ok ? CHECK_ICON : WARN_ICON) + " " + esc((r && (r.message || r.error)) || "Lỗi"),
+          (r && r.ok) ? "ok" : "bad");
       } else if (act === "audit") {
         openAuditModal(c);
       } else if (act === "toggle") {
