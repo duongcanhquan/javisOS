@@ -137,6 +137,11 @@ if [ -f "$ROOT/scripts/fetch-moonshine-models.sh" ]; then
 else
   echo "WARN: thiếu scripts/fetch-moonshine-models.sh"
 fi
+if [ -f "$ROOT/scripts/patch-moonshine-wasm-threads.sh" ]; then
+  echo "==> patch Moonshine WASM pthread pool (max 2)"
+  chmod +x "$ROOT/scripts/patch-moonshine-wasm-threads.sh"
+  bash "$ROOT/scripts/patch-moonshine-wasm-threads.sh" || echo "WARN: moonshine pthread patch skipped"
+fi
 if [ -d /root/javis-data/dashboard-vendor ]; then
   echo "==> restore dashboard CDN vendor"
   docker exec -u root "${JAVIS_NAME:-javis}" mkdir -p /app/dashboard/vendor

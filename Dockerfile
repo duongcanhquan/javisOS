@@ -80,11 +80,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Moonshine WASM cùng origin với dashboard — tránh worker WASM cross-origin từ CDN.
+# pthreadPoolSize mặc định = hardwareConcurrency (8–16) → treo mãi ở loadWasmModuleToAllWorkers.
+# Giới hạn 2 worker: nạp nhanh, vẫn dùng SharedArrayBuffer khi có COOP/COEP.
 RUN mkdir -p /tmp/ms && cd /tmp/ms \
     && npm pack @moonshine-ai/moonshine-wasm@0.1.5 \
     && tar -xzf moonshine-ai-moonshine-wasm-*.tgz \
     && mkdir -p /app/dashboard/vendor/moonshine-wasm \
     && mv package/dist /app/dashboard/vendor/moonshine-wasm/dist \
+    && python3 -c "from pathlib import Path; p=Path('/app/dashboard/vendor/moonshine-wasm/dist/moonshine.mjs'); t=p.read_text(); o='var pthreadPoolSize=navigator.hardwareConcurrency;'; n='var pthreadPoolSize=Math.min(2,navigator.hardwareConcurrency||2);'; assert o in t, 'moonshine pthread pattern missing'; p.write_text(t.replace(o,n,1))" \
     && rm -rf /tmp/ms
 
 # Non-root runtime user. Code stays root-owned + read-only; state on volumes.

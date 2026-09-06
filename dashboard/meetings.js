@@ -9,9 +9,10 @@
   // Model Moonshine host sẵn trên VPS (cùng origin) — tránh tải HuggingFace/CDN ngoài.
   // (chi tiết từng ngôn ngữ: MOONSHINE_LOCAL)
   var MOONSHINE_VI_LOCAL = null; // legacy alias — dùng moonshineLocalUrls("vi")
-  // Lần đầu: ~135MB VI + biên dịch WASM/ORT — cần thời gian; lần sau dùng cache trình duyệt.
-  var MOONSHINE_LOAD_TIMEOUT_MS = 120000;
-  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 90000;
+  // Engine WASM (pthread) + model ~135MB; fail-fast nếu treo worker pool.
+  var MOONSHINE_LOAD_TIMEOUT_MS = 45000;
+  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 45000;
+  var MOONSHINE_WASM_TIMEOUT_MS = 20000;
   var state = {
     meetingId: null,
     path: "",
@@ -1061,7 +1062,7 @@
           "Moonshine lỗi — Bắt đầu sẽ dùng Gemini/Web Speech.";
       } else {
         el.textContent =
-          "Moonshine ưu tiên (máy chủ) — lần đầu có thể 1–2 phút nạp model; lần sau nhanh.";
+          "Moonshine ưu tiên — lần đầu tải ~135MB (có %); engine WASM tối đa 2 worker.";
       }
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
@@ -1264,111 +1265,224 @@
     }
   }
 
+  async function downloadMoonshineNamedFiles(urlMap, onProgress) {
+    var names = Object.keys(urlMap || {});
+    var out = {};
+    var doneBytes = 0;
+    var knownTotal = 0;
+    // HEAD để biết tổng (progress thật); bỏ qua nếu lỗi.
+    var sizes = {};
+    await Promise.all(
+      names.map(async function (name) {
+        try {
+          var h = await fetch(urlMap[name], { method: "HEAD", credentials: "same-origin" });
+          var n = Number(h.headers.get("content-length") || 0);
+          if (h.ok && n > 0) {
+            sizes[name] = n;
+            knownTotal += n;
+          }
+        } catch (e) {}
+      })
+    );
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      var url = urlMap[name];
+      var res = await fetch(url, { credentials: "same-origin" });
+      if (!res.ok) {
+        throw new Error("Không tải được model " + name + " (" + res.status + ")");
+      }
+      var totalFile = sizes[name] || Number(res.headers.get("content-length") || 0) || 0;
+      if (!res.body || !res.body.getReader) {
+        var buf = await res.arrayBuffer();
+        out[name] = new Uint8Array(buf);
+        doneBytes += buf.byteLength;
+        if (onProgress) {
+          onProgress(
+            knownTotal ? Math.min(1, doneBytes / knownTotal) : 0,
+            name,
+            doneBytes,
+            knownTotal || doneBytes
+          );
+        }
+        continue;
+      }
+      var reader = res.body.getReader();
+      var chunks = [];
+      var loaded = 0;
+      for (;;) {
+        var step = await reader.read();
+        if (step.done) break;
+        if (step.value) {
+          chunks.push(step.value);
+          loaded += step.value.byteLength;
+          if (onProgress) {
+            var overall = knownTotal
+              ? Math.min(1, (doneBytes + loaded) / knownTotal)
+              : totalFile
+                ? Math.min(1, loaded / totalFile)
+                : 0;
+            onProgress(overall, name, doneBytes + loaded, knownTotal || totalFile);
+          }
+        }
+      }
+      var merged = new Uint8Array(loaded);
+      var off = 0;
+      chunks.forEach(function (c) {
+        merged.set(c, off);
+        off += c.byteLength;
+      });
+      out[name] = merged;
+      doneBytes += loaded;
+    }
+    return out;
+  }
+
   async function startMoonshine(root) {
     if (state.abortRequested) throw new Error("Đã hủy");
     if (!moonshineRuntimeOk()) {
       throw new Error(
-        "Trình duyệt chưa bật WASM threads (crossOriginIsolated=false). Tải lại trang hoặc dùng Web Speech (Chrome/Edge)."
+        "Trình duyệt chưa bật WASM threads (crossOriginIsolated=false). Tải lại trang (Ctrl+F5) bằng Chrome/Edge HTTPS."
       );
     }
     var lang = meetingLang();
     var label = langLabel(lang);
-    var mod = await importMoonshineModule();
+    var localUrls = moonshineLocalUrls(lang);
+    var localCfg = MOONSHINE_LOCAL[lang];
+    var cfg = MOONSHINE_LANG[lang] || { arch: "Base" };
     var timeoutMs =
       lang === "vi" ? MOONSHINE_LOAD_TIMEOUT_MS : MOONSHINE_LOAD_TIMEOUT_OTHER_MS;
 
-    // MicTranscriber + model local trên VPS khi có (không kéo CDN ngoài).
-    var localUrls = moonshineLocalUrls(lang);
-    var localCfg = MOONSHINE_LOCAL[lang];
-    if (!state.moonshineReady || state.moonshineLang !== lang) {
-      if (state._moonshineLoadPromise) resetMoonshineCache();
-      setStatus(
-        root,
-        localUrls
-          ? "Nạp Moonshine (" + label + ", máy chủ)… 0s"
-          : "Nạp Moonshine (" + label + ")… 0s"
-      );
-    }
-
-    var cfg = MOONSHINE_LANG[lang] || { arch: "Base" };
-    var archName =
-      (localCfg && localCfg.arch) || cfg.arch || (lang === "vi" ? "Base" : "TinyStreaming");
-    var arch =
-      (mod.ModelArch && mod.ModelArch[archName]) ||
-      (mod.ModelArch && mod.ModelArch.Base) ||
-      (mod.ModelArch && mod.ModelArch.TinyStreaming);
-
+    var phase = "engine";
+    var phaseDetail = "";
     var startedAt = Date.now();
     var beat = setInterval(function () {
       if (state.abortRequested) return;
       var sec = Math.round((Date.now() - startedAt) / 1000);
-      setStatus(
-        root,
-        localUrls
-          ? "Nạp Moonshine (" + label + ", máy chủ)… " + sec + "s"
-          : "Nạp Moonshine (" + label + ")… " + sec + "s — tải model từ mạng."
-      );
+      if (phase === "download" && phaseDetail) {
+        setStatus(root, phaseDetail + " · " + sec + "s");
+      } else if (phase === "init") {
+        setStatus(root, "Khởi tạo Moonshine (" + label + ")… " + sec + "s");
+      } else {
+        setStatus(root, "Nạp engine Moonshine (" + label + ")… " + sec + "s");
+      }
     }, 1000);
 
-    var mic = new mod.MicTranscriber().language(lang).modelArch(arch);
-    // BẮT BUỘC map object file→URL (loadFromUrls). String baseUrl dùng catalog CDN → hay treo/404.
-    if (localUrls && typeof mic.modelsFrom === "function") {
-      mic.modelsFrom(localUrls);
-    }
-    mic
-      .onProgress(function (frac, file) {
-        if (state.abortRequested) return;
-        if (typeof frac === "number" && frac > 0) {
-          setStatus(
-            root,
-            "Tải model " + label + "… " + Math.round(frac * 100) + "%" +
-              (file ? " · " + file : "")
-          );
-        } else if (file) {
-          setStatus(root, "Tải Moonshine (" + label + ")… " + file);
-        }
-      })
-      .onText(function (text) {
-        setPartial(root, text || "", "");
-      })
-      .onLine(function (line) {
-        if (!state.running && !state.loading) return;
-        var tx = (line && line.text) || "";
-        if (!tx.trim()) return;
-        var idx = -1;
-        var who = "";
-        setPartial(root, "");
-        var t0 = line.startTime || 0;
-        var t1 = t0 + (line.duration || 0);
-        var wall = new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        appendFinal(root, tx, wall, who);
-        queueLine(tx, t0, t1, who, idx);
-      })
-      .onError(function (err) {
-        setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
-      });
-
+    var mic = null;
     try {
-      await promiseTimeout(
-        mic.load(),
-        timeoutMs,
-        "Moonshine " +
-          label +
-          " treo khi nạp (" +
-          Math.round(timeoutMs / 1000) +
-          "s) — chuyển Gemini/Web Speech."
+      setStatus(root, "Nạp engine Moonshine (" + label + ")…");
+      var mod = await promiseTimeout(
+        importMoonshineModule(),
+        MOONSHINE_WASM_TIMEOUT_MS,
+        "Engine Moonshine treo khi import (" +
+          Math.round(MOONSHINE_WASM_TIMEOUT_MS / 1000) +
+          "s)."
       );
+      if (state.abortRequested) throw new Error("Đã hủy");
+
+      var archName =
+        (localCfg && localCfg.arch) || cfg.arch || (lang === "vi" ? "Base" : "TinyStreaming");
+      var arch =
+        (mod.ModelArch && mod.ModelArch[archName]) ||
+        (mod.ModelArch && mod.ModelArch.Base) ||
+        (mod.ModelArch && mod.ModelArch.TinyStreaming);
+
+      var opts = Object.assign({}, cfg.opts || {}, { identify_speakers: "false" });
+      if (lang === "vi") opts = Object.assign({}, MOONSHINE_VI_OPTS_LITE);
+
+      phase = "download";
+      var fileMap = null;
+      if (localUrls) {
+        setStatus(root, "Tải model " + label + " từ máy chủ…");
+        fileMap = await promiseTimeout(
+          downloadMoonshineNamedFiles(localUrls, function (frac, file, loaded, total) {
+            if (state.abortRequested) return;
+            var pct = typeof frac === "number" && frac > 0 ? Math.round(frac * 100) + "%" : "…";
+            var mb =
+              typeof loaded === "number"
+                ? " · " + (loaded / (1024 * 1024)).toFixed(1) + "MB"
+                : "";
+            phaseDetail =
+              "Tải model " + label + "… " + pct + mb + (file ? " · " + file : "");
+            setStatus(root, phaseDetail);
+          }),
+          timeoutMs,
+          "Tải model Moonshine quá lâu."
+        );
+      }
+
+      phase = "init";
+      setStatus(root, "Khởi tạo Moonshine (" + label + ")…");
+      var transcriber;
+      if (fileMap && typeof mod.Transcriber.load === "function") {
+        // Buffers sẵn → tránh Cache API put trước khi đọc (hay “im” không %).
+        // load() cũng kích hoạt loadMoonshineModule (pthread pool đã patch ≤2).
+        transcriber = await promiseTimeout(
+          mod.Transcriber.load({
+            files: fileMap,
+            modelArch: arch,
+            options: opts,
+          }),
+          timeoutMs,
+          "Khởi tạo Moonshine treo (" + Math.round(timeoutMs / 1000) + "s)."
+        );
+      } else {
+        // Fallback CDN/catalog khi chưa host local.
+        var tmpMic = new mod.MicTranscriber().language(lang).modelArch(arch);
+        if (localUrls && typeof tmpMic.modelsFrom === "function") tmpMic.modelsFrom(localUrls);
+        await promiseTimeout(
+          tmpMic.load(),
+          timeoutMs,
+          "Moonshine treo khi nạp (" + Math.round(timeoutMs / 1000) + "s)."
+        );
+        mic = tmpMic;
+      }
+
+      if (!mic) {
+        mic = new mod.MicTranscriber().language(lang).modelArch(arch);
+        if (typeof mic.useTranscriber === "function" && transcriber) {
+          mic.useTranscriber(transcriber);
+        } else if (localUrls && typeof mic.modelsFrom === "function") {
+          mic.modelsFrom(localUrls);
+          await promiseTimeout(mic.load(), timeoutMs, "Moonshine treo khi nạp.");
+        }
+      }
+
+      mic
+        .onText(function (text) {
+          setPartial(root, text || "", "");
+        })
+        .onLine(function (line) {
+          if (!state.running && !state.loading) return;
+          var tx = (line && line.text) || "";
+          if (!tx.trim()) return;
+          setPartial(root, "");
+          var t0 = line.startTime || 0;
+          var t1 = t0 + (line.duration || 0);
+          var wall = new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+          appendFinal(root, tx, wall, "");
+          queueLine(tx, t0, t1, "", -1);
+        })
+        .onError(function (err) {
+          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
+        });
+
       if (state.abortRequested) throw new Error("Đã hủy");
       setStatus(root, "Xin quyền micro…");
       await mic.start();
     } catch (e) {
       try {
-        mic.close();
+        if (mic) mic.close();
       } catch (e2) {}
+      try {
+        if (state.moonshineMod && typeof state.moonshineMod.resetMoonshineModule === "function") {
+          state.moonshineMod.resetMoonshineModule();
+        }
+      } catch (e3) {}
+      state.moonshineMod = null;
       resetMoonshineCache();
       throw e;
     } finally {
