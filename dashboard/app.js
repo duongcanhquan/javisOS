@@ -2022,6 +2022,13 @@ function tatRanhTay() {
   try { if (window.JavisTts) window.JavisTts.set(false); } catch (e) {}
 }
 
+// Cuộc họp cần mic riêng (Moonshine/Web Speech). Rảnh tay nếu còn bật sẽ cướp mic lại sau 500ms.
+window.javisReleaseMicForMeeting = function () {
+  try { tatRanhTay(); } catch (e) {}
+  try { if (voice && voice.stopListening) voice.stopListening(); } catch (e) {}
+  try { if (voice && voice._stopMicMeter) voice._stopMicMeter(); } catch (e) {}
+};
+
 // Câu báo lỗi mic. Nói ĐÚNG nguyên nhân, vì ba nguyên nhân cần ba hành động khác hẳn nhau và
 // câu chung "hãy cấp quyền" là lời khuyên KHÔNG LÀM ĐƯỢC với hai trong ba trường hợp.
 function alertMic(err) {
@@ -2071,6 +2078,10 @@ voiceBtn.addEventListener("click", () => {
 setInterval(() => {
   // `micHong()` là chốt thứ hai (chốt thứ nhất là tatRanhTay() trong onError). Giữ cả hai vì
   // vòng này chạy hai lần mỗi giây: sót một nhịp là một hộp thoại nữa đập vào mặt người dùng.
+  // Đang ghi cuộc họp → đừng cướp mic (hôm nay họp "không nghe được" vì vòng này).
+  if (window.JavisMeetings && window.JavisMeetings.isRecording && window.JavisMeetings.isRecording()) {
+    return;
+  }
   if (handsFree && !voice.isListening && !isProcessing && !voice.isSpeaking()
       && !(voice.micHong && voice.micHong())) {
     voice.startListening(true);   // true = máy tự gọi, không phải người bấm

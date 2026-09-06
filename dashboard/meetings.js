@@ -360,12 +360,22 @@
   /** Trả mic cho SpeechRecognition — chat voice (app.js) giữ getUserMedia thì SR im lặng. */
   function releaseMicConflicts() {
     try {
+      if (window.javisReleaseMicForMeeting) {
+        window.javisReleaseMicForMeeting();
+        return;
+      }
+    } catch (e) {}
+    try {
+      if (typeof tatRanhTay === "function") tatRanhTay();
+    } catch (e) {}
+    try {
       if (typeof voice !== "undefined" && voice) {
         if (voice.stopListening) voice.stopListening();
         if (voice._stopMicMeter) voice._stopMicMeter();
       }
     } catch (e) {}
   }
+
 
   function queueLine(text, t0, t1, speaker, speakerIndex) {
     if (!(text || "").trim()) return;
@@ -2131,6 +2141,8 @@
 
   function render(el) {
     injectCss();
+    // Vào tab Họp: tắt rảnh tay / nhả mic chat ngay, tránh Web Speech họp bị im.
+    releaseMicConflicts();
     state.meetingId = null;
     state.running = false;
     state.stopped = false;
@@ -2335,5 +2347,9 @@
     }
   }
 
-  window.JavisMeetings = { render: render, roi: roi };
+  function isRecording() {
+    return !!(state.running || state.loading);
+  }
+
+  window.JavisMeetings = { render: render, roi: roi, isRecording: isRecording };
 })();
