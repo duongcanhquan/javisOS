@@ -1,0 +1,60 @@
+# Ép báo cáo giáo dục CĐ/ĐH chạy NGAY trên VPS → Telegram (+ Zalo).
+# Dùng chung concurrency với các job SSH VPS khác.
+# Cách chạy từ UI: Actions → Force edu brief today
+#   (hoặc Force morning brief today + chọn nhánh cursor/edu-morning-brief-53c1)
+name: Force edu brief today
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  force:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force edu brief on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            BRANCH_RAW="https://raw.githubusercontent.com/duongcanhquan/javisOS/cursor/edu-morning-brief-53c1"
+            MAIN_RAW="https://raw.githubusercontent.com/duongcanhquan/javisOS/main"
+            fetch() {
+              local name="$1"
+              if [ -f "scripts/$name" ]; then
+                echo "OK: dùng scripts/$name trên VPS"
+                chmod +x "scripts/$name"
+                return 0
+              fi
+              mkdir -p /tmp/edu-brief-scripts/scripts
+              if curl -fsSL "$BRANCH_RAW/scripts/$name" -o "/tmp/edu-brief-scripts/scripts/$name" \
+                || curl -fsSL "$MAIN_RAW/scripts/$name" -o "/tmp/edu-brief-scripts/scripts/$name"; then
+                chmod +x "/tmp/edu-brief-scripts/scripts/$name"
+                # Chạy từ /tmp với ROOT giả lập
+                return 0
+              fi
+              echo "ERROR: không tải được $name"
+              return 1
+            }
+            if [ -f scripts/force-edu-brief-today-vps.sh ] && [ -f scripts/seed-edu-brief-vps.sh ]; then
+              chmod +x scripts/force-edu-brief-today-vps.sh scripts/seed-edu-brief-vps.sh
+              EDU_BRIEF_CHAT_ID=all bash scripts/force-edu-brief-today-vps.sh
+            else
+              mkdir -p /tmp/edu-brief-scripts/scripts
+              curl -fsSL "$BRANCH_RAW/scripts/seed-edu-brief-vps.sh" -o /tmp/edu-brief-scripts/scripts/seed-edu-brief-vps.sh \
+                || curl -fsSL "$MAIN_RAW/scripts/seed-edu-brief-vps.sh" -o /tmp/edu-brief-scripts/scripts/seed-edu-brief-vps.sh
+              curl -fsSL "$BRANCH_RAW/scripts/force-edu-brief-today-vps.sh" -o /tmp/edu-brief-scripts/scripts/force-edu-brief-today-vps.sh \
+                || curl -fsSL "$MAIN_RAW/scripts/force-edu-brief-today-vps.sh" -o /tmp/edu-brief-scripts/scripts/force-edu-brief-today-vps.sh
+              chmod +x /tmp/edu-brief-scripts/scripts/*.sh
+              EDU_BRIEF_CHAT_ID=all bash /tmp/edu-brief-scripts/scripts/force-edu-brief-today-vps.sh
+            fi

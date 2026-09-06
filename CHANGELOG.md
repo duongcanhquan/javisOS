@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.70] - 2026-09-06
+### Tính năng
+- **Báo cáo giáo dục CĐ/ĐH 8h sáng:** skill đọc **RSS/link đã ghim** trong `nguon-rss.md` (không search lan man), chọn ~10 bài CĐ/ĐH kèm link, gửi Telegram + Zalo.
+- **Đổi nguồn dễ:** sửa file `nguon-rss.md` trong skill - thêm/bớt báo hoặc đổi URL RSS khi chết.
+- **Seed VPS:** `scripts/seed-edu-brief-vps.sh` + workflow Actions (cron `0 8 * * *`, `chat_id=all`).
+
 ## [0.35.89] - 2026-09-05
 ### Cải tiến
 - **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.

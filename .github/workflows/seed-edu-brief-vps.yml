@@ -1,0 +1,38 @@
+# Seed nhắc "Báo cáo giáo dục CĐ-ĐH 8h" + agent/skill trên VPS.
+# Chạy tay (workflow_dispatch). Sau merge, script nằm trên VPS; trước merge thì tải từ nhánh PR.
+name: Seed edu morning brief on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed edu brief over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            if [ -f scripts/seed-edu-brief-vps.sh ]; then
+              chmod +x scripts/seed-edu-brief-vps.sh
+              bash scripts/seed-edu-brief-vps.sh
+            else
+              curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/cursor/edu-morning-brief-53c1/scripts/seed-edu-brief-vps.sh" \
+                -o /tmp/seed-edu-brief-vps.sh || \
+              curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/seed-edu-brief-vps.sh" \
+                -o /tmp/seed-edu-brief-vps.sh
+              chmod +x /tmp/seed-edu-brief-vps.sh
+              bash /tmp/seed-edu-brief-vps.sh
+            fi
