@@ -88,9 +88,64 @@ def _child(parent: ET.Element, *names: str) -> ET.Element | None:
     return None
 
 
+def newspaper_name(url: str) -> str:
+    """Tên báo đọc được từ URL feed hoặc link bài."""
+    u = (url or "").lower()
+    known = (
+        ("vnexpress.net", "VnExpress"),
+        ("tuoitre.vn", "Tuổi Trẻ"),
+        ("thanhnien.vn", "Thanh Niên"),
+        ("vietnamnet.vn", "VietnamNet"),
+        ("dantri.com.vn", "Dân Trí"),
+        ("zingnews.vn", "Zing News"),
+        ("laodong.vn", "Lao Động"),
+        ("nld.com.vn", "Người Lao Động"),
+        ("cafef.vn", "CafeF"),
+        ("vneconomy.vn", "VnEconomy"),
+        ("baomoi.com", "Báo Mới"),
+    )
+    for host, name in known:
+        if host in u:
+            return name
+    m = re.search(r"https?://(?:www\.)?([^/]+)", u)
+    return m.group(1) if m else (url or "Không rõ")
+
+
+def published_human(iso_or_ts: str | float | int | None) -> str:
+    """Giờ xuất bản kiểu 05:36 06/09/2026 (VN)."""
+    if iso_or_ts is None or iso_or_ts == "" or iso_or_ts == 0:
+        return "không rõ giờ"
+    try:
+        if isinstance(iso_or_ts, (int, float)):
+            dt = datetime.fromtimestamp(float(iso_or_ts), VN)
+        else:
+            raw = str(iso_or_ts).strip()
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=VN)
+            dt = dt.astimezone(VN)
+        return dt.strftime("%H:%M %d/%m/%Y")
+    except Exception:
+        return "không rõ giờ"
+
+
 def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
     root = ET.fromstring(xml_bytes)
     items: list[dict[str, Any]] = []
+    paper = newspaper_name(source_url)
+
+    def _item(title: str, link: str, desc: str, pub: datetime | None) -> dict[str, Any]:
+        return {
+            "title": title,
+            "link": link,
+            "summary": desc[:400],
+            "published": pub.isoformat() if pub else "",
+            "published_ts": pub.timestamp() if pub else 0,
+            "published_human": published_human(pub.timestamp() if pub else 0),
+            "source": source_url,
+            "source_name": paper,
+        }
+
     for item in root.iter():
         if _local(item.tag).lower() != "item":
             continue
@@ -103,14 +158,10 @@ def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
         desc = _strip_html(_text(_child(item, "description")) or _text(_child(item, "summary")))
         pub = _parse_date(_text(_child(item, "pubDate", "published", "date", "updated")))
         if title and link:
-            items.append({
-                "title": title,
-                "link": link,
-                "summary": desc[:400],
-                "published": pub.isoformat() if pub else "",
-                "published_ts": pub.timestamp() if pub else 0,
-                "source": source_url,
-            })
+            row = _item(title, link, desc, pub)
+            # Ưu tiên tên báo từ domain link bài nếu rõ hơn
+            row["source_name"] = newspaper_name(link) or paper
+            items.append(row)
     if not items:
         for entry in root.iter():
             if _local(entry.tag).lower() != "entry":
@@ -127,14 +178,9 @@ def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
             desc = _strip_html(_text(_child(entry, "summary")) or _text(_child(entry, "content")))
             pub = _parse_date(_text(_child(entry, "published", "updated")))
             if title and link:
-                items.append({
-                    "title": title,
-                    "link": link,
-                    "summary": desc[:400],
-                    "published": pub.isoformat() if pub else "",
-                    "published_ts": pub.timestamp() if pub else 0,
-                    "source": source_url,
-                })
+                row = _item(title, link, desc, pub)
+                row["source_name"] = newspaper_name(link) or paper
+                items.append(row)
     return items
 
 

@@ -1,29 +1,27 @@
 ---
 name: tong-hop-bao-chi
-description: "Tổng hợp/tóm tắt báo chí theo danh mục RSS (giáo dục, tài chính…), tối đa 10 bài + link; brief sáng hoặc gọi tay."
-description_en: "Summarize press by RSS category (education, finance…), up to 10 stories with links; morning brief or on demand."
+description: "Tổng hợp/tóm tắt báo chí theo danh mục RSS; mỗi bài ghi rõ báo, giờ xuất bản, link đọc; tối đa 10 bài."
+description_en: "Summarize press by RSS category; each item shows newspaper, publish time, and read link; up to 10."
 group: Nội dung
 ---
 
 # Tổng hợp báo chí
 
 Skill = **kỹ năng**: chọn danh mục RSS → lọc cửa sổ sáng → tóm tắt → format gửi (Telegram/Zalo/chat).
-Nguồn RSS **tách theo danh mục** trong `Javis/bao-chi-cau-hinh.md` (giáo dục, tài chính, bất động sản… thêm sau được).
+Nguồn RSS **tách theo danh mục** trong `Javis/bao-chi-cau-hinh.md`.
 
 ## Khi nào dùng
 
 - Workflow/nhắc 8h `brief-bao-chi-sang` → danh mục **`giao-duc`**.
-- User gọi tay: «tổng hợp báo chí tài chính», «RSS bất động sản», `/tong-hop-bao-chi tai-chinh`.
-- Cần tối đa **10 bài mới** kèm **link gốc**, tóm tắt theo chủ đề danh mục.
+- User gọi tay: «tổng hợp báo chí tài chính», «RSS bất động sản».
+- Cần tối đa **10 bài mới**, mỗi bài **bắt buộc** có: tên báo + giờ xuất bản + link đọc.
 
 ## Chuẩn bị
 
 1. Đọc `Javis/bao-chi-cau-hinh.md`. Thiếu → tạo từ `references/cau-hinh-mau.md`.
-2. Chọn **danh mục** (`slug`):
-   - Brief sáng / workflow giáo dục → `giao-duc` (cố định).
-   - User nêu lĩnh vực → map sang slug gần nhất (`tài chính` → `tai-chinh`, `BĐS` → `bat-dong-san`). Không khớp → hỏi hoặc dùng `## Danh mục mặc định`.
+2. Chọn **danh mục** (`slug`): brief sáng → `giao-duc`; user nêu lĩnh vực → map slug.
 3. Cửa sổ giờ VN: **00:00 hôm qua → 08:00 hôm nay**.
-4. Kênh gửi: nhắc hẹn đẩy kết quả qua `chat_id`. Gọi tay → trả lời ngay trong phiên; chỉ gửi sang kênh khác khi user **yêu cầu rõ**.
+4. Kênh gửi: nhắc hẹn đẩy kết quả qua `chat_id`.
 
 ## Cách chạy
 
@@ -34,21 +32,18 @@ python skills/tong-hop-bao-chi/scripts/fetch_rss.py \
   --limit 10
 ```
 
-- Đổi `--category` theo danh mục (`tai-chinh`, `bat-dong-san`, …).
-- Xem danh mục có sẵn: thêm `--list-categories`.
-- Skill ở `.claude/skills/...`: dùng đúng path script đó.
-- Không có Bash: WebFetch đúng URL **RSS của danh mục đã chọn**, lọc cùng cửa sổ + từ khóa danh mục, lấy 10 bài mới nhất.
+JSON mỗi bài có: `title`, `link`, `source_name` (tên báo), `published_human` (giờ VN), `summary`.
 
 ## Quy trình
 
-1. Chạy script (hoặc WebFetch) → JSON `articles[]`, `category`, `errors`.
-2. Tóm tắt 4-8 bullet theo nhóm ý trong danh mục (không bịa số ngoài feed).
-3. Liệt kê tối đa 10 bài, mỗi bài `[tiêu đề](url)`.
-4. Feed lỗi → mục Nguồn lỗi; vẫn trả phần còn lại.
+1. Chạy script → đọc `articles[]`.
+2. Viết **Tóm tắt** 4-8 bullet (không bịa số ngoài feed).
+3. Mục **Tin mới** (tối đa 10): **mỗi tin một khối**, đủ 3 trường bắt buộc dưới đây.
+4. Feed lỗi → mục Nguồn lỗi.
 
-## Định dạng đầu ra
+## Định dạng đầu ra (BẮT BUỘC)
 
-Tin nhắn ngắn, tiếng Việt, không bảng, không em dash.
+Tiếng Việt, không bảng, không em dash. **Mỗi tin phải có đủ Báo / Xuất bản / Link** - thiếu một trong ba là sai khuôn.
 
 ```markdown
 ### Báo chí · <nhãn danh mục> · <dd/mm>
@@ -59,46 +54,53 @@ Tin nhắn ngắn, tiếng Việt, không bảng, không em dash.
 **Tóm tắt**
 - ...
 
-**10 bài mới nhất**
-1. [Tiêu đề](https://...) · nguồn · giờ
-2. ...
+**Tin mới (tối đa 10)**
+
+1. **<Tiêu đề bài>**
+   - Báo: <VnExpress | Tuổi Trẻ | Thanh Niên | …>  ← dùng `source_name`
+   - Xuất bản: <HH:mm dd/mm/yyyy>  ← dùng `published_human`
+   - Link: <url đầy đủ, bấm được>  ← dùng `link` (có thể viết [Đọc bài](url))
+   - Tóm tắt 1 câu: <từ summary, không bịa>
+
+2. **<Tiêu đề bài>**
+   - Báo: …
+   - Xuất bản: …
+   - Link: …
+   - Tóm tắt 1 câu: …
 
 **Nguồn lỗi** (bỏ nếu không có)
-- ...
+- …
+```
+
+Ví dụ một tin đúng:
+
+```markdown
+1. **Chi phí du học Mỹ vượt 100.000 USD/năm ở 15 trường**
+   - Báo: VnExpress
+   - Xuất bản: 00:02 06/09/2026
+   - Link: https://vnexpress.net/chi-phi-du-hoc-my-vuot-100-000-usd-nam-o-15-truong-5114638.html
+   - Tóm tắt 1 câu: 15 đại học Mỹ công bố chi phí trên 100.000 USD với tân sinh viên.
 ```
 
 ## Thêm danh mục mới
 
-Trong `Javis/bao-chi-cau-hinh.md`, thêm khối:
-
-```markdown
-## Danh mục: <slug-moi>
-
-### Nhãn
-...
-
-### RSS
-- https://...
-
-### Từ khóa
-từ1, từ2, ...
-```
-
-Không cần sửa skill. Workflow 8h vẫn chỉ gọi `giao-duc` trừ khi đổi nhắc/workflow.
+Copy khối `## Danh mục: <slug>` trong `Javis/bao-chi-cau-hinh.md` (RSS + từ khóa). Không cần sửa skill.
 
 ## Bẫy
 
-- Brief 8h **không** trộn mọi RSS: chỉ feed của danh mục workflow chỉ định (`giao-duc`).
-- Không bịa bài/link; không vượt 10 bài (trừ khi user đòi).
-- Không gửi hàng loạt nếu user không nhờ (nhắc hẹn: chỉ trả kết quả).
+- Không viết «nguồn · giờ» mơ hồ trên một dòng - phải tách **Báo** / **Xuất bản** / **Link**.
+- Không chỉ paste URL RSS feed làm «Báo»; dùng `source_name` (VnExpress, Tuổi Trẻ…).
+- Không bỏ link; không bịa giờ/báo nếu JSON thiếu - ghi «không rõ» đúng field đó.
+- Brief 8h chỉ danh mục `giao-duc`.
 
 ## Kiểm chứng
 
-- Đúng `--category` / đúng khối RSS chưa?
-- Đủ link top 10? Cửa sổ giờ VN đúng chưa?
+- Mỗi tin trong top 10 có đủ 3 dòng Báo + Xuất bản + Link chưa?
+- Link mở được bài gốc chưa?
+- Đúng danh mục / cửa sổ giờ VN chưa?
 
 ## Liên kết
 
-- Workflow `brief-bao-chi-sang` - brief 8h danh mục `giao-duc`.
-- `notes` / `ingest-source` - khi user muốn **lưu** bài vào brain (skill này chỉ tóm tắt + gửi, không tự ingest).
-- `query-wiki` - nếu đã có trang wiki cùng chủ đề, đối chiếu trước khi tóm tắt dài.
+- Workflow `brief-bao-chi-sang` - brief 8h `giao-duc`.
+- `notes` / `ingest-source` - khi user muốn lưu bài vào brain.
+- `query-wiki` - đối chiếu wiki cùng chủ đề nếu cần.

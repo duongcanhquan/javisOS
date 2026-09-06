@@ -15,12 +15,19 @@ CHAT_ID="${BAO_CHI_BRIEF_CHAT_ID:-all}"
 PROMPT=$(cat <<'EOF'
 Chạy workflow brief-bao-chi-sang / skill tong-hop-bao-chi với danh mục CỐ ĐỊNH: giao-duc.
 
-1) Đọc Javis/bao-chi-cau-hinh.md - chỉ dùng khối ## Danh mục: giao-duc (RSS giáo dục). Thiếu file thì tạo từ mẫu skill references/cau-hinh-mau.md.
+1) Đọc Javis/bao-chi-cau-hinh.md - chỉ khối ## Danh mục: giao-duc.
 2) Cửa sổ giờ VN: 00:00 HÔM QUA → 08:00 HÔM NAY.
-3) Chạy: python .../fetch_rss.py --config Javis/bao-chi-cau-hinh.md --category giao-duc --limit 10 (hoặc WebFetch đúng RSS giáo dục).
-4) Viết báo cáo theo khuôn skill: tóm tắt + tối đa 10 bài, mỗi bài có link markdown. Không bịa. Không trộn RSS tài chính/BĐS.
+3) Chạy fetch_rss.py --config Javis/bao-chi-cau-hinh.md --category giao-duc --limit 10.
+4) Viết báo cáo theo khuôn skill:
+   - Phần Tóm tắt (bullet)
+   - Phần Tin mới: MỖI bài phải có đủ 3 dòng bắt buộc:
+     · Báo: tên tờ (VnExpress, Tuổi Trẻ…) từ source_name
+     · Xuất bản: giờ từ published_human
+     · Link: URL bài đầy đủ (bấm được)
+     · Tóm tắt 1 câu
+   Không gộp mơ hồ. Không bịa. Không trộn RSS tài chính/BĐS.
 
-Chỉ ĐỌC RSS và tóm tắt. Không gửi tin tay - kết quả do hệ thống nhắc đẩy về kênh đã cấu hình. Tiếng Việt, ngắn như tin nhắn.
+Chỉ ĐỌC RSS và tóm tắt. Kết quả do hệ thống nhắc đẩy về kênh. Tiếng Việt, ngắn như tin nhắn.
 EOF
 )
 
