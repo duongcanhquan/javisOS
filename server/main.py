@@ -13885,6 +13885,12 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
         sess = _tg_session(chat_id)
         brain = _tg_brain(chat_id)   # brain riêng của phiên (đổi bằng /brain), mặc định theo Settings
 
+    # Brief đang chờ cho /run <slug>: tin thường tiếp theo = đầu vào workflow (không gọi engine chat).
+    if not bot and sess.get("pending_wf_brief") and text and not str(text).strip().startswith("/"):
+        pending = sess.pop("pending_wf_brief") or {}
+        slug = (pending.get("slug") or "").strip()
+        return {"text": _tg_wf_launch(chat_id, brain, slug, str(text).strip()), "files": []}
+
     # Follow-up "phân tích file vừa gửi": gắn path từ sổ nhận (tầng inbox/received).
     # Bot khách bỏ qua - không trộn file chủ vào mạch khách.
     if not bot and text and channel in ("telegram", "zalo"):
@@ -14842,18 +14848,20 @@ async def _tg_help_text(brain):
         "🤖 Javis Telegram\n\n"
         "Lệnh:\n"
         "/status - engine, model, vault, trạng thái\n"
-        "/skills - liệt kê skill\n"
+        "/skills - liệt kê skill có sẵn\n"
         "/agents - liệt kê agent + việc đang chạy\n"
-        "/workflows - liệt kê workflow\n"
+        "/workflows - liệt kê workflow (Telegram: bấm nút để chọn)\n"
+        "/run <slug> [brief] - chạy workflow (thiếu brief thì gửi tin tiếp theo)\n"
+        "/duyet · /huy - duyệt hoặc huỷ bước workflow đang chờ\n"
         "/model - xem/đổi model: gõ /model để chọn bằng nút (mọi nhà cung cấp đã kết nối), hoặc /model <tên model>\n"
         "/model ghim - khoá Telegram + Zalo vào model đang dùng (web đổi không kéo theo) · /model theo - bỏ ghim\n"
         "/brain - xem/đổi brain (vault) cho riêng phiên của bạn (vd /brain hoặc /brain <tên>)\n"
         "/cli - engine Claude (có MCP/skill)\n"
         "/or - engine OpenRouter (chat + MCP đa-model)\n"
         "/retry - gửi lại câu gần nhất\n"
-        "/reset - hội thoại mới · /stop - dừng\n\n"
-        "Gửi tin thường để hỏi Javis. ChatGPT/Codex và OpenRouter đều dùng được MCP của Javis.\n"
-        "Gõ /tên-skill để gọi skill (cần engine Claude CLI).\n"
+        "/reset - hội thoại mới · /stop - dừng chat hoặc workflow đang chạy\n\n"
+        "Gửi tin thường để hỏi Javis. Mọi engine dùng được MCP Hub của Javis.\n"
+        "Gõ /tên-skill [yêu cầu] để gọi skill.\n"
         "Gửi file/ảnh vào đây để Javis đọc. File Javis tạo ra sẽ tự gửi lại cho bạn ở đây."
     )
 
@@ -14867,7 +14875,276 @@ async def _tg_skills_text(brain):
     if not sk:
         return "Vault chưa có skill nào trong skills/."
     lines = [f"/{s['slug']} - {(s.get('description') or '')[:60]}" for s in sk[:30]]
-    return "🧩 Skill có sẵn (gõ /slug để gọi, cần engine Claude CLI):\n" + "\n".join(lines)
+    return ("🧩 Skill có sẵn (gõ /slug hoặc /slug yêu cầu của bạn):\n"
+            + "\n".join(lines)
+            + "\n\nMọi engine có MCP Hub đều gọi được skill.")
+
+
+# ---- Chạy workflow từ Telegram / Zalo (cùng _tg_command) ----
+_TG_WF_RUNS = {}   # chat_key -> {"task": Task, "slug": str}
+_TG_WF_LIST = {}   # chat_key -> [workflow dict...] cho nút chọn theo chỉ số
+
+
+def _tg_norm_chat(chat):
+    """Chuẩn hoá khoá phiên: Zalo luôn có tiền tố zalo: (khớp _zalo_answer)."""
+    k = str(chat or "default").strip() or "default"
+    if k.startswith(ZALO_CHAT_PREFIX) or k == "default":
+        return k
+    if k.lstrip("-").isdigit():
+        return k
+    return ZALO_CHAT_PREFIX + k
+
+
+async def _tg_notify_chat(chat_key, text, reply_markup=None):
+    """Gửi tin tiến trình workflow về đúng kênh của chat_key."""
+    k = str(chat_key or "")
+    text = (text or "")[:3500]
+    if not text.strip():
+        return False, "empty"
+    if k.startswith(ZALO_CHAT_PREFIX):
+        return await _zalo_send_to(k[len(ZALO_CHAT_PREFIX):], text)
+    if not k.lstrip("-").isdigit() and k != "default":
+        return await _zalo_send_to(k, text)
+    tg = cfgmod.read_settings().get("telegram", {})
+    token = tg.get("token")
+    if not (tg.get("enabled") and token):
+        return False, "Bot Telegram chưa bật"
+    cid = k if k != "default" else ""
+    ids = tg_parse_ids(tg.get("chat_id"))
+    targets = [cid] if (cid and (not ids or cid in ids)) else (ids or ([cid] if cid else []))
+    if not targets:
+        return False, "Chưa có chat_id đích"
+    import httpx
+    ok_any, errs = False, []
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            for t in targets:
+                payload = {"chat_id": t, "text": text}
+                if reply_markup is not None:
+                    payload["reply_markup"] = reply_markup
+                try:
+                    r = await c.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                                     json=payload)
+                    d = r.json() if r.content else {}
+                    if d.get("ok"):
+                        ok_any = True
+                    else:
+                        errs.append(str(d.get("description") or f"HTTP {r.status_code}")[:80])
+                except Exception as e:
+                    errs.append(type(e).__name__)
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+    return ok_any, "; ".join(e for e in errs if e)[:200]
+
+
+def _tg_wf_cancel(chat_key):
+    """Huỷ task workflow nền của chat (nếu có). Trả True nếu đã có task bị huỷ."""
+    info = _TG_WF_RUNS.pop(chat_key, None)
+    if not info:
+        return False
+    task = info.get("task")
+    if task and not task.done():
+        task.cancel()
+        return True
+    return False
+
+
+def _tg_wf_kb(wfs, chat_key):
+    """Inline keyboard chọn workflow (Telegram). Zalo bỏ qua markup."""
+    _TG_WF_LIST[chat_key] = wfs
+    rows, row = [], []
+    for i, w in enumerate(wfs[:20]):
+        label = (w.get("name") or w.get("slug") or "?")[:28]
+        st = w.get("status") or ""
+        if st and st != "on" and st != "active":
+            label = f"{label} ({st})"
+        row.append({"text": label, "callback_data": f"ws:{i}"})
+        if len(row) == 1:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([{"text": "Đóng", "callback_data": "wx"}])
+    return {"inline_keyboard": rows}
+
+
+def _tg_wf_resolve_slug(brain, token):
+    """Khớp slug/tên workflow. Trả (slug, name) hoặc (None, None)."""
+    token = (token or "").strip()
+    if not token:
+        return None, None
+    wfs = workflows_index(brain)
+    low = token.lower()
+    hit = (next((w for w in wfs if (w.get("slug") or "").lower() == low), None)
+           or next((w for w in wfs if (w.get("name") or "").lower() == low), None)
+           or next((w for w in wfs if low in (w.get("slug") or "").lower()
+                    or low in (w.get("name") or "").lower()), None))
+    if not hit:
+        return None, None
+    return hit.get("slug"), hit.get("name") or hit.get("slug")
+
+
+def _tg_wf_launch(chat_key, brain, slug, brief):
+    """Bắt đầu execute_workflow nền; trả câu báo đã nhận."""
+    slug = (slug or "").strip()
+    if not slug:
+        return "⚠ Thiếu slug workflow. Gõ /workflows rồi /run <slug> [brief]."
+    if not (_workflows_dir(brain) / f"{slug}.md").exists():
+        return f"⚠ Không thấy workflow `{slug}`."
+    if chat_key in _TG_WF_RUNS and _TG_WF_RUNS[chat_key].get("task") and not _TG_WF_RUNS[chat_key]["task"].done():
+        return "⚠ Đang có workflow chạy cho phiên này. Gõ /stop rồi /run lại."
+    sess = _tg_session(chat_key)
+    sess.pop("pending_wf_brief", None)
+    sess.pop("pending_wf_approve", None)
+
+    async def _runner():
+        last_out = ""
+        try:
+            await _tg_notify_chat(
+                chat_key,
+                f"⚡ Bắt đầu workflow `{slug}`…\nBrief: {(brief or '')[:400] or '(trống)'}")
+            async for ev in execute_workflow(
+                    brain, slug, brief or "", tools=None,
+                    session_id=f"tg-wf:{chat_key}:{slug}"):
+                et = ev.get("type")
+                if et == "start":
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"▶ {ev.get('workflow') or slug}: {ev.get('steps', '?')} bước")
+                elif et == "step_start":
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"● Bước {(ev.get('i') or 0) + 1}: {ev.get('agent') or '?'}")
+                elif et == "step_done":
+                    last_out = ev.get("output") or last_out
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"✓ Xong bước {(ev.get('i') or 0) + 1}: {ev.get('agent') or '?'}")
+                elif et == "step_error":
+                    await _tg_notify_chat(
+                        chat_key, f"⚠ Lỗi bước: {(ev.get('content') or '')[:500]}")
+                elif et == "wait_user":
+                    sess["pending_wf_approve"] = {
+                        "slug": slug, "brain": brain,
+                        "task_id": ev.get("task_id"), "node": ev.get("node"),
+                        "code": ev.get("code"),
+                    }
+                    can = bool(ev.get("code") and ev.get("task_id"))
+                    msg = (f"⏸ Workflow dừng chờ duyệt bước \"{ev.get('node') or '?'}\"\n"
+                           f"{(ev.get('reason') or ev.get('prompt') or '')[:400]}")
+                    markup = None
+                    if can and not str(chat_key).startswith(ZALO_CHAT_PREFIX):
+                        markup = {"inline_keyboard": [[
+                            {"text": f"Duyệt {ev.get('code')}", "callback_data": "wa:ok"},
+                            {"text": "Huỷ", "callback_data": "wa:no"},
+                        ]]}
+                        msg += "\nBấm Duyệt hoặc gõ /duyet · /huy"
+                    else:
+                        msg += "\nGõ /duyet để duyệt, /huy để bỏ."
+                    await _tg_notify_chat(chat_key, msg, reply_markup=markup)
+                    return
+                elif et == "error":
+                    await _tg_notify_chat(
+                        chat_key, f"⛔ Workflow lỗi: {(ev.get('content') or '')[:800]}")
+                    return
+                elif et == "done":
+                    last_out = ev.get("result") or last_out
+                    tail = (last_out or "").strip()
+                    if len(tail) > 1200:
+                        tail = tail[:1200] + "…"
+                    await _tg_notify_chat(
+                        chat_key,
+                        "✅ Workflow hoàn tất." + (f"\n\n{tail}" if tail else ""))
+                    return
+                elif et == "escalation":
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"⚠ Agent chuyển lại: {(ev.get('reason') or '')[:500]}")
+        except asyncio.CancelledError:
+            await _tg_notify_chat(chat_key, f"⏹ Đã dừng workflow `{slug}`.")
+            raise
+        except Exception as e:
+            await _tg_notify_chat(
+                chat_key, f"⛔ Workflow lỗi: {type(e).__name__}: {e}")
+        finally:
+            cur = _TG_WF_RUNS.get(chat_key)
+            if cur and cur.get("slug") == slug:
+                _TG_WF_RUNS.pop(chat_key, None)
+
+    task = asyncio.create_task(_runner())
+    _TG_WF_RUNS[chat_key] = {"task": task, "slug": slug, "brain": brain}
+    return (f"⚡ Đã xếp chạy `{slug}`. Tiến trình sẽ báo ở đây. "
+            f"Gõ /stop để dừng.")
+
+
+async def _tg_wf_resume(chat_key, approve=True):
+    sess = _tg_session(chat_key)
+    pending = sess.pop("pending_wf_approve", None)
+    if not pending:
+        return "Không có bước workflow nào đang chờ duyệt."
+    if not approve:
+        return f"Đã bỏ qua duyệt bước của `{pending.get('slug')}`."
+    slug = pending.get("slug") or ""
+    brain = pending.get("brain") or _tg_brain(chat_key)
+    task_id = pending.get("task_id")
+    node = pending.get("node")
+    code = pending.get("code")
+    if not (task_id and code):
+        return "Không resume được (thiếu mã duyệt). Chạy lại từ Studio hoặc /run."
+
+    async def _runner():
+        last_out = ""
+        try:
+            await _tg_notify_chat(chat_key, f"▶ Tiếp tục `{slug}` sau khi duyệt…")
+            async for ev in execute_workflow_resume(
+                    brain, slug, task_id, node, code, tools=None,
+                    session_id=f"tg-wf:{chat_key}:{slug}"):
+                et = ev.get("type")
+                if et == "step_start":
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"● Bước {(ev.get('i') or 0) + 1}: {ev.get('agent') or '?'}")
+                elif et == "step_done":
+                    last_out = ev.get("output") or last_out
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"✓ Xong bước {(ev.get('i') or 0) + 1}: {ev.get('agent') or '?'}")
+                elif et == "wait_user":
+                    sess["pending_wf_approve"] = {
+                        "slug": slug, "brain": brain,
+                        "task_id": ev.get("task_id"), "node": ev.get("node"),
+                        "code": ev.get("code"),
+                    }
+                    await _tg_notify_chat(
+                        chat_key,
+                        f"⏸ Lại chờ duyệt \"{ev.get('node') or '?'}\". Gõ /duyet hoặc /huy.")
+                    return
+                elif et == "error":
+                    await _tg_notify_chat(
+                        chat_key, f"⛔ { (ev.get('content') or '')[:800] }")
+                    return
+                elif et == "done":
+                    last_out = ev.get("result") or last_out
+                    tail = (last_out or "").strip()
+                    if len(tail) > 1200:
+                        tail = tail[:1200] + "…"
+                    await _tg_notify_chat(
+                        chat_key,
+                        "✅ Workflow hoàn tất." + (f"\n\n{tail}" if tail else ""))
+                    return
+        except asyncio.CancelledError:
+            await _tg_notify_chat(chat_key, f"⏹ Đã dừng workflow `{slug}`.")
+            raise
+        except Exception as e:
+            await _tg_notify_chat(chat_key, f"⛔ {type(e).__name__}: {e}")
+        finally:
+            cur = _TG_WF_RUNS.get(chat_key)
+            if cur and cur.get("slug") == slug:
+                _TG_WF_RUNS.pop(chat_key, None)
+
+    task = asyncio.create_task(_runner())
+    _TG_WF_RUNS[chat_key] = {"task": task, "slug": slug, "brain": brain}
+    return f"Đã duyệt. Đang chạy tiếp `{slug}`…"
 
 
 # ---- Menu chọn model (inline keyboard Telegram) - kiểu Hermes: chọn provider
@@ -15072,7 +15349,7 @@ async def _tg_callback(data, chat=None):
     """Xử lý khi user bấm nút inline. Trả {'text','reply_markup','alert'} hoặc None.
     chat = chat_id người bấm → nút brain chỉ đổi cho PHIÊN của họ (model vẫn đổi toàn cục)."""
     data = data or ""
-    chat_key = str(chat or "default")
+    chat_key = _tg_norm_chat(chat)
     if data == "mx":
         return {"text": "Đã đóng bảng chọn model.", "alert": "Đã đóng"}
     # ---- nút chọn brain (bs:<idx> | bx) - tác động PHIÊN của người bấm ----
@@ -15093,6 +15370,31 @@ async def _tg_callback(data, chat=None):
                 "alert": "Đã đổi brain"}
     if data == "noop":
         return None   # nút chỉ-hiển-thị (số trang) - answer callback cho tắt spinner, không sửa tin
+    # ---- chọn / duyệt workflow ----
+    if data == "wx":
+        return {"text": "Đã đóng danh sách workflow.", "alert": "Đã đóng"}
+    if data.startswith("ws:"):
+        try:
+            i = int(data.split(":", 1)[1])
+        except ValueError:
+            return {"alert": "Dữ liệu nút lỗi"}
+        wfs = _TG_WF_LIST.get(chat_key) or []
+        if i < 0 or i >= len(wfs):
+            return {"alert": "Danh sách đã đổi - gõ /workflows lại"}
+        slug = wfs[i].get("slug") or ""
+        name = wfs[i].get("name") or slug
+        sess = _tg_session(chat_key)
+        sess["pending_wf_brief"] = {"slug": slug}
+        return {"text": (f"⚡ Đã chọn workflow: {name} (`{slug}`)\n"
+                         "Gửi brief ở tin tiếp theo (mục tiêu, phạm vi, ràng buộc…).\n"
+                         f"Hoặc gõ /run {slug} <brief>. Huỷ: /stop"),
+                "alert": "Gửi brief tiếp theo", "reply_markup": {"inline_keyboard": []}}
+    if data == "wa:ok":
+        msg = await _tg_wf_resume(chat_key, approve=True)
+        return {"text": msg, "alert": "Đã duyệt", "reply_markup": {"inline_keyboard": []}}
+    if data == "wa:no":
+        msg = await _tg_wf_resume(chat_key, approve=False)
+        return {"text": msg, "alert": "Đã huỷ", "reply_markup": {"inline_keyboard": []}}
     if data in ("mp:back", "model"):
         return {"text": _model_header(), "reply_markup": await _model_provider_kb()}
     if data.startswith("mp:"):
@@ -15141,11 +15443,16 @@ async def _tg_callback(data, chat=None):
 async def _tg_command(cmd, arg, chat=None, meta=None):
     """Xử lý lệnh Telegram cho 1 chat. Trả {'reply':...} hoặc {'ask':...} hoặc None.
     chat = chat_id của người gõ lệnh → reset/stop/retry/brain chỉ tác động PHIÊN của họ."""
-    chat_key = str(chat or "default")
+    chat_key = _tg_norm_chat(chat)
     brain = _tg_brain(chat_key)   # brain riêng của phiên (đổi bằng /brain)
     if cmd == "stop":
         # Chỉ giết subprocess Claude của CHÍNH chat này (tag telegram:<chat>), không đụng người khác.
         cancel_all(f"telegram:{chat_key}")
+        wf_stopped = _tg_wf_cancel(chat_key)
+        sess = _tg_session(chat_key)
+        sess.pop("pending_wf_brief", None)
+        if wf_stopped:
+            return {"reply": "⏹ Đã dừng lệnh đang chạy và workflow nền."}
         return {"reply": "⏹ Đã dừng lệnh đang chạy."}
     if cmd in ("reset", "new", "clear"):
         # `_tg_session` chứ không `_TG_SESS.get`: sau restart phiên RAM chưa tồn tại nhưng liên
@@ -15242,8 +15549,35 @@ async def _tg_command(cmd, arg, chat=None, meta=None):
         wfs = workflows_index(brain)
         if not wfs:
             return {"reply": "Chưa có workflow (tạo trong Studio trên dashboard)."}
-        lines = [f"• {w.get('name')} ({w.get('status')})" for w in wfs[:20]]
-        return {"reply": "⚡ Workflows:\n" + "\n".join(lines) + "\n\n(Hiện chạy trên dashboard; chạy qua Telegram sẽ thêm sau.)"}
+        lines = [
+            f"• `/{w.get('slug')}` - {w.get('name')} ({w.get('status')})"
+            for w in wfs[:20]
+        ]
+        tip = ("\n\nTelegram: bấm nút bên dưới, hoặc gõ /run <slug> [brief].\n"
+               "Zalo: gõ /run <slug> rồi gửi brief ở tin tiếp theo.")
+        out = {"reply": "⚡ Workflows:\n" + "\n".join(lines) + tip}
+        if not str(chat_key).startswith(ZALO_CHAT_PREFIX):
+            out["reply_markup"] = _tg_wf_kb(wfs, chat_key)
+        return out
+    if cmd in ("run", "wf", "workflow"):
+        a = (arg or "").strip()
+        if not a:
+            return {"reply": "Cú pháp: /run <slug> [brief]\nGõ /workflows để xem danh sách."}
+        parts = a.split(maxsplit=1)
+        token, brief = parts[0], (parts[1] if len(parts) > 1 else "")
+        slug, name = _tg_wf_resolve_slug(brain, token)
+        if not slug:
+            return {"reply": f"⚠ Không thấy workflow '{token}'. Gõ /workflows."}
+        if not brief:
+            _tg_session(chat_key)["pending_wf_brief"] = {"slug": slug}
+            return {"reply": (f"⚡ Workflow `{slug}` ({name}).\n"
+                              "Gửi brief ở tin tiếp theo (mục tiêu / phạm vi / ràng buộc).\n"
+                              "Huỷ: /stop")}
+        return {"reply": _tg_wf_launch(chat_key, brain, slug, brief)}
+    if cmd in ("duyet", "approve", "yes"):
+        return {"reply": await _tg_wf_resume(chat_key, approve=True)}
+    if cmd in ("huy", "reject", "no"):
+        return {"reply": await _tg_wf_resume(chat_key, approve=False)}
     if cmd == "retry":
         last = (_TG_SESS.get(chat_key) or {}).get("last")
         if not last:
@@ -15266,9 +15600,7 @@ async def _tg_command(cmd, arg, chat=None, meta=None):
                              "(hội thoại reset để nạp đúng bộ nhớ/skill của brain mới)"}
         # Không tham số → menu nút bấm chọn brain
         return {"reply": _tg_brain_header(chat_key), "reply_markup": _tg_brain_kb(brains, chat_key)}
-    # /<slug> khác → coi là gọi skill (cần CLI)
-    if cfgmod.read_settings().get("model", {}).get("engine") == "openrouter":
-        return {"reply": f"⚠ Skill cần engine Claude CLI. Gửi /cli để đổi, rồi /{cmd} lại."}
+    # /<slug> khác → coi là gọi skill (mọi engine có tool hub)
     ask = (f"Hãy dùng skill `{cmd}`" + (f" với yêu cầu: {arg}" if arg else "")
            + ". Nếu không có skill tên này thì cứ xử lý yêu cầu của tôi bình thường.")
     return {"ask": ask}

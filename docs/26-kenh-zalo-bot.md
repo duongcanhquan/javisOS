@@ -58,7 +58,13 @@ Nếu không làm vậy thì chính cái luồng hướng dẫn ở trên sẽ t
 
 Giống Telegram gần hết: hỏi số liệu qua MCP, đọc và ghi file trong brain, gọi skill, giao việc nền, đặt nhắc hẹn. Mọi engine đều dùng được vì công cụ đi qua MCP Hub chứ không gắn riêng vào bộ não nào.
 
-Các lệnh gõ nhanh (`/status`, `/reset`, `/stop`, `/model`, `/brain`, `/notes`...) cũng dùng được, nhưng **Zalo không hiện menu lệnh** như Telegram nên bạn phải gõ tay.
+Các lệnh gõ nhanh (`/status`, `/reset`, `/stop`, `/model`, `/brain`, `/notes`, `/workflows`, `/run`, `/skills`...) cũng dùng được, nhưng **Zalo không hiện menu lệnh** như Telegram nên bạn phải gõ tay.
+
+### Chạy skill và workflow
+
+- **Skill:** gõ `/tên-skill` hoặc `/tên-skill yêu cầu của bạn`. Xem danh sách bằng `/skills`.
+- **Workflow:** gõ `/workflows` để xem slug, rồi `/run <slug>` và gửi brief ở tin tiếp theo, hoặc `/run <slug> brief ngay trong một tin`.
+- Khi workflow dừng chờ duyệt: `/duyet` hoặc `/huy`. `/stop` cắt luôn workflow đang chạy.
 
 Kết quả việc nền và nhắc hẹn đặt từ Zalo sẽ **tự về đúng khung chat Zalo đó**, không rơi sang Telegram.
 

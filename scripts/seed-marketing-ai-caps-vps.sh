@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Seed workflows/agents/skill xuat-goi (nghiên cứu + thiết kế) vào Brain Default và School of Art trên VPS.
-# Idempotent (overwrite=True). Chạy từ checkout repo trên host sau khi git đã có file bundle.
+# Seed workflows/agents/skill xuat-goi (nghiên cứu + thiết kế) vào MỌI brain trong /brains trên VPS.
+# Caps chuẩn dùng chung; Memory/Sources vẫn riêng từng brain. Idempotent (overwrite=True).
 set -euo pipefail
 
 CONTAINER="${JAVIS_CONTAINER:-javis}"
@@ -35,10 +35,16 @@ brains_root = Path(os.environ.get("BRAINS_DIR", "/brains"))
 bundle = Path("/tmp/javis-workflows-nghien-cuu-va-thiet-ke.zip")
 data = bundle.read_bytes()
 
-names = ["Brain Default", "School of Art"]
-for name in names:
-    root = brains_root / name
-    root.mkdir(parents=True, exist_ok=True)
+# Mọi thư mục con của /brains (bỏ file lẻ). Brain mới tự nhận caps chuẩn.
+dirs = sorted(
+    p for p in brains_root.iterdir()
+    if p.is_dir() and not p.name.startswith(".")
+)
+if not dirs:
+    print(f"WARN: không thấy brain nào trong {brains_root}", flush=True)
+
+for root in dirs:
+    name = root.name
     for d in ("agents", "workflows", "skills", "memory", "sources", "attachments", "Javis"):
         (root / d).mkdir(parents=True, exist_ok=True)
     mem = root / "memory" / "MEMORY.md"

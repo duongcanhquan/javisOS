@@ -77,3 +77,9 @@ Giọng: chuyên nghiệp, súc tích, có số khi có thể. Tiếng Việt tr
 - Mỗi chiến lược có ≥1 quyết định cụ thể (không chỉ mô tả hiện trạng).
 - Proposal đọc được độc lập: người mới hiểu vấn đề + giải pháp trong **5 phút**.
 - Mọi thông điệp và kênh phân phối đều giải quyết trực tiếp một thiên kiến nhận thức hoặc động lực tiềm thức đã chỉ ra ở bản nghiên cứu (skill **`nghien-cuu-thi-truong`**).
+
+## Liên kết pipeline
+
+1. Nghiên cứu: skill **`nghien-cuu-thi-truong`** / workflow **`nghien-cuu-thi-truong-chuyen-sau`**.
+2. Proposal tóm tắt (file này): **`proposal-chien-luoc`**.
+3. Kế hoạch chi tiết + vận hành: skills **`phan-tich-tai-chinh-mkt`** → **`ke-hoach-kinh-doanh`** → **`ke-hoach-marketing`** → **`quy-trinh-van-hanh-kd-mkt`** (workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`**).

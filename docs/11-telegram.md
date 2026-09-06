@@ -186,19 +186,22 @@ Gõ dấu `/` trong chat (hoặc bấm nút Menu của bot) sẽ hiện danh sá
 |---|---|
 | `/help` | Xem hướng dẫn và danh sách lệnh |
 | `/status` | Xem provider, model, brain đang dùng và bot có đang bận trả lời không |
-| `/skills` | Liệt kê các skill có trong vault (gõ `/tên-skill` để gọi) |
+| `/skills` | Liệt kê các skill có trong vault (gõ `/tên-skill` hoặc `/tên-skill yêu cầu` để gọi) |
 | `/notes` | Lưu tin nhắn (kèm ảnh) vào Sources của brain. Gõ `/notes <nội dung>`, hoặc gửi ảnh với caption `/notes ...` |
 | `/agents` | Liệt kê agent và cho biết có lượt nào đang chạy không |
-| `/workflows` | Liệt kê workflow |
+| `/workflows` | Liệt kê workflow; bấm nút để chọn rồi gửi brief ở tin tiếp theo |
+| `/run` | Chạy workflow: `/run <slug> [brief]`. Thiếu brief thì gửi tin tiếp theo |
+| `/duyet` | Duyệt bước workflow đang chờ (sau khi bot báo dừng chờ duyệt) |
+| `/huy` | Huỷ duyệt bước workflow đang chờ |
 | `/model` | Xem hoặc đổi model. Gõ `/model` không kèm gì để mở bảng nút bấm chọn; hoặc gõ thẳng tên (vd `/model sonnet`) |
 | `/brain` | Xem hoặc đổi brain (vault) cho RIÊNG phiên của bạn. Gõ `/brain` để mở bảng nút chọn; hoặc gõ thẳng tên (vd `/brain Kim Khí`). Đổi xong hội thoại reset để nạp đúng bộ nhớ brain mới; người khác và dashboard không bị ảnh hưởng. File bạn gửi lên cũng rơi vào inbox của brain đã chọn |
 | `/retry` | Gửi lại câu hỏi gần nhất |
-| `/stop` | Dừng ngay câu đang trả lời |
+| `/stop` | Dừng ngay câu đang trả lời hoặc workflow nền |
 | `/reset` | Bắt đầu hội thoại mới (quên ngữ cảnh cũ) |
 | `/cli` | Chuyển sang engine Claude (Claude Code) |
 | `/or` | Chuyển sang engine OpenRouter (chat + MCP đa-model) |
 
-`/notes` không có nhánh xử lý riêng trong bot: nó chạy qua đúng đường của một skill, nên cũng cần engine khác OpenRouter (xem mục dưới). Chi tiết skill này ở [Skills](06-skills.md).
+`/notes` không có nhánh xử lý riêng trong bot: nó chạy qua đúng đường của một skill. Chi tiết skill này ở [Skills](06-skills.md).
 
 Chi tiết cách gõ `/model`:
 
@@ -209,10 +212,11 @@ Chi tiết cách gõ `/model`:
 
 ## MCP và skill qua Telegram
 
-- **Mọi engine đều dùng được MCP của Javis qua Telegram**, vì công cụ đi qua MCP Hub chứ không gắn cứng vào một engine. Chính text `/help` của bot cũng ghi: "ChatGPT/Codex và OpenRouter đều dùng được MCP của Javis." Bạn thấy nó chạy thật khi tin trạng thái hiện dòng "⚙ Đang gọi công cụ: ...".
-- Gọi skill bằng cú pháp `/tên-skill`. Cửa này CÓ chặn một trường hợp: đang ở engine OpenRouter mà gõ `/tên-skill` thì bot nhắc "⚠ Skill cần engine Claude CLI. Gửi /cli để đổi, rồi /tên-skill lại."
-- Đổi engine ngay trong Telegram: gõ `/cli` để về Claude (bot đáp "✅ Provider: Anthropic (Claude Code) - đầy đủ MCP, hỏi POS/Ads/vault được."), `/or` để sang OpenRouter (bot đáp "✅ Provider: OpenRouter (`<model>`) - chat + MCP đa-model."). Đổi ở đây cũng đổi luôn cho toàn hệ Javis (dashboard và bot dùng chung một cấu hình model).
-- Muốn dùng `/or` thì cần đã đặt OpenRouter key trong trang [Models & engine](10-models-va-engine.md); chưa có key bot sẽ nhắc "⚠ Chưa có OpenRouter key - đặt trong Models trên dashboard trước."
+- **Mọi engine đều dùng được MCP của Javis qua Telegram**, vì công cụ đi qua MCP Hub chứ không gắn cứng vào một engine. Bạn thấy nó chạy thật khi tin trạng thái hiện dòng "⚙ Đang gọi công cụ: ...".
+- Gọi skill bằng cú pháp `/tên-skill` hoặc `/tên-skill yêu cầu của bạn`. Mọi engine có MCP Hub đều gọi được.
+- Chạy workflow: `/workflows` (bấm nút hoặc ghi nhớ slug) rồi `/run <slug> [brief]`. Khi bot báo chờ duyệt: `/duyet` hoặc `/huy`.
+- Đổi engine ngay trong Telegram: gõ `/cli` để về Claude, `/or` để sang OpenRouter. Đổi ở đây cũng đổi luôn cho toàn hệ Javis (dashboard và bot dùng chung một cấu hình model).
+- Muốn dùng `/or` thì cần đã đặt OpenRouter key trong trang [Models & engine](10-models-va-engine.md); chưa có key bot sẽ nhắc.
 
 ## Giới hạn quyền: chỉ mình bạn dùng bot
 
@@ -296,7 +300,7 @@ Nhóm **Hệ thống** ở đầu trang **Cài đặt** cũng hiện nhanh Teleg
 
 **Tin "🤔 Javis đang xử lý…" đứng yên không đổi chữ.** Lượt đó chưa gọi công cụ nào nên chưa có gì để báo, hoặc engine đang chờ. Xong việc nó sẽ đổi thành dòng vết (`⚙ ...` hoặc `✓ Trả lời trực tiếp`). Nếu nó kẹt mãi ở "🤔" mà không có câu trả lời nào theo sau thì lượt đó đã hỏng, xem dòng trạng thái ở trang **Kênh**.
 
-**Gõ `/tên-skill` bị báo cần engine Claude CLI.** Bạn đang ở engine OpenRouter. Gõ `/cli` để chuyển về Claude rồi gọi lại skill.
+**Gõ `/tên-skill` mà skill không chạy.** Kiểm tra `/skills` xem đúng slug chưa; thử kèm yêu cầu: `/slug làm X`. Mọi engine có MCP Hub đều gọi được skill.
 
 **Gửi file lên bot mà Javis nói không đọc được.** Kiểm tra 2 thứ: file có quá 20MB không (trần tải về của Telegram bot API), và có phải video/video note không (Javis chưa xem được hai loại này, hãy gửi dạng file tài liệu hoặc gõ chữ).
 

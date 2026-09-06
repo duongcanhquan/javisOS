@@ -4,9 +4,10 @@ name: Pull brains from VPS
 on:
   workflow_dispatch:
 
+# cancel-in-progress: pull mới thay pull cũ (tránh xếp hàng dài chiếm SSH).
 concurrency:
   group: vps-ssh
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   pull:

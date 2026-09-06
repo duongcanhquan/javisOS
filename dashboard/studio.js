@@ -259,9 +259,106 @@
     });
   }
 
-  // ===== Run workflow (SSE) =====
-  function runWorkflow(w, card) {
-    const input = prompt(t("studio.run_input", { ten: w.name }), "");
+  // ===== Run workflow: modal brief → SSE =====
+  function _composeWfBrief(goal, scope, constraints, notes) {
+    const parts = [];
+    if (goal) parts.push(`Mục tiêu: ${goal}`);
+    if (scope) parts.push(`Phạm vi: ${scope}`);
+    if (constraints) parts.push(`Ràng buộc: ${constraints}`);
+    if (notes) parts.push(`Ghi chú: ${notes}`);
+    return parts.join("\n\n");
+  }
+
+  function _askWfBrief(w) {
+    return new Promise((resolve) => {
+      let modal = document.getElementById("wfRunModal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "wfRunModal";
+        modal.className = "wf-run-modal";
+        modal.innerHTML = `
+          <div class="wf-run-card" role="dialog" aria-modal="true" aria-labelledby="wfRunTitle">
+            <div class="wf-run-head">
+              <div>
+                <h3 id="wfRunTitle"></h3>
+                <p class="wf-run-desc" id="wfRunDesc"></p>
+              </div>
+              <button type="button" class="wf-run-x" id="wfRunClose" aria-label="Close">×</button>
+            </div>
+            <div class="wf-run-body">
+              <label for="wfGoal">${esc(t("studio.brief_goal"))} <span class="req">*</span></label>
+              <textarea id="wfGoal" rows="3" placeholder="${esc(t("studio.brief_goal_ph"))}"></textarea>
+              <label for="wfScope">${esc(t("studio.brief_scope"))}</label>
+              <textarea id="wfScope" rows="2" placeholder="${esc(t("studio.brief_scope_ph"))}"></textarea>
+              <label for="wfConstraints">${esc(t("studio.brief_constraints"))}</label>
+              <textarea id="wfConstraints" rows="2" placeholder="${esc(t("studio.brief_constraints_ph"))}"></textarea>
+              <label for="wfNotes">${esc(t("studio.brief_notes"))}</label>
+              <textarea id="wfNotes" rows="3" placeholder="${esc(t("studio.brief_notes_ph"))}"></textarea>
+              <details class="wf-run-preview">
+                <summary>${esc(t("studio.brief_preview"))}</summary>
+                <pre id="wfBriefPreview"></pre>
+              </details>
+              <p class="wf-run-err" id="wfRunErr" hidden></p>
+            </div>
+            <div class="wf-run-foot">
+              <button type="button" class="s-btn-ghost" id="wfRunCancel">${esc(t("common.cancel"))}</button>
+              <button type="button" class="s-btn" id="wfRunGo">${esc(t("studio.run_wf"))}</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      }
+      const title = modal.querySelector("#wfRunTitle");
+      const desc = modal.querySelector("#wfRunDesc");
+      const goal = modal.querySelector("#wfGoal");
+      const scope = modal.querySelector("#wfScope");
+      const constraints = modal.querySelector("#wfConstraints");
+      const notes = modal.querySelector("#wfNotes");
+      const preview = modal.querySelector("#wfBriefPreview");
+      const err = modal.querySelector("#wfRunErr");
+      title.textContent = t("studio.run_brief_title", { ten: w.name || w.slug });
+      desc.textContent = (w.description || "").trim();
+      desc.hidden = !desc.textContent;
+      goal.value = ""; scope.value = ""; constraints.value = ""; notes.value = "";
+      preview.textContent = "";
+      err.hidden = true; err.textContent = "";
+      const syncPreview = () => {
+        preview.textContent = _composeWfBrief(goal.value.trim(), scope.value.trim(),
+          constraints.value.trim(), notes.value.trim()) || t("studio.brief_preview_empty");
+      };
+      [goal, scope, constraints, notes].forEach((el) => {
+        el.oninput = syncPreview;
+      });
+      syncPreview();
+
+      const close = (val) => {
+        modal.classList.remove("open");
+        document.removeEventListener("keydown", onKey);
+        resolve(val);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") close(null);
+      };
+      document.addEventListener("keydown", onKey);
+      modal.querySelector("#wfRunClose").onclick = () => close(null);
+      modal.querySelector("#wfRunCancel").onclick = () => close(null);
+      modal.onclick = (e) => { if (e.target === modal) close(null); };
+      modal.querySelector("#wfRunGo").onclick = () => {
+        const g = goal.value.trim();
+        if (!g) {
+          err.textContent = t("studio.brief_goal_required");
+          err.hidden = false;
+          goal.focus();
+          return;
+        }
+        close(_composeWfBrief(g, scope.value.trim(), constraints.value.trim(), notes.value.trim()));
+      };
+      modal.classList.add("open");
+      setTimeout(() => goal.focus(), 30);
+    });
+  }
+
+  async function runWorkflow(w, card) {
+    const input = await _askWfBrief(w);
     if (input === null) return;
 
     // Card chuyển sang trạng thái running
@@ -734,6 +831,29 @@
     .sk2-act{display:flex;gap:5px;opacity:0;transition:.15s;flex:none} .sk2-card:hover .sk2-act{opacity:1}
     .sk2-act button{background:var(--surface-2);border:1px solid var(--hairline);color:var(--text2);border-radius:6px;cursor:pointer;font-size:13px;padding:3px 9px} .sk2-act button:hover{color:var(--text-hi);border-color:rgba(120,180,255,.5)}
     .sk2-act button.danger:hover{color:var(--red);border-color:rgba(255,120,120,.5)}
+    .wf-run-modal{position:fixed;inset:0;z-index:3200;display:none;align-items:center;justify-content:center;
+      background:rgba(8,12,18,.58);backdrop-filter:blur(4px);padding:20px;box-sizing:border-box}
+    .wf-run-modal.open{display:flex}
+    .wf-run-card{width:min(720px,92vw);max-height:90vh;display:flex;flex-direction:column;
+      background:var(--bg2,#141820);border:1px solid var(--border,rgba(255,255,255,.12));border-radius:12px;
+      box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden}
+    .wf-run-head{display:flex;gap:12px;align-items:flex-start;padding:16px 18px 10px;border-bottom:1px solid var(--hairline,rgba(255,255,255,.08))}
+    .wf-run-head h3{margin:0;font-size:17px;color:var(--text);font-weight:650}
+    .wf-run-desc{margin:6px 0 0;font-size:13px;color:var(--text3);line-height:1.4}
+    .wf-run-x{margin-left:auto;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--text2);font-size:22px;cursor:pointer;line-height:1}
+    .wf-run-x:hover{background:var(--surface-2);color:var(--text)}
+    .wf-run-body{padding:14px 18px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+    .wf-run-body label{font-size:13px;color:var(--text2);margin-top:6px}
+    .wf-run-body label .req{color:var(--red,#e07070)}
+    .wf-run-body textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:52px;padding:10px 12px;
+      border-radius:8px;border:1px solid var(--hairline);background:var(--field-bg,var(--bg));color:var(--text);
+      font:inherit;font-size:14px;line-height:1.45}
+    .wf-run-body textarea:focus{outline:none;border-color:var(--info-line,rgba(120,180,255,.5))}
+    .wf-run-preview{margin-top:10px;border:1px solid var(--hairline);border-radius:8px;padding:8px 10px}
+    .wf-run-preview summary{cursor:pointer;color:var(--text2);font-size:13px}
+    .wf-run-preview pre{margin:8px 0 0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:var(--text3);line-height:1.45}
+    .wf-run-err{margin:8px 0 0;color:var(--red,#e07070);font-size:13px}
+    .wf-run-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--hairline)}
     .sysb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--link-ink);background:var(--info-wash);border:1px solid var(--info-line);vertical-align:2px}
     .sk-usage{font-size:11px;color:var(--text3);margin-left:8px}
     .sk-stale{opacity:.75;font-style:italic;cursor:help}

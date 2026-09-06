@@ -77,3 +77,8 @@ Trước khi nộp:
 1. Mọi mục lớn có ít nhất 1 nguồn hoặc 1 giả định được ghi rõ.
 2. Quy mô thị trường (nếu có) phải được tính toán chéo, không dùng một con số vô căn cứ.
 3. Có ≥3 insight không có trong Wikipedia mù (phi hiển nhiên, chạm đến rào cản tiềm thức hoặc rủi ro pháp lý).
+
+## Bước tiếp theo
+
+- Proposal tóm tắt: skill **`proposal-chien-luoc`** / workflow **`nghien-cuu-thi-truong-chuyen-sau`**.
+- Kế hoạch KD + MKT + vận hành chi tiết: workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`** (skills `phan-tich-tai-chinh-mkt`, `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `quy-trinh-van-hanh-kd-mkt`).

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy Javis on Ubuntu: PULL image GHCR (không --build trên VPS).
-# Keeps Docker volumes (admin, brains, Claude auth) via COMPOSE_PROJECT_NAME=javis.
+# Hot path MỎNG: login → pull javis → up → health. Seed/optimize chỉ khi bật cờ.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -8,7 +8,7 @@ cd "$ROOT"
 
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-javis}"
 
-# Plugin user: bật trừ khi .env ghi rõ false (env chỉ đọc lúc container khởi động).
+# Plugin user + Antigravity file storage (idempotent, rẻ).
 ENV_FILE="$ROOT/.env"
 touch "$ENV_FILE"
 if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
@@ -21,41 +21,29 @@ if grep -q '^GEMINI_FORCE_FILE_STORAGE=' "$ENV_FILE" 2>/dev/null; then
 else
   echo 'GEMINI_FORCE_FILE_STORAGE=true' >> "$ENV_FILE"
 fi
-
-# Gỡ Ollama host CHỈ khi còn sót (binary / service / cache). Không gọi mỗi deploy khi đã sạch.
-_ollama_con=0
-command -v ollama >/dev/null 2>&1 && _ollama_con=1
-[ -d /root/.ollama ] || [ -d "${HOME:-}/.ollama" ] && _ollama_con=1
-systemctl list-unit-files ollama.service 2>/dev/null | grep -q ollama && _ollama_con=1
-if [ "$_ollama_con" = 1 ] && [ -f "$ROOT/scripts/uninstall-ollama-vps.sh" ]; then
-  echo "==> Gỡ Ollama host còn sót (trước pull)"
-  chmod +x "$ROOT/scripts/uninstall-ollama-vps.sh"
-  JAVIS_OLLAMA_HOST_ONLY=1 timeout 120 bash "$ROOT/scripts/uninstall-ollama-vps.sh" \
-    || echo "WARN: uninstall-ollama host skipped"
-else
-  echo "==> Ollama không còn trên host, bỏ qua"
-fi
-
-echo "==> git fetch"
-git fetch --all --prune
-# WANT_SHA = commit đã publish image; đừng reset lên origin/main mới hơn image.
-if [ -n "${WANT_SHA:-}" ]; then
-  git fetch origin "$WANT_SHA" 2>/dev/null || true
-  git reset --hard "$WANT_SHA"
-else
-  git reset --hard origin/main 2>/dev/null || true
-  git pull --ff-only origin main || true
-fi
-
-# Pixelle: ÉP tắt TRƯỚC compose up. .env cũ còn =true vẫn không được kéo 2 container nặng.
+# Pixelle tắt trước up (tránh kéo 2 container nặng).
 if grep -q '^JAVIS_ENABLE_PIXELLE=' "$ENV_FILE" 2>/dev/null; then
   sed -i.bak 's/^JAVIS_ENABLE_PIXELLE=.*/JAVIS_ENABLE_PIXELLE=false/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
 else
   printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
 fi
-echo "==> Pixelle tắt (ép JAVIS_ENABLE_PIXELLE=false trước up)"
 
-# Image GHCR của CHÍNH repo này (fork), không kéo nhầm upstream blogminhquy.
+# Git: bỏ qua nếu deploy-vps.yml đã reset đúng WANT_SHA (tránh fetch 2 lần).
+if [ "${JAVIS_SKIP_GIT:-0}" = "1" ]; then
+  echo "==> git: bỏ qua (đã reset ở workflow)"
+else
+  echo "==> git fetch"
+  git fetch --all --prune
+  if [ -n "${WANT_SHA:-}" ]; then
+    git fetch origin "$WANT_SHA" 2>/dev/null || true
+    git reset --hard "$WANT_SHA"
+  else
+    git reset --hard origin/main 2>/dev/null || true
+    git pull --ff-only origin main || true
+  fi
+fi
+
+# Image GHCR của CHÍNH repo này.
 if [ -z "${JAVIS_IMAGE:-}" ]; then
   origin=$(git remote get-url origin 2>/dev/null || true)
   slug=${origin%.git}
@@ -73,10 +61,12 @@ fi
 export JAVIS_IMAGE
 echo "==> image $JAVIS_IMAGE"
 
-COMPOSE_FILES=(
-  -f docker-compose.yml
-  --profile tunnel
-)
+# Chỉ javis (+ tunnel nếu đang dùng profile). Không pull watchtower mỗi lần.
+COMPOSE_BASE=(-f docker-compose.yml)
+COMPOSE_UP=("${COMPOSE_BASE[@]}")
+if docker ps --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-tunnel"; then
+  COMPOSE_UP+=(--profile tunnel)
+fi
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
   echo "==> docker login ghcr.io"
@@ -84,103 +74,82 @@ if [ -n "${GHCR_TOKEN:-}" ]; then
     || echo "WARN: docker login GHCR thất bại (image public thì pull vẫn được)"
 fi
 
-# Chỉ gỡ Pixelle (nặng). KHÔNG `compose down` / `rm javis` trước pull:
-# down sớm = 502 suốt lúc kéo image. Pull khi app cũ vẫn chạy; up mới recreate ngắn.
 echo "==> gỡ Pixelle (nếu còn), giữ javis chạy khi pull"
 docker rm -f javis-pixelle-api javis-pixelle-web 2>/dev/null || true
 
-echo "==> pull $JAVIS_IMAGE"
+# Pull ĐÚNG service javis (không kéo cloudflared/watchtower mỗi deploy).
+echo "==> pull javis ($JAVIS_IMAGE)"
 ok_pull=0
-for i in $(seq 1 18); do
-  if docker compose "${COMPOSE_FILES[@]}" pull; then
+for i in $(seq 1 12); do
+  if docker compose "${COMPOSE_BASE[@]}" pull javis; then
     ok_pull=1
     break
   fi
-  echo "pull chưa sẵn sàng ($i/18) - chờ 10s"
-  sleep 10
+  echo "pull chưa sẵn sàng ($i/12) - chờ 5s"
+  sleep 5
 done
 if [ "$ok_pull" != 1 ]; then
   echo "ERROR: không pull được $JAVIS_IMAGE"
-  echo "Không build tại chỗ (tránh image sai / Conflict). Chờ workflow Docker publish xanh rồi deploy lại."
+  echo "Không build tại chỗ. Chờ workflow Docker publish xanh rồi deploy lại."
   exit 1
 fi
 
-echo "==> up (image mới, không --build; recreate ngắn thay vì down dài)"
-if ! docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans; then
-  echo "WARN: up lỗi (có thể Conflict tên) - gỡ container kẹt rồi up lại"
-  for _name in "${JAVIS_NAME:-javis}" "${JAVIS_NAME:-javis}-tunnel" javis-pixelle-api javis-pixelle-web; do
-    docker rm -f "$_name" 2>/dev/null || true
-  done
-  docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans
+echo "==> up (image mới, không --build)"
+if ! docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans javis; then
+  echo "WARN: up lỗi - gỡ container kẹt rồi up lại"
+  docker rm -f "${JAVIS_NAME:-javis}" 2>/dev/null || true
+  docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans javis
 fi
+# Giữ tunnel nếu trước đó đang chạy.
+if docker ps -a --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-tunnel"; then
+  docker compose "${COMPOSE_BASE[@]}" --profile tunnel up -d --no-build --remove-orphans tunnel \
+    || echo "WARN: tunnel up skipped"
+fi
+
 echo "==> health"
 ok_health=0
-for i in $(seq 1 20); do
-  if curl -fsS -m 5 http://127.0.0.1:7777/health; then
+# App mới thường sẵn trong ~10-25s; đợi ngắn rồi poll dày.
+sleep 3
+for i in $(seq 1 24); do
+  if curl -fsS -m 3 http://127.0.0.1:7777/health >/dev/null; then
+    curl -fsS -m 3 http://127.0.0.1:7777/health || true
     echo
     ok_health=1
     break
   fi
   echo "waiting health... ($i)"
-  sleep 4
+  sleep 2
 done
 if [ "$ok_health" != "1" ]; then
   echo "HEALTH_FAIL"
-  docker compose "${COMPOSE_FILES[@]}" logs javis --tail 80 || true
+  docker compose "${COMPOSE_BASE[@]}" logs javis --tail 80 || true
   exit 1
 fi
 
-echo
-echo "==> tunnel URL (if any)"
-docker compose logs tunnel 2>&1 | grep -i trycloudflare | tail -n 3 || true
-
-if [ -f "$ROOT/scripts/seed-morning-brief-vps.sh" ]; then
-  echo "==> seed morning brief reminder"
-  chmod +x "$ROOT/scripts/seed-morning-brief-vps.sh"
-  bash "$ROOT/scripts/seed-morning-brief-vps.sh" || echo "WARN: seed-morning-brief skipped"
+# Seed / optimize: TẮT mặc định (trước đây làm deploy chậm + prune image + health 2 lần).
+# Bật khi cần: JAVIS_DEPLOY_EXTRAS=1 bash scripts/vps-deploy.sh
+if [ "${JAVIS_DEPLOY_EXTRAS:-0}" = "1" ]; then
+  echo "==> extras (seed brief + optimize) vì JAVIS_DEPLOY_EXTRAS=1"
+  if [ -f "$ROOT/scripts/seed-morning-brief-vps.sh" ]; then
+    chmod +x "$ROOT/scripts/seed-morning-brief-vps.sh"
+    bash "$ROOT/scripts/seed-morning-brief-vps.sh" || echo "WARN: seed-morning-brief skipped"
+  fi
+  if [ -f "$ROOT/scripts/seed-chat-brief-vps.sh" ]; then
+    chmod +x "$ROOT/scripts/seed-chat-brief-vps.sh"
+    bash "$ROOT/scripts/seed-chat-brief-vps.sh" || echo "WARN: seed-chat-brief skipped"
+  fi
+  if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
+    chmod +x "$ROOT/scripts/optimize-vps.sh"
+    bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
+  fi
+else
+  echo "==> bỏ seed/optimize (hot path). Cần thì: workflow_dispatch seed-* hoặc JAVIS_DEPLOY_EXTRAS=1"
 fi
 
-if [ -f "$ROOT/scripts/seed-chat-brief-vps.sh" ]; then
-  echo "==> seed chat brief reminder"
-  chmod +x "$ROOT/scripts/seed-chat-brief-vps.sh"
-  bash "$ROOT/scripts/seed-chat-brief-vps.sh" || echo "WARN: seed-chat-brief skipped"
-fi
-
-# Ép tổng kết sáng: chỉ khi FORCE_MORNING_BRIEF_TODAY=1 (không mặc định mỗi deploy).
 if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morning-brief-today-vps.sh" ]; then
-  echo "==> force morning brief today (send soon)"
+  echo "==> force morning brief today"
   chmod +x "$ROOT/scripts/force-morning-brief-today-vps.sh"
   bash "$ROOT/scripts/force-morning-brief-today-vps.sh" || echo "WARN: force-morning-brief-today skipped"
-fi
-
-if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
-  echo "==> optimize VPS (Pixelle off + prune + health)"
-  chmod +x "$ROOT/scripts/optimize-vps.sh"
-  bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"
-fi
-
-# Optimize từng gọi `compose stop` kèm docker-compose.yml và tắt nhầm javis.
-CNAME="${JAVIS_NAME:-javis}"
-if ! docker ps --format '{{.Names}}' | grep -qx "$CNAME"; then
-  echo "==> javis không chạy sau optimize - up lại"
-  docker compose "${COMPOSE_FILES[@]}" up -d --no-build --remove-orphans
-fi
-echo "==> health (sau optimize)"
-ok_health=0
-for i in $(seq 1 20); do
-  if curl -fsS -m 5 http://127.0.0.1:7777/health; then
-    echo
-    ok_health=1
-    break
-  fi
-  echo "waiting health... ($i)"
-  sleep 4
-done
-if [ "$ok_health" != "1" ]; then
-  echo "HEALTH_FAIL sau optimize"
-  docker compose "${COMPOSE_FILES[@]}" logs javis --tail 80 || true
-  docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' || true
-  exit 1
 fi
 
 echo "==> done"

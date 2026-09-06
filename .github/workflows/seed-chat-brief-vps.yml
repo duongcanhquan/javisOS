@@ -1,0 +1,33 @@
+# Seed chat brief lên VPS - chạy tay, không gắn mọi deploy.
+name: Seed chat brief on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed chat brief over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            if [ -f scripts/seed-chat-brief-vps.sh ]; then
+              chmod +x scripts/seed-chat-brief-vps.sh
+              bash scripts/seed-chat-brief-vps.sh
+            else
+              echo "ERROR: thiếu scripts/seed-chat-brief-vps.sh"
+              exit 1
+            fi
