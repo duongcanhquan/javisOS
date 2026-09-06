@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.84] - 2026-09-06
+### Sửa lỗi
+- **console.css:** gỡ chuỗi rác `pstream/main` cuối file (làm hỏng CSS).
 ## [0.55.83] - 2026-09-06
 ### Cải tiến
 - **Menu rail gọn khi hover:** không xổ hết nhóm nữa — bấm nhóm mới mở mục con. Khung hội thoại rộng hơn (400→560px khi thu Vault).
