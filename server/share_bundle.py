@@ -52,6 +52,41 @@ def _parse(text: str):
     return {}, (text or "")
 
 
+def _workflow_status_canon(raw) -> str:
+    """active|off. True/"on" (YAML) = bật - khớp learn.status_workflow."""
+    if raw is True:
+        return "active"
+    if raw is False or raw is None:
+        return "off"
+    s = str(raw).strip().lower()
+    if s in ("active", "on", "true", "1", "yes", "enable", "enabled"):
+        return "active"
+    return "off"
+
+
+def _preserve_workflow_status(target: Path, blob: bytes) -> bytes:
+    """Khi overwrite workflow: giữ status cũ của file trên đĩa, ghi lại chuỗi chuẩn."""
+    try:
+        old_meta, _ = _parse(target.read_text(encoding="utf-8", errors="replace"))
+        if not isinstance(old_meta, dict) or "status" not in old_meta:
+            return blob
+        text = blob.decode("utf-8", errors="replace")
+        if not text.startswith("---"):
+            return blob
+        parts = text.split("---", 2)
+        if len(parts) < 3:
+            return blob
+        st = _workflow_status_canon(old_meta.get("status"))
+        fm = parts[1]
+        if re.search(r"(?m)^status:\s*.*$", fm):
+            fm2 = re.sub(r"(?m)^status:\s*.*$", f"status: {st}", fm, count=1)
+        else:
+            fm2 = fm.rstrip("\n") + f"\nstatus: {st}\n"
+        return f"---{fm2}---{parts[2]}".encode("utf-8")
+    except Exception:
+        return blob
+
+
 def slugify(name: str) -> str:
     """ascii-slug không dấu (khớp cách main.py sinh slug)."""
     s = unicodedata.normalize("NFKD", str(name or "")).encode("ascii", "ignore").decode()
@@ -200,6 +235,11 @@ def import_bundle(data: bytes, filename, *, agents_dir, workflows_dir, skills_ro
         try:
             if target.exists() and not overwrite:
                 skp.add(key); return
+            # Workflow: ghi đè nội dung nhưng GIỮ status bật/tắt chủ đã chọn.
+            # Seed caps hay dùng status: on (YAML → True); nếu đè mất status: active
+            # thì Studio lại hiện tắt dù chủ vừa bật.
+            if typ == "workflow" and target.exists() and overwrite:
+                blob = _preserve_workflow_status(target, blob)
             target.parent.mkdir(parents=True, exist_ok=True)
             tmp = target.with_suffix(target.suffix + ".tmp")
             tmp.write_bytes(blob)

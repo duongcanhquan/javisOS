@@ -145,16 +145,21 @@ def learn_locked(fm: dict) -> bool:
 
 
 def status_workflow(fm: dict) -> str:
-    """Trạng thái workflow theo ĐÚNG từ vựng app: "active" = đang chạy, "off" = tắt.
+    """Trạng thái workflow theo từ vựng app: "active" | "off".
 
-    KHÔNG chuẩn hoá tuỳ tiện. App chỉ coi đúng chuỗi "active" là bật (main.toggle_workflow,
-    workflows_index), nên mọi giá trị khác - kể cả True, do YAML 1.1 nuốt dòng `status: on`
-    chủ viết tay trong Obsidian thành boolean - hiện đang là TẮT dưới mắt app. Sửa một
-    workflow tuyệt đối không được nhân tiện bật nó lên hay tắt cái đang chạy, nên hàm này
-    giữ nguyên nghĩa app đang thấy, đồng thời trả về từ vựng chuẩn để file thôi mang một
-    giá trị boolean khó hiểu.
+    YAML 1.1 nuốt `status: on`/`off` thành boolean True/False. App + Studio chỉ so
+    chuỗi "active", nên trước đây True bị coi là tắt dù chủ/gói caps muốn bật.
+    Chuẩn hoá: True/"on"/"true"/"1"/"yes"/"active" → active; còn lại → off.
     """
-    return "active" if str((fm or {}).get("status") or "").strip() == "active" else "off"
+    raw = (fm or {}).get("status")
+    if raw is True:
+        return "active"
+    if raw is False or raw is None:
+        return "off"
+    s = str(raw).strip().lower()
+    if s in ("active", "on", "true", "1", "yes", "enable", "enabled"):
+        return "active"
+    return "off"
 
 
 def is_update(item: dict) -> bool:

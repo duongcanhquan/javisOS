@@ -6685,11 +6685,12 @@ async def files_taskcheck(brain: str = Form("brain"), path: str = Form(...),
 # ---- Workflows ----
 def workflows_index(brain: str) -> list:
     """Danh sách workflow của một brain. Lõi thuần, dùng chung cho GET /workflows và Telegram."""
+    from learn import status_workflow
     out = []
     for f in sorted(_workflows_dir(brain).glob("*.md")):
         meta, _ = _read_md(f)
         out.append({"slug": f.stem, "name": meta.get("name", f.stem),
-                    "status": meta.get("status", "off"),
+                    "status": status_workflow(meta),
                     "description": meta.get("description", ""),
                     "group": _nhom_cua(meta),
                     "model": meta.get("model", "") or "",
@@ -6764,11 +6765,14 @@ async def save_workflow(name: str = Form(...), description: str = Form(""), step
 
 @app.post("/workflows/toggle")
 async def toggle_workflow(slug: str = Form(...), brain: str = Form("brain")):
+    from learn import status_workflow
     f = _workflows_dir(brain) / f"{slug}.md"
     if not f.exists():
         return {"ok": False, "error": "not found"}
     meta, body = _read_md(f)
-    meta["status"] = "off" if meta.get("status") == "active" else "active"
+    # Chuẩn hoá trước khi lật (True/"on" cũng là đang bật) rồi ghi lại chuỗi chuẩn.
+    cur = status_workflow(meta)
+    meta["status"] = "off" if cur == "active" else "active"
     _write_md(f, meta, body)
     return {"ok": True, "status": meta["status"]}
 

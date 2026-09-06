@@ -245,17 +245,16 @@ def test_update_workflow_sua_dung_file_cu(tmp_path):
     assert "## Lịch sử (tự học)" in body and "bước nghiên cứu thừa" in body
 
 
-def test_update_khong_tu_bat_workflow_dang_tat(tmp_path):
-    """Bẫy YAML 1.1: chủ gõ tay `status: on` trong Obsidian thì PyYAML đọc ra boolean True,
-    và app (chỉ coi đúng chuỗi "active" là bật) đang thấy chuỗi này TẮT. Sửa bước cho nó
-    không được nhân tiện bật nó lên - workflow tự chạy sau lưng chủ là hỏng thật."""
+def test_update_giu_workflow_status_on_yaml(tmp_path):
+    """YAML 1.1: `status: on` → True. App coi đó là đang BẬT; sửa bước phải giữ bật
+    và ghi lại chuỗi chuẩn `active` (không để boolean True trong file)."""
     feature = _feature(tmp_path)
     cfg = feature.read_config()
     _wf_cu(tmp_path, status="on")            # KHÔNG nháy → YAML nuốt thành True
     rep = feature._promote_sync("brain", {"workflows": [_upd_wf()]}, cfg, CAPS, allow_write=True)
     assert rep["workflows_updated"] == ["nghien-cuu-viet-bai"], rep
     fm, _ = _fm(tmp_path / "workflows" / "nghien-cuu-viet-bai.md")
-    assert fm["status"] != "active", "đang tắt dưới mắt app thì sửa xong vẫn phải tắt"
+    assert fm["status"] == "active", "status: on / True phải được giữ là đang bật"
     assert fm["status"] is not True, "không để giá trị boolean khó hiểu nằm lại trong file"
 
 

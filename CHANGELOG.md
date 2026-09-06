@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.80] - 2026-09-06
+### Sửa lỗi
+- **Workflow không còn tự "tắt" sau seed/chạy:** `status: on` (YAML True) được coi là bật; seed ghi đè giữ nguyên trạng thái bạn đã chọn; file caps dùng `status: active`.
+
 ## [0.55.79] - 2026-09-06
 ### Sửa lỗi
 - **Brief báo chí mất link:** script RSS in sẵn `tin_moi_markdown` (Báo / giờ / Link); agent phải dán nguyên, không viết lại danh sách tin.
