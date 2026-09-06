@@ -725,8 +725,12 @@ PROJECT_ROOT = Path(__file__).parent.parent
 BRAIN_PATH = os.getenv("BRAIN_PATH", str(PROJECT_ROOT / "brain"))   # LEGACY (brain đơn cũ) - chỉ dùng để migrate
 # Thư mục CHA chứa MỌI brain - mỗi folder con = 1 second brain. Docker = /brains (mount riêng,
 # git-backup được, KHÔNG nằm trong /data state). Local = <project>/brains. Brain mặc định =
-# <BRAINS_DIR>/Brain Default. KHÔNG hardcode: cấu hình qua env, chọn brain bất kỳ qua path:.
+# <BRAINS_DIR>/<JAVIS_DEFAULT_BRAIN_NAME hoặc tên đã đổi trong state>. Fallback: Brain Default.
 BRAINS_DIR = os.getenv("BRAINS_DIR", str(PROJECT_ROOT / "brains"))
+# Tên folder brain mặc định. Đổi qua POST /brains/rename (ghi state) hoặc env này.
+_DEFAULT_BRAIN_NAME_ENV = "JAVIS_DEFAULT_BRAIN_NAME"
+_DEFAULT_BRAIN_NAME_FALLBACK = "Brain Default"
+_DEFAULT_BRAIN_NAME_FILE = "default_brain_name.txt"
 # Default PORTABLE: vault/ trong repo (tạo lần đầu chạy). Trên VPS/máy khác đặt
 # OBSIDIAN_VAULT_PATH trong .env trỏ tới vault thật; để trống = dùng vault/.
 OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", str(PROJECT_ROOT / "vault"))
@@ -4562,17 +4566,50 @@ IMG_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 STAGING = cfgmod.STATE_DIR / ".staging"
 from urllib.parse import quote as urlquote   # dựng URL /upload/raw cho tên file có dấu
 
+def _default_brain_name() -> str:
+    """Tên folder của brain mặc định (hiển thị trên dropdown).
+
+    Thứ tự: env JAVIS_DEFAULT_BRAIN_NAME → file state default_brain_name.txt → 'Brain Default'.
+    Đổi tên brain mặc định (POST /brains/rename) ghi vào file state để sống qua restart.
+    """
+    env = (os.getenv(_DEFAULT_BRAIN_NAME_ENV) or "").strip()
+    if env:
+        safe = _safe_brain_name(env)
+        if safe:
+            return safe
+    try:
+        p = cfgmod.STATE_DIR / _DEFAULT_BRAIN_NAME_FILE
+        if p.is_file():
+            safe = _safe_brain_name(p.read_text(encoding="utf-8").strip())
+            if safe:
+                return safe
+    except Exception:
+        pass
+    return _DEFAULT_BRAIN_NAME_FALLBACK
+
+
+def _set_default_brain_name(name: str) -> None:
+    """Ghi tên brain mặc định vào state (không đụng env)."""
+    safe = _safe_brain_name(name)
+    if not safe:
+        raise ValueError("Tên brain không hợp lệ")
+    p = cfgmod.STATE_DIR / _DEFAULT_BRAIN_NAME_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write_text(p, safe + "\n")
+
+
 def _default_brain_dir() -> Path:
-    """Brain mặc định = <BRAINS_DIR>/Brain Default. BRAINS_DIR = thư mục CHA chứa mọi brain
+    """Brain mặc định = <BRAINS_DIR>/<tên mặc định>. BRAINS_DIR = thư mục CHA chứa mọi brain
     (mỗi folder con = 1 brain). Docker = /brains (mount riêng, ghi được, git-backup được).
     Local = <project>/brains. Đây là 'bộ não khởi đầu' - user vẫn chọn brain khác trong danh
-    sách hoặc folder ngoài bất kỳ qua 'path:<thư mục>'. KHÔNG hardcode vault cá nhân nào."""
-    p = Path(BRAINS_DIR) / "Brain Default"
+    sách hoặc folder ngoài bất kỳ qua 'path:<thư mục>'."""
+    p = Path(BRAINS_DIR) / _default_brain_name()
     try:
         p.mkdir(parents=True, exist_ok=True)
     except Exception:
         pass
     return p
+
 
 def _brain_root(brain: str) -> str:
     if not brain or brain == "brain":
@@ -5345,6 +5382,50 @@ async def new_brain(name: str = Form(...)):
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
     git_brain.clear_tombstone(BRAINS_DIR, safe)   # dựng lại não cùng tên -> gỡ giấy báo tử để không bị xoá oan
     return {"ok": True, "name": safe, "path": str(root)}
+
+
+@app.post("/brains/rename")
+async def rename_brain(old_name: str = Form(...), new_name: str = Form(...)):
+    """Đổi tên folder brain trong BRAINS_DIR. Brain mặc định cũng đổi được: ghi lại tên mặc định
+    vào state để alias 'brain' và seed lúc boot trỏ đúng folder mới. Dữ liệu không copy/xoá."""
+    old = _safe_brain_name(old_name)
+    new = _safe_brain_name(new_name)
+    if not old or not new:
+        return JSONResponse({"ok": False, "error": "Tên brain không hợp lệ"}, status_code=400)
+    if old == new:
+        return {"ok": True, "name": new, "path": str(Path(BRAINS_DIR) / new), "unchanged": True}
+    base = Path(BRAINS_DIR).resolve()
+    src = (Path(BRAINS_DIR) / old).resolve()
+    dst = (Path(BRAINS_DIR) / new).resolve()
+    if base not in src.parents or src == base:
+        return JSONResponse({"ok": False, "error": "Brain ngoài phạm vi quản lý"}, status_code=400)
+    if not src.is_dir():
+        return JSONResponse({"ok": False, "error": f"Không thấy brain `{old}`"}, status_code=404)
+    if dst.exists():
+        return JSONResponse({"ok": False, "error": f"Đã có brain `{new}`"}, status_code=400)
+    was_default = False
+    try:
+        was_default = src == _default_brain_dir().resolve()
+    except OSError:
+        was_default = (old == _default_brain_name())
+    try:
+        src.rename(dst)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    if was_default:
+        try:
+            _set_default_brain_name(new)
+        except Exception as e:
+            # Đổi tên folder xong rồi mà ghi state lỗi → cố gắng đổi lại cho khớp tên cũ.
+            try:
+                dst.rename(src)
+            except Exception:
+                pass
+            return JSONResponse({"ok": False, "error": f"Đổi tên xong nhưng không ghi được tên mặc định: {e}"},
+                                status_code=500)
+    git_brain.clear_tombstone(BRAINS_DIR, new)
+    return {"ok": True, "name": new, "path": str(dst), "was_default": was_default,
+            "default_name": _default_brain_name()}
 
 
 _DELETE_SYNC_TASKS = set()   # giữ ref mạnh cho eager-sync sau khi xóa não (tránh GC nuốt task)

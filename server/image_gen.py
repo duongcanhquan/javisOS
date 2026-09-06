@@ -136,7 +136,24 @@ def extract_image_b64(value: Any) -> Optional[str]:
 
 
 def _default_vault() -> str:
-    return str(Path(os.getenv("BRAINS_DIR", str(Path(__file__).parent.parent / "brains"))) / "Brain Default")
+    """Vault mặc định khớp brain mặc định của main.py (env → state file → Brain Default)."""
+    name = "Brain Default"
+    try:
+        from server import config as _cfg
+        marker = _cfg.STATE_DIR / "default_brain_name.txt"
+        if marker.is_file():
+            m = re.sub(r'[\\/:*?"<>|]+', "", marker.read_text(encoding="utf-8").strip())
+            m = m.strip().strip(".")[:60]
+            if m:
+                name = m
+    except Exception:
+        pass
+    env = (os.getenv("JAVIS_DEFAULT_BRAIN_NAME") or "").strip()
+    if env:
+        m = re.sub(r'[\\/:*?"<>|]+', "", env).strip().strip(".")[:60]
+        if m:
+            name = m
+    return str(Path(os.getenv("BRAINS_DIR", str(Path(__file__).parent.parent / "brains"))) / name)
 
 
 def _resolve_vault(vault_root: Optional[str]) -> Path:

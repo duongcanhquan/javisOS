@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.99] - 2026-09-06
+### Cải tiến
+- **Đổi tên brain mặc định:** `POST /brains/rename` (kể cả Brain Default → ví dụ APC.HN); tên mới lưu state, alias `brain` vẫn đúng.
 ## [0.55.98] - 2026-09-06
 ### Sửa lỗi
 - **Deploy VPS:** chờ health lâu hơn (~2 phút) để tránh HEALTH_FAIL khi system sync khởi động chậm; vẫn restore Moonshine/vendor sau up.
