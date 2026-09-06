@@ -1,4 +1,4 @@
-# Kéo brain từ VPS (gọn: không .git objects, không media lớn) về artifact.
+# Kéo caps + memory gọn từ 2 brain trên VPS (không kéo cả vault nặng).
 name: Pull brains from VPS
 
 on:
@@ -11,9 +11,9 @@ concurrency:
 jobs:
   pull:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
-      - name: Tar brains (light) on VPS + download
+      - name: Pack agents/workflows/skills/memory from VPS brains
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           HOST: ${{ secrets.VPS_HOST }}
@@ -34,16 +34,39 @@ jobs:
             echo "container=$CONTAINER"
             docker exec "$CONTAINER" sh -c "ls -la /brains"
             docker exec "$CONTAINER" sh -c "
-              cd /brains && tar -czf /tmp/javis-brains.tgz \
-                --exclude=\"./.DS_Store\" \
-                --exclude=\"./lost+found\" \
-                --exclude=\"*/.git\" \
-                --exclude=\"*/node_modules\" \
-                --exclude=\"*/exports\" \
-                --exclude=\"*/attachments\" \
-                --exclude=\"*/.claude/worktrees\" \
-                --exclude=\"*/skills/*/scripts/node_modules\" \
-                .
+              set -e
+              rm -rf /tmp/brains-light && mkdir -p /tmp/brains-light
+              for b in /brains/*; do
+                [ -d \"\$b\" ] || continue
+                name=\$(basename \"\$b\")
+                echo \"pack \$name\"
+                mkdir -p \"/tmp/brains-light/\$name\"
+                for sub in agents workflows skills memory Javis; do
+                  if [ -d \"\$b/\$sub\" ]; then
+                    # skills: chỉ SKILL.md + yaml, bỏ scripts nặng
+                    if [ \"\$sub\" = skills ]; then
+                      mkdir -p \"/tmp/brains-light/\$name/skills\"
+                      for sk in \"\$b/skills\"/*; do
+                        [ -d \"\$sk\" ] || continue
+                        sn=\$(basename \"\$sk\")
+                        mkdir -p \"/tmp/brains-light/\$name/skills/\$sn\"
+                        cp -f \"\$sk\"/SKILL.md \"/tmp/brains-light/\$name/skills/\$sn/\" 2>/dev/null || true
+                        cp -f \"\$sk\"/*.yaml \"/tmp/brains-light/\$name/skills/\$sn/\" 2>/dev/null || true
+                        cp -f \"\$sk\"/*.yml \"/tmp/brains-light/\$name/skills/\$sn/\" 2>/dev/null || true
+                        # giữ script nhỏ của xuat-goi
+                        if [ -d \"\$sk/scripts\" ] && [ \"\$sn\" = xuat-goi-nghien-cuu ]; then
+                          cp -a \"\$sk/scripts\" \"/tmp/brains-light/\$name/skills/\$sn/\"
+                        fi
+                      done
+                    else
+                      cp -a \"\$b/\$sub\" \"/tmp/brains-light/\$name/\"
+                    fi
+                  fi
+                done
+              done
+              cd /tmp/brains-light && tar -czf /tmp/javis-brains.tgz .
+              ls -lh /tmp/javis-brains.tgz
+              tar -tzf /tmp/javis-brains.tgz | head -80
             "
             docker cp "$CONTAINER:/tmp/javis-brains.tgz" /tmp/javis-brains.tgz
             ls -lh /tmp/javis-brains.tgz
@@ -51,8 +74,7 @@ jobs:
           scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
             "$USER@$HOST:/tmp/javis-brains.tgz" ./javis-brains.tgz
           ls -lh ./javis-brains.tgz
-          echo "=== top entries ==="
-          tar -tzf ./javis-brains.tgz | awk -F/ 'NF<=2' | head -60
+          tar -tzf ./javis-brains.tgz | head -80
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
