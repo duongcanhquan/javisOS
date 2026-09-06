@@ -187,6 +187,12 @@
     return false;
   }
 
+  /** Failover sau 12s im: chỉ thử Moonshine với tiếng Việt (Base nhỏ). EN/ngôn ngữ khác
+   * tải TinyStreaming/Base quá lâu → lỗi "Moonshine English tải quá lâu" làm người dùng sợ. */
+  function preferMoonshineFailover(lang) {
+    return normalizeLang(lang) === "vi";
+  }
+
   function armAudioSessionForMic() {
     try {
       if (navigator.audioSession && "type" in navigator.audioSession) {
@@ -1266,18 +1272,45 @@
             setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
             return;
           }
-          if (prev !== "moonshine" && moonshineSupports(meetingLang())) {
+          // Web Speech đã chạy mà im: thử bật lại một lần (Chrome hay cần restart).
+          if (prev === "webspeech" && hasWebSpeech()) {
+            startWebSpeechSafe(root);
+            setStatus(
+              root,
+              "Đã bật lại Web Speech — nói rõ từng câu (Chrome/Edge).",
+              "ok"
+            );
+            return;
+          }
+          var langNow = meetingLang();
+          if (
+            prev !== "moonshine" &&
+            preferMoonshineFailover(langNow) &&
+            moonshineSupports(langNow)
+          ) {
             await startMoonshine(root);
-            setStatus(root, "Đã chuyển Moonshine.", "ok");
+            setStatus(root, "Đã chuyển Moonshine (tiếng Việt).", "ok");
             return;
           }
           setStatus(
             root,
-            "Vẫn chưa ghi được. Cho phép micro, kiểm tra Groq (Models), hoặc dùng File ghi âm → chữ.",
+            "Vẫn chưa ghi được lời. Cho phép micro (ổ khóa trên thanh địa chỉ), nói rõ hơn, " +
+              "hoặc dùng File ghi âm → chữ" +
+              (preferWhisperLive() ? " / cấu hình Groq ở Models." : "."),
             "err"
           );
         } catch (e) {
-          setStatus(root, "Chuyển STT lỗi: " + (e.message || e), "err");
+          var msg = String((e && e.message) || e || "");
+          // Không để timeout Moonshine EN hiện như lỗi chính — hướng về Web Speech / File.
+          if (/Moonshine|tải quá lâu|timeout/i.test(msg)) {
+            setStatus(
+              root,
+              "Không tải được nhận dạng trên máy. Dùng Chrome/Edge (Web Speech) hoặc File ghi âm → chữ.",
+              "err"
+            );
+            return;
+          }
+          setStatus(root, "Chuyển STT lỗi: " + msg, "err");
         }
       })();
     }, 12000);
@@ -1376,8 +1409,8 @@
       return "webspeech";
     }
 
-    // 3) Không Web Speech: Moonshine (nếu hỗ trợ); Whisper do caller lo qua micPromise.
-    if (moonshineSupports(lang)) {
+    // 3) Không Web Speech: Moonshine chỉ ổn với tiếng Việt; EN/khác dễ timeout tải model.
+    if (preferMoonshineFailover(lang) && moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
         return "moonshine";
@@ -2274,7 +2307,7 @@
       '<textarea id="mtNotes" placeholder="Mục đích họp, agenda ngắn, điểm cần quyết…"></textarea></div>' +
       '<div class="mt-field"><label>Ngôn ngữ cuộc họp</label>' +
       '<select id="mtLang">' +
-      '<optgroup label="Moonshine (trên máy, có nhãn người nói)">' +
+      '<optgroup label="Web Speech / Whisper (mặc định)">' +
       '<option value="vi">Tiếng Việt</option>' +
       '<option value="en">English</option>' +
       '<option value="es">Español</option>' +
@@ -2283,8 +2316,6 @@
       '<option value="ko">한국어</option>' +
       '<option value="ar">العربية</option>' +
       '<option value="uk">Українська</option>' +
-      "</optgroup>" +
-      '<optgroup label="Web Speech / Whisper (Groq)">' +
       '<option value="fr">Français</option>' +
       '<option value="de">Deutsch</option>' +
       '<option value="th">ไทย</option>' +

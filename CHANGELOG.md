@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.81] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp English hết báo Moonshine tải quá lâu:** failover 12s không còn kéo model Moonshine EN; chỉ thử Moonshine với tiếng Việt; Web Speech im thì bật lại Chrome/Edge hoặc File → chữ.
 ## [0.55.80] - 2026-09-06
 ### Sửa lỗi
 - **Workflow không còn tự "tắt" sau seed/chạy:** `status: on` (YAML True) được coi là bật; seed ghi đè giữ nguyên trạng thái bạn đã chọn; file caps dùng `status: active`.
