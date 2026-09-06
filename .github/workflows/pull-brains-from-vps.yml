@@ -66,7 +66,7 @@ jobs:
               done
               cd /tmp/brains-light && tar -czf /tmp/javis-brains.tgz .
               ls -lh /tmp/javis-brains.tgz
-              tar -tzf /tmp/javis-brains.tgz | head -80
+              tar -tzf /tmp/javis-brains.tgz | head -80 || true
             "
             docker cp "$CONTAINER:/tmp/javis-brains.tgz" /tmp/javis-brains.tgz
             ls -lh /tmp/javis-brains.tgz
@@ -74,7 +74,7 @@ jobs:
           scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
             "$USER@$HOST:/tmp/javis-brains.tgz" ./javis-brains.tgz
           ls -lh ./javis-brains.tgz
-          tar -tzf ./javis-brains.tgz | head -80
+          tar -tzf ./javis-brains.tgz | head -80 || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
