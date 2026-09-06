@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seed nhắc hẹn "Tổng hợp báo chí 8h" trên VPS (container Javis).
+# Seed nhắc hẹn "Tổng hợp báo chí 8h" (danh mục giáo dục) trên VPS.
 # Idempotent: cùng label thì cập nhật text/cron, không tạo trùng.
 set -euo pipefail
 
@@ -8,22 +8,19 @@ PORT="${JAVIS_PORT:-7777}"
 LABEL="${BAO_CHI_BRIEF_LABEL:-Tổng hợp báo chí 8h}"
 CRON="${BAO_CHI_BRIEF_CRON:-0 8 * * *}"
 BRAIN="${BAO_CHI_BRIEF_BRAIN:-brain}"
-# Chỉ đọc RSS + tóm tắt; kết quả do hệ thống nhắc đẩy về kênh.
 MUC_QUYEN="${BAO_CHI_BRIEF_MUC_QUYEN:-suggest}"
 ALLOW_NO_CHANNEL="${BAO_CHI_BRIEF_ALLOW_NO_CHANNEL:-false}"
-# all = Telegram + Zalo (nếu đã đấu); zalo / telegram = một kênh.
 CHAT_ID="${BAO_CHI_BRIEF_CHAT_ID:-all}"
 
 PROMPT=$(cat <<'EOF'
-Làm đúng skill tong-hop-bao-chi (và agent tong-hop-bao-chi nếu cần).
+Chạy workflow brief-bao-chi-sang / skill tong-hop-bao-chi với danh mục CỐ ĐỊNH: giao-duc.
 
-1) Đọc Javis/bao-chi-cau-hinh.md (RSS + chủ đề mặc định + từ khóa). Thiếu file thì tạo từ mẫu skill references/cau-hinh-mau.md rồi ghi chú để chủ sửa nguồn.
+1) Đọc Javis/bao-chi-cau-hinh.md - chỉ dùng khối ## Danh mục: giao-duc (RSS giáo dục). Thiếu file thì tạo từ mẫu skill references/cau-hinh-mau.md.
 2) Cửa sổ giờ VN: 00:00 HÔM QUA → 08:00 HÔM NAY.
-3) Chủ đề: dùng chủ đề mặc định trong cấu hình (giáo dục cao đẳng - đại học nếu chưa đổi).
-4) Chạy scripts/fetch_rss.py với --config Javis/bao-chi-cau-hinh.md --limit 10 (hoặc WebFetch RSS nếu không có Bash).
-5) Viết báo cáo theo khuôn skill: tóm tắt theo chủ đề + tối đa 10 bài mới nhất, MỖI bài có link markdown gốc. Không bịa bài/link.
+3) Chạy: python .../fetch_rss.py --config Javis/bao-chi-cau-hinh.md --category giao-duc --limit 10 (hoặc WebFetch đúng RSS giáo dục).
+4) Viết báo cáo theo khuôn skill: tóm tắt + tối đa 10 bài, mỗi bài có link markdown. Không bịa. Không trộn RSS tài chính/BĐS.
 
-Chỉ ĐỌC RSS và tóm tắt. Không gửi tin tay sang người khác - kết quả brief sẽ được hệ thống đẩy về kênh đã cấu hình. Tiếng Việt, ngắn như tin nhắn.
+Chỉ ĐỌC RSS và tóm tắt. Không gửi tin tay - kết quả do hệ thống nhắc đẩy về kênh đã cấu hình. Tiếng Việt, ngắn như tin nhắn.
 EOF
 )
 
@@ -33,8 +30,7 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   exit 1
 fi
 
-# Đảm bảo mỗi brain có file cấu hình (không ghi đè nếu đã có).
-echo "==> đảm bảo Javis/bao-chi-cau-hinh.md trong các brain"
+echo "==> đảm bảo Javis/bao-chi-cau-hinh.md (đa danh mục) trong các brain"
 docker exec -i -u javis "$CONTAINER" python - <<'PY'
 from pathlib import Path
 import os
@@ -42,36 +38,76 @@ import os
 brains_root = Path(os.environ.get("BRAINS_DIR", "/brains"))
 sample = """---
 type: note
-title: Cấu hình tổng hợp báo chí
+title: Cấu hình báo chí theo danh mục RSS
 updated: 2026-09-06
 ---
 
-# Cấu hình tổng hợp báo chí
+# Cấu hình báo chí theo danh mục
 
-Skill `tong-hop-bao-chi` đọc file này mỗi lần chạy brief sáng hoặc khi bạn gọi tay.
+Skill `tong-hop-bao-chi` đọc file này: mỗi danh mục có RSS riêng.
 
-## Nguồn RSS
+## Danh mục mặc định
+
+giao-duc
+
+## Danh mục: giao-duc
+
+### Nhãn
+
+Giáo dục cao đẳng - đại học
+
+### RSS
 
 - https://vnexpress.net/rss/giao-duc.rss
 - https://tuoitre.vn/rss/giao-duc.rss
 - https://thanhnien.vn/rss/giao-duc.rss
 - https://vietnamnet.vn/rss/giao-duc.rss
 
-## Chủ đề mặc định
-
-Giáo dục cao đẳng - đại học
-
-## Từ khóa
+### Từ khóa
 
 đại học, cao đẳng, tuyển sinh, sinh viên, giảng viên, học phí, ĐH, CĐ, Bộ GDĐT, Bộ Giáo dục, university, college, đào tạo
 
+## Danh mục: tai-chinh
+
+### Nhãn
+
+Tài chính - kinh doanh
+
+### RSS
+
+- https://vnexpress.net/rss/kinh-doanh.rss
+- https://tuoitre.vn/rss/kinh-doanh.rss
+- https://thanhnien.vn/rss/kinh-doanh.rss
+- https://vietnamnet.vn/rss/kinh-doanh.rss
+
+### Từ khóa
+
+chứng khoán, ngân hàng, lãi suất, tỷ giá, lạm phát, tài chính, kinh doanh, đầu tư, VN-Index, trái phiếu
+
+## Danh mục: bat-dong-san
+
+### Nhãn
+
+Bất động sản
+
+### RSS
+
+- https://vnexpress.net/rss/bat-dong-san.rss
+- https://tuoitre.vn/rss/bat-dong-san.rss
+- https://thanhnien.vn/rss/bat-dong-san.rss
+- https://vietnamnet.vn/rss/bat-dong-san.rss
+
+### Từ khóa
+
+bất động sản, nhà đất, chung cư, dự án, quy hoạch, giá nhà, đất nền, BĐS, căn hộ, sổ đỏ
+
 ## Ghi chú
 
-- Thêm `- https://...` để bổ sung báo.
-- Đổi chủ đề / từ khóa cho brief 8h sáng.
-- Gọi tay: «tổng hợp báo chí chủ đề bất động sản» (không cần sửa file).
+- Workflow 8h = danh mục `giao-duc`.
+- Gọi tay: «tổng hợp báo chí tài chính» → `tai-chinh`.
 """
 written = 0
+upgraded = 0
 if not brains_root.is_dir():
     print(f"WARN: khong thay brains_root={brains_root}")
 else:
@@ -79,13 +115,16 @@ else:
         if not brain.is_dir() or brain.name.startswith("."):
             continue
         dest = brain / "Javis" / "bao-chi-cau-hinh.md"
-        if dest.exists():
-            continue
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(sample, encoding="utf-8")
-        written += 1
-        print(f"wrote {dest}")
-    print(f"ok: brains_root={brains_root} newly_written={written}")
+        if not dest.exists():
+            dest.write_text(sample, encoding="utf-8")
+            written += 1
+            print(f"wrote {dest}")
+        elif "Danh mục:" not in dest.read_text(encoding="utf-8"):
+            dest.write_text(sample, encoding="utf-8")
+            upgraded += 1
+            print(f"upgraded {dest}")
+    print(f"ok: newly={written} upgraded={upgraded}")
 PY
 
 echo "==> seed nhắc: $LABEL (cron $CRON, muc=$MUC_QUYEN, brain=$BRAIN, chat=$CHAT_ID)"
@@ -181,20 +220,18 @@ else:
             print("CANH_BAO:", created["canh_bao"])
     elif created.get("can_force"):
         print("NEED_CHANNEL:", created.get("error"))
-        print("-> Dau Telegram va/hoac Zalo (trang Kenh) roi chay lai script.")
-        print("-> Hoac: BAO_CHI_BRIEF_ALLOW_NO_CHANNEL=true bash scripts/seed-bao-chi-brief-vps.sh")
+        print("-> Dau Telegram/Zalo roi chay lai, hoac BAO_CHI_BRIEF_ALLOW_NO_CHANNEL=true")
         raise SystemExit(2)
     else:
         print("ERROR:", created.get("error") or created)
         raise SystemExit(1)
 
 print("notify:", json.dumps(notify, ensure_ascii=False))
-print("muc_quyen:", muc)
-print("chat_id:", chat)
+print("muc_quyen:", muc, "| chat_id:", chat, "| category: giao-duc")
 PY
 
 echo ""
-echo "==> XONG seed Tong hop bao chi 8h."
-echo "    Xem / sua / tat: trang Viec dinh ky tren dashboard."
-echo "    Sua RSS / chu de: Javis/bao-chi-cau-hinh.md trong brain."
-echo "    Goi tay: /tong-hop-bao-chi <chu de> hoac /run brief-bao-chi-sang <chu de>."
+echo "==> XONG. Brief 8h = danh muc giao-duc."
+echo "    Sua RSS: Javis/bao-chi-cau-hinh.md"
+echo "    Goi tay: tong hop bao chi tai-chinh / bat-dong-san"
+echo "    Workflow: /run brief-bao-chi-sang"

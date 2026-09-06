@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Lọc bài RSS trong cửa sổ [hôm qua 00:00, hôm nay 08:00] giờ VN (UTC+7).
+"""Lọc bài RSS theo danh mục trong cửa sổ [hôm qua 00:00, hôm nay 08:00] giờ VN.
 
-Chỉ dùng thư viện chuẩn. In JSON stdout để skill/agent đọc.
-Cách gọi:
-  python fetch_rss.py --config /path/to/bao-chi-cau-hinh.md
-  python fetch_rss.py --feeds URL1,URL2 --topic "giáo dục đại học" --limit 10
+Chỉ dùng thư viện chuẩn. In JSON stdout.
+  python fetch_rss.py --config Javis/bao-chi-cau-hinh.md --category giao-duc
+  python fetch_rss.py --config ... --list-categories
+  python fetch_rss.py --feeds URL1,URL2 --topic "..." --limit 10
 """
 from __future__ import annotations
 
@@ -30,15 +30,9 @@ def _now_vn() -> datetime:
 
 
 def _window(now: datetime | None = None) -> tuple[datetime, datetime]:
-    """Hôm qua 00:00 → hôm nay 08:00 (VN)."""
     n = now or _now_vn()
     end = n.replace(hour=8, minute=0, second=0, microsecond=0)
-    if n < end:
-        # Trước 8h: cửa sổ kết thúc = 8h hôm nay; bắt đầu = 0h hôm qua.
-        start = (end - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        # Sau 8h: vẫn lấy cửa sổ vừa qua (0h hôm qua → 8h hôm nay) trừ khi --today-open.
-        start = (end - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = (end - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return start, end
 
 
@@ -62,7 +56,10 @@ def _parse_date(raw: str) -> datetime | None:
     for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S"):
         try:
             t = raw.replace("Z", "+0000") if fmt.endswith("%z") else raw
-            dt = datetime.strptime(t[:26].replace("+00:00", "+0000"), fmt.replace("%z", "%z") if "%z" in fmt else fmt)
+            dt = datetime.strptime(
+                t[:26].replace("+00:00", "+0000"),
+                fmt.replace("%z", "%z") if "%z" in fmt else fmt,
+            )
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=VN)
             return dt.astimezone(VN)
@@ -94,7 +91,6 @@ def _child(parent: ET.Element, *names: str) -> ET.Element | None:
 def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
     root = ET.fromstring(xml_bytes)
     items: list[dict[str, Any]] = []
-    # RSS 2.0
     for item in root.iter():
         if _local(item.tag).lower() != "item":
             continue
@@ -115,7 +111,6 @@ def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
                 "published_ts": pub.timestamp() if pub else 0,
                 "source": source_url,
             })
-    # Atom
     if not items:
         for entry in root.iter():
             if _local(entry.tag).lower() != "entry":
@@ -144,7 +139,13 @@ def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
 
 
 def fetch_url(url: str, timeout: int = 20) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/rss+xml, application/xml, text/xml, */*"})
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": UA,
+            "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        },
+    )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 
@@ -152,45 +153,158 @@ def fetch_url(url: str, timeout: int = 20) -> bytes:
 def match_topic(item: dict[str, Any], keywords: list[str]) -> bool:
     if not keywords:
         return True
-    blob = f"{item.get('title','')} {item.get('summary','')}".lower()
+    blob = f"{item.get('title', '')} {item.get('summary', '')}".lower()
     return any(k.lower() in blob for k in keywords if k.strip())
 
 
+def _slugify(s: str) -> str:
+    import unicodedata
+
+    s = (s or "").strip().lower()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = s.replace("đ", "d")
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return s
+
+
 def load_config_md(path: Path) -> dict[str, Any]:
-    """Đọc cấu hình đơn giản từ markdown: ## Nguồn RSS / ## Chủ đề mặc định / ## Từ khóa."""
+    """Đọc cấu hình: danh mục (## Danh mục: slug) hoặc format cũ (một khối RSS)."""
     text = path.read_text(encoding="utf-8")
-    feeds: list[str] = []
-    topic = ""
-    keywords: list[str] = []
-    section = ""
+    default_cat = ""
+    categories: dict[str, dict[str, Any]] = {}
+    # legacy flat
+    legacy_feeds: list[str] = []
+    legacy_topic = ""
+    legacy_keywords: list[str] = []
+
+    section = ""  # top-level ## 
+    cat_slug = ""
+    sub = ""  # ### trong danh mục
+
     for line in text.splitlines():
         s = line.strip()
         if s.startswith("## "):
-            section = s[3:].strip().lower()
+            title = s[3:].strip()
+            low = title.lower()
+            m = re.match(r"danh\s*mục\s*:\s*(.+)$", title, re.I)
+            if m:
+                cat_slug = _slugify(m.group(1))
+                categories.setdefault(cat_slug, {"slug": cat_slug, "label": "", "feeds": [], "keywords": []})
+                section = "category"
+                sub = ""
+                continue
+            cat_slug = ""
+            sub = ""
+            if "mặc định" in low or "mac dinh" in low:
+                section = "default"
+            elif low.startswith("nguồn") or low.startswith("rss") or "feed" in low:
+                section = "legacy_feeds"
+            elif low.startswith("chủ đề") or low.startswith("chu de"):
+                section = "legacy_topic"
+            elif low.startswith("từ khóa") or low.startswith("tu khoa"):
+                section = "legacy_keywords"
+            else:
+                section = ""
+            continue
+        if s.startswith("### "):
+            sub = s[4:].strip().lower()
             continue
         if not s or s.startswith("#"):
             continue
-        if section.startswith("nguồn") or section.startswith("rss") or "feed" in section:
+
+        if section == "default":
+            if s.startswith("-"):
+                s = s[1:].strip()
+            if s and not default_cat:
+                default_cat = _slugify(s)
+            continue
+
+        if section == "category" and cat_slug:
+            cat = categories[cat_slug]
+            if sub.startswith("nhãn") or sub.startswith("nhan") or sub.startswith("tên"):
+                if s.startswith("-"):
+                    s = s[1:].strip()
+                if s and not cat["label"]:
+                    cat["label"] = s
+            elif sub.startswith("rss") or sub.startswith("nguồn") or "feed" in sub:
+                m = re.search(r"https?://\S+", s)
+                if m:
+                    cat["feeds"].append(m.group(0).rstrip(").,]"))
+            elif sub.startswith("từ khóa") or sub.startswith("tu khoa") or sub.startswith("keyword"):
+                if s.startswith("-"):
+                    s = s[1:].strip()
+                cat["keywords"].extend([x.strip() for x in re.split(r"[,;/|]", s) if x.strip()])
+            continue
+
+        if section == "legacy_feeds":
             m = re.search(r"https?://\S+", s)
             if m:
-                feeds.append(m.group(0).rstrip(").,]"))
-        elif section.startswith("chủ đề"):
+                legacy_feeds.append(m.group(0).rstrip(").,]"))
+        elif section == "legacy_topic":
             if s.startswith("-"):
                 s = s[1:].strip()
-            if not topic:
-                topic = s
-        elif section.startswith("từ khóa") or section.startswith("tu khoa"):
+            if s and not legacy_topic:
+                legacy_topic = s
+        elif section == "legacy_keywords":
             if s.startswith("-"):
                 s = s[1:].strip()
-            keywords.extend([x.strip() for x in re.split(r"[,;/|]", s) if x.strip()])
-    return {"feeds": feeds, "topic": topic, "keywords": keywords}
+            legacy_keywords.extend([x.strip() for x in re.split(r"[,;/|]", s) if x.strip()])
+
+    # Migrate format cũ → một danh mục
+    if not categories and legacy_feeds:
+        slug = default_cat or "mac-dinh"
+        categories[slug] = {
+            "slug": slug,
+            "label": legacy_topic or slug,
+            "feeds": legacy_feeds,
+            "keywords": legacy_keywords,
+        }
+        default_cat = default_cat or slug
+
+    if not default_cat and categories:
+        default_cat = next(iter(categories.keys()))
+
+    return {
+        "default_category": default_cat,
+        "categories": categories,
+        # tương thích cũ
+        "feeds": (categories.get(default_cat) or {}).get("feeds") or legacy_feeds,
+        "topic": (categories.get(default_cat) or {}).get("label") or legacy_topic,
+        "keywords": (categories.get(default_cat) or {}).get("keywords") or legacy_keywords,
+    }
+
+
+def resolve_category(cfg: dict[str, Any], wanted: str) -> dict[str, Any]:
+    cats: dict[str, dict[str, Any]] = cfg.get("categories") or {}
+    slug = _slugify(wanted) if wanted else (cfg.get("default_category") or "")
+    if slug and slug in cats:
+        return cats[slug]
+    # alias mềm
+    aliases = {
+        "giao-duc": ["giao-duc", "education", "edu", "gd"],
+        "tai-chinh": ["tai-chinh", "finance", "kinh-doanh", "tc"],
+        "bat-dong-san": ["bat-dong-san", "bds", "real-estate", "nha-dat"],
+    }
+    want = slug
+    for canon, al in aliases.items():
+        if want in al or want == canon:
+            if canon in cats:
+                return cats[canon]
+    if cfg.get("default_category") in cats:
+        return cats[cfg["default_category"]]
+    if cats:
+        return next(iter(cats.values()))
+    return {"slug": slug or "unknown", "label": "", "feeds": [], "keywords": []}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", help="Đường dẫn Javis/bao-chi-cau-hinh.md")
-    ap.add_argument("--feeds", help="URL RSS cách nhau bởi dấu phẩy")
-    ap.add_argument("--topic", default="", help="Chủ đề quan tâm (nhãn)")
+    ap.add_argument("--category", "-c", default="", help="Slug danh mục: giao-duc, tai-chinh, bat-dong-san…")
+    ap.add_argument("--list-categories", action="store_true", help="In danh mục trong config rồi thoát")
+    ap.add_argument("--feeds", help="URL RSS cách nhau bởi dấu phẩy (bỏ qua category)")
+    ap.add_argument("--topic", default="", help="Nhãn chủ đề (ghi đè nhãn danh mục)")
     ap.add_argument("--keywords", default="", help="Từ khóa lọc, cách nhau bởi dấu phẩy")
     ap.add_argument("--limit", type=int, default=10, help="Số bài mới nhất trả về")
     ap.add_argument("--no-filter-topic", action="store_true", help="Không lọc từ khóa, chỉ lọc thời gian")
@@ -199,18 +313,54 @@ def main() -> int:
     feeds: list[str] = []
     topic = (args.topic or "").strip()
     keywords = [x.strip() for x in (args.keywords or "").split(",") if x.strip()]
+    category_slug = ""
+    cfg: dict[str, Any] = {}
 
     if args.config:
         cfg = load_config_md(Path(args.config))
-        feeds = cfg.get("feeds") or []
-        topic = topic or (cfg.get("topic") or "")
+        if args.list_categories:
+            out = {
+                "ok": True,
+                "default_category": cfg.get("default_category"),
+                "categories": [
+                    {
+                        "slug": c["slug"],
+                        "label": c.get("label") or c["slug"],
+                        "feeds": len(c.get("feeds") or []),
+                        "keywords": len(c.get("keywords") or []),
+                    }
+                    for c in (cfg.get("categories") or {}).values()
+                ],
+            }
+            json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
+            print()
+            return 0
+        cat = resolve_category(cfg, args.category)
+        category_slug = cat.get("slug") or ""
+        feeds = list(cat.get("feeds") or [])
+        topic = topic or (cat.get("label") or category_slug)
         if not keywords:
-            keywords = cfg.get("keywords") or []
+            keywords = list(cat.get("keywords") or [])
+    elif args.list_categories:
+        print(json.dumps({"ok": False, "error": "Cần --config để liệt kê danh mục"}, ensure_ascii=False))
+        return 2
+
     if args.feeds:
         feeds = [u.strip() for u in args.feeds.split(",") if u.strip()]
+        category_slug = category_slug or "custom"
 
     if not feeds:
-        print(json.dumps({"ok": False, "error": "Thiếu danh sách RSS (--feeds hoặc --config)"}, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": "Thiếu RSS (--category trong config hoặc --feeds)",
+                    "category": category_slug or args.category,
+                    "available": list((cfg.get("categories") or {}).keys()),
+                },
+                ensure_ascii=False,
+            )
+        )
         return 2
 
     start, end = _window()
@@ -228,7 +378,6 @@ def main() -> int:
     for it in all_items:
         ts = it.get("published_ts") or 0
         if not ts:
-            # Không có ngày: vẫn giữ tạm, xếp cuối; skill sẽ ghi chú.
             it["_no_date"] = True
             in_window.append(it)
             continue
@@ -242,7 +391,6 @@ def main() -> int:
         matched = list(in_window)
 
     matched.sort(key=lambda x: x.get("published_ts") or 0, reverse=True)
-    # Ưu tiên bài có ngày; bỏ bớt no_date nếu đã đủ limit
     dated = [x for x in matched if not x.get("_no_date")]
     undated = [x for x in matched if x.get("_no_date")]
     top = (dated + undated)[: max(1, args.limit)]
@@ -252,6 +400,7 @@ def main() -> int:
         "timezone": "Asia/Ho_Chi_Minh",
         "window_start": start.isoformat(),
         "window_end": end.isoformat(),
+        "category": category_slug,
         "topic": topic,
         "keywords": keywords,
         "feeds": feeds,
@@ -259,7 +408,10 @@ def main() -> int:
         "in_window": len(in_window),
         "matched": len(matched),
         "limit": args.limit,
-        "articles": [{k: v for k, v in a.items() if not k.startswith("_") and k != "published_ts"} for a in top],
+        "articles": [
+            {k: v for k, v in a.items() if not k.startswith("_") and k != "published_ts"}
+            for a in top
+        ],
         "errors": errors,
     }
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)

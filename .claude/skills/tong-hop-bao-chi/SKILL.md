@@ -1,62 +1,62 @@
 ---
 name: tong-hop-bao-chi
-description: "Lọc RSS báo chí (hôm trước→8h sáng), tóm tắt theo chủ đề, gửi tối đa 10 bài mới kèm link qua Telegram/Zalo."
-description_en: "Filter press RSS (yesterday→8am), summarize by topic, send up to 10 newest stories with links via Telegram/Zalo."
+description: "Tổng hợp/tóm tắt báo chí theo danh mục RSS (giáo dục, tài chính…), tối đa 10 bài + link; brief sáng hoặc gọi tay."
+description_en: "Summarize press by RSS category (education, finance…), up to 10 stories with links; morning brief or on demand."
 group: Nội dung
 ---
 
-# Tổng hợp báo chí (RSS)
+# Tổng hợp báo chí
+
+Skill = **kỹ năng**: chọn danh mục RSS → lọc cửa sổ sáng → tóm tắt → format gửi (Telegram/Zalo/chat).
+Nguồn RSS **tách theo danh mục** trong `Javis/bao-chi-cau-hinh.md` (giáo dục, tài chính, bất động sản… thêm sau được).
 
 ## Khi nào dùng
 
-- Brief sáng tự động (nhắc `Tổng hợp báo chí 8h`) theo chủ đề mặc định trong `Javis/bao-chi-cau-hinh.md`.
-- User gọi tay: "tổng hợp báo chí chủ đề X", "RSS giáo dục hôm nay", `/tong-hop-bao-chi ...`.
-- Cần **tối đa 10 bài mới nhất** trong cửa sổ thời gian, **kèm link gốc**, tóm tắt theo chủ đề.
+- Workflow/nhắc 8h `brief-bao-chi-sang` → danh mục **`giao-duc`**.
+- User gọi tay: «tổng hợp báo chí tài chính», «RSS bất động sản», `/tong-hop-bao-chi tai-chinh`.
+- Cần tối đa **10 bài mới** kèm **link gốc**, tóm tắt theo chủ đề danh mục.
 
 ## Chuẩn bị
 
-1. Đọc `Javis/bao-chi-cau-hinh.md` trong brain đang dùng. Chưa có → tạo từ `references/cau-hinh-mau.md` (cùng thư mục skill), hỏi user duyệt nguồn RSS.
-2. Xác định **chủ đề**:
-   - Brief sáng / không nêu chủ đề → lấy **Chủ đề mặc định** + **Từ khóa** trong file cấu hình.
-   - User nêu chủ đề → dùng chủ đề đó; suy từ khóa ngắn từ chủ đề (3-8 từ), có thể gộp với từ khóa cấu hình.
-3. Cửa sổ thời gian (giờ VN, UTC+7): **00:00 hôm qua → 08:00 hôm nay**.
-4. Kênh gửi: brief tự động để hệ thống nhắc đẩy kết quả về chat đã gắn (`chat_id`). Gọi tay trên Telegram/Zalo thì trả lời ngay trong phiên; chỉ gọi `zalo_send_*` / gửi TG khi user **yêu cầu rõ** gửi sang kênh khác.
+1. Đọc `Javis/bao-chi-cau-hinh.md`. Thiếu → tạo từ `references/cau-hinh-mau.md`.
+2. Chọn **danh mục** (`slug`):
+   - Brief sáng / workflow giáo dục → `giao-duc` (cố định).
+   - User nêu lĩnh vực → map sang slug gần nhất (`tài chính` → `tai-chinh`, `BĐS` → `bat-dong-san`). Không khớp → hỏi hoặc dùng `## Danh mục mặc định`.
+3. Cửa sổ giờ VN: **00:00 hôm qua → 08:00 hôm nay**.
+4. Kênh gửi: nhắc hẹn đẩy kết quả qua `chat_id`. Gọi tay → trả lời ngay trong phiên; chỉ gửi sang kênh khác khi user **yêu cầu rõ**.
 
 ## Cách chạy
-
-1. Chạy script lọc RSS (ưu tiên; đừng tự bịa bài):
 
 ```bash
 python skills/tong-hop-bao-chi/scripts/fetch_rss.py \
   --config Javis/bao-chi-cau-hinh.md \
-  --topic "<chủ đề>" \
-  --keywords "<từ khóa, cách nhau dấu phẩy>" \
+  --category giao-duc \
   --limit 10
 ```
 
-Nếu skill nằm ở `.claude/skills/...` (mirror hệ thống), dùng đúng path script đó. Engine API không có Bash: dùng WebFetch từng URL RSS trong cấu hình, tự lọc theo cùng cửa sổ thời gian + từ khóa, rồi chọn 10 bài mới nhất (theo `pubDate`).
+- Đổi `--category` theo danh mục (`tai-chinh`, `bat-dong-san`, …).
+- Xem danh mục có sẵn: thêm `--list-categories`.
+- Skill ở `.claude/skills/...`: dùng đúng path script đó.
+- Không có Bash: WebFetch đúng URL **RSS của danh mục đã chọn**, lọc cùng cửa sổ + từ khóa danh mục, lấy 10 bài mới nhất.
 
-2. Đọc JSON: `articles[]` (title, link, summary, published), `errors`, `window_*`.
-3. Viết báo cáo theo khuôn dưới. **Mỗi bài trong mục 10 bài mới nhất phải có link markdown** `[tiêu đề](url)`.
-4. Không bịa bài / link. Feed lỗi → ghi trong mục Nguồn lỗi, vẫn trả phần còn lại.
+## Quy trình
 
-## Quy trình tóm tắt
-
-1. Gom `articles` theo nhóm ý trong chủ đề (vd tuyển sinh, học phí, chính sách, trường...).
-2. Viết 4-8 bullet insight (có căn cứ từ tiêu đề/summary; không bịa số liệu ngoài feed).
-3. Liệt kê **đúng tối đa 10** bài mới nhất (đã sort sẵn bởi script).
-4. Kết: 1-3 gợi ý theo dõi thêm (tùy chọn).
+1. Chạy script (hoặc WebFetch) → JSON `articles[]`, `category`, `errors`.
+2. Tóm tắt 4-8 bullet theo nhóm ý trong danh mục (không bịa số ngoài feed).
+3. Liệt kê tối đa 10 bài, mỗi bài `[tiêu đề](url)`.
+4. Feed lỗi → mục Nguồn lỗi; vẫn trả phần còn lại.
 
 ## Định dạng đầu ra
 
-Tin nhắn ngắn (Telegram/Zalo), tiếng Việt, không bảng, không em dash.
+Tin nhắn ngắn, tiếng Việt, không bảng, không em dash.
 
 ```markdown
-### Báo chí · <chủ đề> · <dd/mm>
+### Báo chí · <nhãn danh mục> · <dd/mm>
 
+**Danh mục:** <slug>
 **Cửa sổ:** 00:00 <hôm qua> → 08:00 <hôm nay> (VN)
 
-**Tóm tắt theo chủ đề**
+**Tóm tắt**
 - ...
 
 **10 bài mới nhất**
@@ -67,15 +67,32 @@ Tin nhắn ngắn (Telegram/Zalo), tiếng Việt, không bảng, không em dash
 - ...
 ```
 
+## Thêm danh mục mới
+
+Trong `Javis/bao-chi-cau-hinh.md`, thêm khối:
+
+```markdown
+## Danh mục: <slug-moi>
+
+### Nhãn
+...
+
+### RSS
+- https://...
+
+### Từ khóa
+từ1, từ2, ...
+```
+
+Không cần sửa skill. Workflow 8h vẫn chỉ gọi `giao-duc` trừ khi đổi nhắc/workflow.
+
 ## Bẫy
 
-- Không gửi tin hàng loạt sang người khác nếu user không nhờ. Brief nhắc hẹn: chỉ trả kết quả; kênh nhận do nhắc cấu hình.
-- Không vượt 10 bài ở mục danh sách (trừ khi user đòi nhiều hơn).
-- Bài không có `pubDate`: script có thể xếp cuối; ghi chú nếu dùng.
-- Cấu hình RSS trống / mọi feed lỗi → nói rõ cần sửa `Javis/bao-chi-cau-hinh.md`, đưa mẫu từ `references/cau-hinh-mau.md`.
+- Brief 8h **không** trộn mọi RSS: chỉ feed của danh mục workflow chỉ định (`giao-duc`).
+- Không bịa bài/link; không vượt 10 bài (trừ khi user đòi).
+- Không gửi hàng loạt nếu user không nhờ (nhắc hẹn: chỉ trả kết quả).
 
 ## Kiểm chứng
 
-- Có đúng cửa sổ thời gian VN không?
-- Có đủ link bấm được cho từng bài trong top 10 không?
-- Chủ đề user yêu cầu có khớp phần tóm tắt không?
+- Đúng `--category` / đúng khối RSS chưa?
+- Đủ link top 10? Cửa sổ giờ VN đúng chưa?
