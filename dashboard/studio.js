@@ -545,7 +545,7 @@
     }
     (stepTexts || []).forEach((st, i) => {
       if (!st) return;
-      lines.push("## Bước " + (i + 1) + (st.agent ? " — " + st.agent : ""), "");
+      lines.push("## Bước " + (i + 1) + (st.agent ? " - " + st.agent : ""), "");
       if (st.task) lines.push("*" + st.task + "*", "");
       lines.push(st.text || "(trống)", "");
     });

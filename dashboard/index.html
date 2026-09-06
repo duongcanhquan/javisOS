@@ -543,13 +543,13 @@
 
   <!-- Studio tách thành các trang sidebar riêng (console.js render vào #cviewBody).
        Editor + run-drawer giờ là overlay TOP-LEVEL (dùng từ trang Workflows/Agents). -->
-  <!-- Run output drawer — rộng để đọc kết quả; đóng = thu nhỏ, không dừng chạy -->
+  <!-- Run output drawer: rong de doc ket qua; dong = thu nho, khong dung chay -->
   <div class="run-drawer" id="runDrawer">
     <div class="run-head">
       <span id="runTitle" data-i18n="run.title">Chạy workflow</span>
       <div class="run-head-acts">
-        <button type="button" class="run-min" id="runMinimize" title="Thu nhỏ — vẫn chạy nền" aria-label="Thu nhỏ">−</button>
-        <button type="button" class="run-close" id="runClose" title="Đóng panel — workflow vẫn chạy nếu chưa xong" aria-label="Đóng"><i data-ic="x"></i></button>
+        <button type="button" class="run-min" id="runMinimize" title="Thu nhỏ; workflow vẫn chạy nền" data-i18n-title="run.min_title" aria-label="Thu nhỏ" data-i18n-aria="run.min_aria">−</button>
+        <button type="button" class="run-close" id="runClose" title="Đóng panel; workflow vẫn chạy nếu chưa xong" data-i18n-title="run.close_title" aria-label="Đóng" data-i18n-aria="run.close_aria"><i data-ic="x"></i></button>
       </div>
     </div>
     <div class="run-steps" id="runSteps"></div>
@@ -558,7 +558,7 @@
   <div class="run-float" id="runFloat" hidden>
     <button type="button" class="run-float-btn" id="runFloatOpen">
       <span class="run-float-spin" aria-hidden="true"></span>
-      <span id="runFloatLabel">Workflow đang chạy…</span>
+      <span id="runFloatLabel" data-i18n="run.float_idle">Workflow đang chạy…</span>
     </button>
   </div>
   <!-- Editor modal (agent/workflow) -->
@@ -813,7 +813,7 @@
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
   <script src="/static/sessions-ui.js?v=17"></script>
-  <script src="/static/studio.js?v=33"></script>
+  <script src="/static/studio.js?v=34"></script>
   <script src="/static/packs.js?v=1"></script>
   <script src="/static/chatbots.js?v=10"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->

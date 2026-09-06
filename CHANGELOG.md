@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.97] - 2026-09-06
+### Sửa lỗi
+- **i18n CI:** bỏ em dash trong chuỗi workflow mới; gắn data-i18n cho panel chạy; bổ sung `bar.tts` / `run.min_*` / `run.close_*`.
 ## [0.55.96] - 2026-09-06
 ### Sửa lỗi
 - **Rà soát trước ship:** chip workflow chỉ nhắc khi cần; HTML báo cáo placeholder ổn định; turndown local không reject ảo; gom Moonshine đa ngôn ngữ + vendor CDN + panel chạy rộng/export.
