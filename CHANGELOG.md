@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.71] - 2026-09-06
+### Cải tiến
+- **Tách Model nghiên cứu khỏi việc nền:** trang Models có ô riêng cho workflow/Studio; form sửa workflow chọn được model; danh sách workflow hiện 2 cột trên màn rộng.
+
 ## [0.55.70] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp không nghe được mic:** chế độ rảnh tay ở chat cứ 0,5 giây cướp lại micro khiến trang Họp im. Vào Họp / bấm Bắt đầu sẽ tắt rảnh tay và nhả mic; vòng rảnh tay bỏ qua khi đang ghi họp.
