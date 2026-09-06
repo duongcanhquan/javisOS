@@ -7992,20 +7992,22 @@ async def studio_seed(brain: str = Form("brain")):
 
 @app.post("/studio/seed-strategy")
 async def studio_seed_strategy(brain: str = Form("brain")):
-    """Bộ Proposal: nghiên cứu thị trường → chiến lược KD/MKT → proposal (có kiểm chứng)."""
+    """Bộ Proposal: nghiên cứu → chiến lược → ảnh minh họa → proposal (có kiểm chứng)."""
     a = _agents_dir(brain)
     agents = [
         {
             "name": "Nghiên cứu thị trường",
             "slug": "nghien-cuu-thi-truong",
             "role": "Nghiên cứu phân khúc, đối thủ, xu hướng và nguồn dữ liệu cho quyết định kinh doanh.",
+            "group": "Marketing",
             "skills": ["deep-research", "nghien-cuu-thi-truong"],
             "prompt": (
                 "Bạn là chuyên viên nghiên cứu thị trường.\n"
-                "Mục tiêu: ra bản nghiên cứu có số liệu/nguồn, đủ để viết chiến lược sau này.\n"
+                "Mục tiêu: ra bản nghiên cứu có số liệu/nguồn, đủ để viết chiến lược và chọn ảnh minh họa sau này.\n"
                 "BẮT BUỘC chạy skill deep-research (breadth≈4, depth≈2) trên brief {{input}} trước, "
                 "rồi ánh xạ learnings vào khung nghien-cuu-thi-truong "
                 "(phân khúc, đối thủ, xu hướng, insight hành động).\n"
+                "Cuối báo cáo thêm mục 'Gợi ý hình minh họa' (2-3 ý: bìa / funnel / timeline) dựa insight, chưa gen ảnh.\n"
                 "Đầu ra: markdown có mục rõ + Sources; mỗi insight kèm nguồn hoặc giả định.\n"
                 "Thiếu dữ liệu thì nêu giả định, không bịa số.\n"
                 "Cấm: em dash; bịa doanh thu/thị phần không nguồn."
@@ -8015,52 +8017,86 @@ async def studio_seed_strategy(brain: str = Form("brain")):
             "name": "Chiến lược kinh doanh",
             "slug": "chien-luoc-kinh-doanh",
             "role": "Chưng cất nghiên cứu thành chiến lược KD 12 tháng có KPI.",
+            "group": "Marketing",
             "skills": ["proposal-chien-luoc"],
             "prompt": (
                 "Bạn là chiến lược gia kinh doanh.\n"
                 "Dựa nghiên cứu trước, viết chiến lược 12 tháng: tầm nhìn, positioning, "
                 "mô hình doanh thu, lợi thế, roadmap Q1-Q4, rủi ro.\n"
-                "Mỗi mục có ≥1 quyết định cụ thể và KPI định lượng (ghi giả định nếu thiếu baseline)."
+                "Mỗi mục có ≥1 quyết định cụ thể và KPI định lượng (ghi giả định nếu thiếu baseline).\n"
+                "Không gen ảnh."
             ),
         },
         {
             "name": "Chiến lược marketing",
             "slug": "chien-luoc-marketing",
             "role": "Lập chiến lược marketing gắn ICP, kênh, content và KPI.",
+            "group": "Marketing",
             "skills": ["proposal-chien-luoc"],
             "prompt": (
                 "Bạn là chiến lược gia marketing.\n"
                 "Từ nghiên cứu + chiến lược KD, viết ICP/persona, thông điệp, kênh & funnel, "
                 "content/campaign, khung ngân sách, KPI marketing.\n"
-                "Không tách rời positioning kinh doanh."
+                "Không tách rời positioning kinh doanh.\n"
+                "Cuối: liệt kê 2 hình proposal cần có (cover-hero + funnel hoặc timeline) kèm nội dung chữ/nhãn trên ảnh.\n"
+                "Không gen ảnh ở bước này."
+            ),
+        },
+        {
+            "name": "Minh họa proposal",
+            "slug": "minh-hoa-proposal",
+            "role": "Tạo ảnh bìa và infographic cho proposal bằng javis_generate_image.",
+            "group": "Marketing",
+            "skills": ["tao-anh-minh-hoa", "proposal-chien-luoc"],
+            "prompt": (
+                "Bạn là illustrator cho proposal chiến lược.\n"
+                "Mục tiêu: tạo ảnh minh họa RỒI nhúng markdown để bước soạn proposal ghép vào sản phẩm.\n"
+                "BẮT BUỘC nạp skill tao-anh-minh-hoa (chế độ proposal) và gọi tool javis_generate_image.\n"
+                "Quy trình:\n"
+                "1) Đọc brief {{input}} + chiến lược ở {{prev}}; chốt danh sách ảnh: "
+                "bìa (cover-hero) + ít nhất 1 hình giải thích (funnel | positioning-map | timeline).\n"
+                "2) Với mỗi ảnh: viết prompt theo khối Subject/Layout/Style/Text/Aspect/Constraints; "
+                "aspect landscape trừ khi user yêu cầu khác; quality medium hoặc high nếu pitch khách.\n"
+                "3) Gọi javis_generate_image; nhận path attachments/... ; nhúng ![mô tả](path).\n"
+                "4) Đầu ra: bảng `loại | path | chữ trên ảnh | ghi chú` + các ảnh đã nhúng.\n"
+                "Thiếu ChatGPT OAuth: nói cách bật ở Models, vẫn trả prompt sẵn để gen sau - không bịa path.\n"
+                "Cấm: em dash; gen logo thương hiệu giả; bỏ qua tool khi đã kết nối được."
             ),
         },
         {
             "name": "Soạn proposal",
             "slug": "soan-proposal",
-            "role": "Ghép thành proposal hoàn chỉnh gửi khách/nội bộ.",
+            "role": "Ghép thành proposal hoàn chỉnh có ảnh minh họa, gửi khách/nội bộ.",
+            "group": "Marketing",
             "skills": ["proposal-chien-luoc"],
             "prompt": (
                 "Bạn soạn proposal chiến lược hoàn chỉnh (executive summary ≤200 từ + các mục bắt buộc "
                 "trong skill proposal-chien-luoc).\n"
-                "Giọng chuyên nghiệp, súc tích; đọc độc lập hiểu vấn đề + giải pháp trong 5 phút."
+                "BẮT BUỘC nhúng các ảnh từ bước Minh họa proposal ({{prev}}) vào đúng chỗ: "
+                "ảnh bìa sau tiêu đề; infographic trong mục chiến lược/lộ trình tương ứng. "
+                "Giữ nguyên đường dẫn attachments/..., không mô tả thay vì nhúng.\n"
+                "Giọng chuyên nghiệp, súc tích; đọc độc lập hiểu vấn đề + giải pháp trong 5 phút.\n"
+                "Thiếu ảnh: ghi rõ còn thiếu gì, vẫn hoàn thiện phần chữ."
             ),
         },
         {
             "name": "Kiểm chứng proposal",
             "slug": "kiem-chung-proposal",
-            "role": "Soi proposal: thiếu số, hứa KPI không baseline, hoặc lệch brief.",
+            "role": "Soi proposal: thiếu số, thiếu ảnh nhúng, hứa KPI không baseline, hoặc lệch brief.",
+            "group": "Marketing",
             "skills": [],
             "prompt": (
                 "Bạn KHÔNG viết proposal mới. Chỉ đánh giá.\n"
                 "Mặc định bản đang thiếu/sai. Kiểm: bám brief không, có bịa số không, "
-                "executive summary đủ không, KPI có gắn baseline/giả định không.\n"
+                "executive summary đủ không, KPI có gắn baseline/giả định không, "
+                "đã nhúng ít nhất 1 ảnh attachments/ trong markdown chưa.\n"
                 "Trả: ĐẠT hoặc CHƯA ĐẠT + danh sách lỗi cụ thể để sửa."
             ),
         },
     ]
     for ex in agents:
         meta = {"type": "agent", "name": ex["name"], "slug": ex["slug"], "role": ex["role"],
+                "group": ex.get("group") or "Marketing",
                 "skills": ex["skills"], "model": "sonnet", "updated": _today()}
         _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
     wf_meta = {
@@ -8068,16 +8104,20 @@ async def studio_seed_strategy(brain: str = Form("brain")):
         "name": "Bộ Proposal & Chiến lược",
         "slug": "bo-proposal-chien-luoc",
         "status": "active",
-        "description": "Nghiên cứu thị trường → chiến lược KD → MKT → proposal (có kiểm chứng).",
+        "group": "Marketing",
+        "description": "Nghiên cứu → chiến lược KD/MKT → ảnh minh họa → proposal (có kiểm chứng).",
         "steps": [
             {"agent": "nghien-cuu-thi-truong",
-             "task": "Deep-research rồi khung thị trường cho brief: {{input}}. Report + Sources."},
+             "task": "Deep-research rồi khung thị trường cho brief: {{input}}. Report + Sources + gợi ý hình."},
             {"agent": "chien-luoc-kinh-doanh",
              "task": "Từ nghiên cứu sau, viết chiến lược kinh doanh 12 tháng:\n{{prev}}"},
             {"agent": "chien-luoc-marketing",
              "task": "Từ nghiên cứu + chiến lược KD ({{prev}}), viết chiến lược marketing. Brief gốc: {{input}}"},
+            {"agent": "minh-hoa-proposal",
+             "task": "Theo skill tao-anh-minh-hoa (proposal), gen ảnh bìa + 1 infographic cho brief '{{input}}' "
+                     "dựa chiến lược:\n{{prev}}\nNhúng ![...](attachments/...)."},
             {"agent": "soan-proposal",
-             "task": "Ghép thành proposal hoàn chỉnh cho '{{input}}' từ các bước trước:\n{{prev}}",
+             "task": "Ghép proposal hoàn chỉnh cho '{{input}}', BẮT BUỘC nhúng ảnh từ bước trước:\n{{prev}}",
              "verify_agent": "kiem-chung-proposal", "max_retries": 2},
         ],
         "updated": _today(),
@@ -8088,13 +8128,14 @@ async def studio_seed_strategy(brain: str = Form("brain")):
 
 @app.post("/studio/seed-video")
 async def studio_seed_video(brain: str = Form("brain")):
-    """Bộ Video: nghiên cứu → kịch bản → đạo diễn đa pipeline (paperdesign/Remotion/Ommi) → kiểm chứng."""
+    """Bộ Video: nghiên cứu → kịch bản → ảnh cảnh → đạo diễn đa pipeline → kiểm chứng."""
     a = _agents_dir(brain)
     agents = [
         {
             "name": "Nghiên cứu chủ đề video",
             "slug": "nghien-cuu-chu-de-video",
             "role": "Nghiên cứu chủ đề video: insight, fact, góc kể chuyện, nguồn tham chiếu hình ảnh.",
+            "group": "Nội dung",
             "skills": ["deep-research", "lam-video", "nghien-cuu-thi-truong", "query-wiki"],
             "prompt": (
                 "Bạn là researcher cho video ngắn/explainer/quảng cáo.\n"
@@ -8105,9 +8146,9 @@ async def studio_seed_video(brain: str = Form("brain")):
                 "CẤM giả định 5 mục bắt buộc rồi làm tiếp.\n"
                 "Khi brief đã chốt: BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2): "
                 "sinh SERP query → Tavily/WebSearch → learnings có nguồn → đào sâu → report.\n"
-                "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video).\n"
+                "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video, pixcelvideo).\n"
                 "Sau deep-research, chưng thêm: (1) audience + mục tiêu, "
-                "(2) 5-8 insight then chốt, (3) 3 góc kể/hook, (4) motif hình ảnh/era/tone, "
+                "(2) 5-8 insight then chốt, (3) 3 góc kể/hook, (4) motif hình ảnh/era/tone (style bible), "
                 "(5) rủi ro pháp lý/nhạy cảm nếu có.\n"
                 "Đầu ra markdown + mục Sources. Không bịa số. Không dùng em dash."
             ),
@@ -8116,41 +8157,66 @@ async def studio_seed_video(brain: str = Form("brain")):
             "name": "Biên kịch video",
             "slug": "bien-kich-video",
             "role": "Viết kịch bản beat/shot chuẩn: hook, narration, visual, nhịp cắt, CTA.",
+            "group": "Nội dung",
             "skills": ["lam-video", "paperdesign", "deep-research"],
             "prompt": (
                 "Bạn là biên kịch video.\n"
-                "Mục tiêu: kịch bản sẵn để đạo diễn chọn pipeline và render.\n"
+                "Mục tiêu: kịch bản sẵn để minh họa từng cảnh rồi đạo diễn render.\n"
                 "Cổng brief: nếu {{input}} thiếu độ dài/tỉ lệ/ngôn ngữ/mục tiêu thì DỪNG và hỏi, không viết beat.\n"
                 "Quy trình: đọc nghiên cứu deep-research {{prev}} + brief đã chốt {{input}}; chỉ dùng fact đã có nguồn; "
                 "thiếu fact then chốt thì ghi rõ cần nghiên cứu thêm, không bịa.\n"
-                "Viết beat map: Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
+                "Viết beat map: Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s), "
+                "gợi ý tag video-scene (talking-concept|product-demo|mood-broll|data-callout).\n"
                 "30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
-                "Cuối: nhắc user duyệt beat map trước khi đạo diễn gen (paperdesign tốn Atlas).\n"
+                "Cuối: nhắc user duyệt beat map trước khi gen ảnh/render tốn tài nguyên.\n"
                 "Đầu ra: JSON-like hoặc markdown bảng rõ ràng, kèm 1 dòng đề xuất pipeline "
-                "(paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
+                "(paperdesign | remotion | html-video | pixcelvideo | manual) và lý do 1 câu.\n"
                 "Cấm: shot >7s; bịa fact mới ngoài nghiên cứu; em dash."
+            ),
+        },
+        {
+            "name": "Minh họa cảnh video",
+            "slug": "minh-hoa-canh-video",
+            "role": "Tạo ảnh từng cảnh video theo beat map bằng javis_generate_image.",
+            "group": "Nội dung",
+            "skills": ["tao-anh-minh-hoa", "lam-video", "pixcelvideo"],
+            "prompt": (
+                "Bạn là illustrator cảnh video.\n"
+                "Mục tiêu: mỗi beat có 1 ảnh minh họa (attachments/...) để pipeline render hoặc pack thủ công.\n"
+                "BẮT BUỘC nạp skill tao-anh-minh-hoa (chế độ video-scene) và gọi javis_generate_image.\n"
+                "Quy trình:\n"
+                "1) Đọc beat map {{prev}} + brief {{input}}; chốt style bible chung (medium, palette, lighting).\n"
+                "2) Map tỉ lệ video → aspect_ratio tool (9:16=portrait, 16:9=landscape, 1:1=square).\n"
+                "3) Với mỗi beat cần hình: prompt theo khối + tag scene; gen; nhúng ![beat-id](path).\n"
+                "4) Đầu ra bảng: beat_id | path | tag | prompt ngắn. Giữ nhất quán style.\n"
+                "Nếu quá nhiều beat (>8): ưu tiên gen đủ hook + 4 beat chính + CTA, nêu beat còn lại chỉ có prompt.\n"
+                "Thiếu ChatGPT OAuth: trả full prompt pack theo từng beat, không bịa path.\n"
+                "Cấm: mỗi cảnh một style khác; em dash; bỏ tool khi đã kết nối được."
             ),
         },
         {
             "name": "Đạo diễn video",
             "slug": "dao-dien-video",
-            "role": "Chọn pipeline tốt nhất rồi điều phối render đúng brief và kịch bản.",
-            "skills": ["lam-video", "paperdesign", "remotion-best-practices", "deep-research"],
+            "role": "Chọn pipeline tốt nhất rồi điều phối render đúng brief, kịch bản và ảnh cảnh.",
+            "group": "Nội dung",
+            "skills": ["lam-video", "paperdesign", "remotion-best-practices", "pixcelvideo", "deep-research"],
             "prompt": (
                 "Bạn là đạo diễn / producer video trên Javis.\n"
-                "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief đã chốt.\n"
+                "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief đã chốt, tận dụng ảnh cảnh đã gen.\n"
                 "Cổng brief + catalog: đọc lam-video/references/brief-checklist.md và catalog.md. "
                 "Thiếu brief bắt buộc hoặc user chưa duyệt beat (paperdesign) → DỪNG hỏi, không gen Atlas.\n"
                 "Bối cảnh pipeline:\n"
                 "- paperdesign: collage Vox, cần ATLASCLOUD_API_KEY + ffmpeg.\n"
                 "- remotion: video React frame-perfect.\n"
                 "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
-                "- manual: thiếu key/binary thì xuất beat + prompts + VO.\n"
-                "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}} (fact lấy từ deep-research trước đó), "
+                "- pixcelvideo: javis_render_script_video với with_images=true + require_images=true; "
+                "ưu tiên dùng ảnh attachments/ đã có từ bước minh họa.\n"
+                "- manual: thiếu key/binary thì xuất beat + prompts + VO + path ảnh đã có.\n"
+                "Quy trình: (1) đọc ảnh/kịch bản {{prev}} + brief {{input}}, "
                 "(2) chọn 1 pipeline và nêu lý do, "
                 "(3) kiểm tra điều kiện môi trường, "
-                "(4) nạp đúng skill pipeline và thực thi (paperdesign: duyệt beat+style rồi scripts), "
-                "(5) trả đường dẫn output hoặc Manual pack.\n"
+                "(4) nạp đúng skill pipeline và thực thi, "
+                "(5) trả đường dẫn output hoặc Manual pack (kèm ảnh đã nhúng).\n"
                 "Không hứa 'xong sẽ báo lại' nếu không giao việc nền. Không em dash.\n"
                 "Người thật/logo brand trên paperdesign: dùng Kling, không Omni."
             ),
@@ -8158,19 +8224,22 @@ async def studio_seed_video(brain: str = Form("brain")):
         {
             "name": "Kiểm chứng video",
             "slug": "kiem-chung-video",
-            "role": "Soi output video/kịch bản so với brief: nhịp, CTA, tỉ lệ, pipeline.",
+            "role": "Soi output video/kịch bản/ảnh so với brief: nhịp, CTA, tỉ lệ, pipeline.",
+            "group": "Nội dung",
             "skills": [],
             "prompt": (
                 "Bạn KHÔNG làm video mới. Chỉ kiểm chứng.\n"
-                "Đối chiếu brief gốc (chủ đề, mục tiêu, độ dài, tỉ lệ, ngôn ngữ, CTA) với kịch bản/output: "
+                "Đối chiếu brief gốc (chủ đề, mục tiêu, độ dài, tỉ lệ, ngôn ngữ, CTA) với kịch bản/ảnh/output: "
                 "hook, nhịp, pipeline có hợp không, thiếu điều kiện render có được nói rõ không, "
-                "có bỏ cổng brief/duyệt beat khi tốn tiền gen không.\n"
-                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để đạo diễn sửa."
+                "có bỏ cổng brief/duyệt beat khi tốn tiền gen không, "
+                "đã có ảnh cảnh (attachments/...) hoặc prompt pack đủ chưa.\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để đạo diễn/minh họa sửa."
             ),
         },
     ]
     for ex in agents:
         meta = {"type": "agent", "name": ex["name"], "slug": ex["slug"], "role": ex["role"],
+                "group": ex.get("group") or "Nội dung",
                 "skills": ex["skills"], "model": "sonnet", "updated": _today()}
         _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
     wf_meta = {
@@ -8178,23 +8247,112 @@ async def studio_seed_video(brain: str = Form("brain")):
         "name": "Bộ Video (đa pipeline)",
         "slug": "bo-video-da-pipeline",
         "status": "active",
-        "description": "Nghiên cứu chủ đề → biên kịch → đạo diễn chọn paperdesign/Remotion/Ommi → kiểm chứng.",
+        "group": "Nội dung",
+        "description": "Nghiên cứu → biên kịch → ảnh từng cảnh → đạo diễn paperdesign/Remotion/pixcelvideo → kiểm chứng.",
         "steps": [
             {"agent": "nghien-cuu-chu-de-video",
              "task": "Cổng brief (checklist lam-video): {{input}} phải có chủ đề+mục tiêu+độ dài+tỉ lệ+ngôn ngữ. "
                      "Thiếu thì DỪNG hỏi. Đủ thì deep-research (breadth 4, depth 2). Report + hook + Sources."},
             {"agent": "bien-kich-video",
              "task": "Viết kịch bản beat/shot cho brief đã chốt '{{input}}' từ nghiên cứu:\n{{prev}}\n"
-                     "Cuối: yêu cầu user duyệt beat trước khi render tốn tiền."},
+                     "Cuối: yêu cầu user duyệt beat trước khi gen ảnh/render tốn tài nguyên."},
+            {"agent": "minh-hoa-canh-video",
+             "task": "Theo skill tao-anh-minh-hoa (video-scene), gen ảnh từng beat cho brief '{{input}}' "
+                     "từ kịch bản:\n{{prev}}\nNhúng ![beat](attachments/...) + bảng path."},
             {"agent": "dao-dien-video",
-             "task": "Chọn pipeline và làm video theo brief đã chốt '{{input}}' + kịch bản:\n{{prev}}\n"
-                     "Paperdesign: chỉ gen sau khi beat/style đã duyệt.",
+             "task": "Chọn pipeline và làm video theo brief '{{input}}' + kịch bản/ảnh:\n{{prev}}\n"
+                     "Ưu tiên dùng ảnh attachments đã có; paperdesign chỉ gen thêm sau khi beat/style đã duyệt.",
              "verify_agent": "kiem-chung-video", "max_retries": 2},
         ],
         "updated": _today(),
     }
     _write_md(_workflows_dir(brain) / "bo-video-da-pipeline.md", wf_meta, wf_meta["description"])
     return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-video-da-pipeline"}
+
+
+@app.post("/studio/seed-poster")
+async def studio_seed_poster(brain: str = Form("brain")):
+    """Bộ Poster: brief → thiết kế ảnh (javis_generate_image) → kiểm chứng."""
+    a = _agents_dir(brain)
+    agents = [
+        {
+            "name": "Brief poster",
+            "slug": "brief-poster",
+            "role": "Chốt brief poster: mục tiêu, audience, kích thước, chữ bắt buộc, CTA.",
+            "group": "Nội dung",
+            "skills": ["tao-anh-minh-hoa"],
+            "prompt": (
+                "Bạn thu brief cho poster/banner trước khi gen ảnh.\n"
+                "Bắt buộc đủ: (1) mục tiêu, (2) audience, (3) headline + CTA chữ sẽ in trên ảnh, "
+                "(4) tỉ lệ (portrait/landscape/square hoặc kích thước), (5) phong cách/tag "
+                "(event-poster|product-hero|social-square|sale-banner).\n"
+                "Thiếu → DỪNG, liệt kê thiếu, hỏi user (JAVIS_ASK cho lựa chọn kín). Cấm giả định rồi gen.\n"
+                "Khi đủ: tóm brief 6-10 dòng, khóa đúng chữ trên ảnh trong dấu ngoặc kép, "
+                "đề xuất 1 hướng style từ skill tao-anh-minh-hoa/references/che-do.md.\n"
+                "Không gọi javis_generate_image ở bước này.\n"
+                "Cấm em dash."
+            ),
+        },
+        {
+            "name": "Thiết kế poster",
+            "slug": "thiet-ke-poster",
+            "role": "Viết prompt có cấu trúc và tạo ảnh poster bằng javis_generate_image.",
+            "group": "Nội dung",
+            "skills": ["tao-anh-minh-hoa"],
+            "prompt": (
+                "Bạn là designer poster trên Javis.\n"
+                "Mục tiêu: ra file ảnh trong attachments/ và nhúng markdown cho user dùng ngay.\n"
+                "BẮT BUỘC nạp skill tao-anh-minh-hoa (chế độ poster) và gọi javis_generate_image.\n"
+                "Quy trình:\n"
+                "1) Đọc brief đã chốt {{prev}} (+ {{input}} nếu còn). Chữ trên ảnh phải khớp brief từng ký tự quan trọng.\n"
+                "2) Viết prompt theo khối Subject/Layout/Style/Text on image/Aspect/Constraints/Negative.\n"
+                "3) Gọi tool (quality medium; high nếu user nói in ấn/pitch). Có ảnh mẫu thì truyền images.\n"
+                "4) Nhúng ![poster](attachments/...) ; nếu user xin 2 phương án thì gen 2 lần, đổi layout/palette.\n"
+                "5) Kèm caption đăng + alt text ngắn.\n"
+                "Thiếu ChatGPT OAuth: trả prompt hoàn chỉnh, hướng dẫn bật Models, không bịa path.\n"
+                "Cấm: sửa slogan trái brief; em dash; bỏ tool khi đã kết nối được."
+            ),
+        },
+        {
+            "name": "Kiểm chứng poster",
+            "slug": "kiem-chung-poster",
+            "role": "Soi poster so với brief: chữ, CTA, tỉ lệ, file ảnh đã nhúng.",
+            "group": "Nội dung",
+            "skills": [],
+            "prompt": (
+                "Bạn KHÔNG gen poster mới. Chỉ kiểm chứng.\n"
+                "Đối chiếu brief (mục tiêu, audience, chữ khóa, CTA, tỉ lệ, style) với output: "
+                "đã có ![...](attachments/...) chưa, chữ trên ảnh có khớp brief không, "
+                "thiếu OAuth có được nói rõ không.\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để thiết kế sửa."
+            ),
+        },
+    ]
+    for ex in agents:
+        meta = {"type": "agent", "name": ex["name"], "slug": ex["slug"], "role": ex["role"],
+                "group": ex.get("group") or "Nội dung",
+                "skills": ex["skills"], "model": "sonnet", "updated": _today()}
+        _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
+    wf_meta = {
+        "type": "workflow",
+        "name": "Bộ Poster minh họa",
+        "slug": "bo-poster-minh-hoa",
+        "status": "active",
+        "group": "Nội dung",
+        "description": "Chốt brief poster → gen ảnh bằng javis_generate_image → kiểm chứng chữ/CTA/tỉ lệ.",
+        "steps": [
+            {"agent": "brief-poster",
+             "task": "Chốt brief poster từ {{input}}: mục tiêu, audience, chữ trên ảnh, tỉ lệ, style tag. "
+                     "Thiếu thì DỪNG hỏi. Đủ thì khóa chữ trong ngoặc kép."},
+            {"agent": "thiet-ke-poster",
+             "task": "Theo skill tao-anh-minh-hoa (poster), gen ảnh cho brief đã chốt:\n{{prev}}\n"
+                     "Gọi javis_generate_image, nhúng ![poster](attachments/...).",
+             "verify_agent": "kiem-chung-poster", "max_retries": 2},
+        ],
+        "updated": _today(),
+    }
+    _write_md(_workflows_dir(brain) / "bo-poster-minh-hoa.md", wf_meta, wf_meta["description"])
+    return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-poster-minh-hoa"}
 
 
 # ============================================================
