@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.83] - 2026-09-06
+### Cải tiến
+- **Menu rail gọn khi hover:** không xổ hết nhóm nữa — bấm nhóm mới mở mục con. Khung hội thoại rộng hơn (400→560px khi thu Vault).
 ## [0.55.82] - 2026-09-06
 ### Cải tiến
 - **Cuộc họp desktop 2 cột:** trái gọn (thông tin + tổng kết/kiến thức), phải transcript full chiều cao — một màn hình, ít kéo dọc.
