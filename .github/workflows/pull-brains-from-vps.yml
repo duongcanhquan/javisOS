@@ -1,4 +1,4 @@
-# Kéo toàn bộ /brains từ volume VPS về artifact (đồng bộ về máy local).
+# Kéo brain từ VPS (gọn: không .git objects, không media lớn) về artifact.
 name: Pull brains from VPS
 
 on:
@@ -11,8 +11,9 @@ concurrency:
 jobs:
   pull:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Tar brains on VPS + download to runner
+      - name: Tar brains (light) on VPS + download
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           HOST: ${{ secrets.VPS_HOST }}
@@ -23,7 +24,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          SSH=(ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 "$USER@$HOST")
+          SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id_ed25519 "$USER@$HOST")
           "${SSH[@]}" 'set -euo pipefail
             CONTAINER=javis
             if ! docker ps --format "{{.Names}}" | grep -qx "$CONTAINER"; then
@@ -32,14 +33,26 @@ jobs:
             test -n "$CONTAINER"
             echo "container=$CONTAINER"
             docker exec "$CONTAINER" sh -c "ls -la /brains"
-            docker exec "$CONTAINER" sh -c "cd /brains && tar -czf /tmp/javis-brains.tgz --exclude=\"./lost+found\" ."
+            docker exec "$CONTAINER" sh -c "
+              cd /brains && tar -czf /tmp/javis-brains.tgz \
+                --exclude=\"./.DS_Store\" \
+                --exclude=\"./lost+found\" \
+                --exclude=\"*/.git\" \
+                --exclude=\"*/node_modules\" \
+                --exclude=\"*/exports\" \
+                --exclude=\"*/attachments\" \
+                --exclude=\"*/.claude/worktrees\" \
+                --exclude=\"*/skills/*/scripts/node_modules\" \
+                .
+            "
             docker cp "$CONTAINER:/tmp/javis-brains.tgz" /tmp/javis-brains.tgz
             ls -lh /tmp/javis-brains.tgz
           '
           scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
             "$USER@$HOST:/tmp/javis-brains.tgz" ./javis-brains.tgz
           ls -lh ./javis-brains.tgz
-          tar -tzf ./javis-brains.tgz | head -40
+          echo "=== top entries ==="
+          tar -tzf ./javis-brains.tgz | awk -F/ 'NF<=2' | head -60
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
