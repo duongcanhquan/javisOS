@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.76] - 2026-09-06
+### Sửa lỗi
+- **Nghiên cứu hết quota Gemini API:** agent/workflow nghiên cứu chuyển sang Antigravity CLI (plan Google), tránh lỗi 429 của API key.
+
 ## [0.55.75] - 2026-09-06
 ### Cải tiến
 - **Model không nhầm nhà:** agent `gemini-*` thiếu provider không còn chạy Claude; gỡ đường Gemini CLI chết. Nhắc **Học nhớ tối** + skill Second Brain liên kết nhau, chống quá tải Memory.
