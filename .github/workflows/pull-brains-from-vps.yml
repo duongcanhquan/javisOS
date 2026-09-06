@@ -1,0 +1,50 @@
+# Kéo toàn bộ /brains từ volume VPS về artifact (đồng bộ về máy local).
+name: Pull brains from VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tar brains on VPS + download to runner
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH=(ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 "$USER@$HOST")
+          "${SSH[@]}" 'set -euo pipefail
+            CONTAINER=javis
+            if ! docker ps --format "{{.Names}}" | grep -qx "$CONTAINER"; then
+              CONTAINER=$(docker ps --format "{{.Names}}" | grep -E "javis" | head -1 || true)
+            fi
+            test -n "$CONTAINER"
+            echo "container=$CONTAINER"
+            docker exec "$CONTAINER" sh -c "ls -la /brains"
+            docker exec "$CONTAINER" sh -c "cd /brains && tar -czf /tmp/javis-brains.tgz --exclude=\"./lost+found\" ."
+            docker cp "$CONTAINER:/tmp/javis-brains.tgz" /tmp/javis-brains.tgz
+            ls -lh /tmp/javis-brains.tgz
+          '
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
+            "$USER@$HOST:/tmp/javis-brains.tgz" ./javis-brains.tgz
+          ls -lh ./javis-brains.tgz
+          tar -tzf ./javis-brains.tgz | head -40
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: javis-brains-from-vps
+          path: javis-brains.tgz
+          if-no-files-found: error
+          retention-days: 3
