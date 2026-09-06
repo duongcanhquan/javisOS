@@ -66,6 +66,11 @@ copy_into_container() {
   docker exec -u root "$CONTAINER" chmod -R a+rX "$DEST_IN"
   echo "==> trong container:"
   docker exec "$CONTAINER" sh -c "du -sh $DEST_IN/* 2>/dev/null || true"
+  # Fail soft nhưng rõ ràng nếu VI thiếu (deploy hay quên copy → STT treo).
+  if ! docker exec "$CONTAINER" test -s "$DEST_IN/vi/decoder_model_merged.ort"; then
+    echo "ERROR: thiếu $DEST_IN/vi/decoder_model_merged.ort trong container — Moonshine VI sẽ 404."
+    return 1
+  fi
 }
 
 mkdir -p "$PERSIST"

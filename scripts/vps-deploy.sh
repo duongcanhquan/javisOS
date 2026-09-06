@@ -130,7 +130,12 @@ fi
 if [ -f "$ROOT/scripts/fetch-moonshine-models.sh" ]; then
   echo "==> restore Moonshine models (copy-only)"
   chmod +x "$ROOT/scripts/fetch-moonshine-models.sh"
-  bash "$ROOT/scripts/fetch-moonshine-models.sh" --copy-only || echo "WARN: moonshine copy-only skipped"
+  if ! bash "$ROOT/scripts/fetch-moonshine-models.sh" --copy-only; then
+    echo "ERROR: Moonshine models không vào được container — STT họp sẽ 404."
+    exit 1
+  fi
+else
+  echo "WARN: thiếu scripts/fetch-moonshine-models.sh"
 fi
 if [ -d /root/javis-data/dashboard-vendor ]; then
   echo "==> restore dashboard CDN vendor"

@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.107] - 2026-09-06
+### Sửa lỗi
+- **Moonshine họp lại đúng:** ưu tiên Moonshine desktop VI; `modelsFrom` map file local (không catalog CDN); timeout nạp lần đầu dài hơn; deploy bắt buộc copy model từ persist vào container (thiếu VI → fail).
 ## [0.55.106] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp không còn kẹt Nạp Moonshine:** mặc định ghi bằng Gemini Cloud STT / Web Speech; Moonshine chỉ khi bật tay (localStorage), timeout 12s rồi failover.
