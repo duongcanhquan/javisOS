@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.106] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp không còn kẹt Nạp Moonshine:** mặc định ghi bằng Gemini Cloud STT / Web Speech; Moonshine chỉ khi bật tay (localStorage), timeout 12s rồi failover.
 ## [0.55.105] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp chắc chắn hơn:** không cần Groq; VI thiếu Moonshine → Cloud STT Gemini trước Web Speech; failover Moonshine→Gemini→Web Speech; tổng kết nhận Antigravity hoặc Gemini API.

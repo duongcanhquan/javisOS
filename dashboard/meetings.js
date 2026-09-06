@@ -9,8 +9,8 @@
   // Model Moonshine host sẵn trên VPS (cùng origin) — tránh tải HuggingFace/CDN ngoài.
   // (chi tiết từng ngôn ngữ: MOONSHINE_LOCAL)
   var MOONSHINE_VI_LOCAL = null; // legacy alias — dùng moonshineLocalUrls("vi")
-  var MOONSHINE_LOAD_TIMEOUT_MS = 90000;
-  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 60000;
+  var MOONSHINE_LOAD_TIMEOUT_MS = 12000;
+  var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 12000;
   var state = {
     meetingId: null,
     path: "",
@@ -252,10 +252,16 @@
   }
 
   /**
-   * Desktop + ngôn ngữ có model Moonshine local trên VPS → Moonshine trước.
-   * Mobile / thiếu isolation: không Moonshine trước.
+   * Moonshine WASM hay treo ở "Nạp Moonshine… Ns" (load() không báo %).
+   * Mặc định TẮT ưu tiên — dùng Cloud STT (Gemini) / Web Speech để ghi được ngay.
+   * Bật lại Moonshine trước: localStorage.setItem("javis.meeting.preferMoonshine","1")
    */
   function preferMoonshineFirst(lang) {
+    try {
+      if (localStorage.getItem("javis.meeting.preferMoonshine") !== "1") return false;
+    } catch (e) {
+      return false;
+    }
     if (isMobileLike()) return false;
     if (!moonshineRuntimeOk()) return false;
     lang = normalizeLang(lang);
@@ -263,13 +269,18 @@
     return lang === "vi";
   }
 
-  /** Failover: mọi ngôn ngữ Moonshine hỗ trợ (ưu tiên khi đã có file local + isolation). */
+  /** Failover Moonshine chỉ khi runtime OK và user đã bật preferMoonshine (hoặc isolation OK). */
   function preferMoonshineFailover(lang) {
+    try {
+      if (localStorage.getItem("javis.meeting.preferMoonshine") !== "1") return false;
+    } catch (e) {
+      return false;
+    }
     return moonshineRuntimeOk() && moonshineSupports(lang);
   }
 
   /**
-   * Khi Moonshine không chạy được: VI/CJK Web Speech hay lỗi network → thử Cloud STT (Gemini) trước.
+   * VI/CJK: ưu tiên Cloud STT (Gemini) trước Web Speech — Web Speech VI hay lỗi network.
    */
   function preferCloudBeforeWebSpeech(lang) {
     if (preferMoonshineFirst(lang)) return false;
@@ -280,7 +291,8 @@
       lang === "ja" ||
       lang === "ko" ||
       lang === "ar" ||
-      lang === "uk"
+      lang === "uk" ||
+      lang === "en"
     );
   }
 
@@ -1023,78 +1035,39 @@
       el.style.color = "var(--text3)";
       return;
     }
-    if (isMobileLike()) {
-      el.textContent =
-        "Điện thoại: ưu tiên Cloud STT (Gemini ở Models) hoặc Web Speech. Moonshine WASM thường im trên mobile.";
+    if (preferMoonshineFirst(lang)) {
+      if (state.moonshineReady && state.moonshineLang === lang) {
+        el.textContent =
+          "Moonshine sẵn sàng (" + label + ") — lần sau dùng cache trình duyệt.";
+        el.style.color = "var(--ok-ink, var(--text3))";
+        return;
+      }
+      if (typeof frac === "number" && frac > 0 && frac < 1) {
+        el.textContent =
+          "Đang chuẩn bị Moonshine (" + label + ")… " + Math.round(frac * 100) + "%";
+      } else if (state.moonshinePreloading) {
+        el.textContent = "Đang chuẩn bị Moonshine (" + label + ")…";
+      } else if (state.moonshinePreloadError) {
+        el.textContent =
+          "Moonshine lỗi — Bắt đầu sẽ dùng Gemini/Web Speech.";
+      } else {
+        el.textContent =
+          "Moonshine ưu tiên (bật tay). Treo >12s → Gemini/Web Speech.";
+      }
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
-    if (!moonshineRuntimeOk()) {
-      el.textContent =
-        "Moonshine tắt (thiếu WASM threads) — sẽ dùng Cloud STT (Gemini) hoặc Web Speech. Ctrl+F5 nếu cần bật Moonshine.";
-      el.style.color = "var(--warn-ink, var(--text3))";
-      return;
-    }
-    if (preferCloudBeforeWebSpeech(lang) && !preferMoonshineFirst(lang)) {
-      el.textContent =
-        label +
-        " — ưu tiên Cloud STT (Gemini) rồi Web Speech. Moonshine không khả dụng trên thiết bị này.";
-      el.style.color = "var(--ok-ink, var(--text3))";
-      return;
-    }
-    if (!preferMoonshineFirst(lang)) {
-      el.textContent =
-        label +
-        " — khi Bắt đầu dùng Web Speech (ghi ngay). Moonshine chỉ dự phòng.";
-      el.style.color = "var(--ok-ink, var(--text3))";
-      return;
-    }
-    if (state.moonshineReady && state.moonshineLang === lang) {
-      el.textContent =
-        "Moonshine sẵn sàng (" + label + ") — lần sau dùng cache trình duyệt.";
-      el.style.color = "var(--ok-ink, var(--text3))";
-      return;
-    }
-    if (typeof frac === "number" && frac > 0 && frac < 1) {
-      el.textContent =
-        "Đang chuẩn bị Moonshine (" + label + ")… " + Math.round(frac * 100) + "%";
-    } else if (state.moonshinePreloading) {
-      el.textContent = "Đang chuẩn bị Moonshine (" + label + ")…";
-    } else if (state.moonshinePreloadError) {
-      el.textContent = "Moonshine chưa tải được — vẫn thử lại khi bấm Bắt đầu / dùng Web Speech.";
-    } else {
-      el.textContent = "";
-    }
+    el.textContent =
+      "Sẽ ghi bằng Cloud STT (Gemini ở Models) hoặc Web Speech — không chờ Moonshine.";
+    el.style.color = "var(--ok-ink, var(--text3))";
   }
 
   function preloadMoonshine(root) {
     var lang = meetingLang();
-    if (isMobileLike()) {
-      updateMoonshinePreloadHint(root, 0, lang);
-      return;
-    }
-    if (!preferMoonshineFirst(lang)) {
-      updateMoonshinePreloadHint(root, 0, lang);
-      return;
-    }
-    if (!moonshineSupports(lang)) {
-      updateMoonshinePreloadHint(root, 0, lang);
-      return;
-    }
-    if (state.moonshineReady && state.moonshineLang === lang) {
-      updateMoonshinePreloadHint(root, 1, lang);
-      return;
-    }
-    var el = root && root.querySelector("#mtMoonshinePreload");
-    if (el) {
-      el.textContent = moonshineLocalUrls(lang)
-        ? langLabel(lang) +
-          " · Moonshine: model đã sẵn trên máy chủ. Bấm Bắt đầu là ghi."
-        : langLabel(lang) +
-          " · Moonshine sẽ tải từ mạng lần đầu (có thể chậm).";
-      el.style.color = "var(--ok-ink, var(--text3))";
-    }
-    // Nạp WASM JS + HEAD model local để warmup cache trình duyệt.
+    updateMoonshinePreloadHint(root, 0, lang);
+    if (!preferMoonshineFirst(lang)) return;
+    if (!moonshineSupports(lang)) return;
+    if (state.moonshineReady && state.moonshineLang === lang) return;
     importMoonshineModule().catch(function () {});
     try {
       var urls = moonshineLocalUrls(lang);
@@ -1325,8 +1298,15 @@
 
     var mic = new mod.MicTranscriber().language(lang).modelArch(arch);
     if (localUrls && typeof mic.modelsFrom === "function") {
-      mic.modelsFrom(localUrls);
+      // Base URL thư mục (không map từng file) — ổn định hơn với AssetDownloader cache.
+      var base = "/static/vendor/moonshine-models/" + lang + "/";
+      try {
+        mic.modelsFrom(base);
+      } catch (e0) {
+        mic.modelsFrom(localUrls);
+      }
     }
+    // Không bật identify_speakers — tránh tải thêm model diarization từ CDN Moonshine (hay treo).
     mic
       .onProgress(function (frac, file) {
         if (state.abortRequested) return;
@@ -1347,12 +1327,8 @@
         if (!state.running && !state.loading) return;
         var tx = (line && line.text) || "";
         if (!tx.trim()) return;
-        var idx = lang === "vi" ? dominantSpeakerIndex(line) : -1;
-        if (idx >= 0 && state.speakers[idx] == null) {
-          state.speakers[idx] = "Người " + (idx + 1);
-          refreshSpeakerBar(root);
-        }
-        var who = idx >= 0 ? speakerName(idx) : "";
+        var idx = -1;
+        var who = "";
         setPartial(root, "");
         var t0 = line.startTime || 0;
         var t1 = t0 + (line.duration || 0);
@@ -1374,9 +1350,9 @@
         timeoutMs,
         "Moonshine " +
           label +
-          " tải quá lâu (" +
+          " treo khi nạp (" +
           Math.round(timeoutMs / 1000) +
-          "s)."
+          "s) — chuyển Gemini/Web Speech."
       );
       if (state.abortRequested) throw new Error("Đã hủy");
       setStatus(root, "Xin quyền micro…");
