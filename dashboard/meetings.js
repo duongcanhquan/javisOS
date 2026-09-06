@@ -279,15 +279,30 @@
     root.querySelectorAll("[data-mt-phase]").forEach(function (n) {
       n.hidden = n.getAttribute("data-mt-phase") !== phase;
     });
-    // setup form stays visible until live; during live show live panel
+    // Trái: form thông tin luôn hiện. Phải: transcript (placeholder lúc setup).
+    // Dưới form (trái): tổng kết + đưa vào kiến thức khi dừng.
     var setup = root.querySelector("#mtSetup");
     var live = root.querySelector("#mtLivePanel");
     var after = root.querySelector("#mtAfter");
-    if (setup) setup.hidden = phase === "live";
-    if (live) live.hidden = phase === "setup";
+    var stage = root.querySelector("#mtPanelNew");
+    if (setup) setup.hidden = false;
+    if (live) live.hidden = false;
     if (after) after.hidden = !(phase === "stopped" || phase === "done");
+    if (stage) {
+      stage.classList.toggle("mt-phase-setup", phase === "setup");
+      stage.classList.toggle("mt-phase-live", phase === "live");
+      stage.classList.toggle(
+        "mt-phase-after",
+        phase === "stopped" || phase === "done"
+      );
+    }
     var analyzeBtn = root.querySelector("#mtAnalyze");
     if (analyzeBtn) analyzeBtn.disabled = !(phase === "stopped" || phase === "done");
+    // Khoá form khi đang ghi
+    ["#mtTitle", "#mtPeople", "#mtNotes"].forEach(function (sel) {
+      var n = root.querySelector(sel);
+      if (n) n.disabled = phase === "live";
+    });
     if ((phase === "stopped" || phase === "done") && state.path) {
       var kh = root.querySelector("#mtKnowHost");
       if (kh && kh.hidden) showKnowledgePanel(root, state.path);
@@ -1664,7 +1679,7 @@
       '<div class="mt-know-title">' +
       ic("brain") +
       " Đưa vào kiến thức</div>" +
-      '<p class="mt-know-hint">Chưng cuộc họp thành trang Wiki (Javis nhớ lâu). Tuỳ chọn gắn vào dự án — file họp được ghim để chat trong dự án luôn thấy.</p>' +
+      '<p class="mt-know-hint">Chưng thành Wiki; tuỳ chọn gắn / ghim dự án.</p>' +
       '<div class="mt-field"><label>Chủ đề / tên trang Wiki</label>' +
       '<input type="text" id="' +
       prefix +
@@ -1952,6 +1967,8 @@
     var panelArch = root.querySelector("#mtPanelArchive");
     if (panelNew) panelNew.hidden = tab !== "new";
     if (panelArch) panelArch.hidden = tab !== "archive";
+    var wrap = root.querySelector(".mt-wrap") || root;
+    wrap.classList.toggle("mt-on-archive", tab === "archive");
     if (tab === "archive") loadArchive(root);
   }
 
@@ -2200,19 +2217,66 @@
   }
 
   function injectCss() {
-    if (document.getElementById("mt-css")) return;
-    var s = document.createElement("style");
-    s.id = "mt-css";
+    var s = document.getElementById("mt-css");
+    if (!s) {
+      s = document.createElement("style");
+      s.id = "mt-css";
+      document.head.appendChild(s);
+    }
     s.textContent =
-      ".mt-wrap{max-width:920px}" +
-      ".mt-hero{margin:0 0 16px}" +
-      ".mt-hero h2{margin:0 0 6px;font-size:22px;color:var(--text)}" +
-      ".mt-hint{font-size:14px;color:var(--text3);line-height:1.6;margin:0 0 14px;max-width:720px}" +
-      ".mt-tabs{display:flex;gap:8px;margin:0 0 16px;border-bottom:1px solid var(--border);padding-bottom:0}" +
-      ".mt-tab{appearance:none;border:none;background:transparent;color:var(--text3);font:inherit;font-size:14px;padding:10px 14px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0}" +
+      ".mt-wrap{max-width:none;width:100%;box-sizing:border-box;display:flex;flex-direction:column;min-height:0;" +
+      "height:calc(100dvh - 108px);max-height:calc(100dvh - 108px)}" +
+      ".mt-wrap.mt-on-archive{height:auto;max-height:none;overflow:visible}" +
+      "#mtPanelArchive{flex:1;min-height:0;overflow:auto}" +
+      ".mt-hero{margin:0 0 6px;flex:none}" +
+      ".mt-hero h2{margin:0;font-size:18px;font-weight:650;color:var(--text);display:flex;align-items:center;gap:8px}" +
+      ".mt-hint{font-size:13px;color:var(--text3);line-height:1.45;margin:0 0 8px}" +
+      ".mt-tabs{display:flex;gap:4px;margin:0 0 10px;border-bottom:1px solid var(--border);padding-bottom:0;flex:none}" +
+      ".mt-tab{appearance:none;border:none;background:transparent;color:var(--text3);font:inherit;font-size:13px;padding:8px 12px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0}" +
       ".mt-tab:hover{color:var(--text)}" +
       ".mt-tab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
       ".mt-tab-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;background:var(--surface-2,var(--border));color:var(--text3)}" +
+      /* —— Split: trái thông tin (nhỏ) | phải transcript —— */
+      ".mt-stage{display:grid;grid-template-columns:minmax(240px,30%) minmax(0,1fr);gap:12px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
+      ".mt-col-info{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;overflow:auto;padding-right:2px}" +
+      ".mt-col-live{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}" +
+      ".mt-live-shell{flex:1;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:10px 12px;overflow:hidden}" +
+      ".mt-live-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;flex:none;margin:0 0 6px}" +
+      ".mt-live-title{font-size:13px;font-weight:600;color:var(--text2)}" +
+      ".mt-col-live .mt-meta{margin:0;font-size:12px;gap:8px}" +
+      ".mt-col-live #mtSpeakers{margin:0 0 6px;flex:none;max-height:52px;overflow:auto}" +
+      ".mt-live{flex:1;min-height:0;max-height:none;overflow:auto;border:none;border-radius:0;background:transparent;padding:4px 2px;font-size:13.5px;line-height:1.5}" +
+      ".mt-partial{flex:none;min-height:1.2em;margin-top:4px;padding-top:6px;font-size:13px}" +
+      ".mt-live-actions{flex:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}" +
+      ".mt-live-placeholder{display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--text3);font-size:13.5px;line-height:1.5}" +
+      ".mt-phase-setup .mt-live-placeholder{display:flex}" +
+      ".mt-phase-setup .mt-live-body{display:none}" +
+      ".mt-phase-live .mt-live-placeholder,.mt-phase-after .mt-live-placeholder{display:none}" +
+      ".mt-phase-live .mt-live-body,.mt-phase-after .mt-live-body{display:flex;flex-direction:column;flex:1;min-height:0}" +
+      /* Form trái gọn */
+      ".mt-card{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:12px;margin:0;flex:none}" +
+      ".mt-field{margin:0 0 8px}.mt-field:last-child{margin-bottom:0}" +
+      ".mt-field label{display:block;font-size:11.5px;letter-spacing:.01em;color:var(--text3);margin:0 0 3px}" +
+      ".mt-field input,.mt-field textarea,.mt-field select{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit;font-size:13px}" +
+      ".mt-field textarea{min-height:52px;max-height:96px;resize:vertical}" +
+      ".mt-field input:disabled,.mt-field textarea:disabled{opacity:.72}" +
+      ".mt-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 0}" +
+      ".mt-toolbar .s-btn,.mt-toolbar .s-btn-ghost{font-size:12.5px;padding:6px 10px}" +
+      "#mtAfter:not([hidden]){flex:none;display:flex;flex-direction:column;gap:8px;min-height:0}" +
+      "#mtAfter .mt-sum{max-height:140px;overflow:auto}" +
+      ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.45;background:var(--bg,var(--surface-0,#111));border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px 0 0}" +
+      ".mt-know{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);padding:10px;margin:0}" +
+      ".mt-know-title{font-size:13px;font-weight:600;color:var(--text);margin:0 0 4px;display:flex;align-items:center;gap:6px}" +
+      ".mt-know-hint{font-size:12px;color:var(--text3);line-height:1.4;margin:0 0 8px}" +
+      ".mt-know-pin{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:var(--text2);margin:2px 0 0;cursor:pointer;line-height:1.35}" +
+      ".mt-know-result{margin-top:6px;font-size:12px;min-height:1.1em}" +
+      ".mt-know-ok{color:var(--ok-ink,var(--text2))}" +
+      "#mtStatus{font-size:12.5px;margin:0;min-height:1.2em;flex:none}" +
+      ".mt-line{margin:0 0 8px}.mt-ts{color:var(--text3);font-size:11.5px;margin-right:6px}" +
+      ".mt-who{display:inline-block;font-weight:600;color:var(--accent-ink,var(--text));margin-right:4px}" +
+      ".mt-spk{margin:0 4px 4px 0;padding:3px 8px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:12px}" +
+      ".mt-spk:hover{border-color:var(--accent-ink,var(--text2))}" +
+      /* Archive (full width dưới tabs) */
       ".mt-archive-toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px;align-items:center}" +
       ".mt-search-wrap{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:8px 12px;background:var(--bg,var(--surface-0,#111))}" +
       ".mt-search-wrap input{flex:1;border:none;background:transparent;color:var(--text);font:inherit;outline:none;min-width:0}" +
@@ -2247,29 +2311,17 @@
       ".mt-dtab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
       ".mt-detail-body{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111))}" +
       ".mt-detail-pre{margin:0;padding:14px;font-size:13px;line-height:1.55;white-space:pre-wrap;font-family:inherit;color:var(--text)}" +
-      ".mt-card{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:16px 16px 14px;margin:0 0 14px}" +
-      ".mt-field{margin:0 0 12px}.mt-field label{display:block;font-size:13px;color:var(--text2);margin:0 0 5px}" +
-      ".mt-field input,.mt-field textarea{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit}" +
-      ".mt-field textarea{min-height:72px;resize:vertical}" +
-      ".mt-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 0}" +
-      ".mt-live{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);padding:12px;min-height:240px;max-height:440px;overflow:auto;font-size:14px;line-height:1.55}" +
-      ".mt-line{margin:0 0 10px}.mt-ts{color:var(--text3);font-size:12px;margin-right:6px}" +
-      ".mt-who{display:inline-block;font-weight:600;color:var(--accent-ink,var(--text));margin-right:4px}" +
-      ".mt-partial{min-height:1.4em;color:var(--text3);font-style:italic;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}" +
-      ".mt-meta{font-size:13px;color:var(--text3);margin:8px 0;display:flex;flex-wrap:wrap;gap:12px}" +
-      ".mt-spk{margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:13px}" +
-      ".mt-spk:hover{border-color:var(--accent-ink,var(--text2))}" +
-      ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px;margin:8px 0 0}" +
-      ".mt-know{border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:14px 14px 12px;margin:0}" +
-      ".mt-know-title{font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px;display:flex;align-items:center;gap:8px}" +
-      ".mt-know-hint{font-size:13px;color:var(--text3);line-height:1.5;margin:0 0 12px}" +
-      ".mt-know-pin{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin:4px 0 0;cursor:pointer}" +
-      ".mt-know-result{margin-top:10px;font-size:13px;min-height:1.2em}" +
-      ".mt-know-ok{color:var(--ok-ink,var(--text2))}" +
-      "#mtStatus{font-size:13.5px;margin:8px 0 0;min-height:1.3em}" +
       ".mt-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--text3)}" +
-      ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}";
-    document.head.appendChild(s);
+      ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}" +
+      /* Mobile: xếp dọc, cho cuộn trang */
+      "@media (max-width:900px){" +
+      ".mt-wrap{height:auto;max-height:none;overflow:visible}" +
+      ".mt-stage{grid-template-columns:1fr;overflow:visible;height:auto}" +
+      ".mt-col-info{overflow:visible;max-height:none}" +
+      ".mt-col-live{min-height:280px}" +
+      ".mt-live-shell{min-height:280px}" +
+      ".mt-live{max-height:50vh}" +
+      "}";
   }
 
   function render(el) {
@@ -2297,17 +2349,18 @@
       ic("folder-open") +
       ' Lưu trữ <span class="mt-tab-badge" id="mtArchiveBadge"></span></button>' +
       "</nav>" +
-      '<div id="mtPanelNew">' +
+      '<div id="mtPanelNew" class="mt-stage mt-phase-setup">' +
+      '<aside class="mt-col mt-col-info">' +
       '<div class="mt-card" id="mtSetup">' +
-      '<div class="mt-field"><label>Tiêu đề cuộc họp *</label>' +
-      '<input type="text" id="mtTitle" placeholder="Ví dụ: Họp kế hoạch Q3 - Marketing"></div>' +
-      '<div class="mt-field"><label>Thành phần (cách nhau bằng dấu phẩy)</label>' +
-      '<input type="text" id="mtPeople" placeholder="Ví dụ: An, Bình, Chi"></div>' +
-      '<div class="mt-field"><label>Ghi chú / mục tiêu trước khi họp</label>' +
-      '<textarea id="mtNotes" placeholder="Mục đích họp, agenda ngắn, điểm cần quyết…"></textarea></div>' +
-      '<div class="mt-field"><label>Ngôn ngữ cuộc họp</label>' +
+      '<div class="mt-field"><label>Tiêu đề *</label>' +
+      '<input type="text" id="mtTitle" placeholder="Họp kế hoạch Q3…" autocomplete="off"></div>' +
+      '<div class="mt-field"><label>Thành phần</label>' +
+      '<input type="text" id="mtPeople" placeholder="An, Bình, Chi" autocomplete="off"></div>' +
+      '<div class="mt-field"><label>Ghi chú / mục tiêu</label>' +
+      '<textarea id="mtNotes" placeholder="Agenda ngắn…" rows="2"></textarea></div>' +
+      '<div class="mt-field"><label>Ngôn ngữ</label>' +
       '<select id="mtLang">' +
-      '<optgroup label="Web Speech / Whisper (mặc định)">' +
+      '<optgroup label="Web Speech / Whisper">' +
       '<option value="vi">Tiếng Việt</option>' +
       '<option value="en">English</option>' +
       '<option value="es">Español</option>' +
@@ -2335,32 +2388,40 @@
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
-      " Bắt đầu cuộc họp</button>" +
-      '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Âm thanh chỉ dùng tạm để STT, không lưu trên server">' +
+      " Bắt đầu</button>" +
+      '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Âm thanh chỉ dùng tạm để STT">' +
       ic("upload-cloud") +
-      ' File ghi âm → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
+      ' File → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
       "</div></div>" +
-      '<div id="mtLivePanel" hidden>' +
-      '<div class="mt-meta"><span>File: <code id="mtPath">—</code></span><span>Đoạn: <b id="mtCount">0</b></span></div>' +
-      '<div id="mtSpeakers" style="margin:8px 0 10px"></div>' +
-      '<div class="mt-live" id="mtLines"><div class="mt-empty dim">Chưa có dòng nào.</div></div>' +
+      '<div id="mtAfter" hidden>' +
+      '<div class="mt-toolbar">' +
+      '<button class="s-btn" id="mtAnalyze" type="button">' +
+      ic("sparkles") +
+      " Tổng kết</button>" +
+      '<button class="s-btn-ghost" id="mtNew" type="button">Họp mới</button>' +
+      "</div>" +
+      '<div class="mt-sum" id="mtSummary"></div>' +
+      '<div id="mtKnowHost" hidden></div>' +
+      "</div>" +
+      '<div id="mtStatus"></div>' +
+      "</aside>" +
+      '<section class="mt-col mt-col-live" aria-label="Nội dung ghi nhận">' +
+      '<div id="mtLivePanel" class="mt-live-shell">' +
+      '<div class="mt-live-placeholder dim">Điền thông tin bên trái, bấm <b>Bắt đầu</b> — transcript hiện ở đây.</div>' +
+      '<div class="mt-live-body">' +
+      '<div class="mt-live-head">' +
+      '<span class="mt-live-title">Transcript</span>' +
+      '<div class="mt-meta"><span><code id="mtPath">—</code></span><span>Đoạn <b id="mtCount">0</b></span></div>' +
+      "</div>" +
+      '<div id="mtSpeakers"></div>' +
+      '<div class="mt-live" id="mtLines"><div class="mt-empty dim">Đang nghe… mỗi câu sẽ hiện tại đây.</div></div>' +
       '<div class="mt-partial" id="mtPartial"></div>' +
-      '<div class="mt-toolbar" style="margin-top:12px">' +
+      '<div class="mt-toolbar mt-live-actions">' +
       '<button class="s-btn-ghost" id="mtStop" type="button" disabled>' +
       ic("circle-stop") +
       " Dừng / Hủy</button>" +
-      "</div></div>" +
-      '<div id="mtAfter" hidden>' +
-      '<div class="mt-toolbar" style="margin-top:8px">' +
-      '<button class="s-btn" id="mtAnalyze" type="button">' +
-      ic("sparkles") +
-      " Tổng kết cuộc họp</button>" +
-      '<button class="s-btn-ghost" id="mtNew" type="button">Cuộc họp mới</button>' +
-      "</div>" +
-      '<div class="mt-sum" id="mtSummary" style="margin-top:12px"></div>' +
-      '<div id="mtKnowHost" hidden style="margin-top:14px"></div>' +
-      "</div>" +
-      '<div id="mtStatus"></div>' +
+      "</div></div></div>" +
+      "</section>" +
       "</div>" +
       '<div id="mtPanelArchive" hidden>' +
       '<div class="mt-archive-toolbar">' +
