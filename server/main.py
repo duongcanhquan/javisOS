@@ -1532,12 +1532,30 @@ def _agent_model_provider(model: str, provider: str = "") -> str:
     Agent LƯU SẴN provider (từ 0.47.9) thì theo đúng nó - cần thiết vì cùng một tên model
     có thể thuộc hai nhà (vd `gemini-2.5-pro` ở cả Gemini CLI lẫn Gemini API, `claude-*` ở
     cả Claude Code lẫn Anthropic API), đoán mò là chạy nhầm nhà và nhầm cả hoá đơn.
-    Agent CŨ chưa có trường đó thì suy đúng như trước: gpt*/-codex = Codex, còn lại = Claude.
+    Agent CŨ chưa có trường đó thì suy từ tên model (không còn mặc định Claude cho gemini-*).
     """
     p = (provider or "").strip()
     if p in AGENT_PROVIDERS:
         return p
-    return "openai-oauth" if _is_codex_model(model) else "anthropic-cli"
+    m = (model or "").strip().lower()
+    if not m or m in ("inherit", "default", "auto", "main"):
+        return "anthropic-cli"
+    if _is_codex_model(model):
+        return "openai-oauth"
+    # Gemini API (không còn Gemini CLI từ 0.50.0)
+    if m.startswith("gemini-") or m.startswith("gemma-"):
+        return "gemini"
+    if m.startswith("grok-"):
+        return "grok-cli"
+    if m.startswith("deepseek"):
+        return "openrouter"
+    # OpenRouter-style id: vendor/model
+    if "/" in m and not m.startswith("claude"):
+        return "openrouter"
+    if m.startswith("claude") or m in ("sonnet", "opus", "haiku", "fable"):
+        return "anthropic-cli"
+    # Không đoán Claude cho tên lạ - ưu tiên research/aux qua antigravity nếu có vẻ Google lineup
+    return "anthropic-cli"
 
 
 def _chat_provider_for_session(mcfg, row):

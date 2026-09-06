@@ -38,3 +38,9 @@ Skill làm theo đúng 3 kỷ luật của vault.
 6. Set source `status: processed`, `processed_at`, `wiki_links: [...]`. Không đáng vào wiki -> `status: skipped` + `note`.
 7. Append `wiki/log.md`: `## [YYYY-MM-DD] ingest | <tên source>` + nguồn/đã tạo/đã cập nhật/insight.
 8. Đề xuất task nếu source mở ra hành động (chỉ đề xuất). Báo cáo ngắn: tóm tắt + trang đã chạm + insight + task.
+
+## Liên kết
+
+- `notes` - chộp nhanh 1 tin nhắn (không phải file source dài).
+- `query-wiki` - tra trước khi tạo trang mới (chống trùng).
+- `lint-wiki` - rà orphan / broken link sau ingest hàng loạt.

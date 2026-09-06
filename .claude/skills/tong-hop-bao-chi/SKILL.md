@@ -96,3 +96,9 @@ Không cần sửa skill. Workflow 8h vẫn chỉ gọi `giao-duc` trừ khi đ�
 
 - Đúng `--category` / đúng khối RSS chưa?
 - Đủ link top 10? Cửa sổ giờ VN đúng chưa?
+
+## Liên kết
+
+- Workflow `brief-bao-chi-sang` - brief 8h danh mục `giao-duc`.
+- `notes` / `ingest-source` - khi user muốn **lưu** bài vào brain (skill này chỉ tóm tắt + gửi, không tự ingest).
+- `query-wiki` - nếu đã có trang wiki cùng chủ đề, đối chiếu trước khi tóm tắt dài.

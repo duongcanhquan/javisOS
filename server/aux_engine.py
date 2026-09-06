@@ -985,7 +985,11 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
             if prov == CODEX:
                 return _build_codex(sp, cli, mode, tag, codex_profile)
             if prov == GEMINI_CLI:
-                return _build_gemini(sp, cli, mode, tag)
+                # Gemini CLI đã gỡ (0.50.0) - không còn _build_gemini; tránh NameError im lặng.
+                return _fallback_when_aux_unavailable(
+                    cli, prov,
+                    "Gemini CLI đã gỡ. Dùng Antigravity CLI, Gemini API (provider gemini), hoặc OpenRouter.",
+                    mode, tag, settings)
             if prov == GROK_CLI:
                 return _build_grok(sp, cli, mode, tag)
             if prov == ANTIGRAVITY:
@@ -1013,7 +1017,10 @@ def swap(cli, mode: str = None, tag: str = None, spec: dict = None,
         if prov == CODEX:
             primary = _build_codex(sp, cli, mode, tag, codex_profile)
         elif prov == GEMINI_CLI:
-            primary = _build_gemini(sp, cli, mode, tag)
+            return _fallback_when_aux_unavailable(
+                cli, prov,
+                "Gemini CLI đã gỡ. Dùng Antigravity CLI, Gemini API (provider gemini), hoặc OpenRouter.",
+                mode, tag, settings)
         elif prov == GROK_CLI:
             primary = _build_grok(sp, cli, mode, tag)
         elif prov == ANTIGRAVITY:

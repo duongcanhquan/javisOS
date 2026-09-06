@@ -22,3 +22,9 @@ có trích dẫn và lưu lại kết quả giá trị.
 5. Nếu câu trả lời có GIÁ TRỊ TÁI DÙNG (so sánh, phân tích, mapping mới) -> đề xuất lưu thành 1 trang wiki mới (compounding: khám phá cũng tích luỹ vào bộ não, không tan vào lịch sử chat).
 
 7 dạng câu hỏi chất lượng cao: Tổng hợp (bảng so sánh) · So sánh 3+ (ma trận) · Giả thuyết (phân tích ảnh hưởng) · Gán nhãn/liệt kê · Trực quan hoá (canvas/sơ đồ) · Dịch/chuyển ngữ · Tự kiểm gap (append open-questions).
+
+## Liên kết
+
+- `ingest-source` - wiki mỏng / thiếu nguồn → nạp source rồi hỏi lại.
+- `lint-wiki` - phát hiện orphan, broken link, mâu thuẫn trước khi tin kết quả.
+- `notes` - chộp ý vừa khám phá thành source nếu chưa đáng trang wiki riêng.

@@ -55,3 +55,10 @@ nếu đáng. Khác `ingest-source` (dành cho source đã nằm sẵn trong `so
 
 Ghi `sources/` + `wiki/` là mức `safe`, chạy được vì người dùng chủ động gõ lệnh. KHÔNG tạo
 đơn, KHÔNG tiêu tiền, KHÔNG đăng bài, KHÔNG gửi tin. Chỉ ghi file trong vault.
+
+## Liên kết
+
+- `ingest-source` - source đã nằm trong `sources/` và cần chưng cất đầy đủ.
+- `query-wiki` - tra wiki trước khi tạo trang trùng.
+- `lint-wiki` - health-check sau khi note/ingest nhiều trang.
+- Memory (`memory/facts/`): chỉ khi user nói "ghi nhớ" về preference/business bền - không nhét note vặt vào facts.

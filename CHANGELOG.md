@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.75] - 2026-09-06
+### Cải tiến
+- **Model không nhầm nhà:** agent `gemini-*` thiếu provider không còn chạy Claude; gỡ đường Gemini CLI chết. Nhắc **Học nhớ tối** + skill Second Brain liên kết nhau, chống quá tải Memory.
+
 ## [0.55.74] - 2026-09-06
 ### Cải tiến
 - **Báo chí theo danh mục RSS:** tách giáo dục / tài chính / BĐS trong cấu hình; skill chỉ tổng hợp-tóm tắt-gửi; brief 8h gọi đúng RSS giáo dục.

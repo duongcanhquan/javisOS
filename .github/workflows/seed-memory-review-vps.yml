@@ -1,0 +1,36 @@
+# Seed nhắc Học nhớ tối trên VPS.
+name: Seed memory review on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Seed reminder over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            git fetch --all --prune 2>/dev/null || true
+            git reset --hard origin/main 2>/dev/null || true
+            if [ -f scripts/seed-memory-review-vps.sh ]; then
+              chmod +x scripts/seed-memory-review-vps.sh
+              bash scripts/seed-memory-review-vps.sh
+            else
+              echo "ERROR: thiếu scripts/seed-memory-review-vps.sh"
+              exit 1
+            fi

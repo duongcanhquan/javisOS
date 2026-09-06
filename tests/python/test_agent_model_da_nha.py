@@ -170,6 +170,18 @@ check("mọi chỗ dựng engine đều truyền provider xuống",
 check("router đổi model thì bỏ nhà cũ (không ép model Claude qua nhà khác)",
       'agent_prov = ""' in src)
 
+# Suy nhà từ tên model khi agent cũ thiếu model_provider (tránh gemini-* chạy nhầm Claude).
+check("gemini-* không provider → gemini API",
+      main._agent_model_provider("gemini-3.1-pro-preview", "") == "gemini")
+check("gpt-codex không provider → openai-oauth",
+      main._agent_model_provider("gpt-5.3-codex", "") == "openai-oauth")
+check("claude sonnet không provider → anthropic-cli",
+      main._agent_model_provider("sonnet", "") == "anthropic-cli")
+check("openrouter id không provider → openrouter",
+      main._agent_model_provider("google/gemini-2.5-pro", "") == "openrouter")
+check("provider ghi sẵn thắng suy đoán",
+      main._agent_model_provider("gemini-3.1-pro-preview", "antigravity-cli") == "antigravity-cli")
+
 print()
 if fails:
     print(f"FAIL - test_agent_model_da_nha: {len(fails)} lỗi: " + ", ".join(fails))

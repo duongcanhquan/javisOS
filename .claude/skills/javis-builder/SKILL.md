@@ -49,12 +49,14 @@ slug: <ascii>
 role: <vai trò 1 câu>
 group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|Cá nhân>
 skills: [slug-skill]      # [] nếu chưa gán; chỉ gán skill đã có trong skills/
-model: ""                 # "" mặc định | sonnet|opus|haiku|fable (Claude) | gpt-5.5|gpt-5.4|gpt-5.3-codex (ChatGPT/Codex)
+model: ""                 # "" = theo Research (workflow) / Main; có model thì BẮT BUỘC model_provider
+model_provider: ""        # anthropic-cli|openai-oauth|gemini|antigravity-cli|openrouter|... — thiếu = dễ chạy nhầm Claude
 updated: <YYYY-MM-DD>
 ---
 <system prompt: cách làm việc, nguyên tắc, định dạng đầu ra mong muốn>
 ```
 
+**Model:** để trống cả hai = dùng tầng Research (Studio/workflow) rồi mới auxiliary. Gán `model: gemini-...` mà quên `model_provider: gemini` là agent cũ từng chạy nhầm Claude - từ 0.55.75 server suy đúng gemini/*, nhưng vẫn ghi đủ `model_provider` khi tạo mới.
 **Viết system prompt cho agent theo khung metaprompt** (rút từ metaprompt của Anthropic - ĐỪNG viết 1-2 câu chung chung kiểu "bạn là chuyên gia X"):
 1. Vai + mục tiêu: 1 câu nêu vai, 1 câu nêu kết quả tốt trông như thế nào.
 2. Bối cảnh nghiệp vụ: 2-3 dòng về sản phẩm/khách/lĩnh vực, lấy từ Memory nếu liên quan.
@@ -197,3 +199,10 @@ ctx có `ctx.vault_root`, `ctx.data_dir` (state riêng plugin, không đụng va
   `min_mode: readonly`, và NÓI RÕ với user: plugin chỉ chạy khi họ đặt env `JAVIS_ENABLE_USER_PLUGINS=true`
   rồi khởi động lại (rào chống chạy code lạ). KHÔNG viết plugin làm hành động tiền/đơn/gửi tin; việc đó để MCP + mức quyền lo.
 - Sau khi tạo, KHÔNG tự chạy thứ có side-effect; để user xem trước.
+
+## Liên kết
+
+- `brainstorming` + `writing-plans` - trước khi đẻ agent "đi code" tính năng mới.
+- Skill hệ thống Second Brain: `notes`, `ingest-source`, `query-wiki`, `lint-wiki` (đừng clone).
+- `tong-hop-bao-chi` - brief RSS theo danh mục (không nhét RSS vào skill generic).
+- Memory: fact bền → `memory/facts/` + 1 dòng MEMORY.md; đừng tạo loop quét-nâng-cấp hàng loạt.

@@ -254,8 +254,10 @@ Javis has a living memory at `brain/Memory/`. This is what makes Javis "remember
 - `preference` - how the user likes to work / receive reports.
 - `business` - facts about the business (channels, niche, partners, budget...).
 - `decision` - a decision or direction that has been settled, with the reason.
-- When the user says "remember this" → you MUST create the memory immediately.
-- Do NOT record transient things, trivial details, or what already exists. If it duplicates, update the old file instead of creating a new one.
+- When the user says "remember this" → you MUST create the memory immediately **in this turn** (Write the fact file + one MEMORY.md line). Do not only promise.
+- Do NOT record transient things, trivial details, or what already exists. If it duplicates, update the old file (or write a new fact with `supersedes: <old-slug>`) instead of creating a copy.
+- **Anti-overload:** at most a few new facts per turn (prefer ≤5/day from chat). Frameworks go to Wiki (`ingest-source` / `notes`), not Memory. Prefer the Learn page / "học từ hội thoại" for bulk chat distillation. Never create a background loop that mass-rewrites Memory/Wiki.
+- Reminder `Học nhớ tối` (if seeded) only *proposes* what to save - still write only durable items.
 
 **CONSOLIDATE (rewire - when asked to "learn from the conversation"):**
 - Read recent conversation logs plus MEMORY.md, extract new facts, merge duplicates, delete memories that are now wrong or stale.

@@ -23,3 +23,8 @@ Quét `wiki/` phát hiện 8 loại vấn đề:
 8. Open-question tồn lâu trong `wiki/_open-questions.md`.
 
 NGUYÊN TẮC VÀNG: chỉ TRẢ VỀ DANH SÁCH có đánh số. TUYỆT ĐỐI KHÔNG tự sửa 50 chỗ một lúc. Người dùng ưu tiên rồi ra lệnh sửa từng cái (tránh mất kiểm soát audit).
+
+## Liên kết
+
+- `ingest-source` - sửa gap bằng cách nạp source mới (không bịa wiki).
+- `query-wiki` - kiểm lại sau khi user sửa từng mục trong checklist.
