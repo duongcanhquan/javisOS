@@ -115,8 +115,24 @@ try:
     check("model Claude vẫn được gán vào engine Claude", getattr(cli2, "model", None) == "opus")
 
     nhan.clear()
-    cli3 = mk("x", "", "")
-    check("để Mặc định thì không ép nhà nào", not nhan, nhan)
+    _read_that = aux_engine.read_spec
+    aux_engine.read_spec = lambda settings=None: {"provider": "anthropic-cli", "model": ""}
+    try:
+        cli3 = mk("x", "", "")
+        check("Mặc định + việc nền Claude → giữ Claude (không swap)", not nhan, nhan)
+    finally:
+        aux_engine.read_spec = _read_that
+
+    nhan.clear()
+    aux_engine.read_spec = lambda settings=None: {
+        "provider": "gemini", "model": "gemini-2.5-pro"}
+    try:
+        mk("x", "", "")
+        check("Mặc định + việc nền Gemini → swap đúng Gemini (Studio hứa theo việc nền)",
+              nhan.get("provider") == "gemini" and nhan.get("model") == "gemini-2.5-pro",
+              nhan)
+    finally:
+        aux_engine.read_spec = _read_that
 
     # Rào an toàn đã hứa ở docs/07: workflow chạy NỀN ở chế độ giới hạn công cụ thì agent
     # luôn là Claude Code, kể cả khi chọn nhà khác - giới hạn nằm ở allowed_tools/

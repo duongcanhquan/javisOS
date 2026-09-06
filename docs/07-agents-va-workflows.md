@@ -7,7 +7,7 @@
 ## Tính năng này là gì
 
 - **Agent** là một "nhân viên AI" có vai trò cố định. Mỗi agent gồm: một cái tên, một mô tả vai trò, một hướng dẫn làm việc chi tiết (system prompt), danh sách kỹ năng (skill) được phép dùng, một **model chạy**, và một **bộ nhớ riêng** tích luỹ theo thời gian. Model chọn được từ **mọi nhà cung cấp bạn đã kết nối** ở trang Models: Claude (Claude Code), ChatGPT (Codex), Grok Build CLI, Antigravity CLI, OpenRouter, Anthropic API, OpenAI, Google Gemini, Groq. Danh sách trong ô chọn lấy thẳng từ các nhà đã kết nối, nên kết nối thêm là có thêm lựa chọn. Nhà nào cũng đọc/ghi được file trong vault và dùng được MCP; riêng Claude Code và Codex có thêm lệnh máy cùng khả năng tự mở web. Nhà đã chọn trục trặc lúc chạy thì Javis tự lùi sang bộ não khác thay vì để agent chết lặng. (Ollama chưa chạy được agent nên không xuất hiện ở đây.) Model của agent được áp THẬT khi workflow chạy.
-  - Lưu ý an toàn: khi workflow chạy **nền tự động** (dispatcher Kanban, chế độ giới hạn công cụ file), agent luôn dùng Claude Code để giữ giới hạn công cụ an toàn - kể cả khi bạn chọn nhà khác. Model bạn chọn chỉ áp khi bạn bấm **▶ Chạy** trực tiếp ở trang Workflows.
+  - Lưu ý an toàn: khi workflow chạy **nền tự động qua Kanban** ở chế độ giới hạn công cụ file, agent vẫn dùng Claude Code để giữ rào an toàn. Còn `/run` trên Telegram·Zalo và nút **▶ Chạy** trên Studio thì theo model agent (hoặc Model việc nền nếu để mặc định) - gồm Gemini API / Antigravity.
 - **Workflow** là một chuỗi nhiều bước, mỗi bước giao cho một agent làm một nhiệm vụ. Kết quả bước trước có thể chảy sang bước sau. Bạn có thể gắn thêm một **bước kiểm chứng**: một agent khác đóng vai người soi lỗi, mặc định giả định kết quả đang sai và phải tự chứng minh; nếu chưa đạt, workflow tự sửa lại vài lần.
 - Mọi agent và workflow được lưu thành **file .md trong vault** (bộ não đang chọn), nên bạn xem được, sửa tay được, và Javis cũng tạo được bằng lời qua chat.
 
@@ -94,7 +94,7 @@ Ghi chú về ô Skills: danh sách skill lấy từ thư mục skill của vaul
 
 Dưới ô Model có dòng ghi chú: "Agent chạy qua CLI của nhà cung cấp: chọn Claude → Claude Code; chọn ChatGPT → Codex (cần đã đăng nhập ChatGPT ở máy/VPS). Cả hai đều đọc/ghi file vault + dùng MCP."
 
-**"Mặc định (theo CLI)" thật ra làm gì:** để trống thì Javis lấy **model phụ** bạn đặt ở trang **Models** trước (chỉ khi model phụ là một model Claude); không có model phụ Claude nào thì mới rơi về model mặc định của CLI. Nếu bạn muốn một agent luôn chạy đúng một model bất kể cấu hình chung, hãy chọn thẳng model cho nó thay vì để trống.
+**"Mặc định (theo model việc nền)" thật ra làm gì:** để trống thì Javis lấy đúng **◆ Model việc nền** trên trang Models (Gemini API, Antigravity, OpenRouter, Claude…). Agent/workflow/`/run` trên Telegram·Zalo đều theo đó. Muốn một agent luôn chạy một model riêng (không đổi theo việc nền), chọn thẳng model trên thẻ agent thay vì để trống.
 
 ### Bộ nhớ riêng và nhật ký chạy của agent
 

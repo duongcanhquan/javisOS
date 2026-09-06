@@ -7468,7 +7468,16 @@ def _workflow_agent_helpers(brain, tools):
     vault_root = str(_brain_root(brain))
 
     def _mk(sysprompt, model=None, provider=""):
-        prov = _agent_model_provider(model, provider)
+        model = (model or "").strip() or None
+        provider = (provider or "").strip()
+        # Agent để trống (= "Mặc định (theo model việc nền)" trên Studio) → lấy ĐÚNG
+        # Model việc nền (Gemini / Antigravity / OpenRouter...). Trước đây trống = luôn
+        # Claude Code nên đặt Gemini ở trang Models vẫn ra "Not logged in · Please run /login".
+        if not model and not provider:
+            sp = aux_engine.read_spec()
+            provider = (sp.get("provider") or "").strip()
+            model = (sp.get("model") or "").strip() or None
+        prov = _agent_model_provider(model or "", provider)
         if prov == "openai-oauth" and model and tools is None and find_codex_cli():
             openai_oauth.write_codex_auth()
             cc = CodexCLI(cwd=vault_root, tag="workflow", model=_codex_safe_model(model),
