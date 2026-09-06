@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Seed nhắc hẹn "Báo cáo giáo dục CĐ-ĐH 8h" trên VPS (container Javis).
 # Idempotent: cùng label thì cập nhật text/cron/chat_id, không tạo trùng.
-# Gửi cả Telegram + Zalo (chat_id=all). Cần đã đấu kênh + Tavily (hoặc WebSearch).
+# Gửi cả Telegram + Zalo (chat_id=all). Cần đã đấu kênh + WebFetch (đọc RSS/HTML đã ghim).
 set -euo pipefail
 
 CONTAINER="${JAVIS_CONTAINER:-javis}"
@@ -20,13 +20,13 @@ Làm đúng skill bao-cao-giao-duc-sang (giờ VN).
 
 Nhiệm vụ: điểm tin buổi sáng về giáo dục CAO ĐẲNG / ĐẠI HỌC Việt Nam.
 
-1) Dùng Tavily (hoặc WebSearch) quét ~10 nguồn báo uy tín (Giáo dục & Thời đại, Vietnamnet, Dân trí, Tuổi Trẻ, Thanh Niên, VnExpress, Tiền Phong, Báo Chính phủ, moet.gov.vn, Người Lao Động…) lấy bài MỚI (ưu tiên 24–48h).
-2) Chọn khoảng 10 bài đa nguồn: chính sách/thông tư, tuyển sinh–học phí, liên kết DN–thực tập–việc làm SV, kiểm định/xếp hạng nếu có.
-3) Mỗi mục: tiêu đề ngắn + 1–2 câu ý chính + link URL gốc đọc được. Không bịa số liệu / tên văn bản.
-4) Cuối: 1 câu "Nhịp chính hôm nay" + liệt kê nguồn đã quét.
+1) Đọc file nguon-rss.md trong skill (danh sách RSS/HTML bạn đã ghim). WebFetch từng URL - KHÔNG search lan man.
+2) Từ các feed/trang đó chọn khoảng 10 bài mới (ưu tiên 24–48h), lọc đúng CĐ/ĐH, đa nguồn.
+3) Mỗi mục: tiêu đề ngắn + 1–2 câu ý chính + link URL gốc. Không bịa số liệu / tên văn bản.
+4) Cuối: 1 câu "Nhịp chính hôm nay" + nguồn đã đọc + nguồn lỗi (nếu có).
 5) Viết ngắn như tin nhắn Telegram/Zalo. Kết quả gửi về chat_id=all (Telegram và Zalo nếu đã đấu).
 
-Thiếu Tavily/WebSearch thì nói thẳng không tra được web, không bịa tin.
+Thiếu WebFetch thì nói thẳng không đọc được nguồn, không bịa tin. Muốn đổi báo: sửa nguon-rss.md.
 EOF
 )
 
@@ -173,29 +173,58 @@ updated: "2026-09-06"
 Bạn làm đúng skill **bao-cao-giao-duc-sang**.
 
 Khi được giao brief hoặc nhắc 8h:
-1. Tra web (Tavily ưu tiên) ~10 báo giáo dục Việt Nam.
+1. Đọc `nguon-rss.md` (RSS/HTML đã ghim) - WebFetch, không search lan man.
 2. Chọn ~10 bài mới về CĐ/ĐH (chính sách, tuyển sinh, DN/thực tập).
 3. Mỗi bài: tiêu đề + 1–2 câu + URL gốc.
-4. Kết thúc bằng nhịp chính hôm nay.
+4. Kết thúc bằng nhịp chính hôm nay + nguồn lỗi nếu có.
 
-Không bịa. Thiếu tool web thì nói thẳng. Viết ngắn cho Telegram/Zalo.
+Không bịa. Thiếu WebFetch thì nói thẳng. Viết ngắn cho Telegram/Zalo.
 """), encoding="utf-8")
 
-# Skill body: trỏ sang system skill nếu có; vẫn ghi SKILL ngắn để brain tự đủ
+# Skill body ngắn trong brain; bản đầy đủ + nguon-rss.md nằm ở skill hệ thống app
 (skills / "SKILL.md").write_text(textwrap.dedent("""\
 ---
 name: Báo cáo giáo dục sáng
-description: "Tóm tắt ~10 bài báo mới về CĐ/ĐH Việt Nam (chính sách, tuyển sinh, liên kết DN) kèm link."
+description: "Đọc RSS/link đã ghim, chọn ~10 bài CĐ/ĐH mới kèm URL gửi Telegram/Zalo."
 group: Nội dung
 ---
 
 # Báo cáo giáo dục sáng
 
-Làm theo skill hệ thống `bao-cao-giao-duc-sang` (đồng bộ từ app).
+Làm theo skill hệ thống `bao-cao-giao-duc-sang` + file `nguon-rss.md`.
 
-Tóm tắt ~10 bài mới CĐ/ĐH VN, kèm URL, gửi tin nhắn ngắn Telegram/Zalo.
-Ưu tiên Tavily; đa nguồn; không bịa số liệu.
+Chỉ WebFetch nguồn đã ghim. Không search toàn web. Không bịa số liệu.
 """), encoding="utf-8")
+(skills / "nguon-rss.md").write_text("""\
+# Nguồn RSS - Báo cáo giáo dục sáng (CĐ/ĐH)
+
+Bạn tự **sửa file này** để thêm/bớt/đổi link. Skill chỉ đọc các URL dưới đây.
+
+## Cách ghi
+
+- Mỗi dòng: `Tên | URL`
+- Ưu tiên RSS chuyên mục giáo dục. Không có RSS thì ghi URL chuyên mục HTML.
+- Dòng `#` = chú thích, bỏ qua khi chạy.
+- Giữ khoảng 8–12 nguồn.
+
+## Danh sách (đã kiểm tra sống một phần)
+
+1. VnExpress Giáo dục | https://vnexpress.net/rss/giao-duc.rss
+2. Tuổi Trẻ Giáo dục | https://tuoitre.vn/rss/giao-duc.rss
+3. Thanh Niên Giáo dục | https://thanhnien.vn/rss/giao-duc.rss
+4. Dân trí Giáo dục | https://dantri.com.vn/rss/giao-duc.rss
+5. Vietnamnet Giáo dục | https://vietnamnet.vn/rss/giao-duc.rss
+6. Người đưa tin Giáo dục | https://www.nguoiduatin.vn/rss/giao-duc.rss
+7. Giáo dục Thời đại (HTML) | https://giaoducthoidai.vn
+8. Bộ GD&ĐT (HTML) | https://moet.gov.vn
+9. Báo Chính phủ (HTML) | https://baochinhphu.vn
+10. Người Lao Động Giáo dục (HTML) | https://nld.com.vn/giao-duc.htm
+
+## Lọc CĐ/ĐH
+
+Ưu tiên bài có: đại học, cao đẳng, tuyển sinh ĐH/CĐ, học phí ĐH, thông tư Bộ về GDĐH, tự chủ đại học, liên kết doanh nghiệp, thực tập SV, kiểm định, xếp hạng ĐH.
+
+""", encoding="utf-8")
 
 (workflows / "bao-cao-giao-duc-sang.md").write_text(textwrap.dedent("""\
 ---
@@ -220,6 +249,6 @@ PY
 echo ""
 echo "==> XONG seed Báo cáo giáo dục CĐ-ĐH 8h."
 echo "    Xem/sửa/tắt: trang Việc định kỳ trên dashboard."
-echo "    Cần: Telegram + Zalo (Kênh) và Tavily hoặc WebSearch."
+echo "    Cần: Telegram + Zalo (Kênh) và WebFetch. Đổi nguồn: sửa skill/nguon-rss.md."
 echo "    Chạy tay: Studio → agent/workflow 'Báo cáo giáo dục sáng'."
 echo "    Đổi giờ: EDU_BRIEF_CRON='0 7 * * *' bash scripts/seed-edu-brief-vps.sh"

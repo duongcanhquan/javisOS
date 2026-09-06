@@ -1,7 +1,7 @@
 ---
 name: Báo cáo giáo dục sáng
-description: "Tóm tắt ~10 bài báo mới về CĐ/ĐH Việt Nam (chính sách, tuyển sinh, liên kết DN) kèm link, gửi Telegram/Zalo."
-description_en: "Morning digest of ~10 latest VN higher-ed news (policy, admissions, industry links) with URLs for Telegram/Zalo."
+description: "Đọc RSS/link nguồn đã ghim (~10 báo), chọn ~10 bài CĐ/ĐH mới, tóm tắt kèm URL gửi Telegram/Zalo."
+description_en: "Read pinned education RSS/links, pick ~10 latest higher-ed items, summarize with URLs for Telegram/Zalo."
 group: Nội dung
 ---
 
@@ -14,87 +14,93 @@ group: Nội dung
 
 ## Mục tiêu
 
-Mỗi sáng gửi **đúng một tin nhắn** (Telegram + Zalo nếu `chat_id=all`) gồm khoảng **10 bài mới nhất** về:
+Mỗi sáng gửi **đúng một tin nhắn** (Telegram + Zalo nếu `chat_id=all`) gồm khoảng **10 bài mới** về CĐ/ĐH, kèm link gốc. Không viết luận dài.
 
-- Chính sách / thông tư / quyết định Bộ GD&ĐT, UBND liên quan CĐ-ĐH
-- Tuyển sinh, học phí, chương trình đào tạo
-- Liên kết doanh nghiệp, thực tập, việc làm sinh viên
-- Chất lượng, kiểm định, xếp hạng (khi có tin mới)
+## Cách làm hiệu quả (bắt buộc)
 
-Kèm **link đọc gốc** từng bài. Không viết luận dài.
+**Không search lan man.** Chỉ đọc nguồn đã ghim trong file cùng skill:
+
+`nguon-rss.md` (cùng thư mục skill này)
+
+User tự thêm/bớt/đổi URL trong file đó. Agent **không** tự bịa thêm domain ngoài danh sách trừ khi user bảo trong lượt chat.
+
+Thứ tự ưu tiên:
+
+1. **RSS** (có `<item>` / `<entry>`) - lấy title + link + pubDate.
+2. Không có RSS / feed chết → **WebFetch đúng URL chuyên mục HTML** ghi trong `nguon-rss.md`, bóc vài link bài mới nhất trên trang đó.
+3. Tool: ưu tiên WebFetch (hoặc `tavily_extract` nếu chỉ có extract). **Không** dùng Tavily/WebSearch toàn web trừ khi user yêu cầu rõ "search thêm".
+
+Thiếu cả WebFetch lẫn extract → nói thẳng không đọc được nguồn, không bịa tin.
 
 ## Chuẩn bị
 
-1. Ưu tiên **Tavily** (`tavily_search` / `tavily_extract`). Không có thì WebSearch/WebFetch. Thiếu cả hai → nói thẳng không tra được web, không bịa tin.
-2. Giờ theo **VN (UTC+7)**. Ưu tiên bài **24–48 giờ gần nhất**; thiếu thì nới 7 ngày và ghi rõ.
-3. Chỉ **đọc / tóm tắt**. Không đăng bài, không gửi email ngoài báo cáo nhắc.
+1. Đọc hết danh sách trong `nguon-rss.md` (bỏ dòng `#`).
+2. Giờ **VN (UTC+7)**. Ưu tiên bài **24–48 giờ**; thiếu thì nới 7 ngày và ghi rõ.
+3. Chỉ **đọc / tóm tắt**. Không đăng bài ngoài.
 
-## Nguồn ưu tiên (~10 báo / cổng)
+## Lọc chủ đề CĐ/ĐH
 
-Lọc hoặc ưu tiên kết quả từ (và trang chuyên mục giáo dục của họ):
+Feed giáo dục thường lẫn cấp phổ thông. Chỉ giữ bài chạm:
 
-1. Báo Giáo dục & Thời đại / giaoducthoidai.vn  
-2. Vietnamnet Giáo dục  
-3. Dân trí Giáo dục  
-4. Tuổi Trẻ Giáo dục  
-5. Thanh Niên Giáo dục  
-6. VnExpress Giáo dục  
-7. Tiền Phong Giáo dục  
-8. Báo Chính phủ (mục giáo dục / đào tạo)  
-9. Cổng thông tin Bộ GD&ĐT (moet.gov.vn) - văn bản mới  
-10. Người Lao Động / Lao Động (mục giáo dục nghề nghiệp / CĐ-ĐH)
+- đại học / cao đẳng / tuyển sinh ĐH-CĐ / học phí ĐH / thông tư-nghị định về GDĐH
+- tự chủ đại học, kiểm định, xếp hạng ĐH
+- liên kết DN, thực tập, việc làm sinh viên, đào tạo nghề gắn DN
 
-Có thể thêm 1–2 nguồn uy tín khác nếu bài sát CĐ-ĐH hơn. Tránh tin viral không nguồn, blog SEO, tin trùng lead.
+Loại tin thuần tiểu học / THCS / THPT trừ khi đụng thẳng chính sách ảnh hưởng CĐ-ĐH.
 
-## Cách chạy (bắt buộc)
+## Cách chạy
 
-### 1. Thu thập
+### 1. Quét nguồn đã ghim
 
-Chạy **2–4** truy vấn Tavily/WebSearch kiểu:
+Với mỗi dòng `Tên | URL` trong `nguon-rss.md`:
 
-- `cao đẳng đại học chính sách OR thông tư site:moet.gov.vn OR giáo dục`
-- `tuyển sinh đại học OR cao đẳng 2026`
-- `liên kết doanh nghiệp đào tạo nghề OR thực tập sinh viên`
-- `học phí đại học OR tự chủ đại học`
+- WebFetch URL (timeout ngắn).
+- Nếu XML/RSS: lấy các item mới (title, link, date).
+- Nếu HTML: lấy 3–8 link bài mới nhất trên trang chuyên mục.
+- Feed lỗi / chặn: ghi tên nguồn vào mục "Nguồn lỗi", chuyển nguồn tiếp theo. Không dừng cả báo cáo vì 1 feed chết.
 
-Với mỗi query lấy 5–8 kết quả. Dedup theo URL/title. Chọn **~10 bài** mới nhất, đa nguồn (tránh 10 bài cùng một báo).
+Gom toàn bộ item → dedup URL/title.
 
-### 2. Đọc nhanh
+### 2. Chọn ~10 bài
 
-Với bài quan trọng (chính sách / số liệu): `tavily_extract` hoặc WebFetch 1 lần để không tóm sai lead. Bài còn lại đủ từ title + snippet nếu rõ.
+Ưu tiên mới + đa nguồn + đúng CĐ/ĐH. Tránh 10 bài cùng một báo.
 
-### 3. Viết tin nhắn
+### 3. Đọc lead (tuỳ chọn)
 
-Tiếng Việt, ngắn, **có link đầy đủ** (http/https). Không bảng markdown phức tạp (Telegram/Zalo đọc kém). Không em dash.
+Chính sách / số liệu quan trọng: WebFetch hoặc extract **1 lần** bài đó. Còn lại đủ title + description RSS nếu rõ.
 
-Khuôn:
+### 4. Viết tin nhắn
+
+Tiếng Việt, ngắn, link đầy đủ http/https. Không bảng phức tạp. Không em dash.
 
 ```markdown
 ### Điểm tin CĐ/ĐH · <dd/mm>
 
 1. **<Tiêu đề ngắn>** - <báo>, <giờ/ngày nếu có>
-   <1–2 câu ý chính / tác động>
+   <1–2 câu ý chính>
    <URL>
 
 2. ...
-(đủ ~10 mục)
+(đủ ~10 mục hoặc N + lý do thiếu)
 
-**Nhịp chính hôm nay:** <1 câu: chính sách / tuyển sinh / DN / khác>
-**Nguồn đã quét:** <liệt kê 6–10 tên báo đã thấy kết quả>
+**Nhịp chính hôm nay:** <1 câu>
+**Nguồn đã đọc:** <tên nguồn OK>
+**Nguồn lỗi:** <nếu có>
 ```
 
-Nếu dưới 10 bài thật: gửi số có thật + ghi "chỉ thấy N bài đủ mới trong 48h". Không đệm bài cũ để cho đủ 10 nếu user không yêu cầu.
+## User cập nhật nguồn thế nào
+
+Sửa file `nguon-rss.md` trong skill (hoặc bảo Javis: "thêm RSS X vào báo cáo giáo dục sáng"). Sau khi sửa, lần chạy 8h sau dùng list mới - không cần tạo skill khác.
 
 ## Bẫy
 
-- Bịa số liệu tuyển sinh / học phí / tên thông tư.
-- Link search Google thay vì link bài.
-- Trộn tin phổ thông / cấp 1-2 nếu không đụng CĐ-ĐH.
-- Báo cáo dài > ~3500 ký tự: cắt bớt mô tả, giữ đủ 10 link.
+- Bịa số liệu / tên thông tư.
+- Search Google rồi dán link search.
+- Bỏ qua `nguon-rss.md` để tự search 10 báo.
+- Đệm bài phổ thông cho đủ 10.
 
 ## Kiểm chứng trước khi gửi
 
-- Có khoảng 8–10 mục (hoặc N + lý do thiếu).
-- Mỗi mục có URL mở được (http…).
-- Ít nhất 1 mục về chính sách/văn bản nếu ngày đó có; nếu không có thì ghi rõ ở "Nhịp chính".
-- Không có mật khẩu / token / PII.
+- ~8–10 mục (hoặc N thật + lý do).
+- Mỗi mục có URL bài (không phải URL trang chủ chuyên mục).
+- Đã đọc từ list ghim, không bịa nguồn.

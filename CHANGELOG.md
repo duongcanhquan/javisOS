@@ -6,8 +6,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 ## [0.55.70] - 2026-09-06
 ### Tính năng
-- **Báo cáo giáo dục CĐ/ĐH 8h sáng:** skill `bao-cao-giao-duc-sang` quét ~10 báo, tóm tắt ~10 bài (chính sách, tuyển sinh, liên kết DN) kèm link, gửi Telegram + Zalo.
-- **Seed VPS:** `scripts/seed-edu-brief-vps.sh` + workflow Actions `Seed edu morning brief on VPS` (nhắc cron `0 8 * * *`, `chat_id=all`).
+- **Báo cáo giáo dục CĐ/ĐH 8h sáng:** skill đọc **RSS/link đã ghim** trong `nguon-rss.md` (không search lan man), chọn ~10 bài CĐ/ĐH kèm link, gửi Telegram + Zalo.
+- **Đổi nguồn dễ:** sửa file `nguon-rss.md` trong skill - thêm/bớt báo hoặc đổi URL RSS khi chết.
+- **Seed VPS:** `scripts/seed-edu-brief-vps.sh` + workflow Actions (cron `0 8 * * *`, `chat_id=all`).
 
 ## [0.35.89] - 2026-09-05
 ### Cải tiến
