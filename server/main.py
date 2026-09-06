@@ -270,6 +270,9 @@ async def _static_cache_headers(request: Request, call_next):
     if request.url.path == "/static/freshness.js":
         # Người gác cổng mà cũ theo thì nó gác cái gì. Nạp KHÔNG kèm `?v=` và luôn hỏi lại.
         resp.headers["Cache-Control"] = "no-cache"
+    elif "/vendor/moonshine-models/" in request.url.path:
+        # Model .ort lớn (~135MB) — cache lâu trên máy user; đổi file thì đổi path/etag.
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif "/vendor/moonshine-wasm/" in request.url.path:
         # moonshine.mjs patch pthread — tránh trình duyệt giữ bản cũ (treo worker pool).
         resp.headers["Cache-Control"] = "no-cache"

@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.109] - 2026-09-06
+### Cải tiến
+- **Moonshine không tải lại mỗi lần:** Cache API trên máy + giữ Transcriber trong phiên; HTTP cache dài cho model trên VPS; mobile vẫn dùng Cloud STT (Gemini).
 ## [0.55.108] - 2026-09-06
 ### Sửa lỗi
 - **Moonshine không còn đếm giây mãi:** giới hạn pthread pool WASM còn 2 worker (trước = số CPU → treo `loadWasmModuleToAllWorkers`); tải model có % thật; fail-fast engine 20s.

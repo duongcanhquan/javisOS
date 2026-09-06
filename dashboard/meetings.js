@@ -1062,7 +1062,7 @@
           "Moonshine lỗi — Bắt đầu sẽ dùng Gemini/Web Speech.";
       } else {
         el.textContent =
-          "Moonshine ưu tiên — lần đầu tải ~135MB (có %); engine WASM tối đa 2 worker.";
+          "Moonshine: model sẵn trên VPS; lần đầu lưu vào máy (~135MB), lần sau đọc cache / không tải lại.";
       }
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
@@ -1100,6 +1100,7 @@
       await state.mic.stop();
     } catch (e) {}
     try {
+      // useTranscriber → close() không huỷ model; lần Bắt đầu sau tái sử dụng.
       state.mic.close();
     } catch (e) {}
     state.mic = null;
@@ -1265,16 +1266,40 @@
     }
   }
 
+  var MOONSHINE_CACHE = "javis-moonshine-models-v1";
+
+  async function openMoonshineCache() {
+    try {
+      if (typeof caches === "undefined") return null;
+      return await caches.open(MOONSHINE_CACHE);
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function downloadMoonshineNamedFiles(urlMap, onProgress) {
     var names = Object.keys(urlMap || {});
     var out = {};
     var doneBytes = 0;
     var knownTotal = 0;
-    // HEAD để biết tổng (progress thật); bỏ qua nếu lỗi.
+    var cache = await openMoonshineCache();
     var sizes = {};
+    var fromCache = 0;
+
     await Promise.all(
       names.map(async function (name) {
         try {
+          if (cache) {
+            var hit = await cache.match(urlMap[name]);
+            if (hit) {
+              var n0 = Number(hit.headers.get("content-length") || 0);
+              if (n0 > 0) {
+                sizes[name] = n0;
+                knownTotal += n0;
+                return;
+              }
+            }
+          }
           var h = await fetch(urlMap[name], { method: "HEAD", credentials: "same-origin" });
           var n = Number(h.headers.get("content-length") || 0);
           if (h.ok && n > 0) {
@@ -1284,12 +1309,42 @@
         } catch (e) {}
       })
     );
+
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
       var url = urlMap[name];
+
+      // 1) Cache API (ổ cứng trình duyệt) — lần 2+ gần như tức thì, không kéo lại VPS.
+      if (cache) {
+        try {
+          var cached = await cache.match(url);
+          if (cached) {
+            var cbuf = await cached.arrayBuffer();
+            out[name] = new Uint8Array(cbuf);
+            doneBytes += cbuf.byteLength;
+            fromCache++;
+            if (onProgress) {
+              onProgress(
+                knownTotal ? Math.min(1, doneBytes / knownTotal) : 1,
+                name + " (đã lưu máy)",
+                doneBytes,
+                knownTotal || doneBytes,
+                true
+              );
+            }
+            continue;
+          }
+        } catch (eC) {}
+      }
+
       var res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) {
         throw new Error("Không tải được model " + name + " (" + res.status + ")");
+      }
+      if (cache) {
+        try {
+          await cache.put(url, res.clone());
+        } catch (ePut) {}
       }
       var totalFile = sizes[name] || Number(res.headers.get("content-length") || 0) || 0;
       if (!res.body || !res.body.getReader) {
@@ -1301,7 +1356,8 @@
             knownTotal ? Math.min(1, doneBytes / knownTotal) : 0,
             name,
             doneBytes,
-            knownTotal || doneBytes
+            knownTotal || doneBytes,
+            false
           );
         }
         continue;
@@ -1321,7 +1377,7 @@
               : totalFile
                 ? Math.min(1, loaded / totalFile)
                 : 0;
-            onProgress(overall, name, doneBytes + loaded, knownTotal || totalFile);
+            onProgress(overall, name, doneBytes + loaded, knownTotal || totalFile, false);
           }
         }
       }
@@ -1334,6 +1390,8 @@
       out[name] = merged;
       doneBytes += loaded;
     }
+    out.__fromCacheCount = fromCache;
+    out.__fileCount = names.length;
     return out;
   }
 
@@ -1352,6 +1410,50 @@
     var timeoutMs =
       lang === "vi" ? MOONSHINE_LOAD_TIMEOUT_MS : MOONSHINE_LOAD_TIMEOUT_OTHER_MS;
 
+    // Cùng phiên: model đã nạp sẵn → chỉ bật lại micro (không tải lại).
+    if (
+      state.moonshineTranscriber &&
+      state.moonshineLang === lang &&
+      state.moonshineReady &&
+      state.moonshineMod
+    ) {
+      setStatus(root, "Bật lại micro (Moonshine đã sẵn)…");
+      var modReuse = state.moonshineMod;
+      var micReuse = new modReuse.MicTranscriber().language(lang);
+      if (typeof micReuse.useTranscriber === "function") {
+        micReuse.useTranscriber(state.moonshineTranscriber);
+      } else {
+        throw new Error("Moonshine API thiếu useTranscriber");
+      }
+      micReuse
+        .onText(function (text) {
+          setPartial(root, text || "", "");
+        })
+        .onLine(function (line) {
+          if (!state.running && !state.loading) return;
+          var tx = (line && line.text) || "";
+          if (!tx.trim()) return;
+          setPartial(root, "");
+          var t0 = line.startTime || 0;
+          var t1 = t0 + (line.duration || 0);
+          var wall = new Date().toLocaleTimeString("vi-VN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+          appendFinal(root, tx, wall, "");
+          queueLine(tx, t0, t1, "", -1);
+        })
+        .onError(function (err) {
+          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
+        });
+      await micReuse.start();
+      state.mic = micReuse;
+      state.sttEngine = "moonshine";
+      setStatus(root, "Đang ghi (Moonshine · " + label + "). Nói rõ từng câu.", "ok");
+      return;
+    }
+
     var phase = "engine";
     var phaseDetail = "";
     var startedAt = Date.now();
@@ -1368,6 +1470,7 @@
     }, 1000);
 
     var mic = null;
+    var transcriber = null;
     try {
       setStatus(root, "Nạp engine Moonshine (" + label + ")…");
       var mod = await promiseTimeout(
@@ -1392,9 +1495,9 @@
       phase = "download";
       var fileMap = null;
       if (localUrls) {
-        setStatus(root, "Tải model " + label + " từ máy chủ…");
+        setStatus(root, "Lấy model " + label + " (máy chủ / đã lưu trên máy)…");
         fileMap = await promiseTimeout(
-          downloadMoonshineNamedFiles(localUrls, function (frac, file, loaded, total) {
+          downloadMoonshineNamedFiles(localUrls, function (frac, file, loaded, total, cached) {
             if (state.abortRequested) return;
             var pct = typeof frac === "number" && frac > 0 ? Math.round(frac * 100) + "%" : "…";
             var mb =
@@ -1402,20 +1505,30 @@
                 ? " · " + (loaded / (1024 * 1024)).toFixed(1) + "MB"
                 : "";
             phaseDetail =
-              "Tải model " + label + "… " + pct + mb + (file ? " · " + file : "");
+              (cached ? "Đọc model đã lưu · " : "Tải model từ VPS · ") +
+              pct +
+              mb +
+              (file ? " · " + file : "");
             setStatus(root, phaseDetail);
           }),
           timeoutMs,
           "Tải model Moonshine quá lâu."
         );
+        if (
+          fileMap &&
+          fileMap.__fromCacheCount === fileMap.__fileCount &&
+          fileMap.__fileCount > 0
+        ) {
+          setStatus(root, "Model đã có trên máy — đang khởi tạo…");
+        }
+        // Bỏ metadata nội bộ trước khi đưa vào Transcriber.
+        delete fileMap.__fromCacheCount;
+        delete fileMap.__fileCount;
       }
 
       phase = "init";
       setStatus(root, "Khởi tạo Moonshine (" + label + ")…");
-      var transcriber;
       if (fileMap && typeof mod.Transcriber.load === "function") {
-        // Buffers sẵn → tránh Cache API put trước khi đọc (hay “im” không %).
-        // load() cũng kích hoạt loadMoonshineModule (pthread pool đã patch ≤2).
         transcriber = await promiseTimeout(
           mod.Transcriber.load({
             files: fileMap,
@@ -1426,7 +1539,6 @@
           "Khởi tạo Moonshine treo (" + Math.round(timeoutMs / 1000) + "s)."
         );
       } else {
-        // Fallback CDN/catalog khi chưa host local.
         var tmpMic = new mod.MicTranscriber().language(lang).modelArch(arch);
         if (localUrls && typeof tmpMic.modelsFrom === "function") tmpMic.modelsFrom(localUrls);
         await promiseTimeout(
@@ -1435,6 +1547,7 @@
           "Moonshine treo khi nạp (" + Math.round(timeoutMs / 1000) + "s)."
         );
         mic = tmpMic;
+        transcriber = tmpMic.transcriber || null;
       }
 
       if (!mic) {
@@ -1478,6 +1591,9 @@
         if (mic) mic.close();
       } catch (e2) {}
       try {
+        if (transcriber && typeof transcriber.close === "function") transcriber.close();
+      } catch (e2b) {}
+      try {
         if (state.moonshineMod && typeof state.moonshineMod.resetMoonshineModule === "function") {
           state.moonshineMod.resetMoonshineModule();
         }
@@ -1491,6 +1607,8 @@
 
     state.mic = mic;
     state.sttEngine = "moonshine";
+    // Giữ Transcriber sống qua lần Dừng — lần Bắt đầu sau không tải lại ~135MB.
+    if (transcriber) state.moonshineTranscriber = transcriber;
     state.moonshineReady = true;
     state.moonshineLang = lang;
     state._moonshineLoadPromise = null;
