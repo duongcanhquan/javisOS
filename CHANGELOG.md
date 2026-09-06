@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.110] - 2026-09-06
+### Cải tiến
+- **Moonshine cache chắc hơn:** lưu Cache API sau khi tải xong, dùng lại cache legacy, preload khi mở tab họp; status tách rõ tải VPS / đọc máy / khởi tạo; watchdog Moonshine 45s.
 ## [0.55.109] - 2026-09-06
 ### Cải tiến
 - **Moonshine không tải lại mỗi lần:** Cache API trên máy + giữ Transcriber trong phiên; HTTP cache dài cho model trên VPS; mobile vẫn dùng Cloud STT (Gemini).
