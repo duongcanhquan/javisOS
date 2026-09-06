@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.70] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp không nghe được mic:** chế độ rảnh tay ở chat cứ 0,5 giây cướp lại micro khiến trang Họp im. Vào Họp / bấm Bắt đầu sẽ tắt rảnh tay và nhả mic; vòng rảnh tay bỏ qua khi đang ghi họp.
+
 ## [0.35.89] - 2026-09-05
 ### Cải tiến
 - **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
