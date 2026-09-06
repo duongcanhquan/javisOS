@@ -27,6 +27,7 @@ vault (brain đang chọn). Studio / trang tương ứng tự nhận file mới.
    - Việc LẶP theo chu kỳ, tự chạy nền -> **loop**.
    - Cần một TOOL native mới (làm được bằng Python, tái dùng, mọi engine gọi được) mà chưa có MCP -> **plugin**. Chỉ là hướng dẫn cách làm bằng tool sẵn -> skill. Nguồn dữ liệu ngoài có sẵn MCP -> đấu MCP.
    - Việc làm 1 lần -> KHÔNG tạo gì, cứ làm luôn hoặc đề xuất task Kanban.
+   - **Tính năng/phần mềm mới chưa thiết kế:** trước khi tạo agent "đi code", nhắc user (hoặc tự) nạp skill **`brainstorming`** (HARD-GATE), sau duyệt Architectural mới **`writing-plans`**. Không đẻ workflow chỉ toàn bước implement mà bỏ cổng duyệt.
 3. **Chống trùng.** TRƯỚC khi tạo, đọc folder tương ứng (agents/ workflows/ skills/
    loops/). Nếu đã có cái gần giống -> cập nhật cái cũ, đừng đẻ bản sao.
 4. **Ghi file** đúng frontmatter (mẫu bên dưới). slug = ASCII không dấu, gạch nối. Tên hiển thị

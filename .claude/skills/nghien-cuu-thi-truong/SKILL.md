@@ -61,6 +61,8 @@ Chọn mục phù hợp (bỏ mục không liên quan):
 
 Viết báo cáo markdown theo cấu trúc trên. Dùng ngôn ngữ chuyên gia, tập trung vào phân tích nhân quả. Kết thúc bằng **5 insight then chốt** (bullet) cho bước chiến lược tiếp theo.
 
+Khi user cần proposal / GTM / chiến lược KD-MKT ngay sau nghiên cứu → nạp skill **`proposal-chien-luoc`** và đưa 5 insight then chốt + SOM/STEEPLE/JTBD làm đầu vào (không dump cả báo cáo).
+
 ## Bẫy
 
 - Nhầm Google Search Console (SEO site mình) với nghiên cứu thị trường chung.

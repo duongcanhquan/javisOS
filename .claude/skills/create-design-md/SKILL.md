@@ -2,7 +2,13 @@
 name: create-design-md
 description: "Create or update a DESIGN.md from an existing product repo or public website."
 description_en: "Create or update a DESIGN.md from an existing product repository or public website."
+group: Marketing
 ---
+
+## Liên kết
+
+- Ghi nhận hệ thống thị giác **đã có** (repo/URL) - không thay skill **`brainstorming`** (ý tưởng → spec mới).
+- Đang thiết kế sản phẩm mới chưa duyệt → dùng **`brainstorming`** trước; `create-design-md` chỉ khi đã có sản phẩm/site để trích.
 
 ## Khi nào dùng
 

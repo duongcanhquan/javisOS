@@ -2,7 +2,13 @@
 name: improve-ui
 description: "Audit a product UI against its design evidence; write handoff plans for another agent."
 description_en: "Audit a product UI against its own design evidence and write implementation plans for another agent."
+group: Marketing
 ---
+
+## Liên kết
+
+- Audit UI **đã có** - không thay **`brainstorming`** (ý tưởng mới → spec).
+- Handoff plan trong `design-plans/` khác với **`writing-plans`** (plan từ spec Architectural). Cần kiến trúc mới → `brainstorming` rồi `writing-plans`.
 
 ## Khi nào dùng
 
@@ -56,9 +62,9 @@ A finding is in scope only when its correction primarily changes visual presenta
 
 Search results, repetition, and implementation differences produce candidates, not findings. Keep a candidate only when all three proofs exist:
 
-1. **Contract** — Cite a binding design decision for this property and scope, or a direct contradiction in user-facing presentation or content within the same task. “Prefer,” “generally,” names, omissions, repetition, and absence of an exception do not establish a contract.
-2. **Runtime** — Prove that the cited owner, value, or behavior reaches the affected surface through the traced runtime path. Do not compare separate ownership layers or lifecycle states.
-3. **Correction** — State one change required by the evidence. If it depends on an existing token, variant, primitive, or exemplar, name it exactly. If the evidence cannot determine the correct choice, the intended condition is ambiguous, the proposal contains alternatives, or the correction requires inventing product intent, reject the candidate.
+1. **Contract** - Cite a binding design decision for this property and scope, or a direct contradiction in user-facing presentation or content within the same task. “Prefer,” “generally,” names, omissions, repetition, and absence of an exception do not establish a contract.
+2. **Runtime** - Prove that the cited owner, value, or behavior reaches the affected surface through the traced runtime path. Do not compare separate ownership layers or lifecycle states.
+3. **Correction** - State one change required by the evidence. If it depends on an existing token, variant, primitive, or exemplar, name it exactly. If the evidence cannot determine the correct choice, the intended condition is ambiguous, the proposal contains alternatives, or the correction requires inventing product intent, reject the candidate.
 
 Source can prove token, typography, color, spacing, layout, copy, component-variant, responsive-presentation, and explicit design-contract violations. It cannot turn functional behavior, state management, or interaction correctness into design findings. Hierarchy, prominence, density, clarity, discoverability, usability, and perceived coherence require rendered or user evidence.
 
