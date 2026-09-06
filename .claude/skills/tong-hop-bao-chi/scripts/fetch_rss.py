@@ -129,6 +129,32 @@ def published_human(iso_or_ts: str | float | int | None) -> str:
         return "không rõ giờ"
 
 
+def format_tin_moi_markdown(articles: list[dict[str, Any]]) -> str:
+    """Khối Tin mới đã có Báo / Xuất bản / Link - agent DÁN NGUYÊN, không viết lại.
+
+    Model Flash hay bỏ URL khi tự format; script in sẵn URL đầy đủ để brief không mất link.
+    """
+    if not articles:
+        return "_Không có bài trong cửa sổ / khớp từ khóa._"
+    lines: list[str] = ["**Tin mới (tối đa 10)**", ""]
+    for i, a in enumerate(articles, 1):
+        title = (a.get("title") or "Không rõ tiêu đề").strip()
+        bao = (a.get("source_name") or "không rõ").strip()
+        gio = (a.get("published_human") or "không rõ giờ").strip()
+        link = (a.get("link") or "").strip() or "không rõ"
+        tom = (a.get("summary") or "").strip()
+        if len(tom) > 180:
+            tom = tom[:177].rstrip() + "…"
+        lines.append(f"{i}. **{title}**")
+        lines.append(f"   - Báo: {bao}")
+        lines.append(f"   - Xuất bản: {gio}")
+        lines.append(f"   - Link: {link}")
+        if tom:
+            lines.append(f"   - Tóm tắt 1 câu: {tom}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def parse_feed(xml_bytes: bytes, source_url: str) -> list[dict[str, Any]]:
     root = ET.fromstring(xml_bytes)
     items: list[dict[str, Any]] = []
@@ -441,6 +467,11 @@ def main() -> int:
     undated = [x for x in matched if x.get("_no_date")]
     top = (dated + undated)[: max(1, args.limit)]
 
+    articles = [
+        {k: v for k, v in a.items() if not k.startswith("_") and k != "published_ts"}
+        for a in top
+    ]
+    tin_moi = format_tin_moi_markdown(articles)
     out = {
         "ok": True,
         "timezone": "Asia/Ho_Chi_Minh",
@@ -454,10 +485,8 @@ def main() -> int:
         "in_window": len(in_window),
         "matched": len(matched),
         "limit": args.limit,
-        "articles": [
-            {k: v for k, v in a.items() if not k.startswith("_") and k != "published_ts"}
-            for a in top
-        ],
+        "articles": articles,
+        "tin_moi_markdown": tin_moi,
         "errors": errors,
     }
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
