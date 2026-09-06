@@ -361,7 +361,7 @@
   "models.rs_reset": "Bỏ ghim, theo việc nền",
   "models.rs_pin": "Ghim model nghiên cứu",
   "models.rs_warn": "Nhà cung cấp này chưa kết nối - workflow sẽ tự dùng lại việc nền / Claude.",
-  "models.rs_note": "Dùng cho chuỗi nghiên cứu, proposal, kế hoạch. Nên chọn Pro (vd gemini-3.1-pro-preview).",
+  "models.rs_note": "Dùng cho chuỗi nghiên cứu, proposal, kế hoạch. Trên Antigravity chọn Flash High (vd gemini-3.8-flash-high).",
   "models.rs_title": "MODEL NGHIÊN CỨU",
   "models.rs_note2": "Workflow Studio và /run Telegram·Zalo khi agent/workflow để mặc định",
   "models.aux_default": "Mặc định của Claude Code",

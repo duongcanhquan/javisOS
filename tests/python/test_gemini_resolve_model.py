@@ -28,6 +28,16 @@ check("2.5-pro → 3.1-pro-preview",
       engine.gemini_resolve_model("gemini-2.5-pro") == "gemini-3.1-pro-preview")
 check("giữ 3.6-flash", engine.gemini_resolve_model("gemini-3.6-flash") == "gemini-3.6-flash")
 
+# Antigravity: Pro / Flash không effort → slug Flash+High|Medium|Low
+check("agy trống giữ rỗng", engine.antigravity_resolve_model("") == "")
+check("agy None giữ rỗng", engine.antigravity_resolve_model(None) == "")
+check("agy pro-preview → 3.8-flash-high",
+      engine.antigravity_resolve_model("gemini-3.1-pro-preview") == "gemini-3.8-flash-high")
+check("agy bare 3.6-flash → medium",
+      engine.antigravity_resolve_model("gemini-3.6-flash") == "gemini-3.6-flash-medium")
+check("agy giữ 3.8-flash-high",
+      engine.antigravity_resolve_model("gemini-3.8-flash-high") == "gemini-3.8-flash-high")
+
 if fails:
     raise SystemExit(f"{len(fails)} FAIL: {fails}")
 print("ALL PASS")

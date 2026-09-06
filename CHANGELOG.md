@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.78] - 2026-09-06
+### Sửa lỗi
+- **Antigravity hết báo model lạ:** `gemini-3.1-pro-preview` và Flash không kèm High/Medium/Low tự đổi sang slug Flash còn trên plan (vd `gemini-3.8-flash-high`). Agent nghiên cứu ghim lại đúng mã đó.
+
 ## [0.55.77] - 2026-09-06
 ### Cải tiến
 - **Brief báo chí:** mỗi tin ghi rõ tờ báo, giờ xuất bản và link đọc bài (không còn dòng nguồn mơ hồ).

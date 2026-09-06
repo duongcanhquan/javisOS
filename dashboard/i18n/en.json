@@ -361,7 +361,7 @@
   "models.rs_reset": "Unpin, follow background",
   "models.rs_pin": "Pin research model",
   "models.rs_warn": "This provider is not connected - workflows will fall back to background / Claude.",
-  "models.rs_note": "For research chains, proposals, plans. Prefer a Pro model (e.g. gemini-3.1-pro-preview).",
+  "models.rs_note": "For research chains, proposals, plans. On Antigravity pick Flash High (e.g. gemini-3.8-flash-high).",
   "models.rs_title": "RESEARCH MODEL",
   "models.rs_note2": "Studio workflows and Telegram/Zalo /run when agent/workflow are on default",
   "models.aux_default": "Claude Code default",

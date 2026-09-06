@@ -967,6 +967,13 @@ class AntigravityCLI:
         self.cli_path = find_antigravity_cli()
         self.cwd = cwd or os.getcwd()
         self.tag = tag
+        # Alias Pro/Flash cũ → slug Flash+effort (engine.antigravity_resolve_model). Không
+        # cứng hoá catalog ở đây; `agy models` vẫn là nguồn picker.
+        try:
+            from engine import antigravity_resolve_model
+            model = antigravity_resolve_model(model)
+        except Exception:
+            pass
         self.model = model
         self.instructions = instructions
         self.session_id = None          # có giá trị -> nối lại mạch cũ

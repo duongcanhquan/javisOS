@@ -575,6 +575,46 @@ def gemini_resolve_model(model: str | None) -> str:
     return m
 
 
+# Antigravity CLI: slug = family + effort (High/Medium/Low). Gói cá nhân thường CHỈ Flash;
+# agent cũ còn ghim Pro / Flash không kèm effort → `agy` thoát "not recognized".
+# Bảng alias sống ở đây (không nhét vào antigravity_cli) để module CLI không cứng hoá catalog.
+AGY_DEFAULT_MODEL = "gemini-3.8-flash-high"
+_AGY_DOI_MODEL = {
+    "gemini-3.1-pro-preview": "gemini-3.8-flash-high",
+    "gemini-3-pro": "gemini-3.8-flash-high",
+    "gemini-3-pro-preview": "gemini-3.8-flash-high",
+    "gemini-2.5-pro": "gemini-3.8-flash-high",
+    "gemini-1.5-pro": "gemini-3.8-flash-high",
+    "gemini-3.8-flash": "gemini-3.8-flash-high",
+    "gemini-3.7-flash": "gemini-3.7-flash-high",
+    "gemini-3.6-flash": "gemini-3.6-flash-medium",
+    "gemini-3.5-flash": "gemini-3.6-flash-medium",
+    "gemini-3.5-flash-lite": "gemini-3.6-flash-low",
+    "gemini-2.5-flash": "gemini-3.6-flash-medium",
+}
+
+
+def antigravity_resolve_model(model: str | None) -> str:
+    """Đổi ID agent/settings cũ sang slug Antigravity còn nhận (Flash + High/Medium/Low).
+
+    Không phải catalog: `agy models` vẫn là nguồn danh sách picker. Chỉ cứu các mã chết
+    thường gặp trên plan cá nhân (không có Pro).
+    """
+    m = (model or "").strip()
+    if not m:
+        return m
+    if m in _AGY_DOI_MODEL:
+        return _AGY_DOI_MODEL[m]
+    low = m.lower()
+    # Pro / preview không có trên nhiều plan AGY → Flash High mới nhất
+    if "pro" in low and "flash" not in low:
+        return AGY_DEFAULT_MODEL
+    # Flash thiếu hậu tố effort → Medium (cân bằng; High dành cho research pin tường minh)
+    if re.fullmatch(r"gemini-[\d.]+-flash", low):
+        return f"{low}-medium"
+    return m
+
+
 def _groq_payload_extra(model: str, reasoning: str | None) -> dict:
     """Tham số riêng Groq reasoning (gpt-oss…): đủ chỗ cho thinking + câu trả lời."""
     if not _groq_is_reasoning(model):
