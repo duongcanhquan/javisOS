@@ -267,7 +267,7 @@ async def _static_cache_headers(request: Request, call_next):
     resp.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
     if request.url.path.startswith("/static/"):
         resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
-    if (request.url.path == "/static/freshness.js":
+    if request.url.path == "/static/freshness.js":
         # Người gác cổng mà cũ theo thì nó gác cái gì. Nạp KHÔNG kèm `?v=` và luôn hỏi lại.
         resp.headers["Cache-Control"] = "no-cache"
     elif "/vendor/moonshine-wasm/" in request.url.path:
