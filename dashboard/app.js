@@ -251,6 +251,8 @@ function handleMessage(data) {
       scrollBottom();
       // Gom tới hết câu rồi mới đọc. Đọc từng mẩu stream sẽ khựng giữa câu.
       if (voice.ttsEnabled && data.tts !== false) {
+        // Cắt câu chờ filler để khỏi nối liền với câu trả lời thật.
+        if (t.waitFiller) { voice.stopSpeaking(); t.waitFiller = false; }
         setOrbState("speaking", "ĐANG NÓI");
         const safeChunk = (data.content || "").replace(/<!--[\s\S]*/, "");
         if (safeChunk) voice.feedStream(safeChunk);
@@ -278,6 +280,7 @@ function handleMessage(data) {
       _renderCtxLine(msgEl, data);   // lượt này đi đường nào, tốn bao nhiêu
       if (finalText.trim()) recordTurn("javis", finalText, null, ask);
       if (voice.ttsEnabled && t) {
+        if (t.waitFiller) { t.waitFiller = false; }  // speak() bên dưới đã stopSpeaking
         voice.flushStream();
         if (!t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
       }
@@ -387,10 +390,16 @@ function sendMessage(text) {
 
   chatInput.value = ""; chatInput.style.height = "auto";
   clearAttachments();
-  turns[sid] = { text: "", bubble: null, spoke: false, running: true };
+  turns[sid] = { text: "", bubble: null, spoke: false, running: true, waitFiller: false };
   setSessionRunning(sid, true);
   setOrbState("thinking", "ĐANG SUY NGHĨ");
-  showActivity("Javis đang suy nghĩ...");   // hiện NGAY trong khung chat, không đợi server báo
+  // Câu chờ giọng nói: giảm cảm giác im lặng trước khi có chữ (chip hiện ngay, TTS đọc nếu đang bật).
+  const waitLine = "Cho em chút thời gian để trả lời.";
+  showActivity(waitLine);
+  if (voice.ttsEnabled) {
+    voice.enqueueSpeak(waitLine);
+    turns[sid].waitFiller = true;
+  }
   syncActiveUI();
   // Server đóng dấu model đang chạy cho phiên ngay từ tin đầu -> bar hiện "ghim" tại chỗ.
   try { if (window.JavisModelBar) window.JavisModelBar.noteStamped(sid); } catch (e) {}
