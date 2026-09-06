@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.73] - 2026-09-06
+### Sửa lỗi
+- **Cuộc họp không ghi được:** desktop dùng Web Speech ngay (không kẹt Moonshine); điện thoại ưu tiên Whisper + Web Speech ổn định hơn, tự chuyển nếu 12 giây không ra chữ.
+
 ## [0.55.72] - 2026-09-06
 ### Thêm mới
 - **Tổng hợp báo chí RSS:** skill lọc tin hôm trước đến 8h sáng theo chủ đề (mặc định giáo dục CĐ-ĐH), tối đa 10 link; nhắc 8h và `/run brief-bao-chi-sang`.

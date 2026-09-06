@@ -35,6 +35,8 @@
     lineBuffer: [], // dòng chờ meetingId (STT bật trước fetch)
     summaryPath: "",
     knowledgeDone: false,
+    _sttWatchdog: null,
+    _sttFailoverDone: false,
   };
 
   var archiveState = {
@@ -155,9 +157,65 @@
     return !!MOONSHINE_LANG[normalizeLang(lang)];
   }
 
-  /** Chỉ tiếng Việt dùng Moonshine làm mặc định khi bấm Bắt đầu (đã kiểm chứng ổn định). */
+  function isIOSLike() {
+    var ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    // iPadOS 13+ báo MacIntel + touch
+    if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
+    return false;
+  }
+
+  function isMobileLike() {
+    var ua = navigator.userAgent || "";
+    if (/Android|webOS|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+    return isIOSLike();
+  }
+
+  /**
+   * Điện thoại: Whisper (MediaRecorder + Groq) ổn hơn Moonshine WASM và continuous Web Speech.
+   * Chrome trên iOS cũng là WebKit — cùng hạn chế.
+   */
+  function preferWhisperLive() {
+    return isMobileLike();
+  }
+
+  /**
+   * Moonshine không còn mặc định khi Bắt đầu: dễ hiện "Đang nghe" mà không ra chữ
+   * (mobile WASM / tranh mic). Chỉ dùng làm dự phòng.
+   */
   function preferMoonshineFirst(lang) {
-    return normalizeLang(lang) === "vi";
+    return false;
+  }
+
+  function armAudioSessionForMic() {
+    try {
+      if (navigator.audioSession && "type" in navigator.audioSession) {
+        navigator.audioSession.type = "play-and-record";
+      }
+    } catch (e) {}
+  }
+
+  async function discardMicStream(micPromise) {
+    if (!micPromise) return;
+    try {
+      var stream = await micPromise.catch(function () {
+        return null;
+      });
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach(function (t) {
+          try {
+            t.stop();
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
+  }
+
+  function clearSttWatchdog() {
+    if (state._sttWatchdog) {
+      clearTimeout(state._sttWatchdog);
+      state._sttWatchdog = null;
+    }
   }
 
   function resetMoonshineCache() {
@@ -812,10 +870,16 @@
       el.style.color = "var(--text3)";
       return;
     }
+    if (preferWhisperLive()) {
+      el.textContent =
+        "Điện thoại: Bắt đầu dùng Whisper (cần Groq ở Models) hoặc Web Speech. Moonshine WASM thường im trên mobile.";
+      el.style.color = "var(--ok-ink, var(--text3))";
+      return;
+    }
     if (!preferMoonshineFirst(lang)) {
       el.textContent =
         label +
-        " — khi Bắt đầu sẽ dùng Web Speech (ghi ngay). Không cần chờ Moonshine.";
+        " — khi Bắt đầu dùng Web Speech (ghi ngay). Moonshine chỉ dự phòng.";
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
     }
@@ -839,6 +903,11 @@
 
   function preloadMoonshine(root) {
     var lang = meetingLang();
+    // Mobile: đừng tải Moonshine (nặng + thường im) — Whisper/Web Speech lo.
+    if (preferWhisperLive()) {
+      updateMoonshinePreloadHint(root, 0, lang);
+      return;
+    }
     // Chỉ preload tiếng Việt — EN/ngôn ngữ khác dùng Web Speech khi họp (không treo tải model).
     if (!preferMoonshineFirst(lang)) {
       updateMoonshinePreloadHint(root, 0, lang);
@@ -890,94 +959,31 @@
     state.speechRec = null;
   }
 
-  /** Dự phòng: Web Speech (Chrome/Edge) — nhanh nhưng không phân biệt người nói. */
+  /** Dự phòng: Web Speech (Chrome/Edge/Safari) — nhanh nhưng không phân biệt người nói. */
   function startWebSpeech(root) {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) throw new Error("Trình duyệt không hỗ trợ nhận giọng. Dùng Chrome hoặc Edge qua HTTPS.");
     stopWebSpeech();
+    armAudioSessionForMic();
+    var ios = isIOSLike();
     var rec = new SR();
     rec.lang = webSpeechLang(meetingLang());
-    rec.continuous = true;
+    // iOS continuous=true hay tự dừng / đệm kẹt — false + restart ổn hơn.
+    rec.continuous = !ios;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
 
-    rec.onstart = function () {
-      setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
-    };
-
-    rec.onspeechstart = function () {
-      var partial = root.querySelector("#mtPartial");
-      if (partial && !partial.textContent) partial.textContent = "…";
-    };
-
-    rec.onresult = function (ev) {
-      if (!state.running && !state.loading) return;
-      var interim = "";
-      var finals = [];
-      for (var i = ev.resultIndex; i < ev.results.length; i++) {
-        var piece = ((ev.results[i][0] && ev.results[i][0].transcript) || "").trim();
-        if (!piece) continue;
-        if (ev.results[i].isFinal) finals.push(piece);
-        else interim += piece;
-      }
-      if (interim) setPartial(root, interim.replace(/\s+/g, " ").trim(), "");
-      finals.forEach(function (tx) {
-        tx = tx.replace(/\s+/g, " ").trim();
-        if (!tx) return;
-        setPartial(root, "");
-        var wall = new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        appendFinal(root, tx, wall, "");
-        queueLine(tx, 0, 0, "", -1);
-      });
-    };
-
-    rec.onerror = function (ev) {
-      var err = (ev && ev.error) || "";
-      if (err === "no-speech" || err === "aborted") return;
-      if (err === "not-allowed") {
-        setStatus(root, "Micro bị chặn. Cho phép microphone cho trang này (biểu tượng ổ khóa trên thanh địa chỉ).", "err");
-      } else if (err === "audio-capture") {
-        setStatus(root, "Không thấy micro. Kiểm tra tai nghe/micro đã cắm và không bị app khác giữ.", "err");
-      } else if (err === "network") {
-        setStatus(
-          root,
-          "Nhận giọng cần mạng (Chrome gửi âm thanh lên Google). Kiểm tra kết nối hoặc dùng File ghi âm → chữ.",
-          "err"
-        );
-      } else {
-        setStatus(root, "Nhận giọng: " + err, "err");
-      }
-    };
-
-    rec.onend = function () {
-      if (state.running && state.speechRec === rec) {
-        try {
-          rec.start();
-        } catch (e) {}
-      }
-    };
-
-    try {
-      rec.start();
-    } catch (e1) {
-      stopWebSpeech();
-      rec = new SR();
-      rec.lang = webSpeechLang(meetingLang());
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.maxAlternatives = 3;
-      rec.onstart = function () {
+    function wireHandlers(r) {
+      r.onstart = function () {
         setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
       };
-      rec.onspeechstart = function () {
+
+      r.onspeechstart = function () {
         var partial = root.querySelector("#mtPartial");
         if (partial && !partial.textContent) partial.textContent = "…";
       };
-      rec.onresult = function (ev) {
+
+      r.onresult = function (ev) {
         if (!state.running && !state.loading) return;
         var interim = "";
         var finals = [];
@@ -1001,7 +1007,8 @@
           queueLine(tx, 0, 0, "", -1);
         });
       };
-      rec.onerror = function (ev) {
+
+      r.onerror = function (ev) {
         var err = (ev && ev.error) || "";
         if (err === "no-speech" || err === "aborted") return;
         if (err === "not-allowed") {
@@ -1018,13 +1025,31 @@
           setStatus(root, "Nhận giọng: " + err, "err");
         }
       };
-      rec.onend = function () {
-        if (state.running && state.speechRec === rec) {
+
+      r.onend = function () {
+        if (!(state.running && state.speechRec === r)) return;
+        var delay = ios ? 250 : 40;
+        setTimeout(function () {
+          if (!(state.running && state.speechRec === r)) return;
           try {
-            rec.start();
+            r.start();
           } catch (e) {}
-        }
+        }, delay);
       };
+    }
+
+    wireHandlers(rec);
+
+    try {
+      rec.start();
+    } catch (e1) {
+      stopWebSpeech();
+      rec = new SR();
+      rec.lang = webSpeechLang(meetingLang());
+      rec.continuous = !ios;
+      rec.interimResults = true;
+      rec.maxAlternatives = 3;
+      wireHandlers(rec);
       rec.start();
     }
     state.speechRec = rec;
@@ -1191,10 +1216,71 @@
   }
 
   async function cleanupAudio() {
+    clearSttWatchdog();
     stopWebSpeech();
     stopWhisper();
     await stopMoonshineMic();
     state.sttEngine = "";
+  }
+
+  function armSttWatchdog(root) {
+    clearSttWatchdog();
+    var linesAtStart = state.lines;
+    state._sttWatchdog = setTimeout(function () {
+      state._sttWatchdog = null;
+      if (!state.running || state.abortRequested) return;
+      if (state.lines > linesAtStart) return;
+      if (state._sttFailoverDone) {
+        setStatus(
+          root,
+          "Vẫn chưa ghi được lời. Cho phép micro, kiểm tra Groq (Models), hoặc dùng File ghi âm → chữ.",
+          "err"
+        );
+        return;
+      }
+      state._sttFailoverDone = true;
+      var prev = state.sttEngine;
+      setStatus(root, "Chưa nhận được giọng — đang chuyển chế độ nhận dạng…", "err");
+      (async function () {
+        try {
+          await cleanupAudio();
+          state.running = true;
+          if (prev !== "whisper") {
+            var ok = await fetchWhisperReady();
+            if (ok && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              var mp = navigator.mediaDevices.getUserMedia({
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
+                  channelCount: 1,
+                },
+              });
+              await startWhisperMeeting(root, mp);
+              setStatus(root, "Đã chuyển Whisper — nói rõ từng câu.", "ok");
+              return;
+            }
+          }
+          if (prev !== "webspeech" && hasWebSpeech()) {
+            startWebSpeechSafe(root);
+            setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
+            return;
+          }
+          if (prev !== "moonshine" && moonshineSupports(meetingLang())) {
+            await startMoonshine(root);
+            setStatus(root, "Đã chuyển Moonshine.", "ok");
+            return;
+          }
+          setStatus(
+            root,
+            "Vẫn chưa ghi được. Cho phép micro, kiểm tra Groq (Models), hoặc dùng File ghi âm → chữ.",
+            "err"
+          );
+        } catch (e) {
+          setStatus(root, "Chuyển STT lỗi: " + (e.message || e), "err");
+        }
+      })();
+    }, 12000);
   }
 
   async function stopOrCancelMeeting(root) {
@@ -1242,56 +1328,44 @@
     }
   }
 
-  async function beginSttFast(root, langFixed) {
+  async function beginSttFast(root, langFixed, opts) {
+    opts = opts || {};
     if (state.abortRequested) return null;
     var lang = normalizeLang(langFixed || meetingLang());
+    var micPromise = opts.micPromise || null;
 
-    // English / ngoại ngữ trên Chrome/Edge: Web Speech ghi ngay.
-    if (!preferMoonshineFirst(lang) && hasWebSpeech()) {
-      startWebSpeechSafe(root);
-      setStatus(
-        root,
-        "Đang ghi (Web Speech · " + langLabel(lang) + "). Nói rõ từng câu.",
-        "ok"
-      );
-      return "webspeech";
-    }
+    armAudioSessionForMic();
 
-    // Safari / không Web Speech + không phải VI: bỏ Moonshine (tránh treo 45s) → Whisper sau.
-    if (!preferMoonshineFirst(lang) && !hasWebSpeech()) {
-      setStatus(
-        root,
-        "Trình duyệt không hỗ trợ Web Speech. Dùng Chrome/Edge, hoặc File ghi âm → chữ.",
-        "err"
-      );
-      return null;
-    }
-
-    // Tiếng Việt: Moonshine.
-    if (moonshineSupports(lang)) {
-      try {
-        await startMoonshine(root);
-        return "moonshine";
-      } catch (e) {
-        await stopMoonshineMic();
-        if (!hasWebSpeech()) throw e;
+    // 1) Điện thoại: Whisper trước (MediaRecorder). Giữ getUserMedia sẽ làm Web Speech im → chỉ giữ khi dùng Whisper.
+    if (preferWhisperLive() && micPromise) {
+      var whisperOk = await fetchWhisperReady();
+      if (whisperOk) {
+        try {
+          await startWhisperMeeting(root, micPromise);
+          setStatus(root, "Đang ghi (Whisper) — nói rõ từng câu.", "ok");
+          return "whisper";
+        } catch (e) {
+          stopWhisper();
+          await discardMicStream(micPromise);
+          micPromise = null;
+          setStatus(
+            root,
+            "Whisper lỗi — thử Web Speech… " + ((e && e.message) || ""),
+            "err"
+          );
+        }
+      } else {
+        await discardMicStream(micPromise);
+        micPromise = null;
         setStatus(
           root,
-          "Moonshine lỗi — chuyển Web Speech (" +
-            langLabel(lang) +
-            ")… " +
-            (e.message || ""),
+          "Chưa có Groq key — dùng Web Speech. (Models → Groq để Whisper trên điện thoại ổn hơn.)",
           "err"
         );
-        startWebSpeechSafe(root);
-        setStatus(
-          root,
-          "Đang ghi (Web Speech · " + langLabel(lang) + "). Nói rõ từng câu.",
-          "ok"
-        );
-        return "webspeech";
       }
     }
+
+    // 2) Web Speech — mặc định desktop (kể cả tiếng Việt). Tránh Moonshine "Đang nghe" mà im.
     if (hasWebSpeech()) {
       startWebSpeechSafe(root);
       setStatus(
@@ -1300,6 +1374,17 @@
         "ok"
       );
       return "webspeech";
+    }
+
+    // 3) Không Web Speech: Moonshine (nếu hỗ trợ); Whisper do caller lo qua micPromise.
+    if (moonshineSupports(lang)) {
+      try {
+        await startMoonshine(root);
+        return "moonshine";
+      } catch (e) {
+        await stopMoonshineMic();
+        throw e;
+      }
     }
     return null;
   }
@@ -1330,6 +1415,7 @@
     state.loading = true;
     state.stopped = false;
     state.abortRequested = false;
+    state._sttFailoverDone = false;
     state.lineBuffer = [];
     seedSpeakersFromInput(root);
     var langAtStart = meetingLang();
@@ -1341,6 +1427,8 @@
     if (stopBtnEarly) stopBtnEarly.disabled = false;
 
     releaseMicConflicts();
+    armAudioSessionForMic();
+    state.lines = 0;
 
     setPhase(root, "live");
     root.querySelector("#mtLines").innerHTML =
@@ -1352,9 +1440,10 @@
     var moonshineFail = null;
     var sttEngine = null;
     var micPromise = null;
-    // Chỉ giữ mic sớm khi không có Web Speech (Safari) — getUserMedia song song làm Chrome im lặng.
+    // Mobile: xin mic sớm cho Whisper. Desktop Chrome: KHÔNG getUserMedia trước Web Speech (sẽ im).
+    // Safari desktop không WS: xin mic sớm cho Whisper/Moonshine.
     if (
-      !hasWebSpeech() &&
+      (preferWhisperLive() || !hasWebSpeech()) &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia
     ) {
@@ -1372,14 +1461,14 @@
       state.running = true;
       setStatus(
         root,
-        preferMoonshineFirst(langAtStart) && state.moonshineReady
-          ? "Bật Moonshine…"
+        preferWhisperLive()
+          ? "Bật micro (Whisper / Web Speech)…"
           : hasWebSpeech()
             ? "Bật micro (Web Speech)…"
             : "Bật micro…"
       );
       try {
-        sttEngine = await beginSttFast(root, langAtStart);
+        sttEngine = await beginSttFast(root, langAtStart, { micPromise: micPromise });
         if (sttEngine) sttStarted = true;
       } catch (fastErr) {
         moonshineFail = fastErr;
@@ -1401,18 +1490,17 @@
       if (state.abortRequested) throw new Error("Đã hủy");
       state.meetingId = r.id;
       state.path = r.path || "";
-      state.lines = 0;
       var pathEl = root.querySelector("#mtPath");
       if (pathEl) pathEl.textContent = r.path || "";
       var countEl = root.querySelector("#mtCount");
-      if (countEl) countEl.textContent = "0";
+      if (countEl) countEl.textContent = String(state.lines || 0);
 
       await flushLineBuffer();
 
       if (!sttStarted) {
         state.running = true;
         try {
-          sttEngine = await beginSttFast(root, langAtStart);
+          sttEngine = await beginSttFast(root, langAtStart, { micPromise: micPromise });
           if (sttEngine) sttStarted = true;
         } catch (e2) {
           moonshineFail = e2;
@@ -1421,15 +1509,26 @@
 
       if (!sttStarted) {
         var whisperOk = await fetchWhisperReady();
-        if (whisperOk && micPromise) {
+        var mp = micPromise;
+        if (whisperOk && !mp && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          mp = navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              channelCount: 1,
+            },
+          });
+        }
+        if (whisperOk && mp) {
           try {
-            await startWhisperMeeting(root, micPromise);
+            await startWhisperMeeting(root, mp);
             sttStarted = true;
             sttEngine = "whisper";
           } catch (whErr) {
-            if (micPromise && micPromise.catch) {
+            if (mp && mp.catch) {
               try {
-                await micPromise.catch(function () {});
+                await discardMicStream(mp);
               } catch (e) {}
             }
             throw new Error(
@@ -1437,14 +1536,14 @@
                 "Không bật được micro Whisper. Cho phép micro hoặc dán key Groq ở trang Models."
             );
           }
-        } else if (whisperOk && !micPromise) {
+        } else if (whisperOk && !mp) {
           throw new Error(
             "Trình duyệt không hỗ trợ micro. Dùng Chrome/Edge hoặc File ghi âm → chữ."
           );
         } else {
           throw new Error(
             (moonshineFail && moonshineFail.message) ||
-              "Không nghe được micro. Cho phép micro, đợi Moonshine tải xong (mở trang 1–2 phút), hoặc dán key Groq ở Models."
+              "Không nghe được micro. Cho phép micro, dùng Chrome/Edge qua HTTPS, hoặc dán key Groq ở Models."
           );
         }
       }
@@ -1465,6 +1564,7 @@
       } else if (sttEngine === "whisper") {
         setStatus(root, "Micro đang nghe (Whisper) — nói rõ từng câu.", "ok");
       }
+      armSttWatchdog(root);
       await ensureWs();
       loadArchive(root);
     } catch (e) {
