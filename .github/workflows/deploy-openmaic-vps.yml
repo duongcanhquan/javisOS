@@ -11,9 +11,9 @@ on:
         required: true
         default: "openmaic.vietmycollege.com"
       build_from_source:
-        description: "Build từ source upstream (1) hay image community nhanh (0)"
+        description: "Build từ source upstream (1) hay image community nhanh (0). VPS nhỏ dùng 0."
         required: true
-        default: "1"
+        default: "0"
 
 concurrency:
   group: openmaic-deploy
@@ -58,4 +58,5 @@ jobs:
             chmod +x "$DIR/scripts/vps-deploy-openmaic.sh"
             export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD
             export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
+            export OPENMAIC_ALLOW_NO_KEY=1
             bash "$DIR/scripts/vps-deploy-openmaic.sh"

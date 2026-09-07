@@ -19,13 +19,16 @@
 1. Đảm bảo Javis đã có **Models → Google Gemini** (key), hoặc thêm secret `OPENMAIC_GOOGLE_API_KEY`.
 2. DNS: bản ghi **A** `openmaic.vietmycollege.com` → IP VPS (cùng IP với `javis.vietmycollege.com`).
 3. Push các file script/workflow lên `main`.
-4. GitHub → Actions → **Deploy OpenMAIC to VPS** → Run workflow.
+4. GitHub → Actions → **Deploy OpenMAIC to VPS** → Run workflow  
+   (mặc định `build_from_source=0` = image nhanh; VPS nhỏ nên giữ 0).
+
+Thiếu Gemini key: container vẫn lên (TTS Browser Native). Generate classroom cần key - dán ở Javis Models rồi chạy lại workflow.
 
 Hoặc trên VPS:
 
 ```bash
 cd ~/javis-os && git pull
-bash scripts/vps-deploy-openmaic.sh
+OPENMAIC_BUILD=0 bash scripts/vps-deploy-openmaic.sh
 ```
 
 ## Sau khi lên
