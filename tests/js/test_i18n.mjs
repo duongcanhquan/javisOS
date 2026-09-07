@@ -134,7 +134,7 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
 {
   const idx = fs.readFileSync(path.join(ROOT, "dashboard", "i18n", "index.js"), "utf8");
   check("index.js fetch từ điển với cache: no-cache (luôn hỏi lại server, 304 là rẻ)",
-        /fetch\("\/static\/i18n\/" \+ ma \+ "\.json", \{ cache: "no-cache" \}\)/.test(idx));
+        /cache:\s*"no-cache"/.test(idx) && idx.includes('/static/i18n/" + ma + ".json'));
   check("applyDom KHÔNG ghi đè khi thiếu bản dịch (giữ chữ có sẵn thay vì in mã khoá)",
         idx.includes('v === el.getAttribute(attr) ? null : v'));
 

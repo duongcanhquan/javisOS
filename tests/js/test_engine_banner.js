@@ -23,7 +23,8 @@ function check(name, cond) {
 
 // Lay dung than ham refreshEngineBanner de khong bat nham chuoi o cho khac.
 const start = SRC.indexOf("async function refreshEngineBanner()");
-const end = SRC.indexOf("\n  function boot()", start);
+let end = SRC.indexOf("\n  async function boot()", start);
+if (end < 0) end = SRC.indexOf("\n  function boot()", start);
 check("tim thay refreshEngineBanner", start !== -1 && end > start);
 const FN = SRC.slice(start, end);
 

@@ -11555,9 +11555,8 @@ def _openmaic_base_url() -> str:
 
 
 def _openmaic_public_url() -> str:
-    env = (os.getenv("OPENMAIC_PUBLIC_URL") or "").strip().rstrip("/")
-    if env:
-        return env
+    # Ưu tiên file state do deploy ghi (IP:3000 khi DNS domain chưa trỏ) —
+    # thắng OPENMAIC_PUBLIC_URL trong compose nếu domain chưa resolve được.
     try:
         state = Path(os.getenv("JAVIS_STATE_DIR") or "/data/state")
         p = state / "openmaic_public_url"
@@ -11567,6 +11566,9 @@ def _openmaic_public_url() -> str:
                 return v
     except Exception:
         pass
+    env = (os.getenv("OPENMAIC_PUBLIC_URL") or "").strip().rstrip("/")
+    if env:
+        return env
     return "https://openmaic.vietmycollege.com"
 
 

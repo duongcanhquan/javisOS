@@ -55,7 +55,8 @@ check("chưa chốt gì thì lấy nguyên final", ghep("", "Ok") === "Ok");
 // ---- 2. Phiên tự mở lại không làm mất nửa câu đầu ----
 check("onend tự mở lại thì gói phần đã nghe vào _committed trước",
   /this\._committed = this\._ghepChuyenBien\(""\);\s*\n\s*this\.recognition\.start\(\);/.test(voice));
-check("mở nghe CHỦ ĐỘNG là lượt mới: xoá _committed", /clearTimeout\(this\._resumeTimer\);\s*\n\s*this\._committed = "";/.test(voice));
+check("mở nghe CHỦ ĐỘNG là lượt mới: xoá _committed",
+  /if \(!tuDong\) this\._committed = "";/.test(voice));
 check("gửi xong dọn _committed", /this\._committed = "";\s*\n\s*if \(finalText\) this\.onTranscript\(finalText\);/.test(voice));
 // Các chốt cũ của test_mic_khong_tu_gui phải còn nguyên (không được phá lúc sửa onresult).
 check("onstart/onend/onerror vẫn hạ _starting ở dòng đầu",
