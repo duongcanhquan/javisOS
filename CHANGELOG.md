@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.112] - 2026-09-07
+### Cải tiến
+- **Brief báo chí 8h:** sau khi tổng hợp giáo dục, gửi vào Google Chat space `APC.HN Tin tức giáo dục` (nhắc mức full trên brain APC.HN).
+
 ## [0.55.111] - 2026-09-07
 ### Thêm mới
 - **Pháp chế Pha A:** seed agent + khung `sources/phap-che` theo Drive RAG VĂN BẢN; script sync rclone sẵn folder ID.

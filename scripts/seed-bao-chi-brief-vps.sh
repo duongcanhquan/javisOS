@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Seed nhắc hẹn "Tổng hợp báo chí 8h" (danh mục giáo dục) trên VPS.
+# Brief → gửi Google Chat space "APC.HN Tin tức giáo dục" + đẩy inbox/Telegram nếu có.
 # Idempotent: cùng label thì cập nhật text/cron, không tạo trùng.
 set -euo pipefail
 
@@ -7,12 +8,15 @@ CONTAINER="${JAVIS_CONTAINER:-javis}"
 PORT="${JAVIS_PORT:-7777}"
 LABEL="${BAO_CHI_BRIEF_LABEL:-Tổng hợp báo chí 8h}"
 CRON="${BAO_CHI_BRIEF_CRON:-0 8 * * *}"
-BRAIN="${BAO_CHI_BRIEF_BRAIN:-brain}"
-MUC_QUYEN="${BAO_CHI_BRIEF_MUC_QUYEN:-suggest}"
-ALLOW_NO_CHANNEL="${BAO_CHI_BRIEF_ALLOW_NO_CHANNEL:-false}"
+# Brain mặc định sau đổi tên: APC.HN
+BRAIN="${BAO_CHI_BRIEF_BRAIN:-APC.HN}"
+# Cần full để gọi send_message Google Chat
+MUC_QUYEN="${BAO_CHI_BRIEF_MUC_QUYEN:-full}"
+ALLOW_NO_CHANNEL="${BAO_CHI_BRIEF_ALLOW_NO_CHANNEL:-true}"
 CHAT_ID="${BAO_CHI_BRIEF_CHAT_ID:-all}"
+GCHAT_SPACE="${BAO_CHI_GCHAT_SPACE:-APC.HN Tin tức giáo dục}"
 
-PROMPT=$(cat <<'EOF'
+PROMPT=$(cat <<EOF
 Chạy workflow brief-bao-chi-sang / skill tong-hop-bao-chi với danh mục CỐ ĐỊNH: giao-duc.
 
 1) Đọc Javis/bao-chi-cau-hinh.md - chỉ khối ## Danh mục: giao-duc.
@@ -21,11 +25,18 @@ Chạy workflow brief-bao-chi-sang / skill tong-hop-bao-chi với danh mục C�
 4) Viết báo cáo theo khuôn skill:
    - Phần Tóm tắt (bullet ngắn)
    - Phần Tin mới: DÁN NGUYÊN field tin_moi_markdown từ JSON script
-     (mỗi bài đã có [tiêu đề](url) + dòng Đọc chi tiết: https://...).
-     CẤM viết lại danh sách tin. CẤM bỏ URL — Telegram/Zalo cần link để bấm đọc.
+     (mỗi bài đã có [tiêu đề](url) / Link: https://...).
+     CẤM viết lại danh sách tin. CẤM bỏ URL.
    Không bịa. Không trộn RSS tài chính/BĐS.
 
-Chỉ ĐỌC RSS và tóm tắt. Kết quả do hệ thống nhắc đẩy về kênh. Tiếng Việt, ngắn như tin nhắn.
+5) GỬI sang Google Chat (BẮT BUỘC sau khi có báo cáo):
+   - Dùng kết nối Google Chat đã đấu.
+   - search_conversations với spaceNameQuery = "${GCHAT_SPACE}" (khớp đúng tên space này).
+   - Nếu khớp đúng 1 space → send_message toàn bộ báo cáo brief vào space đó.
+   - Nếu 0 hoặc nhiều kết quả → KHÔNG gửi; báo rõ danh sách tìm được và dừng.
+   - Không gửi sang space khác. Không tóm tắt lại khi gửi (gửi đúng bản brief).
+
+Tiếng Việt. Kết quả nhắc cũng về inbox/Telegram nếu hệ thống có kênh.
 EOF
 )
 
@@ -44,7 +55,7 @@ brains_root = Path(os.environ.get("BRAINS_DIR", "/brains"))
 sample = """---
 type: note
 title: Cấu hình báo chí theo danh mục RSS
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # Cấu hình báo chí theo danh mục
@@ -108,7 +119,7 @@ bất động sản, nhà đất, chung cư, dự án, quy hoạch, giá nhà, �
 
 ## Ghi chú
 
-- Workflow 8h = danh mục `giao-duc`.
+- Workflow 8h = danh mục `giao-duc` → Google Chat space APC.HN Tin tức giáo dục.
 - Gọi tay: «tổng hợp báo chí tài chính» → `tai-chinh`.
 """
 written = 0
@@ -132,7 +143,7 @@ else:
     print(f"ok: newly={written} upgraded={upgraded}")
 PY
 
-echo "==> seed nhắc: $LABEL (cron $CRON, muc=$MUC_QUYEN, brain=$BRAIN, chat=$CHAT_ID)"
+echo "==> seed nhắc: $LABEL (cron $CRON, muc=$MUC_QUYEN, brain=$BRAIN, chat=$CHAT_ID, gchat=$GCHAT_SPACE)"
 docker exec -i -u javis \
   -e "JAVIS_PORT=$PORT" \
   -e "BC_LABEL=$LABEL" \
@@ -233,10 +244,10 @@ else:
 
 print("notify:", json.dumps(notify, ensure_ascii=False))
 print("muc_quyen:", muc, "| chat_id:", chat, "| category: giao-duc")
+print("CANH_BAO: Ket noi Google Chat phai o muc Ghi nhap/Toan quyen (khong Chi doc) de send_message.")
 PY
 
 echo ""
-echo "==> XONG. Brief 8h = danh muc giao-duc."
-echo "    Sua RSS: Javis/bao-chi-cau-hinh.md"
-echo "    Goi tay: tong hop bao chi tai-chinh / bat-dong-san"
-echo "    Workflow: /run brief-bao-chi-sang"
+echo "==> XONG. Brief 8h giao-duc → Google Chat «$GCHAT_SPACE» (brain $BRAIN, muc $MUC_QUYEN)."
+echo "    Tren dashboard: Kết nối → Google Chat → nâng quyền nếu đang Chỉ đọc."
+echo "    Thu tay: Work → chạy nhắc «$LABEL» hoặc chat: chạy brief báo chí gửi Google Chat."
