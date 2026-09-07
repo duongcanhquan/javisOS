@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.126] - 2026-09-07
+### Cải tiến
+- **Bài giảng → OpenMAIC:** khóa `language=vi` + TTS Edge (cấm Live Demo / Browser Native / zh); nút Copy lệnh OpenMAIC; cập nhật skill + agent seed.
 ## [0.55.125] - 2026-09-07
 ### Cải tiến
 - **Bài giảng → OpenMAIC:** tab Lớp học lưu URL + mã site 1 lần; Copy brief / Mở OpenMAIC; ô dán giáo án cho mọi tab (kể cả Video).

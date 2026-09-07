@@ -96,6 +96,66 @@
     } catch (e) {}
   }
 
+  function omLangRules(lang) {
+    var L = String(lang || "vi").trim().toLowerCase() || "vi";
+    if (L === "vietnamese") L = "vi";
+    return {
+      code: L,
+      isVi: L === "vi" || L.indexOf("vi") === 0,
+    };
+  }
+
+  /** Lệnh handoff OpenMAIC: khóa locale + TTS để tránh giọng Trung / Live Demo. */
+  function buildOpenmaicHandoff(opts) {
+    opts = opts || {};
+    var om = loadOm();
+    var lang = omLangRules(opts.lang || "vi");
+    var topic = opts.topic || "(chưa ghi chủ đề)";
+    var goals = opts.goals || "";
+    var paste = opts.paste || "";
+    var slugHint = opts.slugHint || "exports/bai-giang/<slug>/lop-hoc.md";
+    var lines = [
+      "Self-hosted OpenMAIC (KHÔNG Live Demo / KHÔNG open.maic.chat).",
+      "URL: " + om.url,
+      "Mã site (ACCESS_CODE, nhập 1 lần): " + (om.code || OM_DEFAULT_CODE),
+      "",
+      "Tạo LẠI classroom mới (không dùng bản cũ) từ:",
+      slugHint,
+      "(+ quiz.md cùng thư mục nếu hữu ích).",
+      "",
+      "Chủ đề: " + topic,
+    ];
+    if (goals) lines.push("Mục tiêu: " + goals);
+    if (lang.isVi) {
+      lines.push(
+        "language=vi — toàn bộ script, quiz, UI, requirement bằng tiếng Việt dấu đầy đủ."
+      );
+      lines.push("CẤM language=zh / zh-CN / zh-TW. CẤM fallback language=en-US khi nội dung là Việt.");
+    } else {
+      lines.push("language=" + lang.code + " — giữ đúng ngôn ngữ brief; không chuyển sang zh.");
+    }
+    lines.push("");
+    lines.push("TTS (tránh giọng Trung / ngọng):");
+    lines.push("- enableTTS=true nếu /api/health.capabilities.tts=true");
+    lines.push(
+      "- Provider: OpenAI TTS → Javis Edge-TTS. Voice: nova hoặc alloy (Hoài My); onyx hoặc echo (Nam Minh)."
+    );
+    lines.push("- CẤM Browser Native / speechSynthesis / Doubao / Qwen / mọi voice zh-*");
+    lines.push("- Script không Pinyin, không chữ Hán.");
+    if (paste) {
+      lines.push("");
+      lines.push("--- Nội dung / giáo án dán ---");
+      lines.push(paste);
+    }
+    lines.push("");
+    lines.push(
+      "Khi xong, trả đúng một dòng URL classroom tuyệt đối trên " +
+        om.url.replace(/^https?:\/\//, "").split("/")[0] +
+        " (không markdown)."
+    );
+    return lines.join("\n");
+  }
+
   function composeBrief(topic, audience, goals, lang, fmt, files, paste) {
     var parts = [
       "Chủ đề: " + topic,
@@ -114,12 +174,21 @@
     if (files && files.length) parts.push("File đính kèm:\n- " + files.join("\n- "));
     if (fmt && fmt.id === "lop-hoc") {
       var om = loadOm();
+      var lr = omLangRules(lang);
       parts.push(
         "OpenMAIC self-host: " +
           om.url +
-          " (dùng site trường — KHÔNG lấy mã tạm trên open.maic.chat)."
+          " (KHÔNG Live Demo / open.maic.chat)."
       );
-      if (om.code) parts.push("Mã site OpenMAIC (nhập 1 lần trên trình duyệt): " + om.code);
+      if (om.code) parts.push("Mã site OpenMAIC (nhập 1 lần): " + om.code);
+      parts.push(
+        "OpenMAIC language=" +
+          (lr.isVi ? "vi" : lr.code) +
+          "; TTS OpenAI/Edge (nova/alloy); CẤM Browser Native / Doubao / Qwen / zh-*."
+      );
+      parts.push(
+        "Cuối gói: ghi khối handoff OpenMAIC (self-host + language + TTS) để user copy sang Generate classroom."
+      );
     }
     return parts.join("\n");
   }
@@ -264,7 +333,7 @@
       return (
         '<div class="jw-om" id="bgOmPanel">' +
         '<p class="jw-brief-kicker">OpenMAIC (lớp học live)</p>' +
-        "<p class=\"jw-hint\">Cài <b>một lần</b> bên dưới. Không tạo mã mới mỗi bài — không dùng open.maic.chat.</p>" +
+        "<p class=\"jw-hint\">Self-host + <b>language=vi</b> + TTS Edge. Không Live Demo / Browser Native (tránh giọng Trung).</p>" +
         '<div class="jw-field"><label for="bgOmUrl">URL OpenMAIC</label>' +
         '<input id="bgOmUrl" type="url" value="' +
         esc(om.url) +
@@ -280,7 +349,8 @@
         '<p class="jw-hint">Nhập trên OpenMAIC 1 lần / trình duyệt (~7 ngày). Để trống nếu site không hỏi mã.</p></div>' +
         '<div class="jw-actions jw-om-actions">' +
         '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmSave">Lưu mã & URL</button>' +
-        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmCopy">Copy brief + mã</button>' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmCopyCmd">Copy lệnh OpenMAIC</button>' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmCopy">Copy brief</button>' +
         '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmOpen">Mở OpenMAIC</button>' +
         "</div></div>"
       );
@@ -321,7 +391,34 @@
 
       var saveBtn = root.querySelector("#bgOmSave");
       var copyBtn = root.querySelector("#bgOmCopy");
+      var copyCmdBtn = root.querySelector("#bgOmCopyCmd");
       var openBtn = root.querySelector("#bgOmOpen");
+
+      function persistOmFields() {
+        var urlEl = root.querySelector("#bgOmUrl");
+        var codeEl = root.querySelector("#bgOmCode");
+        if (urlEl || codeEl) {
+          saveOm(
+            (urlEl && urlEl.value) || loadOm().url,
+            (codeEl && codeEl.value) || ""
+          );
+        }
+      }
+
+      async function copyText(text, okMsg) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            throw new Error("no clipboard");
+          }
+          setStatus(okMsg || "Đã copy.", true);
+        } catch (e) {
+          appendLog("--- Copy thủ công ---\n" + text + "\n---");
+          setStatus("Clipboard bị chặn — xem cột Kết quả để copy tay.", false);
+        }
+      }
+
       if (saveBtn) {
         saveBtn.onclick = function () {
           var url = ((root.querySelector("#bgOmUrl") || {}).value || "").trim();
@@ -334,53 +431,52 @@
           setStatus("Đã lưu OpenMAIC URL + mã site (trình duyệt này).", true);
         };
       }
+      if (copyCmdBtn) {
+        copyCmdBtn.onclick = async function () {
+          persistOmFields();
+          var text = buildOpenmaicHandoff({
+            topic: ((root.querySelector("#bgTopic") || {}).value || "").trim() || "(chưa ghi chủ đề)",
+            goals: ((root.querySelector("#bgGoals") || {}).value || "").trim(),
+            paste: ((root.querySelector("#bgPaste") || {}).value || "").trim(),
+            lang: ((root.querySelector("#bgLang") || {}).value || "vi").trim(),
+            slugHint: "exports/bai-giang/<slug>/lop-hoc.md",
+          });
+          await copyText(text, "Đã copy lệnh OpenMAIC (vi + TTS Edge) — dán vào chat/Generate.");
+        };
+      }
       if (copyBtn) {
         copyBtn.onclick = async function () {
-          var urlEl = root.querySelector("#bgOmUrl");
-          var codeEl = root.querySelector("#bgOmCode");
-          if (urlEl || codeEl) {
-            saveOm(
-              (urlEl && urlEl.value) || loadOm().url,
-              (codeEl && codeEl.value) || ""
-            );
-          }
+          persistOmFields();
           var topic = ((root.querySelector("#bgTopic") || {}).value || "").trim() || "(chưa ghi chủ đề)";
           var goals = ((root.querySelector("#bgGoals") || {}).value || "").trim();
           var paste = ((root.querySelector("#bgPaste") || {}).value || "").trim();
+          var lang = ((root.querySelector("#bgLang") || {}).value || "vi").trim();
           var om = loadOm();
           var text =
-            "OpenMAIC: " +
+            composeBrief(topic, "", goals, lang, fmt(), uploaded, paste) +
+            "\n\n--- Lệnh OpenMAIC ---\n" +
+            buildOpenmaicHandoff({
+              topic: topic,
+              goals: goals,
+              paste: paste,
+              lang: lang,
+            }) +
+            "\n\n→ Dán lệnh vào Generate trên " +
             om.url +
-            "\nMã site (nhập 1 lần nếu hỏi): " +
-            (om.code || "(không)") +
-            "\n\nChủ đề: " +
-            topic +
-            (goals ? "\nMục tiêu: " + goals : "") +
-            (paste ? "\n\n--- Nội dung dán ---\n" + paste : "") +
-            "\n\n→ Dán vào ô Generate classroom trên OpenMAIC (self-host). Không lấy mã trên open.maic.chat.";
-          try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(text);
-            } else {
-              throw new Error("no clipboard");
-            }
-            setStatus("Đã copy brief + mã — dán vào OpenMAIC.", true);
-          } catch (e) {
-            appendLog("--- Copy thủ công ---\n" + text + "\n---");
-            setStatus("Clipboard bị chặn — xem brief ở cột Kết quả để copy tay.", false);
-          }
+            " (không lấy mã cloud).";
+          await copyText(text, "Đã copy brief + lệnh OpenMAIC (chuẩn tiếng Việt).");
         };
       }
       if (openBtn) {
         openBtn.onclick = function () {
-          var urlEl = root.querySelector("#bgOmUrl");
-          var codeEl = root.querySelector("#bgOmCode");
-          var url = ((urlEl && urlEl.value) || loadOm().url || OM_DEFAULT_URL).trim().replace(/\/$/, "");
-          var code = (codeEl && codeEl.value) != null ? codeEl.value : loadOm().code;
-          saveOm(url, code);
+          persistOmFields();
+          var om = loadOm();
+          var url = om.url || OM_DEFAULT_URL;
           window.open(url, "_blank", "noopener,noreferrer");
           setStatus(
-            "Đã mở OpenMAIC. Nếu hỏi mã: dán «" + (String(code || "").trim() || OM_DEFAULT_CODE) + "» (một lần).",
+            "Đã mở OpenMAIC. Settings TTS → OpenAI (Edge). language=vi. Mã: «" +
+              (om.code || OM_DEFAULT_CODE) +
+              "».",
             true
           );
         };
@@ -565,17 +661,25 @@
             appendLog("--- Xong ---");
             if (f.id === "lop-hoc") {
               var omDone = loadOm();
+              var handoff = buildOpenmaicHandoff({
+                topic: v.topic,
+                goals: v.goals,
+                paste: v.paste,
+                lang: v.lang,
+                slugHint: "exports/bai-giang/<slug>/lop-hoc.md",
+              });
               appendLog(
                 "OpenMAIC: " +
                   omDone.url +
-                  " | mã site: " +
+                  " | mã: " +
                   (omDone.code || "(không)") +
-                  "\n→ Bấm «Mở OpenMAIC» / «Copy brief + mã» bên trái; dán đề cương vào Generate (không tạo mã cloud)."
+                  " | language=vi + TTS Edge\n→ Bấm «Copy lệnh OpenMAIC» bên trái.\n\n" +
+                  handoff
               );
             }
             finishBusy(
               f.id === "lop-hoc"
-                ? "Xong. Mở OpenMAIC (self-host) để generate classroom — mã đã lưu."
+                ? "Xong. Copy lệnh OpenMAIC (vi + Edge TTS) — không Live Demo."
                 : "Xong. Xem exports/bai-giang/ trong Files.",
               true
             );

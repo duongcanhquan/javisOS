@@ -8531,11 +8531,12 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
         (
             "bai-giang-lop-hoc",
             "Bài giảng lớp học",
-            "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tùy chọn đẩy OpenMAIC.",
+            "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; đẩy OpenMAIC self-host tiếng Việt chuẩn.",
             (
                 "# Bài giảng lớp học\n\n"
-                "Outline 8-15 cảnh + quiz + PBL + script. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
-                "OpenMAIC chỉ khi user đã sẵn sàng self-host/Live Demo.\n"
+                "Outline 8-15 cảnh + quiz + PBL + script tiếng Việt. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
+                "OpenMAIC: chỉ self-host (openmaic.vietmycollege.com), language=vi, TTS Edge — "
+                "không Live Demo / Browser Native.\n"
             ),
         ),
         (
@@ -8606,9 +8607,12 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
             "prompt": (
                 "Bạn thiết kế lớp học tương tác (Gemini). Nạp skill bai-giang-lop-hoc.\n"
                 "Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
-                "Tạo outline 8-15 cảnh, quiz 4-8 câu, 1 PBL ngắn, script giảng từng cảnh.\n"
+                "Tạo outline 8-15 cảnh, quiz 4-8 câu, 1 PBL ngắn, script giảng từng cảnh "
+                "(tiếng Việt dấu đầy đủ; không Pinyin/chữ Hán).\n"
                 "Ghi file exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md trong vault.\n"
-                "Cuối: nêu có thể đưa sang OpenMAIC nếu user muốn classroom live.\n"
+                "Cuối file + trả lời: khối handoff OpenMAIC self-host "
+                "https://openmaic.vietmycollege.com — language=vi; TTS OpenAI/Edge "
+                "(nova/alloy); CẤM Live Demo, open.maic.chat, Browser Native, Doubao/Qwen/zh-*.\n"
                 "Không em dash."
             ),
         },

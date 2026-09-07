@@ -62,7 +62,8 @@ Thiếu → hỏi, **không** giả định rồi làm luôn.
 
 ## Bẫy
 
-- Đừng gọi OpenMAIC nếu user chỉ cần slide/markdown và chưa self-host/Live Demo.
+- Đẩy OpenMAIC chỉ khi user muốn classroom live: **self-host** `openmaic.vietmycollege.com`, `language=vi`, TTS Edge (OpenAI provider). **Không** Live Demo / open.maic.chat / Browser Native (dễ giọng Trung).
+- Đừng gọi OpenMAIC nếu user chỉ cần slide/markdown.
 - Đừng render video tốn tiền gen khi brief/beat chưa duyệt.
 - Không bịa số liệu; thiếu nguồn thì ghi rõ.
 - Không dùng em dash.

@@ -56,6 +56,9 @@ Trong Javis: **Việc → Bài giảng → Lớp học** → ô URL + mã site (
 2. Settings → **Text-to-Speech** → **OpenAI** (Base URL đã seed từ env).
 3. Voice gợi ý: `nova` / `alloy` → Hoài My; `onyx` / `echo` → Nam Minh (hoặc `vi-VN-HoaiMyNeural`).
 4. **Tạo bài nhanh:** dán đề cương / paste văn bản / upload PDF → Generate classroom (không cần mã mới).
+5. **Ngôn ngữ & giọng:** luôn `language=vi`; Settings → TTS → **OpenAI** (Edge Hoài My/Nam Minh). Không Live Demo, không Browser Native.
+
+Trong Javis **Việc → Bài giảng → Lớp học**: **Copy lệnh OpenMAIC** đã gồm khóa `language=vi` + cấm TTS Trung.
 
 Kiểm tra proxy từ VPS:
 
