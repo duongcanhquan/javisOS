@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.115] - 2026-09-07
+### Sửa lỗi
+- **Moonshine báo đang ghi nhưng không ra chữ:** resume `AudioContext` bị treo sau khi nạp model; kiểm tra file model hỏng; giữ bản sao buffer model; bỏ option làm Base im tiếng.
+
 ## [0.55.114] - 2026-09-07
 ### Sửa lỗi
 - **Moonshine là chuẩn cuộc họp (desktop):** giữ Moonshine, thử lại trước khi tạm Cloud/Web Speech; không xóa model đã nạp khi lỗi nhẹ; cold-start lâu hơn để kịp câu đầu.
