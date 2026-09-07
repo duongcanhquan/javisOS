@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.114] - 2026-09-07
+### Sửa lỗi
+- **Moonshine là chuẩn cuộc họp (desktop):** giữ Moonshine, thử lại trước khi tạm Cloud/Web Speech; không xóa model đã nạp khi lỗi nhẹ; cold-start lâu hơn để kịp câu đầu.
+- **Cuộc họp ghi đủ hơn, ít bị im giữa chừng:** Web Speech chốt chữ tạm; tự tạo lại nhận dạng; watchdog giữa cuộc họp; Cloud STT không mất đoạn khi chờ `/stt`.
+- **Model Việt không còn tải lại mỗi lần Bắt đầu:** đọc lại cache `v1`; giữ model trong RAM trong phiên; Cache API đầy thì dọn cache cũ.
+
 ## [0.55.113] - 2026-09-07
 ### Sửa lỗi
 - **Cuộc họp English:** Moonshine EN đổi sang **Base** (cùng kiểu tiếng Việt) thay TinyStreaming — trước đó tải model xong nhưng không nhận dạng; cache trình duyệt lên v2.

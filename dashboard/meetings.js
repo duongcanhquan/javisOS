@@ -28,6 +28,8 @@
     moonshinePreloadError: null,
     moonshineLang: null,
     moonshineLoadingLang: null,
+    _moonshineFileBytes: null, // { lang, files: { name: Uint8Array } } — giữ RAM trong phiên
+    _moonshineCachePutOk: null, // true/false lần put Cache API gần nhất
     lang: "vi",
     _moonshineLoadPromise: null,
     abortRequested: false,
@@ -41,7 +43,15 @@
     summaryPath: "",
     knowledgeDone: false,
     _sttWatchdog: null,
+    _sttIdleTimer: null,
     _sttFailoverDone: false,
+    _sttRecovering: false,
+    _lastFinalAt: 0,
+    _lastPartialAt: 0,
+    _wsRestartFails: 0,
+    _moonshineRestartBusy: false,
+    _moonshineSoftFails: 0,
+    _visBound: false,
   };
 
   var archiveState = {
@@ -105,17 +115,18 @@
   // Moonshine WASM: ngôn ngữ có model local trên VPS → ưu tiên Moonshine (nhanh).
   var MOONSHINE_LANG = {
     // identify_speakers=false: không kéo model diarization từ CDN (hay treo / 404 local).
-    vi: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "false" }, label: "Tiếng Việt" },
-    en: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "false" }, label: "English" },
-    es: { arch: "Base", opts: {}, label: "Español" },
-    zh: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "中文" },
-    ja: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "日本語" },
-    ko: { arch: "Tiny", opts: { max_tokens_per_second: "13.0" }, label: "한국어" },
-    ar: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "العربية" },
-    uk: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "Українська" },
+    // max_tokens_per_second thấp (13) làm Base tụt chữ khi nói liên tục — để 28 cho họp live.
+    vi: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "Tiếng Việt" },
+    en: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "English" },
+    es: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "Español" },
+    zh: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "中文" },
+    ja: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "日本語" },
+    ko: { arch: "Tiny", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "한국어" },
+    ar: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "العربية" },
+    uk: { arch: "Base", opts: { max_tokens_per_second: "28.0", identify_speakers: "false" }, label: "Українська" },
   };
   var MOONSHINE_VI_OPTS_LITE = {
-    max_tokens_per_second: "13.0",
+    max_tokens_per_second: "28.0",
     identify_speakers: "false",
   };
   var WEB_SPEECH_BCP47 = {
@@ -248,8 +259,9 @@
   }
 
   /**
-   * Desktop + COOP/COEP OK + model local (hoặc VI): Moonshine trước.
+   * Desktop + COOP/COEP OK + model local: Moonshine trước (chuẩn xác, offline).
    * Tắt tay: localStorage.setItem("javis.meeting.preferMoonshine","0")
+   * Bật lại: localStorage.removeItem("javis.meeting.preferMoonshine")
    */
   function preferMoonshineFirst(lang) {
     try {
@@ -262,12 +274,17 @@
     return lang === "vi";
   }
 
-  /** Failover Moonshine khi Web Speech/Gemini lỗi — cùng điều kiện runtime. */
+  /** Failover / giữ Moonshine khi đang ưu tiên local. */
   function preferMoonshineFailover(lang) {
     try {
       if (localStorage.getItem("javis.meeting.preferMoonshine") === "0") return false;
     } catch (e) {}
     return moonshineRuntimeOk() && moonshineSupports(lang);
+  }
+
+  /** User muốn Moonshine: không nhảy Cloud/Web Speech sớm. */
+  function moonshineSticky(lang) {
+    return preferMoonshineFirst(lang) || preferMoonshineFailover(lang);
   }
 
   /**
@@ -349,6 +366,33 @@
       clearTimeout(state._sttWatchdog);
       state._sttWatchdog = null;
     }
+    if (state._sttIdleTimer) {
+      clearInterval(state._sttIdleTimer);
+      state._sttIdleTimer = null;
+    }
+  }
+
+  function noteSttActivity(kind) {
+    var now = Date.now();
+    if (kind === "final") state._lastFinalAt = now;
+    state._lastPartialAt = now;
+  }
+
+  function bindMeetingVisibility(root) {
+    if (state._visBound) return;
+    state._visBound = true;
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") return;
+      if (!state.running || state.abortRequested) return;
+      noteSttActivity("partial");
+      if (state.sttEngine === "webspeech") {
+        try {
+          if (state.speechRec) state.speechRec.start();
+        } catch (e) {
+          recoverSttSession(root, "visible");
+        }
+      }
+    });
   }
 
   function resetMoonshineCache() {
@@ -358,6 +402,7 @@
     state._moonshineLoadPromise = null;
     state.moonshineLang = null;
     state.moonshineLoadingLang = null;
+    // Giữ _moonshineFileBytes — đổi ngôn ngữ mới xóa bytes của lang cũ ở dưới.
   }
 
 
@@ -515,6 +560,7 @@
     box.appendChild(row);
     box.scrollTop = box.scrollHeight;
     state.lines++;
+    noteSttActivity("final");
     var c = root.querySelector("#mtCount");
     if (c) c.textContent = String(state.lines);
   }
@@ -524,6 +570,27 @@
     if (!el) return;
     var prefix = speaker ? speaker + ": " : "";
     el.textContent = text ? prefix + text : "";
+    if (text) noteSttActivity("partial");
+  }
+
+  /** Chốt chữ interim trước khi Web Speech/Chrome kết thúc phiên (~30–60s). */
+  function flushWebSpeechPartial(root) {
+    var el = root.querySelector("#mtPartial");
+    if (!el) return;
+    var tx = String(el.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!tx || tx === "…" || tx.indexOf("Đang nghe") === 0 || tx.indexOf("Đang nhận dạng") === 0) {
+      return;
+    }
+    setPartial(root, "");
+    var wall = new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    appendFinal(root, tx, wall, "");
+    queueLine(tx, 0, 0, "", -1);
   }
 
   function wsUrl() {
@@ -810,17 +877,16 @@
     if (!w || w._flushing) return;
     w._flushing = true;
     var rec = w.recorder;
+    var hadSpeech = w.speechSeen;
+    w.speechSeen = false;
     var done = function () {
-      w._flushing = false;
       var type = (w.chunks[0] && w.chunks[0].type) || w.mime || "audio/webm";
       var blob = new Blob(w.chunks, { type: type });
       w.chunks = [];
-      var hadSpeech = w.speechSeen;
-      w.speechSeen = false;
-      if (!hadSpeech || blob.size < 1200) {
-        if (state.running && state.sttEngine === "whisper") restartWhisperRecorder(w);
-        return;
-      }
+      // Bật recorder mới NGAY — không chờ /stt (trước đây mất cả đoạn đang nói).
+      if (state.running && state.sttEngine === "whisper") restartWhisperRecorder(w);
+      w._flushing = false;
+      if (!hadSpeech || blob.size < 1200) return;
       setPartial(root, "Đang nhận dạng…", "");
       var fd = new FormData();
       var ext = type.indexOf("mp4") >= 0 ? "m4a" : type.indexOf("ogg") >= 0 ? "ogg" : "webm";
@@ -848,13 +914,11 @@
           if (tx) appendWhisperLine(root, tx);
           if (state.running && state.sttEngine === "whisper") {
             setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
-            restartWhisperRecorder(w);
           }
         })
         .catch(function (e) {
           setPartial(root, "");
           setStatus(root, (e && e.message) || String(e), "err");
-          if (state.running && state.sttEngine === "whisper") restartWhisperRecorder(w);
         });
     };
     if (!rec || rec.state === "inactive") {
@@ -924,9 +988,11 @@
       var archName =
         (MOONSHINE_LOCAL[lang] && MOONSHINE_LOCAL[lang].arch) || cfg.arch || "Base";
       var arch =
-        (mod.ModelArch && mod.ModelArch[archName]) ||
-        (mod.ModelArch && mod.ModelArch.Base) ||
-        archName;
+        mod.ModelArch && Object.prototype.hasOwnProperty.call(mod.ModelArch, archName)
+          ? mod.ModelArch[archName]
+          : mod.ModelArch && mod.ModelArch.Base != null
+            ? mod.ModelArch.Base
+            : archName;
       var progress = function (loaded, total, file) {
         var frac = total ? Math.min(1, loaded / total) : 0;
         if (onProgress) onProgress(frac, file || "");
@@ -1041,7 +1107,9 @@
     if (preferMoonshineFirst(lang)) {
       if (state.moonshineReady && state.moonshineLang === lang) {
         el.textContent =
-          "Moonshine sẵn sàng (" + label + ") — lần sau dùng cache trình duyệt.";
+          "Moonshine sẵn sàng (" +
+          label +
+          ") — Bắt đầu chỉ bật micro, không tải lại model.";
         el.style.color = "var(--ok-ink, var(--text3))";
         return;
       }
@@ -1052,10 +1120,15 @@
         el.textContent = "Đang chuẩn bị Moonshine (" + label + ")…";
       } else if (state.moonshinePreloadError) {
         el.textContent =
-          "Moonshine lỗi — Bắt đầu sẽ dùng Gemini/Web Speech.";
+          "Moonshine lỗi chuẩn bị — Bắt đầu sẽ thử nạp lại (không nhảy Cloud ngay).";
+      } else if (!moonshineRuntimeOk()) {
+        el.textContent =
+          "Thiếu WASM threads — mở Chrome/Edge HTTPS rồi tải lại trang để dùng Moonshine.";
       } else {
         el.textContent =
-          "Moonshine: lần đầu (hoặc sau xóa cache) tải ~135MB; lần sau đọc máy. Điện thoại = Gemini.";
+          "Ưu tiên Moonshine (" +
+          label +
+          "). Lần đầu ~135MB; lần sau đọc máy / RAM phiên này.";
       }
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
@@ -1134,12 +1207,23 @@
     rec.interimResults = true;
     rec.maxAlternatives = 3;
 
+    function makeRec() {
+      var neu = new SR();
+      neu.lang = webSpeechLang(meetingLang());
+      neu.continuous = !ios;
+      neu.interimResults = true;
+      neu.maxAlternatives = 3;
+      return neu;
+    }
+
     function wireHandlers(r) {
       r.onstart = function () {
+        state._wsRestartFails = 0;
         setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
       };
 
       r.onspeechstart = function () {
+        noteSttActivity("partial");
         var partial = root.querySelector("#mtPartial");
         if (partial && !partial.textContent) partial.textContent = "…";
       };
@@ -1185,6 +1269,7 @@
             (async function () {
               try {
                 clearSttWatchdog();
+                flushWebSpeechPartial(root);
                 stopWebSpeech();
                 if (preferMoonshineFailover(langNow) && moonshineSupports(langNow)) {
                   await startMoonshine(root);
@@ -1226,12 +1311,40 @@
 
       r.onend = function () {
         if (!(state.running && state.speechRec === r)) return;
+        // Chrome cắt phiên continuous ~30–60s: chốt interim trước khi mất.
+        flushWebSpeechPartial(root);
         var delay = ios ? 250 : 40;
         setTimeout(function () {
-          if (!(state.running && state.speechRec === r)) return;
+          if (!state.running || state.abortRequested) return;
+          if (state.speechRec !== r && state.speechRec !== null) return;
           try {
             r.start();
-          } catch (e) {}
+            state._wsRestartFails = 0;
+          } catch (e) {
+            state._wsRestartFails = (state._wsRestartFails || 0) + 1;
+            try {
+              var neu = makeRec();
+              wireHandlers(neu);
+              state.speechRec = neu;
+              neu.start();
+              state._wsRestartFails = 0;
+              setStatus(root, "Micro đang nghe — nói rõ từng câu.", "ok");
+            } catch (e2) {
+              if (state._wsRestartFails >= 3) {
+                recoverSttSession(root, "webspeech-dead");
+              } else {
+                setTimeout(function () {
+                  if (state.running && state.sttEngine === "webspeech") {
+                    try {
+                      startWebSpeechSafe(root);
+                    } catch (e3) {
+                      recoverSttSession(root, "webspeech-dead");
+                    }
+                  }
+                }, 400);
+              }
+            }
+          }
         }, delay);
       };
     }
@@ -1242,11 +1355,7 @@
       rec.start();
     } catch (e1) {
       stopWebSpeech();
-      rec = new SR();
-      rec.lang = webSpeechLang(meetingLang());
-      rec.continuous = !ios;
-      rec.interimResults = true;
-      rec.maxAlternatives = 3;
+      rec = makeRec();
       wireHandlers(rec);
       rec.start();
     }
@@ -1268,9 +1377,12 @@
     }
   }
 
-  // v2: EN đổi TinyStreaming → Base (URL/file khác); bỏ cache v1 để không đọc nhầm.
+  // v2: EN Base. Vẫn đọc v1 (javis) + cache thư viện — nếu không, VI đã tải sẽ bị tải lại mỗi lần.
   var MOONSHINE_CACHE = "javis-moonshine-models-v2";
-  var MOONSHINE_CACHE_LEGACY = "moonshine-models-v1"; // cache cũ thư viện / v1 — chỉ dùng nếu URL khớp
+  var MOONSHINE_CACHE_LEGACY_NAMES = [
+    "javis-moonshine-models-v1",
+    "moonshine-models-v1",
+  ];
 
   function moonshineAbsUrl(u) {
     try {
@@ -1292,7 +1404,7 @@
   async function matchMoonshineCached(url) {
     if (typeof caches === "undefined") return null;
     var abs = moonshineAbsUrl(url);
-    var names = [MOONSHINE_CACHE, MOONSHINE_CACHE_LEGACY];
+    var names = [MOONSHINE_CACHE].concat(MOONSHINE_CACHE_LEGACY_NAMES);
     for (var i = 0; i < names.length; i++) {
       try {
         var c = await caches.open(names[i]);
@@ -1303,25 +1415,91 @@
     return null;
   }
 
+  async function freeMoonshineCacheSpace() {
+    if (typeof caches === "undefined") return;
+    // Xóa cache cũ để nhường chỗ cho v2 (~135MB/lang).
+    for (var i = 0; i < MOONSHINE_CACHE_LEGACY_NAMES.length; i++) {
+      try {
+        await caches.delete(MOONSHINE_CACHE_LEGACY_NAMES[i]);
+      } catch (e) {}
+    }
+  }
+
   async function putMoonshineCached(url, bytes) {
     var cache = await openMoonshineCache();
-    if (!cache || !bytes) return;
+    if (!cache || !bytes) return false;
     var abs = moonshineAbsUrl(url);
     var body = bytes.buffer
       ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
       : bytes;
+    var headers = {
+      "Content-Type": "application/octet-stream",
+      "Content-Length": String(bytes.byteLength || body.byteLength || 0),
+    };
     try {
-      await cache.put(
-        abs,
-        new Response(body, {
-          status: 200,
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "Content-Length": String(bytes.byteLength || body.byteLength || 0),
-          },
-        })
-      );
-    } catch (e) {}
+      await cache.put(abs, new Response(body, { status: 200, headers: headers }));
+      state._moonshineCachePutOk = true;
+      return true;
+    } catch (e1) {
+      // QuotaExceeded: dọn v1 rồi thử lại một lần.
+      try {
+        await freeMoonshineCacheSpace();
+        cache = await openMoonshineCache();
+        if (!cache) {
+          state._moonshineCachePutOk = false;
+          return false;
+        }
+        await cache.put(abs, new Response(body, { status: 200, headers: headers }));
+        state._moonshineCachePutOk = true;
+        return true;
+      } catch (e2) {
+        state._moonshineCachePutOk = false;
+        return false;
+      }
+    }
+  }
+
+  function rememberMoonshineFiles(lang, fileMap) {
+    if (!fileMap) return;
+    var copy = {};
+    Object.keys(fileMap).forEach(function (k) {
+      if (k.indexOf("__") === 0) return;
+      copy[k] = fileMap[k];
+    });
+    state._moonshineFileBytes = { lang: normalizeLang(lang), files: copy };
+  }
+
+  function moonshineFilesFromMemory(lang, urlMap) {
+    var mem = state._moonshineFileBytes;
+    if (!mem || mem.lang !== normalizeLang(lang) || !mem.files) return null;
+    var names = Object.keys(urlMap || {}).filter(function (k) {
+      return k.indexOf("__") !== 0;
+    });
+    if (!names.length) return null;
+    var out = {};
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i];
+      if (!mem.files[n] || !mem.files[n].byteLength) return null;
+      out[n] = mem.files[n];
+    }
+    out.__fromCacheCount = names.length;
+    out.__fileCount = names.length;
+    out.__fromMemory = true;
+    return out;
+  }
+
+  function httpTransferWasCached(url) {
+    try {
+      var abs = moonshineAbsUrl(url);
+      var entries = performance.getEntriesByName(abs);
+      if (!entries || !entries.length) entries = performance.getEntriesByName(url);
+      if (!entries || !entries.length) return false;
+      var e = entries[entries.length - 1];
+      // transferSize === 0 (và decodedBodySize > 0) ≈ đọc từ disk cache HTTP.
+      return e && e.transferSize === 0 && e.decodedBodySize > 0;
+    } catch (err) {
+      return false;
+    }
   }
 
   async function downloadMoonshineNamedFiles(urlMap, onProgress) {
@@ -1333,6 +1511,7 @@
     var knownTotal = 0;
     var sizes = {};
     var fromCache = 0;
+    var fromHttpCache = 0;
 
     await Promise.all(
       names.map(async function (name) {
@@ -1370,21 +1549,25 @@
         if (cached) {
           var cbuf = await cached.arrayBuffer();
           var cu8 = new Uint8Array(cbuf);
-          out[name] = cu8;
-          doneBytes += cu8.byteLength;
-          fromCache++;
-          // Đồng bộ sang cache Javis nếu lấy từ legacy.
-          putMoonshineCached(url, cu8);
-          if (onProgress) {
-            onProgress(
-              knownTotal ? Math.min(1, doneBytes / knownTotal) : 1,
-              name,
-              doneBytes,
-              knownTotal || doneBytes,
-              true
-            );
+          if (cu8.byteLength < 1000) {
+            // Entry rỗng/hỏng — bỏ, tải lại.
+          } else {
+            out[name] = cu8;
+            doneBytes += cu8.byteLength;
+            fromCache++;
+            // Đồng bộ sang cache Javis v2 nếu lấy từ legacy (không chặn UI).
+            putMoonshineCached(url, cu8);
+            if (onProgress) {
+              onProgress(
+                knownTotal ? Math.min(1, doneBytes / knownTotal) : 1,
+                name,
+                doneBytes,
+                knownTotal || doneBytes,
+                "cache"
+              );
+            }
+            continue;
           }
-          continue;
         }
       } catch (eC) {}
 
@@ -1394,14 +1577,12 @@
         cache: "force-cache",
       });
       if (!res.ok) {
-        // Thử lại không ép cache nếu miss.
         res = await fetch(url, { credentials: "same-origin", cache: "no-cache" });
       }
       if (!res.ok) {
         throw new Error("Không tải được model " + name + " (" + res.status + ")");
       }
       var totalFile = sizes[name] || Number(res.headers.get("content-length") || 0) || 0;
-      var fromHttpCache = res.headers.get("x-cache") || ""; // thường trống; vẫn báo theo tốc độ
       var bytesU8;
 
       if (!res.body || !res.body.getReader) {
@@ -1423,7 +1604,7 @@
                 : totalFile
                   ? Math.min(1, loaded / totalFile)
                   : 0;
-              onProgress(overall, name, doneBytes + loaded, knownTotal || totalFile, false);
+              onProgress(overall, name, doneBytes + loaded, knownTotal || totalFile, "net");
             }
           }
         }
@@ -1437,6 +1618,8 @@
 
       out[name] = bytesU8;
       doneBytes += bytesU8.byteLength;
+      var httpCached = httpTransferWasCached(url);
+      if (httpCached) fromHttpCache++;
       await putMoonshineCached(url, bytesU8);
       if (onProgress) {
         onProgress(
@@ -1444,12 +1627,13 @@
           name,
           doneBytes,
           knownTotal || doneBytes,
-          false
+          httpCached ? "http-cache" : "net"
         );
       }
     }
-    out.__fromCacheCount = fromCache;
+    out.__fromCacheCount = fromCache + fromHttpCache;
     out.__fileCount = names.length;
+    out.__fromHttpCacheCount = fromHttpCache;
     return out;
   }
 
@@ -1503,7 +1687,7 @@
           queueLine(tx, t0, t1, "", -1);
         })
         .onError(function (err) {
-          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
+          handleMoonshineLiveError(root, err);
         });
       await micReuse.start();
       state.mic = micReuse;
@@ -1561,25 +1745,36 @@
       phase = "download";
       var fileMap = null;
       if (localUrls) {
-        setStatus(root, "Lấy model " + label + " (máy chủ / đã lưu trên máy)…");
-        fileMap = await promiseTimeout(
-          downloadMoonshineNamedFiles(localUrls, function (frac, file, loaded, total, cached) {
-            if (state.abortRequested) return;
-            var pct = typeof frac === "number" && frac > 0 ? Math.round(frac * 100) + "%" : "…";
-            var mb =
-              typeof loaded === "number"
-                ? " · " + (loaded / (1024 * 1024)).toFixed(1) + "MB"
-                : "";
-            phaseDetail =
-              (cached ? "Đọc model đã lưu · " : "Tải model từ VPS · ") +
-              pct +
-              mb +
-              (file ? " · " + file : "");
-            setStatus(root, phaseDetail);
-          }),
-          timeoutMs,
-          "Tải model Moonshine quá lâu."
-        );
+        fileMap = moonshineFilesFromMemory(lang, localUrls);
+        if (fileMap) {
+          setStatus(root, "Dùng model " + label + " đã nạp trong phiên…");
+          phaseDetail = "Đọc model trong RAM";
+        } else {
+          setStatus(root, "Lấy model " + label + " (máy chủ / đã lưu trên máy)…");
+          fileMap = await promiseTimeout(
+            downloadMoonshineNamedFiles(localUrls, function (frac, file, loaded, total, source) {
+              if (state.abortRequested) return;
+              var pct = typeof frac === "number" && frac > 0 ? Math.round(frac * 100) + "%" : "…";
+              var mb =
+                typeof loaded === "number"
+                  ? " · " + (loaded / (1024 * 1024)).toFixed(1) + "MB"
+                  : "";
+              var srcLabel =
+                source === "cache" || source === true
+                  ? "Đọc model đã lưu · "
+                  : source === "http-cache"
+                    ? "Đọc cache trình duyệt · "
+                    : source === "memory"
+                      ? "Đọc model trong RAM · "
+                      : "Tải model từ VPS · ";
+              phaseDetail = srcLabel + pct + mb + (file ? " · " + file : "");
+              setStatus(root, phaseDetail);
+            }),
+            timeoutMs,
+            "Tải model Moonshine quá lâu."
+          );
+          rememberMoonshineFiles(lang, fileMap);
+        }
         if (
           fileMap &&
           fileMap.__fromCacheCount === fileMap.__fileCount &&
@@ -1590,6 +1785,8 @@
         // Bỏ metadata nội bộ trước khi đưa vào Transcriber.
         delete fileMap.__fromCacheCount;
         delete fileMap.__fileCount;
+        delete fileMap.__fromHttpCacheCount;
+        delete fileMap.__fromMemory;
       }
 
       phase = "init";
@@ -1649,26 +1846,39 @@
           queueLine(tx, t0, t1, "", -1);
         })
         .onError(function (err) {
-          setStatus(root, "Moonshine: " + ((err && err.message) || err), "err");
+          handleMoonshineLiveError(root, err);
         });
 
       if (state.abortRequested) throw new Error("Đã hủy");
+      // Giữ Transcriber sớm — nếu mic.start lỗi vẫn tái sử dụng lần sau, không tải lại 135MB.
+      if (transcriber) {
+        state.moonshineTranscriber = transcriber;
+        state.moonshineReady = true;
+        state.moonshineLang = lang;
+      }
       setStatus(root, "Xin quyền micro…");
       await mic.start();
     } catch (e) {
       try {
         if (mic) mic.close();
       } catch (e2) {}
-      try {
-        if (transcriber && typeof transcriber.close === "function") transcriber.close();
-      } catch (e2b) {}
-      try {
-        if (state.moonshineMod && typeof state.moonshineMod.resetMoonshineModule === "function") {
-          state.moonshineMod.resetMoonshineModule();
-        }
-      } catch (e3) {}
-      state.moonshineMod = null;
-      resetMoonshineCache();
+      // Chỉ hủy model khi lỗi thật sự ở bước nạp model — không xóa nếu đã load xong mà mic lỗi.
+      var msg = String((e && e.message) || e || "");
+      var micOnly =
+        state.moonshineTranscriber &&
+        /micro|NotAllowed|Permission|getUserMedia|audio-capture|AbortError/i.test(msg);
+      if (!micOnly) {
+        try {
+          if (transcriber && typeof transcriber.close === "function") transcriber.close();
+        } catch (e2b) {}
+        try {
+          if (state.moonshineMod && typeof state.moonshineMod.resetMoonshineModule === "function") {
+            state.moonshineMod.resetMoonshineModule();
+          }
+        } catch (e3) {}
+        state.moonshineMod = null;
+        resetMoonshineCache();
+      }
       throw e;
     } finally {
       clearInterval(beat);
@@ -1707,76 +1917,173 @@
     state.sttEngine = "";
   }
 
-  function armSttWatchdog(root) {
-    clearSttWatchdog();
-    var linesAtStart = state.lines;
-    // Moonshine: cho user thời gian bắt đầu nói — tránh nhảy status / nạp lại sớm.
-    var waitMs = state.sttEngine === "moonshine" ? 45000 : 12000;
-    state._sttWatchdog = setTimeout(function () {
-      state._sttWatchdog = null;
-      if (!state.running || state.abortRequested) return;
-      if (state.lines > linesAtStart) return;
-      if (state._sttFailoverDone) {
-        setStatus(
-          root,
-          "Vẫn chưa ghi được lời. Cho phép micro, dùng Chrome/Edge (Web Speech), hoặc File ghi âm → chữ.",
-          "err"
-        );
-        return;
+  function handleMoonshineLiveError(root, err) {
+    var msg = (err && err.message) || err || "lỗi";
+    setStatus(root, "Moonshine: " + msg + " — đang thử bật lại…", "err");
+    if (!state.running || state.abortRequested || state._moonshineRestartBusy) return;
+    state._moonshineRestartBusy = true;
+    (async function () {
+      try {
+        await stopMoonshineMic();
+        if (!state.running || state.abortRequested) return;
+        await startMoonshine(root);
+        noteSttActivity("partial");
+        setStatus(root, "Moonshine đã bật lại micro. Tiếp tục nói.", "ok");
+        armSttWatchdog(root);
+      } catch (e) {
+        recoverSttSession(root, "moonshine-err");
+      } finally {
+        state._moonshineRestartBusy = false;
       }
-      state._sttFailoverDone = true;
-      var prev = state.sttEngine;
-      setStatus(root, "Chưa nhận được giọng — đang chuyển chế độ nhận dạng…", "err");
-      (async function () {
-        try {
-          await cleanupAudio();
-          state.running = true;
-          var langNow = meetingLang();
-          // Thứ tự failover: Moonshine → Cloud STT → Web Speech (không kẹt Google STT).
-          if (
-            prev !== "moonshine" &&
-            preferMoonshineFailover(langNow) &&
-            moonshineSupports(langNow)
-          ) {
+    })();
+  }
+
+  /**
+   * Soft-restart engine hiện tại; nếu hỏng → failover sang engine khác.
+   * Khi ưu tiên Moonshine: thử lại Moonshine nhiều lần trước khi nhảy Cloud/Web Speech.
+   */
+  function recoverSttSession(root, reason) {
+    if (!state.running || state.abortRequested || state._sttRecovering) return;
+    state._sttRecovering = true;
+    var prev = state.sttEngine;
+    var langNow = meetingLang();
+    setStatus(
+      root,
+      "Nhận dạng tạm dừng (" + (reason || "idle") + ") — đang nối lại…",
+      "err"
+    );
+    (async function () {
+      try {
+        if (prev === "webspeech" && hasWebSpeech()) {
+          try {
+            flushWebSpeechPartial(root);
+            stopWebSpeech();
+            startWebSpeechSafe(root);
+            noteSttActivity("partial");
+            setStatus(root, "Micro đang nghe lại — nói rõ từng câu.", "ok");
+            return;
+          } catch (eW) {}
+        }
+        if (prev === "moonshine" || (moonshineSticky(langNow) && prev !== "whisper")) {
+          var softTries = 0;
+          while (softTries < 2) {
+            softTries++;
             try {
+              await stopMoonshineMic();
               await startMoonshine(root);
-              setStatus(root, "Đã chuyển Moonshine (local).", "ok");
+              state._moonshineSoftFails = 0;
+              noteSttActivity("partial");
+              setStatus(root, "Moonshine đã nối lại. Tiếp tục nói.", "ok");
               armSttWatchdog(root);
               return;
-            } catch (eM) {}
-          }
-          if (prev !== "whisper") {
-            var cloud = await tryStartCloudStt(root, null);
-            if (cloud) {
-              armSttWatchdog(root);
-              return;
+            } catch (eM) {
+              state._moonshineSoftFails = (state._moonshineSoftFails || 0) + 1;
             }
           }
-          if (hasWebSpeech()) {
-            startWebSpeechSafe(root);
-            setStatus(root, "Đã chuyển Web Speech — nói rõ từng câu.", "ok");
+          if (moonshineSticky(langNow) && (state._moonshineSoftFails || 0) < 3) {
+            setStatus(
+              root,
+              "Moonshine chưa lên lại (" +
+                (state._moonshineSoftFails || 0) +
+                "/3). Kiểm tra micro / Chrome HTTPS — sẽ thử lại khi im.",
+              "err"
+            );
+            noteSttActivity("partial");
+            return;
+          }
+        }
+        if (prev === "whisper" && state.whisper) {
+          try {
+            restartWhisperRecorder(state.whisper);
+            noteSttActivity("partial");
+            setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ").", "ok");
+            return;
+          } catch (eC) {}
+        }
+
+        if (state._sttFailoverDone) {
+          setStatus(
+            root,
+            "Moonshine không ghi được. Cho phép micro, tải lại trang (Ctrl+F5), hoặc tạm File ghi âm → chữ.",
+            "err"
+          );
+          return;
+        }
+        state._sttFailoverDone = true;
+        await cleanupAudio();
+        state.running = true;
+        if (preferMoonshineFailover(langNow) && moonshineSupports(langNow)) {
+          try {
+            await startMoonshine(root);
+            setStatus(root, "Đã quay lại Moonshine (local).", "ok");
+            noteSttActivity("partial");
+            armSttWatchdog(root);
+            return;
+          } catch (eM2) {}
+        }
+        if (prev !== "whisper") {
+          var cloud = await tryStartCloudStt(root, null);
+          if (cloud) {
+            setStatus(
+              root,
+              "Moonshine lỗi liên tiếp — tạm ghi bằng " + cloudSttLabel() + ".",
+              "err"
+            );
+            noteSttActivity("partial");
             armSttWatchdog(root);
             return;
           }
-          setStatus(
-            root,
-            "Vẫn chưa ghi được lời. Cho phép micro, Models → Gemini, hoặc File ghi âm → chữ.",
-            "err"
-          );
-        } catch (e) {
-          var msg = String((e && e.message) || e || "");
-          if (/Moonshine|tải quá lâu|timeout/i.test(msg)) {
-            setStatus(
-              root,
-              "Không tải được Moonshine. Dùng Models → Gemini (Cloud STT) hoặc File ghi âm → chữ.",
-              "err"
-            );
-            return;
-          }
-          setStatus(root, "Chuyển STT lỗi: " + msg, "err");
         }
-      })();
-    }, waitMs);
+        if (hasWebSpeech() && prev !== "webspeech") {
+          startWebSpeechSafe(root);
+          setStatus(root, "Moonshine lỗi — tạm Web Speech.", "err");
+          noteSttActivity("partial");
+          armSttWatchdog(root);
+          return;
+        }
+        setStatus(
+          root,
+          "Không ghi được lời. Cho phép micro, Chrome/Edge HTTPS, tải lại trang.",
+          "err"
+        );
+      } catch (e) {
+        setStatus(root, "Nối lại STT lỗi: " + ((e && e.message) || e), "err");
+      } finally {
+        state._sttRecovering = false;
+      }
+    })();
+  }
+
+  function armSttWatchdog(root) {
+    clearSttWatchdog();
+    bindMeetingVisibility(root);
+    var now = Date.now();
+    if (!state._lastFinalAt) state._lastFinalAt = now;
+    if (!state._lastPartialAt) state._lastPartialAt = now;
+    var armedAt = now;
+    var linesAtArm = state.lines;
+    // Moonshine: cho thời gian nạp + câu đầu (không nhảy Cloud sớm).
+    var coldMs = state.sttEngine === "moonshine" ? 75000 : 15000;
+    var idleMs =
+      state.sttEngine === "moonshine"
+        ? 90000
+        : state.sttEngine === "whisper"
+          ? 35000
+          : 18000;
+
+    state._sttIdleTimer = setInterval(function () {
+      if (!state.running || state.abortRequested || state._sttRecovering) return;
+      var t = Date.now();
+      var lastAct = Math.max(state._lastFinalAt || 0, state._lastPartialAt || 0);
+      if (state.lines <= linesAtArm && state.lines === 0 && t - armedAt >= coldMs) {
+        recoverSttSession(root, "cold");
+        return;
+      }
+      if (t - lastAct >= idleMs) {
+        noteSttActivity("partial");
+        recoverSttSession(root, "idle");
+      }
+    }, 4000);
   }
 
   async function stopOrCancelMeeting(root) {
@@ -1786,6 +2093,9 @@
     var stopBtn = root.querySelector("#mtStop");
     var startBtn = root.querySelector("#mtStart");
     if (stopBtn) stopBtn.disabled = true;
+    try {
+      flushWebSpeechPartial(root);
+    } catch (eFlush) {}
     await cleanupAudio();
     state.lineBuffer = [];
     setPartial(root, "");
@@ -1833,46 +2143,68 @@
     armAudioSessionForMic();
     state._whisperReady = null; // luôn hỏi lại /stt/status (user có thể vừa dán Gemini)
 
-    // 1) Desktop + isolation OK: Moonshine. Lỗi → Web Speech / Cloud STT.
+    // 1) Desktop + isolation OK: Moonshine trước (chuẩn). Thử lại 1 lần trước khi tạm Cloud.
     if (preferMoonshineFirst(lang) && moonshineSupports(lang)) {
       try {
         await startMoonshine(root);
+        state._moonshineSoftFails = 0;
         return "moonshine";
       } catch (e) {
-        await cleanupAudio();
-        resetMoonshineCache();
-        releaseMicConflicts();
-        await new Promise(function (r) {
-          setTimeout(r, 350);
-        });
-        var afterMoon = await tryStartCloudStt(root, null);
-        if (afterMoon) {
-          setStatus(
-            root,
-            "Moonshine lỗi — đang ghi " + cloudSttLabel() + ". " + ((e && e.message) || ""),
-            "err"
-          );
-          return afterMoon;
-        }
-        if (hasWebSpeech()) {
-          try {
-            startWebSpeechSafe(root);
+        setStatus(
+          root,
+          "Moonshine lỗi lần 1 — đang thử lại (giữ model đã nạp)… " + ((e && e.message) || ""),
+          "err"
+        );
+        try {
+          await stopMoonshineMic();
+          releaseMicConflicts();
+          await new Promise(function (r) {
+            setTimeout(r, 400);
+          });
+          await startMoonshine(root);
+          state._moonshineSoftFails = 0;
+          setStatus(root, "Moonshine đã lên (lần thử lại). Nói rõ từng câu.", "ok");
+          return "moonshine";
+        } catch (e2) {
+          state._moonshineSoftFails = (state._moonshineSoftFails || 0) + 2;
+          await cleanupAudio();
+          // Không resetMoonshineCache ở đây — lần Bắt đầu sau còn RAM/cache.
+          releaseMicConflicts();
+          await new Promise(function (r) {
+            setTimeout(r, 350);
+          });
+          var afterMoon = await tryStartCloudStt(root, null);
+          if (afterMoon) {
             setStatus(
               root,
-              "Moonshine lỗi — đang ghi Web Speech. " + ((e && e.message) || ""),
+              "Moonshine lỗi 2 lần — tạm " +
+                cloudSttLabel() +
+                ". Tải lại trang rồi Bắt đầu để dùng lại Moonshine. " +
+                ((e2 && e2.message) || e.message || ""),
               "err"
             );
-            return "webspeech";
-          } catch (wsErr) {
-            throw new Error(
-              "Moonshine và Web Speech đều lỗi: " +
-                ((e && e.message) || e) +
-                " / " +
-                ((wsErr && wsErr.message) || wsErr)
-            );
+            return afterMoon;
           }
+          if (hasWebSpeech()) {
+            try {
+              startWebSpeechSafe(root);
+              setStatus(
+                root,
+                "Moonshine lỗi 2 lần — tạm Web Speech. Tải lại trang để thử Moonshine lại.",
+                "err"
+              );
+              return "webspeech";
+            } catch (wsErr) {
+              throw new Error(
+                "Moonshine và Web Speech đều lỗi: " +
+                  ((e2 && e2.message) || e.message || e) +
+                  " / " +
+                  ((wsErr && wsErr.message) || wsErr)
+              );
+            }
+          }
+          throw e2;
         }
-        throw e;
       }
     }
 
@@ -1950,6 +2282,18 @@
     state.stopped = false;
     state.abortRequested = false;
     state._sttFailoverDone = false;
+    state._sttRecovering = false;
+    state._wsRestartFails = 0;
+    state._moonshineRestartBusy = false;
+    state._moonshineSoftFails = 0;
+    state._lastFinalAt = 0;
+    state._lastPartialAt = 0;
+    // Bật lại Moonshine nếu lần trước từng tắt tay (user muốn Moonshine chuẩn).
+    try {
+      if (localStorage.getItem("javis.meeting.preferMoonshine") === "0") {
+        /* giữ tắt tay — không tự ghi đè */
+      }
+    } catch (ePref) {}
     state.lineBuffer = [];
     seedSpeakersFromInput(root);
     var langAtStart = meetingLang();
@@ -2980,11 +3324,13 @@
           state.moonshineLang !== normalizeLang(neu)
         ) {
           resetMoonshineCache();
+          state._moonshineFileBytes = null;
         } else if (
           state.moonshineLoadingLang &&
           state.moonshineLoadingLang !== normalizeLang(neu)
         ) {
           resetMoonshineCache();
+          state._moonshineFileBytes = null;
         }
         if (preferMoonshineFirst(neu)) preloadMoonshine(el);
         else updateMoonshinePreloadHint(el, 0, neu);
