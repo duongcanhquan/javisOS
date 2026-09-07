@@ -11555,7 +11555,7 @@ def _openmaic_base_url() -> str:
 
 
 def _openmaic_public_url() -> str:
-    # Ưu tiên file state do deploy ghi (IP:3000 khi DNS domain chưa trỏ) —
+    # Ưu tiên file state do deploy ghi (IP:3000 khi DNS domain chưa trỏ) -
     # thắng OPENMAIC_PUBLIC_URL trong compose nếu domain chưa resolve được.
     try:
         state = Path(os.getenv("JAVIS_STATE_DIR") or "/data/state")
