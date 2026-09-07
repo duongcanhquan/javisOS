@@ -4,6 +4,14 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.117] - 2026-09-07
+### Sửa lỗi
+- **Moonshine Việt bịa chữ / nghe lung tung:** không còn đổ mic ra loa (tránh feedback); bật lại chống vọng; VAD + `max_tokens_per_second=13` cho VI; bỏ dòng khi gần như không có tiếng hoặc câu kiểu “subscribe / La La School”.
+
+## [0.55.116] - 2026-09-07
+### Sửa lỗi
+- **Moonshine báo đang ghi nhưng không ra chữ:** mở micro + `AudioContext` ngay khi bấm Bắt đầu (trước khi nạp model), tự feed Stream thay vì MicTranscriber sau nhiều await; tắt AEC/NS mạnh; nếu ~5s không có tín hiệu thì tự nối lại. Có smoke test `scripts/moonshine-stt-smoke.mjs`.
+
 ## [0.55.115] - 2026-09-07
 ### Sửa lỗi
 - **Moonshine báo đang ghi nhưng không ra chữ:** resume `AudioContext` bị treo sau khi nạp model; kiểm tra file model hỏng; giữ bản sao buffer model; bỏ option làm Base im tiếng.
