@@ -83,17 +83,11 @@
       arch: "Tiny",
       files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
     },
+    // EN dùng Base (3 file) giống VI — TinyStreaming từng tải được nhưng WASM không
+    // nhận dạng ổn (0.55.51/81/87 từng tránh Moonshine EN; 0.55.96 bật lại TinyStreaming).
     en: {
-      arch: "TinyStreaming",
-      files: [
-        "frontend.ort",
-        "encoder.ort",
-        "adapter.ort",
-        "cross_kv.ort",
-        "decoder_kv.ort",
-        "streaming_config.json",
-        "tokenizer.bin",
-      ],
+      arch: "Base",
+      files: ["encoder_model.ort", "decoder_model_merged.ort", "tokenizer.bin"],
     },
   };
 
@@ -109,11 +103,10 @@
   }
 
   // Moonshine WASM: ngôn ngữ có model local trên VPS → ưu tiên Moonshine (nhanh).
-  // EN / ngôn ngữ khác chưa local: Web Speech trước.
   var MOONSHINE_LANG = {
     // identify_speakers=false: không kéo model diarization từ CDN (hay treo / 404 local).
     vi: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "false" }, label: "Tiếng Việt" },
-    en: { arch: "TinyStreaming", opts: {}, label: "English" },
+    en: { arch: "Base", opts: { max_tokens_per_second: "13.0", identify_speakers: "false" }, label: "English" },
     es: { arch: "Base", opts: {}, label: "Español" },
     zh: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "中文" },
     ja: { arch: "Base", opts: { max_tokens_per_second: "13.0" }, label: "日本語" },
@@ -1275,8 +1268,9 @@
     }
   }
 
-  var MOONSHINE_CACHE = "javis-moonshine-models-v1";
-  var MOONSHINE_CACHE_LEGACY = "moonshine-models-v1"; // cache của thư viện Moonshine (nếu lần trước đã tải)
+  // v2: EN đổi TinyStreaming → Base (URL/file khác); bỏ cache v1 để không đọc nhầm.
+  var MOONSHINE_CACHE = "javis-moonshine-models-v2";
+  var MOONSHINE_CACHE_LEGACY = "moonshine-models-v1"; // cache cũ thư viện / v1 — chỉ dùng nếu URL khớp
 
   function moonshineAbsUrl(u) {
     try {
@@ -1552,11 +1546,14 @@
       if (state.abortRequested) throw new Error("Đã hủy");
 
       var archName =
-        (localCfg && localCfg.arch) || cfg.arch || (lang === "vi" ? "Base" : "TinyStreaming");
+        (localCfg && localCfg.arch) || cfg.arch || "Base";
+      // ModelArch.Tiny === 0 → không dùng || (falsy); phải so null/undefined.
       var arch =
-        (mod.ModelArch && mod.ModelArch[archName]) ||
-        (mod.ModelArch && mod.ModelArch.Base) ||
-        (mod.ModelArch && mod.ModelArch.TinyStreaming);
+        mod.ModelArch && Object.prototype.hasOwnProperty.call(mod.ModelArch, archName)
+          ? mod.ModelArch[archName]
+          : mod.ModelArch && mod.ModelArch.Base != null
+            ? mod.ModelArch.Base
+            : undefined;
 
       var opts = Object.assign({}, cfg.opts || {}, { identify_speakers: "false" });
       if (lang === "vi") opts = Object.assign({}, MOONSHINE_VI_OPTS_LITE);
@@ -2846,7 +2843,7 @@
       '<option value="es">Español</option>' +
       '<option value="ar">العربية</option>' +
       '<option value="uk">Українська</option>' +
-      '<option value="en">English (Moonshine Tiny)</option>' +
+      '<option value="en">English (Moonshine Base)</option>' +
       "</optgroup>" +
       '<optgroup label="Web Speech / Cloud STT">' +
       '<option value="fr">Français</option>' +
