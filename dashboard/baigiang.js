@@ -105,6 +105,7 @@
     var uploaded = [];
     var es = null;
     var tabIdx = 0;
+    var running = false;
 
     root.innerHTML =
       '<div class="jw" id="bgJw">' +
@@ -244,12 +245,9 @@
       };
 
       root.querySelector("#bgStop").onclick = function () {
-        if (es) {
-          try { es.close(); } catch (e) {}
-          es = null;
-        }
-        root.querySelector("#bgStop").disabled = true;
-        setStatus("Đã dừng theo dõi (server có thể vẫn chạy).", true);
+        try { if (es) es.close(); } catch (e) {}
+        es = null;
+        setBusy(false, "Đã dừng theo dõi (server có thể vẫn chạy).", true);
       };
 
       root.querySelector("#bgRun").onclick = run;
@@ -265,13 +263,90 @@
       paintLeft();
     }
 
+    function clearFieldErrors() {
+      root.querySelectorAll(".jw-field.err").forEach(function (w) {
+        w.classList.remove("err");
+      });
+    }
+
+    function markField(id, bad) {
+      var el = root.querySelector("#" + id);
+      if (!el) return;
+      var wrap = el.closest(".jw-field");
+      if (wrap) wrap.classList.toggle("err", !!bad);
+      if (bad) {
+        try { el.focus(); } catch (e) {}
+      }
+    }
+
+    function setBusy(busy, statusMsg, statusOk) {
+      running = !!busy;
+      var f = fmt();
+      var runBtn = root.querySelector("#bgRun");
+      var stopBtn = root.querySelector("#bgStop");
+      var seedBtn = root.querySelector("#bgSeed");
+      if (runBtn) {
+        runBtn.disabled = busy;
+        runBtn.classList.toggle("jw-busy", busy);
+        runBtn.textContent = busy ? "Đang chạy…" : "Chạy: " + f.label;
+      }
+      if (stopBtn) stopBtn.disabled = !busy;
+      if (seedBtn) seedBtn.disabled = busy;
+      tabsEl.querySelectorAll(".jw-tab").forEach(function (t) {
+        t.disabled = busy;
+      });
+      if (statusMsg != null) setStatus(statusMsg, statusOk);
+    }
+
+    function validateInputs() {
+      clearFieldErrors();
+      var topic = ((root.querySelector("#bgTopic") || {}).value || "").trim();
+      var goals = ((root.querySelector("#bgGoals") || {}).value || "").trim();
+      var missing = [];
+      if (!topic) {
+        markField("bgTopic", true);
+        missing.push("Chủ đề");
+      }
+      if (!goals) {
+        markField("bgGoals", true);
+        missing.push("Mục tiêu học");
+      }
+      if (missing.length) {
+        setStatus("Thiếu thông tin: " + missing.join(", ") + ". Điền bên trái rồi bấm Chạy.", false);
+        return null;
+      }
+      return {
+        topic: topic,
+        audience: ((root.querySelector("#bgAudience") || {}).value || "").trim(),
+        goals: goals,
+        lang: ((root.querySelector("#bgLang") || {}).value || "vi").trim(),
+        feat: fmt(),
+      };
+    }
+
+    function finishBusy(statusMsg, statusOk) {
+      try { if (es) es.close(); } catch (e) {}
+      es = null;
+      setBusy(false, statusMsg, statusOk);
+    }
+
     tabsEl.querySelectorAll(".jw-tab").forEach(function (btn) {
       btn.onclick = function () {
+        if (running) {
+          setStatus("Đang chạy - chờ xong hoặc bấm Dừng xem trước khi đổi tab.", false);
+          return;
+        }
         selectTab(parseInt(btn.getAttribute("data-i"), 10) || 0);
       };
     });
 
     root.querySelector("#bgSeed").onclick = async function () {
+      if (running) return;
+      var seedBtn = root.querySelector("#bgSeed");
+      if (seedBtn) {
+        seedBtn.disabled = true;
+        seedBtn.textContent = "Đang chuẩn bị…";
+      }
       setStatus("Đang chuẩn bị agent + workflow…");
       try {
         var fd = new FormData();
@@ -284,36 +359,36 @@
         setStatus("Sẵn sàng " + (r.workflows || []).length + " loại đầu ra.", true);
       } catch (e) {
         setStatus(String((e && e.message) || e), false);
+      } finally {
+        if (seedBtn) {
+          seedBtn.disabled = false;
+          seedBtn.textContent = "Chuẩn bị lần đầu";
+        }
       }
     };
 
     async function run() {
-      var topic = ((root.querySelector("#bgTopic") || {}).value || "").trim();
-      if (!topic) {
-        setStatus("Nhập chủ đề bên trái trước.", false);
-        return;
+      if (running) return;
+      var v = validateInputs();
+      if (!v) return;
+
+      var f = v.feat;
+      var brief = composeBrief(v.topic, v.audience, v.goals, v.lang, f, uploaded);
+
+      setBusy(true, "Đang chạy «" + f.full + "»…");
+      if (es) {
+        try { es.close(); } catch (e1) {}
+        es = null;
       }
-      var f = fmt();
-      var audience = ((root.querySelector("#bgAudience") || {}).value || "").trim();
-      var goals = ((root.querySelector("#bgGoals") || {}).value || "").trim();
-      var lang = ((root.querySelector("#bgLang") || {}).value || "vi").trim();
-      var brief = composeBrief(topic, audience, goals, lang, f, uploaded);
+      var log = root.querySelector("#bgLog");
+      if (log) log.innerHTML = "";
+      appendLog("--- Brief ---\n" + brief + "\n---");
 
       try {
         var fd0 = new FormData();
         fd0.append("brain", brain());
         await fetch("/studio/seed-bai-giang", { method: "POST", body: fd0 });
       } catch (e0) {}
-
-      if (es) {
-        try { es.close(); } catch (e1) {}
-      }
-      var log = root.querySelector("#bgLog");
-      if (log) log.innerHTML = "";
-      appendLog("--- Brief ---\n" + brief + "\n---");
-      setStatus("Đang tạo «" + f.full + "»…");
-      root.querySelector("#bgStop").disabled = false;
-      root.querySelector("#bgRun").disabled = true;
 
       var url =
         "/workflows/run?slug=" +
@@ -339,18 +414,14 @@
             }
           } else if (typ === "error") {
             appendLog("ERROR: " + (data.message || data.error || ev.data));
-            setStatus("Lỗi khi tạo", false);
+            finishBusy("Lỗi khi tạo", false);
           } else if (typ === "done" || typ === "complete") {
             if (data.result) {
               var res = String(data.result);
               appendLog(res.length > 8000 ? res.slice(0, 8000) + "\n…(cắt)" : res);
             }
             appendLog("--- Xong ---");
-            setStatus("Xong. Xem exports/bai-giang/ trong Files.", true);
-            es.close();
-            es = null;
-            root.querySelector("#bgStop").disabled = true;
-            root.querySelector("#bgRun").disabled = false;
+            finishBusy("Xong. Xem exports/bai-giang/ trong Files.", true);
           } else {
             appendLog(ev.data);
           }
@@ -359,11 +430,7 @@
         }
       };
       es.onerror = function () {
-        setStatus("Mất kết nối stream (có thể đã xong).", false);
-        root.querySelector("#bgRun").disabled = false;
-        root.querySelector("#bgStop").disabled = true;
-        try { if (es) es.close(); } catch (e2) {}
-        es = null;
+        finishBusy("Mất kết nối stream (có thể đã xong hoặc lỗi).", false);
       };
     }
 

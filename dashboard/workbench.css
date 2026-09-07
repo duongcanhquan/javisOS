@@ -307,6 +307,22 @@
   color: var(--text2);
 }
 
+.jw-field.err input,
+.jw-field.err textarea,
+.jw-field.err select {
+  border-color: var(--danger-ink, #e25);
+  box-shadow: 0 0 0 1px var(--danger-ink, #e25);
+}
+.jw-field.err label { color: var(--danger-ink, #e25); }
+.jw-btn-primary.jw-busy {
+  opacity: 0.85;
+  cursor: wait;
+}
+.jw-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .jw-body {
     grid-template-columns: 1fr;

@@ -146,6 +146,7 @@
     var uploaded = [];
     var es = null;
     var tabIdx = 0;
+    var running = false;
 
     root.innerHTML =
       '<div class="jw" id="mktJw">' +
@@ -305,12 +306,9 @@
       };
 
       root.querySelector("#mktStop").onclick = function () {
-        if (es) {
-          try { es.close(); } catch (e) {}
-          es = null;
-        }
-        root.querySelector("#mktStop").disabled = true;
-        setStatus("Đã dừng theo dõi.", true);
+        try { if (es) es.close(); } catch (e) {}
+        es = null;
+        setBusy(false, "Đã dừng theo dõi (việc trên server có thể vẫn chạy).", true);
       };
 
       root.querySelector("#mktRun").onclick = run;
@@ -326,13 +324,101 @@
       paintLeft();
     }
 
+    function clearFieldErrors() {
+      root.querySelectorAll(".jw-field.err").forEach(function (w) {
+        w.classList.remove("err");
+      });
+    }
+
+    function markField(id, bad) {
+      var el = root.querySelector("#" + id);
+      if (!el) return;
+      var wrap = el.closest(".jw-field");
+      if (wrap) wrap.classList.toggle("err", !!bad);
+      if (bad) {
+        try { el.focus(); } catch (e) {}
+      }
+    }
+
+    function setBusy(busy, statusMsg, statusOk) {
+      running = !!busy;
+      var f = feat();
+      var runBtn = root.querySelector("#mktRun");
+      var stopBtn = root.querySelector("#mktStop");
+      var seedBtn = root.querySelector("#mktSeed");
+      if (runBtn) {
+        runBtn.disabled = busy;
+        runBtn.classList.toggle("jw-busy", busy);
+        runBtn.textContent = busy ? "Đang chạy…" : "Chạy: " + f.label;
+      }
+      if (stopBtn) stopBtn.disabled = !busy;
+      if (seedBtn) seedBtn.disabled = busy;
+      tabsEl.querySelectorAll(".jw-tab").forEach(function (t) {
+        t.disabled = busy;
+      });
+      if (statusMsg != null) setStatus(statusMsg, statusOk);
+    }
+
+    function validateInputs() {
+      clearFieldErrors();
+      var f = feat();
+      var topic = ((root.querySelector("#mktTopic") || {}).value || "").trim();
+      var goals = ((root.querySelector("#mktGoals") || {}).value || "").trim();
+      var period = "";
+      if (f.needsPeriod) {
+        period = ((root.querySelector("#mktPeriod") || {}).value || "").trim();
+      }
+      var missing = [];
+      if (!f.topicOptional && !topic) {
+        markField("mktTopic", true);
+        missing.push((f.topicLabel || "Đầu vào").replace(/\s*\*$/, ""));
+      }
+      if (f.needsPeriod && !period) {
+        markField("mktPeriod", true);
+        missing.push("Kỳ báo cáo");
+      }
+      if ((f.id === "viet-seo" || f.id === "nghien-cuu" || f.id === "kiem-seo") && !goals) {
+        markField("mktGoals", true);
+        missing.push("Mục tiêu");
+      }
+      if (missing.length) {
+        setStatus("Thiếu thông tin: " + missing.join(", ") + ". Điền bên trái rồi bấm Chạy.", false);
+        return null;
+      }
+      if (!topic && f.needsPeriod) topic = "Báo cáo Ads đủ số đo";
+      return {
+        topic: topic,
+        period: period || (f.needsPeriod ? "last_7d" : ""),
+        audience: ((root.querySelector("#mktAudience") || {}).value || "").trim(),
+        goals: goals,
+        lang: ((root.querySelector("#mktLang") || {}).value || "vi").trim(),
+        feat: f,
+      };
+    }
+
+    function finishBusy(statusMsg, statusOk) {
+      try { if (es) es.close(); } catch (e) {}
+      es = null;
+      setBusy(false, statusMsg, statusOk);
+    }
+
     tabsEl.querySelectorAll(".jw-tab").forEach(function (btn) {
       btn.onclick = function () {
+        if (running) {
+          setStatus("Đang chạy - chờ xong hoặc bấm Dừng xem trước khi đổi tab.", false);
+          return;
+        }
         selectTab(parseInt(btn.getAttribute("data-i"), 10) || 0);
       };
     });
 
     root.querySelector("#mktSeed").onclick = async function () {
+      if (running) return;
+      var seedBtn = root.querySelector("#mktSeed");
+      if (seedBtn) {
+        seedBtn.disabled = true;
+        seedBtn.textContent = "Đang chuẩn bị…";
+      }
       setStatus("Đang chuẩn bị agent + workflow…");
       try {
         var fd = new FormData();
@@ -345,41 +431,36 @@
         setStatus("Sẵn sàng " + (r.workflows || []).length + " việc Marketing.", true);
       } catch (e) {
         setStatus(String((e && e.message) || e), false);
+      } finally {
+        if (seedBtn) {
+          seedBtn.disabled = false;
+          seedBtn.textContent = "Chuẩn bị lần đầu";
+        }
       }
     };
 
     async function run() {
-      var f = feat();
-      var topic = ((root.querySelector("#mktTopic") || {}).value || "").trim();
-      if (!topic && !f.topicOptional) {
-        setStatus("Nhập đầu vào bên trái trước.", false);
-        return;
+      if (running) return;
+      var v = validateInputs();
+      if (!v) return;
+
+      var f = v.feat;
+      var brief = composeBrief(v.topic, v.audience, v.goals, v.lang, f, uploaded, v.period);
+
+      setBusy(true, "Đang chạy «" + f.full + "»…");
+      if (es) {
+        try { es.close(); } catch (e1) {}
+        es = null;
       }
-      if (!topic && f.needsPeriod) topic = "Báo cáo Ads đủ số đo";
-      var period = "";
-      if (f.needsPeriod) {
-        period = ((root.querySelector("#mktPeriod") || {}).value || "last_7d").trim();
-      }
-      var audience = ((root.querySelector("#mktAudience") || {}).value || "").trim();
-      var goals = ((root.querySelector("#mktGoals") || {}).value || "").trim();
-      var lang = ((root.querySelector("#mktLang") || {}).value || "vi").trim();
-      var brief = composeBrief(topic, audience, goals, lang, f, uploaded, period);
+      var log = root.querySelector("#mktLog");
+      if (log) log.innerHTML = "";
+      appendLog("--- Brief ---\n" + brief + "\n---");
 
       try {
         var fd0 = new FormData();
         fd0.append("brain", brain());
         await fetch("/studio/seed-marketing", { method: "POST", body: fd0 });
       } catch (e0) {}
-
-      if (es) {
-        try { es.close(); } catch (e1) {}
-      }
-      var log = root.querySelector("#mktLog");
-      if (log) log.innerHTML = "";
-      appendLog("--- Brief ---\n" + brief + "\n---");
-      setStatus("Đang chạy «" + f.full + "»…");
-      root.querySelector("#mktStop").disabled = false;
-      root.querySelector("#mktRun").disabled = true;
 
       var url =
         "/workflows/run?slug=" +
@@ -405,18 +486,14 @@
             }
           } else if (typ === "error") {
             appendLog("ERROR: " + (data.message || data.error || ev.data));
-            setStatus("Lỗi khi chạy", false);
+            finishBusy("Lỗi khi chạy", false);
           } else if (typ === "done" || typ === "complete") {
             if (data.result) {
               var res = String(data.result);
               appendLog(res.length > 8000 ? res.slice(0, 8000) + "\n…(cắt)" : res);
             }
             appendLog("--- Xong ---");
-            setStatus("Xong. Xem exports/marketing/ trong Files.", true);
-            es.close();
-            es = null;
-            root.querySelector("#mktStop").disabled = true;
-            root.querySelector("#mktRun").disabled = false;
+            finishBusy("Xong. Xem exports/marketing/ trong Files.", true);
           } else {
             appendLog(ev.data);
           }
@@ -425,11 +502,7 @@
         }
       };
       es.onerror = function () {
-        setStatus("Mất kết nối stream (có thể đã xong).", false);
-        root.querySelector("#mktRun").disabled = false;
-        root.querySelector("#mktStop").disabled = true;
-        try { if (es) es.close(); } catch (e2) {}
-        es = null;
+        finishBusy("Mất kết nối stream (có thể đã xong hoặc lỗi).", false);
       };
     }
 
