@@ -4,6 +4,18 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.119] - 2026-09-07
+### Thêm mới
+- **Công việc → Marketing:** menu chọn Kiểm SEO / Viết bài SEO / Nghiên cứu thị trường / Facebook & Ads (mỗi thẻ có khi nào chọn + ví dụ).
+- **Bộ Marketing (Studio):** seed skill + agent Gemini + 4 workflow; chạy được từ trang, chat, Telegram, Zalo như việc thường.
+### Đổi tên
+- Nhóm sidebar **Việc** đổi thành **Công việc**.
+
+## [0.55.118] - 2026-09-07
+### Thêm mới
+- **Bài giảng cho giảng viên:** trang Việc với menu chọn đầu ra rõ ràng (slide / video giải thích / lớp học tương tác / bài đọc + ảnh), mỗi thẻ có khi nào chọn, nhận gì, ví dụ cụ thể.
+- **Bộ Bài giảng (Studio):** seed agent + skill + 4 workflow Gemini; nghiên cứu → thiết kế → kiểm chứng; file vào `exports/bai-giang/`.
+
 ## [0.55.117] - 2026-09-07
 ### Sửa lỗi
 - **Moonshine Việt bịa chữ / nghe lung tung:** không còn đổ mic ra loa (tránh feedback); bật lại chống vọng; VAD + `max_tokens_per_second=13` cho VI; bỏ dòng khi gần như không có tiếng hoặc câu kiểu “subscribe / La La School”.

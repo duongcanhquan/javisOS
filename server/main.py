@@ -8464,6 +8464,491 @@ async def studio_seed_video(brain: str = Form("brain")):
     return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-video-da-pipeline"}
 
 
+@app.post("/studio/seed-bai-giang")
+async def studio_seed_bai_giang(brain: str = Form("brain")):
+    """Bộ Bài giảng: nghiên cứu (Gemini) → 4 lộ trình đầu ra (lớp học / video / slide / văn bản minh họa)."""
+    root = Path(_brain_root(brain))
+    try:
+        system_sync.migrate_brain(root)
+    except Exception:
+        pass
+    a = _agents_dir(brain)
+    sk = _skills_dir(brain)
+    today = _today()
+    gem = {"model": "gemini-2.5-flash", "model_provider": "gemini", "group": "Nội dung", "updated": today}
+
+    # Skill định dạng (create-if-missing nội dung; luôn refresh body seed nếu chưa sửa tay - ghi thẳng)
+    skill_specs = [
+        (
+            "tao-bai-giang",
+            "Tạo bài giảng",
+            "Điều phối tạo bài giảng từ chủ đề/file: chọn đầu ra lớp học, video, slide hoặc văn bản minh họa.",
+            (
+                "# Tạo bài giảng\n\n"
+                "Hỏi định dạng nếu thiếu. Brief bắt buộc: chủ đề, đối tượng, mục tiêu, ngôn ngữ, định dạng.\n"
+                "Lớp học → `bo-bai-giang-lop-hoc`; video → `bo-bai-giang-video`; "
+                "slide → `bo-bai-giang-slide`; văn bản minh họa → `bo-bai-giang-van-ban`.\n"
+                "Lộ trình: đọc → deep-research → ví dụ → thiết kế → ghi `exports/bai-giang/<slug>/`.\n"
+            ),
+        ),
+        (
+            "bai-giang-lop-hoc",
+            "Bài giảng lớp học",
+            "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tùy chọn đẩy OpenMAIC.",
+            (
+                "# Bài giảng lớp học\n\n"
+                "Outline 8-15 cảnh + quiz + PBL + script. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
+                "OpenMAIC chỉ khi user đã sẵn sàng self-host/Live Demo.\n"
+            ),
+        ),
+        (
+            "bai-giang-slide",
+            "Bài giảng slide",
+            "Thiết kế deck slide hấp dẫn: outline, layout, bullet, gợi ý hình/biểu đồ, xuất markdown/HTML.",
+            (
+                "# Bài giảng slide\n\n"
+                "10-16 slide, 1 ý/slide, speaker notes, gợi ý visual. Lưu exports/bai-giang/<slug>/slides.md.\n"
+            ),
+        ),
+        (
+            "bai-giang-van-ban",
+            "Bài giảng văn bản minh họa",
+            "Bài đọc dài hấp dẫn kèm ảnh/biểu đồ: cấu trúc, ví dụ, chart text, prompt ảnh.",
+            (
+                "# Bài giảng văn bản minh họa\n\n"
+                "Longread + [BIỂU ĐỒ]/[ẢNH]. Có thể javis_generate_image. "
+                "Lưu exports/bai-giang/<slug>/bai-doc.md.\n"
+            ),
+        ),
+    ]
+    for slug, name, desc, body in skill_specs:
+        d = sk / slug
+        d.mkdir(parents=True, exist_ok=True)
+        # Ưu tiên bản đầy đủ ở .claude/skills (hệ thống); chỉ fallback body ngắn khi thiếu.
+        sys_sk = Path(__file__).resolve().parent.parent / ".claude" / "skills" / slug / "SKILL.md"
+        if sys_sk.is_file():
+            try:
+                (d / "SKILL.md").write_text(sys_sk.read_text(encoding="utf-8"), encoding="utf-8")
+                continue
+            except OSError:
+                pass
+        _write_md(
+            d / "SKILL.md",
+            {"name": name, "description": desc, "group": "Nội dung"},
+            body,
+        )
+    try:
+        system_sync.mirror_skills(root)
+    except Exception:
+        pass
+
+    agents = [
+        {
+            "name": "Nghiên cứu bài giảng",
+            "slug": "bg-nghien-cuu",
+            "role": "Nghiên cứu chủ đề bài giảng: fact, ví dụ, misconception, nguồn.",
+            "skills": ["tao-bai-giang", "deep-research", "query-wiki", "ingest-source"],
+            "prompt": (
+                "Bạn là researcher cho bài giảng (Gemini).\n"
+                "Mục tiêu: nguyên liệu đủ để các agent sau thiết kế lớp học/video/slide/văn bản - "
+                "không viết bài giảng hoàn chỉnh.\n"
+                "Cổng brief: {{input}} cần chủ đề + đối tượng + mục tiêu học + ngôn ngữ + định dạng đầu ra. "
+                "Thiếu → DỪNG, hỏi (JAVIS_ASK). Không giả định.\n"
+                "Khi đủ: đọc file đính kèm nếu có đường dẫn trong brief; "
+                "chạy deep-research (breadth 3-4, depth 2) khi thiếu fact then chốt.\n"
+                "Đầu ra markdown: (1) tóm tắt chủ đề, (2) 5-8 insight, (3) 3 misconception thường gặp, "
+                "(4) 3-5 ví dụ/mini-case, (5) gợi ý hình/biểu đồ, (6) Sources.\n"
+                "Không bịa số. Không em dash."
+            ),
+        },
+        {
+            "name": "Thiết kế lớp học",
+            "slug": "bg-lop-hoc",
+            "role": "Biên soạn gói lớp học tương tác từ nghiên cứu: cảnh, quiz, script.",
+            "skills": ["bai-giang-lop-hoc", "tao-bai-giang", "deep-research"],
+            "prompt": (
+                "Bạn thiết kế lớp học tương tác (Gemini). Nạp skill bai-giang-lop-hoc.\n"
+                "Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
+                "Tạo outline 8-15 cảnh, quiz 4-8 câu, 1 PBL ngắn, script giảng từng cảnh.\n"
+                "Ghi file exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md trong vault.\n"
+                "Cuối: nêu có thể đưa sang OpenMAIC nếu user muốn classroom live.\n"
+                "Không em dash."
+            ),
+        },
+        {
+            "name": "Thiết kế video bài giảng",
+            "slug": "bg-video",
+            "role": "Chuyển nghiên cứu thành brief + beat video bài giảng, điều phối lam-video.",
+            "skills": ["lam-video", "tao-bai-giang", "paperdesign", "deep-research"],
+            "prompt": (
+                "Bạn producer video bài giảng (Gemini). Nạp lam-video.\n"
+                "Từ nghiên cứu {{prev}} + brief {{input}}: chốt độ dài (mặc định 60-90s nếu thiếu), "
+                "tỉ lệ, ngôn ngữ; viết beat map giảng dạy (hook → giải thích → ví dụ → CTA).\n"
+                "Chọn pipeline (paperdesign/remotion/html-video/manual) và thực thi hoặc xuất Manual pack.\n"
+                "Không gen Atlas khi beat chưa được user duyệt nếu tốn phí.\n"
+                "Không em dash."
+            ),
+        },
+        {
+            "name": "Thiết kế slide bài giảng",
+            "slug": "bg-slide",
+            "role": "Thiết kế deck slide hấp dẫn từ nghiên cứu.",
+            "skills": ["bai-giang-slide", "tao-bai-giang", "frontend-design"],
+            "prompt": (
+                "Bạn thiết kế slide bài giảng (Gemini). Nạp bai-giang-slide.\n"
+                "Từ {{prev}} + {{input}}: 10-16 slide, 1 ý/slide, speaker notes, gợi ý visual/biểu đồ.\n"
+                "Xuất exports/bai-giang/<slug>/slides.md. Có thể thêm HTML đơn giản nếu phù hợp.\n"
+                "Không tường chữ. Không em dash."
+            ),
+        },
+        {
+            "name": "Viết bài minh họa",
+            "slug": "bg-van-ban",
+            "role": "Viết bài đọc hấp dẫn kèm chỗ ảnh/biểu đồ và ví dụ luyện tập.",
+            "skills": ["bai-giang-van-ban", "tao-bai-giang", "deep-research"],
+            "prompt": (
+                "Bạn viết handout/longread bài giảng (Gemini). Nạp bai-giang-van-ban.\n"
+                "Từ {{prev}} + {{input}}: bài 1200-2000 chữ (hoặc theo brief), ví dụ cụ thể, "
+                "chỗ [BIỂU ĐỒ]/[ẢNH] có chú thích; generate ảnh nếu tool sẵn.\n"
+                "Lưu exports/bai-giang/<slug>/bai-doc.md. Không bịa số. Không em dash."
+            ),
+        },
+        {
+            "name": "Kiểm chứng bài giảng",
+            "slug": "bg-kiem-chung",
+            "role": "Soi gói bài giảng so với brief: mục tiêu, ví dụ, định dạng, file vault.",
+            "skills": [],
+            "prompt": (
+                "Bạn KHÔNG viết bài mới. Chỉ kiểm chứng.\n"
+                "Đối chiếu brief gốc với output: đủ mục tiêu học? có ví dụ/thực hành? "
+                "đúng định dạng yêu cầu? có đường dẫn file trong vault?\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể để agent trước sửa."
+            ),
+        },
+    ]
+    for ex in agents:
+        meta = {
+            "type": "agent",
+            "name": ex["name"],
+            "slug": ex["slug"],
+            "role": ex["role"],
+            "skills": ex["skills"],
+            **gem,
+        }
+        _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
+
+    def _wf(name, slug, desc, steps):
+        meta = {
+            "type": "workflow",
+            "name": name,
+            "slug": slug,
+            "status": "active",
+            "group": "Nội dung",
+            "description": desc,
+            "steps": steps,
+            "model": "gemini-2.5-flash",
+            "model_provider": "gemini",
+            "updated": today,
+        }
+        _write_md(_workflows_dir(brain) / f"{slug}.md", meta, desc)
+        return slug
+
+    wfs = [
+        _wf(
+            "Bài giảng → Lớp học",
+            "bo-bai-giang-lop-hoc",
+            "Nghiên cứu → thiết kế lớp học tương tác (cảnh/quiz/script) → kiểm chứng.",
+            [
+                {
+                    "agent": "bg-nghien-cuu",
+                    "task": "Cổng brief + nghiên cứu cho lớp học từ: {{input}}",
+                },
+                {
+                    "agent": "bg-lop-hoc",
+                    "task": "Thiết kế lớp học từ brief '{{input}}' và nghiên cứu:\n{{prev}}",
+                    "verify_agent": "bg-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Bài giảng → Video",
+            "bo-bai-giang-video",
+            "Nghiên cứu → beat/video bài giảng (lam-video) → kiểm chứng.",
+            [
+                {
+                    "agent": "bg-nghien-cuu",
+                    "task": "Cổng brief + nghiên cứu cho video bài giảng từ: {{input}}",
+                },
+                {
+                    "agent": "bg-video",
+                    "task": "Làm video bài giảng từ brief '{{input}}' và nghiên cứu:\n{{prev}}",
+                    "verify_agent": "bg-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Bài giảng → Slide",
+            "bo-bai-giang-slide",
+            "Nghiên cứu → deck slide hấp dẫn → kiểm chứng.",
+            [
+                {
+                    "agent": "bg-nghien-cuu",
+                    "task": "Cổng brief + nghiên cứu cho slide từ: {{input}}",
+                },
+                {
+                    "agent": "bg-slide",
+                    "task": "Thiết kế slide từ brief '{{input}}' và nghiên cứu:\n{{prev}}",
+                    "verify_agent": "bg-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Bài giảng → Văn bản minh họa",
+            "bo-bai-giang-van-ban",
+            "Nghiên cứu → bài đọc kèm ảnh/biểu đồ → kiểm chứng.",
+            [
+                {
+                    "agent": "bg-nghien-cuu",
+                    "task": "Cổng brief + nghiên cứu cho bài đọc minh họa từ: {{input}}",
+                },
+                {
+                    "agent": "bg-van-ban",
+                    "task": "Viết bài minh họa từ brief '{{input}}' và nghiên cứu:\n{{prev}}",
+                    "verify_agent": "bg-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+    ]
+    return {
+        "ok": True,
+        "agents": [x["slug"] for x in agents],
+        "skills": [s[0] for s in skill_specs],
+        "workflows": wfs,
+    }
+
+
+@app.post("/studio/seed-marketing")
+async def studio_seed_marketing(brain: str = Form("brain")):
+    """Bộ Marketing: kiểm SEO / viết SEO / nghiên cứu thị trường / tổng kết Facebook (Gemini)."""
+    root = Path(_brain_root(brain))
+    try:
+        system_sync.migrate_brain(root)
+    except Exception:
+        pass
+    a = _agents_dir(brain)
+    sk = _skills_dir(brain)
+    today = _today()
+    gem = {"model": "gemini-2.5-flash", "model_provider": "gemini", "group": "Marketing", "updated": today}
+
+    skill_specs = [
+        (
+            "marketing-hub",
+            "Marketing (điều phối)",
+            "Điều phối Marketing: kiểm SEO, viết bài SEO, nghiên cứu thị trường, tổng kết Facebook/Ads.",
+            "# Marketing\n\nChọn đầu ra → chạy workflow bo-marketing-*. Lưu exports/marketing/.\n",
+        ),
+        (
+            "kiem-tra-seo",
+            "Kiểm tra SEO",
+            "Soi SEO on-page/nội dung: title, meta, H1-H2, từ khóa, liên kết; checklist sửa có ưu tiên.",
+            "# Kiểm SEO\n\nAudit + checklist P0/P1/P2. Lưu exports/marketing/<slug>/seo-audit.md.\n",
+        ),
+        (
+            "viet-bai-seo",
+            "Viết bài SEO",
+            "Viết bài SEO hấp dẫn: từ khóa, outline H1-H2, meta, CTA, ví dụ; lưu markdown sẵn đăng.",
+            "# Viết bài SEO\n\nBài + meta + slug. Lưu exports/marketing/<slug>/bai-seo.md.\n",
+        ),
+        (
+            "tong-ket-facebook",
+            "Tổng kết Facebook",
+            "Tóm tắt Page/Ads Facebook đã kết nối: bài đăng, bình luận nổi bật, insights; nêu nếu thiếu MCP.",
+            "# Tổng kết Facebook\n\nChỉ đọc MCP. Thiếu connector thì nói rõ. Lưu facebook-tong-ket.md.\n",
+        ),
+    ]
+    for slug, name, desc, body in skill_specs:
+        d = sk / slug
+        d.mkdir(parents=True, exist_ok=True)
+        sys_sk = Path(__file__).resolve().parent.parent / ".claude" / "skills" / slug / "SKILL.md"
+        if sys_sk.is_file():
+            try:
+                (d / "SKILL.md").write_text(sys_sk.read_text(encoding="utf-8"), encoding="utf-8")
+                continue
+            except OSError:
+                pass
+        _write_md(d / "SKILL.md", {"name": name, "description": desc, "group": "Marketing"}, body)
+    try:
+        system_sync.mirror_skills(root)
+    except Exception:
+        pass
+
+    agents = [
+        {
+            "name": "Nghiên cứu thị trường (MKT)",
+            "slug": "mkt-nghien-cuu",
+            "role": "Nghiên cứu thị trường cho Marketing: phân khúc, đối thủ, insight hành động.",
+            "skills": ["marketing-hub", "nghien-cuu-thi-truong", "deep-research", "query-wiki"],
+            "prompt": (
+                "Bạn là researcher Marketing (Gemini). Nạp marketing-hub + nghien-cuu-thi-truong.\n"
+                "Cổng brief {{input}}: chủ đề/sản phẩm + đối tượng + mục tiêu nghiên cứu + ngôn ngữ. "
+                "Thiếu → DỪNG, hỏi (JAVIS_ASK). Không giả định.\n"
+                "Chạy deep-research (breadth≈4, depth≈2) rồi khung JTBD/đối thủ/xu hướng/insight.\n"
+                "Đầu ra markdown + Sources. Ghi exports/marketing/<slug>/nghien-cuu.md nếu được.\n"
+                "Không bịa số. Không em dash."
+            ),
+        },
+        {
+            "name": "Kiểm SEO",
+            "slug": "mkt-kiem-seo",
+            "role": "Audit SEO on-page/nội dung và đưa checklist sửa ưu tiên.",
+            "skills": ["kiem-tra-seo", "marketing-hub", "fixing-metadata", "deep-research"],
+            "prompt": (
+                "Bạn audit SEO (Gemini). Nạp kiem-tra-seo.\n"
+                "Từ brief {{input}} (+ nghiên cứu {{prev}} nếu có): fetch/đọc URL hoặc nội dung, "
+                "chấm điểm, checklist P0/P1/P2, đề xuất title/meta.\n"
+                "Lưu exports/marketing/<slug>/seo-audit.md. Không hứa ranking. Không em dash."
+            ),
+        },
+        {
+            "name": "Viết bài SEO",
+            "slug": "mkt-viet-seo",
+            "role": "Viết bài SEO đủ meta, outline, CTA, ví dụ cụ thể.",
+            "skills": ["viet-bai-seo", "marketing-hub", "deep-research"],
+            "prompt": (
+                "Bạn viết bài SEO (Gemini). Nạp viet-bai-seo.\n"
+                "Từ {{input}} và nghiên cứu {{prev}}: outline H1-H2, bài đầy đủ, khối title/meta/slug, CTA.\n"
+                "Lưu exports/marketing/<slug>/bai-seo.md. Không nhồi từ khóa. Không bịa số. Không em dash."
+            ),
+        },
+        {
+            "name": "Tổng kết Facebook",
+            "slug": "mkt-facebook",
+            "role": "Tóm tắt kết nối và hoạt động Facebook Page/Ads (chỉ đọc).",
+            "skills": ["tong-ket-facebook", "marketing-hub"],
+            "prompt": (
+                "Bạn tổng kết Facebook/Ads (Gemini). Nạp tong-ket-facebook.\n"
+                "Brief {{input}}: kỳ thời gian, Page/Ads cần xem.\n"
+                "Kiểm kết nối MCP; thiếu → nêu gói Store cần cài, dừng phần số liệu.\n"
+                "Có connector → gọi tool đọc Page/posts/insights, tóm tắt + 3 gợi ý nội dung.\n"
+                "Chỉ ĐỌC trừ khi user yêu cầu rõ hành động ghi. "
+                "Lưu exports/marketing/<slug>/facebook-tong-ket.md. Không em dash."
+            ),
+        },
+        {
+            "name": "Kiểm chứng Marketing",
+            "slug": "mkt-kiem-chung",
+            "role": "Soi output Marketing so brief: đủ mục, có ví dụ, không bịa số, có file vault.",
+            "skills": [],
+            "prompt": (
+                "Bạn KHÔNG viết lại. Chỉ kiểm chứng.\n"
+                "Đối chiếu brief với output: đúng loại đầu ra? có checklist/ví dụ? "
+                "có bịa số/ranking không? có đường dẫn file?\n"
+                "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể."
+            ),
+        },
+    ]
+    for ex in agents:
+        meta = {
+            "type": "agent",
+            "name": ex["name"],
+            "slug": ex["slug"],
+            "role": ex["role"],
+            "skills": ex["skills"],
+            **gem,
+        }
+        _write_md(a / f"{ex['slug']}.md", meta, ex["prompt"])
+
+    def _wf(name, slug, desc, steps):
+        meta = {
+            "type": "workflow",
+            "name": name,
+            "slug": slug,
+            "status": "active",
+            "group": "Marketing",
+            "description": desc,
+            "steps": steps,
+            "model": "gemini-2.5-flash",
+            "model_provider": "gemini",
+            "updated": today,
+        }
+        _write_md(_workflows_dir(brain) / f"{slug}.md", meta, desc)
+        return slug
+
+    wfs = [
+        _wf(
+            "Marketing → Kiểm SEO",
+            "bo-marketing-kiem-seo",
+            "Nghiên cứu ngắn (nếu cần) → audit SEO → kiểm chứng.",
+            [
+                {
+                    "agent": "mkt-nghien-cuu",
+                    "task": "Nếu brief đã có URL/nội dung rõ thì tóm tắt ngữ cảnh SEO ngắn; "
+                    "nếu chỉ có từ khóa/thị trường thì research nhẹ cho: {{input}}",
+                },
+                {
+                    "agent": "mkt-kiem-seo",
+                    "task": "Audit SEO từ brief '{{input}}' và ngữ cảnh:\n{{prev}}",
+                    "verify_agent": "mkt-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Marketing → Viết bài SEO",
+            "bo-marketing-viet-seo",
+            "Nghiên cứu → viết bài SEO + meta → kiểm chứng.",
+            [
+                {
+                    "agent": "mkt-nghien-cuu",
+                    "task": "Research góc cạnh tranh + fact cho bài SEO từ: {{input}}",
+                },
+                {
+                    "agent": "mkt-viet-seo",
+                    "task": "Viết bài SEO từ brief '{{input}}' và nghiên cứu:\n{{prev}}",
+                    "verify_agent": "mkt-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Marketing → Nghiên cứu thị trường",
+            "bo-marketing-nghien-cuu",
+            "Deep-research + khung thị trường → kiểm chứng.",
+            [
+                {
+                    "agent": "mkt-nghien-cuu",
+                    "task": "Nghiên cứu thị trường đầy đủ cho: {{input}}",
+                    "verify_agent": "mkt-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Marketing → Tổng kết Facebook",
+            "bo-marketing-facebook",
+            "Đọc kết nối Page/Ads → tổng kết kỳ → kiểm chứng.",
+            [
+                {
+                    "agent": "mkt-facebook",
+                    "task": "Tổng kết Facebook/Ads theo brief: {{input}}",
+                    "verify_agent": "mkt-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+    ]
+    return {
+        "ok": True,
+        "agents": [x["slug"] for x in agents],
+        "skills": [s[0] for s in skill_specs],
+        "workflows": wfs,
+    }
+
+
 # ============================================================
 # LOOP TỰ CẢI THIỆN (Beta) - Discovery + Scheduling, an toàn (chỉ thao tác file vault)
 # ============================================================
