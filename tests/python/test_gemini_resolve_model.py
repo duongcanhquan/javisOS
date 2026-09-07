@@ -38,6 +38,15 @@ check("agy bare 3.6-flash → medium",
 check("agy giữ 3.8-flash-high",
       engine.antigravity_resolve_model("gemini-3.8-flash-high") == "gemini-3.8-flash-high")
 
+# Antigravity: slug đã có effort → không truyền --effort (tránh conflicts với --model)
+import antigravity_cli as agy  # noqa: E402
+
+check("agy model_da_co_effort medium", agy.model_da_co_effort("gemini-3.8-flash-medium"))
+check("agy model_da_co_effort high", agy.model_da_co_effort("gemini-3.8-flash-high"))
+check("agy bare flash chưa có effort", not agy.model_da_co_effort("gemini-3.8-flash"))
+check("agy co_effort bỏ qua khi model đã có suffix",
+      agy.co_effort("low", "gemini-3.8-flash-medium") == [])
+
 if fails:
     raise SystemExit(f"{len(fails)} FAIL: {fails}")
 print("ALL PASS")

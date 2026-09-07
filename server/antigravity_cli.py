@@ -153,12 +153,26 @@ def co_co(*ten_co: str) -> bool:
 # cả, và độ sâu suy nghĩ rơi về câu nhắc trong prompt. Đó là chủ ý - thà mất một tuỳ chọn còn
 # hơn đoán một giá trị rồi làm hỏng lượt chat của người dùng. Khi CLI khai rõ ra thì phần này
 # tự chạy, khỏi sửa code.
+#
+# Antigravity: slug model đã nhúng effort (`gemini-3.8-flash-medium`). Gửi thêm `--effort low`
+# → CLI thoát: "conflicts with --effort=low". Chỉ truyền cờ khi model CHƯA có hậu tố.
 _CO_EFFORT = ("--effort", "--reasoning-effort")
+_AGY_EFFORT_SUFFIX = re.compile(r"-(?:low|medium|high)$", re.IGNORECASE)
 
 
-def co_effort(muc: Optional[str]) -> list:
-    """['--effort', '<muc>'] nếu bản CLI này khai đủ cả hai, không thì [] (không truyền gì)."""
+def model_da_co_effort(model: Optional[str]) -> bool:
+    """True nếu slug Antigravity đã mang effort (…-flash-low|medium|high)."""
+    return bool(_AGY_EFFORT_SUFFIX.search(str(model or "").strip()))
+
+
+def co_effort(muc: Optional[str], model: Optional[str] = None) -> list:
+    """['--effort', '<muc>'] nếu bản CLI này khai đủ cả hai, không thì [] (không truyền gì).
+
+    `model`: nếu slug đã có hậu tố effort thì luôn [] — tránh xung đột với `--model`.
+    """
     if not muc:
+        return []
+    if model_da_co_effort(model):
         return []
     txt = _help_text()
     if not txt or not re.search(r"\b" + re.escape(str(muc)) + r"\b", txt):
@@ -1002,7 +1016,7 @@ class AntigravityCLI:
         if self.model and co_co("--model"):
             args += ["--model", self.model]
         args += co_quyen_cho_mode(self.mode, headless=True)
-        args += co_effort(self.effort)
+        args += co_effort(self.effort, self.model)
         if self.mcp_config and co_co("--mcp-config", "--mcp-config-file"):
             args += ["--mcp-config", self.mcp_config]
         if co_co("--output-format"):

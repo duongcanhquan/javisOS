@@ -2947,7 +2947,16 @@ def _cli_do_sau_khac(cli, mod, reasoning, message):
     `mod` là module của engine (`grok_cli` / `antigravity_cli`) - chính nó giữ `co_effort`, và
     chính nó biết bản CLI trên máy này khai những gì. Hai đường KHÔNG cộng dồn, cùng lý do đã
     ghi ở `_cli_do_sau`.
+
+    Antigravity: slug model đã mang effort (`…-flash-medium`) → không đặt thêm `cli.effort`
+    (CLI báo conflicts với `--model`).
     """
+    try:
+        model = getattr(cli, "model", None) or ""
+        if getattr(mod, "model_da_co_effort", None) and mod.model_da_co_effort(model):
+            return message
+    except Exception:
+        pass
     co = _co_effort_lui(mod, reasoning)
     if co:
         try:
@@ -4100,6 +4109,12 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         # /settings rồi POST nguyên object về) mà lưu thì đè mất key thật.
         if patch.get("elevenlabs_key") and not patch["elevenlabs_key"].strip().startswith("••••"):
             v["elevenlabs_key"] = patch["elevenlabs_key"].strip()
+        if "fast_turn" in patch:
+            raw = patch["fast_turn"]
+            if isinstance(raw, str):
+                v["fast_turn"] = raw.strip().lower() in ("1", "true", "yes", "on")
+            else:
+                v["fast_turn"] = bool(raw)
     elif section == "password":
         # Đổi mật khẩu KHÔNG đi qua đây nữa - xem /auth/password. Đường này không đòi mật khẩu
         # hiện tại VÀ nhận cả token API scope `full`, nghĩa là một token rò ra là đổi được mật
@@ -11303,13 +11318,19 @@ def _rate_to_speed(rate: str) -> float:
         return 1.0
 
 
-async def _tts_edge(text: str, voice: str, rate: str) -> bytes:
+async def _tts_edge_iter(text: str, voice: str, rate: str):
+    """Yield từng khung MP3. Pipecat-style: loa bắt đầu trước khi hết câu."""
     import edge_tts   # lazy - xem ghi chú ở đầu file
     communicate = edge_tts.Communicate(text, voice, rate=rate)
-    buf = bytearray()
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
-            buf.extend(chunk["data"])
+            yield chunk["data"]
+
+
+async def _tts_edge(text: str, voice: str, rate: str) -> bytes:
+    buf = bytearray()
+    async for part in _tts_edge_iter(text, voice, rate):
+        buf.extend(part)
     return bytes(buf)
 
 
@@ -11352,21 +11373,42 @@ async def tts(
     text: str = Query(...),
     voice: str = Query("vi-VN-HoaiMyNeural"),
     rate: str = Query("+5%"),
+    stream: bool = Query(False),
 ):
     """Sinh audio TTS theo nhà cung cấp đã chọn (edge/openai/elevenlabs). Provider trả phí lỗi
-    → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn."""
+    → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn.
+
+    stream=1: trả MP3 từng khung (Edge) để trình duyệt phát sớm. Mặc định tắt — OpenMAIC
+    và GET /tts cũ vẫn nhận cả file. Không đổi path nên không đụng bảng route."""
     import sys
     from fastapi import HTTPException, Response
     cfg = cfgmod.read_settings()
     provider = ((cfg.get("voice", {}) or {}).get("tts_provider") or "edge").lower()
+    hdr = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+    async def _mot_nha(p: str):
+        if p == "openai":
+            return await _tts_openai(text, rate, cfg)
+        if p == "elevenlabs":
+            return await _tts_elevenlabs(text, cfg)
+        buf = bytearray()
+        async for part in _tts_edge_iter(text, voice, rate):
+            buf.extend(part)
+        return bytes(buf)
+
+    if stream and provider == "edge":
+        async def _phat():
+            try:
+                async for part in _tts_edge_iter(text, voice, rate):
+                    if part:
+                        yield part
+            except Exception as e:
+                print(f"[TTS stream] {type(e).__name__}: {e}", file=sys.stderr)
+        return StreamingResponse(_phat(), media_type="audio/mpeg", headers=hdr)
+
     audio = b""
     try:
-        if provider == "openai":
-            audio = await _tts_openai(text, rate, cfg)
-        elif provider == "elevenlabs":
-            audio = await _tts_elevenlabs(text, cfg)
-        else:
-            audio = await _tts_edge(text, voice, rate)
+        audio = await _mot_nha(provider)
     except Exception as e:
         print(f"[TTS {provider}] {type(e).__name__}: {e} - thử fallback Edge", file=sys.stderr)
         if provider != "edge":
@@ -11378,6 +11420,10 @@ async def tts(
             raise HTTPException(502, f"TTS failed: {type(e).__name__}: {e}")
     if not audio:
         raise HTTPException(502, "TTS không trả audio.")
+    if stream:
+        async def _phat_mot():
+            yield audio
+        return StreamingResponse(_phat_mot(), media_type="audio/mpeg", headers=hdr)
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-cache"})
 
 
