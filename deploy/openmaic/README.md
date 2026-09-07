@@ -38,6 +38,10 @@ cd ~/javis-os && git pull
 OPENMAIC_BUILD=0 bash scripts/vps-deploy-openmaic.sh
 ```
 
+Hoặc trên GitHub: **Actions → Deploy OpenMAIC to VPS → Run workflow**.
+
+Đẩy thay đổi `scripts/vps-deploy-openmaic.sh` / `deploy/openmaic/**` / workflow lên `main` cũng tự chạy deploy (mặc định domain + BUILD=0).
+
 Script:
 
 - Shared TTS key + `TTS_OPENAI_*` → Javis.
