@@ -8748,20 +8748,26 @@ async def studio_seed_marketing(brain: str = Form("brain")):
         (
             "marketing-hub",
             "Marketing (điều phối)",
-            "Điều phối Marketing: SEO, bài SEO, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo.",
+            "Điều phối Marketing: SEO+SEO GPT, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo.",
             "# Marketing\n\nChọn đầu ra → bo-marketing-*. Lưu exports/marketing/.\n",
         ),
         (
             "kiem-tra-seo",
             "Kiểm tra SEO",
-            "Soi SEO on-page/nội dung: title, meta, H1-H2, từ khóa, liên kết; checklist sửa có ưu tiên.",
-            "# Kiểm SEO\n\nAudit + checklist. Lưu seo-audit.md.\n",
+            "Audit SEO cổ điển + SEO GPT (LLM): title/meta/H1 và khả năng được chat AI trích dẫn.",
+            "# Kiểm SEO\n\nCổ điển + SEO GPT. Lưu seo-audit.md.\n",
         ),
         (
             "viet-bai-seo",
             "Viết bài SEO",
-            "Viết bài SEO hấp dẫn: từ khóa, outline H1-H2, meta, CTA, ví dụ; lưu markdown sẵn đăng.",
-            "# Viết bài SEO\n\nBài + meta. Lưu bai-seo.md.\n",
+            "Viết bài SEO + SEO GPT: từ khóa, meta, lead trả lời thẳng, FAQ, chunk dễ AI trích dẫn.",
+            "# Viết bài SEO\n\nSEO + SEO GPT. Lưu bai-seo.md.\n",
+        ),
+        (
+            "seo-gpt",
+            "SEO GPT",
+            "SEO cho LLM/chat: cấu trúc dễ trích dẫn, câu trả lời trực tiếp, FAQ, entity rõ - kèm SEO cổ điển.",
+            "# SEO GPT\n\nTối ưu cho mô hình ngôn ngữ.\n",
         ),
         (
             "tong-ket-facebook",
@@ -8810,24 +8816,27 @@ async def studio_seed_marketing(brain: str = Form("brain")):
         {
             "name": "Kiểm SEO",
             "slug": "mkt-kiem-seo",
-            "role": "Audit SEO on-page/nội dung và đưa checklist sửa ưu tiên.",
-            "skills": ["kiem-tra-seo", "marketing-hub", "fixing-metadata", "deep-research"],
+            "role": "Audit SEO cổ điển + SEO GPT (LLM trích dẫn) và checklist sửa.",
+            "skills": ["kiem-tra-seo", "seo-gpt", "marketing-hub", "fixing-metadata", "deep-research"],
             "prompt": (
-                "Bạn audit SEO (Gemini). Nạp kiem-tra-seo.\n"
-                "Từ brief {{input}} (+ nghiên cứu {{prev}} nếu có): fetch/đọc URL hoặc nội dung, "
-                "chấm điểm, checklist P0/P1/P2, đề xuất title/meta.\n"
-                "Lưu exports/marketing/<slug>/seo-audit.md. Không hứa ranking. Không em dash."
+                "Bạn audit SEO (Gemini). Nạp kiem-tra-seo VÀ seo-gpt.\n"
+                "Từ brief {{input}} (+ {{prev}} nếu có): fetch/đọc URL hoặc nội dung.\n"
+                "Chấm HAI lớp: (1) SEO cổ điển title/meta/H1/cấu trúc; "
+                "(2) SEO GPT - lead trả lời thẳng, entity, H2 dạng câu hỏi, FAQ, chunk, nguồn/uy tín.\n"
+                "Xuất đúng khung skill: bảng điểm đôi, checklist P0-P2, đề xuất title/meta/lead/FAQ.\n"
+                "Lưu exports/marketing/<slug>/seo-audit.md. Không hứa ranking hay 'AI sẽ nhắc brand'. Không em dash."
             ),
         },
         {
             "name": "Viết bài SEO",
             "slug": "mkt-viet-seo",
-            "role": "Viết bài SEO đủ meta, outline, CTA, ví dụ cụ thể.",
-            "skills": ["viet-bai-seo", "marketing-hub", "deep-research"],
+            "role": "Viết bài SEO + SEO GPT: meta, lead trả lời thẳng, FAQ, chunk dễ AI trích.",
+            "skills": ["viet-bai-seo", "seo-gpt", "marketing-hub", "deep-research"],
             "prompt": (
-                "Bạn viết bài SEO (Gemini). Nạp viet-bai-seo.\n"
-                "Từ {{input}} và nghiên cứu {{prev}}: outline H1-H2, bài đầy đủ, khối title/meta/slug, CTA.\n"
-                "Lưu exports/marketing/<slug>/bai-seo.md. Không nhồi từ khóa. Không bịa số. Không em dash."
+                "Bạn viết bài SEO + SEO GPT (Gemini). Nạp viet-bai-seo và seo-gpt.\n"
+                "Từ {{input}} và {{prev}}: outline; lead 40-80 chữ trả lời thẳng câu hỏi chính; "
+                "thân bài; FAQ 3-6; title/meta/slug; khối 'đoạn chat có thể trích' + entity.\n"
+                "Không nhồi từ khóa. Không bịa số. Lưu exports/marketing/<slug>/bai-seo.md. Không em dash."
             ),
         },
         {
@@ -8906,9 +8915,9 @@ async def studio_seed_marketing(brain: str = Form("brain")):
 
     wfs = [
         _wf(
-            "Marketing → Kiểm SEO",
+            "Marketing → Kiểm SEO (+ SEO GPT)",
             "bo-marketing-kiem-seo",
-            "Nghiên cứu ngắn (nếu cần) → audit SEO → kiểm chứng.",
+            "Nghiên cứu ngắn → audit SEO cổ điển + SEO GPT → kiểm chứng.",
             [
                 {
                     "agent": "mkt-nghien-cuu",
@@ -8924,9 +8933,9 @@ async def studio_seed_marketing(brain: str = Form("brain")):
             ],
         ),
         _wf(
-            "Marketing → Viết bài SEO",
+            "Marketing → Viết bài SEO (+ SEO GPT)",
             "bo-marketing-viet-seo",
-            "Nghiên cứu → viết bài SEO + meta → kiểm chứng.",
+            "Nghiên cứu → viết bài SEO + SEO GPT (lead/FAQ/meta) → kiểm chứng.",
             [
                 {
                     "agent": "mkt-nghien-cuu",

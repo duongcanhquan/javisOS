@@ -60,10 +60,17 @@ ads = (agents_dir / "mkt-ads.md").read_text(encoding="utf-8")
 check("mkt-ads gắn bao-cao-facebook-ads", "bao-cao-facebook-ads" in ads)
 check("mkt-ads gọi insights campaign", "level=campaign" in ads)
 
+seo_ag = (agents_dir / "mkt-kiem-seo.md").read_text(encoding="utf-8")
+check("mkt-kiem-seo gắn seo-gpt", "seo-gpt" in seo_ag)
+check("mkt-kiem-seo nói SEO GPT", "SEO GPT" in seo_ag or "seo-gpt" in seo_ag)
+viet = (agents_dir / "mkt-viet-seo.md").read_text(encoding="utf-8")
+check("mkt-viet-seo gắn seo-gpt", "seo-gpt" in viet)
+
 for sk in (
     "marketing-hub",
     "kiem-tra-seo",
     "viet-bai-seo",
+    "seo-gpt",
     "tong-ket-facebook",
     "bao-cao-facebook-ads",
 ):

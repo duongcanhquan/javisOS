@@ -1,6 +1,6 @@
 ---
 name: Marketing (điều phối)
-description: "Điều phối Marketing: SEO, bài SEO, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo."
+description: "Điều phối Marketing: SEO+SEO GPT, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo."
 group: Marketing
 ---
 
@@ -14,11 +14,13 @@ Trang **Công việc → Marketing**, hoặc chat/Telegram/Zalo: kiểm SEO, vi�
 
 | Chọn | Khi nào | Ví dụ | Workflow |
 |------|---------|-------|----------|
-| **Kiểm SEO** | URL/bản nháp cần soi | Landing thiếu meta | `bo-marketing-kiem-seo` |
-| **Viết bài SEO** | Bài web + meta | «học vẽ online Hà Nội» | `bo-marketing-viet-seo` |
+| **Kiểm SEO** | URL/bản nháp: SEO web + **SEO GPT** (LLM trích dẫn) | Landing thiếu lead trả lời thẳng + meta | `bo-marketing-kiem-seo` |
+| **Viết bài SEO** | Bài web + meta + FAQ/chunk cho chat AI | «học vẽ online Hà Nội» có lead + FAQ | `bo-marketing-viet-seo` |
 | **Nghiên cứu thị trường** | Trước ads/content | Phân khúc + đối thủ | `bo-marketing-nghien-cuu` |
 | **Page Facebook** | Bài đăng organic, lịch nội dung | Tuần này Page đăng gì | `bo-marketing-facebook` |
 | **Báo cáo Ads** | Số đo spend/CTR/CPC + bảng campaign | Ads 7 hoặc 30 ngày | `bo-marketing-ads` |
+
+Skills SEO: luôn nạp **`seo-gpt`** cùng `kiem-tra-seo` / `viet-bai-seo`. Không chỉ tối ưu Google.
 
 Chat: nếu user nói chung «Facebook» → hỏi Page hay Ads (JAVIS_ASK, ≤4 lựa chọn gộp SEO/viết/nghiên cứu/FB rồi tách FB).
 
