@@ -73,7 +73,30 @@
       .replace(/"/g, "&quot;");
   }
 
-  function composeBrief(topic, audience, goals, lang, fmt, files) {
+  var OM_LS_URL = "javis.baigiang.openmaicUrl";
+  var OM_LS_CODE = "javis.baigiang.openmaicCode";
+  var OM_DEFAULT_URL = "https://openmaic.vietmycollege.com";
+  var OM_DEFAULT_CODE = "vietmy-openmaic";
+
+  function loadOm() {
+    var url = OM_DEFAULT_URL;
+    var code = OM_DEFAULT_CODE;
+    try {
+      url = localStorage.getItem(OM_LS_URL) || OM_DEFAULT_URL;
+      code = localStorage.getItem(OM_LS_CODE);
+      if (code == null || code === "") code = OM_DEFAULT_CODE;
+    } catch (e) {}
+    return { url: String(url).trim().replace(/\/$/, ""), code: String(code).trim() };
+  }
+
+  function saveOm(url, code) {
+    try {
+      localStorage.setItem(OM_LS_URL, String(url || "").trim().replace(/\/$/, ""));
+      localStorage.setItem(OM_LS_CODE, String(code == null ? "" : code).trim());
+    } catch (e) {}
+  }
+
+  function composeBrief(topic, audience, goals, lang, fmt, files, paste) {
     var parts = [
       "Chủ đề: " + topic,
       "Đối tượng: " + (audience || "học viên phổ thông / mới bắt đầu"),
@@ -85,7 +108,19 @@
       parts.push("Mô tả định dạng: " + fmt.tagline);
       parts.push("Ví dụ tham chiếu: " + fmt.example);
     }
+    if (paste && String(paste).trim()) {
+      parts.push("Nội dung / giáo án dán sẵn:\n" + String(paste).trim());
+    }
     if (files && files.length) parts.push("File đính kèm:\n- " + files.join("\n- "));
+    if (fmt && fmt.id === "lop-hoc") {
+      var om = loadOm();
+      parts.push(
+        "OpenMAIC self-host: " +
+          om.url +
+          " (dùng site trường — KHÔNG lấy mã tạm trên open.maic.chat)."
+      );
+      if (om.code) parts.push("Mã site OpenMAIC (nhập 1 lần trên trình duyệt): " + om.code);
+    }
     return parts.join("\n");
   }
 
@@ -112,7 +147,7 @@
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
       "<div><h2 class=\"jw-title\">Tạo bài giảng</h2>" +
-      '<p class="jw-lead">Chọn loại đầu ra ở tab, điền brief bên trái, theo dõi kết quả bên phải. File lưu trong <code>exports/bai-giang/</code>.</p></div>' +
+      '<p class="jw-lead">Chọn loại đầu ra ở tab, điền brief hoặc <b>dán giáo án</b> bên trái. Tab Lớp học: lưu mã OpenMAIC 1 lần. File trong <code>exports/bai-giang/</code>.</p></div>' +
       '<div class="jw-top-actions">' +
       '<button type="button" class="jw-btn jw-btn-ghost" id="bgSeed">Chuẩn bị lần đầu</button>' +
       "</div></div>" +
@@ -204,11 +239,15 @@
         '<input id="bgAudience" type="text" placeholder="VD: học sinh THCS, sinh viên năm 1"></div>' +
         '<div class="jw-field"><label for="bgGoals">Mục tiêu học</label>' +
         '<textarea id="bgGoals" rows="3" placeholder="Sau buổi học, học viên…"></textarea></div>' +
+        '<div class="jw-field"><label for="bgPaste">Dán giáo án / đề cương / kịch bản</label>' +
+        '<textarea id="bgPaste" rows="5" placeholder="Ctrl+V nội dung sẵn có (Word, PDF copy, outline…). Dùng cho lớp học, video, slide — không cần gõ lại."></textarea>' +
+        '<p class="jw-hint">Paste một lần → agent dùng làm nguyên liệu. Tab Video: dán beat/script nếu đã có.</p></div>' +
         '<div class="jw-field"><label for="bgLang">Ngôn ngữ</label>' +
         '<select id="bgLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>' +
         '<div class="jw-field"><label for="bgFiles">File đính kèm</label>' +
         '<input id="bgFiles" type="file" multiple>' +
         '<p class="jw-hint" id="bgFileList">Giáo án, PDF, ảnh… (tuỳ chọn)</p></div>' +
+        openmaicBlock(f) +
         '<div class="jw-actions">' +
         '<button type="button" class="jw-btn jw-btn-primary" id="bgRun">Chạy: ' +
         esc(f.label) +
@@ -217,6 +256,34 @@
         "</div>";
 
       wireLeft();
+    }
+
+    function openmaicBlock(f) {
+      if (!f || f.id !== "lop-hoc") return "";
+      var om = loadOm();
+      return (
+        '<div class="jw-om" id="bgOmPanel">' +
+        '<p class="jw-brief-kicker">OpenMAIC (lớp học live)</p>' +
+        "<p class=\"jw-hint\">Cài <b>một lần</b> bên dưới. Không tạo mã mới mỗi bài — không dùng open.maic.chat.</p>" +
+        '<div class="jw-field"><label for="bgOmUrl">URL OpenMAIC</label>' +
+        '<input id="bgOmUrl" type="url" value="' +
+        esc(om.url) +
+        '" placeholder="' +
+        esc(OM_DEFAULT_URL) +
+        '"></div>' +
+        '<div class="jw-field"><label for="bgOmCode">Mã site (ACCESS_CODE)</label>' +
+        '<input id="bgOmCode" type="text" autocomplete="off" value="' +
+        esc(om.code) +
+        '" placeholder="' +
+        esc(OM_DEFAULT_CODE) +
+        '">' +
+        '<p class="jw-hint">Nhập trên OpenMAIC 1 lần / trình duyệt (~7 ngày). Để trống nếu site không hỏi mã.</p></div>' +
+        '<div class="jw-actions jw-om-actions">' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmSave">Lưu mã & URL</button>' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmCopy">Copy brief + mã</button>' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmOpen">Mở OpenMAIC</button>' +
+        "</div></div>"
+      );
     }
 
     function wireLeft() {
@@ -251,6 +318,73 @@
       };
 
       root.querySelector("#bgRun").onclick = run;
+
+      var saveBtn = root.querySelector("#bgOmSave");
+      var copyBtn = root.querySelector("#bgOmCopy");
+      var openBtn = root.querySelector("#bgOmOpen");
+      if (saveBtn) {
+        saveBtn.onclick = function () {
+          var url = ((root.querySelector("#bgOmUrl") || {}).value || "").trim();
+          var code = ((root.querySelector("#bgOmCode") || {}).value || "").trim();
+          if (!url) {
+            setStatus("Thiếu URL OpenMAIC.", false);
+            return;
+          }
+          saveOm(url, code);
+          setStatus("Đã lưu OpenMAIC URL + mã site (trình duyệt này).", true);
+        };
+      }
+      if (copyBtn) {
+        copyBtn.onclick = async function () {
+          var urlEl = root.querySelector("#bgOmUrl");
+          var codeEl = root.querySelector("#bgOmCode");
+          if (urlEl || codeEl) {
+            saveOm(
+              (urlEl && urlEl.value) || loadOm().url,
+              (codeEl && codeEl.value) || ""
+            );
+          }
+          var topic = ((root.querySelector("#bgTopic") || {}).value || "").trim() || "(chưa ghi chủ đề)";
+          var goals = ((root.querySelector("#bgGoals") || {}).value || "").trim();
+          var paste = ((root.querySelector("#bgPaste") || {}).value || "").trim();
+          var om = loadOm();
+          var text =
+            "OpenMAIC: " +
+            om.url +
+            "\nMã site (nhập 1 lần nếu hỏi): " +
+            (om.code || "(không)") +
+            "\n\nChủ đề: " +
+            topic +
+            (goals ? "\nMục tiêu: " + goals : "") +
+            (paste ? "\n\n--- Nội dung dán ---\n" + paste : "") +
+            "\n\n→ Dán vào ô Generate classroom trên OpenMAIC (self-host). Không lấy mã trên open.maic.chat.";
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+            } else {
+              throw new Error("no clipboard");
+            }
+            setStatus("Đã copy brief + mã — dán vào OpenMAIC.", true);
+          } catch (e) {
+            appendLog("--- Copy thủ công ---\n" + text + "\n---");
+            setStatus("Clipboard bị chặn — xem brief ở cột Kết quả để copy tay.", false);
+          }
+        };
+      }
+      if (openBtn) {
+        openBtn.onclick = function () {
+          var urlEl = root.querySelector("#bgOmUrl");
+          var codeEl = root.querySelector("#bgOmCode");
+          var url = ((urlEl && urlEl.value) || loadOm().url || OM_DEFAULT_URL).trim().replace(/\/$/, "");
+          var code = (codeEl && codeEl.value) != null ? codeEl.value : loadOm().code;
+          saveOm(url, code);
+          window.open(url, "_blank", "noopener,noreferrer");
+          setStatus(
+            "Đã mở OpenMAIC. Nếu hỏi mã: dán «" + (String(code || "").trim() || OM_DEFAULT_CODE) + "» (một lần).",
+            true
+          );
+        };
+      }
     }
 
     function selectTab(i) {
@@ -320,6 +454,7 @@
         audience: ((root.querySelector("#bgAudience") || {}).value || "").trim(),
         goals: goals,
         lang: ((root.querySelector("#bgLang") || {}).value || "vi").trim(),
+        paste: ((root.querySelector("#bgPaste") || {}).value || "").trim(),
         feat: fmt(),
       };
     }
@@ -373,7 +508,14 @@
       if (!v) return;
 
       var f = v.feat;
-      var brief = composeBrief(v.topic, v.audience, v.goals, v.lang, f, uploaded);
+      if (f.id === "lop-hoc") {
+        var urlEl = root.querySelector("#bgOmUrl");
+        var codeEl = root.querySelector("#bgOmCode");
+        if (urlEl || codeEl) {
+          saveOm((urlEl && urlEl.value) || loadOm().url, (codeEl && codeEl.value) || "");
+        }
+      }
+      var brief = composeBrief(v.topic, v.audience, v.goals, v.lang, f, uploaded, v.paste);
 
       setBusy(true, "Đang chạy «" + f.full + "»…");
       if (es) {
@@ -421,7 +563,22 @@
               appendLog(res.length > 8000 ? res.slice(0, 8000) + "\n…(cắt)" : res);
             }
             appendLog("--- Xong ---");
-            finishBusy("Xong. Xem exports/bai-giang/ trong Files.", true);
+            if (f.id === "lop-hoc") {
+              var omDone = loadOm();
+              appendLog(
+                "OpenMAIC: " +
+                  omDone.url +
+                  " | mã site: " +
+                  (omDone.code || "(không)") +
+                  "\n→ Bấm «Mở OpenMAIC» / «Copy brief + mã» bên trái; dán đề cương vào Generate (không tạo mã cloud)."
+              );
+            }
+            finishBusy(
+              f.id === "lop-hoc"
+                ? "Xong. Mở OpenMAIC (self-host) để generate classroom — mã đã lưu."
+                : "Xong. Xem exports/bai-giang/ trong Files.",
+              true
+            );
           } else {
             appendLog(ev.data);
           }

@@ -202,6 +202,16 @@
   line-height: 1.35;
 }
 
+.jw-om {
+  margin: 4px 0 14px;
+  padding: 12px 12px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-brd, var(--hairline));
+  background: var(--surface-2, var(--surface-1));
+}
+.jw-om .jw-brief-kicker { margin-top: 0; }
+.jw-om-actions { position: static; background: none; padding-top: 0; }
+
 .jw-actions {
   display: flex;
   flex-wrap: wrap;

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.125] - 2026-09-07
+### Cải tiến
+- **Bài giảng → OpenMAIC:** tab Lớp học lưu URL + mã site 1 lần; Copy brief / Mở OpenMAIC; ô dán giáo án cho mọi tab (kể cả Video).
+- **Deploy OpenMAIC:** `ACCESS_CODE` cố định (`vietmy-openmaic`), nginx upload 512MB.
 ## [0.55.124] - 2026-09-07
 ### Cải tiến
 - **OpenMAIC giọng Việt chuẩn:** proxy `POST /v1/audio/speech` (Edge-TTS Hoài My / Nam Minh); deploy OpenMAIC trỏ `TTS_OPENAI` vào Javis, tắt Browser Native mặc định.

@@ -18,7 +18,10 @@ User chọn đầu ra **lớp học** / classroom / interactive lesson.
 4. Thêm **quiz** (4-8 câu) + **PBL ngắn** (1 task thực hành).
 5. Viết **script giảng** từng cảnh (giọng nói tự nhiên, ≤90s/cảnh).
 6. Lưu `exports/bai-giang/<slug>/lop-hoc.md` (+ quiz.md).
-7. Nếu OpenMAIC sẵn (`vendor/OpenMAIC` hoặc Live Demo): đề xuất bước tạo classroom; không thì dừng ở gói markdown đủ chạy thủ công.
+7. Mở **OpenMAIC self-host** của trường (`https://openmaic.vietmycollege.com`) — dán outline/script vào Generate classroom.
+   - Mã site (ACCESS_CODE) nhập **1 lần** trên trình duyệt (đã cấu hình trên VPS, mặc định `vietmy-openmaic`).
+   - **Không** lấy mã tạm trên open.maic.chat.
+   - Trong Javis → Việc → Bài giảng → tab Lớp học: Lưu mã & URL / Copy brief / Mở OpenMAIC.
 
 ## Đầu ra
 
