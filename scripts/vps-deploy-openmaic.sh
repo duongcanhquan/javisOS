@@ -111,6 +111,7 @@ if [ -n "$JC" ]; then
   echo "==> Ghi key vào Javis container ($JC) /data/state/openmaic_tts_proxy.key"
   docker exec -u root "$JC" mkdir -p /data/state
   printf '%s' "$TTS_PROXY_KEY" | docker exec -i -u root "$JC" tee /data/state/openmaic_tts_proxy.key >/dev/null
+  docker exec -u root "$JC" chown javis:javis /data/state/openmaic_tts_proxy.key
   docker exec -u root "$JC" chmod 600 /data/state/openmaic_tts_proxy.key
 else
   echo "WARN: không thấy container Javis — ghi key vào state sau khi Javis lên."
