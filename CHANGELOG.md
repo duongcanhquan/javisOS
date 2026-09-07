@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.135] - 2026-09-07
+### Cải tiến
+- **Tệp tin:** nút **Copy đường dẫn** trên mỗi dòng (và kết quả tìm) — copy path tương đối để dán vào Bài giảng / OpenMAIC.
+
 ## [0.55.134] - 2026-09-07
 ### Sửa lỗi
 - **Deploy OpenMAIC:** bỏ bước `cp` file `server-providers.yml` vào chính nó (làm deploy fail sau khi đã `docker rm` container).

@@ -13,6 +13,7 @@ Each Javis brain is really a folder on your machine or VPS holding all of its kn
 - Open a file to read: the editor opens **inside the page**, taking the place of the file list (not a popup window). It is the same editor you use from the chat, so `.md` gets visual editing, a formatting bar and Back/Forward between notes; images and PDFs are viewed in place.
 - Edit text files (.md, .txt, .json...) and click save.
 - Upload files from your computer into the brain, or download files from the brain (any type, not just .md).
+- **Copy path** — relative path of a file or folder (paste into Bài giảng, chat, path fields…).
 - Download a whole folder: Javis zips it first, then sends it.
 - Create folders, create files, rename and delete.
 

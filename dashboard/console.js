@@ -1434,7 +1434,7 @@
           ${it.snippet ? `<span class="fm-search-snip">${esc(it.snippet)}</span>` : ""}
         </span>
         <span class="fm-search-kind">${esc(match)}</span>
-        <span class="fm-row-act"><button data-act="open">Mở</button><button data-act="dl" title="Tải file về máy">⤓ Tải</button><button data-act="loc">Vị trí</button></span>`;
+        <span class="fm-row-act"><button data-act="open">Mở</button><button data-act="dl" title="Tải file về máy">⤓ Tải</button><button data-act="copy-path" title="Copy đường dẫn tương đối (dán vào Bài giảng…)">Copy đường dẫn</button><button data-act="loc">Vị trí</button></span>`;
       const openHit = () => {
         if (editable || viewable) moTrongTrang(it.path, target);
         else window.open(rawUrl(it.path), "_blank");
@@ -1443,6 +1443,10 @@
       div.querySelector(".fm-ico").onclick = openHit;
       div.querySelector('[data-act="open"]').onclick = (e) => { e.stopPropagation(); openHit(); };
       div.querySelector('[data-act="dl"]').onclick = (e) => { e.stopPropagation(); _dlFile(it.path); };
+      div.querySelector('[data-act="copy-path"]').onclick = async (e) => {
+        e.stopPropagation();
+        await _copyRelPath(it.path || "", e.currentTarget);
+      };
       div.querySelector('[data-act="loc"]').onclick = async (e) => {
         e.stopPropagation();
         const parts = String(it.path || "").split("/");
@@ -1466,6 +1470,7 @@
       acts += it.type === "dir"
         ? '<button data-act="zip" title="Tải cả thư mục về máy (nén .zip)">⤓ Zip</button>'
         : '<button data-act="dl" title="Tải file về máy">⤓ Tải</button>';
+      acts += '<button data-act="copy-path" title="Copy đường dẫn tương đối (dán vào Bài giảng…)">Copy đường dẫn</button>';
       acts += '<button data-act="del" class="danger" title="Xoá">Xoá</button>';
       div.innerHTML = `<span class="fm-ico">${it.type === "dir" ? ic("folder") : _fileIcon(it.ext)}</span>
         <span class="fm-name">${esc(it.name)}</span>
@@ -1482,10 +1487,40 @@
         else if (a === "open") window.open(rawUrl(rel), "_blank");
         else if (a === "dl") _dlFile(rel);
         else if (a === "zip") _dlFolder(rel, it.name);
+        else if (a === "copy-path") _copyRelPath(rel, b);
         else if (a === "ren") doRename(rel, it.name);
         else if (a === "del") doDelete(rel, it.name);
       });
       return div;
+    }
+    async function _copyRelPath(rel, btn) {
+      const path = String(rel || "").replace(/^\/+/, "");
+      if (!path) return;
+      let ok = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(path);
+          ok = true;
+        }
+      } catch (e) { /* fallback dưới */ }
+      if (!ok) {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = path; ta.setAttribute("readonly", "");
+          ta.style.position = "fixed"; ta.style.left = "-9999px";
+          document.body.appendChild(ta); ta.select();
+          ok = document.execCommand("copy");
+          document.body.removeChild(ta);
+        } catch (e2) { ok = false; }
+      }
+      if (btn) {
+        const old = btn.textContent;
+        btn.textContent = ok ? "Đã copy" : "Copy tay";
+        setTimeout(() => { try { btn.textContent = old; } catch (e) {} }, 1200);
+      }
+      if (!ok) {
+        try { window.prompt("Copy đường dẫn:", path); } catch (e) {}
+      }
     }
     // Mở file NGAY TRONG TRANG, bằng ĐÚNG trình sửa của khung chat (#noteEditor) - không popup nữa.
     //
