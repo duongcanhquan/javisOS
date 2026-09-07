@@ -11378,7 +11378,7 @@ async def tts(
     """Sinh audio TTS theo nhà cung cấp đã chọn (edge/openai/elevenlabs). Provider trả phí lỗi
     → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn.
 
-    stream=1: trả MP3 từng khung (Edge) để trình duyệt phát sớm. Mặc định tắt — OpenMAIC
+    stream=1: trả MP3 từng khung (Edge) để trình duyệt phát sớm. Mặc định tắt - OpenMAIC
     và GET /tts cũ vẫn nhận cả file. Không đổi path nên không đụng bảng route."""
     import sys
     from fastapi import HTTPException, Response
@@ -11397,14 +11397,29 @@ async def tts(
         return bytes(buf)
 
     if stream and provider == "edge":
-        async def _phat():
-            try:
-                async for part in _tts_edge_iter(text, voice, rate):
-                    if part:
-                        yield part
-            except Exception as e:
-                print(f"[TTS stream] {type(e).__name__}: {e}", file=sys.stderr)
-        return StreamingResponse(_phat(), media_type="audio/mpeg", headers=hdr)
+        import pipecat_voice as pv
+        agen = _tts_edge_iter(text, voice, rate)
+        first = None
+        try:
+            first = await pv.lay_khung_dau(agen)
+        except Exception as e:
+            print(f"[TTS stream] {type(e).__name__}: {e}", file=sys.stderr)
+            first = None
+        if first:
+            async def _phat():
+                yield first
+                try:
+                    async for part in agen:
+                        if part:
+                            yield part
+                except Exception as e:
+                    print(f"[TTS stream] {type(e).__name__}: {e}", file=sys.stderr)
+            return StreamingResponse(_phat(), media_type="audio/mpeg", headers=hdr)
+        try:
+            await agen.aclose()
+        except Exception:
+            pass
+        # Không có khung đầu: đi đường file đủ bên dưới (tránh HTTP 200 rỗng treo loa).
 
     audio = b""
     try:

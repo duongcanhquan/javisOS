@@ -136,6 +136,8 @@
   "chat.col_collapse": "Collapse the conversation panel to the right (like the sidebar)",
   "qs.title": "QUICK SETTINGS",
   "qs.tts": "Read replies aloud",
+  "qs.fast_turn": "End a spoken turn faster",
+  "qs.fast_turn_hint": "Shorter silence after a clear sentence. Turn off if it cuts you off mid-phrase.",
   "qs.rec_lang": "LISTENING LANGUAGE",
   "qs.rec_vi": "Vietnamese",
   "qs.rec_vi_sub": "vi-VN · default",

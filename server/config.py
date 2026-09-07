@@ -57,6 +57,9 @@ _DEFAULT = {
         "elevenlabs_key": "",
         "elevenlabs_voice": "21m00Tcm4TlvDq8ikWAM",   # Rachel (premade, đa ngôn ngữ) - đổi được
         "elevenlabs_model": "eleven_multilingual_v2",
+        # Chốt câu nhanh (kiểu Pipecat VAD): im lặng 0.4s hết câu / 0.9s câu thường, giữ 1.9s
+        # nếu còn interim / cụm dở. False = hành vi cũ 1.9s mọi lúc. Không đụng engine/MCP.
+        "fast_turn": True,
     },
     "model": {
         # --- Mô hình MAIN MODEL theo provider (mới) ---

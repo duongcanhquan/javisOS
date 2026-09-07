@@ -49,3 +49,7 @@ gpsoauth>=1.0
 # `tv_embedded` - cái tên đã bị xoá. Cài bản cũ thì quân dự bị coi như không có. Máy nào cập
 # nhật Javis từ trước 0.41.1 nên chạy thẳng: pip install -U yt-dlp
 yt-dlp>=2026.8.19
+
+# KHÔNG thêm pipecat-ai vào file này. Extra websocket của họ đòi fastapi>=0.115.6, trong khi
+# Javis ghim fastapi==0.115.0 / starlette<0.39 vì claude-agent-sdk. Fast-path giọng nói nằm ở
+# server/pipecat_voice.py (smart turn + /tts?stream=1), không import gói đó.

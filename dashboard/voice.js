@@ -64,6 +64,9 @@ class JavisVoice {
     this.micStream = null;
     this._freqData = new Uint8Array(64);
 
+    this.silenceMs = 1900;
+    this.fastTurn = (typeof localStorage !== "undefined" && localStorage.getItem("javis.fastTurn") === "0")
+      ? false : true;
     this._initRecognition();
     this._loadVoices();
     this.refreshSttStatus();
@@ -99,9 +102,10 @@ class JavisVoice {
   }
 
   _ensureCtx() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
     if (!this.audioCtx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      this.audioCtx = new AC();
+      try { this.audioCtx = new AC(); } catch (e) { return null; }
     }
     if (this.audioCtx.state === "suspended") this.audioCtx.resume();
     return this.audioCtx;
@@ -119,6 +123,7 @@ class JavisVoice {
 
   async _startMicMeter() {
     const ctx = this._ensureCtx();
+    if (!ctx) return;
     if (!this.micStream) {
       this.micStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
@@ -185,6 +190,12 @@ class JavisVoice {
     this.userStopped = false;                 // user chủ động dừng?
     // Tiếng Việt hay ngắt giữa cụm; 1.5s dễ cắt câu. Fallback Web Speech dùng 1.9s.
     this.silenceMs = 1900;
+    // Fast-turn: câu đã rõ 0.4s, câu thường 0.9s. Tắt = luôn 1.9s.
+    if (this.fastTurn === undefined) {
+      this.fastTurn = (typeof localStorage !== "undefined" && localStorage.getItem("javis.fastTurn") === "0")
+        ? false : true;
+    }
+    if (this._silenceTimer) clearTimeout(this._silenceTimer);
     this._silenceTimer = null;
     this._starting = false;                   // đã gọi start() nhưng onstart chưa chạy
     this._stopPending = false;                // có lệnh dừng tới trong lúc đang mở phiên
@@ -247,7 +258,8 @@ class JavisVoice {
         this.onInterim(display);
         clearTimeout(this._hearHint);
         clearTimeout(this._silenceTimer);
-        this._silenceTimer = setTimeout(() => this.stopListening(), this.silenceMs);
+        const wait = this.silenceMsForTurn(this.accumulatedTranscript, !!interim.trim());
+        this._silenceTimer = setTimeout(() => this.stopListening(), wait);
       }
     };
 
@@ -286,6 +298,29 @@ class JavisVoice {
       else if (this.userStopped) this.onInterim("");
       this.onEnd();
     };
+  }
+
+  // Khớp server/pipecat_voice.py (bảng test_pipecat_voice.py). Đổi một bên phải đổi cả hai.
+  static silenceMsForTurn(text, hasInterim, fastTurn) {
+    if (fastTurn === false) return 1900;
+    if (hasInterim) return 1900;
+    const t = String(text || "").trim();
+    if (!t) return 1900;
+    const last = (t.split(/\s+/).pop() || "").replace(/[.,!?;:"'()[\]{}]+$/g, "").toLowerCase();
+    const doWord = "và thì là mà nhưng hoặc với của để nếu vì nên khi trong từ tới đến về tại như cũng and or but the a an to of in with for if when";
+    if (doWord.split(" ").indexOf(last) >= 0) return 1400;
+    if (/[.!?…。？！]["'\)]*$/.test(t)) return 400;
+    return 900;
+  }
+
+  silenceMsForTurn(text, hasInterim) {
+    return JavisVoice.silenceMsForTurn(text, hasInterim, this.fastTurn !== false);
+  }
+
+  setFastTurn(on) {
+    this.fastTurn = !!on;
+    try { localStorage.setItem("javis.fastTurn", on ? "1" : "0"); } catch (e) {}
+    return this.fastTurn;
   }
 
   // Ghép phần đã chốt ở phiên trước với phần final của phiên này. Android đôi khi giao một
@@ -358,7 +393,7 @@ class JavisVoice {
     clearTimeout(this._resumeTimer);
     this.synth.cancel();
     this.stopSpeaking();
-    this._moKhoaAudioIOS();
+    this._moKhoaAudioIOS(); // iOS
     if (!tuDong) this._committed = "";
 
     const goWhisper = async () => {
@@ -503,7 +538,8 @@ class JavisVoice {
     let silentTicks = 0;
     let baseline = 0;
     let ticks = 0;
-    const needSilent = Math.max(8, Math.round(this.silenceMs / 100)); // ~silenceMs
+    const waitMs = (this.fastTurn !== false) ? 900 : this.silenceMs;
+    const needSilent = Math.max(4, Math.round(waitMs / 100)); // sau khi đã nói
     this._vadTimer = setInterval(() => {
       if (!this.isListening || this._sttEngine !== "whisper" || this.isSpeaking()) return;
       if (!this.inAnalyser || !this._timeData) return;
@@ -889,8 +925,9 @@ class JavisVoice {
       .trim();
   }
 
-  _chunkUrl(text) {
-    return `${this.ttsBackend}?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(this.ttsVoice)}&rate=${encodeURIComponent(this.ttsRate)}`;
+  _chunkUrl(text, retry) {
+    const stream = retry ? "" : "&stream=1";
+    return `${this.ttsBackend}?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(this.ttsVoice)}&rate=${encodeURIComponent(this.ttsRate)}${stream}`;
   }
 
   _revoke(audio) {
@@ -903,14 +940,27 @@ class JavisVoice {
   }
 
   async _loadAudio(text, retry) {
-    const url = this._chunkUrl(text) + (retry ? "&retry=1" : "");
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("tts " + res.status);
-    const blob = await res.blob();
-    const obj = URL.createObjectURL(blob);
-    const audio = new Audio(obj);
-    audio._blobUrl = obj;
+    const url = this._chunkUrl(text, retry);
+    if (retry) {
+      const res = await fetch(url, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("tts " + res.status);
+      const blob = await res.blob();
+      const obj = URL.createObjectURL(blob);
+      const audio = new Audio(obj);
+      audio._blobUrl = obj;
+      audio.preload = "auto";
+      return audio;
+    }
+    const audio = new Audio();
     audio.preload = "auto";
+    audio.src = url;
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("tts timeout")), 8000);
+      const ok = () => { clearTimeout(t); audio.removeEventListener("error", bad); resolve(); };
+      const bad = () => { clearTimeout(t); audio.removeEventListener("canplay", ok); reject(new Error("tts")); };
+      audio.addEventListener("canplay", ok, { once: true });
+      audio.addEventListener("error", bad, { once: true });
+    });
     return audio;
   }
 
@@ -975,7 +1025,7 @@ class JavisVoice {
       this._moKhoaAudioIOS();
       const a = this._iosAudio || (this._iosAudio = new Audio());
       a.onended = null; a.onerror = null;
-      a.src = this._chunkUrl(this.ttsChunks[i]) + (retry ? "&retry=1" : "");
+      a.src = this._chunkUrl(this.ttsChunks[i], retry);
       this.currentAudio = a;
       let done = false;
       const onFail = () => { if (done) return; done = true; a.onerror = null; this._chunkFailed(i, retry); };

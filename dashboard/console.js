@@ -5943,6 +5943,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (section === "model") refreshModelUi();
     return res;
   }
+  if (typeof window !== "undefined") {
+    window.JavisSaveVoiceFastTurn = function (on) { return saveSetting("voice", { fast_turn: !!on }); };
+  }
 
   // Đồng bộ mọi chỗ hiển thị model: thanh chọn model dưới khung chat và badge engine trên
   // đầu hội thoại (badge trong trang chat soi gương từ badge HUD nên chỉ cần làm mới HUD).
@@ -6137,6 +6140,13 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const host = el.querySelector(".cs-host");
     const qs = document.getElementById("quickSet");
     if (qs && host) host.appendChild(qs);         // nhúng bộ điều khiển cũ vào trang (giữ handler)
+    const ft = document.getElementById("qsFastTurn");
+    if (ft) {
+      const on = v.fast_turn !== false;
+      ft.checked = on;
+      try { if (typeof voice !== "undefined" && voice.setFastTurn) voice.setFastTurn(on); } catch (e) {}
+      try { localStorage.setItem("javis.fastTurn", on ? "1" : "0"); } catch (e) {}
+    }
     // Phải chạy TRƯỚC vòng nối [data-settings-go] bên dưới: nút "Bật ngay" nằm trong khối vừa
     // nhúng, và nó dựa vào chính vòng đó để nối hành động chuyển trang.
     await renderTfaRow();

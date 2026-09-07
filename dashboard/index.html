@@ -332,6 +332,11 @@
               <span><i data-ic="volume-2"></i> <span data-i18n="qs.tts">Đọc trả lời bằng giọng</span></span>
               <span class="toggle"><input type="checkbox" id="qsTts"><span></span></span>
             </label>
+            <label class="qs-row">
+              <span data-i18n="qs.fast_turn">Chốt câu nhanh khi nói</span>
+              <span class="toggle"><input type="checkbox" id="qsFastTurn" checked><span></span></span>
+            </label>
+            <div class="qs-hint" data-i18n="qs.fast_turn_hint">Rút thời gian im lặng sau câu đã rõ. Tắt nếu hay bị cắt giữa câu.</div>
 
             <!-- Nhà cung cấp giọng đọc: console.js render vào đây khi mở trang Cài đặt (gộp cùng nhóm giọng nói) -->
             <!-- Ngôn ngữ trả lời: console.js render vào đây khi mở trang Cài đặt.
@@ -792,7 +797,7 @@
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
   <script src="/static/theme.js?v=2"></script>
   <script src="/static/starfield.js?v=1"></script>
-  <script src="/static/voice.js?v=20"></script>
+  <script src="/static/voice.js?v=22"></script>
   <script src="/static/graph.js?v=17"></script>
   <script src="/static/chat-render.js?v=12"></script>
   <script src="/static/code-hl.js?v=1"></script>
@@ -812,7 +817,7 @@
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=7"></script>
   <script src="/static/branding.js?v=7"></script>
-  <script src="/static/quick-settings.js?v=8"></script>
+  <script src="/static/quick-settings.js?v=9"></script>
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=7"></script>
   <script src="/static/sessions-ui.js?v=17"></script>
@@ -829,7 +834,7 @@
   <script src="/static/baigiang.js?v=7"></script>
   <script src="/static/marketing.js?v=5"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=139"></script>
+  <script src="/static/console.js?v=140"></script>
   <script src="/static/mobile-chat.js?v=8"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/push.js?v=2"></script>

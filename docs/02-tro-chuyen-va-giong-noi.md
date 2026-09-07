@@ -76,7 +76,7 @@ Lần đầu bấm mic, trình duyệt sẽ hỏi quyền dùng micro. Bấm cho
 Nút mic (hình micro to, bên trái thanh nhập) bật **chế độ luôn nghe**, tiện khi bạn không muốn giữ phím:
 
 1. Bấm nút mic một lần. Trạng thái đổi thành **ĐANG NGHE • LUÔN** và nút mic sáng.
-2. Cứ nói tự nhiên. Khi bạn ngừng nói một chút (khoảng 1,5 giây im lặng), Javis tự chốt câu và gửi đi.
+2. Cứ nói tự nhiên. Khi bạn ngừng nói một chút, Javis tự chốt câu và gửi đi. Câu đã rõ (có dấu hết câu) chốt sau khoảng **0,4 giây**; câu thường (Web Speech tiếng Việt ít dấu câu) khoảng **0,9 giây**; nếu câu còn dở hoặc chữ tạm còn chạy thì giữ khoảng **1,9 giây** như trước. Công tắc **Chốt câu nhanh khi nói** trong Cài đặt tắt được nếu hay bị cắt giữa câu.
 3. Sau khi trả lời xong, Javis tự bật mic nghe lại, không cần bạn bấm.
 4. Muốn tắt chế độ này: bấm lại nút mic, hoặc nhấn phím **Esc**.
 

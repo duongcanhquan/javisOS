@@ -22,12 +22,31 @@
     reflect(on);
   }
 
+  function applyFastTurn(on) {
+    try { localStorage.setItem("javis.fastTurn", on ? "1" : "0"); } catch (e) {}
+    var v = getVoice();
+    if (v && v.setFastTurn) v.setFastTurn(on);
+    else if (v) v.fastTurn = !!on;
+    var el = $("qsFastTurn"); if (el) el.checked = !!on;
+  }
+
   function bind() {
     var on = !isOff();
     reflect(on);
     var v = getVoice(); if (v) v.ttsEnabled = on;
 
     var qs = $("qsTts"); if (qs) qs.addEventListener("change", function () { applyState(qs.checked); });
+
+    var ft = $("qsFastTurn");
+    if (ft) {
+      var fastOn = true;
+      try { fastOn = localStorage.getItem("javis.fastTurn") !== "0"; } catch (e) {}
+      applyFastTurn(fastOn);
+      ft.addEventListener("change", function () {
+        applyFastTurn(ft.checked);
+        try { if (window.JavisSaveVoiceFastTurn) window.JavisSaveVoiceFastTurn(ft.checked); } catch (e) {}
+      });
+    }
   }
 
   // Cho app.js gọi khi bật/tắt mic: loa đi theo mic (02/09). Đi qua applyState để nút loa,

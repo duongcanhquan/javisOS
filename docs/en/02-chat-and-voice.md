@@ -76,7 +76,7 @@ The first time you use the mic, the browser asks for microphone permission. Allo
 The mic button (the large microphone on the left of the input bar) turns on **always-listening mode**, handy when you do not want to hold a key:
 
 1. Click the mic button once. The status becomes **LISTENING • ALWAYS** and the mic button lights up.
-2. Talk naturally. When you pause (about 1.5 seconds of silence), Javis closes the sentence and sends it.
+2. Talk naturally. When you pause, Javis closes the sentence and sends it. A clear sentence (with end punctuation) commits after about **0.4 seconds**; a normal phrase (Vietnamese Web Speech often has no punctuation) after about **0.9 seconds**; if the phrase is still unfinished or interim text is still arriving it waits about **1.9 seconds** as before. The **End a spoken turn faster** toggle in Settings turns this off if it cuts you off mid-phrase.
 3. After answering, Javis reopens the mic on its own; you do not have to click again.
 4. To turn the mode off: click the mic button again, or press **Esc**.
 

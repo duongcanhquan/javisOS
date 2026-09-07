@@ -136,6 +136,8 @@
   "chat.col_collapse": "Thu khung hội thoại sang phải (như thu sidebar)",
   "qs.title": "CÀI ĐẶT NHANH",
   "qs.tts": "Đọc trả lời bằng giọng",
+  "qs.fast_turn": "Chốt câu nhanh khi nói",
+  "qs.fast_turn_hint": "Rút thời gian im lặng sau câu đã rõ. Tắt nếu hay bị cắt giữa câu.",
   "qs.rec_lang": "NGÔN NGỮ NGHE",
   "qs.rec_vi": "Tiếng Việt",
   "qs.rec_vi_sub": "vi-VN · mặc định",

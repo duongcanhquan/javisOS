@@ -4,10 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
-## [0.55.128] - 2026-09-07
+## [0.55.129] - 2026-09-07
 ### Cải tiến
-- **Giọng nói nhanh hơn (kiểu Pipecat, không nhúng gói):** chốt câu đã rõ sau 0,4–0,7s thay vì chờ 1,9s; TTS Edge phát từng khung (`/tts?stream=1`) thay vì đợi cả file MP3. Engine, MCP, skill, Telegram, Zalo, cuộc họp không đổi. Tắt **Chốt câu nhanh khi nói** trong Cài đặt là về hành vi cũ. Không cài `pipecat-ai` vào venv (đòi fastapi>=0.115.6, phá pin Agent SDK).
-
+- **Giọng nói nhanh hơn (kiểu Pipecat, không nhúng gói):** chốt câu đã rõ sau 0,4s / câu thường 0,9s thay vì chờ 1,9s; TTS Edge phát từng khung (`/tts?stream=1`) thay vì đợi cả file MP3. Engine, MCP, skill, Telegram, Zalo, cuộc họp không đổi. Tắt **Chốt câu nhanh khi nói** trong Cài đặt là về hành vi cũ. Không cài `pipecat-ai` vào venv (đòi fastapi>=0.115.6, phá pin Agent SDK).
+### Sửa lỗi
+- **TTS stream:** không trả HTTP 200 rỗng khi Edge chưa có khung đầu (loa không còn treo chờ); lần thử lại tải cả file MP3, timeout 8s.
 ## [0.55.128] - 2026-09-07
 ### Sửa lỗi
 - **Antigravity:** không gửi `--effort` khi model đã có hậu tố `-low|-medium|-high` (hết lỗi conflicts với `gemini-3.8-flash-medium`).
@@ -574,10 +575,6 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.35.11] - 2026-08-18
 ### Thêm mới
 - **Đấu được DeepSeek API ngay trên trang Models.** Dán key từ platform.deepseek.com, chọn `deepseek-v4-flash` hoặc `deepseek-v4-pro`, rồi dùng như mọi bộ não khác: chat, gọi Kết nối, đọc/ghi brain, skill, việc nền. Ô Suy nghĩ trên trang Models bật/tắt thinking của DeepSeek.
-
-## [0.55.70] - 2026-09-06
-### Cải tiến
-- **Tách Model nghiên cứu khỏi việc nền:** trang Models có ô riêng cho workflow/Studio; form sửa workflow chọn được model; danh sách workflow hiện 2 cột trên màn rộng.
 
 ## [0.55.69] - 2026-09-06
 ### Sửa
