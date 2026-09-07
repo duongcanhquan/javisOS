@@ -62,19 +62,14 @@ for node in ast.walk(tree):
         imports.append(node.module.split(".")[0])
 check("pipecat_voice.py không import pipecat", "pipecat" not in imports)
 check("pipecat_voice.py không import fastapi", "fastapi" not in imports)
-check("status() khai rõ không nhúng gói",
-      pv.status().get("pipecat_package") is False)
-check("status() nói lý do fastapi pin",
-      "0.115" in (pv.status().get("ly_do") or ""))
+_req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+check("requirements.txt không cài pipecat-ai",
+      not any(ln.strip().startswith("pipecat") for ln in _req.splitlines()
+              if ln.strip() and not ln.strip().startswith("#")))
+check("module không còn status()/want_stream (chết, không ai gọi)",
+      "def status(" not in src and "def want_stream(" not in src)
 
-# ---- 5. /tts?stream=1 là cờ tùy chọn, không đổi chữ ký cũ ----
-check("want_stream nhận stream=1", pv.want_stream({"stream": "1"}) is True)
-check("want_stream nhận stream=true", pv.want_stream({"stream": "true"}) is True)
-check("want_stream mặc định tắt (OpenMAIC / nghe thử cũ)",
-      pv.want_stream({}) is False)
-check("want_stream không nhận stream=0", pv.want_stream({"stream": "0"}) is False)
-
-# ---- 6. Mặc định settings: fast_turn bật, máy cũ không có key vẫn bật ----
+# ---- 5. /tts?stream=1 là cờ FastAPI, mặc định tắt ----
 import config as cfg  # noqa: E402
 check("config._DEFAULT voice.fast_turn = True",
       (cfg._DEFAULT.get("voice") or {}).get("fast_turn") is True)
@@ -88,12 +83,14 @@ check("/tts có stream: bool = Query(False)",
       "stream: bool = Query(False)" in _main)
 check("Edge TTS có iterator khung (không đợi cả file khi stream)",
       "async def _tts_edge_iter" in _main)
-check("voice.js trong index đã bump ?v=22",
-      "voice.js?v=22" in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
+check("voice.js trong index đã bump ?v=23",
+      "voice.js?v=23" in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
 check("/tts stream đợi khung đầu trước khi 200",
       "await pv.lay_khung_dau(agen)" in _main)
 check("/tts không stream khi chưa có khung đầu",
       "Không có khung đầu" in _main)
+check("đường file đủ không bọc StreamingResponse thừa",
+      "_phat_mot" not in _main)
 
 # ---- 8. lay_khung_dau: rỗng / lỗi = None, có data = khung đầu ----
 import asyncio  # noqa: E402

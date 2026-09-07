@@ -1,28 +1,18 @@
-"""Fast-path giọng nói theo kiến trúc Pipecat, KHÔNG nhúng gói pipecat-ai.
+"""Fast-path giọng nói kiểu Pipecat, không cài gói pipecat-ai.
 
-Pipecat (https://github.com/pipecat-ai/pipecat) xếp VAD -> STT stream -> LLM -> TTS stream
-để tới loa ~500-800ms. Nhúng `pipecat-ai` vào cùng process Javis thì GÃY pin:
+pipecat-ai[websocket] đòi fastapi>=0.115.6; Javis ghim 0.115.0 / starlette<0.39
+vì claude-agent-sdk. Module này chỉ giữ bảng chốt câu + lấy khung TTS đầu.
 
-  pipecat-ai[websocket] đòi fastapi>=0.115.6
-  Javis ghim fastapi==0.115.0 và starlette<0.39 vì claude-agent-sdk
-
-Module này lấy đúng hai đòn của Pipecat mà không kéo dependency:
-
-  1. Smart turn: im lặng sau câu đã rõ ngắn hơn 1.9s; cụm dở / interim giữ 1.9s.
-  2. TTS stream: Edge TTS vốn đã yield từng khung - /tts?stream=1 phát ngay, không
-     đợi cả file MP3. Server chỉ stream sau khi có khung đầu (tránh HTTP 200 rỗng).
-
-Engine (Claude/Codex/MCP/skill) không đụng. Chat chữ, Telegram, Zalo, cuộc họp không
-đi qua đây. Tắt `voice.fast_turn` là về đúng hành vi cũ.
+Tắt voice.fast_turn = về 1.9s như cũ. Engine / MCP / Telegram / Zalo / họp không đi đây.
 """
 from __future__ import annotations
 
-SILENCE_CU = 1900       # chưa nói / còn interim / fast_turn tắt - giữ như voice.js cũ
+SILENCE_CU = 1900       # chưa nói / còn interim / fast_turn tắt
 SILENCE_DO = 1400       # kết bằng liên từ: câu chưa xong
 SILENCE_THUONG = 900    # đã có chữ, chưa hết câu (Web Speech tiếng Việt ít dấu câu)
 SILENCE_XONG = 400      # hết câu (.?!…)
 
-# Liên từ / giới từ đứng cuối = người dùng còn nói tiếp. Khớp bảng test_pipecat_voice.py.
+# Liên từ / giới từ đứng cuối = người dùng còn nói tiếp. Khớp test_pipecat_voice.py.
 _CUM_DO = frozenset({
     "và", "thì", "là", "mà", "nhưng", "hoặc", "với", "của", "để", "nếu", "vì", "nên",
     "khi", "trong", "từ", "tới", "đến", "về", "tại", "như", "cũng",
@@ -67,29 +57,3 @@ async def lay_khung_dau(agen):
         if part:
             return part
     return None
-
-
-def want_stream(params) -> bool:
-    """Cờ /tts?stream=1. Mặc định tắt - OpenMAIC và client cũ không đổi."""
-    if not params:
-        return False
-    raw = params.get("stream")
-    if raw is True:
-        return True
-    if raw is False or raw is None:
-        return False
-    return str(raw).strip().lower() in ("1", "true", "yes", "on")
-
-
-def status() -> dict:
-    return {
-        "ok": True,
-        "engine": "javis-fastpath",
-        "pipecat_package": False,
-        "ly_do": (
-            "Không cài pipecat-ai trong venv Javis: extra websocket đòi fastapi>=0.115.6, "
-            "Javis ghim fastapi==0.115.0 / starlette<0.39 vì Agent SDK."
-        ),
-        "fast_turn": True,
-        "tts_stream": True,
-    }

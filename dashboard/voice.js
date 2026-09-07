@@ -188,9 +188,7 @@ class JavisVoice {
     this.accumulatedTranscript = "";
     this._committed = "";                     // chữ đã nghe ở các phiên trước trong CÙNG một lượt nói
     this.userStopped = false;                 // user chủ động dừng?
-    // Tiếng Việt hay ngắt giữa cụm; 1.5s dễ cắt câu. Fallback Web Speech dùng 1.9s.
-    this.silenceMs = 1900;
-    // Fast-turn: câu đã rõ 0.4s, câu thường 0.9s. Tắt = luôn 1.9s.
+    if (this.silenceMs == null) this.silenceMs = 1900;
     if (this.fastTurn === undefined) {
       this.fastTurn = (typeof localStorage !== "undefined" && localStorage.getItem("javis.fastTurn") === "0")
         ? false : true;

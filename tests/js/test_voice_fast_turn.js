@@ -52,7 +52,7 @@ check("TTS retry đi fetch blob, không Audio.src stream lần 2",
 check("TTS stream timeout 8s (không treo 20s)", voice.includes('reject(new Error("tts timeout")), 8000)'));
 check("index.html có công tắc qsFastTurn", html.includes('id="qsFastTurn"'));
 const v = Number((html.match(/voice\.js\?v=(\d+)/) || [])[1] || 0);
-check("voice.js đã bump ?v= (>= 22)", v >= 22, v);
+check("voice.js đã bump ?v= (>= 23)", v >= 23, v);
 check("constructor gán fastTurn trước _initRecognition",
   /this\.fastTurn =[\s\S]*?this\._initRecognition\(\)/.test(voice));
 check("_initRecognition không ghi đè fastTurn đã có",

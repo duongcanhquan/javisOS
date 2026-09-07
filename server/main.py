@@ -11380,8 +11380,7 @@ async def tts(
 
     stream=1: trả MP3 từng khung (Edge) để trình duyệt phát sớm. Mặc định tắt - OpenMAIC
     và GET /tts cũ vẫn nhận cả file. Không đổi path nên không đụng bảng route."""
-    import sys
-    from fastapi import HTTPException, Response
+    from fastapi import HTTPException
     cfg = cfgmod.read_settings()
     provider = ((cfg.get("voice", {}) or {}).get("tts_provider") or "edge").lower()
     hdr = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
@@ -11391,10 +11390,7 @@ async def tts(
             return await _tts_openai(text, rate, cfg)
         if p == "elevenlabs":
             return await _tts_elevenlabs(text, cfg)
-        buf = bytearray()
-        async for part in _tts_edge_iter(text, voice, rate):
-            buf.extend(part)
-        return bytes(buf)
+        return await _tts_edge(text, voice, rate)
 
     if stream and provider == "edge":
         import pipecat_voice as pv
@@ -11435,10 +11431,6 @@ async def tts(
             raise HTTPException(502, f"TTS failed: {type(e).__name__}: {e}")
     if not audio:
         raise HTTPException(502, "TTS không trả audio.")
-    if stream:
-        async def _phat_mot():
-            yield audio
-        return StreamingResponse(_phat_mot(), media_type="audio/mpeg", headers=hdr)
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-cache"})
 
 

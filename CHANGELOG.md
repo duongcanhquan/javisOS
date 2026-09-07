@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.130] - 2026-09-07
+### Sửa lỗi
+- **Giọng nói:** gỡ helper không ai gọi (`status`/`want_stream`) và lớp bọc stream thừa khi `/tts` đã có đủ file MP3. Chốt câu nhanh và stream khung đầu không đổi.
 ## [0.55.129] - 2026-09-07
 ### Cải tiến
 - **Giọng nói nhanh hơn (kiểu Pipecat, không nhúng gói):** chốt câu đã rõ sau 0,4s / câu thường 0,9s thay vì chờ 1,9s; TTS Edge phát từng khung (`/tts?stream=1`) thay vì đợi cả file MP3. Engine, MCP, skill, Telegram, Zalo, cuộc họp không đổi. Tắt **Chốt câu nhanh khi nói** trong Cài đặt là về hành vi cũ. Không cài `pipecat-ai` vào venv (đòi fastapi>=0.115.6, phá pin Agent SDK).
