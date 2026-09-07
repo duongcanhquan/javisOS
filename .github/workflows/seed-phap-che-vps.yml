@@ -1,0 +1,39 @@
+# Seed Pháp chế Pha A (agent + khung sources) trên mọi brain VPS.
+name: Seed phap che on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Seed pháp chế over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            cd "$DIR"
+            ok=0
+            for i in $(seq 1 30); do
+              rm -f .git/index.lock 2>/dev/null || true
+              git fetch origin main 2>/dev/null || true
+              if git reset --hard origin/main 2>/dev/null; then ok=1; break; fi
+              sleep 2
+            done
+            if [ "$ok" != 1 ]; then
+              echo "ERROR: git reset thất bại"
+              exit 1
+            fi
+            chmod +x scripts/seed-phap-che-vps.sh
+            bash scripts/seed-phap-che-vps.sh

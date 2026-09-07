@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.111] - 2026-09-07
+### Thêm mới
+- **Pháp chế Pha A:** seed agent + khung `sources/phap-che` theo Drive RAG VĂN BẢN; script sync rclone sẵn folder ID.
+
 ## [0.55.110] - 2026-09-06
 ### Cải tiến
 - **Moonshine cache chắc hơn:** lưu Cache API sau khi tải xong, dùng lại cache legacy, preload khi mở tab họp; status tách rõ tải VPS / đọc máy / khởi tạo; watchdog Moonshine 45s.

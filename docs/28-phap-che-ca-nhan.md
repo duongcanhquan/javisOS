@@ -26,15 +26,16 @@ Drive PDF ──rclone──► corpus VPS ──► RAG-Anything (optional)
 
 ## Phase A — Dùng ngay (không cần RAG)
 
-1. Tạo trên Drive: `Phap-che/Lao-dong/`, `Phap-che/Thue/`, …
-2. Extract văn bản quan trọng → `sources/phap-che/<linh-vuc>/YYYY-so-hieu-ten.md`
-   (README tự seed trong brain khi scaffold).
-3. Chat: ingest source đó (skill hệ thống **ingest-source**).
-4. Bật skill **phap-che** (hệ thống) hoặc tạo agent:
-   - Trang **Workflows / Agents** → hoặc API `POST /studio/seed-phap-che`.
-5. Project: pin brief + các `.md` luật liên quan (pin **không** nhận PDF).
+1. Drive nguồn (mẫu trường): [RAG VĂN BẢN](https://drive.google.com/drive/folders/1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM)
+   (hoặc tạo `Phap-che/{Linh-vuc}/` tương đương).
+2. Trên VPS: `bash scripts/seed-phap-che-vps.sh` (hoặc workflow **Seed phap che on VPS**)
+   → agent **Pháp chế** + `sources/phap-che/<linh-vuc>/`.
+3. Extract văn bản quan trọng → `sources/phap-che/<linh-vuc>/YYYY-so-hieu-ten.md`.
+4. Chat: ingest source đó (skill hệ thống **ingest-source**).
+5. Hỏi qua agent **Pháp chế** / skill **phap-che**. Project: pin brief + các `.md` luật liên quan (pin **không** nhận PDF).
 
 Disclaimer: mọi câu trả lời chỉ tham khảo nội bộ.
+
 
 ## Phase B — RAG folder / sidecar
 
