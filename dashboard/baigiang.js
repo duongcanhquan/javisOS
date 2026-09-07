@@ -331,7 +331,7 @@
       return (
         '<div class="jw-om" id="bgOmPanel">' +
         '<p class="jw-brief-kicker">OpenMAIC trong Javis</p>' +
-        '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge) — không mở domain, không gõ key.</p>' +
+        '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt). Nếu nghe giọng Trung/ngọng: tạo lại lớp sau khi cập nhật Javis, hoặc xoá cache site OpenMAIC trong trình duyệt.</p>' +
         '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md (tuỳ chọn)</label>' +
         '<input id="bgOmPath" type="text" autocomplete="off" placeholder="exports/bai-giang/…/lop-hoc.md">' +
         '<p class="jw-hint">Để trống = tự lấy từ kết quả chạy. Có quiz.md cùng thư mục sẽ kèm theo.</p></div>' +

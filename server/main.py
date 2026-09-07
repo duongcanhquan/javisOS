@@ -11570,13 +11570,39 @@ def _openmaic_public_url() -> str:
     return "https://openmaic.vietmycollege.com"
 
 
+def _openmaic_forward_headers() -> dict:
+    """X-Forwarded-* để OpenMAIC gắn audioUrl/media bằng host trình duyệt mở được."""
+    from openmaic_urls import public_forward_headers
+
+    return public_forward_headers(_openmaic_public_url())
+
+
 def _openmaic_rewrite_classroom_urls(payload: dict) -> dict:
-    """Đổi URL nội bộ OpenMAIC → PUBLIC_URL để iframe trình duyệt mở được."""
+    """Đổi mọi URL nội bộ OpenMAIC → PUBLIC_URL (classroom + audio/media trong scenes).
+
+    Quan trọng: audioUrl kiểu http://host.docker.internal:3000/... làm trình duyệt
+    không tải được MP3 Edge → fallback giọng Browser Native (nghe như Trung nói Việt).
+    """
     if not isinstance(payload, dict):
         return payload
+    from openmaic_urls import rewrite_openmaic_payload
+
     pub = _openmaic_public_url()
     base = _openmaic_base_url()
-    out = dict(payload)
+    # Đệ quy toàn payload trước (audioUrl / src / media trong scenes).
+    out = rewrite_openmaic_payload(
+        payload,
+        pub,
+        internal_bases=[
+            base,
+            "http://host.docker.internal:3000",
+            "https://host.docker.internal:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3000",
+        ],
+    )
+    if not isinstance(out, dict):
+        return payload
     result = out.get("result")
     if isinstance(result, dict):
         result = dict(result)
@@ -11584,9 +11610,10 @@ def _openmaic_rewrite_classroom_urls(payload: dict) -> dict:
         for key in ("url", "classroomUrl", "classroom_url"):
             u = result.get(key)
             if isinstance(u, str) and u:
-                for old in (base, "http://127.0.0.1:3000", "http://localhost:3000"):
+                for old in (base, "http://127.0.0.1:3000", "http://localhost:3000",
+                            "http://host.docker.internal:3000"):
                     if u.startswith(old):
-                        result[key] = pub + u[len(old) :]
+                        result[key] = pub + u[len(old):]
                         break
         cid = result.get("classroomId") or result.get("classroom_id") or out.get("classroomId")
         if cid and not result.get("url"):
@@ -11607,7 +11634,8 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
         "Tạo classroom interactive mới từ giáo án dưới đây.",
         "Toàn bộ nội dung giảng, slide text, quiz, script phải bằng tiếng Việt (dấu đầy đủ).",
         "Không dùng chữ Hán, không Pinyin, không trộn tiếng Trung.",
-        "Giọng TTS: ưu tiên tiếng Việt tự nhiên (OpenAI-compatible / Edge VI trên server).",
+        "Giọng đọc: server TTS OpenAI-compatible (Edge tiếng Việt Hoài My/Nam Minh). "
+        "CẤM Browser Native, CẤM Doubao/Qwen/giọng zh-*.",
     ]
     if topic:
         parts.append(f"Chủ đề: {topic.strip()}")
@@ -11715,9 +11743,16 @@ async def openmaic_generate(
     if want_tts and caps.get("tts") is True:
         body["enableTTS"] = True
 
+    # X-Forwarded-Host/Proto = OPENMAIC_PUBLIC_URL để audioUrl không bị gắn
+    # host.docker.internal (trình duyệt tải MP3 Edge được → hết fallback giọng Trung).
+    fwd = _openmaic_forward_headers()
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(f"{base}/api/generate-classroom", json=body)
+            r = await client.post(
+                f"{base}/api/generate-classroom",
+                json=body,
+                headers=fwd or None,
+            )
     except Exception as e:
         raise HTTPException(502, f"Gọi generate-classroom lỗi: {type(e).__name__}: {e}")
 
@@ -11759,9 +11794,13 @@ async def openmaic_job_status(job_id: str):
         raise HTTPException(400, "jobId không hợp lệ")
 
     base = _openmaic_base_url()
+    fwd = _openmaic_forward_headers()
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.get(f"{base}/api/generate-classroom/{jid}")
+            r = await client.get(
+                f"{base}/api/generate-classroom/{jid}",
+                headers=fwd or None,
+            )
     except Exception as e:
         raise HTTPException(502, f"Poll OpenMAIC lỗi: {type(e).__name__}: {e}")
 
