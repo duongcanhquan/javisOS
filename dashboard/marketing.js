@@ -46,17 +46,40 @@
       topicLabel: "Thị trường / sản phẩm *",
     },
     {
-      id: "facebook",
+      id: "facebook-page",
       slug: "bo-marketing-facebook",
-      label: "Facebook",
-      full: "Facebook & Ads",
-      tagline: "Kết nối Page/Ads + tổng kết kỳ",
-      when: "Xem Page đã đấu, bài đăng / ads kỳ gần đây (số thật từ MCP).",
-      gets: ["Trạng thái kết nối", "Tóm tắt posts / insights", "3 gợi ý nội dung"],
-      example: "«7 ngày gần nhất» → 4 bài, 1 campaign, 3 caption gợi ý.",
-      time: "~5–20 phút",
-      topicPh: "VD: 7 ngày gần nhất + tên Page (nếu nhiều)",
+      label: "Page FB",
+      full: "Facebook Page (organic)",
+      tagline: "Bài đăng · tương tác · ý tưởng tuần",
+      when: "Xem Page đã đấu, bài đăng kỳ gần đây, gợi ý nội dung tuần tới.",
+      gets: [
+        "Trạng thái Page đã kết nối",
+        "Bảng bài đăng trong kỳ",
+        "3 gợi ý nội dung tuần tới",
+      ],
+      example: "«7 ngày» → 4 bài Page, chủ đề nổi, 3 caption gợi ý.",
+      time: "~5–15 phút",
+      topicPh: "VD: 7 ngày gần nhất (thêm tên Page nếu có nhiều)",
       topicLabel: "Kỳ / Page *",
+    },
+    {
+      id: "facebook-ads",
+      slug: "bo-marketing-ads",
+      label: "Ads FB",
+      full: "Báo cáo Facebook Ads",
+      tagline: "Spend · CTR · CPC · CPM · campaign",
+      when: "Cần báo cáo ads đủ số đo, bảng chiến dịch, giải thích dễ hiểu.",
+      gets: [
+        "Tóm tắt tình hình 30 giây",
+        "Bảng số: spend, reach, CTR, CPC, CPM, chuyển đổi",
+        "Bảng từng chiến dịch + việc nên làm",
+      ],
+      example: "Kỳ last_7d → chi tiêu, CTR, campaign tốt/yếu rõ ràng.",
+      time: "~5–20 phút (cần Meta Ads)",
+      topicPh: "Để trống = mọi account mặc định; hoặc tên/id account",
+      topicLabel: "Ad account (tuỳ chọn)",
+      topicOptional: true,
+      needsPeriod: true,
     },
   ];
 
@@ -77,17 +100,23 @@
       .replace(/"/g, "&quot;");
   }
 
-  function composeBrief(topic, audience, goals, lang, feat, files) {
+  function composeBrief(topic, audience, goals, lang, feat, files, period) {
     var parts = [
       "Việc Marketing: " + (feat ? feat.full : ""),
-      "Chủ đề / đầu vào: " + topic,
+      "Chủ đề / đầu vào: " + (topic || "(không ghi)"),
       "Đối tượng: " + (audience || "(chưa ghi)"),
       "Mục tiêu: " + (goals || "(chưa ghi - agent hỏi nếu thiếu)"),
       "Ngôn ngữ: " + (lang || "vi"),
     ];
+    if (period) parts.push("Kỳ báo cáo (date_preset): " + period);
     if (feat) {
       parts.push("Mô tả: " + feat.tagline);
       parts.push("Ví dụ tham chiếu: " + feat.example);
+      if (feat.id === "facebook-ads") {
+        parts.push(
+          "Yêu cầu báo cáo: bảng số tổng (spend, impressions, reach, frequency, clicks, CTR, CPC, CPM, actions) + bảng campaign + tóm tắt dễ hiểu + việc nên làm."
+        );
+      }
     }
     if (files && files.length) parts.push("File đính kèm:\n- " + files.join("\n- "));
     return parts.join("\n");
@@ -126,7 +155,7 @@
       '<section class="jw-right">' +
       '<div class="jw-right-head"><h3>Kết quả</h3><div class="jw-status" id="mktStatus">Chưa chạy</div></div>' +
       '<div class="jw-out" id="mktOut">' +
-      '<div class="jw-empty" id="mktEmpty"><strong>Chọn việc rồi chạy</strong>Kết quả SEO, bài viết, nghiên cứu hoặc tổng kết Facebook hiện tại đây.</div>' +
+      '<div class="jw-empty" id="mktEmpty"><strong>Chọn việc rồi chạy</strong>Kết quả SEO, bài viết, nghiên cứu, Page FB hoặc báo cáo Ads (đủ số đo) hiện tại đây.</div>' +
       '<pre class="jw-log" id="mktLog" hidden></pre>' +
       "</div></section>" +
       "</div></div>";
@@ -205,6 +234,18 @@
         '<input id="mktTopic" type="text" autocomplete="off" placeholder="' +
         esc(f.topicPh) +
         '"></div>' +
+        (f.needsPeriod
+          ? '<div class="jw-field"><label for="mktPeriod">Kỳ báo cáo Ads *</label>' +
+            '<select id="mktPeriod">' +
+            '<option value="last_7d">7 ngày gần nhất</option>' +
+            '<option value="last_14d">14 ngày gần nhất</option>' +
+            '<option value="last_30d">30 ngày gần nhất</option>' +
+            '<option value="this_month">Tháng này</option>' +
+            '<option value="last_month">Tháng trước</option>' +
+            '<option value="yesterday">Hôm qua</option>' +
+            "</select>" +
+            '<p class="jw-hint">Báo cáo gồm: tóm tắt tình hình, bảng số tổng, bảng từng chiến dịch, việc nên làm.</p></div>'
+          : "") +
         '<div class="jw-field"><label for="mktAudience">Đối tượng / thương hiệu</label>' +
         '<input id="mktAudience" type="text" placeholder="VD: phụ huynh THCS, SME F&B"></div>' +
         '<div class="jw-field"><label for="mktGoals">Mục tiêu</label>' +
@@ -214,8 +255,11 @@
         '<div class="jw-field"><label for="mktFiles">File đính kèm</label>' +
         '<input id="mktFiles" type="file" multiple>' +
         '<p class="jw-hint" id="mktFileList">Bản nháp, brief, ảnh… (tuỳ chọn)</p></div>' +
-        (f.id === "facebook"
-          ? '<p class="jw-hint">Cần connector Store: facebook-pages / meta-ads-graph. Thiếu thì kết quả sẽ hướng dẫn đấu nối.</p>'
+        (f.id === "facebook-page"
+          ? '<p class="jw-hint">Cần connector Store: <b>facebook-pages</b>. Thiếu thì kết quả hướng dẫn đấu nối.</p>'
+          : "") +
+        (f.id === "facebook-ads"
+          ? '<p class="jw-hint">Cần connector Store: <b>meta-ads-graph</b> (Meta Ads). Chỉ đọc số - không tự sửa campaign.</p>'
           : "") +
         '<div class="jw-actions">' +
         '<button type="button" class="jw-btn jw-btn-primary" id="mktRun">Chạy: ' +
@@ -297,16 +341,21 @@
     };
 
     async function run() {
+      var f = feat();
       var topic = ((root.querySelector("#mktTopic") || {}).value || "").trim();
-      if (!topic) {
+      if (!topic && !f.topicOptional) {
         setStatus("Nhập đầu vào bên trái trước.", false);
         return;
       }
-      var f = feat();
+      if (!topic && f.needsPeriod) topic = "Báo cáo Ads đủ số đo";
+      var period = "";
+      if (f.needsPeriod) {
+        period = ((root.querySelector("#mktPeriod") || {}).value || "last_7d").trim();
+      }
       var audience = ((root.querySelector("#mktAudience") || {}).value || "").trim();
       var goals = ((root.querySelector("#mktGoals") || {}).value || "").trim();
       var lang = ((root.querySelector("#mktLang") || {}).value || "vi").trim();
-      var brief = composeBrief(topic, audience, goals, lang, f, uploaded);
+      var brief = composeBrief(topic, audience, goals, lang, f, uploaded, period);
 
       try {
         var fd0 = new FormData();

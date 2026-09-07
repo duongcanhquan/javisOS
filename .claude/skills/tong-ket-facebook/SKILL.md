@@ -1,31 +1,46 @@
 ---
-name: Tổng kết Facebook
-description: "Tóm tắt Page/Ads Facebook đã kết nối: bài đăng, bình luận nổi bật, insights; nêu nếu thiếu MCP."
+name: Tổng kết Facebook Page
+description: "Báo cáo Page Facebook: kết nối, bài đăng kỳ, tương tác; checklist nội dung tuần tới."
 group: Marketing
 ---
 
-# Tổng kết Facebook
+# Tổng kết Facebook Page (organic)
 
 ## Khi nào dùng
 
-User muốn xem **trạng thái kết nối Facebook** và **tổng kết hoạt động** (bài đăng, ads) trong kỳ.
+User muốn xem **Page đã kết nối**, bài đăng trong kỳ, tương tác - **không** thay báo cáo Ads (dùng skill `bao-cao-facebook-ads`).
 
 ## Chuẩn bị
 
-1. Gọi `javis_connections` (hoặc tương đương) để xem connector nào đang có:
-   - `facebook-pages` → tool `fb_pages_list`, `fb_page_posts`, …
-   - `meta-ads-graph` → `meta_ads_accounts`, `meta_ads_insights`, `meta_ads_campaigns`
-   - `facebook-monitor` → `fb_monitor` (page/group công khai)
-2. Thiếu connector → nói rõ cần cài gói nào trên trang MCP/Store; hỏi có muốn tạo checklist kết nối không. **Không bịa số.**
+1. Connector **`facebook-pages`** (`fb_pages_list`, `fb_page_posts`, `fb_page_comments`).
+2. Thiếu → hướng dẫn Store/Kết nối. Không bịa số.
+3. (Tuỳ) `facebook-monitor` để soi page công khai đối thủ.
 
-## Quy trình khi đã kết nối
+## Quy trình
 
-1. Brief: kỳ (7 ngày / 30 ngày), Page nào, có xem Ads không.
-2. Liệt kê Page/ad account thật từ tool.
-3. Lấy bài đăng gần đây + (nếu có) insights campaigns.
-4. Tổng kết: chủ đề đăng, tương tác nổi bật, ads đang chạy / tốn kém (số thật), 3 gợi ý nội dung tuần tới.
-5. Lưu `exports/marketing/<slug>/facebook-tong-ket.md`.
+1. Brief: kỳ (7/14/30 ngày), Page nào nếu nhiều.
+2. `fb_pages_list` → chọn Page.
+3. `fb_page_posts` kỳ gần đây (giới hạn hợp lý, vd 20-30 bài).
+4. Với 1-3 bài nổi bật: `fb_page_comments` nếu cần cảm xúc cộng đồng.
+5. Báo cáo dễ hiểu:
+
+```
+# Tổng kết Facebook Page - <tên>
+Kỳ: …
+
+## Tình hình nhanh
+3-5 câu: đăng bao nhiêu bài, chủ đề chính, bài nào nổi.
+
+## Bảng bài đăng
+| Ngày | Tóm tắt nội dung | Ghi chú tương tác (nếu có) |
+
+## Chủ đề / góc nội dung
+## Việc tuần tới (3 gợi ý caption/ý tưởng)
+## Nguồn (tool + page_id)
+```
+
+6. Lưu `exports/marketing/<slug>/facebook-page.md`.
 
 ## An toàn
 
-Mặc định **chỉ đọc**. Không đăng/xóa/sửa post trừ khi user yêu cầu rõ ràng và chế độ cho phép.
+Chỉ đọc. Không đăng/sửa/xoá trừ khi user yêu cầu rõ và quyền cho phép.

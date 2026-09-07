@@ -8733,7 +8733,7 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
 
 @app.post("/studio/seed-marketing")
 async def studio_seed_marketing(brain: str = Form("brain")):
-    """Bộ Marketing: kiểm SEO / viết SEO / nghiên cứu thị trường / tổng kết Facebook (Gemini)."""
+    """Bộ Marketing: SEO / nghiên cứu / Page Facebook / báo cáo Ads chi tiết (Gemini)."""
     root = Path(_brain_root(brain))
     try:
         system_sync.migrate_brain(root)
@@ -8748,26 +8748,32 @@ async def studio_seed_marketing(brain: str = Form("brain")):
         (
             "marketing-hub",
             "Marketing (điều phối)",
-            "Điều phối Marketing: kiểm SEO, viết bài SEO, nghiên cứu thị trường, tổng kết Facebook/Ads.",
-            "# Marketing\n\nChọn đầu ra → chạy workflow bo-marketing-*. Lưu exports/marketing/.\n",
+            "Điều phối Marketing: SEO, bài SEO, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo.",
+            "# Marketing\n\nChọn đầu ra → bo-marketing-*. Lưu exports/marketing/.\n",
         ),
         (
             "kiem-tra-seo",
             "Kiểm tra SEO",
             "Soi SEO on-page/nội dung: title, meta, H1-H2, từ khóa, liên kết; checklist sửa có ưu tiên.",
-            "# Kiểm SEO\n\nAudit + checklist P0/P1/P2. Lưu exports/marketing/<slug>/seo-audit.md.\n",
+            "# Kiểm SEO\n\nAudit + checklist. Lưu seo-audit.md.\n",
         ),
         (
             "viet-bai-seo",
             "Viết bài SEO",
             "Viết bài SEO hấp dẫn: từ khóa, outline H1-H2, meta, CTA, ví dụ; lưu markdown sẵn đăng.",
-            "# Viết bài SEO\n\nBài + meta + slug. Lưu exports/marketing/<slug>/bai-seo.md.\n",
+            "# Viết bài SEO\n\nBài + meta. Lưu bai-seo.md.\n",
         ),
         (
             "tong-ket-facebook",
-            "Tổng kết Facebook",
-            "Tóm tắt Page/Ads Facebook đã kết nối: bài đăng, bình luận nổi bật, insights; nêu nếu thiếu MCP.",
-            "# Tổng kết Facebook\n\nChỉ đọc MCP. Thiếu connector thì nói rõ. Lưu facebook-tong-ket.md.\n",
+            "Tổng kết Facebook Page",
+            "Báo cáo Page Facebook: kết nối, bài đăng kỳ, tương tác; checklist nội dung tuần tới.",
+            "# Page Facebook\n\nOrganic posts. Lưu facebook-page.md.\n",
+        ),
+        (
+            "bao-cao-facebook-ads",
+            "Báo cáo Facebook Ads",
+            "Báo cáo Meta Ads đầy đủ số đo: spend, CTR, CPC, CPM, reach, campaign; diễn giải dễ hiểu.",
+            "# Báo cáo Ads\n\nSố đo + bảng campaign. Lưu bao-cao-ads.md.\n",
         ),
     ]
     for slug, name, desc, body in skill_specs:
@@ -8825,28 +8831,48 @@ async def studio_seed_marketing(brain: str = Form("brain")):
             ),
         },
         {
-            "name": "Tổng kết Facebook",
+            "name": "Tổng kết Facebook Page",
             "slug": "mkt-facebook",
-            "role": "Tóm tắt kết nối và hoạt động Facebook Page/Ads (chỉ đọc).",
+            "role": "Báo cáo Page Facebook organic: bài đăng, tương tác, gợi ý nội dung.",
             "skills": ["tong-ket-facebook", "marketing-hub"],
             "prompt": (
-                "Bạn tổng kết Facebook/Ads (Gemini). Nạp tong-ket-facebook.\n"
-                "Brief {{input}}: kỳ thời gian, Page/Ads cần xem.\n"
-                "Kiểm kết nối MCP; thiếu → nêu gói Store cần cài, dừng phần số liệu.\n"
-                "Có connector → gọi tool đọc Page/posts/insights, tóm tắt + 3 gợi ý nội dung.\n"
-                "Chỉ ĐỌC trừ khi user yêu cầu rõ hành động ghi. "
-                "Lưu exports/marketing/<slug>/facebook-tong-ket.md. Không em dash."
+                "Bạn báo cáo Facebook Page organic (Gemini). Nạp tong-ket-facebook.\n"
+                "Brief {{input}}: kỳ, Page (nếu nhiều).\n"
+                "Kiểm connector facebook-pages; thiếu → hướng dẫn Store, dừng số liệu.\n"
+                "Có thì fb_pages_list → fb_page_posts → báo cáo dễ hiểu theo skill "
+                "(tóm tắt tình hình, bảng bài, 3 gợi ý tuần tới).\n"
+                "KHÔNG thay báo cáo Ads (đó là agent mkt-ads). Chỉ ĐỌC.\n"
+                "Lưu exports/marketing/<slug>/facebook-page.md. Không em dash."
+            ),
+        },
+        {
+            "name": "Báo cáo Facebook Ads",
+            "slug": "mkt-ads",
+            "role": "Báo cáo Meta Ads đầy đủ số đo + bảng campaign, diễn giải dễ hiểu.",
+            "skills": ["bao-cao-facebook-ads", "marketing-hub"],
+            "prompt": (
+                "Bạn viết báo cáo Facebook/Instagram Ads (Gemini). Nạp bao-cao-facebook-ads.\n"
+                "Brief {{input}}: kỳ (last_7d/last_30d/…), account_id nếu có.\n"
+                "BẮT BUỘC gọi lần lượt: meta_ads_accounts → meta_ads_insights level=account "
+                "→ meta_ads_insights level=campaign → meta_ads_campaigns. "
+                "Thiếu connector meta-ads-graph → hướng dẫn Kết nối/Store, không bịa số.\n"
+                "Xuất đúng khung skill: (1) tóm tắt tình hình 30 giây, (2) bảng số đo tổng "
+                "spend/impressions/reach/frequency/clicks/CTR/CPC/CPM/actions, "
+                "(3) bảng chiến dịch sort theo spend, (4) đọc số, (5) việc nên làm, (6) nguồn.\n"
+                "Giải thích từng chỉ số bằng lời thường. Không tự sửa ads. Không em dash.\n"
+                "Lưu exports/marketing/<slug>/bao-cao-ads.md."
             ),
         },
         {
             "name": "Kiểm chứng Marketing",
             "slug": "mkt-kiem-chung",
-            "role": "Soi output Marketing so brief: đủ mục, có ví dụ, không bịa số, có file vault.",
+            "role": "Soi output Marketing so brief: đủ mục, có ví dụ/số đo, không bịa, có file vault.",
             "skills": [],
             "prompt": (
                 "Bạn KHÔNG viết lại. Chỉ kiểm chứng.\n"
-                "Đối chiếu brief với output: đúng loại đầu ra? có checklist/ví dụ? "
-                "có bịa số/ranking không? có đường dẫn file?\n"
+                "Đối chiếu brief với output: đúng loại đầu ra? "
+                "Nếu là báo cáo Ads: có bảng số tổng + campaign (hoặc lý do không có)? "
+                "có bịa số không? có đường dẫn file?\n"
                 "Trả: ĐẠT hoặc CHƯA ĐẠT + lỗi cụ thể."
             ),
         },
@@ -8928,13 +8954,26 @@ async def studio_seed_marketing(brain: str = Form("brain")):
             ],
         ),
         _wf(
-            "Marketing → Tổng kết Facebook",
+            "Marketing → Page Facebook",
             "bo-marketing-facebook",
-            "Đọc kết nối Page/Ads → tổng kết kỳ → kiểm chứng.",
+            "Đọc Page + bài đăng organic → báo cáo dễ hiểu → kiểm chứng.",
             [
                 {
                     "agent": "mkt-facebook",
-                    "task": "Tổng kết Facebook/Ads theo brief: {{input}}",
+                    "task": "Báo cáo Facebook Page organic theo brief: {{input}}",
+                    "verify_agent": "mkt-kiem-chung",
+                    "max_retries": 1,
+                },
+            ],
+        ),
+        _wf(
+            "Marketing → Báo cáo Facebook Ads",
+            "bo-marketing-ads",
+            "Kéo insights account+campaign → báo cáo số đo đầy đủ, dễ hiểu → kiểm chứng.",
+            [
+                {
+                    "agent": "mkt-ads",
+                    "task": "Báo cáo Facebook Ads đầy đủ số đo theo brief: {{input}}",
                     "verify_agent": "mkt-kiem-chung",
                     "max_retries": 1,
                 },

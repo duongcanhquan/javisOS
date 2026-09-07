@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.121] - 2026-09-07
+### Cải tiến
+- **Marketing → Ads FB:** báo cáo Meta Ads đủ số đo (spend, reach, CTR, CPC, CPM, chuyển đổi) + bảng chiến dịch + diễn giải dễ hiểu; tách riêng tab Page FB.
+
 ## [0.55.120] - 2026-09-07
 ### Cải tiến
 - **Bài giảng & Marketing full màn:** layout workbench - tab từng loại, trái lệnh/input, phải kết quả chạy; dễ đọc brief và theo dõi output.
