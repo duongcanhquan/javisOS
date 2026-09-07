@@ -1,6 +1,5 @@
 # Compose nhẹ: chạy image OpenMAIC đã build local (tag openmaic:local).
-# Script vps-deploy-openmaic.sh sẽ clone upstream, build, rồi dùng file này
-# hoặc docker compose trong thư mục clone — xem script.
+# TTS gọi Javis qua host.docker.internal:7777/v1 (Edge-TTS).
 
 services:
   openmaic:
@@ -8,6 +7,8 @@ services:
     container_name: openmaic
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env.local
     volumes:

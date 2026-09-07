@@ -203,6 +203,14 @@ async def _auth_guard(request: Request, call_next):
     if cfgmod.gate_active():
         path = request.url.path
         client_host = request.client.host if request.client else ""
+        # OpenMAIC TTS proxy: auth bằng Bearer OPENMAIC_TTS_PROXY_KEY (không cookie).
+        if path == "/v1/audio/speech":
+            if _openmaic_tts_proxy_auth_ok(request):
+                return await call_next(request)
+            return JSONResponse(
+                {"error": "unauthorized", "detail": "OpenMAIC TTS proxy key required"},
+                status_code=401,
+            )
         public = (path in _AUTH_PUBLIC_EXACT
                   or any(path.startswith(p) for p in _AUTH_PUBLIC_PREFIX)
                   or (path in _AUTH_LOCAL_EXACT and client_host in ("127.0.0.1", "::1")))
@@ -220,6 +228,35 @@ async def _auth_guard(request: Request, call_next):
 def _bearer(request) -> str:
     raw = str(request.headers.get("authorization") or "")
     return raw[7:].strip() if raw[:7].lower() == "bearer " else ""
+
+
+def _openmaic_tts_proxy_key() -> str:
+    """Key shared giữa Javis ↔ OpenMAIC cho POST /v1/audio/speech."""
+    env = (os.getenv("OPENMAIC_TTS_PROXY_KEY") or "").strip()
+    if env:
+        return env
+    try:
+        state = Path(os.getenv("JAVIS_STATE_DIR") or "/data/state")
+        p = state / "openmaic_tts_proxy.key"
+        if p.is_file():
+            return p.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _openmaic_tts_proxy_auth_ok(request: Request) -> bool:
+    import secrets as _secrets
+    expected = _openmaic_tts_proxy_key()
+    if not expected:
+        return False
+    got = _bearer(request) or (request.headers.get("x-api-key") or "").strip()
+    if not got:
+        return False
+    try:
+        return _secrets.compare_digest(got, expected)
+    except Exception:
+        return False
 
 
 def _token_ok(request, path: str) -> bool:
@@ -11362,6 +11399,83 @@ async def tts_voices(lang: str = Query("")):
             for v in voices if v["Locale"].startswith(tien_to)
         ]
     }
+
+
+_OPENMAIC_TTS_MAX_CHARS = 4000
+
+
+def _map_openai_voice_to_edge(voice: str) -> str:
+    """OpenAI voice id → Edge neural tiếng Việt (chuẩn cho classroom OpenMAIC)."""
+    v = (voice or "").strip()
+    if v.startswith("vi-VN-"):
+        return v
+    low = v.lower()
+    male = {
+        "onyx",
+        "echo",
+        "fable",
+        "male",
+        "namminh",
+        "vi-vn-namminhneural",
+        "ash",
+    }
+    if low in male:
+        return "vi-VN-NamMinhNeural"
+    return "vi-VN-HoaiMyNeural"
+
+
+def _openai_speed_to_edge_rate(speed) -> str:
+    try:
+        s = float(speed)
+        pct = int(round((s - 1.0) * 100))
+        pct = max(-50, min(100, pct))
+        return f"{pct:+d}%"
+    except Exception:
+        return "+5%"
+
+
+@app.post("/v1/audio/speech")
+async def openai_compatible_speech(request: Request):
+    """Proxy OpenAI-compatible TTS cho OpenMAIC → Edge-TTS tiếng Việt chuẩn.
+
+    OpenMAIC gọi: POST {TTS_OPENAI_BASE_URL}/audio/speech với Bearer TTS_OPENAI_API_KEY.
+    Auth: OPENMAIC_TTS_PROXY_KEY (env hoặc /data/state/openmaic_tts_proxy.key).
+    """
+    from fastapi import HTTPException, Response
+    import json as _json
+
+    if not _openmaic_tts_proxy_auth_ok(request):
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON body required")
+    if not isinstance(body, dict):
+        raise HTTPException(400, "JSON object required")
+
+    text = (body.get("input") or body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "Missing input text")
+    if len(text) > _OPENMAIC_TTS_MAX_CHARS:
+        raise HTTPException(
+            400,
+            f"Text too long (max {_OPENMAIC_TTS_MAX_CHARS} chars)",
+        )
+
+    edge_voice = _map_openai_voice_to_edge(str(body.get("voice") or ""))
+    rate = _openai_speed_to_edge_rate(body.get("speed", 1.0))
+    try:
+        audio = await _tts_edge(text, edge_voice, rate)
+    except Exception as e:
+        raise HTTPException(502, f"Edge TTS failed: {type(e).__name__}: {e}")
+    if not audio:
+        raise HTTPException(502, "Edge TTS returned empty audio")
+    return Response(
+        content=audio,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "no-cache", "X-Javis-TTS-Voice": edge_voice},
+    )
 
 
 # ============================================

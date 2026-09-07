@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.124] - 2026-09-07
+### Cải tiến
+- **OpenMAIC giọng Việt chuẩn:** proxy `POST /v1/audio/speech` (Edge-TTS Hoài My / Nam Minh); deploy OpenMAIC trỏ `TTS_OPENAI` vào Javis, tắt Browser Native mặc định.
 ## [0.55.123] - 2026-09-07
 ### Cải tiến
 - **Bài giảng & Marketing:** bấm Chạy sẽ khóa nút (hiện «Đang chạy…»), kiểm tra đủ đầu vào trước khi chạy, không đổi tab giữa chừng; Chuẩn bị lần đầu cũng khóa tạm.
