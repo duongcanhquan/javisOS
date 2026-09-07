@@ -33,23 +33,13 @@ resolve_google_key() {
     return
   fi
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$JAVIS_CONTAINER"; then
-    docker exec "$JAVIS_CONTAINER" python3 - <<'PY' 2>/dev/null || true
-import json, pathlib
-for p in (
-    pathlib.Path("/data/state/settings.json"),
-    pathlib.Path("/app/data/state/settings.json"),
-):
-    if not p.exists():
-        continue
-    try:
-        cfg = json.loads(p.read_text())
-    except Exception:
-        continue
-    m = cfg.get("model") or {}
-    k = (m.get("gemini_api_key") or "").strip()
-    if k:
-        print(k)
-        break
+    # Key trong settings.json bị Fernet hoá — đọc qua read_settings() của Javis.
+    docker exec -w /app "$JAVIS_CONTAINER" python3 - <<'PY' 2>/dev/null || true
+from server.config import read_settings
+m = (read_settings().get("model") or {})
+k = (m.get("gemini_api_key") or "").strip()
+if k and not str(k).startswith("enc:"):
+    print(k)
 PY
   fi
 }
