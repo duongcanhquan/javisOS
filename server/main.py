@@ -8531,12 +8531,12 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
         (
             "bai-giang-lop-hoc",
             "Bài giảng lớp học",
-            "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; đẩy OpenMAIC self-host tiếng Việt chuẩn.",
+            "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tạo OpenMAIC ngay trong Javis.",
             (
                 "# Bài giảng lớp học\n\n"
                 "Outline 8-15 cảnh + quiz + PBL + script tiếng Việt. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
-                "OpenMAIC: chỉ self-host (openmaic.vietmycollege.com), language=vi, TTS Edge — "
-                "không Live Demo / Browser Native.\n"
+                "Handoff: trong Javis bấm «Tạo lớp OpenMAIC» (language=en-US + nội dung VI + TTS Edge). "
+                "Không Live Demo / mở domain riêng.\n"
             ),
         ),
         (
@@ -8610,9 +8610,9 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
                 "Tạo outline 8-15 cảnh, quiz 4-8 câu, 1 PBL ngắn, script giảng từng cảnh "
                 "(tiếng Việt dấu đầy đủ; không Pinyin/chữ Hán).\n"
                 "Ghi file exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md trong vault.\n"
-                "Cuối file + trả lời: khối handoff OpenMAIC self-host "
-                "https://openmaic.vietmycollege.com — language=vi; TTS OpenAI/Edge "
-                "(nova/alloy); CẤM Live Demo, open.maic.chat, Browser Native, Doubao/Qwen/zh-*.\n"
+                "Cuối: nhắc user bấm «Tạo lớp OpenMAIC» NGAY TRONG Javis (Việc → Bài giảng). "
+                "Không mở domain openmaic / Live Demo. "
+                "API dùng language=en-US + nội dung VI + TTS Edge (tránh fallback zh-CN).\n"
                 "Không em dash."
             ),
         },
@@ -11479,6 +11479,260 @@ async def openai_compatible_speech(request: Request):
         media_type="audio/mpeg",
         headers={"Cache-Control": "no-cache", "X-Javis-TTS-Voice": edge_voice},
     )
+
+
+# ============================================
+# OpenMAIC — generate classroom từ Bài giảng (proxy localhost, không bắt user mở domain)
+# ============================================
+
+def _openmaic_base_url() -> str:
+    env = (os.getenv("OPENMAIC_BASE_URL") or "").strip().rstrip("/")
+    if env:
+        return env
+    try:
+        state = Path(os.getenv("JAVIS_STATE_DIR") or "/data/state")
+        p = state / "openmaic_base_url"
+        if p.is_file():
+            v = p.read_text(encoding="utf-8").strip().rstrip("/")
+            if v:
+                return v
+    except Exception:
+        pass
+    return "http://host.docker.internal:3000"
+
+
+def _openmaic_public_url() -> str:
+    env = (os.getenv("OPENMAIC_PUBLIC_URL") or "").strip().rstrip("/")
+    if env:
+        return env
+    try:
+        state = Path(os.getenv("JAVIS_STATE_DIR") or "/data/state")
+        p = state / "openmaic_public_url"
+        if p.is_file():
+            v = p.read_text(encoding="utf-8").strip().rstrip("/")
+            if v:
+                return v
+    except Exception:
+        pass
+    return "https://openmaic.vietmycollege.com"
+
+
+def _openmaic_rewrite_classroom_urls(payload: dict) -> dict:
+    """Đổi URL nội bộ OpenMAIC → PUBLIC_URL để iframe trình duyệt mở được."""
+    if not isinstance(payload, dict):
+        return payload
+    pub = _openmaic_public_url()
+    base = _openmaic_base_url()
+    out = dict(payload)
+    result = out.get("result")
+    if isinstance(result, dict):
+        result = dict(result)
+        out["result"] = result
+        for key in ("url", "classroomUrl", "classroom_url"):
+            u = result.get(key)
+            if isinstance(u, str) and u:
+                for old in (base, "http://127.0.0.1:3000", "http://localhost:3000"):
+                    if u.startswith(old):
+                        result[key] = pub + u[len(old) :]
+                        break
+        cid = result.get("classroomId") or result.get("classroom_id") or out.get("classroomId")
+        if cid and not result.get("url"):
+            result["url"] = f"{pub}/classroom/{cid}"
+        if result.get("url"):
+            out["classroomUrl"] = result["url"]
+            out["embedUrl"] = result["url"]
+        if cid:
+            out["classroomId"] = cid
+    elif out.get("classroomId") and not out.get("classroomUrl"):
+        out["classroomUrl"] = f"{pub}/classroom/{out['classroomId']}"
+        out["embedUrl"] = out["classroomUrl"]
+    return out
+
+
+def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> str:
+    parts = [
+        "Tạo classroom interactive mới từ giáo án dưới đây.",
+        "Toàn bộ nội dung giảng, slide text, quiz, script phải bằng tiếng Việt (dấu đầy đủ).",
+        "Không dùng chữ Hán, không Pinyin, không trộn tiếng Trung.",
+        "Giọng TTS: ưu tiên tiếng Việt tự nhiên (OpenAI-compatible / Edge VI trên server).",
+    ]
+    if topic:
+        parts.append(f"Chủ đề: {topic.strip()}")
+    parts.append("")
+    parts.append("--- Giáo án (lop-hoc.md) ---")
+    parts.append(main_md.strip() or "(trống)")
+    if quiz_md and quiz_md.strip():
+        parts.append("")
+        parts.append("--- Quiz (quiz.md) ---")
+        parts.append(quiz_md.strip())
+    return "\n".join(parts)
+
+
+@app.get("/openmaic/health")
+async def openmaic_health():
+    """Proxy GET OpenMAIC /api/health (+ capabilities)."""
+    import httpx
+
+    base = _openmaic_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(f"{base}/api/health")
+        data = {}
+        try:
+            data = r.json()
+        except Exception:
+            data = {"raw": (r.text or "")[:500]}
+        return {
+            "ok": r.status_code == 200,
+            "status_code": r.status_code,
+            "base_url": base,
+            "public_url": _openmaic_public_url(),
+            "data": data,
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "base_url": base,
+            "public_url": _openmaic_public_url(),
+            "error": f"{type(e).__name__}: {e}",
+        }
+
+
+@app.post("/openmaic/generate")
+async def openmaic_generate(
+    brain: str = Form("brain"),
+    path: str = Form(""),
+    requirement: str = Form(""),
+    topic: str = Form(""),
+    enable_tts: str = Form("1"),
+):
+    """Gửi generate-classroom tới OpenMAIC self-host (language=en-US + nội dung VI).
+
+    OpenMAIC API chỉ nhận language zh-CN|en-US; giá trị khác (kể cả vi) fallback zh-CN.
+    """
+    import httpx
+    from fastapi import HTTPException
+
+    main_md = (requirement or "").strip()
+    quiz_md = ""
+    used_path = (path or "").strip().replace("\\", "/").lstrip("/")
+    if used_path:
+        try:
+            p = _safe_serve_path(brain, used_path)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if not p.is_file():
+            raise HTTPException(404, f"Không thấy file: {used_path}")
+        try:
+            main_md = p.read_text(encoding="utf-8")
+        except OSError as e:
+            raise HTTPException(500, f"Đọc file lỗi: {e}")
+        quiz_candidate = p.parent / "quiz.md"
+        if quiz_candidate.is_file():
+            try:
+                quiz_md = quiz_candidate.read_text(encoding="utf-8")
+            except OSError:
+                quiz_md = ""
+        if not topic:
+            topic = p.parent.name.replace("-", " ")
+    if not main_md.strip():
+        raise HTTPException(400, "Thiếu path (lop-hoc.md) hoặc requirement")
+
+    req_text = _openmaic_build_requirement(topic, main_md, quiz_md)
+    base = _openmaic_base_url()
+    want_tts = str(enable_tts or "1").strip().lower() not in ("0", "false", "no", "off")
+
+    caps = {}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            hr = await client.get(f"{base}/api/health")
+            if hr.status_code == 200:
+                caps = (hr.json() or {}).get("capabilities") or {}
+    except Exception as e:
+        raise HTTPException(
+            502,
+            f"OpenMAIC không kết nối được tại {base}: {type(e).__name__}: {e}",
+        )
+
+    body = {
+        "requirement": req_text,
+        # Bắt buộc en-US (không vi / zh) — tránh fallback zh-CN của API.
+        "language": "en-US",
+    }
+    if want_tts and caps.get("tts") is True:
+        body["enableTTS"] = True
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(f"{base}/api/generate-classroom", json=body)
+    except Exception as e:
+        raise HTTPException(502, f"Gọi generate-classroom lỗi: {type(e).__name__}: {e}")
+
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(502, f"OpenMAIC trả non-JSON ({r.status_code}): {(r.text or '')[:400]}")
+
+    if r.status_code >= 400 or (isinstance(data, dict) and data.get("success") is False):
+        err = (data or {}).get("error") or (data or {}).get("message") or r.text
+        raise HTTPException(r.status_code if r.status_code >= 400 else 502, str(err)[:800])
+
+    job_id = (data or {}).get("jobId") or (data or {}).get("job_id") or ""
+    poll_path = f"/openmaic/jobs/{job_id}" if job_id else ""
+    return {
+        "ok": True,
+        "jobId": job_id,
+        "status": (data or {}).get("status") or "queued",
+        "step": (data or {}).get("step") or "",
+        "pollUrl": poll_path,
+        "pollIntervalMs": int((data or {}).get("pollIntervalMs") or 5000),
+        "path": used_path,
+        "language": "en-US",
+        "enableTTS": bool(body.get("enableTTS")),
+        "base_url": base,
+        "public_url": _openmaic_public_url(),
+    }
+
+
+@app.get("/openmaic/jobs/{job_id}")
+async def openmaic_job_status(job_id: str):
+    """Proxy poll generate-classroom job; rewrite classroom URL sang PUBLIC_URL."""
+    import httpx
+    from fastapi import HTTPException
+    import re as _re
+
+    jid = (job_id or "").strip()
+    if not jid or not _re.fullmatch(r"[A-Za-z0-9_-]{4,128}", jid):
+        raise HTTPException(400, "jobId không hợp lệ")
+
+    base = _openmaic_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.get(f"{base}/api/generate-classroom/{jid}")
+    except Exception as e:
+        raise HTTPException(502, f"Poll OpenMAIC lỗi: {type(e).__name__}: {e}")
+
+    try:
+        data = r.json()
+    except Exception:
+        raise HTTPException(502, f"OpenMAIC poll non-JSON ({r.status_code}): {(r.text or '')[:400]}")
+
+    if not isinstance(data, dict):
+        return {"ok": False, "status_code": r.status_code, "data": data}
+
+    out = _openmaic_rewrite_classroom_urls(data)
+    out["ok"] = r.status_code == 200
+    out["status_code"] = r.status_code
+    out["jobId"] = jid
+    st = str(out.get("status") or "").lower()
+    if st in ("succeeded", "success", "done", "completed") and out.get("classroomUrl"):
+        out["done"] = True
+    elif st in ("failed", "error"):
+        out["done"] = True
+        out["failed"] = True
+    else:
+        out["done"] = False
+    return out
 
 
 # ============================================

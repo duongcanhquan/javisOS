@@ -46,6 +46,9 @@ services:
       GEMINI_FORCE_FILE_STORAGE: ${GEMINI_FORCE_FILE_STORAGE:-true}
       # Tavily/remote MCP hay chậm lúc initialize+tools/list; 20s mặc định dễ bỏ nguồn.
       JAVIS_MCP_DISCOVER_TIMEOUT: ${JAVIS_MCP_DISCOVER_TIMEOUT:-45}
+      # OpenMAIC trên cùng VPS (API generate classroom từ Bài giảng).
+      OPENMAIC_BASE_URL: ${OPENMAIC_BASE_URL:-http://host.docker.internal:3000}
+      OPENMAIC_PUBLIC_URL: ${OPENMAIC_PUBLIC_URL:-https://openmaic.vietmycollege.com}
     ports:
       # Cổng MÁY CHỦ lấy từ biến (trong container vẫn luôn là 7777). Bản thứ hai đặt
       # JAVIS_HOST_PORT=7778 là hết đụng cổng.
@@ -58,6 +61,9 @@ services:
       # sách ports của các file -f chứ không thay thế, nên khai lại ở override là ra hai binding
       # cùng một cổng và Docker báo "port is already allocated".
       - "${JAVIS_BIND:-0.0.0.0}:${JAVIS_HOST_PORT:-7777}:7777"
+    extra_hosts:
+      # Gọi OpenMAIC trên host (:3000) từ trong container (Bài giảng → tạo lớp).
+      - "host.docker.internal:host-gateway"
     volumes:
       - javis-data:/data                       # state: settings/mật khẩu/sessions/loop (có secret → KHÔNG git)
       - javis-brains:/brains                   # MỌI second brain (kiến thức của bạn) - bền qua mọi update

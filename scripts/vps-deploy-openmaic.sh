@@ -117,28 +117,25 @@ else
   echo "WARN: không thấy container Javis — ghi key vào state sau khi Javis lên."
 fi
 
-# --- Site ACCESS_CODE: tạo 1 lần, dùng mãi (cookie ~7 ngày mỗi trình duyệt) ---
-# OPENMAIC_ACCESS_CODE=... → ghi đè
-# OPENMAIC_ACCESS_CODE_DISABLED=1 → không bật cổng mật khẩu
-# Mặc định: giữ ~/openmaic/.access_code, lần đầu tạo mã dễ nhớ
+# --- Site ACCESS_CODE ---
+# Mặc định TẮT: cửa chính là Javis (đã đăng nhập) → /openmaic/generate qua localhost.
+# Bật lại: OPENMAIC_ACCESS_CODE='ma-bi-mat' bash scripts/vps-deploy-openmaic.sh
+# Ép tắt khi đã có file cũ: OPENMAIC_ACCESS_CODE_DISABLED=1
 ACCESS_CODE_FILE="$OPENMAIC_DIR/.access_code"
 ACCESS_CODE=""
-if [ "${OPENMAIC_ACCESS_CODE_DISABLED:-0}" = "1" ]; then
-  echo "==> ACCESS_CODE tắt (OPENMAIC_ACCESS_CODE_DISABLED=1) — site mở không hỏi mật khẩu"
-  rm -f "$ACCESS_CODE_FILE" 2>/dev/null || true
-elif [ -n "${OPENMAIC_ACCESS_CODE:-}" ]; then
+if [ -n "${OPENMAIC_ACCESS_CODE:-}" ]; then
   printf '%s' "$OPENMAIC_ACCESS_CODE" > "$ACCESS_CODE_FILE"
   chmod 600 "$ACCESS_CODE_FILE"
   ACCESS_CODE="$(tr -d '\r\n' < "$ACCESS_CODE_FILE")"
   echo "==> ACCESS_CODE từ env (đã lưu $ACCESS_CODE_FILE)"
+elif [ "${OPENMAIC_ACCESS_CODE_DISABLED:-1}" = "1" ]; then
+  echo "==> ACCESS_CODE tắt (mặc định) — Javis Bài giảng không cần gõ mã site"
+  rm -f "$ACCESS_CODE_FILE" 2>/dev/null || true
 elif [ -s "$ACCESS_CODE_FILE" ]; then
   ACCESS_CODE="$(tr -d '\r\n' < "$ACCESS_CODE_FILE")"
   echo "==> Dùng lại ACCESS_CODE đã có ($ACCESS_CODE_FILE)"
 else
-  ACCESS_CODE="vietmy-openmaic"
-  printf '%s' "$ACCESS_CODE" > "$ACCESS_CODE_FILE"
-  chmod 600 "$ACCESS_CODE_FILE"
-  echo "==> Tạo ACCESS_CODE mặc định lần đầu → $ACCESS_CODE_FILE"
+  echo "==> ACCESS_CODE tắt (chưa đặt OPENMAIC_ACCESS_CODE)"
 fi
 
 # --- Clone / update source (cần cho BUILD=1; BUILD=0 cũng giữ thư mục + .env) ---
@@ -295,6 +292,9 @@ server {
         proxy_send_timeout 3600s;
         # PDF / media / ZIP classroom — paste & upload video tài liệu dễ hơn
         client_max_body_size 512m;
+        # Cho phép nhúng iframe từ Javis (Bài giảng → Tạo lớp OpenMAIC)
+        proxy_hide_header X-Frame-Options;
+        add_header Content-Security-Policy "frame-ancestors 'self' https://javis.vietmycollege.com https://*.vietmycollege.com http://127.0.0.1:7777 http://localhost:7777" always;
     }
 }
 EOF
@@ -325,16 +325,12 @@ cat <<EOF
 URL nội bộ: http://127.0.0.1:${OPENMAIC_PORT}
 Domain:     https://${OPENMAIC_DOMAIN}  (khi DNS + SSL OK)
 
-ACCESS_CODE:  ${ACCESS_CODE:-OFF — không hỏi mật khẩu}
-  (lưu tại $ACCESS_CODE_FILE — đổi: OPENMAIC_ACCESS_CODE='ma-moi' bash scripts/vps-deploy-openmaic.sh)
-  (tắt hẳn: OPENMAIC_ACCESS_CODE_DISABLED=1 bash scripts/vps-deploy-openmaic.sh)
-  Nhập 1 lần trên trình duyệt → cookie ~7 ngày, không tạo mã mỗi bài giảng.
+ACCESS_CODE:  ${ACCESS_CODE:-OFF — cửa chính = Javis Bài giảng (không hỏi mã)}
+  (bật lại: OPENMAIC_ACCESS_CODE='ma-moi' bash scripts/vps-deploy-openmaic.sh)
+  Trong Javis: Việc → Bài giảng → Lớp học → «Tạo lớp OpenMAIC» (iframe, không mở domain).
 
 TTS mặc định: OpenAI provider → Javis Edge (Hoài My / Nam Minh)
 Settings:     Text-to-Speech → OpenAI (không dùng Browser Native)
 Clone giọng:  ElevenLabs / VoxCPM khi có key hoặc GPU
 LLM:          Gemini key ${KEY:+đã có}${KEY:-CHƯA có — dán vào Models rồi chạy lại deploy}
-
-Tạo bài nhanh: mở site → dán đề cương / paste văn bản / upload PDF → Generate classroom
-  (không dùng open.maic.chat hosted — mã cloud hết hạn từng lần)
 EOF

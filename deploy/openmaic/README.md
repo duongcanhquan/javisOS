@@ -2,90 +2,51 @@
 
 ## Mục tiêu
 
-- Classroom live tự host.
-- **TTS mặc định:** Edge-TTS tiếng Việt chuẩn (Hoài My / Nam Minh) qua proxy trên Javis — **không** dùng Browser Native (Chrome).
-- **Clone giọng:** tuỳ chọn sau qua ElevenLabs hoặc VoxCPM2 (GPU) — không bật sẵn trên VPS CPU.
+- Classroom live — **dùng qua Javis** (Việc → Bài giảng → Lớp học → **Tạo lớp OpenMAIC**).
+- Không bắt giảng viên mở domain OpenMAIC hay gõ access code / API key.
+- **TTS mặc định:** Edge-TTS tiếng Việt (Hoài My / Nam Minh) qua Javis.
+- Domain `openmaic.vietmycollege.com` chỉ để iframe + debug.
 
 ## Giới hạn thật
 
 | Hạng mục | Trên VPS CPU? |
 |----------|----------------|
-| Chạy OpenMAIC + generate classroom | Cần **Gemini API key** (free tier Google AI Studio thường đủ) |
-| Giọng đọc tiếng Việt chuẩn | **Có** — Javis `POST /v1/audio/speech` (Edge-TTS) |
-| Clone mẫu giọng giảng viên | Cần ElevenLabs key hoặc VoxCPM trên GPU |
+| Generate classroom | Cần **Gemini API key** trên server (`.env.local`) |
+| Giọng đọc tiếng Việt chuẩn | **Có** — Javis Edge-TTS |
+| Clone mẫu giọng | ElevenLabs / VoxCPM GPU |
 
 ## Deploy
-
-1. Đảm bảo Javis đã có **Models → Google Gemini** (key), hoặc secret `OPENMAIC_GOOGLE_API_KEY`.
-2. DNS: bản ghi **A** `openmaic.vietmycollege.com` → IP VPS.
-3. Push script/workflow lên `main`, rồi:
 
 ```bash
 cd ~/javis-os && git pull
 OPENMAIC_BUILD=0 bash scripts/vps-deploy-openmaic.sh
 ```
 
-Hoặc GitHub → Actions → **Deploy OpenMAIC to VPS**.
+Script:
 
-Script sẽ:
+- Shared TTS key + `TTS_OPENAI_*` → Javis.
+- **ACCESS_CODE mặc định tắt** (Javis là cửa chính). Bật: `OPENMAIC_ACCESS_CODE=...`.
+- Nginx cho phép **iframe** từ `javis.vietmycollege.com`.
+- Upload body 512MB.
 
-- Tạo shared key `OPENMAIC_TTS_PROXY_KEY` (file trên host + `/data/state` trong container Javis).
-- Tạo / giữ **`ACCESS_CODE` cố định** tại `~/openmaic/.access_code` (mặc định `vietmy-openmaic`).
-- Ghi `TTS_OPENAI_*` + `ACCESS_CODE` vào `~/openmaic/.env.local`.
-- Chạy container OpenMAIC với `--add-host=host.docker.internal:host-gateway`.
-- Nginx `client_max_body_size 512m` (upload PDF / media dễ hơn).
+Javis compose cần `OPENMAIC_BASE_URL=http://host.docker.internal:3000` + `extra_hosts` host-gateway (đã có trong `docker-compose.yml`).
 
-## Mật khẩu site (ACCESS_CODE) — cài 1 lần
+## Dùng trong Javis
 
-| Việc | Cách |
-|------|------|
-| Mã mặc định lần đầu | `vietmy-openmaic` (file `~/openmaic/.access_code`) |
-| Đổi mã | `OPENMAIC_ACCESS_CODE='ma-moi' bash scripts/vps-deploy-openmaic.sh` |
-| Tắt hỏi mật khẩu | `OPENMAIC_ACCESS_CODE_DISABLED=1 bash scripts/vps-deploy-openmaic.sh` |
-| Dùng hàng ngày | Mở site → nhập **1 lần** → cookie ~7 ngày; **không** tạo mã mỗi bài |
+1. Việc → Bài giảng → tab **Lớp học** → Chạy (tạo `lop-hoc.md`).
+2. Cột Kết quả → **Tạo lớp OpenMAIC**.
+3. Đợi poll → classroom hiện iframe trong trang Javis.
 
-**Không** lấy mã tạm trên [open.maic.chat](https://open.maic.chat/) — dùng site tự host của trường.
+API language = `en-US` + nội dung tiếng Việt (tránh fallback `zh-CN` của OpenMAIC).
 
-> Image community hiện báo `0.1.0`: cổng mật khẩu `ACCESS_CODE` có từ upstream **0.1.1+**. Env đã ghi sẵn; khi nâng image/build mới sẽ hỏi mã cố định. Dù vậy **không cần** tạo mã cloud mỗi bài — generate trực tiếp trên self-host.
-
-Trong Javis: **Việc → Bài giảng → Lớp học** → ô URL + mã site (lưu trình duyệt) + **Copy brief** / **Mở OpenMAIC**.
-
-## Sau khi lên
-
-1. Mở `https://openmaic.vietmycollege.com` → nhập `ACCESS_CODE` (một lần).
-2. Settings → **Text-to-Speech** → **OpenAI** (Base URL đã seed từ env).
-3. Voice gợi ý: `nova` / `alloy` → Hoài My; `onyx` / `echo` → Nam Minh (hoặc `vi-VN-HoaiMyNeural`).
-4. **Tạo bài nhanh:** dán đề cương / paste văn bản / upload PDF → Generate classroom (không cần mã mới).
-5. **Ngôn ngữ & giọng:** luôn `language=vi`; Settings → TTS → **OpenAI** (Edge Hoài My/Nam Minh). Không Live Demo, không Browser Native.
-
-Trong Javis **Việc → Bài giảng → Lớp học**: **Copy lệnh OpenMAIC** đã gồm khóa `language=vi` + cấm TTS Trung.
-
-Kiểm tra proxy từ VPS:
+## Kiểm tra
 
 ```bash
-KEY=$(cat ~/openmaic/.tts_proxy_key)
-curl -fsS -X POST http://127.0.0.1:7777/v1/audio/speech \
-  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"input":"Xin chào học viên.","voice":"nova"}' -o /tmp/om-tts.mp3
-file /tmp/om-tts.mp3
+curl -fsS http://127.0.0.1:3000/api/health
+# Từ trong container Javis:
+docker exec javis curl -fsS http://host.docker.internal:3000/api/health
 ```
 
-## Bật clone giọng sau này
+## Clone giọng (tuỳ chọn)
 
-### ElevenLabs
-
-Thêm vào `~/openmaic/.env.local`:
-
-```env
-TTS_ELEVENLABS_API_KEY=...
-```
-
-Restart OpenMAIC; Settings → TTS → ElevenLabs → upload / chọn voice clone.
-
-### VoxCPM2 (GPU)
-
-```env
-TTS_VOXCPM_BASE_URL=http://<ip-gpu>:8000/v1
-```
-
-Settings → TTS → **VoxCPM2** → Clone voice (upload mẫu ngắn).
+ElevenLabs / VoxCPM: thêm key hoặc `TTS_VOXCPM_BASE_URL` vào `~/openmaic/.env.local`, restart OpenMAIC.

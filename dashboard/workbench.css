@@ -317,6 +317,36 @@
   color: var(--text2);
 }
 
+.jw-om-adv {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.jw-om-adv summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.jw-om-stage {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.jw-om-stage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.jw-om-frame {
+  width: 100%;
+  min-height: 62vh;
+  border: 1px solid var(--glass-brd, var(--hairline));
+  border-radius: 12px;
+  background: var(--surface-0, #fff);
+}
+
 .jw-field.err input,
 .jw-field.err textarea,
 .jw-field.err select {
