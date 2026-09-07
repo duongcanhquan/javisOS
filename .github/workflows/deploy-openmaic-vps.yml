@@ -1,0 +1,61 @@
+# Deploy OpenMAIC lên cùng VPS với Javis.
+# Secrets: VPS_HOST, VPS_USER, VPS_SSH_KEY (đã có).
+# Tuỳ chọn: OPENMAIC_GOOGLE_API_KEY — nếu trống, script lấy gemini_api_key từ container Javis.
+name: Deploy OpenMAIC to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Subdomain OpenMAIC (DNS A trỏ về VPS)"
+        required: true
+        default: "openmaic.vietmycollege.com"
+      build_from_source:
+        description: "Build từ source upstream (1) hay image community nhanh (0)"
+        required: true
+        default: "1"
+
+concurrency:
+  group: openmaic-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout javisOS (script deploy)
+        uses: actions/checkout@v4
+
+      - name: Deploy OpenMAIC over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPENMAIC_GOOGLE_API_KEY: ${{ secrets.OPENMAIC_GOOGLE_API_KEY }}
+          OPENMAIC_DOMAIN: ${{ github.event.inputs.domain }}
+          OPENMAIC_BUILD: ${{ github.event.inputs.build_from_source }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 60m
+          envs: OPENMAIC_GOOGLE_API_KEY,OPENMAIC_DOMAIN,OPENMAIC_BUILD
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            # Đảm bảo repo javis có script mới nhất
+            if [ -d "$DIR/.git" ]; then
+              cd "$DIR"
+              git fetch origin main 2>/dev/null || true
+              git reset --hard origin/main 2>/dev/null || true
+            fi
+            if [ ! -f "$DIR/scripts/vps-deploy-openmaic.sh" ]; then
+              echo "ERROR: thiếu $DIR/scripts/vps-deploy-openmaic.sh — push script lên main trước."
+              exit 1
+            fi
+            chmod +x "$DIR/scripts/vps-deploy-openmaic.sh"
+            export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD
+            export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
+            bash "$DIR/scripts/vps-deploy-openmaic.sh"
