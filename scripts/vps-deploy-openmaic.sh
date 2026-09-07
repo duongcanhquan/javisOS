@@ -264,8 +264,9 @@ if [ -f "$JAVIS_OS_ROOT/deploy/openmaic/docker-compose.yml" ] && [ "$OPENMAIC_BU
   cp -f "$JAVIS_OS_ROOT/deploy/openmaic/docker-compose.yml" "$OPENMAIC_DIR/docker-compose.yml" || true
 fi
 
-# Copy server-providers vào thư mục app khi build=1; với image community mount vào /app
-cp -f "$SP_FILE" "$OPENMAIC_DIR/server-providers.yml"
+# SP_FILE đã ghi sẵn tại $OPENMAIC_DIR/server-providers.yml (dòng trên) —
+# không cp tự copy (cp báo "are the same file" và exit 1 với set -e).
+# Image community mount file đó vào /app; build=1 dùng file trong thư mục compose.
 
 if [ "$OPENMAIC_BUILD" = "1" ]; then
   echo "==> docker compose build upstream (có thể 15–40 phút, cần RAM lớn)"

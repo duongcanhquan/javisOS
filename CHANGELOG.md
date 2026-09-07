@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.134] - 2026-09-07
+### Sửa lỗi
+- **Deploy OpenMAIC:** bỏ bước `cp` file `server-providers.yml` vào chính nó (làm deploy fail sau khi đã `docker rm` container).
+
 ## [0.55.133] - 2026-09-07
 ### Cải tiến
 - **Deploy OpenMAIC:** đẩy thay đổi script/workflow lên `main` là tự chạy deploy VPS (không chỉ bấm Actions), để agent/CI cũng kích được khi không có quyền workflow_dispatch.
