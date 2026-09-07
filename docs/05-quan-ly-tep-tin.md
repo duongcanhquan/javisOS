@@ -13,6 +13,7 @@ Mỗi brain của Javis thực chất là một thư mục trên máy/VPS chứa
 - Mở file để đọc: trình sửa mở **ngay trong trang**, chiếm chỗ danh sách file (không phải cửa sổ bật lên). Đúng trình sửa mà bạn dùng ở khung chat, nên .md có soạn thảo trực quan, thanh định dạng, Lùi/Tiến giữa các note; ảnh và PDF xem tại chỗ.
 - Sửa file dạng chữ (.md, .txt, .json...) rồi bấm lưu.
 - Tải file từ máy bạn lên brain, hoặc tải file trong brain về máy (mọi loại file, không riêng .md).
+- **Copy đường dẫn** tương đối của file/thư mục (dán vào Bài giảng, chat, ô path…).
 - Tải cả một thư mục về máy: Javis nén thành .zip rồi mới gửi.
 - Tạo thư mục mới, tạo file mới, đổi tên, xoá.
 

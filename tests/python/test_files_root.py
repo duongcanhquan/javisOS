@@ -131,6 +131,10 @@ try:
           and "&mode=${searchMode}" in console_js)
     check("UI Tệp tin có nút Tải về ở danh sách thường và kết quả tìm kiếm",
           console_js.count('data-act="dl"') >= 2 and "Tải file về máy" in console_js)
+    check("UI Tệp tin có nút Copy đường dẫn ở danh sách và kết quả tìm",
+          console_js.count('data-act="copy-path"') >= 2
+          and "Copy đường dẫn" in console_js
+          and "navigator.clipboard.writeText" in console_js)
     check("UI cây file Javis có nút tải cạnh file và trong editor",
           'data-a="dl"' in console_js and 'mk("⤓ Tải", "Tải file về máy"' in console_js)
     check("UI có nút tải CẢ thư mục (nén .zip): danh sách, thanh công cụ, cây file",
