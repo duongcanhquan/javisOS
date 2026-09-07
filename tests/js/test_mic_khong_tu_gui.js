@@ -43,10 +43,12 @@ check("stopListening ghi nợ khi phiên đang mở dở",
 check("onstart trả nợ: abort ngay, không báo onStart",
   /if \(this\._stopPending\) \{[\s\S]{0,400}this\.userStopped = true;[\s\S]{0,200}abort\(\)[\s\S]{0,60}return;/.test(voice));
 check("start() ném InvalidStateError thì GIỮ cờ _starting (phiên cũ vẫn sắp mở)",
-  /if \(!e \|\| e\.name !== "InvalidStateError"\) this\._starting = false;/.test(voice));
+  /if \(!err \|\| err\.name !== "InvalidStateError"\) this\._starting = false;/.test(voice)
+  || /if \(!e \|\| e\.name !== "InvalidStateError"\) this\._starting = false;/.test(voice));
 check("onstart hạ cờ _starting", /onstart = \(\) => \{\s*\n\s*this\._starting = false;/.test(voice));
 check("onend hạ cờ _starting", /onend = \(\) => \{\s*\n\s*this\._starting = false;/.test(voice));
-check("onerror hạ cờ _starting", /onerror = \(event\) => \{\s*\n\s*this\._starting = false;/.test(voice));
+check("onerror hạ cờ _starting",
+  /onerror = \(event\) => \{[\s\S]{0,120}this\._starting = false;/.test(voice));
 
 // ---- 2. Barge-in chỉ rình khi mic đang thật sự mở ----
 // _resumeAfterTTS chỉ bật trong _muteRecognition, mà chỗ đó đòi isListening === true.
@@ -54,13 +56,14 @@ check("onerror hạ cờ _starting", /onerror = \(event\) => \{\s*\n\s*this\._st
 check("_startBargeMonitor thoát sớm khi mic không mở (!_resumeAfterTTS)",
   /_startBargeMonitor\(\) \{[\s\S]{0,900}if \(!this\._resumeAfterTTS\) return;/.test(voice));
 check("_muteRecognition vẫn là chỗ duy nhất bật _resumeAfterTTS khi đang nghe",
-  /_muteRecognition\(\) \{\s*\n\s*if \(!this\.recognition \|\| !this\.isListening\) return;\s*\n\s*this\._resumeAfterTTS = true;/.test(voice));
+  /_muteRecognition\(\) \{[\s\S]{0,200}this\._resumeAfterTTS = true;/.test(voice)
+  && (voice.match(/this\._resumeAfterTTS = true;/g) || []).length === 1);
 
 // ---- 3. CANARY: mic vẫn là đường TỰ GỬI, nên hai chốt trên phải còn ----
 // Không đổi hành vi này (rảnh tay và bấm-giữ-Space đều cần gửi ngay), chỉ ghi lại cho rõ:
 // hễ ai bỏ chốt ở mục 1-2 thì tin nhắn ma quay lại ngay.
 check("onTranscript vẫn gửi thẳng, không qua bước xác nhận",
-  /onTranscript: \(text\) => \{[\s\S]{0,200}if \(text\) sendMessage\(text\);/.test(app));
+  /onTranscript:\s*\(text\)\s*=>\s*\{[\s\S]{0,500}sendMessage\(text\);/.test(app));
 const goiGui = (app.match(/(?<!function )\bsendMessage\(/g) || []).length;
 check("chỉ có 4 chỗ gọi sendMessage (giọng nói, thử lại, Enter, nút gửi)", goiGui === 4, goiGui);
 

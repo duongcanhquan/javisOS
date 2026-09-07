@@ -2156,8 +2156,8 @@ document.getElementById("testVoiceBtn").addEventListener("click", () => {
   // force: nghe thử là hành động chủ động của user, phải kêu kể cả khi đang tắt tiếng (mặc định).
   voice.speak(v.includes("HoaiMy") ? "Xin chào, em là HoaiMy, trợ lý của bạn." : "Xin chào, tôi là NamMinh, trợ lý của bạn.", { force: true });
 });
-// Nút loa header đã bỏ (0.48.3) - công tắc giọng nay chỉ còn nút trên THANH NHẬP
-// (#ttsToggleBar) và công tắc trong Cài đặt nhanh, cả hai do quick-settings.js lo.
+// Nút loa header (#ttsToggle) và thanh nhập (#ttsToggleBar) đã bỏ - công tắc giọng
+// chỉ còn ở Cài đặt nhanh (quick-settings.js) + bật theo mic (JavisTts.set).
 
 // Resume AudioContext khi user tương tác lần đầu (để analyser pulse hoạt động)
 function resumeAudio() {

@@ -1317,14 +1317,11 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 @keyframes micpulse-hf { 50% { box-shadow: 0 0 0 11px rgba(62,224,214,0); } }
 .voice-input {
   flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px;
-  color: var(--text); font-size: 13px; padding: 8px 11px; resize: none; outline: none;
-  line-height: 1.4; max-height: 90px; font-family: inherit;
   color: var(--text); font-size: 16px; padding: 11px 14px; resize: none; outline: none;
   /* max-height 45vh chỉ là lưới đỡ - chiều cao thật do app.js đặt theo scrollHeight
      (nở theo chữ, xuống dòng là thấy toàn bộ văn bản). Trần cũ 90px từng chặn cứng
      autosize ở ~3 dòng trên desktop dù JS đã tính đúng - chủ báo 27/08. */
   line-height: 1.4; max-height: 45vh; font-family: inherit;
-pstream/main
 }
 .voice-input:focus { border-color: var(--accent-line); }
 .voice-input::placeholder { color: var(--text3); }

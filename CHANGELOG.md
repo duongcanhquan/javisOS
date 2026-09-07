@@ -4,6 +4,15 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.132] - 2026-09-07
+### Sửa lỗi
+- **Ô chat nở theo chữ:** gỡ trần CSS còn sót `max-height: 90px` (và mảnh merge hỏng) để autosize không bị kẹt ~3 dòng trên desktop.
+- **Nút loa thanh nhập:** bỏ `#ttsToggleBar` còn sót - loa đi theo mic; tắt tiếng thủ công vẫn ở Cài đặt nhanh.
+
+## [0.55.131] - 2026-09-07
+### Sửa lỗi
+- **OpenMAIC giọng Trung nói Việt:** gốc lỗi là `audioUrl` gắn `host.docker.internal` nên trình duyệt không tải được MP3 Edge và nhảy sang Browser Native. Javis gửi `X-Forwarded-Host` theo URL công khai, rewrite mọi URL media/audio, deploy tắt Browser Native và sửa classroom cũ trên đĩa. Tạo lại lớp sau khi deploy (hoặc xoá cache site OpenMAIC).
+
 ## [0.55.130] - 2026-09-07
 ### Sửa lỗi
 - **Giọng nói:** gỡ helper không ai gọi (`status`/`want_stream`) và lớp bọc stream thừa khi `/tts` đã có đủ file MP3. Chốt câu nhanh và stream khung đầu không đổi.
