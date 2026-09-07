@@ -11442,7 +11442,6 @@ async def openai_compatible_speech(request: Request):
     Auth: OPENMAIC_TTS_PROXY_KEY (env hoặc /data/state/openmaic_tts_proxy.key).
     """
     from fastapi import HTTPException, Response
-    import json as _json
 
     if not _openmaic_tts_proxy_auth_ok(request):
         raise HTTPException(401, "Unauthorized")
