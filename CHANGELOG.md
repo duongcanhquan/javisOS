@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.133] - 2026-09-07
+### Cải tiến
+- **Deploy OpenMAIC:** đẩy thay đổi script/workflow lên `main` là tự chạy deploy VPS (không chỉ bấm Actions), để agent/CI cũng kích được khi không có quyền workflow_dispatch.
+
 ## [0.55.132] - 2026-09-07
 ### Sửa lỗi
 - **Ô chat nở theo chữ:** gỡ trần CSS còn sót `max-height: 90px` (và mảnh merge hỏng) để autosize không bị kẹt ~3 dòng trên desktop.

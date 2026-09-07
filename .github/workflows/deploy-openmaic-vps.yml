@@ -14,6 +14,14 @@ on:
         description: "Build từ source upstream (1) hay image community nhanh (0). VPS nhỏ dùng 0."
         required: true
         default: "0"
+  # Agent cloud không có quyền workflow_dispatch (403). Push các file dưới đây lên main
+  # sẽ tự chạy deploy (mặc định domain + BUILD=0).
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy-openmaic-vps.yml"
+      - "scripts/vps-deploy-openmaic.sh"
+      - "deploy/openmaic/**"
 
 concurrency:
   group: openmaic-deploy
@@ -33,8 +41,8 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           OPENMAIC_GOOGLE_API_KEY: ${{ secrets.OPENMAIC_GOOGLE_API_KEY }}
-          OPENMAIC_DOMAIN: ${{ github.event.inputs.domain }}
-          OPENMAIC_BUILD: ${{ github.event.inputs.build_from_source }}
+          OPENMAIC_DOMAIN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.domain || 'openmaic.vietmycollege.com' }}
+          OPENMAIC_BUILD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_from_source || '0' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
