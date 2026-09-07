@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.120] - 2026-09-07
+### Cải tiến
+- **Bài giảng & Marketing full màn:** layout workbench - tab từng loại, trái lệnh/input, phải kết quả chạy; dễ đọc brief và theo dõi output.
+
 ## [0.55.119] - 2026-09-07
 ### Thêm mới
 - **Công việc → Marketing:** menu chọn Kiểm SEO / Viết bài SEO / Nghiên cứu thị trường / Facebook & Ads (mỗi thẻ có khi nào chọn + ví dụ).

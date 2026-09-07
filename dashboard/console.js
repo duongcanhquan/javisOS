@@ -447,13 +447,25 @@
     if (id === "learn")    return renderLearn(el);
     if (id === "meetings") return renderMeetings(el);
     if (id === "baigiang") {
+      el.classList.add("cview-flush");
       if (typeof window.renderBaiGiang === "function") window.renderBaiGiang(el);
       else el.innerHTML = '<div class="dim">Thiếu baigiang.js</div>';
+      const prevBg = _pageLeave;
+      _pageLeave = () => {
+        el.classList.remove("cview-flush");
+        if (typeof prevBg === "function") try { prevBg(); } catch (e) {}
+      };
       return;
     }
     if (id === "marketing") {
+      el.classList.add("cview-flush");
       if (typeof window.renderMarketing === "function") window.renderMarketing(el);
       else el.innerHTML = '<div class="dim">Thiếu marketing.js</div>';
+      const prevMk = _pageLeave;
+      _pageLeave = () => {
+        el.classList.remove("cview-flush");
+        if (typeof prevMk === "function") try { prevMk(); } catch (e) {}
+      };
       return;
     }
     if (id === "kanban")   return renderKanban(el);
