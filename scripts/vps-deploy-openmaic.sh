@@ -61,44 +61,32 @@ resolve_google_key() {
     return 0
   fi
   echo "==> Thử đọc gemini_api_key từ container: $jc" >&2
-  # Bắt buộc -i (stdin heredoc) + JAVIS_STATE_DIR=/data/state.
-  # Thiếu -i thì python nhận script rỗng → tưởng như chưa có key dù Models đã nối.
-  docker exec -i -e JAVIS_STATE_DIR=/data/state -e PYTHONUNBUFFERED=1 -w /app "$jc" python3 - <<'PY' || true
-import os, sys, json
+  # -i = nhận heredoc. sys.path=/app/server giống process Javis (secrets_store + config).
+  docker exec -i -e JAVIS_STATE_DIR=/data/state -e PYTHONUNBUFFERED=1 -e PYTHONPATH=/app/server -w /app "$jc" python3 - <<'PY' || true
+import os, sys
 os.environ["JAVIS_STATE_DIR"] = "/data/state"
+sys.path.insert(0, "/app/server")
+import json
 from pathlib import Path
+import config as cfgmod
+import secrets_store
+print(f"state_dir={cfgmod.STATE_DIR} settings_exists={cfgmod.SETTINGS_PATH.exists()}", file=sys.stderr)
+raw = {}
 try:
-    from server import config as cfgmod
+    raw = json.loads(cfgmod.SETTINGS_PATH.read_text(encoding="utf-8"))
 except Exception as e:
-    print(f"IMPORT_ERR={type(e).__name__}:{e}", file=sys.stderr)
-    raise SystemExit(0)
-print(f"state_dir={cfgmod.STATE_DIR} settings={cfgmod.SETTINGS_PATH} exists={cfgmod.SETTINGS_PATH.exists()}", file=sys.stderr)
-sk = Path("/data/state/.secret_key")
-print(f"secret_key_exists={sk.exists()}", file=sys.stderr)
-try:
-    raw = json.loads(cfgmod.SETTINGS_PATH.read_text(encoding="utf-8")) if cfgmod.SETTINGS_PATH.exists() else {}
-except Exception as e:
-    raw = {}
     print(f"raw_json_err={type(e).__name__}", file=sys.stderr)
-raw_m = (raw.get("model") or {}) if isinstance(raw, dict) else {}
-raw_k = str(raw_m.get("gemini_api_key") or "")
+raw_k = str(((raw.get("model") or {}).get("gemini_api_key")) or "")
 print(f"raw_gemini_len={len(raw_k)} raw_prefix={raw_k[:6]!r}", file=sys.stderr)
-for fld in ("openrouter_key", "openai_api_key", "anthropic_api_key"):
-    print(f"raw_{fld}_len={len(str(raw_m.get(fld) or ''))}", file=sys.stderr)
 m = (cfgmod.read_settings().get("model") or {})
 k = (m.get("gemini_api_key") or "").strip()
-print(f"decrypted_len={len(k)}", file=sys.stderr)
 if k.startswith("enc:"):
-    try:
-        import secrets_store
-        k = (secrets_store.decrypt(k) or "").strip()
-    except Exception as e:
-        print(f"decrypt_err={type(e).__name__}", file=sys.stderr)
-        k = ""
+    k = (secrets_store.decrypt(k) or "").strip()
+print(f"plain_len={len(k)}", file=sys.stderr)
 if k and not k.startswith("enc:"):
     print(k)
 else:
-    print(f"HAS_KEY=0 plain_len={len(k)}", file=sys.stderr)
+    print("HAS_KEY=0", file=sys.stderr)
 PY
 }
 
