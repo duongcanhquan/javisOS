@@ -26,7 +26,7 @@ Bạn đấu các **kết nối** của riêng mình vào (bán hàng/POS, quả
 
 | | Chatbot thường | **Javis OS** |
 |---|---|---|
-| Bộ não | Khoá cứng 1 model, API gọi rời từng câu | **Đổi được**: 11+ nhà cung cấp, cái nào cũng đủ tool, MCP, skill, session - kể cả model chạy ngay trên máy bạn qua Ollama Local (fork) |
+| Bộ não | Khoá cứng 1 model, API gọi rời từng câu | **Đổi được**: 13 nhà cung cấp, cái nào cũng đủ tool, MCP, skill, session - kể cả model chạy ngay trên máy bạn qua Ollama Local (fork) |
 | Trí nhớ | Quên sau mỗi phiên | **Second Brain sống** - nhớ bạn, dày lên qua từng hội thoại |
 | Dữ liệu | Bịa hoặc không có | **Số liệu thật** từ kết nối bạn đấu vào (POS, Ads, Lịch, Zalo…) |
 | Tự cải thiện | Không | **Vòng lặp tự chạy nền** + hàng đợi việc do AI tự vận hành |
@@ -113,7 +113,7 @@ Script tự cài Python + Node + hai engine CLI (Claude Code, Codex), tạo venv
 
 ### Cách 4 - Windows / Mac máy cá nhân
 
-Hướng dẫn ngắn (fork): **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)** — Windows: `1-Cai-dat.bat` → `2-Bat-Javis.bat`; Mac: `1-Cai-dat.command` → `2-Bat-Javis.command`.
+Hướng dẫn ngắn (fork): **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)** - Windows: `1-Cai-dat.bat` → `2-Bat-Javis.bat`; Mac: `1-Cai-dat.command` → `2-Bat-Javis.command`.
 
 #### Windows (chi tiết)
 

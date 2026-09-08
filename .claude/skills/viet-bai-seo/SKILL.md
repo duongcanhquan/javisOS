@@ -1,6 +1,7 @@
 ---
 name: Viết bài SEO
 description: "Viết bài SEO + SEO GPT: từ khóa, meta, lead trả lời thẳng, FAQ, chunk dễ AI trích dẫn."
+description_en: "Write SEO + SEO GPT posts: keywords, meta, direct-answer lead, FAQ, AI-citable chunks."
 group: Marketing
 ---
 

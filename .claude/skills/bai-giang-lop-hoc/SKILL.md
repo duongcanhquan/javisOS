@@ -1,6 +1,7 @@
 ---
 name: Bài giảng lớp học
 description: "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tạo OpenMAIC ngay trong Javis."
+description_en: "Interactive class pack: outline, scenes, quiz, teaching script; create OpenMAIC inside Javis."
 group: Nội dung
 ---
 

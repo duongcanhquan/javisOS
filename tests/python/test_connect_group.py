@@ -79,7 +79,8 @@ def test_oauth_byo_co_buoc_redirect():
     """Connector oauth BYO phải có đúng MỘT bước chèn ô copy
     Redirect URI - thiếu là user không biết dán gì, thừa là rối."""
     pc = _public()
-    for cid in ("google-calendar", "gmail", "google-chat", "meta-ads-graph", "facebook-pages"):
+    # meta-ads-graph / facebook-pages đã dọn sang repo kho (xem test_cac_connector_bat_buoc_co_steps).
+    for cid in ("google-calendar", "gmail", "google-chat"):
         n = sum(1 for s in pc[cid]["steps"] if s.get("copy") == "redirect")
         assert n == 1, cid
 

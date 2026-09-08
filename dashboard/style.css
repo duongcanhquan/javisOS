@@ -459,7 +459,7 @@ body {
   display: grid;
   /* minmax(0, 1fr) rất quan trọng: canvas và chuỗi tool dài không được dùng min-content
      để nới cột giữa rồi đẩy khung hội thoại ra ngoài viewport. */
-  grid-template-columns: 260px minmax(0, 1fr) 400px;
+  grid-template-columns: 260px minmax(0, 1fr) 340px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;

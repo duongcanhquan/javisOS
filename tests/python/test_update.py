@@ -3,6 +3,7 @@ Chạy:  python tests/run.py update    (KHÔNG mạng)."""
 from _paths import ROOT, SERVER  # noqa: E402,F401  - nạp server/ vào sys.path (xem tests/python/_paths.py)
 import os, sys, tempfile, json
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-update-test-")
+os.environ.setdefault("JAVIS_UPDATES_UI", "1")
 
 _fails = []
 def check(name, cond):

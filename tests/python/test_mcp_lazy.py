@@ -415,12 +415,13 @@ _full_t, _full_r = mcp_hub.seed_visible_for_query(
     _tools_s, _route_s, _tools_s, _route_s, "gmail")  # không lazy (không có meta)
 check("seed: không lazy → giữ nguyên", _full_t is _tools_s)
 
-# Canary: main không được truyền kwargs lạ (staging=…) vào discover_all - TypeError bị nuốt
-# → tools rỗng → model bảo thiếu Gmail dù kết nối xanh (bug 2026-09-05).
+# Canary: đường chat CHỦ phải truyền staging=True để javis_read_file đọc được file đính kèm
+# trong STATE_DIR/.staging. (Trước 2026-09 khi hub chưa nhận kwargs này, truyền vào gây
+# TypeError bị nuốt → tools rỗng. Nay hub nhận staging chính thức.)
 _main_src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 _api_fn = _main_src.split("async def _api_stream_mcp")[1].split("def _last_user_text")[0]
-check("main không truyền staging= vào discover_all/registry_inventory",
-      "staging=" not in _api_fn)
+check("main truyền staging=True vào discover_all/registry_inventory",
+      "staging=True" in _api_fn)
 
 
 # ============================================================

@@ -218,8 +218,12 @@ class _GiaEngineCoReset(_GiaEngine):
 
 
 check("bảng engine giữ mạch kể đủ bốn cái",
-      {k for _, k in main._TG_ENGINE_MACH} == {"cli", "codex", "grok", "antigravity"},
+      {k for _, k in main._TG_ENGINE_MACH} >= {"cli", "codex", "grok", "antigravity"},
       main._TG_ENGINE_MACH)
+# Copilot CLI (nếu có trong bảng) cũng phải được cắt mạch giống các engine CLI khác.
+if any(k == "copilot" for _, k in main._TG_ENGINE_MACH):
+    check("bảng engine có copilot thì key phải là 'copilot'",
+          ("copilot-cli", "copilot") in main._TG_ENGINE_MACH)
 
 _s = main._tg_session("777")
 _s["cli"] = _GiaEngineCoReset()

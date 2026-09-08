@@ -1,6 +1,7 @@
 ---
 name: Marketing (điều phối)
 description: "Điều phối Marketing: SEO+SEO GPT, nghiên cứu, Page Facebook, báo cáo Ads đủ số đo."
+description_en: "Marketing hub: SEO+SEO GPT, research, Facebook Page, Ads reports with full metrics."
 group: Marketing
 ---
 

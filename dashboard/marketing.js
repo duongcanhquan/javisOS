@@ -256,9 +256,9 @@
             '<p class="jw-hint">Báo cáo gồm: tóm tắt tình hình, bảng số tổng, bảng từng chiến dịch, việc nên làm.</p></div>'
           : "") +
         '<div class="jw-field"><label for="mktAudience">Đối tượng / thương hiệu</label>' +
-        '<input id="mktAudience" type="text" placeholder="VD: phụ huynh THCS, SME F&B"></div>' +
+        '<input id="mktAudience" type="text" placeholder="Ví dụ: phụ huynh THCS, SME F&B"></div>' +
         '<div class="jw-field"><label for="mktGoals">Mục tiêu</label>' +
-        '<textarea id="mktGoals" rows="3" placeholder="VD: tăng organic&#10;soạn content tuần"></textarea></div>' +
+        '<textarea id="mktGoals" rows="3" placeholder="Ví dụ: tăng organic&#10;soạn content tuần"></textarea></div>' +
         '<div class="jw-field"><label for="mktLang">Ngôn ngữ</label>' +
         '<select id="mktLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>' +
         '<div class="jw-field"><label for="mktFiles">File đính kèm</label>' +

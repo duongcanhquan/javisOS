@@ -1,6 +1,7 @@
 ---
 name: Tổng kết Facebook Page
 description: "Báo cáo Page Facebook: kết nối, bài đăng kỳ, tương tác; checklist nội dung tuần tới."
+description_en: "Facebook Page report: connection, period posts, engagement; next-week content checklist."
 group: Marketing
 ---
 

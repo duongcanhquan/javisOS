@@ -1,7 +1,7 @@
 ---
 name: phap-che
-description: "Pháp chế cá nhân: tư vấn / tham chiếu văn bản pháp lý từ wiki+sources/phap-che (và tool phap_che_search nếu có). Luôn cite số hiệu + điều; không bịa; không thay luật sư."
-description_en: "Personal legal counsel: advise from wiki+sources/phap-che (and phap_che_search if available). Always cite instrument + article; never invent; not a substitute for a lawyer."
+description: "Tư vấn pháp lý từ wiki+sources/phap-che (và phap_che_search nếu có). Cite số hiệu + điều; không bịa; không thay luật sư."
+description_en: "Legal counsel from wiki+sources/phap-che (and phap_che_search if available). Cite instrument + article; never invent; not a lawyer substitute."
 group: AI
 ---
 
@@ -10,7 +10,8 @@ group: AI
 ## Khi nào dùng
 
 Người dùng hỏi luật, nghị định, thông tư; cần rà compliance khi chạy dự án; đối chiếu
-hợp đồng với quy định; hoặc bảo "đóng vai pháp chế".
+hợp đồng với quy định; hoặc bảo "đóng vai pháp chế" / "pháp chế cá nhân". Cũng dùng khi
+cần tham chiếu văn bản pháp lý đã ingest trong wiki hoặc `sources/phap-che/`.
 
 ## Kho dữ liệu (không nhồi MEMORY.md)
 

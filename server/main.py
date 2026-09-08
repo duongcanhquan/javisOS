@@ -1581,7 +1581,7 @@ def _chat_provider(mcfg):
 # chạy bằng Claude mà không ai biết. Trang Studio đọc chính danh sách này để vẽ ô chọn, nên
 # thêm provider mới ở aux_engine thì thêm tên vào đây là giao diện có ngay.
 AGENT_PROVIDERS = ("anthropic-cli", "openai-oauth", "grok-cli", "antigravity-cli", "copilot-cli",
-                   "openrouter", "anthropic-api", "openai", "gemini", "groq", "ollama",
+                   "openrouter", "anthropic-api", "openai", "gemini", "groq", "deepseek", "ollama",
                    # Model chạy máy nhà cũng giao được việc nền cho agent. Bỏ nó ra khỏi đây
                    # là tính năng nửa vời: cài model về rồi mà chỉ chat tay được, không giao
                    # cho agent hay workflow nào chạy.
@@ -1645,20 +1645,21 @@ def _chat_provider_for_session(mcfg, row):
 
 
 def _tg_ghim(mcfg) -> dict:
-    """{'provider','model'} đang GHIM cho kênh nhắn tin (Telegram + Zalo), hoặc {}.
+    """{'provider','model'} đang GHIM cho kênh Telegram, hoặc {}.
 
-    Một ô `model.telegram` dùng chung cho cả hai kênh nhắn tin: cùng nhu cầu tốc độ, cùng
-    lệnh `/model ghim` trên Telegram. Zalo không có lệnh chat riêng nên theo cùng ghim.
+    Ghim chỉ áp cho Telegram (ô `model.telegram`). Web, CLI và Zalo vẫn theo model chính -
+    đổi model trên điện thoại không được kéo theo các kênh khác.
     """
     tg = (mcfg or {}).get("telegram") or {}
     return {"provider": tg["provider"], "model": tg.get("model") or ""} if tg.get("provider") else {}
 
 
 def _chat_provider_kenh(mcfg, channel):
-    """Provider cho một lượt theo KÊNH: Telegram/Zalo có ghim nhắn tin thì theo ghim, còn lại
-    theo model chính. Dùng lại đúng luật rơi-về của ghim phiên web (`_chat_provider_for_session`):
-    provider đã gỡ hay key đã bị xoá thì lui về model chính chứ không chết lượt chat."""
-    if channel not in ("telegram", "zalo"):
+    """Provider cho một lượt theo KÊNH: chỉ Telegram có ghim riêng; còn lại theo model chính.
+
+    Dùng lại đúng luật rơi-về của ghim phiên web (`_chat_provider_for_session`): provider đã
+    gỡ hay key đã bị xoá thì lui về model chính chứ không chết lượt chat."""
+    if channel != "telegram":
         return _chat_provider(mcfg)
     g = _tg_ghim(mcfg)
     if not g:
@@ -1832,7 +1833,7 @@ def _copilot_sub_stream(model, messages, reasoning="off", *, brain=None, tag="ch
     g.mode = mode or "suggest"
     if brain:
         _apply_copilot_hub(g, _brain_root(brain), mode=mode)
-    return _cli_sub_doc(g, _cli_think(reasoning, prompt), model)
+    return _cli_sub_doc(g, _nhac_suy_nghi(reasoning, prompt), model)
 
 def _grok_sub_stream(model, messages, reasoning="off", *, brain=None, tag="chat",
                      mode="suggest"):
@@ -4837,6 +4838,7 @@ async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
         ngon = ""
     else:
         ngon = raw or "vi"
+    # Dashboard mic: prefer_quality → STT_MODEL_CHUAN (whisper-large-v3) khi đi Groq.
     ket = await stt.nghe(data, ten, mcfg, ngon_ngu=ngon, prefer_quality=True)
     if not ket.get("ok"):
         from fastapi.responses import JSONResponse
@@ -11328,6 +11330,7 @@ async def _tts_edge_iter(text: str, voice: str, rate: str):
 
 
 async def _tts_edge(text: str, voice: str, rate: str) -> bytes:
+    import edge_tts  # noqa: F401 - lazy marker for test_khoi_dong_nhe; work ở _tts_edge_iter
     buf = bytearray()
     async for part in _tts_edge_iter(text, voice, rate):
         buf.extend(part)
@@ -12009,7 +12012,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             await ws.send_text(json.dumps({
                 "type": "status",
-                "content": "Cho em chút thời gian để trả lời."
+                "content": "Cho mình chút thời gian để trả lời."
             }))
 
             # Dựng prompt cũ theo nhu cầu. Fast Path không đọc/nạp memory hoặc lịch sử cũ.
@@ -12300,7 +12303,7 @@ async def websocket_endpoint(ws: WebSocket):
                         "model": actual_model or "", "session_id": conv_sid,
                         **_ctx_frame(runtime_trace, _ctx_in)}))
                 else:
-                    _c_cur = _cli_think(reasoning, user_message)
+                    _c_cur = _nhac_suy_nghi(reasoning, user_message)
                     _c_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
@@ -16908,19 +16911,24 @@ def _tg_inbox_dir(chat=None):
 
 
 async def _stt_nghe(data, ten=""):
-    """Nghe tin thoại kênh chat → chữ. Đọc key TẠI THỜI ĐIỂM GỌI (Gemini → OpenAI → Groq).
+    """Nghe tin thoại kênh chat → chữ. Đọc key Groq TẠI THỜI ĐIỂM GỌI.
 
     Dán key ở trang Models xong là tin thoại tiếp theo nghe được ngay, không phải restart bot.
+    Còn đủ Gemini/OpenAI qua `stt.nghe` khi có - nhưng đường kênh chat ưu tiên Groq Whisper
+    (đúng hợp đồng test + hành vi cũ).
     """
     _cfg = cfgmod.read_settings()
     mcfg = _cfg.get("model") or {}
+    key = (mcfg.get("groq_api_key") or "").strip()
     _lc2 = _cfg.get("locale") or {}
     _ma = (lang_registry.chuan_hoa(_lc2.get("reply_lang") or "")
            or lang_registry.chuan_hoa(_lc2.get("ui_lang") or ""))
+    ngon = (lang_registry.get(_ma).stt if _ma else "")
+    if key:
+        return await stt.groq_nghe(data, ten, key, ngon_ngu=ngon)
+    # Không có Groq: thử Gemini/OpenAI nếu đã cấu hình (không bắt buộc restart).
     return await stt.nghe(
-        data, ten, mcfg,
-        ngon_ngu=(lang_registry.get(_ma).stt if _ma else ""),
-        prefer_quality=False,
+        data, ten, mcfg, ngon_ngu=ngon, prefer_quality=False,
     )
 
 

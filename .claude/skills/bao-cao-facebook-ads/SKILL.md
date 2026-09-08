@@ -1,6 +1,7 @@
 ---
 name: Báo cáo Facebook Ads
 description: "Báo cáo Meta Ads đầy đủ số đo: spend, CTR, CPC, CPM, reach, campaign; diễn giải dễ hiểu."
+description_en: "Full Meta Ads report: spend, CTR, CPC, CPM, reach, campaigns; plain-language takeaways."
 group: Marketing
 ---
 

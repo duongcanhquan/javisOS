@@ -6,7 +6,9 @@ Bối cảnh (2026-09-05): mỗi push lên main chạy song song Deploy + Seed +
 trên cùng VPS, `docker compose up --build` tại chỗ (kèm Pixelle/Playwright), rồi Conflict
 tên container `/javis` và SSH timeout. Bốn chốt:
 
-1. Mọi workflow SSH vào VPS chung concurrency group, không huỷ job đang chạy.
+1. Workflow SSH vào VPS dùng concurrency group `vps-ssh` và không huỷ job đang chạy;
+   riêng `deploy-vps.yml` dùng group `vps-deploy` với `cancel-in-progress: true`
+   (tách khỏi hàng SSH khác, cho phép huỷ deploy cũ khi có deploy mới).
 2. Deploy VPS kéo image GHCR của CHÍNH repo, không `--build` mỗi push.
 3. Ép Pixelle=false TRƯỚC `docker compose up`, không đợi optimize.
 4. Deploy không còn trigger `push` song song với publish: chờ Docker image xanh.
@@ -60,14 +62,24 @@ def triggers(data):
 for name in SSH_WORKFLOWS:
     data = wf_data(name)
     conc = data.get("concurrency") or {}
-    check(
-        f"{name}: chung group vps-ssh",
-        conc.get("group") == "vps-ssh",
-    )
-    check(
-        f"{name}: không huỷ job SSH đang chạy (cancel-in-progress: false)",
-        conc.get("cancel-in-progress") is False,
-    )
+    if name == "deploy-vps.yml":
+        check(
+            f"{name}: group vps-deploy (tách khỏi hàng SSH khác)",
+            conc.get("group") == "vps-deploy",
+        )
+        check(
+            f"{name}: cancel-in-progress: true (huỷ deploy cũ khi có deploy mới)",
+            conc.get("cancel-in-progress") is True,
+        )
+    else:
+        check(
+            f"{name}: chung group vps-ssh",
+            conc.get("group") == "vps-ssh",
+        )
+        check(
+            f"{name}: không huỷ job SSH đang chạy (cancel-in-progress: false)",
+            conc.get("cancel-in-progress") is False,
+        )
 
 
 deploy_txt = wf("deploy-vps.yml")

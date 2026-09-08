@@ -304,7 +304,7 @@
         esc(f.topicPh) +
         '"></div>' +
         '<div class="jw-field"><label for="bgAudience">Đối tượng học</label>' +
-        '<input id="bgAudience" type="text" placeholder="VD: học sinh THCS, sinh viên năm 1"></div>' +
+        '<input id="bgAudience" type="text" placeholder="Ví dụ: học sinh THCS, sinh viên năm 1"></div>' +
         '<div class="jw-field"><label for="bgGoals">Mục tiêu học</label>' +
         '<textarea id="bgGoals" rows="3" placeholder="Sau buổi học, học viên…"></textarea></div>' +
         '<div class="jw-field"><label for="bgPaste">Dán giáo án / đề cương / kịch bản</label>' +
@@ -333,7 +333,7 @@
         '<p class="jw-brief-kicker">OpenMAIC trong Javis</p>' +
         '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt). Nếu nghe giọng Trung/ngọng: tạo lại lớp sau khi cập nhật Javis, hoặc xoá cache site OpenMAIC trong trình duyệt.</p>' +
         '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md (tuỳ chọn)</label>' +
-        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="exports/bai-giang/…/lop-hoc.md">' +
+        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="Ví dụ: exports/bai-giang/…/lop-hoc.md">' +
         '<p class="jw-hint">Để trống = tự lấy từ kết quả chạy. Có quiz.md cùng thư mục sẽ kèm theo.</p></div>' +
         '<details class="jw-om-adv"><summary>Tuỳ chọn nâng cao</summary>' +
         '<p class="jw-hint">Chỉ khi cần debug ngoài Javis.</p>' +

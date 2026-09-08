@@ -3813,7 +3813,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       : mainP.id === "copilot-cli" ? "GitHub Copilot CLI · MCP + skill + lệnh máy"
       : mainP.kind === "cli" ? "Claude Code · MCP + skill + lệnh máy"
       : mainP.kind === "oauth" ? "Codex · MCP + skill + lệnh máy"
-      : mainP.kind === "api" ? "API · MCP + skill (không lệnh máy)" : "";
+      : mainP.kind === "api" ? t("models.main_api") : "";
 
     el.innerHTML = `
       <div class="md-page">

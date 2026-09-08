@@ -71,12 +71,14 @@ check("mirror giữ nguyên byte của file nhị phân",
 check("KHÔNG mirror skill đã tắt", not (_ROOT / ".claude" / "skills" / "da-tat").exists())
 
 # ---- đổi references/ mà SKILL.md không đổi -> mirror PHẢI nhận (bug CÓ SẴN) ----
-(_SK / "references" / "chi-tiet.md").write_text("chi tiết v2\n", encoding="utf-8")
+# Nội dung phải ĐỔI ĐỘ DÀI: chữ ký mirror chỉ lấy (path, mtime_ns, size). "v1"/"v2" cùng
+# độ dài + FS làm tròn mtime trong cùng giây → chữ ký không đổi → bỏ qua copy (flake CI).
+(_SK / "references" / "chi-tiet.md").write_text("chi tiết v2 - ban moi\n", encoding="utf-8")
 system_sync.mirror_skills(_ROOT)
 try:
     actual = (_MIR / "references" / "chi-tiet.md").read_text(encoding="utf-8")
     check("đổi references/ (SKILL.md không đổi) -> mirror nhận bản mới",
-          actual == "chi tiết v2\n")
+          actual == "chi tiết v2 - ban moi\n")
 except FileNotFoundError:
     check("đổi references/ (SKILL.md không đổi) -> mirror nhận bản mới", False)
 

@@ -148,6 +148,15 @@ def _env(extra: dict | None = None) -> dict:
         if IS_WINDOWS:
             ung_vien.append(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "antigravity")
         parts = [p for p in (e.get("PATH", "") or "").split(os.pathsep) if p]
+        # Gỡ trùng (PATH shell có thể đã dán ~/.local/bin nhiều lần) rồi mới bù thiếu.
+        seen = set()
+        deduped = []
+        for p in parts:
+            if p in seen:
+                continue
+            seen.add(p)
+            deduped.append(p)
+        parts = deduped
         for d in ung_vien:
             ds = str(d)
             if d.is_dir() and ds not in parts:

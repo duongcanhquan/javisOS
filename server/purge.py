@@ -287,7 +287,7 @@ async def purge_connection(cid: str, *, mode: str = "trash", purge_audit: bool =
             bao_cao["ok"] = False
             bao_cao.setdefault("errors", []).append(f"{ten}: {e}")
 
-    if bao_cao.get("ok") and mcp_store.get_connection(cid):
+    if bao_cao.get("ok") and "store" not in bao_cao.get("removed", []) and mcp_store.get_connection(cid):
         bao_cao["ok"] = False
         bao_cao.setdefault("errors", []).append("store: kết nối vẫn còn sau khi xoá")
 
