@@ -4,13 +4,17 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.143] - 2026-09-08
+### Sửa lỗi
+- **OpenMAIC generate hết lỗi model 2.5-flash:** mặc định đổi sang `google:gemini-3.6-flash` (Google đã ngừng 2.5 với tài khoản mới).
+
+## [0.55.142] - 2026-09-08
+### Sửa lỗi
+- **OpenMAIC path sai chính tả:** nếu gõ `marketign` thay vì `marketing`, tự thử path đúng và gợi ý các `lop-hoc.md` gần nhất khi 404.
+
 ## [0.55.141] - 2026-09-08
 ### Sửa lỗi
-<<<<<<< HEAD
 - **Deploy OpenMAIC đỏ dù đã dán Gemini ở Models:** giữ khóa đọc key đã ổn (`-i` + `STATE_DIR` + `PYTHONPATH`), thêm fallback `.env.local` và test hợp đồng chống regress.
-=======
-- **OpenMAIC path sai chính tả:** nếu gõ `marketign` thay vì `marketing`, tự thử path đúng và gợi ý các `lop-hoc.md` gần nhất khi 404.
->>>>>>> b2e8aa6 (0.55.141: fix OpenMAIC path typo marketign→marketing.)
 
 ## [0.55.140] - 2026-09-08
 ### Sửa lỗi
