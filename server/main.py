@@ -11756,38 +11756,44 @@ async def openmaic_health():
         }
 
 
-def _openmaic_suggest_lop_hoc_paths(brain: str, wanted: str, limit: int = 5) -> str:
-    """Gợi ý path lop-hoc.md gần đúng khi 404 (typo slug / nhầm brain)."""
-    wanted_l = (wanted or "").lower()
-    needle = Path(wanted_l).name
-    parent_hint = Path(wanted_l).parent.name if "/" in wanted_l else ""
-    found: list[str] = []
+def _openmaic_score_lop_hoc_candidates(
+    wanted: str, candidates: list[str]
+) -> list[tuple[int, str]]:
+    from openmaic_paths import score_lop_hoc_candidates
+
+    return score_lop_hoc_candidates(wanted, candidates)
+
+
+def _openmaic_pick_best_lop_hoc(wanted: str, candidates: list[str]) -> str | None:
+    from openmaic_paths import pick_best_lop_hoc
+
+    return pick_best_lop_hoc(wanted, candidates)
+
+
+def _openmaic_list_lop_hoc_paths(brain: str) -> list[str]:
     try:
         broot = Path(_brain_root(brain)).resolve()
         root = broot / "exports" / "bai-giang"
         if not root.is_dir():
-            return ""
+            return []
+        out: list[str] = []
         for p in sorted(root.rglob("lop-hoc.md")):
             try:
-                rel = str(p.relative_to(broot)).replace("\\", "/")
+                out.append(str(p.relative_to(broot)).replace("\\", "/"))
             except ValueError:
                 continue
-            low = rel.lower()
-            score = 0
-            if needle and needle in low:
-                score += 2
-            if parent_hint and parent_hint in low:
-                score += 3
-            # Typo thường gặp
-            if "marketing" in low and "marketign" in wanted_l:
-                score += 4
-            if score or low.endswith("/lop-hoc.md"):
-                found.append((score, rel))
-        found.sort(key=lambda x: (-x[0], x[1]))
-        picks = [r for s, r in found if s > 0][:limit] or [r for _, r in found[:limit]]
-        return ", ".join(picks)
+        return out
     except Exception:
-        return ""
+        return []
+
+
+def _openmaic_suggest_lop_hoc_paths(brain: str, wanted: str, limit: int = 5) -> str:
+    """Gợi ý path lop-hoc.md gần đúng khi 404 (typo slug / nhầm brain)."""
+    ranked = _openmaic_score_lop_hoc_candidates(
+        wanted, _openmaic_list_lop_hoc_paths(brain)
+    )
+    picks = [r for s, r in ranked if s > 0][:limit] or [r for _, r in ranked[:limit]]
+    return ", ".join(picks)
 
 
 @app.post("/openmaic/generate")
@@ -11808,6 +11814,7 @@ async def openmaic_generate(
     main_md = (requirement or "").strip()
     quiz_md = ""
     used_path = (path or "").strip().replace("\\", "/").lstrip("/")
+    path_autofixed = False
     if used_path:
         try:
             p = _safe_serve_path(brain, used_path)
@@ -11822,6 +11829,21 @@ async def openmaic_generate(
                     if cand.is_file():
                         used_path = alt
                         p = cand
+                        path_autofixed = True
+                except ValueError:
+                    pass
+        if not p.is_file():
+            # Slug thiếu tiền tố: marketing-thuc-chien → digital-marketing-thuc-chien
+            pick = _openmaic_pick_best_lop_hoc(
+                used_path, _openmaic_list_lop_hoc_paths(brain)
+            )
+            if pick and pick != used_path:
+                try:
+                    cand = _safe_serve_path(brain, pick)
+                    if cand.is_file():
+                        used_path = pick
+                        p = cand
+                        path_autofixed = True
                 except ValueError:
                     pass
         if not p.is_file():
@@ -11915,6 +11937,7 @@ async def openmaic_generate(
         "pollUrl": poll_path,
         "pollIntervalMs": int((data or {}).get("pollIntervalMs") or 5000),
         "path": used_path,
+        "pathAutofixed": path_autofixed,
         "language": "en-US",
         "enableTTS": bool(body.get("enableTTS")),
         "base_url": base,

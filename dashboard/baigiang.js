@@ -497,10 +497,27 @@
             "generate thất bại (HTTP " + res.status + ")";
           if (typeof err === "object") err = JSON.stringify(err);
           appendLog("ERROR: " + err);
+          // Gợi ý path: điền ô path để user sửa / bấm lại
+          var hintM = String(err).match(/Gợi ý gần đúng:\s*([^\n]+)/i);
+          if (hintM) {
+            var firstHint = hintM[1].split(",")[0].trim();
+            var pathField = root.querySelector("#bgOmPath");
+            if (pathField && firstHint) {
+              pathField.value = firstHint;
+              lastLopHocPath = firstHint;
+              appendLog("Đã điền path gợi ý: " + firstHint + " — bấm lại «Tạo lớp OpenMAIC».");
+            }
+          }
           setStatus(String(err), false);
           omGenerating = false;
           showOmStage(true);
           return;
+        }
+        if (r.path && r.path !== path) {
+          lastLopHocPath = r.path;
+          var pf = root.querySelector("#bgOmPath");
+          if (pf) pf.value = r.path;
+          appendLog("Đã sửa path → " + r.path);
         }
         appendLog(
           "jobId: " +
