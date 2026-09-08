@@ -4,6 +4,14 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.153] - 2026-09-08
+### Cải tiến
+- **OpenMAIC như giảng viên:** prompt generate + agent lớp học ép script 45-90s (mở → giảng → ví dụ → takeaway), không nén kiến thức đầy đủ thành vài câu.
+
+## [0.55.152] - 2026-09-08
+### Cải tiến
+- **OpenMAIC slide đầy hơn:** bật sinh ảnh khi server hỗ trợ; prompt ép 8-15 cảnh + layout/biểu đồ; UI cảnh báo lớp mỏng.
+
 ## [0.55.151] - 2026-09-08
 ### Sửa lỗi
 - **CI route table sau OpenMAIC LLM:** chụp lại `GET/POST /openmaic/llm`.

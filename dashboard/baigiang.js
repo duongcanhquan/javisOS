@@ -635,8 +635,17 @@
             " | language=" +
             (r.language || "en-US") +
             " | TTS=" +
-            !!r.enableTTS
+            !!r.enableTTS +
+            " | img=" +
+            !!r.enableImageGeneration +
+            " | web=" +
+            !!r.enableWebSearch
         );
+        if (r.capabilities && r.capabilities.imageGeneration === false) {
+          appendLog(
+            "CẢNH BÁO: OpenMAIC chưa bật imageGeneration (thiếu provider ảnh) → slide dễ thiếu hình/biểu đồ."
+          );
+        }
         setStatus("OpenMAIC đang tạo lớp… (" + (r.status || "queued") + ")");
         pollOpenmaicJob(r.jobId, Math.max(4000, Number(r.pollIntervalMs) || 5000));
       } catch (e) {
@@ -650,7 +659,8 @@
     function pollOpenmaicJob(jobId, intervalMs) {
       stopOmPoll();
       var tries = 0;
-      var maxTries = 120;
+      // 15 cảnh + TTS có thể > 10 phút
+      var maxTries = 240;
       function tick() {
         tries += 1;
         fetch("/openmaic/jobs/" + encodeURIComponent(jobId))
@@ -661,10 +671,16 @@
             if (!data) throw new Error("poll trống");
             var st = data.status || "";
             var step = data.step || "";
-            if (tries === 1 || tries % 3 === 0) {
-              appendLog("[openmaic] " + st + (step ? " / " + step : ""));
+            var prog = "";
+            if (data.scenesGenerated != null && data.totalScenes != null) {
+              prog = " scenes " + data.scenesGenerated + "/" + data.totalScenes;
+            } else if (data.scenesCount != null) {
+              prog = " scenes=" + data.scenesCount;
             }
-            setStatus("OpenMAIC: " + st + (step ? " — " + step : "") + " (" + tries + ")");
+            if (tries === 1 || tries % 3 === 0) {
+              appendLog("[openmaic] " + st + (step ? " / " + step : "") + prog);
+            }
+            setStatus("OpenMAIC: " + st + (step ? " — " + step : "") + prog + " (" + tries + ")");
             if (data.failed || String(st).toLowerCase() === "failed") {
               omGenerating = false;
               appendLog("ERROR: " + (data.error || data.message || "generate failed"));
@@ -679,7 +695,25 @@
               "";
             if (data.done && url) {
               omGenerating = false;
-              appendLog("Classroom URL:\n" + url);
+              var sc = data.scenesCount;
+              appendLog(
+                "Classroom URL:\n" +
+                  url +
+                  (sc != null ? "\nscenesCount: " + sc : "")
+              );
+              if (data.thinClassroom || (typeof sc === "number" && sc < 3)) {
+                appendLog(
+                  "CẢNH BÁO: chỉ " +
+                    (sc != null ? sc : "?") +
+                    " scene — thường là slide chào. " +
+                    (data.warning ||
+                      "Kiểm tra lop-hoc.md (cần outline 8-15 cảnh + script) và thử model mạnh hơn OpenAI (vd. gpt-4o).")
+                );
+                setStatus(
+                  "Lớp chỉ có " + (sc != null ? sc : "ít") + " scene — xem cảnh báo trong log.",
+                  false
+                );
+              }
               showOmIframe(url);
               return;
             }

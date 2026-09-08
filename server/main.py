@@ -8553,7 +8553,10 @@ def seed_bai_giang(brain: str) -> dict:
             "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tạo OpenMAIC ngay trong Javis.",
             (
                 "# Bài giảng lớp học\n\n"
-                "Outline 8-15 cảnh + quiz + PBL + script tiếng Việt. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
+                "Chuẩn đầu ra: như giảng viên đang dạy (giới thiệu → giảng → ví dụ → takeaway), "
+                "không phải vài dòng slogan.\n"
+                "Outline 8-15 cảnh + quiz + PBL + script tiếng Việt 45-90s/cảnh (đủ chi tiết từ nguồn).\n"
+                "Mỗi cảnh: mục tiêu, visual, script đầy đủ. Lưu exports/bai-giang/<slug>/lop-hoc.md.\n"
                 "Handoff: trong Javis bấm «Tạo lớp OpenMAIC» (language=en-US + nội dung VI + TTS Edge). "
                 "Không Live Demo / mở domain riêng.\n"
             ),
@@ -8624,15 +8627,16 @@ def seed_bai_giang(brain: str) -> dict:
             "role": "Biên soạn gói lớp học tương tác từ nghiên cứu: cảnh, quiz, script.",
             "skills": ["bai-giang-lop-hoc", "tao-bai-giang", "deep-research"],
             "prompt": (
-                "Bạn thiết kế lớp học tương tác (Gemini). Nạp skill bai-giang-lop-hoc.\n"
-                "Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
-                "Tạo outline 8-15 cảnh, quiz 4-8 câu, 1 PBL ngắn, script giảng từng cảnh "
-                "(tiếng Việt dấu đầy đủ; không Pinyin/chữ Hán).\n"
-                "Ghi file exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md trong vault.\n"
-                "Cuối: nhắc user bấm «Tạo lớp OpenMAIC» NGAY TRONG Javis (Việc → Bài giảng). "
-                "Không mở domain openmaic / Live Demo. "
-                "API dùng language=en-US + nội dung VI + TTS Edge (tránh fallback zh-CN).\n"
-                "Không em dash."
+                "Bạn thiết kế lớp học tương tác như GIẢNG VIÊN đang dạy (không phải tóm tắt bullet).\n"
+                "Nạp skill bai-giang-lop-hoc. Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
+                "Tạo outline 8-15 cảnh. Mỗi cảnh dạy phải có trong lop-hoc.md:\n"
+                "- mục tiêu cảnh + visual (layout / biểu đồ / ảnh)\n"
+                "- script giảng 45-90 giây: mở → giải thích → ví dụ → lỗi hay gặp → takeaway → nối cảnh sau\n"
+                "- dùng ĐỦ kiến thức nguồn; cấm nén thành 1-2 câu slogan\n"
+                "Thêm quiz 4-8 câu + 1 PBL ngắn. Script tiếng Việt dấu đầy đủ (không Pinyin/chữ Hán).\n"
+                "Ghi exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md.\n"
+                "Cuối: nhắc bấm «Tạo lớp OpenMAIC» trong Javis (không Live Demo / domain riêng).\n"
+                "API: language=en-US + nội dung VI + TTS Edge. Không em dash."
             ),
         },
         {
@@ -11707,22 +11711,65 @@ def _openmaic_rewrite_classroom_urls(payload: dict) -> dict:
 
 
 def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> str:
+    """Prompt cho OpenMAIC generate-classroom.
+
+    Mục tiêu UX: lớp như GIẢNG VIÊN đang dạy (giới thiệu → giảng → ví dụ → chuyển cảnh),
+    có TTS dài, không phải vài dòng slogan. OpenMAIC tự outline từ `requirement` nên
+    prompt phải ép độ dày + map đủ cảnh từ lop-hoc.md.
+    """
     parts = [
-        "Tạo classroom interactive mới từ giáo án dưới đây.",
-        "Toàn bộ nội dung giảng, slide text, quiz, script phải bằng tiếng Việt (dấu đầy đủ).",
-        "Không dùng chữ Hán, không Pinyin, không trộn tiếng Trung.",
-        "Giọng đọc: server TTS OpenAI-compatible (Edge tiếng Việt Hoài My/Nam Minh). "
-        "CẤM Browser Native, CẤM Doubao/Qwen/giọng zh-*.",
+        "You are producing a FULL OpenMAIC interactive classroom as if a skilled LECTURER "
+        "is teaching live: warm intro, clear explanation, examples, checks for understanding, "
+        "and smooth transitions — with spoken narration on every teaching scene.",
+        "",
+        "SOURCE MATERIAL RULE:",
+        "- The lesson plan below is the FULL knowledge base. EXPAND it into teaching talk.",
+        "- Do NOT compress rich source text into 1-2 slogans. If the plan has detail, KEEP and TEACH it.",
+        "- If a section is dense, split into multiple scenes rather than summarizing away.",
+        "",
+        "HARD REQUIREMENTS (must follow):",
+        "1) Produce MANY scenes: minimum 8, target 10-15 scenes. NEVER return only a welcome/intro slide.",
+        "2) Map each major section / numbered scene / learning objective in the lesson plan to its OWN scene.",
+        "3) Scene mix: slides + at least 1 quiz scene + optional interactive/PBL if the plan has them.",
+        "4) Spoken scripts and on-slide text MUST be Vietnamese with full diacritics.",
+        "5) Do NOT use Chinese characters, Pinyin, or zh-* voices.",
+        "6) Voice: server TTS OpenAI-compatible (Edge Vietnamese). No Browser Native / Doubao / Qwen zh.",
+        "7) If the plan already lists scene titles or scripts, KEEP that structure and expand each into a full scene.",
+        "",
+        "LECTURE FLOW PER TEACHING SCENE (critical):",
+        "8) Structure spoken script like a real teacher (45-90 seconds):",
+        "   (a) hook / bridge from previous scene",
+        "   (b) explain the idea in plain Vietnamese (definition + why it matters)",
+        "   (c) 1-2 concrete examples or mini-cases from the source material",
+        "   (d) common mistake or contrast",
+        "   (e) one takeaway + bridge to the next scene",
+        "9) Forbidden thin output: one-liner slogans, empty welcome-only copy,",
+        "   'see next slide' without teaching, or dropping examples that exist in the plan.",
+        "10) On-slide text: clear hierarchy (title + 3-6 bullets or short paragraphs).",
+        "    Slides support the talk; they are not the only content.",
+        "",
+        "VISUAL DESIGN:",
+        "11) Vary layouts: title+visual, two-column compare, process steps, timeline,",
+        "    key-stat callout, diagram-with-labels.",
+        "12) Include charts/diagrams where numbers or relationships matter; labels in Vietnamese.",
+        "13) When image generation is enabled, request relevant illustrative images for key scenes.",
+        "14) Welcome (if any) is ONLY scene 1 and must state learning outcomes; then teach.",
+        "",
     ]
     if topic:
-        parts.append(f"Chủ đề: {topic.strip()}")
-    parts.append("")
-    parts.append("--- Giáo án (lop-hoc.md) ---")
-    parts.append(main_md.strip() or "(trống)")
+        parts.append(f"Course topic: {topic.strip()}")
+        parts.append("")
+    parts.append("--- LESSON PLAN (lop-hoc.md) — expand ALL of this into lecturer-quality scenes ---")
+    parts.append(main_md.strip() or "(empty)")
     if quiz_md and quiz_md.strip():
         parts.append("")
-        parts.append("--- Quiz (quiz.md) ---")
+        parts.append("--- QUIZ (quiz.md) — turn into quiz scene(s) with brief spoken feedback ---")
         parts.append(quiz_md.strip())
+    parts.append("")
+    parts.append(
+        "Final check: if scripts are shorter than ~45s of real teaching, or you only made a "
+        "welcome scene, that is WRONG — expand from the lesson plan into 8+ full teaching scenes."
+    )
     return "\n".join(parts)
 
 
@@ -11939,9 +11986,19 @@ async def openmaic_generate(
         "requirement": req_text,
         # Bắt buộc en-US (không vi / zh) — tránh fallback zh-CN của API.
         "language": "en-US",
+        # Agent profiles theo nội dung khóa → lớp đầy đủ hơn (không chỉ default welcome).
+        "agentMode": "generate",
     }
     if want_tts and caps.get("tts") is True:
         body["enableTTS"] = True
+    if caps.get("webSearch") is True:
+        body["enableWebSearch"] = True
+    # Ảnh/biểu đồ trong classroom OpenMAIC: chỉ chạy phase media khi bật cờ này.
+    # Trước đây Javis chỉ bật TTS → slide dễ trống hình so với UI OpenMAIC đầy đủ.
+    if caps.get("imageGeneration") is True:
+        body["enableImageGeneration"] = True
+    if caps.get("videoGeneration") is True:
+        body["enableVideoGeneration"] = True
 
     # X-Forwarded-Host/Proto = OPENMAIC_PUBLIC_URL để audioUrl không bị gắn
     # host.docker.internal (trình duyệt tải MP3 Edge được → hết fallback giọng Trung).
@@ -11987,6 +12044,17 @@ async def openmaic_generate(
         "pathAutofixed": path_autofixed,
         "language": "en-US",
         "enableTTS": bool(body.get("enableTTS")),
+        "enableImageGeneration": bool(body.get("enableImageGeneration")),
+        "enableVideoGeneration": bool(body.get("enableVideoGeneration")),
+        "enableWebSearch": bool(body.get("enableWebSearch")),
+        "agentMode": body.get("agentMode") or "generate",
+        "requirementChars": len(req_text),
+        "capabilities": {
+            "tts": caps.get("tts"),
+            "webSearch": caps.get("webSearch"),
+            "imageGeneration": caps.get("imageGeneration"),
+            "videoGeneration": caps.get("videoGeneration"),
+        },
         "base_url": base,
         "public_url": _openmaic_public_url(),
     }
@@ -12026,9 +12094,32 @@ async def openmaic_job_status(job_id: str):
     out["ok"] = r.status_code == 200
     out["status_code"] = r.status_code
     out["jobId"] = jid
+    # Bề mặt số scene để UI cảnh báo nếu chỉ còn 1 slide Welcome.
+    result = out.get("result") if isinstance(out.get("result"), dict) else {}
+    scenes_count = (
+        result.get("scenesCount")
+        or result.get("scenes_count")
+        or (len(result.get("scenes") or []) if isinstance(result.get("scenes"), list) else None)
+        or out.get("scenesCount")
+        or out.get("scenesGenerated")
+        or out.get("totalScenes")
+    )
+    if scenes_count is not None:
+        try:
+            out["scenesCount"] = int(scenes_count)
+        except (TypeError, ValueError):
+            pass
     st = str(out.get("status") or "").lower()
     if st in ("succeeded", "success", "done", "completed") and out.get("classroomUrl"):
         out["done"] = True
+        sc = out.get("scenesCount")
+        if isinstance(sc, int) and sc < 3:
+            out["thinClassroom"] = True
+            out["warning"] = (
+                f"Classroom chỉ có {sc} scene (thường là slide chào). "
+                "Nên tạo lại: kiểm tra lop-hoc.md đủ 8-15 cảnh/script, "
+                "và dùng model mạnh hơn (không nên gpt-4o-mini nếu hay ra 1 slide)."
+            )
     elif st in ("failed", "error"):
         out["done"] = True
         out["failed"] = True
