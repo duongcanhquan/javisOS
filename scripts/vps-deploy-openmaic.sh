@@ -14,7 +14,7 @@ JAVIS_TTS_PORT="${JAVIS_TTS_PORT:-7777}"
 OPENMAIC_BUILD="${OPENMAIC_BUILD:-0}"
 # 0 = bắt buộc có Gemini/Google key (generate classroom cần). 1 = vẫn lên khi thiếu key.
 OPENMAIC_ALLOW_NO_KEY="${OPENMAIC_ALLOW_NO_KEY:-0}"
-# 1 = chỉ cập nhật GOOGLE_API_KEY trong .env.local + restart (không pull/rebuild).
+# 1 = chỉ cập nhật GOOGLE_API_KEY + DEFAULT_MODEL + recreate container (không pull/rebuild full).
 OPENMAIC_SYNC_KEY_ONLY="${OPENMAIC_SYNC_KEY_ONLY:-0}"
 
 echo "==> OpenMAIC dir: $OPENMAIC_DIR (BUILD=$OPENMAIC_BUILD)"
@@ -156,26 +156,56 @@ path.chmod(0o600)
 print("updated", path, "key_len=", len(key), "model=google:gemini-3.6-flash")
 PY
   unset _OM_KEY
-  # server-providers.yml nếu có DEFAULT_MODEL
+  # server-providers.yml: ép defaultModel (ưu tiên hơn env trong một số bản OpenMAIC)
   SP="$OPENMAIC_DIR/server-providers.yml"
   if [ -f "$SP" ]; then
     if grep -q 'gemini-2.5-flash' "$SP" 2>/dev/null; then
       sed -i.bak 's/gemini-2.5-flash/gemini-3.6-flash/g' "$SP" && rm -f "$SP.bak"
       echo "==> Đã thay gemini-2.5-flash → 3.6-flash trong server-providers.yml"
     fi
+    if ! grep -qE '^[[:space:]]*defaultModel:' "$SP" 2>/dev/null; then
+      printf '\ndefaultModel: "google:gemini-3.6-flash"\n' >> "$SP"
+      echo "==> Thêm defaultModel vào server-providers.yml"
+    else
+      sed -i.bak -E 's|^([[:space:]]*defaultModel:).*|\1 "google:gemini-3.6-flash"|' "$SP" && rm -f "$SP.bak"
+    fi
   fi
-  if docker ps --format '{{.Names}}' | grep -qx openmaic; then
-    echo "==> Restart container openmaic"
-    docker restart openmaic
-  elif [ -f "$OPENMAIC_DIR/docker-compose.yml" ]; then
-    (cd "$OPENMAIC_DIR" && docker compose up -d openmaic) || true
+  # QUAN TRỌNG: docker restart KHÔNG đọc lại --env-file. Phải recreate.
+  # QUAN TRỌNG: docker restart KHÔNG đọc lại --env-file. Phải recreate.
+  echo "==> Recreate container openmaic (nạp lại --env-file + model mới)"
+  IMG="$(docker inspect openmaic --format '{{.Config.Image}}' 2>/dev/null || true)"
+  if [ -z "$IMG" ]; then
+    IMG="devprincekumar/openmaic:latest"
+  fi
+  docker rm -f openmaic 2>/dev/null || true
+  if [ -f "$OPENMAIC_DIR/docker-compose.yml" ] && grep -q 'openmaic:' "$OPENMAIC_DIR/docker-compose.yml" 2>/dev/null \
+    && [ "${OPENMAIC_BUILD:-0}" = "1" ]; then
+    (cd "$OPENMAIC_DIR" && docker compose up -d --force-recreate openmaic) || true
   else
-    echo "WARN: không thấy container openmaic — chạy full deploy."
+    docker pull "$IMG" >/dev/null 2>&1 || true
+    if [ -f "$SP" ]; then
+      docker run -d --name openmaic --restart unless-stopped \
+        -p "${OPENMAIC_PORT}:3000" \
+        --add-host=host.docker.internal:host-gateway \
+        --env-file "$ENV_FILE" \
+        -v openmaic_data:/app/data \
+        -v "$SP:/app/server-providers.yml:ro" \
+        "$IMG"
+    else
+      docker run -d --name openmaic --restart unless-stopped \
+        -p "${OPENMAIC_PORT}:3000" \
+        --add-host=host.docker.internal:host-gateway \
+        --env-file "$ENV_FILE" \
+        -v openmaic_data:/app/data \
+        "$IMG"
+    fi
   fi
-  sleep 3
+  sleep 4
+  echo "==> Env trong container:"
+  docker exec openmaic sh -c 'echo DEFAULT_MODEL=$DEFAULT_MODEL; echo DEFAULT_PROVIDER=$DEFAULT_PROVIDER' 2>/dev/null || true
   curl -fsS "http://127.0.0.1:${OPENMAIC_PORT}/api/health" || true
   echo
-  echo "==> XONG sync key+model (gemini-3.6-flash). Chạy lại generate trên Javis."
+  echo "==> XONG sync key+model (gemini-3.6-flash, container recreated). Chạy lại generate trên Javis."
   exit 0
 fi
 

@@ -86,15 +86,11 @@ jobs:
             export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
             export OPENMAIC_ALLOW_NO_KEY=0
             bash "$DIR/scripts/vps-deploy-openmaic.sh"
-            # Đảm bảo model mới (kể cả khi .env cũ còn 2.5-flash)
+            # Xác nhận model trong file + trong process container (restart không đủ — recreate ở script)
             ENV_FILE="${OPENMAIC_DIR}/.env.local"
             if [ -f "$ENV_FILE" ]; then
-              if grep -q 'gemini-2.5-flash' "$ENV_FILE" 2>/dev/null; then
-                sed -i 's/gemini-2.5-flash/gemini-3.6-flash/g' "$ENV_FILE"
-                echo "==> Patched DEFAULT_MODEL → gemini-3.6-flash"
-                docker restart openmaic 2>/dev/null || true
-                sleep 2
-              fi
               echo "==> .env.local model lines:"
               grep -E '^(DEFAULT_MODEL|DEFAULT_PROVIDER|GOOGLE_API_KEY)=' "$ENV_FILE" | sed 's/GOOGLE_API_KEY=.*/GOOGLE_API_KEY=***/' || true
             fi
+            echo "==> Container DEFAULT_MODEL:"
+            docker exec openmaic sh -c 'echo DEFAULT_MODEL=$DEFAULT_MODEL' 2>/dev/null || echo "(no container)"

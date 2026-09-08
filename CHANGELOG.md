@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.145] - 2026-09-08
+### Sửa lỗi
+- **OpenMAIC vẫn gọi gemini-2.5 dù đã đổi .env:** sync key giờ recreate container (restart không nạp lại `--env-file`).
+
 ## [0.55.144] - 2026-09-08
 ### Sửa lỗi
 - **Thông báo OpenMAIC path typo:** bỏ dấu gạch dài trong câu gợi ý 404 (TTS/CLAUDE.md).
