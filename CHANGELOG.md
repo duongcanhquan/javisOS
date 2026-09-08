@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.144] - 2026-09-08
+### Sửa lỗi
+- **Thông báo OpenMAIC path typo:** bỏ dấu gạch dài trong câu gợi ý 404 (TTS/CLAUDE.md).
+
 ## [0.55.143] - 2026-09-08
 ### Sửa lỗi
 - **OpenMAIC generate hết lỗi model 2.5-flash:** mặc định đổi sang `google:gemini-3.6-flash` (Google đã ngừng 2.5 với tài khoản mới).
