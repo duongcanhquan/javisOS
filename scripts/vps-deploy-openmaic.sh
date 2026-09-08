@@ -173,6 +173,28 @@ if [ "$OPENMAIC_SYNC_KEY_ONLY" = "1" ]; then
   fi
   JC="$(find_javis_container)"
   echo "==> Đọc openmaic_llm.json + API key từ Javis ($JC)"
+  # Ép provider từ env (vd. OPENMAIC_FORCE_PROVIDER=openai) khi cần.
+  if [ -n "${OPENMAIC_FORCE_PROVIDER:-}" ] && [ -n "$JC" ]; then
+    _fp="$(echo "$OPENMAIC_FORCE_PROVIDER" | tr '[:upper:]' '[:lower:]')"
+    _fm="${OPENMAIC_FORCE_MODEL:-}"
+    case "$_fp" in
+      openai) _fm="${_fm:-gpt-4o-mini}" ;;
+      deepseek) _fm="${_fm:-deepseek-chat}" ;;
+      google|gemini) _fp=google; _fm="${_fm:-gemini-3.6-flash}" ;;
+      *) _fp="" ;;
+    esac
+    if [ -n "$_fp" ]; then
+      echo "==> FORCE provider=$_fp model=$_fm → openmaic_llm.json"
+      docker exec -i "$JC" env FP="$_fp" FM="$_fm" python3 -c '
+import json, os
+from pathlib import Path
+p = Path("/data/state/openmaic_llm.json")
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(json.dumps({"provider": os.environ["FP"], "model": os.environ["FM"], "updated": "force"}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print("wrote", p)
+' || true
+    fi
+  fi
   export OPENMAIC_DIR
   export _OM_JC="$JC"
   # shellcheck disable=SC2016
