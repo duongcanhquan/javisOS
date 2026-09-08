@@ -15,11 +15,9 @@ on:
         required: true
         default: "0"
       sync_key_only:
-        description: "Chỉ sync Gemini key vào OpenMAIC + restart (1) hay full deploy (0)"
+        description: "Chỉ sync Gemini key+model vào OpenMAIC + restart (1) hay full deploy (0)"
         required: true
         default: "0"
-  # Agent cloud không có quyền workflow_dispatch (403). Push các file dưới đây lên main
-  # sẽ tự chạy deploy (mặc định domain + BUILD=0).
   push:
     branches: [main]
     paths:
@@ -41,6 +39,16 @@ jobs:
       - name: Checkout javisOS (script deploy)
         uses: actions/checkout@v4
 
+      - name: Upload deploy script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/vps-deploy-openmaic.sh"
+          target: "/tmp/javis-openmaic-deploy/"
+          strip_components: 1
+
       - name: Deploy OpenMAIC over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -58,19 +66,35 @@ jobs:
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
-            # Đảm bảo repo javis có script mới nhất
-            if [ -d "$DIR/.git" ]; then
+            mkdir -p "$DIR/scripts"
+            # Script từ Actions runner (không phụ thuộc git trên VPS bị kẹt SHA cũ)
+            if [ -f /tmp/javis-openmaic-deploy/vps-deploy-openmaic.sh ]; then
+              cp -f /tmp/javis-openmaic-deploy/vps-deploy-openmaic.sh "$DIR/scripts/vps-deploy-openmaic.sh"
+              echo "==> Đã copy script từ Actions → $DIR/scripts/vps-deploy-openmaic.sh"
+            elif [ -d "$DIR/.git" ]; then
               cd "$DIR"
-              git fetch origin main 2>/dev/null || true
-              git reset --hard origin/main 2>/dev/null || true
+              git fetch --depth 50 origin main || git fetch origin main || true
+              git reset --hard origin/main || true
+              echo "==> VPS git HEAD: $(git log -1 --oneline 2>/dev/null || echo unknown)"
             fi
             if [ ! -f "$DIR/scripts/vps-deploy-openmaic.sh" ]; then
-              echo "ERROR: thiếu $DIR/scripts/vps-deploy-openmaic.sh — push script lên main trước."
+              echo "ERROR: thiếu $DIR/scripts/vps-deploy-openmaic.sh"
               exit 1
             fi
             chmod +x "$DIR/scripts/vps-deploy-openmaic.sh"
             export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD OPENMAIC_SYNC_KEY_ONLY
             export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
-            # Generate classroom bắt buộc có Gemini key — không ALLOW_NO_KEY nữa.
             export OPENMAIC_ALLOW_NO_KEY=0
             bash "$DIR/scripts/vps-deploy-openmaic.sh"
+            # Đảm bảo model mới (kể cả khi .env cũ còn 2.5-flash)
+            ENV_FILE="${OPENMAIC_DIR}/.env.local"
+            if [ -f "$ENV_FILE" ]; then
+              if grep -q 'gemini-2.5-flash' "$ENV_FILE" 2>/dev/null; then
+                sed -i 's/gemini-2.5-flash/gemini-3.6-flash/g' "$ENV_FILE"
+                echo "==> Patched DEFAULT_MODEL → gemini-3.6-flash"
+                docker restart openmaic 2>/dev/null || true
+                sleep 2
+              fi
+              echo "==> .env.local model lines:"
+              grep -E '^(DEFAULT_MODEL|DEFAULT_PROVIDER|GOOGLE_API_KEY)=' "$ENV_FILE" | sed 's/GOOGLE_API_KEY=.*/GOOGLE_API_KEY=***/' || true
+            fi
