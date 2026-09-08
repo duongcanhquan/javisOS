@@ -124,7 +124,7 @@ def main() -> None:
     # newline="\n": cả repo dùng LF. Trên Windows, Python ở text mode tự đổi \n
     # thành \r\n, làm diff thành "cả file thay đổi" và che mất sửa đổi thật.
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    OUT.write_text("\n".join(lines), encoding="utf-8")
     size = OUT.stat().st_size
     print(f"\nĐã ghi {OUT.relative_to(ROOT)} - {len(names)} icon, {size / 1024:.1f}KB.")
 
@@ -143,7 +143,7 @@ def main() -> None:
         css.append(f"  --ic-{name}: {data_uri(icons[name])};")
     css.append("}")
     css.append("")
-    OUT_CSS.write_text("\n".join(css), encoding="utf-8", newline="\n")
+    OUT_CSS.write_text("\n".join(css), encoding="utf-8")
     print(f"Đã ghi {OUT_CSS.relative_to(ROOT)} - {len(css_vars)} biến CSS, "
           f"{OUT_CSS.stat().st_size / 1024:.1f}KB.")
 

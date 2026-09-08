@@ -21,6 +21,8 @@
   "page.skills.sub": "Kỹ năng khả dụng",
   "page.files.label": "Tệp tin",
   "page.files.sub": "Duyệt · sửa · tải file trong brain",
+  "page.drive.label": "Kho Drive",
+  "page.drive.sub": "Sync Google Drive (rclone) → Second Brain · Dự án chat",
   "page.terminal.label": "Terminal",
   "page.terminal.sub": "Dòng lệnh chạy thẳng trên máy đang chạy Javis",
   "page.selfimprove.label": "Việc định kỳ",

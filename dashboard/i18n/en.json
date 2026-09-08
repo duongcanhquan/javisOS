@@ -21,6 +21,8 @@
   "page.skills.sub": "Available skills",
   "page.files.label": "Files",
   "page.files.sub": "Browse · edit · upload files in the brain",
+  "page.drive.label": "Drive library",
+  "page.drive.sub": "Sync Google Drive (rclone) into Second Brain · chat project",
   "page.terminal.label": "Terminal",
   "page.terminal.sub": "A real shell on the machine running Javis",
   "page.selfimprove.label": "Scheduled",

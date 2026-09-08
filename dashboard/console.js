@@ -31,6 +31,7 @@
     chatbots: "headset",
     skills: "puzzle",
     files: "folder-tree",
+    drive: "hard-drive",
     selfimprove: "repeat",
     learn: "brain",
     meetings: "mic",
@@ -82,7 +83,7 @@
   // Nhãn rail lấy từ TỪ ĐIỂN (thư mục dashboard/i18n) chứ không viết cứng. `t()` suy biến về
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
-    "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files",
+    "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
     "terminal", "selfimprove", "learn", "meetings", "baigiang", "marketing", "kanban", "models", "channels", "mcp", "plugins",
     "packs", "logs", "account", "usage",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
@@ -92,7 +93,7 @@
   // Thứ tự & thành viên đổi ở đây; RAIL_ITEMS vẫn là nguồn icon/label + tra cứu cho go().
   const RAIL_GROUPS = [
     { get label() { return t("nav.group.tro_ly"); },      icon: GICON["Trợ lý"],   ids: ["home", "chat"] },
-    { get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "learn"] },
+    { get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "drive", "learn"] },
     // "Code" là NHÓM riêng, không phải một mục nhét vào "Bộ não". Đây là một KHU VỰC làm việc
     // sẽ dày lên (Terminal hôm nay, các công cụ lập trình khác sau này), chứ không phải một
     // chức năng của Second Brain - chủ repo nói rõ điều đó khi thấy bản đầu xếp nhầm.
@@ -175,7 +176,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "marketing", "kanban", "models", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "marketing", "kanban", "models", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -441,6 +442,11 @@
     if (id === "channels") return renderChannels(el);
     if (id === "account")  return renderAccount(el);
     if (id === "files")    return renderFiles(el);
+    if (id === "drive") {
+      if (window.JavisDriveProjects) return window.JavisDriveProjects.render(el);
+      el.innerHTML = placeholder("drive", "drive-projects.js chưa sẵn sàng.");
+      return;
+    }
     if (CODE_PAGES.includes(id)) return renderCode(el, id);
     if (id === "selfimprove") return renderSelfImprove(el);
     if (id === "chatbots") return renderChatbots(el);

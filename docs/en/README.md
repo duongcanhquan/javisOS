@@ -18,6 +18,7 @@ The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant
 - [03 - Knowledge graph](03-knowledge-graph.md) - wikilinks, category colours, the timelapse and the graph switches.
 - [04 - Sessions](04-sessions.md) - saving, reopening, renaming, deleting, full-text search, compacting a long session.
 - [05 - File manager](05-file-manager.md) - browsing the brain, finding files by name or content, editing .md/.txt directly, uploading and downloading.
+- [29 - Drive library](29-drive-library.md) - sync a Google Drive folder (rclone) into the Second Brain and attach a chat Project.
 
 ### Code (the Code group)
 - [27 - The Code group: Terminal](27-code-terminal.md) - a real command line on the machine running Javis, opened right in the dashboard, with no SSH.

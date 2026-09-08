@@ -93,7 +93,12 @@
     const frag = document.createDocumentFragment();
     brains.forEach((b) => {
       if (b.is_default) {
-        if (defOpt) defOpt.textContent = label(b);
+        if (defOpt) {
+          defOpt.textContent = label(b);
+          // Cần cho sameBrain("brain", path): não mặc định có thể đã đổi tên khỏi "Brain Default".
+          defOpt.dataset.brainName = b.name || "";
+          defOpt.dataset.brainPath = b.path || "";
+        }
         return; // default đã có sẵn option value="brain"
       }
       const opt = document.createElement("option");

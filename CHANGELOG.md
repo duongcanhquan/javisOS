@@ -4,6 +4,13 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.154] - 2026-09-08
+### Cải tiến
+- **Kho Drive:** sync thư mục Google Drive (rclone) vào Second Brain, mirror `sources/drive/…`, gắn Dự án chat — trang Bộ não → Kho Drive. Image có sẵn `rclone`.
+
+### Sửa lỗi
+- **Bấm hội thoại cũ không chat được:** não mặc định đã đổi tên (không còn «Brain Default») bị so khớp sai nên cuộc cũ mở không được; chỉ còn chat được cuộc mới nhất.
+
 ## [0.55.153] - 2026-09-08
 ### Cải tiến
 - **OpenMAIC như giảng viên:** prompt generate + agent lớp học ép script 45-90s (mở → giảng → ví dụ → takeaway), không nén kiến thức đầy đủ thành vài câu.

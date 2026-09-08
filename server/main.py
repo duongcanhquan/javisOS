@@ -13377,7 +13377,15 @@ async def websocket_endpoint(ws: WebSocket):
             if conv_sid_in:
                 _row_chk = store.get_session(conv_sid_in) or {}
                 _sb = (_row_chk.get("brain") or "").strip()
-                if _sb and _sb not in _brain_keys(brain):
+                _keys = _brain_keys(brain)
+                # Khớp cả bí danh lỏng (path ↔ tên folder): tránh bỏ session rồi mint phiên mới
+                # khiến trả lời đi session khác → khung cuộc cũ đứng im, chỉ cuộc mới chat được.
+                if (
+                    _sb
+                    and _sb not in _keys
+                    and not store._brains_loosely_equal(_sb, brain)
+                    and not store._brains_loosely_equal(_sb, _brain_key(brain))
+                ):
                     print(f"[chat] bỏ session {conv_sid_in[:8]}… brain={_sb!r} ≠ "
                           f"request={brain!r} — mở phiên mới", file=sys.stderr)
                     conv_sid_in = None
@@ -13931,6 +13939,20 @@ async def projects_delete(project_id: str):
     if not store.get_project(project_id):
         return JSONResponse({"error": "not found"}, status_code=404)
     return {"ok": True, "detached": store.delete_project(project_id)}
+
+
+# Kho tri thức Google Drive (rclone → corpus → sources/drive/<slug>/ + Dự án chat).
+# Router riêng; register ĐÚNG sau /projects* để route_table ổn định khi --update.
+import routes.drive_projects as drive_projects_routes  # noqa: E402
+
+drive_projects_routes.register(
+    app,
+    drive_projects_routes.DriveProjectsDeps(
+        brain_root=lambda b: _brain_root(b),
+        get_sessions_store=get_store,
+        sync_script=PROJECT_ROOT / "scripts" / "sync-drive-project.sh",
+    ),
+)
 
 
 # ============================================================

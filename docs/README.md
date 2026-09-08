@@ -18,6 +18,7 @@ Thanh điều hướng của dashboard gom **19 trang** thành **7 nhóm**: Tr�
 - [03 - Đồ thị tri thức](03-do-thi-tri-thuc.md) - wikilink, màu danh mục, timelapse và công tắc đồ thị.
 - [04 - Phiên hội thoại](04-phien-hoi-thoai.md) - lưu, mở lại, đổi tên, xoá, tìm kiếm toàn văn, nén phiên dài.
 - [05 - Quản lý tệp tin](05-quan-ly-tep-tin.md) - duyệt brain, tìm file theo tên/nội dung, sửa .md/.txt trực tiếp, tải lên/về.
+- [29 - Kho Drive](29-kho-drive.md) - sync thư mục Google Drive (rclone) vào Second Brain, gắn Dự án chat để học/skill.
 
 ### Code (nhóm Code)
 - [27 - Nhóm Code: Terminal](27-tab-code-terminal.md) - dòng lệnh thật của máy chạy Javis, mở ngay trong dashboard, không cần SSH.

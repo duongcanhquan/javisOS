@@ -422,12 +422,42 @@ function sameBrain(a, b) {
   if (na.endsWith("/" + nb) || nb.endsWith("/" + na)) return true;
   const la = na.split("/").pop(), lb = nb.split("/").pop();
   if (la && lb && la === lb) return true;
-  // Dropdown mặc định value="brain" ↔ cột DB lưu đường dẫn tuyệt đối (.../Brain Default).
+  // Dropdown mặc định value="brain" ↔ cột DB lưu đường dẫn tuyệt đối (.../Brain Default
+  // hoặc tên mặc định đã đổi: APC.HN, School of Art...). Trước đây chỉ khớp
+  // "/brain default" nên bấm hội thoại cũ của não mặc định ĐỔI TÊN bị bỏ qua im lặng —
+  // người dùng tưởng không chat được cuộc nào ngoài cuộc mới nhất.
   if (na === "brain" || nb === "brain") {
     const other = na === "brain" ? nb : na;
-    if (other === "brain" || other.endsWith("/brain") || other.endsWith("/brain default")) return true;
+    if (other === "brain" || other.endsWith("/brain") || other.endsWith("/brain default")) {
+      return true;
+    }
+    const def = defaultBrainIdentity();
+    if (def.path && (other === def.path || other.endsWith("/" + def.path.split("/").pop()))) {
+      return true;
+    }
+    if (def.name && (other === def.name || other.endsWith("/" + def.name))) {
+      return true;
+    }
   }
   return false;
+}
+
+/** Não mặc định trên dropdown (value="brain"): tên folder + path tuyệt đối nếu có. */
+function defaultBrainIdentity() {
+  const out = { name: "", path: "" };
+  try {
+    const opt = document.querySelector("#graphSource option[value='brain']");
+    if (!opt) return out;
+    const name = (opt.dataset.brainName || "").trim();
+    const path = (opt.dataset.brainPath || "").trim();
+    if (name) out.name = normBrainKey(name);
+    if (path) out.path = normBrainKey(path);
+    if (!out.name && opt.textContent) {
+      // Nhãn dạng "APC.HN · 12" → lấy phần trước dấu ·
+      out.name = normBrainKey(opt.textContent.split("·")[0]);
+    }
+  } catch (e) {}
+  return out;
 }
 function loadSessionMap() {
   let map = {};
@@ -537,6 +567,15 @@ async function openStoredSession(id) {
     // Chặn mở hội thoại của brain khác (tránh trộn khung + ghi tiếp nhầm).
     if (sess.brain && !sameBrain(sess.brain, cur)) {
       console.warn("[javis] bỏ qua session khác brain", sess.brain, "≠", cur);
+      try {
+        alert(
+          "Không mở được hội thoại này: não của cuộc trò chuyện không khớp não đang chọn.\n\n" +
+            "Cuộc: " +
+            (sess.brain || "?") +
+            "\nĐang chọn: " +
+            cur
+        );
+      } catch (e) {}
       return false;
     }
     convo = [];

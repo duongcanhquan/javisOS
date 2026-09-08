@@ -32,9 +32,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 # System deps: ca-certs (TLS), git (Claude tools), ripgrep (fast search used by
 # Claude's Grep), ffmpeg (edge-tts mp3), curl, tini (PID-1 reaper for the node
-# subprocesses Claude spawns).
+# subprocesses Claude spawns), rclone (Kho Drive sync Google Drive → corpus).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl git ripgrep ffmpeg tini \
+        ca-certificates curl git ripgrep ffmpeg tini rclone \
         fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
