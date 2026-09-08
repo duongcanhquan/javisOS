@@ -115,7 +115,7 @@ Script tự cài Python + Node + hai engine CLI (Claude Code, Codex), tạo venv
 
 Hướng dẫn ngắn (fork): **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)** - Windows: `1-Cai-dat.bat` → `2-Bat-Javis.bat`; Mac: `1-Cai-dat.command` → `2-Bat-Javis.command`.
 
-**Phát hành cho trường** (2 đường: máy cá nhân + VPS/Hostinger, không chia sẻ brain): **[CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md)** · compose sẵn trong [`deploy/school/`](deploy/school/).
+**Phát hành cho trường** (Windows/Mac cá nhân + VPS Linux/Windows, không chia sẻ brain): **[CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md)** · compose sẵn trong [`deploy/school/`](deploy/school/).
 
 #### Windows (chi tiết)
 

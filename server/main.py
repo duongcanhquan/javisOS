@@ -8518,9 +8518,11 @@ async def studio_seed_video(brain: str = Form("brain")):
     return {"ok": True, "agents": [x["slug"] for x in agents], "workflow": "bo-video-da-pipeline"}
 
 
-@app.post("/studio/seed-bai-giang")
-async def studio_seed_bai_giang(brain: str = Form("brain")):
-    """Bộ Bài giảng: nghiên cứu (Gemini) → 4 lộ trình đầu ra (lớp học / video / slide / văn bản minh họa)."""
+def seed_bai_giang(brain: str) -> dict:
+    """Bộ Bài giảng: nghiên cứu (Gemini) → 4 lộ trình đầu ra (lớp học / video / slide / văn bản minh họa).
+
+    Lõi thuần - route HTTP và seed-truong gọi hàm này, không gọi handler như hàm thường.
+    """
     root = Path(_brain_root(brain))
     try:
         system_sync.migrate_brain(root)
@@ -8789,10 +8791,15 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
     }
 
 
+@app.post("/studio/seed-bai-giang")
+async def studio_seed_bai_giang(brain: str = Form("brain")):
+    return seed_bai_giang(brain)
+
+
 @app.post("/studio/seed-truong")
 async def studio_seed_truong(brain: str = Form("brain")):
     """Gói trường: nạp Bộ Bài giảng + agent hướng dẫn giáo viên (không copy dữ liệu cá nhân)."""
-    bg = await studio_seed_bai_giang(brain=brain)
+    bg = seed_bai_giang(brain)
     a = _agents_dir(brain)
     today = _today()
     guide = {

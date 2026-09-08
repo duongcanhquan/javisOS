@@ -6,7 +6,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 ## [0.55.137] - 2026-09-08
 ### Cải tiến
-- **Gói cài cho trường:** hướng dẫn 2 đường (máy cá nhân / VPS-Hostinger) trong `CAI-DAT-TRUONG.md`, compose sẵn ở `deploy/school/`, và nút Studio **Bộ Trường** (nạp bài giảng mẫu + hướng dẫn giáo viên, không kèm brain cá nhân).
+- **Gói cài cho trường:** hướng dẫn đủ **Windows/Mac máy cá nhân** và **VPS Linux/Windows** (`CAI-DAT-TRUONG.md` + `deploy/school/`), nút Studio **Bộ Trường** (bài giảng mẫu + hướng dẫn giáo viên, không kèm brain cá nhân).
 
 ## [0.55.136] - 2026-09-07
 ### Sửa lỗi
