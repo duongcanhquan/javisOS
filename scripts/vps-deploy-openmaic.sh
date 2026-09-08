@@ -61,41 +61,44 @@ resolve_google_key() {
     return 0
   fi
   echo "==> Thử đọc gemini_api_key từ container: $jc" >&2
-  # Bắt buộc JAVIS_STATE_DIR=/data/state — docker exec không luôn kế thừa env process uvicorn;
-  # thiếu thì đọc nhầm /app/server/settings.json (trống) trong khi key thật nằm volume /data/state.
-  docker exec -e JAVIS_STATE_DIR=/data/state -w /app "$jc" python3 - <<'PY' 2>/dev/null || true
-import os, sys
-os.environ.setdefault("JAVIS_STATE_DIR", "/data/state")
+  # Bắt buộc -i (stdin heredoc) + JAVIS_STATE_DIR=/data/state.
+  # Thiếu -i thì python nhận script rỗng → tưởng như chưa có key dù Models đã nối.
+  docker exec -i -e JAVIS_STATE_DIR=/data/state -e PYTHONUNBUFFERED=1 -w /app "$jc" python3 - <<'PY' || true
+import os, sys, json
+os.environ["JAVIS_STATE_DIR"] = "/data/state"
 from pathlib import Path
-from server import config as cfgmod
+try:
+    from server import config as cfgmod
+except Exception as e:
+    print(f"IMPORT_ERR={type(e).__name__}:{e}", file=sys.stderr)
+    raise SystemExit(0)
 print(f"state_dir={cfgmod.STATE_DIR} settings={cfgmod.SETTINGS_PATH} exists={cfgmod.SETTINGS_PATH.exists()}", file=sys.stderr)
+sk = Path("/data/state/.secret_key")
+print(f"secret_key_exists={sk.exists()}", file=sys.stderr)
+try:
+    raw = json.loads(cfgmod.SETTINGS_PATH.read_text(encoding="utf-8")) if cfgmod.SETTINGS_PATH.exists() else {}
+except Exception as e:
+    raw = {}
+    print(f"raw_json_err={type(e).__name__}", file=sys.stderr)
+raw_m = (raw.get("model") or {}) if isinstance(raw, dict) else {}
+raw_k = str(raw_m.get("gemini_api_key") or "")
+print(f"raw_gemini_len={len(raw_k)} raw_prefix={raw_k[:6]!r}", file=sys.stderr)
+for fld in ("openrouter_key", "openai_api_key", "anthropic_api_key"):
+    print(f"raw_{fld}_len={len(str(raw_m.get(fld) or ''))}", file=sys.stderr)
 m = (cfgmod.read_settings().get("model") or {})
 k = (m.get("gemini_api_key") or "").strip()
-if k.startswith("enc:") or k.startswith("plain:"):
-    # decrypt lỗi / chưa transform — thử secrets_store trực tiếp
+print(f"decrypted_len={len(k)}", file=sys.stderr)
+if k.startswith("enc:"):
     try:
         import secrets_store
-        k2 = secrets_store.decrypt(k) if k.startswith("enc:") else k
-        if isinstance(k2, str):
-            k = k2.strip()
+        k = (secrets_store.decrypt(k) or "").strip()
     except Exception as e:
         print(f"decrypt_err={type(e).__name__}", file=sys.stderr)
         k = ""
 if k and not k.startswith("enc:"):
     print(k)
 else:
-    # Có blob nhưng không giải mã được?
-    raw = ""
-    try:
-        import json
-        raw_m = (json.loads(cfgmod.SETTINGS_PATH.read_text(encoding="utf-8")).get("model") or {})
-        raw = str(raw_m.get("gemini_api_key") or "")
-    except Exception:
-        pass
-    print(
-        f"HAS_KEY=0 raw_len={len(raw)} raw_prefix={raw[:4]!r} plain_len={len(k)}",
-        file=sys.stderr,
-    )
+    print(f"HAS_KEY=0 plain_len={len(k)}", file=sys.stderr)
 PY
 }
 
