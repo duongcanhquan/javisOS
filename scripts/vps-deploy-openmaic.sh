@@ -44,6 +44,47 @@ find_javis_container() {
   docker ps --format '{{.Names}}' | grep -E '(^|-)javis$' | head -n1 || true
 }
 
+# Gắn docker.sock + DOCKER_GID vào Javis để nút «Lưu LLM» recreate OpenMAIC được.
+enable_javis_docker_for_openmaic() {
+  local dir="${JAVIS_OS_DIR:-}"
+  if [ -z "$dir" ]; then
+    dir="${HOME}/javis-os"
+  fi
+  if [ ! -d "$dir" ] || [ ! -f "$dir/docker-compose.yml" ]; then
+    echo "==> Bỏ qua gắn Docker cho Javis (không thấy $dir/docker-compose.yml)"
+    return 0
+  fi
+  if [ ! -S /var/run/docker.sock ]; then
+    echo "==> Bỏ qua: không có /var/run/docker.sock"
+    return 0
+  fi
+  local gid
+  gid="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 998)"
+  local envf="$dir/.env"
+  touch "$envf"
+  if grep -qE '^DOCKER_GID=' "$envf" 2>/dev/null; then
+    sed -i "s/^DOCKER_GID=.*/DOCKER_GID=${gid}/" "$envf"
+  else
+    echo "DOCKER_GID=${gid}" >> "$envf"
+  fi
+  echo "==> Javis DOCKER_GID=${gid} (để OpenMAIC LLM module dùng docker.sock)"
+  (
+    cd "$dir"
+    export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-javis}"
+    docker compose up -d javis 2>/dev/null || docker-compose up -d javis 2>/dev/null || true
+  )
+  sleep 2
+  local jc
+  jc="$(find_javis_container)"
+  if [ -n "$jc" ]; then
+    if docker exec "$jc" python3 -c "from pathlib import Path; print(Path('/var/run/docker.sock').exists())" 2>/dev/null | grep -q True; then
+      echo "==> Javis đã thấy docker.sock"
+    else
+      echo "==> WARN: Javis chưa thấy docker.sock — kiểm tra volumes trong compose"
+    fi
+  fi
+}
+
 # --- Lấy Gemini key: secret env → Javis Models (decrypt) → .env.local cũ ---
 # Cần: docker exec -i (heredoc), JAVIS_STATE_DIR=/data/state, PYTHONPATH=/app/server.
 # Thiếu một trong ba → settings trống hoặc key còn "enc:..." → deploy tưởng thiếu Gemini.
@@ -264,6 +305,8 @@ PY
   curl -fsS "http://127.0.0.1:${OPENMAIC_PORT}/api/health" || true
   echo
   echo "==> XONG sync LLM OpenMAIC (theo openmaic_llm.json). Chạy lại generate trên Javis."
+  # Cho phép nút «Lưu LLM» trong Bài giảng recreate OpenMAIC (cần socket + DOCKER_GID).
+  enable_javis_docker_for_openmaic || true
   exit 0
 fi
 

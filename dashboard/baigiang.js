@@ -333,8 +333,8 @@
         '<p class="jw-brief-kicker">OpenMAIC trong Javis</p>' +
         '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt).</p>' +
         '<div class="jw-om-llm" id="bgOmLlm">' +
-        '<p class="jw-brief-kicker">LLM cho OpenMAIC (tự cài)</p>' +
-        '<p class="jw-hint">Chọn nhà model; key lấy từ trang <b>Models</b> (không dán lại ở đây). Generate lớp tính phí theo API key đó.</p>' +
+        '<p class="jw-brief-kicker">LLM cho OpenMAIC</p>' +
+        '<p class="jw-hint">Chọn nhà model dùng khi <b>Tạo lớp</b>. Key lấy từ trang Models. Nút dưới = lưu lựa chọn và (nếu được) đổi container OpenMAIC — <b>không</b> phải nút tạo lớp.</p>' +
         '<div class="jw-field"><label for="bgOmProv">Nhà cung cấp</label>' +
         '<select id="bgOmProv">' +
         '<option value="google">Google Gemini</option>' +
@@ -345,7 +345,7 @@
         '<select id="bgOmModel"></select>' +
         '<p class="jw-hint" id="bgOmLlmHint">Đang tải…</p></div>' +
         '<div class="jw-actions">' +
-        '<button type="button" class="jw-btn jw-btn-primary" id="bgOmLlmApply">Áp dụng lên OpenMAIC</button>' +
+        '<button type="button" class="jw-btn jw-btn-primary" id="bgOmLlmApply">Lưu LLM cho OpenMAIC</button>' +
         "</div></div>" +
         '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md (tuỳ chọn)</label>' +
         '<input id="bgOmPath" type="text" autocomplete="off" placeholder="Ví dụ: exports/bai-giang/…/lop-hoc.md">' +

@@ -85,6 +85,24 @@ jobs:
             export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD OPENMAIC_SYNC_KEY_ONLY
             export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
             export OPENMAIC_ALLOW_NO_KEY=0
+            export JAVIS_OS_DIR="$DIR"
+            # Nếu user đã chọn OpenAI/DeepSeek trên UI nhưng container còn Gemini: giữ JSON.
+            # Chỉ seed openai khi chưa có file (lần đầu).
+            docker exec -i javis python3 - <<'PY' || true
+from pathlib import Path
+import json
+p = Path("/data/state/openmaic_llm.json")
+if not p.is_file():
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "updated": "seed",
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print("seeded openmaic_llm.json → openai")
+else:
+    print("keep", p.read_text(encoding="utf-8")[:200])
+PY
             bash "$DIR/scripts/vps-deploy-openmaic.sh"
             # Xác nhận model trong file + trong process container (restart không đủ — recreate ở script)
             ENV_FILE="${OPENMAIC_DIR}/.env.local"
@@ -93,4 +111,8 @@ jobs:
               grep -E '^(DEFAULT_MODEL|DEFAULT_PROVIDER|GOOGLE_API_KEY)=' "$ENV_FILE" | sed 's/GOOGLE_API_KEY=.*/GOOGLE_API_KEY=***/' || true
             fi
             echo "==> Container DEFAULT_MODEL:"
-            docker exec openmaic sh -c 'echo DEFAULT_MODEL=$DEFAULT_MODEL' 2>/dev/null || echo "(no container)"
+            docker exec openmaic sh -c 'echo DEFAULT_MODEL=$DEFAULT_MODEL; echo DEFAULT_PROVIDER=$DEFAULT_PROVIDER' 2>/dev/null || echo "(no container)"
+            echo "==> openmaic_llm.json trên Javis:"
+            docker exec javis sh -c 'cat /data/state/openmaic_llm.json 2>/dev/null || echo (none)' 2>/dev/null || true
+            echo "==> Javis docker.sock:"
+            docker exec javis python3 -c "from pathlib import Path; print('sock', Path('/var/run/docker.sock').exists())" 2>/dev/null || echo "(no)"

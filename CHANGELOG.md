@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.149] - 2026-09-08
+### Sửa lỗi
+- **Nút LLM OpenMAIC:** đổi tên «Lưu LLM», không còn báo lỗi mơ hồ khi thiếu Docker; sync gắn `docker.sock` + `DOCKER_GID` vào Javis để lần sau lưu là đổi được model.
+
 ## [0.55.148] - 2026-09-08
 ### Sửa lỗi
 - **Chọn OpenAI mà OpenMAIC vẫn gọi Gemini:** sửa nút Áp dụng (Docker API); sync đã đặt `openai:gpt-4o-mini`. UI báo rõ khi chưa đồng bộ với container.

@@ -342,7 +342,11 @@ def _recreate_openmaic_container(env: dict[str, str], env_file: Path | None = No
 
 
 def apply_llm(provider: str, model: str) -> dict[str, Any]:
-    """Lưu config + áp lên OpenMAIC (recreate nếu có docker.sock)."""
+    """Lưu config + áp lên OpenMAIC (recreate nếu có docker.sock).
+
+    Luôn lưu lựa chọn khi có key. Thiếu Docker / recreate lỗi → applied=false
+    (không trả lỗi mơ hồ «Áp dụng thất bại»).
+    """
     prov = (provider or "").strip().lower()
     if prov == "gemini":
         prov = "google"
@@ -360,7 +364,7 @@ def apply_llm(provider: str, model: str) -> dict[str, Any]:
             "ok": False,
             "error": (
                 f"Chưa có API key cho {PROVIDERS[prov]['label']}. "
-                f"Vào Models → dán key, rồi Áp dụng lại."
+                f"Vào Models → dán key, rồi bấm lại."
             ),
             "need_models_field": field,
         }
@@ -368,30 +372,53 @@ def apply_llm(provider: str, model: str) -> dict[str, Any]:
     cfg = save_config(prov, mdl)
     dm = default_model_string(prov, mdl)
 
-    if not docker_available():
+    def _saved_not_applied(hint: str, mode: str, detail: str = "") -> dict[str, Any]:
         last = {
             "ok": False,
-            "mode": "state_only",
+            "mode": mode,
             "default_model": dm,
-            "hint": (
-                "Đã lưu lựa chọn. Container Javis chưa có Docker socket nên chưa recreate OpenMAIC. "
-                "Chạy Actions «Deploy OpenMAIC to VPS» (sync_key_only=1) hoặc gắn "
-                "/var/run/docker.sock vào service javis."
-            ),
+            "hint": hint,
+            "detail": (detail or "")[:400],
+            "provider": prov,
+            "model": mdl,
         }
         save_config(prov, mdl, last_apply=last)
-        return {"ok": True, "applied": False, "config": cfg, **last}
+        return {
+            "ok": True,
+            "applied": False,
+            "config": load_config(),
+            "default_model": dm,
+            "hint": hint,
+            "message": hint,
+        }
 
-    old = _docker_inspect_env("openmaic")
+    if not docker_available():
+        return _saved_not_applied(
+            (
+                f"Đã lưu {dm}. Container Javis chưa điều khiển được Docker "
+                f"(thiếu socket hoặc quyền) nên OpenMAIC vẫn dùng model cũ. "
+                f"Chạy Actions «Deploy OpenMAIC to VPS» (sync_key_only=1) "
+                f"hoặc cập nhật Javis để gắn docker.sock + DOCKER_GID."
+            ),
+            "state_only",
+        )
+
+    try:
+        old = _docker_inspect_env("openmaic")
+    except Exception as e:
+        return _saved_not_applied(
+            f"Đã lưu {dm} nhưng không đọc được container OpenMAIC: {e}",
+            "inspect_fail",
+            str(e),
+        )
+
     if not old:
-        # Container chưa có — vẫn ghi file nếu mount host
         old = {
             "TTS_BROWSER_NATIVE_ENABLED": "false",
             "TTS_OPENAI_ENABLED": "true",
             "NODE_ENV": "production",
             "PORT": "3000",
         }
-    # Giữ TTS key từ state nếu cũ thiếu
     try:
         tts_key_path = _state_dir() / "openmaic_tts_proxy.key"
         if tts_key_path.is_file() and not old.get("TTS_OPENAI_API_KEY"):
@@ -403,15 +430,16 @@ def apply_llm(provider: str, model: str) -> dict[str, Any]:
 
     env = _merge_env_for_provider(old, prov, mdl, api_key)
 
-    env_file: Path | None = None
     host_dir = _host_openmaic_dir()
     if host_dir:
-        env_file = host_dir / ".env.local"
-        _write_env_file(env_file, env)
-        # defaultModel trong server-providers
-        sp = host_dir / "server-providers.yml"
         try:
-            text = sp.read_text(encoding="utf-8") if sp.is_file() else "tts:\n  browser-native-tts:\n    enabled: false\n"
+            _write_env_file(host_dir / ".env.local", env)
+            sp = host_dir / "server-providers.yml"
+            text = (
+                sp.read_text(encoding="utf-8")
+                if sp.is_file()
+                else "tts:\n  browser-native-tts:\n    enabled: false\n"
+            )
             if re.search(r"(?m)^\s*defaultModel:", text):
                 text = re.sub(
                     r"(?m)^(\s*defaultModel:).*$",
@@ -424,26 +452,41 @@ def apply_llm(provider: str, model: str) -> dict[str, Any]:
         except Exception:
             pass
 
-    # Trong container Javis: luôn truyền -e (tránh --env-file cần path HOST).
-    ok, detail = _recreate_openmaic_container(env, env_file=None)
+    try:
+        ok, detail = _recreate_openmaic_container(env, env_file=None)
+    except Exception as e:
+        return _saved_not_applied(
+            f"Đã lưu {dm} nhưng recreate OpenMAIC lỗi: {type(e).__name__}: {e}",
+            "recreate_exception",
+            str(e),
+        )
+
+    if not ok:
+        return _saved_not_applied(
+            (
+                f"Đã lưu {dm} nhưng chưa đổi được container OpenMAIC ({detail}). "
+                f"Chạy Actions «Deploy OpenMAIC to VPS» sync_key_only=1."
+            ),
+            "recreate_fail",
+            detail,
+        )
+
     last = {
-        "ok": ok,
+        "ok": True,
         "mode": "docker_recreate",
         "default_model": dm,
-        "detail": detail if ok else detail,
+        "detail": detail,
         "provider": prov,
         "model": mdl,
     }
     save_config(prov, mdl, last_apply=last)
-    if not ok:
-        return {"ok": False, "error": f"Recreate OpenMAIC thất bại: {detail}", "config": cfg}
     return {
         "ok": True,
         "applied": True,
         "config": load_config(),
         "default_model": dm,
         "container": detail,
-        "message": f"OpenMAIC đang dùng {dm}. Key lấy từ Models ({PROVIDERS[prov]['label']}).",
+        "message": f"Đã áp vào OpenMAIC: {dm} (key từ Models → {PROVIDERS[prov]['label']}).",
     }
 
 
