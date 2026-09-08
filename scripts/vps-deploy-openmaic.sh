@@ -44,7 +44,8 @@ find_javis_container() {
   docker ps --format '{{.Names}}' | grep -E '(^|-)javis$' | head -n1 || true
 }
 
-# Gắn docker.sock + DOCKER_GID vào Javis để nút «Lưu LLM» recreate OpenMAIC được.
+# Gắn DOCKER_GID vào .env Javis. KHÔNG recreate container ở đây —
+# `compose up javis` không có JAVIS_IMAGE đúng sẽ kéo ghcr.io/blogminhquy (bản cũ 0.55.x).
 enable_javis_docker_for_openmaic() {
   local dir="${JAVIS_OS_DIR:-}"
   if [ -z "$dir" ]; then
@@ -67,22 +68,17 @@ enable_javis_docker_for_openmaic() {
   else
     echo "DOCKER_GID=${gid}" >> "$envf"
   fi
-  echo "==> Javis DOCKER_GID=${gid} (để OpenMAIC LLM module dùng docker.sock)"
-  (
-    cd "$dir"
-    export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-javis}"
-    docker compose up -d javis 2>/dev/null || docker-compose up -d javis 2>/dev/null || true
-  )
-  sleep 2
-  local jc
-  jc="$(find_javis_container)"
-  if [ -n "$jc" ]; then
-    if docker exec "$jc" python3 -c "from pathlib import Path; print(Path('/var/run/docker.sock').exists())" 2>/dev/null | grep -q True; then
-      echo "==> Javis đã thấy docker.sock"
+  # Sửa .env nếu đang trỏ fork cũ (blogminhquy) — nguyên nhân tụt về 0.55.56.
+  if grep -qiE 'blogminhquy/javis' "$envf" 2>/dev/null; then
+    echo "==> WARN: .env JAVIS_IMAGE trỏ blogminhquy (cũ) → sửa sang duongcanhquan/javisos:latest"
+    if grep -qE '^JAVIS_IMAGE=' "$envf"; then
+      sed -i 's|^JAVIS_IMAGE=.*|JAVIS_IMAGE=ghcr.io/duongcanhquan/javisos:latest|' "$envf"
     else
-      echo "==> WARN: Javis chưa thấy docker.sock — kiểm tra volumes trong compose"
+      echo 'JAVIS_IMAGE=ghcr.io/duongcanhquan/javisos:latest' >> "$envf"
     fi
   fi
+  echo "==> Đã ghi DOCKER_GID=${gid}. Không recreate Javis tại đây (tránh kéo image cũ)."
+  echo "    Nút Lưu LLM cần Deploy Javis (có sock trong compose) để có hiệu lực đầy đủ."
 }
 
 # --- Lấy Gemini key: secret env → Javis Models (decrypt) → .env.local cũ ---

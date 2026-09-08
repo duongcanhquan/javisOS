@@ -27,6 +27,15 @@ if grep -q '^JAVIS_ENABLE_PIXELLE=' "$ENV_FILE" 2>/dev/null; then
 else
   printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> "$ENV_FILE"
 fi
+# Tránh kéo nhầm fork cũ (blogminhquy → hay kẹt 0.55.56).
+if grep -qiE 'blogminhquy/javis' "$ENV_FILE" 2>/dev/null; then
+  echo "==> Sửa JAVIS_IMAGE trong .env: bỏ blogminhquy → duongcanhquan/javisos"
+  if grep -qE '^JAVIS_IMAGE=' "$ENV_FILE"; then
+    sed -i.bak 's|^JAVIS_IMAGE=.*|JAVIS_IMAGE=ghcr.io/duongcanhquan/javisos:latest|' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  else
+    echo 'JAVIS_IMAGE=ghcr.io/duongcanhquan/javisos:latest' >> "$ENV_FILE"
+  fi
+fi
 
 # Git: bỏ qua nếu deploy-vps.yml đã reset đúng WANT_SHA (tránh fetch 2 lần).
 if [ "${JAVIS_SKIP_GIT:-0}" = "1" ]; then
