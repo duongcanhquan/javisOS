@@ -181,8 +181,8 @@ _src = Path(SERVER, "antigravity_cli.py").read_text(encoding="utf-8")
 _cd = _src.split("def _chon_duong", 1)[1].split("\n    async def", 1)[0]
 check("CANARY: _chon_duong đo bằng _do_dai_argv, không phải len()",
       "_do_dai_argv(full)" in _cd and "len(full)" not in _cd)
-check("CANARY: lượt argv được giữ lỗi lại để còn đường lùi",
-      'giu_loi=(duong != "file")' in _src)
+check("CANARY: lượt chạy giữ lỗi lại để còn đường lùi (giu_loi=True)",
+      'giu_loi=True' in _src and "Agent execution terminated" in _src)
 check("CANARY: có nhánh chạy lại khi vượt trần argv",
       'ket.get("qua_tran_argv")' in _src)
 

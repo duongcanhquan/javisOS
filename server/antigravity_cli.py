@@ -344,6 +344,49 @@ def _la_loi_thieu_prompt(loi: str) -> bool:
             or ("flag needs an argument" in l))
 
 
+def _la_loi_agent_cut(loi: str) -> bool:
+    """agy chết giữa lượt với câu generic 'Agent execution terminated…' (thường tạm thời).
+
+    Hay gặp vì mạch/ngữ cảnh quá lớn, MCP xung đột, hoặc model hết capacity. Javis tự thử lại
+    (mạch mới, bỏ MCP) thay vì để người dùng nhận ba bong bóng đỏ + ô trống.
+    """
+    l = (loi or "").lower()
+    return (("agent execution terminated" in l)
+            or ("execution terminated due to error" in l)
+            or ("agent terminated" in l)
+            or ("could not convert a single message before hitting truncation" in l)
+            or ("model_capacity_exhausted" in l)
+            or ("no capacity available for model" in l)
+            or ("context summarization" in l and "failed" in l))
+
+
+def _loi_user_agy(loi: str, ma_exit=None) -> str:
+    """Đổi lỗi thô của `agy` thành câu tiếng Việt có việc phải làm."""
+    raw = (loi or "").strip()
+    l = raw.lower()
+    if _la_loi_chua_dang_nhap(raw):
+        return ("Antigravity CLI chưa đăng nhập. Mở terminal trên máy chạy Javis, gõ `agy` "
+                "rồi làm theo hướng dẫn (qua SSH thì nó in ra một link để mở trên máy bạn).")
+    if "user location is not supported" in l or "failed_precondition" in l and "location" in l:
+        return ("Antigravity báo khu vực/IP không được hỗ trợ API. Nếu bạn dùng proxy/VPN, "
+                "hãy export HTTP_PROXY/HTTPS_PROXY cho tiến trình Javis rồi thử lại.")
+    if "model_capacity" in l or "no capacity available" in l or "resource_exhausted" in l:
+        return ("Model Antigravity đang hết chỗ (capacity). Đợi vài phút hoặc đổi sang model "
+                "khác (vd gemini-3.8-flash-high / medium) ở trang Models rồi gửi lại.")
+    if "truncation" in l or "context" in l and ("overflow" in l or "too large" in l):
+        return ("Ngữ cảnh Antigravity quá lớn nên bị cắt giữa chừng. Hãy mở hội thoại mới "
+                "(hoặc gửi lại - Javis đã mở mạch mới) và rút gọn yêu cầu.")
+    if _la_loi_agent_cut(raw):
+        return ("Antigravity bị cắt giữa lượt (Agent execution terminated). Javis đã tự thử "
+                "lại với mạch mới; nếu vẫn lỗi hãy mở hội thoại mới hoặc đổi model.")
+    if not raw and ma_exit not in (None, 0):
+        return (f"Antigravity CLI thoát với mã {ma_exit} mà không nói lý do. Thử lại lần nữa "
+                f"hoặc nâng cấp CLI: `{lenh_cai()}`.")
+    if raw:
+        return raw[:1500]
+    return "Antigravity CLI lỗi không rõ."
+
+
 def duong_prompt_dai(cli: Optional[str] = None) -> str:
     """Prompt không nhét vừa argv thì đi đường nào: "stdin:<công thức>" hay "file".
 
@@ -1079,8 +1122,9 @@ class AntigravityCLI:
         # ra màn hình. Chủ repo đã thấy đúng cảnh ngược lại: hai bong bóng đỏ "Error: empty
         # prompt" và "thoát với mã 1" hiện lên, rồi mới tới câu trả lời - người dùng không có
         # cách nào biết cái đỏ đó Javis đã tự xử xong.
-        async for ev in self._mot_luot(full, prompt, duong, ket,
-                                       giu_loi=(duong != "file")):
+        # Giữ lỗi tới cuối: còn có thể thử lại (stdin→file, mạch mới, bỏ MCP). Bắn lỗi sớm
+        # làm người dùng thấy 2-3 bong bóng đỏ rồi mới có câu trả lời / hoặc ô trống.
+        async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
             yield ev
         # Vượt trần dòng lệnh: chạy lại NGAY bằng đường không có trần. Không có nhánh này thì
         # người dùng nhận nguyên "OSError: [Errno 7] Argument list too long" - một câu họ không
@@ -1092,8 +1136,7 @@ class AntigravityCLI:
             print(f"[antigravity] prompt vượt trần dòng lệnh, chuyển sang {_duong_lui}",
                   file=sys.stderr)
             ket = {}
-            async for ev in self._mot_luot(full, prompt, _duong_lui, ket,
-                                           giu_loi=(_duong_lui != "file")):
+            async for ev in self._mot_luot(full, prompt, _duong_lui, ket, giu_loi=True):
                 yield ev
             duong = _duong_lui
         # Prompt KHÔNG TỚI NƠI có hai hình dạng, và bản trước chỉ bắt được một:
@@ -1121,7 +1164,7 @@ class AntigravityCLI:
             await asyncio.to_thread(nho_duong, self.cli_path, "file", _vi_sao)
             _ket_cu = ket
             ket = {}
-            async for ev in self._mot_luot(full, prompt, "file", ket):
+            async for ev in self._mot_luot(full, prompt, "file", ket, giu_loi=True):
                 yield ev
             # Đường file cũng hỏng dấu, mà lượt stdin thì có chữ: giữ lượt nào cũng vậy thôi,
             # lấy lượt sau cho nhất quán rồi nói thẳng là lỗi nằm trong CLI.
@@ -1129,10 +1172,43 @@ class AntigravityCLI:
                 ket = _ket_cu
         elif duong.startswith("stdin") and ket.get("text"):
             await asyncio.to_thread(nho_duong, self.cli_path, duong, "đã chạy được")
-        else:
-            for _l in ket.get("cac_loi") or []:      # không thử lại thì phải đưa lỗi ra
-                yield {"type": "error", "content": _l}
-        text = ket.get("text") or ""
+
+        # Agent bị cắt giữa chừng (generic "Agent execution terminated") / thoát mã 1 không chữ:
+        # tự phục hồi trong CÙNG lượt - mở mạch mới, rồi (nếu cần) bỏ MCP hub một lần.
+        # Không làm thì dashboard hiện cả lỗi + "(không có nội dung trả về)" mỗi lần agy xìu.
+        _loi_gop = "\n".join(ket.get("cac_loi") or [])
+        _cut = (not (ket.get("text") or "").strip()
+                and (ket.get("loi") or False)
+                and (_la_loi_agent_cut(_loi_gop)
+                     or any("thoát với mã" in (x or "").lower() for x in (ket.get("cac_loi") or []))
+                     or any("exit" in (x or "").lower() and "1" in (x or "")
+                            for x in (ket.get("cac_loi") or []))))
+        if _cut:
+            _mcp_cu = self.mcp_config
+            # 1) Mạch mới (bỏ --conversation): mạch hỏng / tràn context là nguyên nhân phổ biến.
+            if self.session_id:
+                print("[antigravity] agent bị cắt - thử lại với mạch hội thoại mới",
+                      file=sys.stderr)
+                self.session_id = None
+                ket = {}
+                async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                    yield ev
+            # 2) Vẫn chết: thử một lần không MCP (MCP lỗi / schema conflict hay làm agy xìu).
+            if (not (ket.get("text") or "").strip() and ket.get("loi")
+                    and _mcp_cu and _la_loi_agent_cut("\n".join(ket.get("cac_loi") or []))):
+                print("[antigravity] vẫn cắt - thử lại không MCP hub (một lần)", file=sys.stderr)
+                self.mcp_config = None
+                self.session_id = None
+                ket = {}
+                try:
+                    async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                        yield ev
+                finally:
+                    self.mcp_config = _mcp_cu
+
+        # Chỉ đưa lỗi dạng error khi THẬT SỰ hết đường và không có chữ. Ưu tiên một câu
+        # `final` để dashboard không còn hiện "(không có nội dung trả về)" bên cạnh lỗi đỏ.
+        text = (ket.get("text") or "").strip()
         if text:
             # Không nuốt chuyện này: trả lời mà thiếu system prompt thì vẫn trôi chảy, người dùng
             # không tài nào nhận ra Javis vừa quên hết luật và bộ nhớ của mình. Đó đúng là kiểu
@@ -1150,7 +1226,13 @@ class AntigravityCLI:
                       file=sys.stderr)
                 text += _CANH_BAO_HONG_DAU
             yield {"type": "final", "content": text}
-        elif not ket.get("loi"):
+        elif ket.get("loi") or (ket.get("cac_loi") or []):
+            loi_gop = "\n".join(x for x in (ket.get("cac_loi") or []) if x).strip()
+            yield {"type": "final",
+                   "content": (loi_gop or (
+                       "Antigravity vừa lỗi và không kịp trả lời. Hãy gửi lại câu hỏi "
+                       "(Javis đã bỏ mạch hỏng nếu có), hoặc đổi model / mở hội thoại mới."))}
+        else:
             # Lưới an toàn cuối. Bản 1.0.0 của agy có lỗi nuốt stdout khi chạy qua ống dẫn
             # (issue #76 của google-antigravity/antigravity-cli); im lặng ở đây thì người dùng
             # lại thấy đúng cái bong bóng rỗng như hồi Gemini CLI.
@@ -1342,9 +1424,14 @@ class AntigravityCLI:
                          "content": "Antigravity CLI chưa đăng nhập. Mở terminal trên máy chạy "
                                     "Javis, gõ `agy` rồi làm theo hướng dẫn (qua SSH thì nó in "
                                     "ra một link để mở trên máy bạn)."}]
+            # Exit ≠ 0 nhưng stderr trống: vẫn có thể đã có chữ từ stream. Không bịa thêm
+            # "thoát với mã 1" nếu không có gì để nói - query() sẽ tự thử lại / gom lỗi.
             if not loi:
+                if ev.get("_exit") in (None, 0):
+                    return []
                 loi = f"Antigravity CLI thoát với mã {ev.get('_exit')}."
-            return [{"type": "error", "content": loi[:1500]}]
+            return [{"type": "error",
+                     "content": _loi_user_agy(loi, ma_exit=ev.get("_exit"))}]
 
         t = str(ev.get("type") or ev.get("event") or "").lower()
 
@@ -1390,7 +1477,7 @@ class AntigravityCLI:
                                     "chạy Javis."}]
             if str(ev.get("severity") or "error") == "warning":
                 return []
-            return [{"type": "error", "content": tin[:1500]}]
+            return [{"type": "error", "content": _loi_user_agy(tin)}]
 
         ra = []
         if t in ("result", "final", "done", "complete"):

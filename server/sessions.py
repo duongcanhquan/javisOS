@@ -282,6 +282,7 @@ class SessionStore:
         "codex": "codex_thread_id",
         "gemini-cli": "gemini_session_id",
         "grok-cli": "grok_session_id",
+        "antigravity-cli": "agy_conversation_id",
     }
 
     _WRITE_MAX_RETRIES = 12
@@ -359,6 +360,11 @@ class SessionStore:
                               # chung một cột là lượt sau đưa id của engine này cho engine kia
                               # resume, và nó nối vào một mạch không tồn tại rồi hỏng câm.
                               ("grok_session_id", "TEXT"),
+                              # Mạch native của Antigravity CLI (`agy --conversation`). Cột
+                              # RIÊNG. Trước đây mỗi lượt mở mạch mới + mồi lại cả transcript
+                              # → dễ "Agent execution terminated" vì tràn ngữ cảnh; nối mạch
+                              # khi CLI đã phát conversation_id thì hết nhồi lịch sử mỗi lần.
+                              ("agy_conversation_id", "TEXT"),
                               # Model GHIM RIÊNG của phiên. Hai nguồn ghi: user đổi model ngay
                               # trong phiên, và từ 0.35.5 server tự ĐÓNG DẤU model đang chạy ở
                               # lượt dashboard đầu tiên - nên đổi mặc định chung không bao giờ
@@ -952,6 +958,22 @@ class SessionStore:
         self._write(lambda c: c.execute(
             "UPDATE sessions SET grok_session_id = NULL "
             "WHERE id = ? AND grok_session_id IS NOT NULL",
+            (session_id,),
+        ))
+
+    def set_agy_conversation_id(self, session_id: str, agy_id: str) -> None:
+        """Gắn mạch native của Antigravity CLI (`--conversation`) để lượt sau nối đúng chỗ."""
+        if not agy_id:
+            return
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET agy_conversation_id = ?, updated_at = ? WHERE id = ?",
+            (agy_id, time.time(), session_id),
+        ))
+
+    def clear_agy_conversation_id(self, session_id: str) -> None:
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET agy_conversation_id = NULL "
+            "WHERE id = ? AND agy_conversation_id IS NOT NULL",
             (session_id,),
         ))
 

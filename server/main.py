@@ -12307,11 +12307,10 @@ async def websocket_endpoint(ws: WebSocket):
             elif prov == "antigravity-cli":
                 # ===== Gói Google qua ANTIGRAVITY CLI (`agy`) - tool native + MCP hub =====
                 #
-                # CỐ Ý chưa nối lại mạch hội thoại của CLI như nhánh Gemini/Codex ngay trên.
-                # `agy` có `--conversation <uuid>`, nhưng chưa ai đo được nó trên máy thật, mà
-                # lưu một id sai vào SQLite thì lượt sau nối vào mạch không tồn tại và hỏng câm.
-                # Nên mỗi lượt mở mạch mới và mồi lại bằng transcript đã lưu - tốn token hơn
-                # nhưng KHÔNG mất ngữ cảnh. Đo được cờ đó rồi thì nâng lên đúng khuôn Gemini.
+                # Nối lại mạch `--conversation` giống Grok: trước đây mỗi lượt mở mạch mới rồi
+                # nhồi cả transcript → hay "Agent execution terminated" + bong bóng rỗng.
+                # CLI phát conversation_id trong sự kiện init (đo stream-json 1.1.12); lưu SQLite
+                # rồi lượt sau chỉ gửi câu hiện tại. Mạch hỏng thì driver tự thử lại mạch mới.
                 actual_model = api_model or None
                 sysprompt, _sub_plan = await _subscription_system_prompt(
                     "antigravity-cli", actual_model or "", kind)
@@ -12329,17 +12328,35 @@ async def websocket_endpoint(ws: WebSocket):
                         "model": actual_model or "", "session_id": conv_sid,
                         **_ctx_frame(runtime_trace, _ctx_in)}))
                 else:
+                    _a_mach = (_row0.get("agy_conversation_id") or "").strip()
+                    if _a_mach and compaction.nen_mach_thue_bao(
+                            _row0.get("last_input_tokens"), msg_count=_row0.get("msg_count"),
+                            rotated_at=_row0.get("thread_rotated_msg")):
+                        _a_mach = ""
+                        store.clear_agy_conversation_id(conv_sid)
+                        store.mark_thread_rotated(conv_sid)
+                        _CONTEXT_RUNTIME.record_runtime_event(
+                            runtime_trace, "thread.rotated",
+                            {"engine": "antigravity-cli",
+                             "last_input_tokens": int(_row0.get("last_input_tokens") or 0),
+                             "threshold": compaction.SUBSCRIPTION_THREAD_MAX_TOKENS})
+                        await ws.send_text(json.dumps({
+                            "type": "tool_call", "tool": "javis_nen_mach",
+                            "content": "⚙ Mạch Antigravity đã dài, Javis mở mạch mới."}))
+                    acli.session_id = _a_mach or None
                     _a_cur = _cli_do_sau_khac(acli, antigravity_cli, reasoning, user_message)
                     _a_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
-                    _a_prompt = compaction.bootstrap_prompt(
-                        _a_raw, _a_cur, summary=_row0.get("compact_summary") or "")
+                    # Có mạch: chỉ gửi câu hiện tại (CLI nhớ lịch sử). Không mạch: mồi transcript.
+                    _a_prompt = (_a_cur if _a_mach else compaction.bootstrap_prompt(
+                        _a_raw, _a_cur, summary=_row0.get("compact_summary") or ""))
                     _CONTEXT_RUNTIME.observe_payload(
                         runtime_trace,
                         [{"role": "system", "content": sysprompt},
                          {"role": "user", "content": _a_prompt}],
                         provider="antigravity-cli", model=actual_model or "")
+                    _a_loi_cuoi = ""
                     async for ev in acli.query(_a_prompt):
                         et = ev.get("type")
                         if et == "tool_call":
@@ -12352,8 +12369,22 @@ async def websocket_endpoint(ws: WebSocket):
                             store.set_last_input_tokens(
                                 conv_sid, int(ev.get("input_tokens") or 0))
                         elif et == "error":
+                            _a_loi_cuoi = ev.get("content") or _a_loi_cuoi
                             await ws.send_text(_limit_frame(
                                 ev.get("content") or "", "antigravity-cli", actual_model or ""))
+                    # Lưu / xoá mạch: thành công thì giữ id mới; bị cắt thì bỏ id cũ để lần sau
+                    # không nối vào mạch hỏng.
+                    if final_text and acli.session_id:
+                        store.set_agy_conversation_id(conv_sid, acli.session_id)
+                    elif _a_loi_cuoi and antigravity_cli._la_loi_agent_cut(_a_loi_cuoi):
+                        store.clear_agy_conversation_id(conv_sid)
+                    elif not final_text and _a_mach and not acli.session_id:
+                        store.clear_agy_conversation_id(conv_sid)
+                    # Đừng gửi response rỗng → dashboard sẽ hiện "(không có nội dung trả về)".
+                    if not (final_text or "").strip():
+                        final_text = (_a_loi_cuoi or (
+                            "Antigravity không trả lời được lượt này. Hãy gửi lại, mở hội thoại "
+                            "mới, hoặc đổi model ở trang Models."))
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "antigravity-cli",
                         "model": actual_model or "", "session_id": conv_sid,

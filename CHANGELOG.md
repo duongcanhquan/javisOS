@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.138] - 2026-09-08
+### Sửa lỗi
+- **Antigravity hết “Agent execution terminated” + ô trống:** nối lại mạch `--conversation` (không nhồi cả lịch sử mỗi lượt), tự thử lại với mạch mới / bỏ MCP khi bị cắt, và luôn có câu trả lời thay vì “(không có nội dung trả về)”.
+
 ## [0.55.137] - 2026-09-08
 ### Cải tiến
 - **Gói cài cho trường:** hướng dẫn đủ **Windows/Mac máy cá nhân** và **VPS Linux/Windows** (`CAI-DAT-TRUONG.md` + `deploy/school/`), nút Studio **Bộ Trường** (bài giảng mẫu + hướng dẫn giáo viên, không kèm brain cá nhân).
