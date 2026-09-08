@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.141] - 2026-09-08
+### Sửa lỗi
+- **Deploy OpenMAIC đỏ dù đã dán Gemini ở Models:** giữ khóa đọc key đã ổn (`-i` + `STATE_DIR` + `PYTHONPATH`), thêm fallback `.env.local` và test hợp đồng chống regress.
+
 ## [0.55.140] - 2026-09-08
 ### Sửa lỗi
 - **OpenMAIC generate thiếu Gemini key:** báo rõ cách dán key ở Models và sync lên OpenMAIC; deploy không còn bỏ qua khi thiếu `GOOGLE_API_KEY`.

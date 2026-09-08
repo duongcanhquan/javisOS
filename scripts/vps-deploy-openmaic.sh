@@ -44,7 +44,9 @@ find_javis_container() {
   docker ps --format '{{.Names}}' | grep -E '(^|-)javis$' | head -n1 || true
 }
 
-# --- Lấy Gemini key: secret env → Javis Models (decrypt) ---
+# --- Lấy Gemini key: secret env → Javis Models (decrypt) → .env.local cũ ---
+# Cần: docker exec -i (heredoc), JAVIS_STATE_DIR=/data/state, PYTHONPATH=/app/server.
+# Thiếu một trong ba → settings trống hoặc key còn "enc:..." → deploy tưởng thiếu Gemini.
 resolve_google_key() {
   if [ -n "${OPENMAIC_GOOGLE_API_KEY:-}" ]; then
     echo "$OPENMAIC_GOOGLE_API_KEY"
@@ -67,7 +69,6 @@ import os, sys
 os.environ["JAVIS_STATE_DIR"] = "/data/state"
 sys.path.insert(0, "/app/server")
 import json
-from pathlib import Path
 import config as cfgmod
 import secrets_store
 print(f"state_dir={cfgmod.STATE_DIR} settings_exists={cfgmod.SETTINGS_PATH.exists()}", file=sys.stderr)
@@ -80,10 +81,10 @@ raw_k = str(((raw.get("model") or {}).get("gemini_api_key")) or "")
 print(f"raw_gemini_len={len(raw_k)} raw_prefix={raw_k[:6]!r}", file=sys.stderr)
 m = (cfgmod.read_settings().get("model") or {})
 k = (m.get("gemini_api_key") or "").strip()
-if k.startswith("enc:"):
+if k.startswith(("enc:", "plain:")):
     k = (secrets_store.decrypt(k) or "").strip()
 print(f"plain_len={len(k)}", file=sys.stderr)
-if k and not k.startswith("enc:"):
+if k and not k.startswith(("enc:", "plain:")):
     print(k)
 else:
     print("HAS_KEY=0", file=sys.stderr)
@@ -91,7 +92,17 @@ PY
 }
 
 KEY="$(resolve_google_key | tr -d '\r' | head -n1 || true)"
-if [ "$KEY" = "HAS_KEY=0" ]; then KEY=""; fi
+case "$KEY" in
+  HAS_KEY=0*) KEY="" ;;
+esac
+
+# Fallback: giữ key đã ghi trong OpenMAIC .env.local (tránh deploy lại xoá mất).
+if [ -z "${KEY}" ] && [ -f "$OPENMAIC_DIR/.env.local" ]; then
+  KEY="$(grep -E '^GOOGLE_API_KEY=' "$OPENMAIC_DIR/.env.local" | head -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  if [ -n "${KEY}" ]; then
+    echo "==> Dùng lại GOOGLE_API_KEY trong $OPENMAIC_DIR/.env.local (ẩn, len=${#KEY})."
+  fi
+fi
 
 if [ -z "${KEY}" ]; then
   echo "ERROR: chưa có GOOGLE/Gemini API key — OpenMAIC sẽ báo:"
