@@ -419,7 +419,13 @@
         var bits = [];
         bits.push(keyOk ? "Models: đã có key" : "Models: chưa có key — vào trang Models dán key");
         bits.push(dockerOk ? "Docker: áp dụng trực tiếp được" : "Docker: chưa gắn socket — Áp dụng chỉ lưu, cần sync deploy");
-        if (omLlmCache.default_model) bits.push("Hiện tại: " + omLlmCache.default_model);
+        if (omLlmCache.default_model) bits.push("Đã chọn: " + omLlmCache.default_model);
+        if (omLlmCache.container_model) {
+          bits.push("Container: " + omLlmCache.container_model);
+          if (omLlmCache.in_sync === false) {
+            bits.push("CHƯA ĐỒNG BỘ — bấm Áp dụng hoặc chạy sync deploy");
+          }
+        }
         if (hint) hint.textContent = bits.join(" · ");
       }
       async function loadOmLlm() {
@@ -463,12 +469,17 @@
               if (typeof err === "object") err = JSON.stringify(err);
               setStatus(String(err), false);
               appendLog("OpenMAIC LLM ERROR: " + err);
+            } else if (j && j.applied === false) {
+              var warn =
+                (j && j.hint) ||
+                "Đã lưu lựa chọn nhưng OpenMAIC chưa đổi model (Docker chưa sẵn). Cần sync deploy.";
+              setStatus(String(warn), false);
+              appendLog("--- OpenMAIC LLM (CHƯA áp vào container) ---\n" + warn);
+              await loadOmLlm();
             } else {
               var msg =
                 (j && j.message) ||
-                (j && j.applied
-                  ? "Đã recreate OpenMAIC → " + (j.default_model || "")
-                  : (j && j.hint) || "Đã lưu lựa chọn");
+                "Đã recreate OpenMAIC → " + ((j && j.default_model) || "");
               setStatus(String(msg), true);
               appendLog("--- OpenMAIC LLM ---\n" + msg);
               await loadOmLlm();

@@ -225,72 +225,6 @@ def key_status() -> dict[str, Any]:
     return out
 
 
-def docker_available() -> bool:
-    sock = Path("/var/run/docker.sock")
-    if not sock.exists():
-        return False
-    try:
-        r = subprocess.run(
-            ["docker", "info"],
-            capture_output=True,
-            text=True,
-            timeout=8,
-        )
-        return r.returncode == 0
-    except Exception:
-        return False
-
-
-def _docker_inspect_env(name: str = "openmaic") -> dict[str, str]:
-    try:
-        r = subprocess.run(
-            ["docker", "inspect", name, "--format", "{{json .Config.Env}}"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if r.returncode != 0:
-            return {}
-        arr = json.loads(r.stdout.strip() or "[]")
-        env: dict[str, str] = {}
-        for item in arr or []:
-            if not isinstance(item, str) or "=" not in item:
-                continue
-            k, _, v = item.partition("=")
-            env[k] = v
-        return env
-    except Exception:
-        return {}
-
-
-def _docker_image(name: str = "openmaic") -> str:
-    try:
-        r = subprocess.run(
-            ["docker", "inspect", name, "--format", "{{.Config.Image}}"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    except Exception:
-        pass
-    return "devprincekumar/openmaic:latest"
-
-
-def _host_openmaic_dir() -> Path | None:
-    env = (os.getenv("OPENMAIC_HOST_DIR") or "").strip()
-    candidates = []
-    if env:
-        candidates.append(Path(env))
-    # Bind-mount vào container (tuỳ chọn)
-    candidates.append(Path("/data/openmaic-host"))
-    for c in candidates:
-        if c.is_dir():
-            return c
-    return None
-
-
 def _merge_env_for_provider(old: dict[str, str], provider: str, model: str, api_key: str) -> dict[str, str]:
     """Giữ TTS / ACCESS / PORT; đặt LLM theo provider đã chọn."""
     env = dict(old)
@@ -303,7 +237,7 @@ def _merge_env_for_provider(old: dict[str, str], provider: str, model: str, api_
         "DEFAULT_MODEL",
         "DEFAULT_PROVIDER",
     ):
-        # Không xoá TTS_OPENAI_* 
+        # Không xoá TTS_OPENAI_*
         if k.startswith("TTS_"):
             continue
         env.pop(k, None)
@@ -515,10 +449,20 @@ def apply_llm(provider: str, model: str) -> dict[str, Any]:
 
 def status_payload() -> dict[str, Any]:
     cfg = load_config()
+    container_model = ""
+    try:
+        if docker_available():
+            env = _docker_inspect_env("openmaic")
+            container_model = (env.get("DEFAULT_MODEL") or "").strip()
+    except Exception:
+        container_model = ""
+    desired = default_model_string(cfg["provider"], cfg["model"])
     return {
         "ok": True,
         "config": cfg,
-        "default_model": default_model_string(cfg["provider"], cfg["model"]),
+        "default_model": desired,
+        "container_model": container_model,
+        "in_sync": (not container_model) or (container_model == desired),
         "providers": key_status(),
         "docker": docker_available(),
         "host_dir_mounted": _host_openmaic_dir() is not None,
