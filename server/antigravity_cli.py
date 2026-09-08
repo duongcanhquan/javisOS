@@ -372,7 +372,7 @@ def _loi_user_agy(loi: str, ma_exit=None) -> str:
                 "hãy export HTTP_PROXY/HTTPS_PROXY cho tiến trình Javis rồi thử lại.")
     if "model_capacity" in l or "no capacity available" in l or "resource_exhausted" in l:
         return ("Model Antigravity đang hết chỗ (capacity). Đợi vài phút hoặc đổi sang model "
-                "khác (vd gemini-3.8-flash-high / medium) ở trang Models rồi gửi lại.")
+                "khác (mức high / medium) ở trang Models rồi gửi lại.")
     if "truncation" in l or "context" in l and ("overflow" in l or "too large" in l):
         return ("Ngữ cảnh Antigravity quá lớn nên bị cắt giữa chừng. Hãy mở hội thoại mới "
                 "(hoặc gửi lại - Javis đã mở mạch mới) và rút gọn yêu cầu.")
@@ -1206,8 +1206,9 @@ class AntigravityCLI:
                 finally:
                     self.mcp_config = _mcp_cu
 
-        # Chỉ đưa lỗi dạng error khi THẬT SỰ hết đường và không có chữ. Ưu tiên một câu
-        # `final` để dashboard không còn hiện "(không có nội dung trả về)" bên cạnh lỗi đỏ.
+        # Không có chữ trả lời: lỗi auth vẫn là `error` (dashboard + test đòi type đó). Các lỗi
+        # còn lại (agent cut đã thử lại xong, thoát mã lạ...) thành `final` để dashboard không
+        # hiện "(không có nội dung trả về)" bên cạnh bong bóng đỏ.
         text = (ket.get("text") or "").strip()
         if text:
             # Không nuốt chuyện này: trả lời mà thiếu system prompt thì vẫn trôi chảy, người dùng
@@ -1228,10 +1229,15 @@ class AntigravityCLI:
             yield {"type": "final", "content": text}
         elif ket.get("loi") or (ket.get("cac_loi") or []):
             loi_gop = "\n".join(x for x in (ket.get("cac_loi") or []) if x).strip()
-            yield {"type": "final",
-                   "content": (loi_gop or (
-                       "Antigravity vừa lỗi và không kịp trả lời. Hãy gửi lại câu hỏi "
-                       "(Javis đã bỏ mạch hỏng nếu có), hoặc đổi model / mở hội thoại mới."))}
+            noi_dung = (loi_gop or (
+                "Antigravity vừa lỗi và không kịp trả lời. Hãy gửi lại câu hỏi "
+                "(Javis đã bỏ mạch hỏng nếu có), hoặc đổi model / mở hội thoại mới."))
+            # "chưa đăng nhập" là bản dịch Việt của auth fail - _la_loi_chua_dang_nhap chỉ nhận
+            # bản tiếng Anh thô nên phải soi cả hai.
+            if _la_loi_chua_dang_nhap(noi_dung) or "chưa đăng nhập" in noi_dung.lower():
+                yield {"type": "error", "content": noi_dung}
+            else:
+                yield {"type": "final", "content": noi_dung}
         else:
             # Lưới an toàn cuối. Bản 1.0.0 của agy có lỗi nuốt stdout khi chạy qua ống dẫn
             # (issue #76 của google-antigravity/antigravity-cli); im lặng ở đây thì người dùng
