@@ -1,6 +1,7 @@
 ---
 name: SEO GPT
 description: "SEO cho LLM/chat: cấu trúc dễ trích dẫn, câu trả lời trực tiếp, FAQ, entity rõ - kèm SEO cổ điển."
+description_en: "SEO for LLM/chat: citable structure, direct answers, FAQ, clear entities - plus classic SEO."
 group: Marketing
 ---
 

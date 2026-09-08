@@ -1,6 +1,7 @@
 ---
 name: Kiểm tra SEO
 description: "Audit SEO cổ điển + SEO GPT (LLM): title/meta/H1 và khả năng được chat AI trích dẫn."
+description_en: "Classic SEO + SEO GPT (LLM) audit: title/meta/H1 and whether chat AI can cite the page."
 group: Marketing
 ---
 

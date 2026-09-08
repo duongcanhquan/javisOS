@@ -3004,7 +3004,7 @@
       '<div class="mt-field"><label>Chủ đề / tên trang Wiki</label>' +
       '<input type="text" id="' +
       prefix +
-      'KnowTopic" placeholder="VD: Quyết định pricing Q3 · Brief landing"></div>' +
+      'KnowTopic" placeholder="Ví dụ: Quyết định pricing Q3 · Brief landing"></div>' +
       '<div class="mt-field"><label>Gắn dự án (tuỳ chọn)</label>' +
       '<select id="' +
       prefix +
@@ -3082,7 +3082,9 @@
       if (r.project_warn) msg += " · cảnh báo dự án: " + r.project_warn;
       if (resultEl) {
         resultEl.innerHTML =
-          '<span class="mt-know-ok">✓ ' +
+          '<span class="mt-know-ok">' +
+          ic("check") +
+          " " +
           esc(msg) +
           "</span>" +
           (r.wiki_path

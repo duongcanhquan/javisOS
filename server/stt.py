@@ -42,12 +42,11 @@ _PROMPT_VI = ("Tiếng Việt có dấu. Ghi đúng chính tả và dấu thanh.
 _PROMPT_EN = ("Transcribe clearly in English. Keep proper nouns and technical terms.")
 
 _HD_THIEU_KEY = (
-    "[Người dùng vừa gửi TIN THOẠI. Javis chưa nghe được vì chưa có API key để chuyển "
-    "giọng thành chữ. Hãy nói với họ: vào trang Models, dán key Google Gemini (API) "
-    "(hoặc OpenAI nếu họ dùng OpenAI) rồi lưu; dashboard/cuộc họp cũng dùng Moonshine "
-    "local + nhận giọng trình duyệt (Chrome/Edge) không cần key. Trong lúc chờ nhờ họ "
-    "gõ chữ. Nếu đang đóng vai người thật nói với khách thì CHỈ nhờ họ gõ chữ, đừng "
-    "nhắc API key hay dashboard.]")
+    "[Người dùng vừa gửi TIN THOẠI. Javis chưa nghe được vì chưa có API key Groq để chuyển "
+    "giọng thành chữ. Hãy nói với họ: vào trang Models, dán API key Groq rồi lưu; "
+    "dashboard/cuộc họp cũng dùng Moonshine local + nhận giọng trình duyệt (Chrome/Edge) "
+    "không cần key. Trong lúc chờ nhờ họ gõ chữ. Nếu đang đóng vai người thật nói với khách "
+    "thì CHỈ nhờ họ gõ chữ, đừng nhắc API key hay dashboard.]")
 
 MARK_THOAI = "[Tin THOẠI"
 

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.136] - 2026-09-07
+### Sửa lỗi
+- **CI Python xanh lại:** khôi phục `grok_cli.py` (mã hoá hỏng), sắp lại CHANGELOG trùng/lộn thứ tự, vá hợp đồng test lệch product (deploy-vps, STT, skill, route…), và vài chỗ UI/docs (Copy path đã có từ trước).
+
 ## [0.55.135] - 2026-09-07
 ### Cải tiến
 - **Tệp tin:** nút **Copy đường dẫn** trên mỗi dòng (và kết quả tìm) — copy path tương đối để dán vào Bài giảng / OpenMAIC.
@@ -242,363 +246,6 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.55.70] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp không nghe được mic:** chế độ rảnh tay ở chat cứ 0,5 giây cướp lại micro khiến trang Họp im. Vào Họp / bấm Bắt đầu sẽ tắt rảnh tay và nhả mic; vòng rảnh tay bỏ qua khi đang ghi họp.
-
-## [0.35.89] - 2026-09-05
-### Cải tiến
-- **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
-- **Menu icon:** rê chuột vào thì bung rộng thật và hiện chữ tiêu đề (sửa lỗi hover vẫn kẹt 60px).
-
-
-## [0.35.88] - 2026-09-05
-### Cải tiến
-- **Menu trái:** thu còn icon theo nhóm; rê chuột vào thì bung rộng hiện chữ (giữ accordion).
-- **Vault mặc định thu**; khung chat kéo dài hết chiều cao, chữ nhỏ hơn để hiện nhiều hơn.
-- **Copilot:** vào **Models** (nhóm Kết nối), tab Chưa kết nối; từ Cài đặt bấm lối tắt Models.
-
-
-## [0.35.87] - 2026-09-05
-### Cải tiến
-- **GitHub Copilot CLI** vào trang Models: dùng gói Copilot sẵn có (binary `copilot`), không dán API key; đăng nhập bằng `copilot login` hoặc token env rồi bấm Kiểm tra lại.
-- **Kết nối / Models / Kênh gọn hơn:** tab Đã / Chưa kết nối, lưới 2 cột; Telegram và Zalo cạnh nhau.
-- **Menu trái mặc định chỉ icon**; cột Vault thu/mở được để khung hội thoại rộng hơn.
-
-
-## [0.35.86] - 2026-09-05
-### Cải tiến
-- **Menu bên trái mặc định chỉ icon** (rê chuột hiện tên) để màn rộng hơn; cột Vault thu/mở được, hội thoại bên phải rộng thêm khi thu.
-
-
-## [0.35.85] - 2026-09-05
-### Cải tiến
-- **Models & Kênh gọn như trang Kết nối.** Models tách tab Đã / Chưa kết nối, chia 2 cột; Kênh đặt Telegram và Zalo cạnh nhau trên một hàng.
-
-
-## [0.35.84] - 2026-09-05
-### Cải tiến
-- **Trang Kết nối gọn hơn, 2 tab rõ việc.** Tách **Đã kết nối** và **Dịch vụ kết nối**; danh sách chia 2 cột, card nhỏ hơn, thao tác Test/thêm dịch vụ dễ thấy hơn.
-
-
-## [0.35.83] - 2026-09-05
-### Sửa lỗi
-- **Google Chat: thông báo đúng khi thiếu Chat app.** OAuth JSON đúng mà Test báo lỗi thì hướng dẫn cấu hình Chat app trong Cloud Console (bước bắt buộc), không còn đổ oan key.
-
-
-## [0.35.82] - 2026-09-05
-### Sửa lỗi
-- **CI: test xóa cuộc họp nạp đúng module `meetings`.** Trước đó `python test_meetings_delete.py` không thấy `server/` nên cả bước Python đỏ dù JS đã xanh.
-- **Kết nối Google Chat hết báo “Key chưa đúng” vì field `query`.** Bước kiểm tra dùng đúng schema (`pageSize`), khớp MCP Chat của Google (`spaceNameQuery`).
-
-
-## [0.35.81] - 2026-09-05
-### Sửa lỗi
-- **CI hết đỏ vì test mở file từ chat.** Hàm ghép đường dẫn tương đối trong note (facts trong Memory) vẫn mở đúng trình sửa; test nới khoảng cách cho khớp.
-
-## [0.35.80] - 2026-09-05
-### Sửa lỗi
-- **CI và Ollama local khớp bản đang chạy.** Test Gemini CLI chuyển sang Antigravity; Ollama local có retry tool; bỏ em dash trong placeholder họp.
-
-
-## [0.35.79] - 2026-09-05
-### Sửa lỗi
-- **Khôi phục hồ sơ Memory HTĐT và sửa link mở hụt.** File `memory/facts/…` bị mất trên VPS đã seed lại; link trong `MEMORY.md` trỏ đúng `memory/facts/…`, và bấm link tương đối trong note cũng ghép đúng thư mục đang mở.
-
-
-## [0.35.78] - 2026-09-05
-### Cải thiện
-- **Telegram báo chờ thân thiện hơn.** Tin trạng thái đổi từ "Javis đang xử lý…" sang "Em đang thực hiện yêu cầu…".
-
-
-## [0.35.77] - 2026-09-05
-### Sửa lỗi
-- **Gemini API hết báo 404 model 2.5-flash.** Google đã ngừng bán `gemini-2.5-flash` cho tài khoản mới; Javis tự đổi sang `gemini-3.6-flash` (và cập nhật danh sách mặc định trên Telegram/Models).
-
-
-## [0.35.76] - 2026-09-05
-### Cải thiện
-- **VPS không còn chạy Ollama hay Apply routing khi deploy.** Hai việc đó không dùng: mỗi lần đẩy code còn chiếm SSH, RAM và gỡ ghim Telegram/Zalo. Giờ chỉ kéo image rồi lên container; Ollama chỉ gỡ nếu máy còn sót.
-- **DeepSeek và Ollama local cũng gọi được tool** trên chat Telegram/Zalo (trước đó hai đường này lặng lẽ chat không công cụ).
-
-## [0.35.75] - 2026-09-05
-### Sửa lỗi
-- **Deploy xong không còn tắt nhầm Javis.** Script tối ưu VPS trước đây `compose stop` cả file app nên container `javis` bị gỡ ngay sau khi vừa lên; giờ chỉ gỡ Pixelle, rồi kiểm tra health lại trước khi báo xong.
-
-## [0.35.74] - 2026-09-05
-### Sửa lỗi
-- **Deploy VPS hết đua nhau và hết build Docker trên máy.** Mỗi lần đẩy code: GitHub dựng image xong mới kéo xuống VPS (không `--build` tại chỗ); Seed / Recover / Routing xếp hàng cùng một cửa SSH; Pixelle tắt trước khi lên container. Hết Conflict tên `javis` và SSH timeout vì nhiều job cùng lúc.
-
-
-## [0.35.73] - 2026-09-05
-### Cải thiện
-- **Dashboard và VPS nhẹ hơn.** Tắt Pixelle mặc định trên VPS (nhường RAM), giảm poll Việc/Bot, sửa MCP không đóng hết phiên mỗi lần đổi nhãn, và `/mcp/ambient` không còn chặn cả app khi hỏi `claude mcp list`.
-
-
-## [0.35.72] - 2026-09-05
-### Cải thiện
-- **Telegram/Zalo về Antigravity, bỏ ghim Groq.** Chat nhắn tin dùng chung gói Google ổn định; mic dashboard ưu tiên nhận giọng trình duyệt, không bắt dán key Groq.
-
-
-## [0.35.71] - 2026-09-05
-### Sửa lỗi
-- **Groq hết hạn mức phút (429 TPM) ít làm đứng chat hơn.** Zalo/Telegram chuyển sang model nhẹ `gpt-oss-20b`; hết quota thì tự chờ vài giây rồi thử lại thay vì báo lỗi ngay.
-
-
-## [0.35.70] - 2026-09-05
-### Sửa lỗi
-- **Zalo/Telegram lại đọc được Gmail/Lịch.** Lỗi kỹ thuật làm engine API (Groq…) chạy chat không có tool dù kết nối vẫn xanh; đã sửa và tự nạp tool email/lịch theo câu hỏi.
-
-
-## [0.35.69] - 2026-09-05
-### Sửa lỗi
-- **Groq gpt-oss không còn trả lời rỗng.** Model suy nghĩ hết token vẫn hiện chữ (lấy từ reasoning) và Javis gửi đủ ngân sách token cho chat Zalo/Telegram.
-
-
-## [0.35.68] - 2026-09-05
-### Cải thiện
-- **Dọn VPS một lệnh:** scrub Llama/Ollama local, prune Docker (giữ volume), kiểm tra hàm xoá kết nối / remap Groq còn sống - deploy tự chạy qua optimize.
-
-
-## [0.35.67] - 2026-09-05
-### Sửa lỗi
-- **Gỡ sạch Llama khỏi Groq.** Ghim/catalog cũ còn `llama-*` tự đổi sang `openai/gpt-oss-120b`; picker không còn hiện dòng Llama (Groq đã shutdown, gọi là 404).
-
-
-## [0.35.66] - 2026-09-05
-### Sửa lỗi
-- **Groq không còn gọi model đã gỡ.** `llama-3.3-70b-versatile` (và vài id Llama/Qwen cũ) tự đổi sang `openai/gpt-oss-120b` - hết lỗi 404 model_not_found.
-
-
-## [0.35.65] - 2026-09-05
-### Sửa lỗi
-- **Xoá kết nối Google Chat (và kết nối khác) không còn lỗi JSON / Internal Server Error.** Nút Xoá trên trang Kết nối chạy được để cài lại từ đầu.
-- **Nhắc hẹn / việc nền báo đúng engine.** Máy dùng Antigravity mà phụ lỗi sẽ không còn hiện nhầm "Claude CLI chưa cài" - Zalo/Telegram báo đúng lý do (chưa cài `agy`, chưa đăng nhập Google…).
-
-
-## [0.35.64] - 2026-09-05
-### Cải thiện
-- **Chat Zalo/Telegram tách tầng tốc độ.** VPS tự ghim kênh nhắn tin sang API flash (Groq/Gemini/DeepSeek…) nếu đã có key - phản hồi nhanh, vẫn gọi MCP; Antigravity giữ cho dashboard và việc nền.
-
-
-## [0.35.63] - 2026-09-05
-### Cải thiện
-- **Chat Telegram/Zalo nhanh hơn.** Zalo cũng đi được chế độ Siêu tiết kiệm (trước bị sót); ghim model trên Telegram áp luôn cho Zalo; VPS ép lazy MCP để bớt schema tool mỗi lượt.
-
-
-## [0.35.62] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn chạy Antigravity không còn chết vì thiếu quyền đọc file.** Việc nền headless tự duyệt tool thay vì chờ bấm (lỗi "read_file permission auto-denied" / "no output produced").
-- **Kết quả việc nền luôn vào hòm thư** kể cả khi Telegram/Zalo chưa đấu, không còn báo failed oan.
-- **Xoá kết nối Google Chat (và OAuth Google) báo đúng kết quả:** nếu xoá thất bại sẽ hiện lỗi thay vì báo xong mà card vẫn còn. Nút "Đăng nhập lại Google" có cho Chat/Gmail/Lịch; bấm "Kết nối lại" sẽ xoá token cũ trước khi mở trang Google.
-
-
-## [0.35.61] - 2026-09-05
-### Sửa lỗi
-- **Deploy VPS không còn kẹt khi gỡ Ollama.** Script gỡ xóa thư mục model trực tiếp (không gọi `ollama rm` dễ treo), chạy trước build Docker.
-
-
-## [0.35.60] - 2026-09-05
-### Cải thiện
-- **VPS bỏ Ollama local, chuyển sang cloud.** Tổng kết cuộc họp, nhắc hẹn và việc nền dùng Antigravity (nhanh hơn CPU). Deploy tự gỡ Ollama và xóa model trên VPS để giải phóng RAM/đĩa.
-
-
-## [0.35.59] - 2026-09-05
-### Cải thiện
-- **VPS 12GB tự tối ưu sau deploy:** script kiểm tra Ollama, `javis-qwen3-8b`, ctx 8192, giữ model nóng 30 phút, 6 vòng tool.
-
-
-## [0.35.58] - 2026-09-05
-### Sửa lỗi
-- **Tổng kết cuộc họp không còn báo Ollama trả về rỗng.** Model Qwen3 trước đó bị giới hạn 256 token output và chỉ suy nghĩ; giờ tắt thinking và cho phép viết báo cáo dài.
-
-
-## [0.35.57] - 2026-09-05
-### Sửa lỗi
-- **Deploy không còn tự gửi tin Zalo lỗi kỹ thuật.** Bỏ ép "Tổng kết sáng" mỗi lần deploy; nhắc 8h vẫn giữ, chỉ chạy ngay khi bạn bật tay.
-
-
-## [0.35.56] - 2026-09-05
-### Sửa lỗi
-- **Ghi cuộc họp không còn kẹt "Nạp model" im lặng.** Bật micro ngay khi bấm Bắt đầu (Web Speech hoặc Moonshine đã tải), tạo file server sau; không tranh micro với Web Speech trên Chrome.
-
-
-## [0.35.55] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết lỗi hết giờ (ReadTimeout) trên CPU.** Tăng timeout HTTP 3 phút → 15 phút, giảm vòng tool và độ dài câu trả lời, báo rõ model đang chạy chậm thay vì stack trace.
-
-
-## [0.35.54] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết lỗi 500 unexpected EOF trên VPS 6GB.** Hạ `num_ctx` mặc định 8k→4k, tạo swap 2G khi cài, tự thử lại với ctx nhỏ hơn khi runner bị OOM, và thông báo rõ hết RAM thay vì JSON thô.
-
-
-## [0.35.53] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết lỗi 400 thiếu `}`.** Khi gọi tool nhiều vòng, gửi lại `arguments` dạng object (Ollama native) thay vì JSON string kiểu OpenAI.
-
-
-## [0.35.52] - 2026-09-05
-### Sửa lỗi
-- **Install Ollama không còn bị huỷ vì xếp hàng chung với Deploy.** Bỏ concurrency group (GitHub huỷ pending cũ); giữ retry `index.lock` để Install chạy xong và tạo model `javis-*`.
-
-## [0.35.51] - 2026-09-05
-### Sửa lỗi
-- **Cài Ollama trên VPS hết đụng Deploy (index.lock).** Install/Deploy/Routing xếp hàng cùng nhóm; retry git reset; nếu chưa có model `javis-*` thì tạm dùng base đã kéo thay vì để nhắc hẹn lỗi.
-
-## [0.35.49] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết chạy cực chậm trên VPS 6GB.** Hạ `num_ctx` 16k→8k (tránh swap), giữ model nóng 30 phút, cắt `num_predict`, giới hạn 8 vòng tool, báo "đang xử lý" ngay trên Telegram.
-
-## [0.35.48] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết lỗi 12744 > 4096.** Chuyển local sang `/api/chat` (tôn trọng `num_ctx`), tạo model Modelfile bake 16k, ép lazy tool + rút disclaimer việc nền. `/v1` trước đó bỏ qua `options.num_ctx` nên vẫn kẹt 4096 dù đã gửi 16384.
-
-## [0.35.47] - 2026-09-05
-### Sửa lỗi
-- **Nhắc hẹn Ollama Local hết lỗi vượt context 4096.** Tự gửi `num_ctx=16384` và rút gọn system prompt việc nền (CLAUDE.md ~10k token trước đây làm nổ 400).
-
-## [0.35.46] - 2026-09-05
-### Cải thiện
-- **Ollama trên VPS 12GB:** chọn lại model mạnh nhất vừa máy (thường `qwen3:8b`), gỡ bản 1B–4B cũ cho đỡ đầy đĩa 60GB NVMe.
-
-## [0.35.45] - 2026-09-05
-### Sửa lỗi
-- **Hết lỗi `Not logged in · Please run /login` khi việc nền dùng Ollama.** Deploy không còn ép Ollama Cloud lúc chưa có key (rồi âm thầm rơi về Claude). Máy đã cài Ollama local thì việc nền ưu tiên local; Claude chưa login thì không còn bị kéo vào làm fallback.
-
-## [0.35.44] - 2026-09-05
-### Cải thiện
-- **Ollama trên VPS đĩa chật:** tự dọn Docker cache, hạ ngưỡng giữ đĩa, thêm model siêu nhẹ (1B–3B) khi không đủ chỗ cho bản lớn.
-
-## [0.35.43] - 2026-09-05
-### Thêm mới
-- **Cài Ollama trên VPS + kéo model mạnh nhất vừa máy.** Script tự đọc đĩa/RAM/GPU, chọn model phù hợp, kéo về local, trỏ Javis việc nền sang Ollama (Local). Workflow chạy khi đẩy script lên main.
-
-## [0.35.42] - 2026-09-05
-### Thêm mới
-- **Chốt phân tầng model trên VPS:** Main = Antigravity, việc nền = Ollama Cloud. Script `apply-model-routing-vps.sh` + workflow bấm tay (có thể reset mật khẩu dashboard).
-
-## [0.35.41] - 2026-09-05
-### Sửa lỗi
-- **Ollama Cloud chạy được làm model việc nền.** Trước đây chọn Ollama ở khối việc nền vẫn lặng lẽ rơi về Claude (đòi đăng nhập). Nay đấu đủ vào `aux_engine` nên nhắc hẹn / loop / Kanban chạy bằng key Ollama như chat thường.
-
-## [0.35.40] - 2026-09-05
-### Thêm mới
-- **Tổng kết sáng gửi cả Telegram và Zalo.** Nhắc hệ thống (`chat_id=all`) báo cáo lên mọi kênh ngoài đã đấu, không chỉ một app.
-- **Google Chat trong Kết nối.** Đấu MCP chính chủ của Google để đọc space/DM, tìm tin và biết ai nhắc bạn (cần email Workspace).
-- **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
-
-### Sửa lỗi
-- **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
-- **Cuộc họp kẹt "Nạp model".** Trước đó MicTranscriber tải nhầm model English Medium (~270MB) thay model tiếng Việt Base (~70MB) nên treo. Nay dùng đúng Moonshine VI + phân biệt người nói; tải nền khi mở trang.
-- **Cuộc họp: Dừng/Hủy khi đang tải model; nút Xóa file họp cũ.** Tạo file transcript trước khi tải Moonshine; WASM chạy cùng origin với dashboard (không phụ thuộc CDN).
-- **Lưu trữ cuộc họp theo ngày + tìm kiếm.** Tab Lưu trữ: lọc hôm nay/7 ngày/30 ngày, tìm theo tên/người/nội dung transcript, xem chi tiết và xóa từng cuộc họp.
-
-## [0.35.39] - 2026-09-05
-### Thêm mới
-- **Nhắc tổng kết sáng 8h hàng ngày.** Mỗi sáng Javis đọc email hôm qua, lịch hôm nay và ngày mai, rồi gửi báo cáo ngắn (việc cần làm / đã xử lý). Skill `tong-ket-sang` + seed tự chạy khi deploy VPS.
-
-## [0.35.38] - 2026-09-04
-### Sửa lỗi
-- **Video short không còn trả bản chỉ chữ.** Mỗi cảnh bắt buộc có ảnh (ChatGPT nếu đã login, không thì Pollinations). Thiếu ảnh → báo lỗi, không giao mp4 khung chữ trơn.
-
-## [0.35.37] - 2026-09-04
-### Cải thiện
-- **Video short có ảnh AI từng cảnh.** `javis_render_script_video` mặc định gọi ChatGPT (OAuth) tạo ảnh + Edge-TTS + chữ overlay → mp4 đầy đủ. Chưa đăng nhập ChatGPT thì vẫn ra bản chữ và nói rõ. Pixelle thiếu RunningHub thì fallback đường này.
-
-## [0.35.36] - 2026-09-04
-### Thêm mới
-- **Cài Pixelle đầy đủ trên VPS khi deploy.** `setup-pixelle-vps.sh` clone engine, ghi config (static + Edge-TTS), bật API :8000 + WebUI :8501. Tool `javis_pixelle_generate` gọi Pixelle; chết thì tự fallback native.
-
-## [0.35.35] - 2026-09-04
-### Thêm mới
-- **Render video ngay trong Javis** bằng tool `javis_render_script_video` (Edge-TTS tiếng Việt + khung chữ + ffmpeg → `attachments/*.mp4`). Không cần bật Pixelle cổng 8000.
-- Skill `pixcelvideo` ưu tiên đường native; Pixelle chỉ khi API đang sống. Compose tuỳ chọn `docker-compose.pixelle.yml` nếu muốn ảnh AI sau.
-
-## [0.35.32] - 2026-09-04
-### Cải thiện
-- **Gửi PDF/Word/Excel qua Zalo Bot nhận tin ngắn ngay** (không gọi model ~5 phút). Zalo API không chuyển tài liệu cho bot; tin gợi ý chụp ảnh, Drive hoặc Telegram.
-
-## [0.35.31] - 2026-09-04
-### Sửa lỗi
-- **Tin xác nhận nhận file trên Zalo hết hiện dấu markdown thô** (`**tên**`, `inbox`). Nay gửi chữ thường, Telegram cũng đọc gọn hơn.
-- **Deploy VPS đợi health dài hơn** thay vì curl một lần sau 5 giây (tránh Connection reset lúc container vừa start).
-
-## [0.35.30] - 2026-09-04
-### Thêm mới
-- **Kho nhận file 3 tầng trên Zalo và Telegram.** Gửi file không kèm yêu cầu thì chỉ ghi nhận (không đốt model). Bảo phân tích / giữ / đưa Drive thì chuyển vào `received/` rồi mới xử lý.
-- **Sổ nhận** `Javis/received-index.json` + tin follow-up kiểu "phân tích file vừa gửi" tự gắn đúng file.
-
-## [0.35.29] - 2026-09-04
-### Sửa lỗi
-- **Tự học hết xoá note Wiki ngay sau khi vừa ghi** khi brain dùng thư mục Wiki đánh số (vd `03 - Wiki`). Trước đây nhật ký đầy dòng "Bị chặn: path ngoài scope" dù nội dung hợp lệ.
-- **Vòng kiểm skill tự học không còn xoá sạch đề xuất** chỉ vì model trả lời lệch JSON.
-- **Git commit lúc học nói rõ khi thất bại** thay vì im lặng; chỉ điền identity local khi brain thiếu (không đè tên/email bạn đã đặt cho sao lưu GitHub).
-
-## [0.35.28] - 2026-09-04
-### Thêm mới
-- **Skill hệ thống `deep-research`.** Phương pháp nghiên cứu lặp breadth/depth từ [dzhng/deep-research](https://github.com/dzhng/deep-research), chạy trên Tavily/WebSearch của Javis.
-- **Bộ Video / Proposal / Tạo mẫu** gắn `deep-research` vào agent nghiên cứu chủ đề video, nghiên cứu thị trường và Researcher mẫu.
-
-## [0.35.27] - 2026-09-04
-### Thêm mới
-- **Bộ Video trên trang Workflows.** Một nút tạo 4 agent (nghiên cứu → biên kịch → đạo diễn → kiểm chứng) và workflow đa pipeline: paperdesign (Vox collage), Remotion, OmmiStudio/html-video.
-- **Skill hệ thống `lam-video`.** Điều phối chọn pipeline theo catalog (kèm OmmiStudio và các repo nexu).
-
-### Sửa lỗi
-- **Nút Bộ Proposal hết gọi API không tồn tại.** Đã có endpoint `/studio/seed-strategy` tạo đủ agent + workflow proposal.
-
-## [0.35.26] - 2026-09-04
-### Thêm mới
-- **Skill hệ thống `paperdesign`.** Làm video collage giấy kiểu Vox (topic / ảnh / talking-head → poster → motion → VO → mp4) dựa trên [vox-director](https://github.com/Alisa0808/vox-director). Cần `ATLASCLOUD_API_KEY` + ffmpeg.
-
-### Sửa lỗi
-- **Thẻ Grok Build CLI không còn làm app chết lúc khởi động.** Thiếu module `grok_cli` nên server báo ModuleNotFoundError; nay đã có đủ đăng nhập device-auth, kiểm tra, MCP hub và chạy chat qua binary `grok`.
-- **Khôi phục các module server bị thiếu trên fork** (`purge`, `inbox`, `webpush`, `deploy_info`, `ollama_local`, `ollama_catalog`) để app khởi động và CI import `main` được.
-
-## [0.35.25] - 2026-09-03
-### Cải thiện
-- **Trả lại tên Javis trên giao diện và trong chat.** Không dùng LYON nữa. Giữ các cải tiến hữu ích: chào/cảm ơn trả lời nhanh, giọng đọc mặc định bật, cache từ điển menu không bị kẹt.
-
-## [0.35.24] - 2026-09-03
-### Sửa lỗi
-- **Menu Trợ lý còn chữ Javis dù server đã đổi LYON.** Từ điển ngôn ngữ bị trình duyệt giữ bản cũ vì thiếu `?v=`. Giờ nạp `vi.json` kèm phiên bản app - hard refresh một lần là thấy LYON.
-
-## [0.35.23] - 2026-09-03
-### Cải thiện
-- **Đổi hết chữ Javis trên giao diện sang LYON.** Menu Trợ lý, ô chat, đăng nhập, cài đặt, mức dùng…
-- **Ghi chú seed trong brain cũng ghi LYON** (AGENTS, README tầng vận hành, wiki index…). Tên kỹ thuật `javis_*` / thư mục `Javis/` giữ nguyên để app không hỏng.
-
-## [0.35.22] - 2026-09-03
-### Cải thiện
-- **Chào / cảm ơn trả lời ngay.** Câu xã giao thuần không còn chờ Antigravity hay Claude CLI khởi động hàng chục giây.
-- **Giọng đọc mặc định bật.** Nút loa mặc định mở; muốn tắt thì bấm một lần (vẫn nhớ lần sau).
-
-## [0.35.21] - 2026-09-03
-### Cải thiện
-- **Tên hiển thị mặc định thành LYON.** Logo chữ trên giao diện, tiêu đề trang và tên workspace mặc định là LYON.
-- **Chat xưng LYON thay vì Javis.** Mỗi lượt trả lời được gắn danh tính bắt buộc theo tên workspace; hỏi "bạn tên gì" sẽ nhận LYON.
-
-## [0.35.20] - 2026-08-28
-### Sửa lỗi
-- **Antigravity trên VPS hết phải copy mã OAuth mỗi lần chat.** Docker không có keyring nên `agy` đăng nhập xong nhưng không lưu token. Giờ mặc định lưu ra file trên volume `/data` - chỉ cần `agy` + copy code **một lần**, các lần sau vào chat luôn.
-
-## [0.35.19] - 2026-08-28
-### Thêm mới
-- **Bộ Proposal & Chiến lược trên trang Workflows.** Bấm **Bộ Proposal** là có sẵn 4 agent (nghiên cứu thị trường, chiến lược KD, chiến lược MKT, soạn proposal) và workflow chạy 4 bước có kiểm chứng. Kèm 2 skill hệ thống hướng dẫn khung nghiên cứu và format proposal.
-
-## [0.35.18] - 2026-08-28
-### Thêm mới
-- **Kết nối Tavily (tra web AI) trong Kho kết nối.** Dán API key tavily.com là tra web và trích nội dung trang được ngay cả khi Main Model là Antigravity CLI - chat kiểu "tra web và tổng hợp" có nguồn.
-
-## [0.35.17] - 2026-08-28
-### Cải thiện
-- **Plugin do bạn cài được bật mặc định trên VPS.** Không còn cảnh báo cam "Plugin đang bị chặn" sau deploy; muốn tắt thì đặt `JAVIS_ENABLE_USER_PLUGINS=false` trong `.env` rồi khởi động lại.
-
-## [0.35.16] - 2026-08-28
-### Cải thiện
-- **VPS tự bật Tự học + git-init brain sau deploy.** Brain mặc định được khởi tạo git ngay trên máy chủ, nên trang Tự học xem được commit gần nhất và hoàn tác 1 chạm. Sao lưu lên GitHub Private vẫn cấu hình thêm tay nếu cần.
-
-## [0.35.11] - 2026-08-18
-### Thêm mới
-- **Đấu được DeepSeek API ngay trên trang Models.** Dán key từ platform.deepseek.com, chọn `deepseek-v4-flash` hoặc `deepseek-v4-pro`, rồi dùng như mọi bộ não khác: chat, gọi Kết nối, đọc/ghi brain, skill, việc nền. Ô Suy nghĩ trên trang Models bật/tắt thinking của DeepSeek.
 
 ## [0.55.69] - 2026-09-06
 ### Sửa
@@ -1381,6 +1028,359 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 - **Gõ tiếng Việt hết sót chữ cuối khi bấm Enter gửi tin.** Bộ gõ đang ghép vần mà Enter thì trước đây ký tự cuối rơi rớt hoặc lọt sang tin sau.
 - **Kết nối Google NotebookLM hết chết ngay khi vừa đấu** (ô "Tên hồ sơ" cũ đè mất phiên đăng nhập vừa dán - đã bỏ hẳn ô đó, kết nối cũ tự hết lỗi).
 - **Đấu Google Workspace từ VPS giờ được nói thẳng vì sao không đăng nhập được** thay vì chết im với lỗi "localhost từ chối kết nối" - kèm chỉ đường sang thẻ Lịch và Gmail riêng vốn chạy tốt trên VPS. Cài đặt trên Mac cũng hết chọn nhầm Python cũ rồi báo lỗi khó hiểu.
+
+## [0.35.89] - 2026-09-05
+### Cải tiến
+- **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
+- **Menu icon:** rê chuột vào thì bung rộng thật và hiện chữ tiêu đề (sửa lỗi hover vẫn kẹt 60px).
+
+
+## [0.35.88] - 2026-09-05
+### Cải tiến
+- **Menu trái:** thu còn icon theo nhóm; rê chuột vào thì bung rộng hiện chữ (giữ accordion).
+- **Vault mặc định thu**; khung chat kéo dài hết chiều cao, chữ nhỏ hơn để hiện nhiều hơn.
+- **Copilot:** vào **Models** (nhóm Kết nối), tab Chưa kết nối; từ Cài đặt bấm lối tắt Models.
+
+
+## [0.35.87] - 2026-09-05
+### Cải tiến
+- **GitHub Copilot CLI** vào trang Models: dùng gói Copilot sẵn có (binary `copilot`), không dán API key; đăng nhập bằng `copilot login` hoặc token env rồi bấm Kiểm tra lại.
+- **Kết nối / Models / Kênh gọn hơn:** tab Đã / Chưa kết nối, lưới 2 cột; Telegram và Zalo cạnh nhau.
+- **Menu trái mặc định chỉ icon**; cột Vault thu/mở được để khung hội thoại rộng hơn.
+
+
+## [0.35.86] - 2026-09-05
+### Cải tiến
+- **Menu bên trái mặc định chỉ icon** (rê chuột hiện tên) để màn rộng hơn; cột Vault thu/mở được, hội thoại bên phải rộng thêm khi thu.
+
+
+## [0.35.85] - 2026-09-05
+### Cải tiến
+- **Models & Kênh gọn như trang Kết nối.** Models tách tab Đã / Chưa kết nối, chia 2 cột; Kênh đặt Telegram và Zalo cạnh nhau trên một hàng.
+
+
+## [0.35.84] - 2026-09-05
+### Cải tiến
+- **Trang Kết nối gọn hơn, 2 tab rõ việc.** Tách **Đã kết nối** và **Dịch vụ kết nối**; danh sách chia 2 cột, card nhỏ hơn, thao tác Test/thêm dịch vụ dễ thấy hơn.
+
+
+## [0.35.83] - 2026-09-05
+### Sửa lỗi
+- **Google Chat: thông báo đúng khi thiếu Chat app.** OAuth JSON đúng mà Test báo lỗi thì hướng dẫn cấu hình Chat app trong Cloud Console (bước bắt buộc), không còn đổ oan key.
+
+
+## [0.35.82] - 2026-09-05
+### Sửa lỗi
+- **CI: test xóa cuộc họp nạp đúng module `meetings`.** Trước đó `python test_meetings_delete.py` không thấy `server/` nên cả bước Python đỏ dù JS đã xanh.
+- **Kết nối Google Chat hết báo “Key chưa đúng” vì field `query`.** Bước kiểm tra dùng đúng schema (`pageSize`), khớp MCP Chat của Google (`spaceNameQuery`).
+
+
+## [0.35.81] - 2026-09-05
+### Sửa lỗi
+- **CI hết đỏ vì test mở file từ chat.** Hàm ghép đường dẫn tương đối trong note (facts trong Memory) vẫn mở đúng trình sửa; test nới khoảng cách cho khớp.
+
+## [0.35.80] - 2026-09-05
+### Sửa lỗi
+- **CI và Ollama local khớp bản đang chạy.** Test Gemini CLI chuyển sang Antigravity; Ollama local có retry tool; bỏ em dash trong placeholder họp.
+
+
+## [0.35.79] - 2026-09-05
+### Sửa lỗi
+- **Khôi phục hồ sơ Memory HTĐT và sửa link mở hụt.** File `memory/facts/…` bị mất trên VPS đã seed lại; link trong `MEMORY.md` trỏ đúng `memory/facts/…`, và bấm link tương đối trong note cũng ghép đúng thư mục đang mở.
+
+
+## [0.35.78] - 2026-09-05
+### Cải thiện
+- **Telegram báo chờ thân thiện hơn.** Tin trạng thái đổi từ "Javis đang xử lý…" sang "Em đang thực hiện yêu cầu…".
+
+
+## [0.35.77] - 2026-09-05
+### Sửa lỗi
+- **Gemini API hết báo 404 model 2.5-flash.** Google đã ngừng bán `gemini-2.5-flash` cho tài khoản mới; Javis tự đổi sang `gemini-3.6-flash` (và cập nhật danh sách mặc định trên Telegram/Models).
+
+
+## [0.35.76] - 2026-09-05
+### Cải thiện
+- **VPS không còn chạy Ollama hay Apply routing khi deploy.** Hai việc đó không dùng: mỗi lần đẩy code còn chiếm SSH, RAM và gỡ ghim Telegram/Zalo. Giờ chỉ kéo image rồi lên container; Ollama chỉ gỡ nếu máy còn sót.
+- **DeepSeek và Ollama local cũng gọi được tool** trên chat Telegram/Zalo (trước đó hai đường này lặng lẽ chat không công cụ).
+
+## [0.35.75] - 2026-09-05
+### Sửa lỗi
+- **Deploy xong không còn tắt nhầm Javis.** Script tối ưu VPS trước đây `compose stop` cả file app nên container `javis` bị gỡ ngay sau khi vừa lên; giờ chỉ gỡ Pixelle, rồi kiểm tra health lại trước khi báo xong.
+
+## [0.35.74] - 2026-09-05
+### Sửa lỗi
+- **Deploy VPS hết đua nhau và hết build Docker trên máy.** Mỗi lần đẩy code: GitHub dựng image xong mới kéo xuống VPS (không `--build` tại chỗ); Seed / Recover / Routing xếp hàng cùng một cửa SSH; Pixelle tắt trước khi lên container. Hết Conflict tên `javis` và SSH timeout vì nhiều job cùng lúc.
+
+
+## [0.35.73] - 2026-09-05
+### Cải thiện
+- **Dashboard và VPS nhẹ hơn.** Tắt Pixelle mặc định trên VPS (nhường RAM), giảm poll Việc/Bot, sửa MCP không đóng hết phiên mỗi lần đổi nhãn, và `/mcp/ambient` không còn chặn cả app khi hỏi `claude mcp list`.
+
+
+## [0.35.72] - 2026-09-05
+### Cải thiện
+- **Telegram/Zalo về Antigravity, bỏ ghim Groq.** Chat nhắn tin dùng chung gói Google ổn định; mic dashboard ưu tiên nhận giọng trình duyệt, không bắt dán key Groq.
+
+
+## [0.35.71] - 2026-09-05
+### Sửa lỗi
+- **Groq hết hạn mức phút (429 TPM) ít làm đứng chat hơn.** Zalo/Telegram chuyển sang model nhẹ `gpt-oss-20b`; hết quota thì tự chờ vài giây rồi thử lại thay vì báo lỗi ngay.
+
+
+## [0.35.70] - 2026-09-05
+### Sửa lỗi
+- **Zalo/Telegram lại đọc được Gmail/Lịch.** Lỗi kỹ thuật làm engine API (Groq…) chạy chat không có tool dù kết nối vẫn xanh; đã sửa và tự nạp tool email/lịch theo câu hỏi.
+
+
+## [0.35.69] - 2026-09-05
+### Sửa lỗi
+- **Groq gpt-oss không còn trả lời rỗng.** Model suy nghĩ hết token vẫn hiện chữ (lấy từ reasoning) và Javis gửi đủ ngân sách token cho chat Zalo/Telegram.
+
+
+## [0.35.68] - 2026-09-05
+### Cải thiện
+- **Dọn VPS một lệnh:** scrub Llama/Ollama local, prune Docker (giữ volume), kiểm tra hàm xoá kết nối / remap Groq còn sống - deploy tự chạy qua optimize.
+
+
+## [0.35.67] - 2026-09-05
+### Sửa lỗi
+- **Gỡ sạch Llama khỏi Groq.** Ghim/catalog cũ còn `llama-*` tự đổi sang `openai/gpt-oss-120b`; picker không còn hiện dòng Llama (Groq đã shutdown, gọi là 404).
+
+
+## [0.35.66] - 2026-09-05
+### Sửa lỗi
+- **Groq không còn gọi model đã gỡ.** `llama-3.3-70b-versatile` (và vài id Llama/Qwen cũ) tự đổi sang `openai/gpt-oss-120b` - hết lỗi 404 model_not_found.
+
+
+## [0.35.65] - 2026-09-05
+### Sửa lỗi
+- **Xoá kết nối Google Chat (và kết nối khác) không còn lỗi JSON / Internal Server Error.** Nút Xoá trên trang Kết nối chạy được để cài lại từ đầu.
+- **Nhắc hẹn / việc nền báo đúng engine.** Máy dùng Antigravity mà phụ lỗi sẽ không còn hiện nhầm "Claude CLI chưa cài" - Zalo/Telegram báo đúng lý do (chưa cài `agy`, chưa đăng nhập Google…).
+
+
+## [0.35.64] - 2026-09-05
+### Cải thiện
+- **Chat Zalo/Telegram tách tầng tốc độ.** VPS tự ghim kênh nhắn tin sang API flash (Groq/Gemini/DeepSeek…) nếu đã có key - phản hồi nhanh, vẫn gọi MCP; Antigravity giữ cho dashboard và việc nền.
+
+
+## [0.35.63] - 2026-09-05
+### Cải thiện
+- **Chat Telegram/Zalo nhanh hơn.** Zalo cũng đi được chế độ Siêu tiết kiệm (trước bị sót); ghim model trên Telegram áp luôn cho Zalo; VPS ép lazy MCP để bớt schema tool mỗi lượt.
+
+
+## [0.35.62] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn chạy Antigravity không còn chết vì thiếu quyền đọc file.** Việc nền headless tự duyệt tool thay vì chờ bấm (lỗi "read_file permission auto-denied" / "no output produced").
+- **Kết quả việc nền luôn vào hòm thư** kể cả khi Telegram/Zalo chưa đấu, không còn báo failed oan.
+- **Xoá kết nối Google Chat (và OAuth Google) báo đúng kết quả:** nếu xoá thất bại sẽ hiện lỗi thay vì báo xong mà card vẫn còn. Nút "Đăng nhập lại Google" có cho Chat/Gmail/Lịch; bấm "Kết nối lại" sẽ xoá token cũ trước khi mở trang Google.
+
+
+## [0.35.61] - 2026-09-05
+### Sửa lỗi
+- **Deploy VPS không còn kẹt khi gỡ Ollama.** Script gỡ xóa thư mục model trực tiếp (không gọi `ollama rm` dễ treo), chạy trước build Docker.
+
+
+## [0.35.60] - 2026-09-05
+### Cải thiện
+- **VPS bỏ Ollama local, chuyển sang cloud.** Tổng kết cuộc họp, nhắc hẹn và việc nền dùng Antigravity (nhanh hơn CPU). Deploy tự gỡ Ollama và xóa model trên VPS để giải phóng RAM/đĩa.
+
+
+## [0.35.59] - 2026-09-05
+### Cải thiện
+- **VPS 12GB tự tối ưu sau deploy:** script kiểm tra Ollama, `javis-qwen3-8b`, ctx 8192, giữ model nóng 30 phút, 6 vòng tool.
+
+
+## [0.35.58] - 2026-09-05
+### Sửa lỗi
+- **Tổng kết cuộc họp không còn báo Ollama trả về rỗng.** Model Qwen3 trước đó bị giới hạn 256 token output và chỉ suy nghĩ; giờ tắt thinking và cho phép viết báo cáo dài.
+
+
+## [0.35.57] - 2026-09-05
+### Sửa lỗi
+- **Deploy không còn tự gửi tin Zalo lỗi kỹ thuật.** Bỏ ép "Tổng kết sáng" mỗi lần deploy; nhắc 8h vẫn giữ, chỉ chạy ngay khi bạn bật tay.
+
+
+## [0.35.56] - 2026-09-05
+### Sửa lỗi
+- **Ghi cuộc họp không còn kẹt "Nạp model" im lặng.** Bật micro ngay khi bấm Bắt đầu (Web Speech hoặc Moonshine đã tải), tạo file server sau; không tranh micro với Web Speech trên Chrome.
+
+
+## [0.35.55] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi hết giờ (ReadTimeout) trên CPU.** Tăng timeout HTTP 3 phút → 15 phút, giảm vòng tool và độ dài câu trả lời, báo rõ model đang chạy chậm thay vì stack trace.
+
+
+## [0.35.54] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi 500 unexpected EOF trên VPS 6GB.** Hạ `num_ctx` mặc định 8k→4k, tạo swap 2G khi cài, tự thử lại với ctx nhỏ hơn khi runner bị OOM, và thông báo rõ hết RAM thay vì JSON thô.
+
+
+## [0.35.53] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi 400 thiếu `}`.** Khi gọi tool nhiều vòng, gửi lại `arguments` dạng object (Ollama native) thay vì JSON string kiểu OpenAI.
+
+
+## [0.35.52] - 2026-09-05
+### Sửa lỗi
+- **Install Ollama không còn bị huỷ vì xếp hàng chung với Deploy.** Bỏ concurrency group (GitHub huỷ pending cũ); giữ retry `index.lock` để Install chạy xong và tạo model `javis-*`.
+
+## [0.35.51] - 2026-09-05
+### Sửa lỗi
+- **Cài Ollama trên VPS hết đụng Deploy (index.lock).** Install/Deploy/Routing xếp hàng cùng nhóm; retry git reset; nếu chưa có model `javis-*` thì tạm dùng base đã kéo thay vì để nhắc hẹn lỗi.
+
+## [0.35.49] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết chạy cực chậm trên VPS 6GB.** Hạ `num_ctx` 16k→8k (tránh swap), giữ model nóng 30 phút, cắt `num_predict`, giới hạn 8 vòng tool, báo "đang xử lý" ngay trên Telegram.
+
+## [0.35.48] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi 12744 > 4096.** Chuyển local sang `/api/chat` (tôn trọng `num_ctx`), tạo model Modelfile bake 16k, ép lazy tool + rút disclaimer việc nền. `/v1` trước đó bỏ qua `options.num_ctx` nên vẫn kẹt 4096 dù đã gửi 16384.
+
+## [0.35.47] - 2026-09-05
+### Sửa lỗi
+- **Nhắc hẹn Ollama Local hết lỗi vượt context 4096.** Tự gửi `num_ctx=16384` và rút gọn system prompt việc nền (CLAUDE.md ~10k token trước đây làm nổ 400).
+
+## [0.35.46] - 2026-09-05
+### Cải thiện
+- **Ollama trên VPS 12GB:** chọn lại model mạnh nhất vừa máy (thường `qwen3:8b`), gỡ bản 1B–4B cũ cho đỡ đầy đĩa 60GB NVMe.
+
+## [0.35.45] - 2026-09-05
+### Sửa lỗi
+- **Hết lỗi `Not logged in · Please run /login` khi việc nền dùng Ollama.** Deploy không còn ép Ollama Cloud lúc chưa có key (rồi âm thầm rơi về Claude). Máy đã cài Ollama local thì việc nền ưu tiên local; Claude chưa login thì không còn bị kéo vào làm fallback.
+
+## [0.35.44] - 2026-09-05
+### Cải thiện
+- **Ollama trên VPS đĩa chật:** tự dọn Docker cache, hạ ngưỡng giữ đĩa, thêm model siêu nhẹ (1B–3B) khi không đủ chỗ cho bản lớn.
+
+## [0.35.43] - 2026-09-05
+### Thêm mới
+- **Cài Ollama trên VPS + kéo model mạnh nhất vừa máy.** Script tự đọc đĩa/RAM/GPU, chọn model phù hợp, kéo về local, trỏ Javis việc nền sang Ollama (Local). Workflow chạy khi đẩy script lên main.
+
+## [0.35.42] - 2026-09-05
+### Thêm mới
+- **Chốt phân tầng model trên VPS:** Main = Antigravity, việc nền = Ollama Cloud. Script `apply-model-routing-vps.sh` + workflow bấm tay (có thể reset mật khẩu dashboard).
+
+## [0.35.41] - 2026-09-05
+### Sửa lỗi
+- **Ollama Cloud chạy được làm model việc nền.** Trước đây chọn Ollama ở khối việc nền vẫn lặng lẽ rơi về Claude (đòi đăng nhập). Nay đấu đủ vào `aux_engine` nên nhắc hẹn / loop / Kanban chạy bằng key Ollama như chat thường.
+
+## [0.35.40] - 2026-09-05
+### Thêm mới
+- **Tổng kết sáng gửi cả Telegram và Zalo.** Nhắc hệ thống (`chat_id=all`) báo cáo lên mọi kênh ngoài đã đấu, không chỉ một app.
+- **Google Chat trong Kết nối.** Đấu MCP chính chủ của Google để đọc space/DM, tìm tin và biết ai nhắc bạn (cần email Workspace).
+- **Tổng kết Chat 18h.** Cuối ngày Javis tóm tắt trao đổi Chat và gửi về Zalo. Skill `tong-ket-chat-ngay`; hỏi tay: "tổng kết chat hôm nay".
+
+### Sửa lỗi
+- **Test kênh Zalo khớp luật hòm thư.** `_notify_ready` từ 0.49.0 luôn sẵn; phần soi thiếu Telegram/Zalo chuyển sang `_kenh_con_thieu`.
+- **Cuộc họp kẹt "Nạp model".** Trước đó MicTranscriber tải nhầm model English Medium (~270MB) thay model tiếng Việt Base (~70MB) nên treo. Nay dùng đúng Moonshine VI + phân biệt người nói; tải nền khi mở trang.
+- **Cuộc họp: Dừng/Hủy khi đang tải model; nút Xóa file họp cũ.** Tạo file transcript trước khi tải Moonshine; WASM chạy cùng origin với dashboard (không phụ thuộc CDN).
+- **Lưu trữ cuộc họp theo ngày + tìm kiếm.** Tab Lưu trữ: lọc hôm nay/7 ngày/30 ngày, tìm theo tên/người/nội dung transcript, xem chi tiết và xóa từng cuộc họp.
+
+## [0.35.39] - 2026-09-05
+### Thêm mới
+- **Nhắc tổng kết sáng 8h hàng ngày.** Mỗi sáng Javis đọc email hôm qua, lịch hôm nay và ngày mai, rồi gửi báo cáo ngắn (việc cần làm / đã xử lý). Skill `tong-ket-sang` + seed tự chạy khi deploy VPS.
+
+## [0.35.38] - 2026-09-04
+### Sửa lỗi
+- **Video short không còn trả bản chỉ chữ.** Mỗi cảnh bắt buộc có ảnh (ChatGPT nếu đã login, không thì Pollinations). Thiếu ảnh → báo lỗi, không giao mp4 khung chữ trơn.
+
+## [0.35.37] - 2026-09-04
+### Cải thiện
+- **Video short có ảnh AI từng cảnh.** `javis_render_script_video` mặc định gọi ChatGPT (OAuth) tạo ảnh + Edge-TTS + chữ overlay → mp4 đầy đủ. Chưa đăng nhập ChatGPT thì vẫn ra bản chữ và nói rõ. Pixelle thiếu RunningHub thì fallback đường này.
+
+## [0.35.36] - 2026-09-04
+### Thêm mới
+- **Cài Pixelle đầy đủ trên VPS khi deploy.** `setup-pixelle-vps.sh` clone engine, ghi config (static + Edge-TTS), bật API :8000 + WebUI :8501. Tool `javis_pixelle_generate` gọi Pixelle; chết thì tự fallback native.
+
+## [0.35.35] - 2026-09-04
+### Thêm mới
+- **Render video ngay trong Javis** bằng tool `javis_render_script_video` (Edge-TTS tiếng Việt + khung chữ + ffmpeg → `attachments/*.mp4`). Không cần bật Pixelle cổng 8000.
+- Skill `pixcelvideo` ưu tiên đường native; Pixelle chỉ khi API đang sống. Compose tuỳ chọn `docker-compose.pixelle.yml` nếu muốn ảnh AI sau.
+
+## [0.35.32] - 2026-09-04
+### Cải thiện
+- **Gửi PDF/Word/Excel qua Zalo Bot nhận tin ngắn ngay** (không gọi model ~5 phút). Zalo API không chuyển tài liệu cho bot; tin gợi ý chụp ảnh, Drive hoặc Telegram.
+
+## [0.35.31] - 2026-09-04
+### Sửa lỗi
+- **Tin xác nhận nhận file trên Zalo hết hiện dấu markdown thô** (`**tên**`, `inbox`). Nay gửi chữ thường, Telegram cũng đọc gọn hơn.
+- **Deploy VPS đợi health dài hơn** thay vì curl một lần sau 5 giây (tránh Connection reset lúc container vừa start).
+
+## [0.35.30] - 2026-09-04
+### Thêm mới
+- **Kho nhận file 3 tầng trên Zalo và Telegram.** Gửi file không kèm yêu cầu thì chỉ ghi nhận (không đốt model). Bảo phân tích / giữ / đưa Drive thì chuyển vào `received/` rồi mới xử lý.
+- **Sổ nhận** `Javis/received-index.json` + tin follow-up kiểu "phân tích file vừa gửi" tự gắn đúng file.
+
+## [0.35.29] - 2026-09-04
+### Sửa lỗi
+- **Tự học hết xoá note Wiki ngay sau khi vừa ghi** khi brain dùng thư mục Wiki đánh số (vd `03 - Wiki`). Trước đây nhật ký đầy dòng "Bị chặn: path ngoài scope" dù nội dung hợp lệ.
+- **Vòng kiểm skill tự học không còn xoá sạch đề xuất** chỉ vì model trả lời lệch JSON.
+- **Git commit lúc học nói rõ khi thất bại** thay vì im lặng; chỉ điền identity local khi brain thiếu (không đè tên/email bạn đã đặt cho sao lưu GitHub).
+
+## [0.35.28] - 2026-09-04
+### Thêm mới
+- **Skill hệ thống `deep-research`.** Phương pháp nghiên cứu lặp breadth/depth từ [dzhng/deep-research](https://github.com/dzhng/deep-research), chạy trên Tavily/WebSearch của Javis.
+- **Bộ Video / Proposal / Tạo mẫu** gắn `deep-research` vào agent nghiên cứu chủ đề video, nghiên cứu thị trường và Researcher mẫu.
+
+## [0.35.27] - 2026-09-04
+### Thêm mới
+- **Bộ Video trên trang Workflows.** Một nút tạo 4 agent (nghiên cứu → biên kịch → đạo diễn → kiểm chứng) và workflow đa pipeline: paperdesign (Vox collage), Remotion, OmmiStudio/html-video.
+- **Skill hệ thống `lam-video`.** Điều phối chọn pipeline theo catalog (kèm OmmiStudio và các repo nexu).
+
+### Sửa lỗi
+- **Nút Bộ Proposal hết gọi API không tồn tại.** Đã có endpoint `/studio/seed-strategy` tạo đủ agent + workflow proposal.
+
+## [0.35.26] - 2026-09-04
+### Thêm mới
+- **Skill hệ thống `paperdesign`.** Làm video collage giấy kiểu Vox (topic / ảnh / talking-head → poster → motion → VO → mp4) dựa trên [vox-director](https://github.com/Alisa0808/vox-director). Cần `ATLASCLOUD_API_KEY` + ffmpeg.
+
+### Sửa lỗi
+- **Thẻ Grok Build CLI không còn làm app chết lúc khởi động.** Thiếu module `grok_cli` nên server báo ModuleNotFoundError; nay đã có đủ đăng nhập device-auth, kiểm tra, MCP hub và chạy chat qua binary `grok`.
+- **Khôi phục các module server bị thiếu trên fork** (`purge`, `inbox`, `webpush`, `deploy_info`, `ollama_local`, `ollama_catalog`) để app khởi động và CI import `main` được.
+
+## [0.35.25] - 2026-09-03
+### Cải thiện
+- **Trả lại tên Javis trên giao diện và trong chat.** Không dùng LYON nữa. Giữ các cải tiến hữu ích: chào/cảm ơn trả lời nhanh, giọng đọc mặc định bật, cache từ điển menu không bị kẹt.
+
+## [0.35.24] - 2026-09-03
+### Sửa lỗi
+- **Menu Trợ lý còn chữ Javis dù server đã đổi LYON.** Từ điển ngôn ngữ bị trình duyệt giữ bản cũ vì thiếu `?v=`. Giờ nạp `vi.json` kèm phiên bản app - hard refresh một lần là thấy LYON.
+
+## [0.35.23] - 2026-09-03
+### Cải thiện
+- **Đổi hết chữ Javis trên giao diện sang LYON.** Menu Trợ lý, ô chat, đăng nhập, cài đặt, mức dùng…
+- **Ghi chú seed trong brain cũng ghi LYON** (AGENTS, README tầng vận hành, wiki index…). Tên kỹ thuật `javis_*` / thư mục `Javis/` giữ nguyên để app không hỏng.
+
+## [0.35.22] - 2026-09-03
+### Cải thiện
+- **Chào / cảm ơn trả lời ngay.** Câu xã giao thuần không còn chờ Antigravity hay Claude CLI khởi động hàng chục giây.
+- **Giọng đọc mặc định bật.** Nút loa mặc định mở; muốn tắt thì bấm một lần (vẫn nhớ lần sau).
+
+## [0.35.21] - 2026-09-03
+### Cải thiện
+- **Tên hiển thị mặc định thành LYON.** Logo chữ trên giao diện, tiêu đề trang và tên workspace mặc định là LYON.
+- **Chat xưng LYON thay vì Javis.** Mỗi lượt trả lời được gắn danh tính bắt buộc theo tên workspace; hỏi "bạn tên gì" sẽ nhận LYON.
+
+## [0.35.20] - 2026-08-28
+### Sửa lỗi
+- **Antigravity trên VPS hết phải copy mã OAuth mỗi lần chat.** Docker không có keyring nên `agy` đăng nhập xong nhưng không lưu token. Giờ mặc định lưu ra file trên volume `/data` - chỉ cần `agy` + copy code **một lần**, các lần sau vào chat luôn.
+
+## [0.35.19] - 2026-08-28
+### Thêm mới
+- **Bộ Proposal & Chiến lược trên trang Workflows.** Bấm **Bộ Proposal** là có sẵn 4 agent (nghiên cứu thị trường, chiến lược KD, chiến lược MKT, soạn proposal) và workflow chạy 4 bước có kiểm chứng. Kèm 2 skill hệ thống hướng dẫn khung nghiên cứu và format proposal.
+
+## [0.35.18] - 2026-08-28
+### Thêm mới
+- **Kết nối Tavily (tra web AI) trong Kho kết nối.** Dán API key tavily.com là tra web và trích nội dung trang được ngay cả khi Main Model là Antigravity CLI - chat kiểu "tra web và tổng hợp" có nguồn.
+
+## [0.35.17] - 2026-08-28
+### Cải thiện
+- **Plugin do bạn cài được bật mặc định trên VPS.** Không còn cảnh báo cam "Plugin đang bị chặn" sau deploy; muốn tắt thì đặt `JAVIS_ENABLE_USER_PLUGINS=false` trong `.env` rồi khởi động lại.
+
+## [0.35.16] - 2026-08-28
+### Cải thiện
+- **VPS tự bật Tự học + git-init brain sau deploy.** Brain mặc định được khởi tạo git ngay trên máy chủ, nên trang Tự học xem được commit gần nhất và hoàn tác 1 chạm. Sao lưu lên GitHub Private vẫn cấu hình thêm tay nếu cần.
 
 ## [0.35.12] - 2026-08-17
 ### Sửa lỗi

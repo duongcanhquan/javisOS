@@ -129,7 +129,7 @@ Giới hạn cần nhớ:
 
 Bấm giữ nút micro trong Telegram, nói, rồi thả tay. Javis nghe câu đó thành chữ và làm y như bạn gõ tay - tiện nhất lúc đang lái xe hoặc tay bận.
 
-**Cần một trong:** API key **Google Gemini** (ưu tiên), hoặc OpenAI, ở trang Models. Cloud STT chuyển giọng → chữ cho tin thoại. Chưa có key thì gửi tin thoại Javis sẽ nói rõ và nhờ gõ chữ — không bắt buộc Groq.
+**Cần một trong:** API key **Google Gemini** (ưu tiên), hoặc OpenAI, ở trang Models. Cloud STT chuyển giọng → chữ cho tin thoại. Chưa có key thì gửi tin thoại Javis sẽ nói rõ và nhờ gõ chữ - không bắt buộc Groq.
 
 Cách đấu, làm một lần:
 

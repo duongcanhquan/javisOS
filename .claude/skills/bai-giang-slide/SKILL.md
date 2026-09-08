@@ -1,6 +1,7 @@
 ---
 name: Bài giảng slide
 description: "Thiết kế deck slide hấp dẫn: outline, layout, bullet, gợi ý hình/biểu đồ, xuất markdown/HTML."
+description_en: "Design engaging slide decks: outline, layout, bullets, visual/chart cues, export markdown/HTML."
 group: Nội dung
 ---
 
