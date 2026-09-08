@@ -11829,7 +11829,7 @@ async def openmaic_generate(
             msg = f"Không thấy file: {used_path}"
             if "marketign" in used_path:
                 msg += (
-                    " — path đang sai chính tả «marketign» "
+                    " - path đang sai chính tả «marketign» "
                     "(thiếu chữ e; đúng thường là «marketing»)."
                 )
             if hint:
