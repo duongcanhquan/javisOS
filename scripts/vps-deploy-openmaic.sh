@@ -12,8 +12,10 @@ JAVIS_CONTAINER="${JAVIS_CONTAINER:-javis}"
 JAVIS_TTS_PORT="${JAVIS_TTS_PORT:-7777}"
 # 0 = image community (nhanh, phù hợp VPS nhỏ). 1 = build upstream (nặng, dễ OOM).
 OPENMAIC_BUILD="${OPENMAIC_BUILD:-0}"
-# 1 = không có Gemini key vẫn đưa container lên (TTS vẫn dùng được; generate cần key sau).
-OPENMAIC_ALLOW_NO_KEY="${OPENMAIC_ALLOW_NO_KEY:-1}"
+# 0 = bắt buộc có Gemini/Google key (generate classroom cần). 1 = vẫn lên khi thiếu key.
+OPENMAIC_ALLOW_NO_KEY="${OPENMAIC_ALLOW_NO_KEY:-0}"
+# 1 = chỉ cập nhật GOOGLE_API_KEY trong .env.local + restart (không pull/rebuild).
+OPENMAIC_SYNC_KEY_ONLY="${OPENMAIC_SYNC_KEY_ONLY:-0}"
 
 echo "==> OpenMAIC dir: $OPENMAIC_DIR (BUILD=$OPENMAIC_BUILD)"
 
@@ -75,15 +77,62 @@ KEY="$(resolve_google_key | tr -d '\r' | head -n1 || true)"
 if [ "$KEY" = "HAS_KEY=0" ]; then KEY=""; fi
 
 if [ -z "${KEY}" ]; then
-  echo "WARN: chưa có GOOGLE/Gemini API key."
-  echo "  Generate classroom sẽ lỗi cho đến khi có key."
-  echo "  Sửa: Javis → Models → Google Gemini, hoặc secret OPENMAIC_GOOGLE_API_KEY, rồi chạy lại."
+  echo "ERROR: chưa có GOOGLE/Gemini API key — OpenMAIC sẽ báo:"
+  echo "  API key required for provider: google"
+  echo "Sửa một trong hai:"
+  echo "  1) Javis → Models → Google Gemini → dán key (AI Studio), rồi chạy lại deploy"
+  echo "  2) GitHub secret OPENMAIC_GOOGLE_API_KEY rồi chạy Deploy OpenMAIC to VPS"
   if [ "$OPENMAIC_ALLOW_NO_KEY" != "1" ]; then
     exit 1
   fi
-  echo "==> Tiếp tục deploy (ALLOW_NO_KEY=1) — TTS Edge proxy vẫn dùng được."
+  echo "==> Tiếp tục (ALLOW_NO_KEY=1) — generate classroom sẽ FAIL cho đến khi có key."
 else
-  echo "==> Có Gemini/Google API key (ẩn)."
+  echo "==> Có Gemini/Google API key (ẩn, len=${#KEY})."
+fi
+
+# --- Chỉ sync key (sửa nhanh lỗi generate) ---
+if [ "$OPENMAIC_SYNC_KEY_ONLY" = "1" ]; then
+  ENV_FILE="$OPENMAIC_DIR/.env.local"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: thiếu $ENV_FILE — chạy full deploy trước." >&2
+    exit 1
+  fi
+  if [ -z "${KEY}" ]; then
+    echo "ERROR: SYNC_KEY_ONLY cần Gemini key." >&2
+    exit 1
+  fi
+  echo "==> Cập nhật GOOGLE_API_KEY trong $ENV_FILE"
+  export OPENMAIC_DIR _OM_KEY="$KEY"
+  python3 - <<'PY'
+import os, re
+from pathlib import Path
+path = Path(os.environ["OPENMAIC_DIR"]) / ".env.local"
+key = os.environ["_OM_KEY"]
+text = path.read_text(encoding="utf-8")
+if re.search(r"(?m)^GOOGLE_API_KEY=", text):
+    text = re.sub(r"(?m)^GOOGLE_API_KEY=.*$", f"GOOGLE_API_KEY={key}", text)
+else:
+    text = f"GOOGLE_API_KEY={key}\n" + text
+if not re.search(r"(?m)^DEFAULT_PROVIDER=", text):
+    text += "\nDEFAULT_PROVIDER=google\nDEFAULT_MODEL=google:gemini-2.5-flash\n"
+path.write_text(text, encoding="utf-8")
+path.chmod(0o600)
+print("updated", path, "key_len=", len(key))
+PY
+  unset _OM_KEY
+  if docker ps --format '{{.Names}}' | grep -qx openmaic; then
+    echo "==> Restart container openmaic"
+    docker restart openmaic
+  elif [ -f "$OPENMAIC_DIR/docker-compose.yml" ]; then
+    (cd "$OPENMAIC_DIR" && docker compose up -d openmaic) || true
+  else
+    echo "WARN: không thấy container openmaic — chạy full deploy."
+  fi
+  sleep 3
+  curl -fsS "http://127.0.0.1:${OPENMAIC_PORT}/api/health" || true
+  echo
+  echo "==> XONG sync key. Chạy lại generate classroom trên Javis."
+  exit 0
 fi
 
 # --- Shared TTS proxy key (Javis ↔ OpenMAIC) ---

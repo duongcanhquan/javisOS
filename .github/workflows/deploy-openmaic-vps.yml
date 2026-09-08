@@ -14,6 +14,10 @@ on:
         description: "Build từ source upstream (1) hay image community nhanh (0). VPS nhỏ dùng 0."
         required: true
         default: "0"
+      sync_key_only:
+        description: "Chỉ sync Gemini key vào OpenMAIC + restart (1) hay full deploy (0)"
+        required: true
+        default: "0"
   # Agent cloud không có quyền workflow_dispatch (403). Push các file dưới đây lên main
   # sẽ tự chạy deploy (mặc định domain + BUILD=0).
   push:
@@ -43,12 +47,13 @@ jobs:
           OPENMAIC_GOOGLE_API_KEY: ${{ secrets.OPENMAIC_GOOGLE_API_KEY }}
           OPENMAIC_DOMAIN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.domain || 'openmaic.vietmycollege.com' }}
           OPENMAIC_BUILD: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_from_source || '0' }}
+          OPENMAIC_SYNC_KEY_ONLY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sync_key_only || '0' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 60m
-          envs: OPENMAIC_GOOGLE_API_KEY,OPENMAIC_DOMAIN,OPENMAIC_BUILD
+          envs: OPENMAIC_GOOGLE_API_KEY,OPENMAIC_DOMAIN,OPENMAIC_BUILD,OPENMAIC_SYNC_KEY_ONLY
           script: |
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
@@ -64,7 +69,8 @@ jobs:
               exit 1
             fi
             chmod +x "$DIR/scripts/vps-deploy-openmaic.sh"
-            export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD
+            export OPENMAIC_GOOGLE_API_KEY OPENMAIC_DOMAIN OPENMAIC_BUILD OPENMAIC_SYNC_KEY_ONLY
             export OPENMAIC_DIR="${OPENMAIC_DIR:-$HOME/openmaic}"
-            export OPENMAIC_ALLOW_NO_KEY=1
+            # Generate classroom bắt buộc có Gemini key — không ALLOW_NO_KEY nữa.
+            export OPENMAIC_ALLOW_NO_KEY=0
             bash "$DIR/scripts/vps-deploy-openmaic.sh"

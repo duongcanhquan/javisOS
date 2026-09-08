@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.140] - 2026-09-08
+### Sửa lỗi
+- **OpenMAIC generate thiếu Gemini key:** báo rõ cách dán key ở Models và sync lên OpenMAIC; deploy không còn bỏ qua khi thiếu `GOOGLE_API_KEY`.
+
 ## [0.55.139] - 2026-09-08
 ### Cải tiến
 - **Đăng nhập mới = đoạn chat mới:** vào lại sau login (hoặc tạo tài khoản lần đầu) thì khung trống, đỡ nối mạch/ngữ cảnh cũ. Chat cũ vẫn mở từ **Lịch sử**. F5 khi đã đăng nhập vẫn giữ hội thoại đang dở.

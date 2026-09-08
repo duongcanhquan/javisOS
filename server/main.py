@@ -11840,7 +11840,16 @@ async def openmaic_generate(
 
     if r.status_code >= 400 or (isinstance(data, dict) and data.get("success") is False):
         err = (data or {}).get("error") or (data or {}).get("message") or r.text
-        raise HTTPException(r.status_code if r.status_code >= 400 else 502, str(err)[:800])
+        err_s = str(err)[:800]
+        low = err_s.lower()
+        if "api key required" in low and "google" in low:
+            err_s = (
+                "OpenMAIC thiếu GOOGLE_API_KEY (Gemini). "
+                "Vào Javis → Models → Google Gemini, dán key từ AI Studio, "
+                "rồi chạy Actions «Deploy OpenMAIC to VPS» (sync_key_only=1). "
+                f"Chi tiết: {err_s}"
+            )
+        raise HTTPException(r.status_code if r.status_code >= 400 else 502, err_s)
 
     job_id = (data or {}).get("jobId") or (data or {}).get("job_id") or ""
     poll_path = f"/openmaic/jobs/{job_id}" if job_id else ""
