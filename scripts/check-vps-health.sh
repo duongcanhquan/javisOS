@@ -46,6 +46,10 @@ if [ -z "$CNAME" ]; then
   exit 1
 fi
 
+echo "=== APP VERSION (trong container) ==="
+docker exec "$CNAME" sh -c 'cat /app/VERSION 2>/dev/null; echo; ls /brains 2>/dev/null | head -30; echo "---"; find /brains -maxdepth 2 -type d 2>/dev/null | head -40; echo "brains_top=$(ls -1 /brains 2>/dev/null | wc -l)"; echo "state_files=$(ls -1 /data/state 2>/dev/null | wc -l)"' || true
+echo
+
 echo "=== ANTIGRAVITY ==="
 docker exec -u javis "$CNAME" bash -lc '
   export PATH="$HOME/.local/bin:$PATH"
