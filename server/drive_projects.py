@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 import config as cfgmod
+import winproc
 
 _LOCK = threading.RLock()
 _STORE_NAME = "drive_projects.json"
@@ -299,6 +300,7 @@ def rclone_status() -> dict:
             text=True,
             timeout=15,
             env=_rclone_env(),
+            creationflags=winproc.no_window(),
         )
         if r.returncode == 0:
             out["remotes"] = [ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()]
@@ -533,6 +535,7 @@ def run_rclone_sync(item: dict, *, timeout_sec: int = 600) -> dict:
                 text=True,
                 timeout=timeout_sec,
                 env=env,
+                creationflags=winproc.no_window(),
             )
             log = ((r.stdout or "") + "\n" + (r.stderr or "")).strip()[-4000:]
             if r.returncode != 0:
@@ -564,7 +567,14 @@ def run_rclone_sync(item: dict, *, timeout_sec: int = 600) -> dict:
         "-v",
     ]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_sec, env=env)
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec,
+            env=env,
+            creationflags=winproc.no_window(),
+        )
         log = ((r.stdout or "") + "\n" + (r.stderr or "")).strip()[-4000:]
         if r.returncode != 0:
             return {"ok": False, "error": f"rclone exit {r.returncode}", "log": log}

@@ -86,7 +86,7 @@
       '<div class="jw-field"><label>Drive folder ID</label>' +
       '<input id="dpFolder" type="text" placeholder="Lấy từ URL thư mục Drive"></div>' +
       '<div class="jw-field"><label>rclone remote</label>' +
-      '<input id="dpRemote" type="text" value="gdrive:" placeholder="gdrive:"></div>' +
+      '<input id="dpRemote" type="text" value="gdrive:" placeholder="Ví dụ: gdrive:"></div>' +
       '<button type="button" class="jw-btn jw-btn-primary" id="dpCreate">Tạo kho</button>' +
       "</div>" +
       '<div id="dpList" style="margin-top:16px"></div>' +

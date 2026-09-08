@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.155] - 2026-09-08
+### Sửa lỗi
+- **CI đỏ sau Kho Drive:** rclone không bung cửa sổ console trên Windows; placeholder remote viết hoa chữ đầu.
+
 ## [0.55.154] - 2026-09-08
 ### Cải tiến
 - **Kho Drive:** sync thư mục Google Drive (rclone) vào Second Brain, mirror `sources/drive/…`, gắn Dự án chat — trang Bộ não → Kho Drive. Image có sẵn `rclone`.
