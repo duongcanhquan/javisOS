@@ -11728,10 +11728,17 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
 
 @app.get("/openmaic/health")
 async def openmaic_health():
-    """Proxy GET OpenMAIC /api/health (+ capabilities)."""
+    """Proxy GET OpenMAIC /api/health (+ capabilities + LLM module)."""
     import httpx
 
     base = _openmaic_base_url()
+    llm = {}
+    try:
+        from openmaic_llm import status_payload
+
+        llm = status_payload()
+    except Exception as e:
+        llm = {"ok": False, "error": f"{type(e).__name__}: {e}"}
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             r = await client.get(f"{base}/api/health")
@@ -11746,6 +11753,7 @@ async def openmaic_health():
             "base_url": base,
             "public_url": _openmaic_public_url(),
             "data": data,
+            "llm": llm,
         }
     except Exception as e:
         return {
@@ -11753,7 +11761,46 @@ async def openmaic_health():
             "base_url": base,
             "public_url": _openmaic_public_url(),
             "error": f"{type(e).__name__}: {e}",
+            "llm": llm,
         }
+
+
+@app.get("/openmaic/llm")
+async def openmaic_llm_get():
+    """Đọc cấu hình LLM OpenMAIC + key nào đã có trên Models."""
+    from openmaic_llm import status_payload
+
+    return status_payload()
+
+
+@app.post("/openmaic/llm")
+async def openmaic_llm_set(request: Request):
+    """Lưu + áp dụng provider/model OpenMAIC (Gemini / OpenAI / DeepSeek).
+
+    Body JSON: { "provider": "deepseek"|"openai"|"google", "model": "…" }
+    Key lấy từ Models — không gửi key trong body.
+    """
+    from fastapi import HTTPException
+    from openmaic_llm import apply_llm, PROVIDERS
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    provider = str(body.get("provider") or "").strip()
+    model = str(body.get("model") or "").strip()
+    if not provider:
+        raise HTTPException(400, "Thiếu provider (google|openai|deepseek)")
+    if provider.lower() == "gemini":
+        provider = "google"
+    if provider.lower() not in PROVIDERS:
+        raise HTTPException(400, f"Provider không hỗ trợ: {provider}")
+    result = apply_llm(provider, model)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error") or "Áp dụng thất bại")
+    return result
 
 
 def _openmaic_score_lop_hoc_candidates(

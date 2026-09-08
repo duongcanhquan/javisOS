@@ -28,6 +28,10 @@ services:
     container_name: ${JAVIS_NAME:-javis}
     restart: unless-stopped
     pull_policy: always
+    # Để module OpenMAIC LLM gọi được Docker socket (user javis trong group docker trên host).
+    # Lấy GID: stat -c '%g' /var/run/docker.sock  → ghi DOCKER_GID=… vào .env cạnh compose.
+    group_add:
+      - "${DOCKER_GID:-998}"
     environment:
       # Các mặc định cổng/state/brain đã nằm trong Docker image; compose chỉ giữ
       # token thật sự cần chia sẻ giữa app và Watchtower.
@@ -49,6 +53,9 @@ services:
       # OpenMAIC trên cùng VPS (API generate classroom từ Bài giảng).
       OPENMAIC_BASE_URL: ${OPENMAIC_BASE_URL:-http://host.docker.internal:3000}
       OPENMAIC_PUBLIC_URL: ${OPENMAIC_PUBLIC_URL:-https://openmaic.vietmycollege.com}
+      # Path HOST của thư mục OpenMAIC (để module LLM ghi .env.local). VD: /root/openmaic
+      OPENMAIC_HOST_DIR: ${OPENMAIC_HOST_DIR:-}
+      OPENMAIC_PORT: ${OPENMAIC_PORT:-3000}
     ports:
       # Cổng MÁY CHỦ lấy từ biến (trong container vẫn luôn là 7777). Bản thứ hai đặt
       # JAVIS_HOST_PORT=7778 là hết đụng cổng.
@@ -73,6 +80,12 @@ services:
       #   Sau đó: cd brains && git init && git add -A && git commit -m backup && git push
       - claude-auth:/home/javis/.claude        # token đăng nhập Claude (giữ qua mọi update!)
       - codex-auth:/home/javis/.codex          # token đăng nhập ChatGPT/Codex (codex login - giữ qua update)
+      # Module OpenMAIC LLM (Bài giảng): recreate container openmaic khi user đổi Gemini/OpenAI/DeepSeek.
+      # Socket = quyền Docker trên máy chủ (VPS cá nhân OK). Tắt: bỏ dòng dưới trong .env override.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Tuỳ chọn: mount thư mục OpenMAIC trên host để ghi .env.local bền.
+      # Trong .env đặt OPENMAIC_HOST_DIR=/root/openmaic rồi thêm (uncomment):
+      # - ${OPENMAIC_HOST_DIR}:/data/openmaic-host
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
       interval: 30s

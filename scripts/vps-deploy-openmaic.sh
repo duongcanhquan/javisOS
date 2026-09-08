@@ -105,74 +105,132 @@ if [ -z "${KEY}" ] && [ -f "$OPENMAIC_DIR/.env.local" ]; then
 fi
 
 if [ -z "${KEY}" ]; then
-  echo "ERROR: chưa có GOOGLE/Gemini API key — OpenMAIC sẽ báo:"
-  echo "  API key required for provider: google"
-  echo "Sửa một trong hai:"
-  echo "  1) Javis → Models → Google Gemini → dán key (AI Studio), rồi chạy lại deploy"
-  echo "  2) GitHub secret OPENMAIC_GOOGLE_API_KEY rồi chạy Deploy OpenMAIC to VPS"
-  if [ "$OPENMAIC_ALLOW_NO_KEY" != "1" ]; then
-    exit 1
+  if [ "$OPENMAIC_SYNC_KEY_ONLY" = "1" ]; then
+    echo "==> Chưa có Gemini key — sync sẽ lấy key theo provider trong openmaic_llm.json (OpenAI/DeepSeek/Gemini)."
+  else
+    echo "ERROR: chưa có GOOGLE/Gemini API key — OpenMAIC sẽ báo:"
+    echo "  API key required for provider: google"
+    echo "Sửa một trong hai:"
+    echo "  1) Javis → Models → Google Gemini → dán key (AI Studio), rồi chạy lại deploy"
+    echo "  2) GitHub secret OPENMAIC_GOOGLE_API_KEY rồi chạy Deploy OpenMAIC to VPS"
+    echo "  3) Hoặc chọn OpenAI/DeepSeek trong Bài giảng → OpenMAIC LLM rồi sync"
+    if [ "$OPENMAIC_ALLOW_NO_KEY" != "1" ]; then
+      exit 1
+    fi
+    echo "==> Tiếp tục (ALLOW_NO_KEY=1) — generate classroom sẽ FAIL cho đến khi có key."
   fi
-  echo "==> Tiếp tục (ALLOW_NO_KEY=1) — generate classroom sẽ FAIL cho đến khi có key."
 else
   echo "==> Có Gemini/Google API key (ẩn, len=${#KEY})."
 fi
 
-# --- Chỉ sync key (sửa nhanh lỗi generate) ---
+# --- Chỉ sync key+model theo lựa chọn user (Javis → openmaic_llm.json) ---
 if [ "$OPENMAIC_SYNC_KEY_ONLY" = "1" ]; then
   ENV_FILE="$OPENMAIC_DIR/.env.local"
   if [ ! -f "$ENV_FILE" ]; then
     echo "ERROR: thiếu $ENV_FILE — chạy full deploy trước." >&2
     exit 1
   fi
-  if [ -z "${KEY}" ]; then
-    echo "ERROR: SYNC_KEY_ONLY cần Gemini key." >&2
-    exit 1
+  JC="$(find_javis_container)"
+  echo "==> Đọc openmaic_llm.json + API key từ Javis ($JC)"
+  export OPENMAIC_DIR
+  export _OM_JC="$JC"
+  # shellcheck disable=SC2016
+  SYNC_OUT="$(
+    docker exec -i -e JAVIS_STATE_DIR=/data/state -e PYTHONPATH=/app/server -w /app "${JC:-javis}" python3 - <<'PY' || true
+import json, os, sys
+sys.path.insert(0, "/app/server")
+import config as cfgmod
+import secrets_store
+
+def dec(raw):
+    k = (raw or "").strip()
+    if k.startswith(("enc:", "plain:")):
+        k = (secrets_store.decrypt(k) or "").strip()
+    if k.startswith(("enc:", "plain:")):
+        return ""
+    return k
+
+prov, model = "google", "gemini-3.6-flash"
+try:
+    p = cfgmod.STATE_DIR / "openmaic_llm.json"
+    if p.is_file():
+        d = json.loads(p.read_text(encoding="utf-8"))
+        prov = str(d.get("provider") or prov).strip().lower()
+        model = str(d.get("model") or model).strip()
+        if ":" in model:
+            a, _, b = model.partition(":")
+            if a in ("google", "openai", "deepseek", "gemini") and b:
+                prov = "google" if a == "gemini" else a
+                model = b
+except Exception as e:
+    print(f"llm_json_err={e}", file=sys.stderr)
+if prov == "gemini":
+    prov = "google"
+field = {
+    "google": "gemini_api_key",
+    "openai": "openai_api_key",
+    "deepseek": "deepseek_api_key",
+}.get(prov, "gemini_api_key")
+env_key = {
+    "google": "GOOGLE_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+}.get(prov, "GOOGLE_API_KEY")
+prefix = {"google": "google", "openai": "openai", "deepseek": "deepseek"}.get(prov, "google")
+m = (cfgmod.read_settings().get("model") or {})
+key = dec(str(m.get(field) or ""))
+dm = f"{prefix}:{model}"
+print(json.dumps({"provider": prov, "model": model, "env_key": env_key, "default_model": dm, "key": key, "key_len": len(key)}))
+PY
+  )"
+  if [ -z "$SYNC_OUT" ] || ! echo "$SYNC_OUT" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+    echo "WARN: không đọc được openmaic_llm từ Javis — fallback Gemini key cũ."
+    if [ -z "${KEY}" ]; then
+      echo "ERROR: SYNC_KEY_ONLY cần API key (Models)." >&2
+      exit 1
+    fi
+    SYNC_OUT="$(python3 - <<PY
+import json
+print(json.dumps({"provider":"google","model":"gemini-3.6-flash","env_key":"GOOGLE_API_KEY","default_model":"google:gemini-3.6-flash","key":"""$KEY""","key_len":len("""$KEY""")}))
+PY
+)"
   fi
-  echo "==> Cập nhật GOOGLE_API_KEY + DEFAULT_MODEL (gemini-3.6-flash) trong $ENV_FILE"
-  export OPENMAIC_DIR _OM_KEY="$KEY"
+  export _OM_SYNC_JSON="$SYNC_OUT"
   python3 - <<'PY'
-import os, re
+import json, os, re
 from pathlib import Path
+data = json.loads(os.environ["_OM_SYNC_JSON"])
+key = data.get("key") or ""
+if not key:
+    raise SystemExit("ERROR: chưa có API key cho provider=%s — vào Models dán key." % data.get("provider"))
 path = Path(os.environ["OPENMAIC_DIR"]) / ".env.local"
-key = os.environ["_OM_KEY"]
 text = path.read_text(encoding="utf-8")
-if re.search(r"(?m)^GOOGLE_API_KEY=", text):
-    text = re.sub(r"(?m)^GOOGLE_API_KEY=.*$", f"GOOGLE_API_KEY={key}", text)
-else:
-    text = f"GOOGLE_API_KEY={key}\n" + text
-if re.search(r"(?m)^DEFAULT_PROVIDER=", text):
-    text = re.sub(r"(?m)^DEFAULT_PROVIDER=.*$", "DEFAULT_PROVIDER=google", text)
-else:
-    text += "\nDEFAULT_PROVIDER=google\n"
-if re.search(r"(?m)^DEFAULT_MODEL=", text):
-    text = re.sub(r"(?m)^DEFAULT_MODEL=.*$", "DEFAULT_MODEL=google:gemini-3.6-flash", text)
-else:
-    text += "DEFAULT_MODEL=google:gemini-3.6-flash\n"
-# Gỡ model cũ nếu còn sót dạng khác
+# Gỡ các key LLM cũ (không đụng TTS_OPENAI_*)
+for k in ("GOOGLE_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY", "DEFAULT_PROVIDER", "DEFAULT_MODEL"):
+    text = re.sub(rf"(?m)^{k}=.*\n?", "", text)
+env_key = data["env_key"]
+dm = data["default_model"]
+prefix = dm.split(":", 1)[0]
+block = f"{env_key}={key}\nDEFAULT_PROVIDER={prefix}\nDEFAULT_MODEL={dm}\n"
+text = block + text.lstrip()
 text = text.replace("google:gemini-2.5-flash", "google:gemini-3.6-flash")
 path.write_text(text, encoding="utf-8")
 path.chmod(0o600)
-print("updated", path, "key_len=", len(key), "model=google:gemini-3.6-flash")
+print("updated", path, "provider=", data.get("provider"), "model=", dm, "key_len=", len(key))
+# server-providers defaultModel
+sp = Path(os.environ["OPENMAIC_DIR"]) / "server-providers.yml"
+if sp.is_file():
+    t = sp.read_text(encoding="utf-8")
+    t = t.replace("gemini-2.5-flash", "gemini-3.6-flash")
+    if re.search(r"(?m)^\s*defaultModel:", t):
+        t = re.sub(r"(?m)^(\s*defaultModel:).*$", f'\\1 "{dm}"', t)
+    else:
+        t = t.rstrip() + f'\n\ndefaultModel: "{dm}"\n'
+    sp.write_text(t, encoding="utf-8")
 PY
-  unset _OM_KEY
-  # server-providers.yml: ép defaultModel (ưu tiên hơn env trong một số bản OpenMAIC)
+  unset _OM_SYNC_JSON
   SP="$OPENMAIC_DIR/server-providers.yml"
-  if [ -f "$SP" ]; then
-    if grep -q 'gemini-2.5-flash' "$SP" 2>/dev/null; then
-      sed -i.bak 's/gemini-2.5-flash/gemini-3.6-flash/g' "$SP" && rm -f "$SP.bak"
-      echo "==> Đã thay gemini-2.5-flash → 3.6-flash trong server-providers.yml"
-    fi
-    if ! grep -qE '^[[:space:]]*defaultModel:' "$SP" 2>/dev/null; then
-      printf '\ndefaultModel: "google:gemini-3.6-flash"\n' >> "$SP"
-      echo "==> Thêm defaultModel vào server-providers.yml"
-    else
-      sed -i.bak -E 's|^([[:space:]]*defaultModel:).*|\1 "google:gemini-3.6-flash"|' "$SP" && rm -f "$SP.bak"
-    fi
-  fi
-  # QUAN TRỌNG: docker restart KHÔNG đọc lại --env-file. Phải recreate.
-  # QUAN TRỌNG: docker restart KHÔNG đọc lại --env-file. Phải recreate.
-  echo "==> Recreate container openmaic (nạp lại --env-file + model mới)"
+  echo "==> Recreate container openmaic (nạp lại --env-file + model user chọn)"
   IMG="$(docker inspect openmaic --format '{{.Config.Image}}' 2>/dev/null || true)"
   if [ -z "$IMG" ]; then
     IMG="devprincekumar/openmaic:latest"
@@ -205,7 +263,7 @@ PY
   docker exec openmaic sh -c 'echo DEFAULT_MODEL=$DEFAULT_MODEL; echo DEFAULT_PROVIDER=$DEFAULT_PROVIDER' 2>/dev/null || true
   curl -fsS "http://127.0.0.1:${OPENMAIC_PORT}/api/health" || true
   echo
-  echo "==> XONG sync key+model (gemini-3.6-flash, container recreated). Chạy lại generate trên Javis."
+  echo "==> XONG sync LLM OpenMAIC (theo openmaic_llm.json). Chạy lại generate trên Javis."
   exit 0
 fi
 

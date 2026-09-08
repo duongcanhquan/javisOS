@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.147] - 2026-09-08
+### Cải tiến
+- **OpenMAIC tự chọn LLM trong Bài giảng:** Gemini / OpenAI / DeepSeek (key lấy từ Models), bấm Áp dụng — không cần sửa code deploy.
+
 ## [0.55.146] - 2026-09-08
 ### Sửa lỗi
 - **OpenMAIC «không thấy file» khi thiếu tiền tố slug:** ví dụ `marketing-thuc-chien` tự khớp `digital-marketing-thuc-chien`; ô path cũng nhận gợi ý khi vẫn 404.

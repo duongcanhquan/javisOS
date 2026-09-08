@@ -331,7 +331,22 @@
       return (
         '<div class="jw-om" id="bgOmPanel">' +
         '<p class="jw-brief-kicker">OpenMAIC trong Javis</p>' +
-        '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt). Nếu nghe giọng Trung/ngọng: tạo lại lớp sau khi cập nhật Javis, hoặc xoá cache site OpenMAIC trong trình duyệt.</p>' +
+        '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt).</p>' +
+        '<div class="jw-om-llm" id="bgOmLlm">' +
+        '<p class="jw-brief-kicker">LLM cho OpenMAIC (tự cài)</p>' +
+        '<p class="jw-hint">Chọn nhà model; key lấy từ trang <b>Models</b> (không dán lại ở đây). Generate lớp tính phí theo API key đó.</p>' +
+        '<div class="jw-field"><label for="bgOmProv">Nhà cung cấp</label>' +
+        '<select id="bgOmProv">' +
+        '<option value="google">Google Gemini</option>' +
+        '<option value="openai">OpenAI (API)</option>' +
+        '<option value="deepseek">DeepSeek</option>' +
+        "</select></div>" +
+        '<div class="jw-field"><label for="bgOmModel">Model</label>' +
+        '<select id="bgOmModel"></select>' +
+        '<p class="jw-hint" id="bgOmLlmHint">Đang tải…</p></div>' +
+        '<div class="jw-actions">' +
+        '<button type="button" class="jw-btn jw-btn-primary" id="bgOmLlmApply">Áp dụng lên OpenMAIC</button>' +
+        "</div></div>" +
         '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md (tuỳ chọn)</label>' +
         '<input id="bgOmPath" type="text" autocomplete="off" placeholder="Ví dụ: exports/bai-giang/…/lop-hoc.md">' +
         '<p class="jw-hint">Để trống = tự lấy từ kết quả chạy. Có quiz.md cùng thư mục sẽ kèm theo.</p></div>' +
@@ -381,6 +396,90 @@
       var openBtn = root.querySelector("#bgOmOpen");
       var pathEl = root.querySelector("#bgOmPath");
       if (pathEl && lastLopHocPath) pathEl.value = lastLopHocPath;
+
+      // --- OpenMAIC LLM module ---
+      var omLlmCache = null;
+      function fillOmModels(prov) {
+        var sel = root.querySelector("#bgOmModel");
+        var hint = root.querySelector("#bgOmLlmHint");
+        if (!sel || !omLlmCache) return;
+        var meta = (omLlmCache.providers || {})[prov] || {};
+        var models = meta.models || [];
+        var cur = (omLlmCache.config && omLlmCache.config.provider === prov && omLlmCache.config.model) || meta.default_model || "";
+        sel.innerHTML = models
+          .map(function (m) {
+            return '<option value="' + esc(m) + '"' + (m === cur ? " selected" : "") + ">" + esc(m) + "</option>";
+          })
+          .join("");
+        if (cur && models.indexOf(cur) < 0) {
+          sel.innerHTML = '<option value="' + esc(cur) + '" selected>' + esc(cur) + "</option>" + sel.innerHTML;
+        }
+        var keyOk = !!meta.has_key;
+        var dockerOk = !!omLlmCache.docker;
+        var bits = [];
+        bits.push(keyOk ? "Models: đã có key" : "Models: chưa có key — vào trang Models dán key");
+        bits.push(dockerOk ? "Docker: áp dụng trực tiếp được" : "Docker: chưa gắn socket — Áp dụng chỉ lưu, cần sync deploy");
+        if (omLlmCache.default_model) bits.push("Hiện tại: " + omLlmCache.default_model);
+        if (hint) hint.textContent = bits.join(" · ");
+      }
+      async function loadOmLlm() {
+        var provEl = root.querySelector("#bgOmProv");
+        var hint = root.querySelector("#bgOmLlmHint");
+        if (!provEl) return;
+        try {
+          var r = await (await fetch("/openmaic/llm")).json();
+          omLlmCache = r || {};
+          var p = (r.config && r.config.provider) || "google";
+          provEl.value = p;
+          fillOmModels(p);
+        } catch (e) {
+          if (hint) hint.textContent = "Không tải được cấu hình LLM: " + ((e && e.message) || e);
+        }
+      }
+      var provEl = root.querySelector("#bgOmProv");
+      if (provEl) {
+        provEl.onchange = function () {
+          fillOmModels(provEl.value);
+        };
+      }
+      var applyLlmBtn = root.querySelector("#bgOmLlmApply");
+      if (applyLlmBtn) {
+        applyLlmBtn.onclick = async function () {
+          var provider = ((root.querySelector("#bgOmProv") || {}).value || "google").trim();
+          var model = ((root.querySelector("#bgOmModel") || {}).value || "").trim();
+          applyLlmBtn.disabled = true;
+          setStatus("Đang áp dụng LLM OpenMAIC…");
+          try {
+            var res = await fetch("/openmaic/llm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ provider: provider, model: model }),
+            });
+            var j = await res.json().catch(function () {
+              return null;
+            });
+            if (!res.ok) {
+              var err = (j && (j.detail || j.error || j.message)) || "HTTP " + res.status;
+              if (typeof err === "object") err = JSON.stringify(err);
+              setStatus(String(err), false);
+              appendLog("OpenMAIC LLM ERROR: " + err);
+            } else {
+              var msg =
+                (j && j.message) ||
+                (j && j.applied
+                  ? "Đã recreate OpenMAIC → " + (j.default_model || "")
+                  : (j && j.hint) || "Đã lưu lựa chọn");
+              setStatus(String(msg), true);
+              appendLog("--- OpenMAIC LLM ---\n" + msg);
+              await loadOmLlm();
+            }
+          } catch (e) {
+            setStatus(String((e && e.message) || e), false);
+          }
+          applyLlmBtn.disabled = false;
+        };
+      }
+      loadOmLlm();
 
       async function copyText(text, okMsg) {
         try {
