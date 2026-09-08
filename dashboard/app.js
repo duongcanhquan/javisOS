@@ -457,6 +457,31 @@ function loadViewByBrain() {
 function saveViewByBrain(o) {
   try { localStorage.setItem(VIEW_BY_BRAIN_KEY, JSON.stringify(o || {})); } catch (e) {}
 }
+// Đăng nhập mới → khung chat trống (tránh nối mạch/ngữ cảnh cũ). F5 trong phiên đã đăng
+// nhập vẫn restore như cũ. Cờ sessionStorage sống qua location.reload() sau /auth/login.
+const FRESH_LOGIN_KEY = "javis.freshLogin";
+function markFreshLogin() {
+  try { sessionStorage.setItem(FRESH_LOGIN_KEY, "1"); } catch (e) {}
+}
+function consumeFreshLogin() {
+  try {
+    if (sessionStorage.getItem(FRESH_LOGIN_KEY) === "1") {
+      sessionStorage.removeItem(FRESH_LOGIN_KEY);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+function bootChatView() {
+  if (consumeFreshLogin()) {
+    // Xoá snapshot local của phiên đang xem; danh sách Lịch sử vẫn lấy từ server.
+    try { saveSessionMap({}); } catch (e) {}
+    try { saveViewByBrain({}); } catch (e) {}
+    resetChatView({ skipPersist: true });
+    return;
+  }
+  restoreSession();
+}
 function persistSession() {
   try {
     const b = (typeof currentBrainPath === "function" ? currentBrainPath() : "") || "brain";
@@ -2411,7 +2436,7 @@ document.getElementById("authSubmit").addEventListener("click", async () => {
   try {
     const r = await fetch("/auth/login", { method: "POST", body: fd });
     const d = await r.json();
-    if (d.ok) { location.reload(); return; }
+    if (d.ok) { markFreshLogin(); location.reload(); return; }
     // needs_2fa = mật khẩu ĐÚNG rồi, chỉ còn thiếu mã. Hiện ô mã và đưa con trỏ vào đó luôn,
     // đừng bắt người ta tự nhận ra là có thêm một ô mới xuất hiện bên dưới.
     if (d.needs_2fa && codeWrap) {
@@ -2699,7 +2724,7 @@ if (document.getElementById("wzFinish")) {
       const _kf = _KEYS[prov];
       if (_kf && _ork && _ork.trim()) _mp[_kf] = _ork.trim();
       await fetch("/settings", { method: "POST", body: _fd({ section: "model", data: JSON.stringify(_mp) }) });
-      location.reload();
+      markFreshLogin(); location.reload();
     } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; }
   });
 }
@@ -2748,13 +2773,11 @@ pumpAudioLevel();
 loadMemStats();
 loadBrainStats();
 checkVault();
-// Mặc định: tải lại trang (hoặc mở thêm tab) thì VÀO LẠI ĐÚNG HỘI THOẠI ĐANG DỞ.
-// 0.9.88 từng đổi thành luôn mở khung trống; dùng thật thì mỗi lần F5 lại mất mạch chuyện
-// đang nói, phải vào Lịch sử bấm lại. Muốn khung trống thì bấm nút + (hội thoại mới).
-// Khôi phục lấy từ localStorage nên hiện tức thì, giữ nguyên cả ảnh đính kèm lẫn chip chọn
-// đáp án - thứ mà tải lại từ server (/sessions) không có. savedSessionId sống lại theo, nên
-// lượt đang chạy nền của phiên này vẫn stream tiếp vào đúng khung sau khi tải lại.
-restoreSession();
+// Boot khung chat:
+// - Đăng nhập mới (cờ javis.freshLogin): khung trống → đỡ nối mạch/ngữ cảnh cũ (Antigravity…).
+//   Chat cũ vẫn mở được từ Lịch sử.
+// - F5 / mở tab khi đã đăng nhập: khôi phục hội thoại đang dở từ localStorage như trước.
+bootChatView();
 // File ghim sống qua F5 luôn - tải lại trang mà mất file đang làm việc thì đúng cái phiền
 // mà khôi phục hội thoại ở trên sinh ra để tránh.
 _pinRestore();
