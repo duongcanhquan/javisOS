@@ -11756,6 +11756,40 @@ async def openmaic_health():
         }
 
 
+def _openmaic_suggest_lop_hoc_paths(brain: str, wanted: str, limit: int = 5) -> str:
+    """Gợi ý path lop-hoc.md gần đúng khi 404 (typo slug / nhầm brain)."""
+    wanted_l = (wanted or "").lower()
+    needle = Path(wanted_l).name
+    parent_hint = Path(wanted_l).parent.name if "/" in wanted_l else ""
+    found: list[str] = []
+    try:
+        broot = Path(_brain_root(brain)).resolve()
+        root = broot / "exports" / "bai-giang"
+        if not root.is_dir():
+            return ""
+        for p in sorted(root.rglob("lop-hoc.md")):
+            try:
+                rel = str(p.relative_to(broot)).replace("\\", "/")
+            except ValueError:
+                continue
+            low = rel.lower()
+            score = 0
+            if needle and needle in low:
+                score += 2
+            if parent_hint and parent_hint in low:
+                score += 3
+            # Typo thường gặp
+            if "marketing" in low and "marketign" in wanted_l:
+                score += 4
+            if score or low.endswith("/lop-hoc.md"):
+                found.append((score, rel))
+        found.sort(key=lambda x: (-x[0], x[1]))
+        picks = [r for s, r in found if s > 0][:limit] or [r for _, r in found[:limit]]
+        return ", ".join(picks)
+    except Exception:
+        return ""
+
+
 @app.post("/openmaic/generate")
 async def openmaic_generate(
     brain: str = Form("brain"),
@@ -11780,7 +11814,27 @@ async def openmaic_generate(
         except ValueError as e:
             raise HTTPException(400, str(e))
         if not p.is_file():
-            raise HTTPException(404, f"Không thấy file: {used_path}")
+            # Thử sửa lỗi đánh máy phổ biến (marketign → marketing) nếu file đúng tồn tại.
+            alt = used_path.replace("marketign", "marketing")
+            if alt != used_path:
+                try:
+                    cand = _safe_serve_path(brain, alt)
+                    if cand.is_file():
+                        used_path = alt
+                        p = cand
+                except ValueError:
+                    pass
+        if not p.is_file():
+            hint = _openmaic_suggest_lop_hoc_paths(brain, used_path)
+            msg = f"Không thấy file: {used_path}"
+            if "marketign" in used_path:
+                msg += (
+                    " — path đang sai chính tả «marketign» "
+                    "(thiếu chữ e; đúng thường là «marketing»)."
+                )
+            if hint:
+                msg += f" Gợi ý gần đúng: {hint}"
+            raise HTTPException(404, msg)
         try:
             main_md = p.read_text(encoding="utf-8")
         except OSError as e:
