@@ -1,0 +1,42 @@
+# Javis OS - gói trường trên VPS tự quản (Docker)
+#
+#   curl -fsSLO .../deploy/school/docker-compose.yml
+#   cp env.example .env && docker compose up -d
+#
+# Image fork trường. Đổi bằng JAVIS_IMAGE trong .env nếu cần.
+services:
+  javis:
+    image: ${JAVIS_IMAGE:-ghcr.io/duongcanhquan/javisos:latest}
+    container_name: ${JAVIS_NAME:-javis}
+    restart: unless-stopped
+    pull_policy: always
+    environment:
+      JAVIS_ADMIN_USER: ${JAVIS_ADMIN_USER:-admin}
+      JAVIS_ADMIN_PASSWORD: ${JAVIS_ADMIN_PASSWORD:-}
+      JAVIS_ENABLE_USER_PLUGINS: ${JAVIS_ENABLE_USER_PLUGINS:-true}
+      GEMINI_FORCE_FILE_STORAGE: ${GEMINI_FORCE_FILE_STORAGE:-true}
+      JAVIS_MCP_DISCOVER_TIMEOUT: ${JAVIS_MCP_DISCOVER_TIMEOUT:-45}
+      # Tuỳ chọn nếu OpenMAIC chạy cùng máy:
+      OPENMAIC_BASE_URL: ${OPENMAIC_BASE_URL:-}
+      OPENMAIC_PUBLIC_URL: ${OPENMAIC_PUBLIC_URL:-}
+    ports:
+      - "${JAVIS_BIND:-0.0.0.0}:${JAVIS_HOST_PORT:-7777}:7777"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - javis-data:/data
+      - javis-brains:/brains
+      - claude-auth:/home/javis/.claude
+      - codex-auth:/home/javis/.codex
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health',timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  javis-data:
+  javis-brains:
+  claude-auth:
+  codex-auth:

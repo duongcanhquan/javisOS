@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.137] - 2026-09-08
+### Cải tiến
+- **Gói cài cho trường:** hướng dẫn 2 đường (máy cá nhân / VPS-Hostinger) trong `CAI-DAT-TRUONG.md`, compose sẵn ở `deploy/school/`, và nút Studio **Bộ Trường** (nạp bài giảng mẫu + hướng dẫn giáo viên, không kèm brain cá nhân).
+
 ## [0.55.136] - 2026-09-07
 ### Sửa lỗi
 - **CI Python xanh lại:** khôi phục `grok_cli.py` (mã hoá hỏng), sắp lại CHANGELOG trùng/lộn thứ tự, vá hợp đồng test lệch product (deploy-vps, STT, skill, route…), và vài chỗ UI/docs (Copy path đã có từ trước).

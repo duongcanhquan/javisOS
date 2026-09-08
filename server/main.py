@@ -8789,6 +8789,71 @@ async def studio_seed_bai_giang(brain: str = Form("brain")):
     }
 
 
+@app.post("/studio/seed-truong")
+async def studio_seed_truong(brain: str = Form("brain")):
+    """Gói trường: nạp Bộ Bài giảng + agent hướng dẫn giáo viên (không copy dữ liệu cá nhân)."""
+    bg = await studio_seed_bai_giang(brain=brain)
+    a = _agents_dir(brain)
+    today = _today()
+    guide = {
+        "name": "Hướng dẫn giáo viên",
+        "slug": "gv-huong-dan",
+        "role": "Giúp giáo viên mới bắt đầu Javis ở trường: Models, Studio, Bài giảng.",
+        "skills": ["tao-bai-giang", "notes"],
+        "prompt": (
+            "Bạn hỗ trợ giáo viên dùng Javis tại trường (không phải IT).\n"
+            "Ưu tiên ngắn gọn, tiếng Việt, không jargon.\n"
+            "Luồng chuẩn: (1) trang Models đã có bộ não chưa, (2) Studio đã bấm Bộ Trường/Bộ Bài giảng chưa, "
+            "(3) Việc → Bài giảng hoặc chạy workflow lớp học/slide/video/văn bản.\n"
+            "Không xin / không đọc brain của người khác. Không hứa chạy nền rồi báo lại sau.\n"
+            "Không em dash."
+        ),
+    }
+    _write_md(
+        a / f"{guide['slug']}.md",
+        {
+            "type": "agent",
+            "name": guide["name"],
+            "slug": guide["slug"],
+            "role": guide["role"],
+            "skills": guide["skills"],
+            "model": "gemini-2.5-flash",
+            "model_provider": "gemini",
+            "group": "Nội dung",
+            "updated": today,
+        },
+        guide["prompt"],
+    )
+    # Ghi chú ngắn trong Sources (mẫu quy trình - không phải dữ liệu cá nhân).
+    root = Path(_brain_root(brain))
+    src = root / "sources"
+    src.mkdir(parents=True, exist_ok=True)
+    note = src / "goi-truong-bat-dau.md"
+    if not note.is_file():
+        note.write_text(
+            "---\n"
+            "type: source\n"
+            f"created: {today}\n"
+            f"updated: {today}\n"
+            "---\n\n"
+            "# Gói trường - bắt đầu\n\n"
+            "- Models: gắn một bộ não (Antigravity / Claude / OpenRouter / Gemini API…).\n"
+            "- Studio → **Bộ Trường** (đã chạy nếu bạn vừa bấm nút này).\n"
+            "- Làm bài: workflow Bài giảng → Lớp học / Slide / Video / Văn bản, hoặc Việc → Bài giảng.\n"
+            "- Cập nhật app: ZIP mới (máy cá nhân) hoặc Redeploy image (VPS). Không gửi thư mục brains cho người khác.\n",
+            encoding="utf-8",
+        )
+    out = dict(bg) if isinstance(bg, dict) else {"ok": True}
+    out["ok"] = True
+    out["pack"] = "truong"
+    agents = list(out.get("agents") or [])
+    if "gv-huong-dan" not in agents:
+        agents.append("gv-huong-dan")
+    out["agents"] = agents
+    out["source"] = "goi-truong-bat-dau.md"
+    return out
+
+
 @app.post("/studio/seed-marketing")
 async def studio_seed_marketing(brain: str = Form("brain")):
     """Bộ Marketing: SEO / nghiên cứu / Page Facebook / báo cáo Ads chi tiết (Gemini)."""
