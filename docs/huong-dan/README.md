@@ -3,6 +3,7 @@
 | File | Dùng để |
 |---|---|
 | [HUONG-DAN-CAI-DAT-VA-SU-DUNG.md](../../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md) | **Sau đóng gói:** Windows/Mac + VPS Linux/Windows + domain + Studio + Kết nối |
+| [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](../../HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md) | **VPS mới chưa có domain:** IP:7777, tunnel HTTPS, Hostinger miễn phí, cấu hình tối thiểu |
 | [CAI-DAT-MAY-CA-NHAN.md](../../CAI-DAT-MAY-CA-NHAN.md) | Cài đặt Windows/Mac (double-click) |
 | [CAI-DAT-TRUONG.md](../../CAI-DAT-TRUONG.md) | Gói phát cho trường |
 | [HUONG-DAN-SU-DUNG.html](HUONG-DAN-SU-DUNG.html) | Hướng dẫn dùng (mở bằng trình duyệt) |
