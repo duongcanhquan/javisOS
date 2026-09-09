@@ -124,8 +124,7 @@ check("cache-bust chat-render >= 13",
   /chat-render\.js\?v=(\d+)/.test(INDEX) &&
   parseInt(RegExp.$1, 10) >= 13);
 check("CLAUDE.md cam file:// trong link vault",
-  /NEVER use the `file:\/\//.test(CLAUDE) || /NEVER use the \*\*`file:\/\//.test(CLAUDE) ||
-  /NEVER use the \*\*`file:\/\//.test(CLAUDE) ||
+  CLAUDE.indexOf("NEVER `file://`") >= 0 ||
   CLAUDE.indexOf("NEVER use the `file://` scheme") >= 0);
 
 // ============================================================
