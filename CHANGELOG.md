@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.170] - 2026-09-09
+### Cải tiến
+- **Tạo video dễ nhìn hơn:** tab rõ nghĩa (Promo / Có lời đọc / Collage…), form chia mục, giữ nội dung khi đổi tab, nút Tạo video nổi, bớt jargon.
+
 ## [0.55.169] - 2026-09-09
 ### Cải tiến
 - **Trang Tạo video:** menu Công việc → Tạo video (wizard brief + kịch bản + bước chạy). Gộp Postcard / Short+VO / Collage / Remotion, không cần timeline.

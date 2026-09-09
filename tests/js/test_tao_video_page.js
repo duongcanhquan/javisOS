@@ -15,7 +15,9 @@ const vi = fs.readFileSync(path.join(root, "dashboard/i18n/vi.json"), "utf8");
 const en = fs.readFileSync(path.join(root, "dashboard/i18n/en.json"), "utf8");
 
 check("video.js export renderTaoVideo", /window\.renderTaoVideo\s*=/.test(videoJs));
-check("video.js có tab Postcard", /postcard-video/.test(videoJs));
+check("video.js có tab Promo / pipeline postcard", /postcard-video/.test(videoJs) && /Promo ngắn/.test(videoJs));
+check("video.js form chia mục 1/2", /jw-sec/.test(videoJs) && /Bạn muốn nói gì/.test(videoJs));
+check("video.js tab có blurb", /jw-tab-blurb/.test(videoJs));
 check("video.js không em dash", !videoJs.includes("\u2014"));
 check("console rail có id video", /"video"/.test(consoleJs) && /ids: \[.*"video"/.test(consoleJs));
 check("console gọi renderTaoVideo", /renderTaoVideo/.test(consoleJs));

@@ -1,6 +1,6 @@
 /**
- * Công việc → Tạo video: workbench wizard (không timeline).
- * Tab = pipeline; trái = brief + kịch bản; phải = bước + log SSE.
+ * Công việc → Tạo video: workbench wizard full màn (không timeline).
+ * Mỗi tab = một kiểu video; form gọn, lời gần gũi; phải = bước + kết quả.
  */
 (function () {
   "use strict";
@@ -9,71 +9,98 @@
     {
       id: "postcard",
       pipeline: "postcard-video",
-      label: "Postcard",
-      full: "Postcard video (cinematic)",
-      tagline: "Promo ngắn · shot Remotion · SFX/BGM",
-      when: "Teaser / launch / demo UI 15-45s, muốn motion đẹp kiểu shotcraft.",
-      gets: ["Brief → nghiên cứu → beat", "Pipeline postcard-video", "mp4 hoặc pack thiếu môi trường"],
-      example: "«App ghi chú mới» → postcard 30s 9:16, SFX + BGM.",
-      time: "Kịch bản nhanh; render Remotion lâu hơn",
+      label: "Promo ngắn",
+      blurb: "Đẹp, ít chữ, nhạc + hiệu ứng",
+      full: "Video promo ngắn",
+      when: "Giới thiệu sản phẩm / app / dịch vụ trên Reels, TikTok, ads.",
+      example: "Ra mắt app ghi chú → clip 30 giây dọc màn hình.",
+      time: "Thường 15–45 giây",
       topicPh: "VD: Ra mắt app ghi chú cho học sinh",
       needsUrl: true,
+      assetsLabel: "Link sản phẩm hoặc ảnh chụp màn hình *",
+      assetsHint: "Cần link hoặc ảnh thật để làm đúng giao diện sản phẩm.",
+      assetsPh: "https://… hoặc mô tả ảnh đã có",
     },
     {
       id: "short-vo",
       pipeline: "pixcelvideo",
-      label: "Short + VO",
-      full: "Short có ảnh và giọng đọc",
-      tagline: "Topic → ảnh AI + TTS → mp4",
-      when: "Cần clip giải thích / bán hàng có lời đọc tiếng Việt sẵn.",
-      gets: ["Kịch bản từng cảnh", "Ảnh + Edge-TTS", "mp4 ghép ffmpeg"],
-      example: "«Máy lọc nước gia đình» → 30s 9:16 có VO.",
-      time: "~vài phút nếu đủ ChatGPT + ffmpeg",
+      label: "Có lời đọc",
+      blurb: "Ảnh từng cảnh + giọng nói",
+      full: "Video có lời đọc",
+      when: "Muốn clip giải thích hoặc bán hàng có giọng đọc sẵn (tiếng Việt).",
+      example: "Máy lọc nước gia đình → 30 giây có lời thoại.",
+      time: "Nhanh nếu máy đã có ChatGPT + ffmpeg",
       topicPh: "VD: Vì sao nên dùng máy lọc nước",
+      needsUrl: false,
+      assetsLabel: "Link / ảnh tham khảo (tuỳ chọn)",
+      assetsHint: "",
+      assetsPh: "Có thì dán, không có cũng được",
     },
     {
       id: "collage",
       pipeline: "paperdesign",
       label: "Collage",
-      full: "Collage giấy (Vox / paperdesign)",
-      tagline: "Poster xé giấy · motion · VO",
-      when: "Explainer / ads kiểu collage editorial, có Atlas key.",
-      gets: ["Beat + style", "Poster + motion", "VO + nhạc → mp4"],
-      example: "«Lạm phát là gì?» → collage 45s có narration.",
-      time: "Tốn Atlas; cần duyệt beat trước gen",
-      topicPh: "VD: Lạm phát giải thích 60 giây",
+      blurb: "Kiểu poster giấy, có lời",
+      full: "Video collage giấy",
+      when: "Thích kiểu cắt dán báo / Vox: từng cảnh một poster rồi chuyển động.",
+      example: "Lạm phát là gì? → collage ~45 giây có lời kể.",
+      time: "Cần key Atlas; nên duyệt kịch bản trước khi render",
+      topicPh: "VD: Lạm phát giải thích ngắn",
+      needsUrl: false,
+      assetsLabel: "Ảnh / tài liệu (tuỳ chọn)",
+      assetsHint: "",
+      assetsPh: "Ảnh sản phẩm, logo…",
     },
     {
       id: "remotion",
       pipeline: "remotion",
-      label: "Remotion",
-      full: "Remotion (React motion)",
-      tagline: "Data viz · UI motion · caption",
-      when: "Cần composition React/Remotion tùy biến, không bắt buộc shotcraft.",
-      gets: ["Storyboard", "Composition Remotion", "Render mp4 (cần Node)"],
-      example: "«Dashboard tăng trưởng Q3» → chart motion 20s.",
-      time: "Cần Node + project Remotion",
+      label: "Đồ họa",
+      blurb: "Số liệu, UI, chữ chạy",
+      full: "Video đồ họa chuyển động",
+      when: "Cần biểu đồ, dashboard, chữ/UI chuyển động mượt.",
+      example: "Tăng trưởng quý 3 → biểu đồ chuyển động 20 giây.",
+      time: "Cần Node trên máy chạy Javis",
       topicPh: "VD: Số liệu tăng trưởng quý 3",
+      needsUrl: false,
+      assetsLabel: "Số liệu / ảnh (tuỳ chọn)",
+      assetsHint: "",
+      assetsPh: "Link sheet, ảnh dashboard…",
     },
     {
       id: "auto",
       pipeline: "để đạo diễn chọn",
-      label: "Tự chọn",
-      full: "Để đạo diễn chọn pipeline",
-      tagline: "Javis chọn theo brief",
-      when: "Chưa chắc loại nào - để agent chọn trong catalog lam-video.",
-      gets: ["Nghiên cứu + kịch bản", "1 pipeline phù hợp", "Output hoặc thiếu sót rõ"],
-      example: "Brief đủ 5 mục → đạo diễn chọn pixcel/postcard/…",
-      time: "Tùy pipeline được chọn",
+      label: "Javis chọn",
+      blurb: "Điền brief, để Javis quyết",
+      full: "Để Javis chọn kiểu phù hợp",
+      when: "Chưa chắc kiểu nào - điền đủ ý, Javis chọn đường làm.",
+      example: "Giới thiệu quán cà phê → Javis chọn kiểu phù hợp.",
+      time: "Tùy kiểu được chọn",
       topicPh: "VD: Video giới thiệu cửa hàng cà phê",
+      needsUrl: false,
+      assetsLabel: "Link / ảnh (tuỳ chọn)",
+      assetsHint: "",
+      assetsPh: "Có gì dán vào đây",
     },
   ];
 
   var STEPS = [
-    { id: "research", label: "Nghiên cứu", agents: ["nghien-cuu-chu-de-video"] },
-    { id: "script", label: "Kịch bản", agents: ["bien-kich-video"] },
+    { id: "research", label: "Tìm hiểu", agents: ["nghien-cuu-chu-de-video"] },
+    { id: "script", label: "Viết kịch bản", agents: ["bien-kich-video"] },
     { id: "direct", label: "Làm video", agents: ["dao-dien-video"] },
-    { id: "qa", label: "Kiểm chứng", agents: ["kiem-chung-video"] },
+    { id: "qa", label: "Kiểm tra", agents: ["kiem-chung-video"] },
+  ];
+
+  var FIELD_IDS = [
+    "vidTopic",
+    "vidGoals",
+    "vidAudience",
+    "vidDuration",
+    "vidAspect",
+    "vidLang",
+    "vidChannel",
+    "vidTone",
+    "vidAssets",
+    "vidScript",
   ];
 
   function brain() {
@@ -143,25 +170,29 @@
     var tabIdx = 0;
     var running = false;
     var stepIdx = -1;
+    var draft = {};
 
     root.innerHTML =
-      '<div class="jw" id="vidJw">' +
+      '<div class="jw jw-video" id="vidJw">' +
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
       "<div><h2 class=\"jw-title\">Tạo video</h2>" +
-      '<p class="jw-lead">Chọn loại, điền brief và kịch bản. Trái: form. Phải: bước chạy + kết quả. Không cần timeline kéo-thả.</p></div>' +
-      '<div class="jw-top-actions">' +
-      '<button type="button" class="jw-btn jw-btn-ghost" id="vidSeed">Chuẩn bị lần đầu</button>' +
-      "</div></div>" +
-      '<div class="jw-tabs" role="tablist" id="vidTabs"></div>' +
+      '<p class="jw-lead">Chọn một kiểu ở hàng tab → điền vài dòng bên trái → bấm <b>Tạo video</b>. Theo dõi bước bên phải.</p></div>' +
+      "</div>" +
+      '<div class="jw-tabs jw-tabs-video" role="tablist" id="vidTabs"></div>' +
+      '<p class="jw-tab-hint" id="vidTabHint"></p>' +
       "</div>" +
       '<div class="jw-body">' +
       '<aside class="jw-left"><div class="jw-left-scroll" id="vidLeft"></div></aside>' +
       '<section class="jw-right">' +
-      '<div class="jw-right-head"><h3>Tiến độ & kết quả</h3><div class="jw-status" id="vidStatus">Chưa chạy</div></div>' +
-      '<ol class="jw-steps" id="vidSteps" aria-label="Các bước pipeline"></ol>' +
+      '<div class="jw-right-head"><h3>Đang làm gì</h3><div class="jw-status" id="vidStatus">Chưa chạy</div></div>' +
+      '<ol class="jw-steps" id="vidSteps" aria-label="Các bước làm video"></ol>' +
       '<div class="jw-out" id="vidOut">' +
-      '<div class="jw-empty" id="vidEmpty"><strong>Sẵn sàng tạo</strong>Chọn tab, điền chủ đề + mục tiêu, bấm Chạy. Log và bước hiện tại đây. mp4 thường ở attachments/videos/ hoặc out/ (Files).</div>' +
+      '<div class="jw-empty" id="vidEmpty">' +
+      "<strong>Bắt đầu từ bên trái</strong>" +
+      "Chọn tab kiểu video, ghi chủ đề và mục tiêu, rồi bấm Tạo video. " +
+      "Tiến trình hiện ở đây. File xong thường nằm trong Files → attachments/videos/." +
+      "</div>" +
       '<pre class="jw-log" id="vidLog" hidden></pre>' +
       "</div></section></div></div>";
 
@@ -169,16 +200,35 @@
     FEATURES.forEach(function (f, i) {
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "jw-tab" + (i === 0 ? " on" : "");
+      b.className = "jw-tab jw-tab-stack" + (i === 0 ? " on" : "");
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", i === 0 ? "true" : "false");
       b.setAttribute("data-i", String(i));
-      b.textContent = f.label;
+      b.innerHTML =
+        '<span class="jw-tab-label">' +
+        esc(f.label) +
+        '</span><span class="jw-tab-blurb">' +
+        esc(f.blurb) +
+        "</span>";
       tabsEl.appendChild(b);
     });
 
     function feat() {
       return FEATURES[tabIdx] || FEATURES[0];
+    }
+
+    function paintTabHint() {
+      var f = feat();
+      var el = root.querySelector("#vidTabHint");
+      if (!el) return;
+      el.innerHTML =
+        "<b>" +
+        esc(f.full) +
+        "</b> · " +
+        esc(f.when) +
+        ' <span class="dim">· ' +
+        esc(f.time) +
+        "</span>";
     }
 
     function paintSteps() {
@@ -188,7 +238,15 @@
         var cls = "jw-step-item";
         if (i < stepIdx) cls += " done";
         else if (i === stepIdx) cls += " on";
-        return '<li class="' + cls + '"><span class="n">' + (i + 1) + "</span> " + esc(s.label) + "</li>";
+        return (
+          '<li class="' +
+          cls +
+          '"><span class="n">' +
+          (i + 1) +
+          "</span><span class="jw-step-lab">' +
+          esc(s.label) +
+          "</span></li>"
+        );
       }).join("");
     }
 
@@ -223,89 +281,107 @@
       }
     }
 
+    function saveDraft() {
+      FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (el) draft[id] = el.value;
+      });
+    }
+
+    function restoreDraft() {
+      FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (el && draft[id] != null) el.value = draft[id];
+      });
+    }
+
     function paintLeft() {
       var f = feat();
-      var gets = (f.gets || [])
-        .map(function (g) {
-          return "<li>" + esc(g) + "</li>";
-        })
-        .join("");
       var left = root.querySelector("#vidLeft");
       left.innerHTML =
-        '<div class="jw-brief">' +
-        '<p class="jw-brief-kicker">Loại video đang chọn</p>' +
+        '<div class="jw-brief jw-brief-lite">' +
+        '<p class="jw-brief-kicker">Kiểu đang chọn</p>' +
         "<h3>" +
         esc(f.full) +
         "</h3>" +
-        "<p><b>Chọn khi:</b> " +
+        "<p>" +
         esc(f.when) +
         "</p>" +
-        "<ul>" +
-        gets +
-        "</ul>" +
-        '<p class="jw-ex"><b>Ví dụ:</b> ' +
+        '<p class="jw-ex">Ví dụ: ' +
         esc(f.example) +
         "</p>" +
-        '<div class="jw-meta"><span class="jw-chip">' +
-        esc(f.time) +
-        '</span><span class="jw-chip">' +
-        esc(f.tagline) +
-        "</span></div></div>" +
+        "</div>" +
+        '<p class="jw-sec">1. Bạn muốn nói gì</p>' +
         '<div class="jw-field"><label for="vidTopic">Chủ đề *</label>' +
         '<input id="vidTopic" type="text" autocomplete="off" placeholder="' +
         esc(f.topicPh) +
         '"></div>' +
         '<div class="jw-field"><label for="vidGoals">Mục tiêu *</label>' +
-        '<textarea id="vidGoals" rows="2" placeholder="VD: nhận diện thương hiệu / bán / giải thích"></textarea></div>' +
-        '<div class="jw-field"><label for="vidAudience">Đối tượng</label>' +
-        '<input id="vidAudience" type="text" placeholder="VD: phụ huynh, SME, Gen Z"></div>' +
+        '<textarea id="vidGoals" rows="2" placeholder="VD: để mọi người nhớ sản phẩm / muốn thử / hiểu một ý"></textarea></div>' +
+        '<div class="jw-field"><label for="vidAudience">Người xem</label>' +
+        '<input id="vidAudience" type="text" placeholder="VD: phụ huynh, chủ quán, học sinh"></div>' +
+        '<p class="jw-sec">2. Hình thức</p>' +
         '<div class="jw-row2">' +
-        '<div class="jw-field"><label for="vidDuration">Độ dài *</label>' +
+        '<div class="jw-field"><label for="vidDuration">Dài bao lâu *</label>' +
         '<select id="vidDuration">' +
         '<option value="15s">15 giây</option>' +
-        '<option value="30s" selected>30 giây</option>' +
+        '<option value="30s" selected>30 giây (gợi ý)</option>' +
         '<option value="45s">45 giây</option>' +
         '<option value="60s">60 giây</option>' +
         '<option value="90s">90 giây</option>' +
         "</select></div>" +
-        '<div class="jw-field"><label for="vidAspect">Tỉ lệ *</label>' +
+        '<div class="jw-field"><label for="vidAspect">Khung hình *</label>' +
         '<select id="vidAspect">' +
-        '<option value="9:16" selected>9:16 Reels/TikTok</option>' +
-        '<option value="1:1">1:1 vuông</option>' +
-        '<option value="16:9">16:9 YouTube</option>' +
+        '<option value="9:16" selected>Dọc điện thoại (Reels/TikTok)</option>' +
+        '<option value="1:1">Vuông</option>' +
+        '<option value="16:9">Ngang (YouTube)</option>' +
         "</select></div></div>" +
         '<div class="jw-row2">' +
         '<div class="jw-field"><label for="vidLang">Ngôn ngữ *</label>' +
         '<select id="vidLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>' +
-        '<div class="jw-field"><label for="vidChannel">Kênh</label>' +
-        '<input id="vidChannel" type="text" placeholder="Reels / Ads / YouTube"></div></div>' +
-        '<div class="jw-field"><label for="vidTone">Tone / vibe</label>' +
-        '<input id="vidTone" type="text" placeholder="cinematic, sạch, vui,…"></div>' +
-        '<div class="jw-field"><label for="vidAssets">URL / tài sản' +
-        (f.needsUrl ? " *" : "") +
+        '<div class="jw-field"><label for="vidChannel">Đăng ở đâu</label>' +
+        '<input id="vidChannel" type="text" placeholder="Reels, TikTok, YouTube, Ads…"></div></div>' +
+        '<div class="jw-field"><label for="vidAssets">' +
+        esc(f.assetsLabel) +
         "</label>" +
-        '<textarea id="vidAssets" rows="2" placeholder="URL sản phẩm, staging, hoặc mô tả ảnh/screenshot sẵn"></textarea>' +
-        (f.needsUrl
-          ? '<p class="jw-hint">Postcard cần URL hoặc screenshot thật - không bịa UI.</p>'
-          : "") +
+        '<textarea id="vidAssets" rows="2" placeholder="' +
+        esc(f.assetsPh) +
+        '"></textarea>' +
+        (f.assetsHint ? '<p class="jw-hint">' + esc(f.assetsHint) + "</p>" : "") +
         "</div>" +
-        '<div class="jw-field"><label for="vidScript">Kịch bản / beat (tuỳ chọn)</label>' +
-        '<textarea id="vidScript" rows="6" placeholder="Dán beat/shot hoặc outline. Để trống = agent viết sau bước nghiên cứu."></textarea>' +
-        '<p class="jw-hint">Có sẵn kịch bản thì dán đây để bỏ qua viết lại từ đầu.</p></div>' +
-        '<div class="jw-field"><label for="vidFiles">File đính kèm</label>' +
+        '<details class="jw-more">' +
+        "<summary>Thêm kịch bản, tone, file (tuỳ chọn)</summary>" +
+        '<div class="jw-field"><label for="vidTone">Giọng / cảm xúc</label>' +
+        '<input id="vidTone" type="text" placeholder="VD: ấm áp, sạch sẽ, vui, chuyên nghiệp"></div>' +
+        '<div class="jw-field"><label for="vidScript">Kịch bản sẵn có</label>' +
+        '<textarea id="vidScript" rows="5" placeholder="Có outline hoặc lời thoại thì dán vào. Để trống = Javis viết giúp."></textarea></div>' +
+        '<div class="jw-field"><label for="vidFiles">Đính kèm ảnh / logo / file nghe</label>' +
         '<input id="vidFiles" type="file" multiple>' +
-        '<p class="jw-hint" id="vidFileList">Ảnh SP, logo, VO… (tuỳ chọn)</p></div>' +
-        '<div class="jw-actions">' +
-        '<button type="button" class="jw-btn jw-btn-primary" id="vidRun">Chạy: ' +
+        '<p class="jw-hint" id="vidFileList">Chưa chọn file</p></div>' +
+        '<div class="jw-actions jw-actions-ghost">' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="vidSeed">Cài bộ làm video (một lần)</button>' +
+        "</div></details>" +
+        '<div class="jw-actions jw-actions-main">' +
+        '<button type="button" class="jw-btn jw-btn-primary" id="vidRun">Tạo video · ' +
         esc(f.label) +
         "</button>" +
         '<button type="button" class="jw-btn jw-btn-ghost" id="vidStop" disabled>Dừng xem</button>' +
-        "</div>";
+        "</div>" +
+        '<p class="jw-hint jw-hint-foot">Lần đầu có thể bấm «Cài bộ làm video» trong mục tuỳ chọn. Các lần sau cứ Tạo video.</p>';
 
+      restoreDraft();
       wireLeft();
+      paintTabHint();
     }
 
     function wireLeft() {
+      FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (!el) return;
+        el.addEventListener("change", saveDraft);
+        el.addEventListener("input", saveDraft);
+      });
+
       var filesEl = root.querySelector("#vidFiles");
       if (filesEl) {
         filesEl.onchange = async function () {
@@ -313,7 +389,7 @@
           uploaded = [];
           var list = root.querySelector("#vidFileList");
           if (!files.length) {
-            if (list) list.textContent = "Ảnh SP, logo, VO… (tuỳ chọn)";
+            if (list) list.textContent = "Chưa chọn file";
             return;
           }
           if (list) list.textContent = "Đang tải…";
@@ -337,18 +413,48 @@
         };
       }
 
-      root.querySelector("#vidStop").onclick = function () {
-        try {
-          if (es) es.close();
-        } catch (e) {}
-        es = null;
-        setBusy(false, "Đã dừng theo dõi (việc trên server có thể vẫn chạy).", true);
-      };
+      var stopBtn = root.querySelector("#vidStop");
+      if (stopBtn) {
+        stopBtn.onclick = function () {
+          try {
+            if (es) es.close();
+          } catch (e) {}
+          es = null;
+          setBusy(false, "Đã dừng theo dõi (việc trên máy có thể vẫn chạy).", true);
+        };
+      }
 
-      root.querySelector("#vidRun").onclick = run;
+      var runBtn = root.querySelector("#vidRun");
+      if (runBtn) runBtn.onclick = run;
+
+      var seedBtn = root.querySelector("#vidSeed");
+      if (seedBtn) {
+        seedBtn.onclick = async function () {
+          if (running) return;
+          seedBtn.disabled = true;
+          seedBtn.textContent = "Đang cài…";
+          setStatus("Đang cài bộ làm video…");
+          try {
+            var fd = new FormData();
+            fd.append("brain", brain());
+            var r = await (await fetch("/studio/seed-video", { method: "POST", body: fd })).json();
+            if (!r || !r.ok) {
+              setStatus((r && r.error) || "Cài chưa xong", false);
+              return;
+            }
+            setStatus("Đã sẵn sàng. Bạn có thể bấm Tạo video.", true);
+          } catch (e) {
+            setStatus(String((e && e.message) || e), false);
+          } finally {
+            seedBtn.disabled = false;
+            seedBtn.textContent = "Cài bộ làm video (một lần)";
+          }
+        };
+      }
     }
 
     function selectTab(i) {
+      saveDraft();
       tabIdx = i;
       tabsEl.querySelectorAll(".jw-tab").forEach(function (btn, j) {
         var on = j === i;
@@ -385,7 +491,7 @@
       if (runBtn) {
         runBtn.disabled = busy;
         runBtn.classList.toggle("jw-busy", busy);
-        runBtn.textContent = busy ? "Đang chạy…" : "Chạy: " + f.label;
+        runBtn.textContent = busy ? "Đang tạo…" : "Tạo video · " + f.label;
       }
       if (stopBtn) stopBtn.disabled = !busy;
       if (seedBtn) seedBtn.disabled = busy;
@@ -398,6 +504,7 @@
     function validateInputs() {
       clearFieldErrors();
       var f = feat();
+      saveDraft();
       var topic = ((root.querySelector("#vidTopic") || {}).value || "").trim();
       var goals = ((root.querySelector("#vidGoals") || {}).value || "").trim();
       var assets = ((root.querySelector("#vidAssets") || {}).value || "").trim();
@@ -412,10 +519,10 @@
       }
       if (f.needsUrl && !assets) {
         markField("vidAssets", true);
-        missing.push("URL / tài sản");
+        missing.push("Link / ảnh sản phẩm");
       }
       if (missing.length) {
-        setStatus("Thiếu: " + missing.join(", ") + ". Điền bên trái rồi bấm Chạy.", false);
+        setStatus("Thiếu: " + missing.join(", ") + ". Điền bên trái rồi bấm Tạo video.", false);
         return null;
       }
       return {
@@ -456,33 +563,6 @@
       };
     });
 
-    root.querySelector("#vidSeed").onclick = async function () {
-      if (running) return;
-      var seedBtn = root.querySelector("#vidSeed");
-      if (seedBtn) {
-        seedBtn.disabled = true;
-        seedBtn.textContent = "Đang chuẩn bị…";
-      }
-      setStatus("Đang chuẩn bị agent + workflow Bộ Video…");
-      try {
-        var fd = new FormData();
-        fd.append("brain", brain());
-        var r = await (await fetch("/studio/seed-video", { method: "POST", body: fd })).json();
-        if (!r || !r.ok) {
-          setStatus((r && r.error) || "Chuẩn bị thất bại", false);
-          return;
-        }
-        setStatus("Sẵn sàng workflow " + (r.workflow || "bo-video-da-pipeline") + ".", true);
-      } catch (e) {
-        setStatus(String((e && e.message) || e), false);
-      } finally {
-        if (seedBtn) {
-          seedBtn.disabled = false;
-          seedBtn.textContent = "Chuẩn bị lần đầu";
-        }
-      }
-    };
-
     async function run() {
       if (running) return;
       var v = validateInputs();
@@ -493,7 +573,7 @@
 
       stepIdx = 0;
       paintSteps();
-      setBusy(true, "Đang chạy «" + f.full + "»…");
+      setBusy(true, "Đang tạo «" + f.full + "»…");
       if (es) {
         try {
           es.close();
@@ -545,7 +625,7 @@
               appendLog(res.length > 8000 ? res.slice(0, 8000) + "\n…(cắt)" : res);
             }
             appendLog("--- Xong ---");
-            finishBusy("Xong. Xem log + Files (attachments/videos hoặc out/).", true);
+            finishBusy("Xong. Xem Files → attachments/videos/ (hoặc đường dẫn trong log).", true);
           } else {
             appendLog(ev.data);
           }
@@ -554,7 +634,7 @@
         }
       };
       es.onerror = function () {
-        finishBusy("Mất kết nối stream (có thể đã xong hoặc lỗi).", false);
+        finishBusy("Mất kết nối (có thể đã xong hoặc lỗi). Xem log bên dưới.", false);
       };
     }
 
