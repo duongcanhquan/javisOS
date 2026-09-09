@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.156] - 2026-09-09
+### Sửa lỗi
+- **Bấm link wiki/file trong chat báo «Không tìm thấy file»:** link `file:///brains/...` (Antigravity/Gemini) bị coi sai thành đường dẫn vault; giờ chuẩn hoá về `wiki/...` và mở đúng file (kể cả hội thoại cũ).
+
 ## [0.55.155] - 2026-09-08
 ### Sửa lỗi
 - **CI đỏ sau Kho Drive:** rclone không bung cửa sổ console trên Windows; placeholder remote viết hoa chữ đầu.

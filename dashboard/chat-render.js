@@ -54,12 +54,18 @@
   }
   function resolveSrc(s) {
     s = String(s || "").trim();
+    if (/^file:/i.test(s)) {
+      var fr = appFileRef(s);
+      if (fr && fr.path) return fileUrl(fr.path, fr.brain);
+    }
     return /^(https?:|data:|blob:|\/)/i.test(s) ? s : fileUrl(s);
   }
   // Path tro toi file/thu muc TRONG vault (khong phai URL ngoai / data / o dia)?
+  // PHAI loai file: - Antigravity/Gemini hay chen file:///brains/... ; neu coi do la path
+  // vault thi data-vault-path giu nguyen "file://..." -> mo 404 "Khong tim thay file".
   function isVaultRel(p) {
     p = String(p == null ? "" : p).trim();
-    return !!p && !/^(https?:|mailto:|data:|blob:|\/)/i.test(p);
+    return !!p && !/^(https?:|mailto:|data:|blob:|file:|\/)/i.test(p);
   }
   function decodeQueryPart(s) {
     try { return decodeURIComponent(String(s || "").replace(/\+/g, " ")); }
@@ -80,16 +86,50 @@
     if (!/%[0-9a-f]{2}/i.test(s)) return s;
     try { return decodeURIComponent(s); } catch (e) { return s; }
   }
+  // file:///brains/Brain%20Default/wiki/x.md -> /brains/Brain Default/wiki/x.md
+  // file:///wiki/x.md -> /wiki/x.md
+  // file://localhost/brains/... -> /brains/...
+  // file:///C:/Users/... (Windows) -> "" (khong phai vault Javis)
+  function fileUriToPathish(href) {
+    var s = String(href == null ? "" : href).trim();
+    var m = /^file:/i.exec(s);
+    if (!m) return s;
+    var rest = s.slice(m[0].length);
+    // Bo bot slash sau "file:" (file:/ / file:// / file:///)
+    rest = rest.replace(/^\/+/, "");
+    if (!rest) return "";
+    // file://host/path - neu doan dau khong giong o dia Windows thi co the la hostname
+    // (localhost). Path vault Javis luon bat dau bang brains/ hoac ten thu muc vault.
+    if (/^[a-zA-Z]:/.test(rest)) return "";   // C:/... - o dia may, khong mo trong app
+    if (/^\/\/[a-zA-Z]:/i.test("/" + rest)) return "";
+    // Con host? "localhost/brains/..." hoac "brains/..."
+    var hostPath = /^([A-Za-z0-9._-]+)\/(.*)$/.exec(rest);
+    if (hostPath && /^(localhost|127\.0\.0\.1)$/i.test(hostPath[1])) {
+      rest = hostPath[2];
+    }
+    rest = decodeVaultPath(rest).replace(/\\/g, "/");
+    if (!rest) return "";
+    if (rest.charAt(0) !== "/") rest = "/" + rest;
+    return rest;
+  }
   function currentBrainMatches(name) {
     var b = String(brainPath() || "").replace(/\\/g, "/").replace(/\/+$/, "");
     var base = b === "brain" ? "Brain Default" : b.split("/").pop();
     return String(base || "").toLowerCase() === String(name || "").toLowerCase();
   }
   // Link file noi bo co the do server tao dung (/files/raw), do AI ghi sai theo duong dan dia
-  // (/brains/<ten brain>/<file>), hoac la URL day du cung origin. Chuan hoa ve {brain,path};
-  // link /brains chi doi khi dung CHINH brain dang chat, tranh mo nham file trung ten o brain khac.
+  // (/brains/<ten brain>/<file>), file:// (Antigravity), hoac URL day du cung origin.
+  // Chuan hoa ve {brain,path}. /brains thuong chi doi khi dung CHINH brain dang chat; rieng
+  // nguon file:// thi van lay path tuong doi tren brain dang chat (ten thu muc trong URI
+  // hay lech sau khi doi ten nao).
   function appFileRef(href) {
     href = String(href == null ? "" : href).trim();
+    var fromFile = false;
+    if (/^file:/i.test(href)) {
+      fromFile = true;
+      href = fileUriToPathish(href);
+      if (!href) return null;
+    }
     if (/^https?:\/\//i.test(href) && typeof window !== "undefined" && window.location) {
       try {
         var u = new URL(href, window.location.href);
@@ -110,17 +150,40 @@
       var brainName = decodeQueryPart(direct[1]);
       var rel = decodeQueryPart(direct[2]).replace(/\\/g, "/").replace(/^\/+/, "");
       if (rel && currentBrainMatches(brainName)) return { path: rel, brain: brainPath() };
+      // file:// + ten nao cu / doi ten: van mo path tuong doi tren nao dang chat
+      if (rel && fromFile) return { path: rel, brain: brainPath() };
     }
     var legacy = /^\/brain\/(.+)$/i.exec(href);
-    if (legacy && brainPath() === "brain") {
+    if (legacy && (brainPath() === "brain" || fromFile)) {
       var legacyRel = decodeQueryPart(legacy[1]).replace(/\\/g, "/").replace(/^\/+/, "");
-      if (legacyRel) return { path: legacyRel, brain: "brain" };
+      if (legacyRel) return { path: legacyRel, brain: brainPath() || "brain" };
+    }
+    // file:///wiki/x.md (khong co /brains/) -> wiki/x.md tren nao hien tai
+    if (fromFile && href.charAt(0) === "/" &&
+        !/^\/(files|static|api|brains|brain)(\/|$)/i.test(href)) {
+      var bare = decodeVaultPath(href.replace(/^\/+/, "")).replace(/\\/g, "/");
+      if (bare && bare.indexOf("..") < 0) return { path: bare, brain: brainPath() };
     }
     return null;
   }
   function appFilePath(href) {
     var ref = appFileRef(href);
     return ref ? ref.path : "";
+  }
+  // Phong thu: chuoi data-vault-path / deep-link con sot file:// thi van mo duoc.
+  function normalizeVaultOpenPath(p) {
+    p = String(p == null ? "" : p).trim();
+    if (!p) return "";
+    if (/^file:/i.test(p)) {
+      var ref = appFileRef(p);
+      if (ref && ref.path) return ref.path;
+      var pathish = fileUriToPathish(p);
+      if (!pathish) return "";
+      var d = /^\/brains\/[^/]+\/(.+)$/i.exec(pathish);
+      if (d) return decodeVaultPath(d[1]).replace(/\\/g, "/").replace(/^\/+/, "");
+      return decodeVaultPath(pathish.replace(/^\/+/, "")).replace(/\\/g, "/");
+    }
+    return p.replace(/^\.?\//, "");
   }
   // File thanh pham/media trong brain: click o chat la TAI VE. Note .md va file nguon text
   // van mo editor; URL http(s) duoc xu ly rieng va luon mo tab moi.
@@ -814,6 +877,8 @@
   }
 
   function moFileVault(rel) {
+    // Phong thu: lich su chat con sot data-vault-path="file:///..." (truoc khi render chuan hoa).
+    rel = normalizeVaultOpenPath(rel);
     // Link markdown trong note hay ghi tương đối kiểu Obsidian: từ memory/MEMORY.md
     // ghi (facts/x.md) nghĩa là memory/facts/x.md, không phải facts/ ở gốc brain.
     // Khi đang mở một note, ghép với thư mục của note đó trước khi mở.
@@ -832,7 +897,7 @@
 
   function resolveVaultRelTuNoteDangMo(rel) {
     rel = String(rel || "").replace(/\\/g, "/").replace(/^\.?\//, "");
-    if (!rel || /^(https?:|mailto:|data:|blob:)/i.test(rel)) return rel;
+    if (!rel || /^(https?:|mailto:|data:|blob:|file:)/i.test(rel)) return rel;
     if (rel.charAt(0) === "/") return rel.replace(/^\/+/, "");
     var base = "";
     try { base = String(window.JavisNoteOpenRel || ""); } catch (e) { base = ""; }
@@ -1040,6 +1105,8 @@
   }
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { mdToHtml: mdToHtml, highlight: highlight, wkResolve: wkResolve,
-      appFilePath: appFilePath, isDownloadFile: isDownloadFile };
+      appFilePath: appFilePath, appFileRef: appFileRef, isVaultRel: isVaultRel,
+      fileUriToPathish: fileUriToPathish, normalizeVaultOpenPath: normalizeVaultOpenPath,
+      isDownloadFile: isDownloadFile };
   }
 })();

@@ -342,7 +342,25 @@
   // thư mục - đúng cái "thi thoảng nó vẫn bị gửi về folder" chủ repo báo (2026-08-13). Một
   // quyết định, mọi người gọi chung.
   function openVaultPath(fullPath) {
-    const raw = String(fullPath == null ? "" : fullPath);
+    let raw = String(fullPath == null ? "" : fullPath).trim();
+    // Phong thu: deep-link / lich su chat con sot file:///brains/... (Antigravity).
+    // Khong chuan hoa thi ghep tran + "file://..." -> 404 "Khong tim thay file".
+    if (/^file:/i.test(raw)) {
+      try {
+        const norm = raw.replace(/\\/g, "/");
+        const mBrains = /^file:\/+?(?:localhost\/)?brains\/[^/]+\/(.+)$/i.exec(norm);
+        if (mBrains) {
+          try { raw = decodeURIComponent(mBrains[1]); } catch (e) { raw = mBrains[1]; }
+        } else {
+          const mBare = /^file:\/+?(?:localhost\/)?(.+)$/i.exec(norm);
+          if (mBare && !/^[a-zA-Z]:/.test(mBare[1])) {
+            let p = mBare[1].replace(/^\/+/, "");
+            if (/^brains\/[^/]+\//i.test(p)) p = p.replace(/^brains\/[^/]+\//i, "");
+            try { raw = decodeURIComponent(p); } catch (e) { raw = p; }
+          }
+        }
+      } catch (e) { /* giu raw */ }
+    }
     const clean = raw.replace(/^\.?\//, "").replace(/\/+$/, "");
     const base = clean.split("/").pop();
     // Không có dấu chấm trong tên = thư mục, cùng luật với openFilesAt và chat-render.js.
