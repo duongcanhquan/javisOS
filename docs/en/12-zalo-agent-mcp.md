@@ -46,7 +46,7 @@ tools below.
 
 The **Guide on GitHub** button in the Zalo card always opens this documentation page:
 
-<https://github.com/blogminhquy/javis-os/blob/main/docs/en/12-zalo-agent-mcp.md>
+<https://github.com/duongcanhquan/javisOS/blob/main/docs/en/12-zalo-agent-mcp.md>
 
 ## The MCP tools
 

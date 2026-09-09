@@ -2,7 +2,9 @@
 
 | File | Dùng để |
 |---|---|
+| [HUONG-DAN-CAI-DAT-VA-SU-DUNG.md](../../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md) | **Sau đóng gói:** Windows/Mac + VPS Linux/Windows + domain + Studio + Kết nối |
 | [CAI-DAT-MAY-CA-NHAN.md](../../CAI-DAT-MAY-CA-NHAN.md) | Cài đặt Windows/Mac (double-click) |
+| [CAI-DAT-TRUONG.md](../../CAI-DAT-TRUONG.md) | Gói phát cho trường |
 | [HUONG-DAN-SU-DUNG.html](HUONG-DAN-SU-DUNG.html) | Hướng dẫn dùng (mở bằng trình duyệt) |
 | [HUONG-DAN-SU-DUNG-Javis-OS.pdf](HUONG-DAN-SU-DUNG-Javis-OS.pdf) | Bản PDF gửi người mới |
 

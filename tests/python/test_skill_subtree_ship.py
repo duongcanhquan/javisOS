@@ -60,6 +60,8 @@ def main():
         src = _fake_source(tmp)
         system_sync.SYSTEM_SKILLS_DIR = src
         system_sync.SYSTEM_LOOPS_DIR = tmp / "noloops"
+        system_sync.SYSTEM_AGENTS_DIR = tmp / "noagents"
+        system_sync.SYSTEM_WORKFLOWS_DIR = tmp / "noworkflows"
         system_sync._SKILL_SLUGS_CACHE = None
 
         # ── 1. liệt kê ────────────────────────────────────────────────────────────

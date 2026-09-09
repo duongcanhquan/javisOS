@@ -21,7 +21,7 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 ## Trước khi gửi cho giáo viên (admin)
 
 1. Repo / image GHCR đã **Public** (hoặc đã cấp quyền pull).
-2. Một trang PDF/slide: tải → cài → Models → Studio → **Bộ Trường**.
+2. Một trang PDF/slide: tải → cài → Models → chat thử (agent/workflow chuẩn đã có sẵn trong image).
 3. Kèm `docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf`.
 4. **Không** gửi thư mục `brains/` của bạn - chỉ phần mềm + hướng dẫn này.
 
@@ -36,7 +36,7 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 3. GitHub repo nhà trường gửi → **Code → Download ZIP** → giải nén (vd `D:\Javis`).
 4. Double-click **`1-Cai-dat.bat`** (lần đầu hơi lâu).
 5. Chrome → **http://localhost:7777** → tạo tài khoản admin (máy mình).
-6. **Models** → chọn một bộ não → **Studio → Bộ Trường**.
+6. **Models** → chọn / đăng nhập một bộ não → chat thử (agent/workflow chuẩn đã sync sẵn).
 7. Các ngày sau: **`2-Bat-Javis.bat`**. Tắt: **`3-Tat-Javis.bat`**.
 
 ### A2 - Mac (laptop giáo viên)
@@ -44,7 +44,7 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 1. Cài Python 3 nếu chưa có (python.org hoặc `brew install python`). Lần đầu có thể cần `xcode-select --install`.
 2. GitHub → **Download ZIP** → giải nén (vd `~/Desktop/Javis`).
 3. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận).
-4. Chrome → **http://localhost:7777** → Models → Studio → **Bộ Trường**.
+4. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
 5. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.
 
 > Mac báo “không xác định được nhà phát triển”: **System Settings → Privacy & Security → Open Anyway**.
@@ -123,7 +123,7 @@ Giống máy cá nhân nhưng máy chạy 24/7:
 ## Sau khi vào app (mọi đường)
 
 1. **Models** - mỗi người tự gắn bộ não / API key. Không dùng chung một Claude Pro cho cả trường chạy nền 24/7.
-2. **Studio → Bộ Trường** - skill/workflow bài giảng mẫu (không phải dữ liệu cá nhân).
+2. **Agents / Workflows** - brain mới đã có sẵn bộ dùng chung từ image. **Studio → Bộ Trường** chỉ cần nếu muốn làm mới / thêm agent hướng dẫn giáo viên.
 3. **Việc → Bài giảng** - nếu trường đã bật OpenMAIC trên VPS.
 4. Brain nằm trên máy hoặc volume Docker của **bản đó**.
 
@@ -134,7 +134,7 @@ Giống máy cá nhân nhưng máy chạy 24/7:
 | Đúng | Sai |
 |---|---|
 | Gửi link repo + hướng dẫn này | Gửi nguyên `brains/` có bài giảng / mật khẩu |
-| Giáo viên tự bấm **Bộ Trường** | Đóng gói vault admin gửi USB |
+| Giáo viên mở app là đã có agent/workflow chuẩn | Đóng gói vault admin gửi USB |
 | Cập nhật ZIP mới hoặc Redeploy image | Bắt mọi người tự `git pull` nếu không biết Git |
 | Mỗi người Models / admin riêng | Một tài khoản Claude dùng chung cả trường |
 

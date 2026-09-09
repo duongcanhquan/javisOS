@@ -10,8 +10,10 @@ Kiến trúc mới - 2 tầng rõ ràng:
       <project>/.claude/skills/<slug>/SKILL.md   - skill hệ thống (nguồn chuẩn; chat cwd=/app
                                                     nên Claude Code nạp NATIVE, không phụ thuộc brain)
       <project>/system/loops/<slug>.md            - loop hệ thống (template, placeholder {today})
-  - TẦNG BRAIN (dữ liệu người dùng, đổi theo brain): memory/, sources/, wiki/, agent/workflow/
-      skill/loop do user tạo. KHÔNG bị update ghi đè.
+      <project>/system/agents/<slug>.md           - agent dùng chung (Studio không còn bắt buộc)
+      <project>/system/workflows/<slug>.md        - workflow dùng chung
+  - TẦNG BRAIN (dữ liệu người dùng, đổi theo brain): memory/, sources/, wiki/,
+      agent/workflow/skill/loop do user tạo. KHÔNG bị update ghi đè.
 
 Skill trong brain có CANONICAL phẳng <brain>/skills/<slug>/SKILL.md (cùng hướng agents/workflows/
 memory). Tầng hệ thống được cài vào canonical đó qua sync có manifest, rồi MIRROR sang
@@ -54,7 +56,21 @@ import fastyaml
 PROJECT_ROOT = Path(__file__).parent.parent
 SYSTEM_SKILLS_DIR = PROJECT_ROOT / ".claude" / "skills"
 SYSTEM_LOOPS_DIR = PROJECT_ROOT / "system" / "loops"
+SYSTEM_AGENTS_DIR = PROJECT_ROOT / "system" / "agents"
+SYSTEM_WORKFLOWS_DIR = PROJECT_ROOT / "system" / "workflows"
 MANIFEST_REL = Path(".javis") / "system-manifest.json"
+
+# Agent nội bộ (HTĐT / dự án APC) - không bao giờ ship dù lỡ copy vào system/agents/.
+# Giữ khớp system/EXCLUDE-AGENTS.md.
+EXCLUDE_SYSTEM_AGENTS = frozenset({
+    "danh-gia-doi-tac-htdt",
+    "doi-moi-cong-nghe-nha-truong",
+    "hop-tac-quoc-te-htdt",
+    "thuc-tap-doanh-nghiep",
+    "tu-van-bgh-chien-luoc",
+    "du-an-uav",
+    "du-an-dien-tu-fdi",
+})
 
 # Frontmatter key của loop mà user/UI chỉnh trong vận hành bình thường → KHÔNG tính là "đã sửa"
 # và được BẢO TOÀN khi update. (self_improve.save_loop rewrite các key này khi user bật/tắt.)
@@ -114,7 +130,7 @@ def loop_hash(text: str) -> str:
 # Nhận diện file trong brain là bản seed cũ CHƯA bị user sửa → an toàn để update.
 # Sinh bằng scripts trích meta_tools.py tại các commit v0.7.9 (fe33c2c), v0.8.1 (703fe54),
 # v0.8.2 (0d3c953), v0.8.3 (f4fe71c). Điền ở cuối file (sau khi tính) - xem __main__.
-LEGACY_HASHES: dict[str, set] = {}   # key "skills/<slug>" | "loops/<slug>" → set hash
+LEGACY_HASHES: dict[str, set] = {}   # key "skills/…" | "loops/…" | "agents/…" | "workflows/…" → set hash
 
 
 # ────────────────────────── nguồn hệ thống ──────────────────────────
@@ -183,6 +199,27 @@ def _system_items():
                 items.append((f"loops/{f.stem}", "loop", f.stem, content, f"{f.stem}.md"))
     except Exception as e:
         print(f"[system sync] đọc loops hệ thống lỗi: {e}", file=sys.stderr)
+    try:
+        if SYSTEM_AGENTS_DIR.is_dir():
+            for f in sorted(SYSTEM_AGENTS_DIR.glob("*.md")):
+                if f.name.startswith(".") or " 2." in f.name:
+                    continue
+                if f.stem in EXCLUDE_SYSTEM_AGENTS:
+                    print(f"[system sync] bỏ agent nội bộ (không ship): {f.stem}", file=sys.stderr)
+                    continue
+                items.append((f"agents/{f.stem}", "agent", f.stem,
+                              f.read_text(encoding="utf-8"), f.name))
+    except Exception as e:
+        print(f"[system sync] đọc agents hệ thống lỗi: {e}", file=sys.stderr)
+    try:
+        if SYSTEM_WORKFLOWS_DIR.is_dir():
+            for f in sorted(SYSTEM_WORKFLOWS_DIR.glob("*.md")):
+                if f.name.startswith(".") or " 2." in f.name:
+                    continue
+                items.append((f"workflows/{f.stem}", "workflow", f.stem,
+                              f.read_text(encoding="utf-8"), f.name))
+    except Exception as e:
+        print(f"[system sync] đọc workflows hệ thống lỗi: {e}", file=sys.stderr)
     return items
 
 
@@ -234,29 +271,67 @@ def migrate_brain(root) -> None:
     Dời CẢ cây bật lẫn cây .disabled (để skill người dùng đã TẮT không bị cài lại thành BẬT).
     CHỈ move khi đích CHƯA có (canonical thắng - không ghi đè). Nguồn+đích đều dưới <root> nên
     cùng ổ đĩa → shutil.move = rename nguyên tử (không lo copy dở dang). Per-slug try/except:
-    1 skill lỗi không chặn các skill còn lại."""
+    1 skill lỗi không chặn các skill còn lại.
+
+    Kèm migrate agents/workflows: Javis/agents|workflows → phẳng agents|workflows. Nếu cả hai
+    tồn tại thì GỘP từng file .md (chỉ khi đích chưa có) để sync hệ thống không tạo agents/
+    rồi che mất agent user còn nằm dưới Javis/agents/.
+    """
     root = Path(root)
     legacy = root / ".claude" / "skills"
     canonical = root / "skills"
-    if not legacy.is_dir():
-        return
-    pairs = [(legacy, canonical), (legacy / ".disabled", canonical / ".disabled")]
-    for src_base, dst_base in pairs:
+    if legacy.is_dir():
+        pairs = [(legacy, canonical), (legacy / ".disabled", canonical / ".disabled")]
+        for src_base, dst_base in pairs:
+            try:
+                if not src_base.is_dir():
+                    continue
+                for d in sorted(p for p in src_base.iterdir()
+                                if p.is_dir() and p.name != ".disabled" and (p / "SKILL.md").is_file()):
+                    dst = dst_base / d.name
+                    try:
+                        if dst.exists():
+                            continue   # canonical đã có bản này → giữ nguyên, KHÔNG ghi đè
+                        dst_base.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(d), str(dst))
+                    except Exception as e:
+                        print(f"[skill migrate] {d} → {dst}: {type(e).__name__}: {e}", file=sys.stderr)
+            except Exception as e:
+                print(f"[skill migrate] {src_base}: {type(e).__name__}: {e}", file=sys.stderr)
+    _migrate_flat_caps(root)
+
+
+def _migrate_flat_caps(root: Path) -> None:
+    """Javis/agents|workflows → agents|workflows (phẳng). Gộp từng file nếu cả hai thư mục có."""
+    for old_rel, new_rel in (("Javis/agents", "agents"), ("Javis/workflows", "workflows")):
+        src, dst = root / old_rel, root / new_rel
         try:
-            if not src_base.is_dir():
+            if not src.is_dir():
                 continue
-            for d in sorted(p for p in src_base.iterdir()
-                            if p.is_dir() and p.name != ".disabled" and (p / "SKILL.md").is_file()):
-                dst = dst_base / d.name
+            if not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dst))
+                continue
+            # Cả hai tồn tại: chuyển từng .md chưa có ở đích, rồi dọn thư mục nguồn nếu trống.
+            for f in sorted(src.glob("*.md")):
+                dest_f = dst / f.name
+                if dest_f.exists():
+                    continue
                 try:
-                    if dst.exists():
-                        continue   # canonical đã có bản này → giữ nguyên, KHÔNG ghi đè
-                    dst_base.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(d), str(dst))
+                    shutil.move(str(f), str(dest_f))
                 except Exception as e:
-                    print(f"[skill migrate] {d} → {dst}: {type(e).__name__}: {e}", file=sys.stderr)
+                    print(f"[cap migrate] {f} → {dest_f}: {type(e).__name__}: {e}", file=sys.stderr)
+            try:
+                leftover = list(src.iterdir())
+                if not leftover:
+                    src.rmdir()
+                    parent = src.parent
+                    if parent.name == "Javis" and parent.is_dir() and not any(parent.iterdir()):
+                        parent.rmdir()
+            except OSError:
+                pass
         except Exception as e:
-            print(f"[skill migrate] {src_base}: {type(e).__name__}: {e}", file=sys.stderr)
+            print(f"[cap migrate] {old_rel}: {type(e).__name__}: {e}", file=sys.stderr)
 
 
 # `description:` và cả bản dịch `description_en:` / `description_th:` - mô tả tiếng Anh cũng
@@ -592,14 +667,14 @@ def sync_brain(brain_root) -> dict:
             migrate_brain(root)
         except Exception as e:
             print(f"[system sync] migrate {root}: {type(e).__name__}: {e}", file=sys.stderr)
-        # (2) Cài/cập nhật skill + loop hệ thống vào canonical (bỏ qua nếu app không ship item nào).
+        # (2) Cài/cập nhật skill + loop + agent + workflow hệ thống (bỏ qua nếu app không ship).
         items = _system_items()
         manifest = _read_manifest(root)
         files = manifest["files"]
         changed = False
         for key, kind, slug, content, rel in items:
             try:
-                hasher = skill_hash if kind == "skill" else loop_hash
+                hasher = loop_hash if kind == "loop" else skill_hash
                 new_hash = hasher(content)
                 if kind == "skill":
                     # File con đi THEO thư mục skill: skill đang TẮT thì mọi file của nó nằm trong
@@ -608,12 +683,19 @@ def sync_brain(brain_root) -> dict:
                     off = (not md_enabled.exists()) and md_disabled.exists()
                     enabled_p, disabled_p = _skill_paths(root, slug, rel)
                     dst = disabled_p if off else enabled_p
-                else:
+                elif kind == "loop":
                     dst = root / "Javis" / "loops" / f"{slug}.md"
+                elif kind == "agent":
+                    dst = root / "agents" / f"{slug}.md"
+                elif kind == "workflow":
+                    dst = root / "workflows" / f"{slug}.md"
+                else:
+                    print(f"[system sync] bỏ qua kind lạ: {kind} ({key})", file=sys.stderr)
+                    continue
 
                 entry = files.get(key) or {}
                 if not dst.exists():
-                    # Thiếu → cài mới (file hệ thống tự hồi phục; tắt bằng .disabled chứ không xoá)
+                    # Thiếu → cài mới (file hệ thống tự hồi phục; tắt skill bằng .disabled chứ không xoá)
                     _atomic_write(dst, content)
                     files[key] = {"hash": new_hash, "status": "managed"}
                     result["installed"].append(key)
@@ -713,5 +795,5 @@ if __name__ == "__main__" and "--hash" in sys.argv:
     # In hash chuẩn hoá của bộ file hệ thống HIỆN TẠI - chạy TRƯỚC khi sửa nội dung
     # để thêm vào LEGACY_HASHES của bản sau.
     for key, kind, slug, content, rel in _system_items():
-        h = (skill_hash if kind == "skill" else loop_hash)(content)
+        h = (loop_hash if kind == "loop" else skill_hash)(content)
         print(f"{key}: {h}")

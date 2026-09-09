@@ -4,6 +4,20 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.161] - 2026-09-09
+### Cải tiến
+- **Hoàn thiện đóng gói:** Hostinger compose đúng file HTTPS; package GHCR `javisos`; Studio không còn bắt buộc; migrate gộp `Javis/agents` → `agents/`; chặn ship agent HTĐT trong code.
+
+## [0.55.160] - 2026-09-09
+### Cải tiến
+- **Agent/workflow dùng chung nằm trong image:** `system/agents` + `system/workflows` tự sync vào mọi brain (không cần bấm Studio). Loại agent HTĐT / dự án APC nội bộ khỏi bản ship.
+
+## [0.55.159] - 2026-09-09
+### Cải tiến
+- **Đóng gói fork:** mọi link cài / image Docker / docs trỏ `duongcanhquan/javisOS` và `ghcr.io/duongcanhquan/javisos` (không còn `blogminhquy/javis-os`).
+- **README hết mời Gemini CLI** (đã gỡ từ 0.50.0); chỉ còn Antigravity / OpenRouter / Gemini API.
+- **Hướng dẫn sau đóng gói:** `HUONG-DAN-CAI-DAT-VA-SU-DUNG.md` (máy + VPS + domain + Kết nối tự gắn).
+
 ## [0.55.158] - 2026-09-09
 ### Cải tiến
 - **Đồ thị não gọn hơn:** mặc định chỉ hiện note đã có `[[wikilink]]`; ẩn chấm rời và file rác kiểu README dịch / DESIGN-pl.

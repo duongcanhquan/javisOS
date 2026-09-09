@@ -48,7 +48,7 @@ Không Docker: native Windows bằng `1-Cai-dat.bat` / `2-Bat-Javis.bat` trên m
 
 1. Mở app → admin (đã đặt trong `.env`) hoặc tạo tài khoản lần đầu.
 2. **Models** - mỗi bản tự gắn bộ não.
-3. **Studio → Bộ Trường** - nạp skill/workflow mẫu (không kèm brain cá nhân).
+3. Agent/workflow chuẩn đã sync sẵn từ image. **Studio → Bộ Trường** chỉ khi muốn làm mới / thêm agent hướng dẫn giáo viên.
 
 ## Không nằm trong gói này
 

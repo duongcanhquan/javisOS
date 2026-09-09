@@ -14,11 +14,9 @@
 
 Javis OS is **not** a chatbot. It is a **self-hosted agentic AI** running on your own machine or VPS: it reads and writes files, calls tools (MCP), runs skills, queues background work, schedules itself - all wrapped in a **voice-controlled dashboard** with a **Second Brain** (memory + wiki) that accumulates knowledge over time.
 
-**You pick the brain, and you can change it whenever you like.** Eleven paths work today: **Claude Code**, **ChatGPT/Codex** and **Antigravity CLI** (these run on the subscription you already pay for - no separate API purchase), plus **Gemini CLI · OpenRouter · OpenAI API · Google Gemini · Anthropic API · Groq · DeepSeek · Ollama Cloud** (an API key is all they need).
+**You pick the brain, and you can change it whenever you like.** Eleven paths work today: **Claude Code**, **ChatGPT/Codex**, **Grok Build** and **Antigravity CLI** (these run on the subscription you already pay for - no separate API purchase), plus **OpenRouter · OpenAI API · Google Gemini · Anthropic API · Groq · DeepSeek · Ollama Cloud** (an API key is all they need). **Gemini CLI was removed in 0.50.0** - for Gemini models use Antigravity CLI, OpenRouter, or Google Gemini (API).
 
 > ⚠️ **Read this before letting a subscription run background work.** Anthropic scopes Claude Pro/Max to **ordinary personal use** of Claude Code. Continuous background execution (loops, reminders, Kanban jobs, chatbots), running on a VPS, or several people sharing one account all fall outside that scope, and accounts **have been suspended** over it. Javis does not read your login token (that path was removed in 0.26.17) - it runs the `claude` binary itself, but that does not make round-the-clock background use legitimate either. If you want to be safe: on the **Models** page set Claude Code to run on an **API key**, or point the **background-work model** at a different provider. See `server/claude_auth.py`.
-
-> ⚠️ **Gemini CLI no longer covers personal tiers.** Google cut personal Code Assist off on 18 June 2026. The CLI returns `IneligibleTierError` / `UNSUPPORTED_CLIENT` on the free tier, Google AI Pro and Ultra alike; only an enterprise Code Assist licence or an API key still works. That is a server-side block on Google's end, not a misconfiguration. For Gemini models on a personal Google plan, use **Antigravity CLI** instead - same model line-up as the Antigravity IDE, including non-Google models.
 
 > The philosophy: **capability lives in Javis, not in the model.** Every brain gets the same toolbox through one shared connection hub (MCP Hub) - wired-up MCP servers, brain read/write tools, skills, Kanban jobs, agents, workflows, loops and reminders. The only real difference: the CLI engines can also run **shell commands**, fetch a URL, search the web and spawn sub-agents. Switching from Claude to Gemini costs you nothing beyond that.
 
@@ -56,7 +54,7 @@ You wire in **your own connections** (POS/sales, ads, calendar, email, Zalo, not
 - 🎨 **Image generation** on the ChatGPT plan you are already signed in to - no separate API key.
 - 📊 **Usage** - Javis measures its own tokens in/out and cost per day and per provider, separating what you typed from what it ran on its own.
 - ⇅ **Back the brain up to GitHub** - two-way sync of every brain to a private repo, shared between your home machine and a VPS.
-- 🔄 **Multi-engine, no feature loss on a switch** - Claude Code, ChatGPT (Codex), Antigravity CLI, Gemini CLI, OpenRouter, OpenAI API, Google Gemini, Anthropic API, Groq, DeepSeek, Ollama. Change it in **Models** with one click; every brain reaches the Javis MCP hub, the brain file tools and the skills.
+- 🔄 **Multi-engine, no feature loss on a switch** - Claude Code, ChatGPT (Codex), Antigravity CLI, Grok Build, OpenRouter, OpenAI API, Google Gemini, Anthropic API, Groq, DeepSeek, Ollama. Change it in **Models** with one click; every brain reaches the Javis MCP hub, the brain file tools and the skills.
 - 🌐 **Multilingual** - reply language, interface language and locale are three separate settings. Vietnamese and English ship today; adding a language is a data change, not a code change (see [docs/dev/them-mot-ngon-ngu.md](docs/dev/them-mot-ngon-ngu.md)).
 - 🔐 **Safe on a VPS** - login is forced automatically when running publicly, plus account-takeover protection, rate limiting, CSRF blocking and encrypted secrets in the config.
 
@@ -70,7 +68,7 @@ You wire in **your own connections** (POS/sales, ads, calendar, email, Zalo, not
 
 Hostinger VPS → **Docker Manager → Compose → URL** → paste the **Hostinger file** and **Deploy**:
 ```
-https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
+https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml
 ```
 The **Environment** box on the current template needs only three fields: `DOMAIN_NAME`,
 `JAVIS_ADMIN_USER`, `JAVIS_ADMIN_PASSWORD`. The technical variables for ports, state,
@@ -86,7 +84,7 @@ Deploy → wait 1-3 minutes for Traefik to issue the certificate → open `https
 > Just want `http://<ip>:7777` without a domain? Use `docker-compose.yml` (Option 2).
 
 **Three one-time steps:**
-1. **Make the GHCR image Public:** GitHub → repo → **Packages** → `javis-os` → *Package settings* → Visibility = **Public**.
+1. **Make the GHCR image Public:** GitHub → repo → **Packages** → `javisos` → *Package settings* → Visibility = **Public**.
 2. **Create the admin account** (pick one):
    - *Recommended:* fill in `JAVIS_ADMIN_USER` + `JAVIS_ADMIN_PASSWORD` in the Environment box → open the app and **sign straight in**.
    - *Or:* open the app and it asks for a **SETUP TOKEN** - in the **App terminal** (inside the container) run `cat /data/state/.setup_token`.
@@ -97,7 +95,7 @@ Deploy → wait 1-3 minutes for Traefik to issue the certificate → open `https
 ```bash
 # Docker required (don't have it?  curl -fsSL https://get.docker.com | sh)
 mkdir javis && cd javis
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
 
 docker compose run --rm javis claude auth login --claudeai   # sign in to Claude once
 docker compose up -d                                          # pull the image and run
@@ -107,7 +105,7 @@ Open `http://<vps-ip>:7777` → the admin-account screen (find the SETUP TOKEN i
 ### Option 3 - Install directly on Linux/macOS (no Docker)
 
 ```bash
-git clone https://github.com/blogminhquy/javis-os.git javis && cd javis
+git clone https://github.com/duongcanhquan/javisOS.git javis && cd javis
 chmod +x install.sh && ./install.sh
 ```
 The script installs Python + Node + both CLI engines (Claude Code, Codex), creates a venv, registers a systemd service that starts at boot, and prints the address. If it reports Claude is not signed in, run this once: `claude auth login --claudeai`.
@@ -287,7 +285,7 @@ Zalo Agent MCP ────────────┤          │             
 ## 📂 Repository layout
 
 ```
-javis-os/
+javisOS/
 ├── server/              # FastAPI backend (engines, connections, background work, channels, memory…)
 │   └── routes/          # Split-out routes (domain, graph)
 ├── dashboard/           # Frontend (voice, graph, console, studio, usage)

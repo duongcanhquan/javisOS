@@ -4,7 +4,7 @@
 
 Hướng dẫn sử dụng chi tiết từng chức năng của Javis OS. Mỗi trang là một how-to độc lập: mở ở đâu, bấm gì, dùng thế nào.
 
-> Mới bắt đầu? Đọc [Cài đặt trong README](../README.md#-cài-đặt) trước, rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
+> Mới bắt đầu? Đọc **[Hướng dẫn cài đặt & sử dụng sau đóng gói](../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md)** (máy cá nhân + VPS Linux/Windows + map domain + Kết nối tự gắn), hoặc [Cài đặt trong README](../README.md#-cài-đặt), rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
 
 Thanh điều hướng của dashboard gom **19 trang** thành **7 nhóm**: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · Hệ thống. Mục lục dưới đây xếp theo cùng logic đó.
 

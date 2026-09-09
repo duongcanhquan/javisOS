@@ -12,7 +12,7 @@ the `main` branch.
 2. Create a branch named after the work in hand (`fix-zoom-mobile`, `them-mcp-notion`, say).
 3. Write the code, then run the tests yourself before opening the PR (see Tests below); a PR
    with no local test run tends to trip over small things only CI catches.
-4. Open the PR against `main` of the upstream repo (`blogminhquy/javis-os`), describing clearly
+4. Open the PR against `main` of the upstream repo (`duongcanhquan/javisOS`), describing clearly
    **why** the change is needed, not only **what** changed (the what is visible in the diff).
 5. CI (GitHub Actions) runs automatically. A PR merges only when green and approved; there is no
    auto-merge, the maintainer reviews each PR.

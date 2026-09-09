@@ -2,10 +2,10 @@
 
 *[Tiếng Việt](DEPLOY.md) · **English***
 
-Javis OS is a personal AI agent plus a Second Brain. Its "brain" is the **Claude Code CLI**
-(sign in once, no API key needed). There are 3 ways to run it, pick one.
+Javis OS is a personal AI agent plus a Second Brain. The brain is swappable (Claude Code,
+ChatGPT/Codex, Antigravity CLI, OpenRouter, API keys…). There are 3 ways to run it, pick one.
 
-> ⚠️ **Safety:** Javis runs Claude with full power on the machine. When running public
+> ⚠️ **Safety:** Javis runs an AI brain with full power on the machine. When running public
 > (Docker/VPS/Hostinger), Javis **turns forced login on by itself**, so opening the app gives the
 > **create admin / sign in** screen and nobody can drive it before a password exists. (To turn that
 > off for internal use: `JAVIS_REQUIRE_LOGIN=0`.)
@@ -16,21 +16,18 @@ Javis OS is a personal AI agent plus a Second Brain. Its "brain" is the **Claude
 
 On the Hostinger VPS go to **Docker Manager → Compose → URL**, paste the link and **Deploy**:
 ```
-https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
+https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml
 ```
-Hostinger pulls the image and runs it. Open the app at `http://<vps-ip>:7777` (the IP is in
-hPanel → VPS) and you get the **create admin account** screen.
+Hostinger pulls the image and wires Traefik. Set `DOMAIN_NAME` for HTTPS (see below). Without a
+domain, open `http://<vps-ip>:7777` temporarily.
 
-> 🌐 **Want a PRIVATE LINK with HTTPS (dropping `:7777` so the mic and voice work) WITHOUT buying a
-> domain?** Use `docker-compose.hostinger.yml` and set `DOMAIN_NAME=javis.<vps-hostname>.hstgr.cloud`;
-> see **"The default link + HTTPS on Hostinger"** in the HTTPS section below. This base compose file
-> is only reachable by IP:7777.
+> For plain `http://IP:7777` only, use `docker-compose.yml` (Way 2).
 
 **3 things to do once:**
-1. **Set the GHCR image to Public:** GitHub → the `javis-os` repo → **Packages** → `javis-os`
+1. **Set the GHCR image to Public:** GitHub → the `javisOS` repo → **Packages** → `javisos`
    → *Package settings* → Visibility = **Public** (so Hostinger can pull without a registry login).
    The image is built by CI on every push to `main` (see the Updates section).
-2. **Create the admin account safely** (Claude runs at full power, so account creation must not be
+2. **Create the admin account safely** (the brain runs at full power, so account creation must not be
    open to everyone):
    - **Way A (recommended):** in the Hostinger compose, fill the two existing fields
      `JAVIS_ADMIN_USER` + `JAVIS_ADMIN_PASSWORD`, and the admin is created at startup so opening
@@ -40,10 +37,8 @@ hPanel → VPS) and you get the **create admin account** screen.
      `cat /data/state/.setup_token`, copy the string and paste it into the create-account screen.
      (Only someone who can see the file or the log can create the admin, so whoever merely has the
      URL is stuck.)
-3. **Sign Claude in (the brain) once:** open the **App terminal** and run:
-   `claude auth login --claudeai`, open the link, paste the code. (The token lives in a volume and
-   survives updates.)
-
+3. **Sign a brain in once:** use the **Models** page (Claude / ChatGPT / Antigravity / API key…),
+   or in the App terminal run `claude auth login --claudeai` if you use Claude Code.
 ---
 
 ## Way 2 - Docker on any VPS (pull the image, no source clone needed)
@@ -51,7 +46,7 @@ hPanel → VPS) and you get the **create admin account** screen.
 Docker is required. Do not have it? `curl -fsSL https://get.docker.com | sh`
 ```bash
 mkdir javis && cd javis
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
 
 docker compose run --rm javis claude auth login --claudeai   # SIGN CLAUDE IN ONCE (link + code)
 docker compose up -d                                          # pull the GHCR image and run
@@ -97,7 +92,7 @@ you **must set a `DOMAIN_NAME` variable**:
 1. Find the **VPS hostname** in hPanel → VPS (for example `srv1782015.hstgr.cloud`).
 2. Docker Manager → Compose → URL:
    ```
-   https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
+   https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml
    ```
 3. The new template's **Environment** box has only 3 meaningful fields:
    - `DOMAIN_NAME`: set `javis.<vps-hostname>.hstgr.cloud`
@@ -178,7 +173,7 @@ for the whole machine**:
 
 ```bash
 docker network create javis-web
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.proxy.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.proxy.yml
 docker compose -f docker-compose.proxy.yml -p javis-proxy up -d
 ```
 
@@ -186,8 +181,8 @@ Then give each instance **its own folder**:
 
 ```bash
 mkdir -p ~/javis-shop && cd ~/javis-shop
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.multi.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.multi.yml
 cat > .env <<'EOF'
 JAVIS_NAME=javis-shop
 JAVIS_HOST_PORT=7777
@@ -266,7 +261,7 @@ Trust (free), take the token, put `TUNNEL_TOKEN=...` into `.env`, change the `tu
 ## Way 2 - Installing directly on Linux/macOS (no Docker)
 
 ```bash
-git clone https://github.com/blogminhquy/javis-os.git javis && cd javis
+git clone https://github.com/duongcanhquan/javisOS.git javis && cd javis
 chmod +x install.sh && ./install.sh
 ```
 

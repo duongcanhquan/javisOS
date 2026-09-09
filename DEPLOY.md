@@ -2,10 +2,10 @@
 
 ***Tiếng Việt** · [English](DEPLOY.en.md)*
 
-Javis OS là một AI agent cá nhân + Second Brain. "Bộ não" của nó là **Claude Code CLI**
-(đăng nhập một lần, không cần API key). Có 3 cách chạy - chọn 1.
+Javis OS là một AI agent cá nhân + Second Brain. Bộ não đổi được (Claude Code, ChatGPT/Codex,
+Antigravity CLI, OpenRouter, API…). Có 3 cách chạy - chọn 1.
 
-> ⚠️ **An toàn:** Javis chạy Claude với toàn quyền trên máy. Khi chạy public (Docker/VPS/Hostinger),
+> ⚠️ **An toàn:** Javis chạy bộ não AI với toàn quyền trên máy. Khi chạy public (Docker/VPS/Hostinger),
 > Javis **tự bật bắt buộc đăng nhập** - mở app ra là màn **tạo tài khoản admin / đăng nhập**, không
 > ai điều khiển được khi chưa đặt mật khẩu. (Chạy nội bộ muốn tắt: `JAVIS_REQUIRE_LOGIN=0`.)
 
@@ -15,17 +15,14 @@ Javis OS là một AI agent cá nhân + Second Brain. "Bộ não" của nó là 
 
 VPS Hostinger → **Docker Manager → Compose → URL** → dán link rồi **Deploy**:
 ```
-https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
+https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml
 ```
-Hostinger pull image + chạy. Mở app bằng `http://<ip-vps>:7777` (IP xem ở hPanel → VPS) → ra
-màn **tạo tài khoản admin**.
+Hostinger pull image + gắn Traefik. Đặt `DOMAIN_NAME` để có HTTPS (xem dưới). Chưa đặt domain thì mở tạm `http://<ip-vps>:7777`.
 
-> 🌐 **Muốn LINK RIÊNG có HTTPS (bỏ `:7777`, để mic/voice chạy) mà KHÔNG cần mua tên miền?** Dùng
-> `docker-compose.hostinger.yml` + đặt `DOMAIN_NAME=javis.<hostname-vps>.hstgr.cloud` - xem mục
-> **"Link mặc định + HTTPS trên Hostinger"** ở phần HTTPS bên dưới. Compose gốc này chỉ vào được bằng IP:7777.
+> Chỉ muốn `http://IP:7777` không HTTPS: dùng `docker-compose.yml` (Cách 2).
 
 **3 việc làm 1 lần:**
-1. **Để image GHCR ở chế độ Public:** GitHub → repo `javis-os` → **Packages** → `javis-os`
+1. **Để image GHCR ở chế độ Public:** GitHub → repo `javisOS` → **Packages** → `javisos`
    → *Package settings* → Visibility = **Public** (để Hostinger pull không cần đăng nhập registry).
    Image do CI tự build mỗi lần push lên `main` (xem mục Cập nhật).
 2. **Tạo tài khoản admin an toàn** (Claude chạy full quyền nên không để ai cũng tạo được):
@@ -35,9 +32,8 @@ màn **tạo tài khoản admin**.
    - **Cách B:** bỏ trống → mở app sẽ hỏi **MÃ THIẾT LẬP**. Lấy mã trong **App terminal** (nó vào
      BÊN TRONG container nên KHÔNG có lệnh `docker`): chạy `cat /data/state/.setup_token` → copy chuỗi
      → dán vào màn tạo tài khoản. (Chỉ người xem được file/log mới tạo được admin → kẻ chỉ có URL bó tay.)
-3. **Đăng nhập Claude (bộ não) 1 lần:** mở **App terminal** và chạy:
-   `claude auth login --claudeai` → mở link, dán code. (token lưu trong volume, không mất khi update.)
-
+3. **Đăng nhập bộ não 1 lần:** trang **Models** (Claude / ChatGPT / Antigravity / API key…), hoặc
+   App terminal: `claude auth login --claudeai` nếu dùng Claude Code.
 ---
 
 ## Cách 2 - Docker trên VPS bất kỳ (pull image, không cần clone source)
@@ -45,7 +41,7 @@ màn **tạo tài khoản admin**.
 Cần Docker. Chưa có? `curl -fsSL https://get.docker.com | sh`
 ```bash
 mkdir javis && cd javis
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
 
 docker compose run --rm javis claude auth login --claudeai   # ĐĂNG NHẬP CLAUDE 1 LẦN (link + code)
 docker compose up -d                                          # pull image GHCR + chạy
@@ -88,7 +84,7 @@ link riêng chạy HTTPS mà không cần mua tên miền. **Lưu ý (đã kiể
 1. Xem **hostname VPS** ở hPanel → VPS (vd `srv1782015.hstgr.cloud`).
 2. Docker Manager → Compose → URL:
    ```
-   https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.hostinger.yml
+   https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml
    ```
 3. Ô **Environment** của mẫu mới chỉ còn 3 trường có ý nghĩa:
    - `DOMAIN_NAME`: đặt `javis.<hostname-vps>.hstgr.cloud`
@@ -160,7 +156,7 @@ máy**:
 
 ```bash
 docker network create javis-web
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.proxy.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.proxy.yml
 docker compose -f docker-compose.proxy.yml -p javis-proxy up -d
 ```
 
@@ -168,8 +164,8 @@ Rồi mỗi bản một **thư mục riêng**:
 
 ```bash
 mkdir -p ~/javis-shop && cd ~/javis-shop
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/blogminhquy/javis-os/main/docker-compose.multi.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.multi.yml
 cat > .env <<'EOF'
 JAVIS_NAME=javis-shop
 JAVIS_HOST_PORT=7777
@@ -236,7 +232,7 @@ Mở giao diện Javis từ máy khác mà KHÔNG cần mở port / không cần
 ## Cách 2 - Cài trực tiếp lên Linux/macOS (không Docker)
 
 ```bash
-git clone https://github.com/blogminhquy/javis-os.git javis && cd javis
+git clone https://github.com/duongcanhquan/javisOS.git javis && cd javis
 chmod +x install.sh && ./install.sh
 ```
 

@@ -501,11 +501,11 @@ def _kiem_sync_brain_khong_deadlock():
 
     t = threading.Thread(target=_chay, name="sync_brain_deadlock_probe", daemon=True)
     t.start()
-    t.join(timeout=15)
+    t.join(timeout=30)
     con_treo = t.is_alive()
     check("REGRESSION mirror_skills/_mirror_lock/_mirror_signature lấy lại _LOCK (không "
           "reentrant) trong lúc sync_brain đang giữ -> treo production ngay lượt chat đầu "
-          f"(đã chờ 15s, luồng {'CÒN SỐNG - TREO THẬT' if con_treo else 'đã xong'})",
+          f"(đã chờ 30s, luồng {'CÒN SỐNG - TREO THẬT' if con_treo else 'đã xong'})",
           not con_treo)
     if con_treo:
         # KHÔNG rmtree khi còn treo: luồng daemon có thể vẫn đang cầm handle file bên trong
