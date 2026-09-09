@@ -1,6 +1,8 @@
 ---
 name: openmaic
-description: OpenMAIC assistant for setting up, generating, and extending OpenMAIC. Use when the user wants to use OpenMAIC, generate a multi-agent interactive classroom, or build on / extend / customize OpenMAIC and its @openmaic/* SDK (secondary development, 二开) — covers Live Demo or local setup, startup modes, provider keys, classroom generation, and secondary development (forking, providers/storage/themes, routes, or the renderer/editor).
+description: "Gói lớp OpenMAIC: cài đặt, tạo classroom tương tác, cấu hình provider, mở rộng SDK."
+description_en: "OpenMAIC pack: setup, generate interactive classrooms, provider config, SDK extension."
+group: Nội dung
 user-invocable: true
 metadata: { "openclaw": { "emoji": "🏫" } }
 ---
@@ -8,6 +10,11 @@ metadata: { "openclaw": { "emoji": "🏫" } }
 # OpenMAIC Skill
 
 Use this as a guided, confirmation-heavy SOP. Do not compress the whole setup into one reply and do not perform state-changing actions without explicit user confirmation.
+
+## Khi nào dùng / When to use
+
+- User muốn **dùng OpenMAIC**, tạo **lớp học tương tác multi-agent**, hoặc **mở rộng / fork / customize** OpenMAIC và `@openmaic/*` SDK.
+- Live Demo hoặc local setup, startup modes, provider keys, classroom generation, secondary development (providers/storage/themes, routes, renderer/editor).
 
 ## Core Rules
 

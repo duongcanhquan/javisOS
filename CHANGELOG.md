@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.163] - 2026-09-09
+### Sửa lỗi
+- **Skill openmaic vượt trần description:** cắt mô tả ≤150 ký tự + thêm `description_en` để CI xanh và router không mất đuôi.
+
 ## [0.55.162] - 2026-09-09
 ### Cải tiến
 - **Skill OpenMAIC vào image:** đưa `.claude/skills/openmaic` vào repo để brain mới nhận skill lớp học tương tác.
