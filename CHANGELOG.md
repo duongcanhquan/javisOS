@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.179] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp hiện đúng Moonshine:** Bắt đầu dùng Moonshine trước, không đẩy Cloud STT Gemini lên thanh trạng thái. Gemini hỏng không xen vào. Lỗi Moonshine thì Web Speech; Cloud STT chỉ khi không có Web Speech. Thanh «Đang ghi» bám `sttEngine` đang chạy.
+
 ## [0.55.178] - 2026-09-09
 ### Sửa lỗi
 - **Cuộc họp ghi ngay khi Bắt đầu:** không còn chờ Moonshine WASM (kẹt «chờ WASM»). Cloud STT Gemini / Web Speech chạy trước; Moonshine chỉ khi engine đã có trong RAM. AGC + timeout WASM 28s giữ cho đường Moonshine last-resort.

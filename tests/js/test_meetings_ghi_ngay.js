@@ -1,4 +1,4 @@
-/* Cuộc họp: Bắt đầu ghi ngay (Cloud/Web Speech), không chờ Moonshine WASM.
+/* Cuộc họp: Moonshine trước, thanh trạng thái đúng engine, không đẩy Gemini khi Moonshine chạy.
 
        node tests/js/test_meetings_ghi_ngay.js
 */
@@ -18,27 +18,25 @@ function check(name, cond, extra) {
 const begin = src.split("async function beginSttFast")[1] || "";
 const beginFn = begin.split("async function startMeeting")[0] || "";
 
-check("có moonshineEngineReady (chỉ dùng Moonshine khi đã nạp xong)",
-  /function moonshineEngineReady\(/.test(src));
-check("beginSttFast gọi Moonshine khi engineReady, không chặn WASM lúc Bắt đầu",
-  /moonshineEngineReady\(lang\)/.test(beginFn) &&
-  beginFn.indexOf("moonshineEngineReady") < beginFn.indexOf("await startMoonshine"));
-check("beginSttFast ghi Cloud STT trước khi last-resort Moonshine",
-  beginFn.indexOf("tryStartCloudStt") < beginFn.lastIndexOf("await startMoonshine") &&
-  /Đang ghi \(/.test(beginFn));
-check("Cloud STT không bị preferMoonshineFirst chặn",
-  /function preferCloudBeforeWebSpeech\(lang\) \{[\s\S]{0,80}lang = normalizeLang/.test(src) &&
-  !/function preferCloudBeforeWebSpeech\(lang\) \{[\s\S]{0,120}preferMoonshineFirst/.test(src));
-check("Bắt đầu hiện 'ghi ngay' khi Moonshine chưa sẵn",
-  /Bật micro — ghi ngay/.test(src) && /useMoonNow/.test(src));
-check("hint: Bắt đầu vẫn ghi ngay khi đang chuẩn bị Moonshine",
-  /Bắt đầu vẫn ghi ngay/.test(src) && /Bấm Bắt đầu sẽ ghi ngay/.test(src));
-check("timeout WASM 28s + ngủ audio lúc load (last-resort)",
+check("beginSttFast gọi Moonshine trước (không cần engineReady mới chịu chạy)",
+  beginFn.indexOf("await startMoonshine") !== -1 &&
+  beginFn.indexOf("preferMoonshineFirst") < beginFn.indexOf("await startMoonshine") &&
+  beginFn.indexOf("await startMoonshine") < beginFn.indexOf("hasWebSpeech"));
+check("Moonshine lỗi thì Web Speech, không đẩy Gemini",
+  /không đẩy Gemini/.test(beginFn) &&
+  beginFn.indexOf("startWebSpeechSafe") < beginFn.indexOf("tryStartCloudStt"));
+check("thanh trạng thái theo state.sttEngine (setMeetingSttStatus)",
+  /function setMeetingSttStatus\(/.test(src) &&
+  /Đang ghi \(Moonshine · /.test(src) &&
+  src.indexOf("setMeetingSttStatus(root)") !== -1);
+check("không hiện 'ghi ngay' Cloud/Gemini khi Bắt đầu Moonshine",
+  !/Bật micro — ghi ngay/.test(src) && /Bật micro \(Moonshine\)/.test(src));
+check("timeout WASM 28s + ngủ audio lúc load",
   /MOONSHINE_INIT_TIMEOUT_MS\s*=\s*28000/.test(src) && /function pauseAudioForWasmLoad\(/.test(src));
 check("không import jsDelivr Moonshine",
   src.indexOf("cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm") === -1);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 34)", v >= 34, v);
+check("meetings.js đã bump ?v= (>= 35)", v >= 35, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));
