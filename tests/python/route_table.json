@@ -2554,6 +2554,96 @@
  {
   "order": 284,
   "type": "APIRoute",
+  "path": "/drive-projects/rclone/authorize/start",
+  "name": "drive_rclone_authorize_start",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 285,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/authorize/poll",
+  "name": "drive_rclone_authorize_poll",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "order": 286,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/connect",
+  "name": "drive_rclone_connect",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 287,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/upload-config",
+  "name": "drive_rclone_upload_config",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 288,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/disconnect",
+  "name": "drive_rclone_disconnect",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 289,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/pair/start",
+  "name": "drive_rclone_pair_start",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 290,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/pair/{pair_id}/poll",
+  "name": "drive_rclone_pair_poll",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "order": 291,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/pair/{pair_id}/mac.command",
+  "name": "drive_rclone_pair_mac",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "order": 292,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/pair/{pair_id}/win.bat",
+  "name": "drive_rclone_pair_win",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "order": 293,
+  "type": "APIRoute",
+  "path": "/drive-projects/rclone/pair/{pair_id}/complete",
+  "name": "drive_rclone_pair_complete",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "order": 294,
+  "type": "APIRoute",
   "path": "/drive-projects",
   "name": "drive_projects_create",
   "methods": [
@@ -2561,7 +2651,7 @@
   ]
  },
  {
-  "order": 285,
+  "order": 295,
   "type": "APIRoute",
   "path": "/drive-projects/{project_id}",
   "name": "drive_projects_get",
@@ -2570,7 +2660,7 @@
   ]
  },
  {
-  "order": 286,
+  "order": 296,
   "type": "APIRoute",
   "path": "/drive-projects/{project_id}/update",
   "name": "drive_projects_update",
@@ -2579,7 +2669,7 @@
   ]
  },
  {
-  "order": 287,
+  "order": 297,
   "type": "APIRoute",
   "path": "/drive-projects/{project_id}/delete",
   "name": "drive_projects_delete",
@@ -2588,7 +2678,7 @@
   ]
  },
  {
-  "order": 288,
+  "order": 298,
   "type": "APIRoute",
   "path": "/drive-projects/{project_id}/sync",
   "name": "drive_projects_sync",
@@ -2597,7 +2687,7 @@
   ]
  },
  {
-  "order": 289,
+  "order": 299,
   "type": "APIRoute",
   "path": "/ollama-local/status",
   "name": "ollama_local_status",
@@ -2606,7 +2696,7 @@
   ]
  },
  {
-  "order": 290,
+  "order": 300,
   "type": "APIRoute",
   "path": "/ollama-local/endpoint",
   "name": "ollama_local_set_endpoint",
@@ -2615,7 +2705,7 @@
   ]
  },
  {
-  "order": 291,
+  "order": 301,
   "type": "APIRoute",
   "path": "/ollama-local/specs",
   "name": "ollama_local_get_specs",
@@ -2624,7 +2714,7 @@
   ]
  },
  {
-  "order": 292,
+  "order": 302,
   "type": "APIRoute",
   "path": "/ollama-local/specs",
   "name": "ollama_local_set_specs",
@@ -2633,7 +2723,7 @@
   ]
  },
  {
-  "order": 293,
+  "order": 303,
   "type": "APIRoute",
   "path": "/ollama-local/installed",
   "name": "ollama_local_installed",
@@ -2642,7 +2732,7 @@
   ]
  },
  {
-  "order": 294,
+  "order": 304,
   "type": "APIRoute",
   "path": "/ollama-local/recommended",
   "name": "ollama_local_recommended",
@@ -2651,7 +2741,7 @@
   ]
  },
  {
-  "order": 295,
+  "order": 305,
   "type": "APIRoute",
   "path": "/ollama-local/search",
   "name": "ollama_local_search",
@@ -2660,7 +2750,7 @@
   ]
  },
  {
-  "order": 296,
+  "order": 306,
   "type": "APIRoute",
   "path": "/ollama-local/pull",
   "name": "ollama_local_pull",
@@ -2669,7 +2759,7 @@
   ]
  },
  {
-  "order": 297,
+  "order": 307,
   "type": "APIRoute",
   "path": "/ollama-local/delete",
   "name": "ollama_local_delete",
@@ -2678,7 +2768,7 @@
   ]
  },
  {
-  "order": 298,
+  "order": 308,
   "type": "APIRoute",
   "path": "/runtime/diagnostics",
   "name": "runtime_diagnostics",
@@ -2687,7 +2777,7 @@
   ]
  },
  {
-  "order": 299,
+  "order": 309,
   "type": "APIRoute",
   "path": "/runtime/muc",
   "name": "runtime_muc",
@@ -2696,7 +2786,7 @@
   ]
  },
  {
-  "order": 300,
+  "order": 310,
   "type": "APIRoute",
   "path": "/runtime/preset",
   "name": "runtime_preset_set",
@@ -2705,7 +2795,7 @@
   ]
  },
  {
-  "order": 301,
+  "order": 311,
   "type": "APIRoute",
   "path": "/runtime/mode",
   "name": "runtime_mode_set",
@@ -2714,7 +2804,7 @@
   ]
  },
  {
-  "order": 302,
+  "order": 312,
   "type": "APIRoute",
   "path": "/runtime/quota",
   "name": "runtime_quota_apply",
@@ -2723,7 +2813,7 @@
   ]
  },
  {
-  "order": 303,
+  "order": 313,
   "type": "APIRoute",
   "path": "/runtime/canary",
   "name": "runtime_canary_set",
@@ -2732,7 +2822,7 @@
   ]
  },
  {
-  "order": 304,
+  "order": 314,
   "type": "APIRoute",
   "path": "/runtime/tasks/{task_id}",
   "name": "runtime_task_status",
@@ -2741,7 +2831,7 @@
   ]
  },
  {
-  "order": 305,
+  "order": 315,
   "type": "APIRoute",
   "path": "/runtime/tasks/{task_id}/resume",
   "name": "runtime_task_resume",
@@ -2750,7 +2840,7 @@
   ]
  },
  {
-  "order": 306,
+  "order": 316,
   "type": "APIRoute",
   "path": "/zalo-bot/status",
   "name": "zalo_bot_status",
@@ -2759,7 +2849,7 @@
   ]
  },
  {
-  "order": 307,
+  "order": 317,
   "type": "APIRoute",
   "path": "/zalo-bot/restart",
   "name": "zalo_bot_restart",
@@ -2768,7 +2858,7 @@
   ]
  },
  {
-  "order": 308,
+  "order": 318,
   "type": "APIRoute",
   "path": "/zalo-bot/allow",
   "name": "zalo_bot_allow",
@@ -2777,7 +2867,7 @@
   ]
  },
  {
-  "order": 309,
+  "order": 319,
   "type": "APIRoute",
   "path": "/zalo-bot/test",
   "name": "zalo_bot_test",
@@ -2786,7 +2876,7 @@
   ]
  },
  {
-  "order": 310,
+  "order": 320,
   "type": "APIRoute",
   "path": "/telegram/status",
   "name": "telegram_status",
@@ -2795,7 +2885,7 @@
   ]
  },
  {
-  "order": 311,
+  "order": 321,
   "type": "APIRoute",
   "path": "/telegram/restart",
   "name": "telegram_restart",
@@ -2804,7 +2894,7 @@
   ]
  },
  {
-  "order": 312,
+  "order": 322,
   "type": "APIRoute",
   "path": "/chatbots",
   "name": "chatbots_list",
@@ -2813,7 +2903,7 @@
   ]
  },
  {
-  "order": 313,
+  "order": 323,
   "type": "APIRoute",
   "path": "/chatbots/verify-token",
   "name": "chatbots_verify_token",
@@ -2822,7 +2912,7 @@
   ]
  },
  {
-  "order": 314,
+  "order": 324,
   "type": "APIRoute",
   "path": "/chatbots",
   "name": "chatbots_create",
@@ -2831,7 +2921,7 @@
   ]
  },
  {
-  "order": 315,
+  "order": 325,
   "type": "APIRoute",
   "path": "/chatbots/{bot_id}/update",
   "name": "chatbots_update",
@@ -2840,7 +2930,7 @@
   ]
  },
  {
-  "order": 316,
+  "order": 326,
   "type": "APIRoute",
   "path": "/chatbots/{bot_id}/enable",
   "name": "chatbots_enable",
@@ -2849,7 +2939,7 @@
   ]
  },
  {
-  "order": 317,
+  "order": 327,
   "type": "APIRoute",
   "path": "/chatbots/{bot_id}/groups",
   "name": "chatbots_groups",
@@ -2858,7 +2948,7 @@
   ]
  },
  {
-  "order": 318,
+  "order": 328,
   "type": "APIRoute",
   "path": "/chatbots/{bot_id}/log",
   "name": "chatbots_log",
@@ -2867,7 +2957,7 @@
   ]
  },
  {
-  "order": 319,
+  "order": 329,
   "type": "APIRoute",
   "path": "/chatbots/{bot_id}/delete",
   "name": "chatbots_delete",
@@ -2876,7 +2966,7 @@
   ]
  },
  {
-  "order": 320,
+  "order": 330,
   "type": "APIRoute",
   "path": "/telegram/test",
   "name": "telegram_test",
@@ -2885,7 +2975,7 @@
   ]
  },
  {
-  "order": 321,
+  "order": 331,
   "type": "APIRoute",
   "path": "/chat",
   "name": "chat_once",
@@ -2894,7 +2984,7 @@
   ]
  },
  {
-  "order": 322,
+  "order": 332,
   "type": "APIRoute",
   "path": "/chat/stream",
   "name": "chat_stream",
@@ -2903,7 +2993,7 @@
   ]
  },
  {
-  "order": 323,
+  "order": 333,
   "type": "APIRoute",
   "path": "/telegram/send-file",
   "name": "telegram_send_file",

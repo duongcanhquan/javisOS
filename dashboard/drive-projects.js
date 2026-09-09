@@ -1,4 +1,4 @@
-/* Kho Drive — kết nối Google đơn giản (1 nút / tải tool Mac·Win) → tạo kho bằng link. */
+/* Kho Drive - kết nối Google đơn giản (1 nút / tải tool Mac·Win) → tạo kho bằng link. */
 (function () {
   "use strict";
 
@@ -32,7 +32,7 @@
     return "brain";
   }
   function when(ts) {
-    if (!ts) return "—";
+    if (!ts) return "-";
     try {
       return new Date(Number(ts) * 1000).toLocaleString();
     } catch (e) {
@@ -93,7 +93,7 @@
       '<div id="dpStatus" class="jw-hint dim">Đang kiểm tra…</div>' +
       '<div id="dpConnect" class="jw-card" style="margin-top:12px;display:none"></div>' +
       '<div id="dpCreateWrap" class="jw-card" style="margin-top:12px;display:none">' +
-      "<h3>Bước 2 — Tạo kho</h3>" +
+      "<h3>Bước 2 - Tạo kho</h3>" +
       '<div class="jw-field"><label>Tên kho</label>' +
       '<input id="dpName" type="text" placeholder="Ví dụ: Giáo trình Marketing"></div>' +
       '<div class="jw-field"><label>Link thư mục Google Drive</label>' +
@@ -154,7 +154,7 @@
     if (connected) {
       box.style.display = "";
       box.innerHTML =
-        "<h3>Bước 1 — Google đã kết nối ✓</h3>" +
+        "<h3>Bước 1 - Google đã kết nối</h3>" +
         '<p class="jw-hint"><span class="ok">Sẵn sàng</span></p>' +
         '<button type="button" class="jw-btn" id="dpDisconnect">Ngắt kết nối</button>';
       box.querySelector("#dpDisconnect").onclick = async function () {
@@ -168,7 +168,7 @@
     var local = isLocalHost();
     box.style.display = "";
     box.innerHTML =
-      "<h3>Bước 1 — Kết nối Google Drive</h3>" +
+      "<h3>Bước 1 - Kết nối Google Drive</h3>" +
       (local
         ? '<p class="jw-hint">Bạn đang mở Javis trên máy này. Bấm một lần, Allow Google là xong.</p>' +
           '<button type="button" class="jw-btn jw-btn-primary" id="dpAuthLocal">Kết nối Google Drive</button>' +
@@ -250,7 +250,7 @@
         '<a class="jw-btn jw-btn-primary" href="' +
         esc(res.win_url) +
         '">Tải cho Windows (.bat)</a></div>' +
-        '<p class="jw-hint dim">Sau khi Allow Google, quay lại trang này — sẽ tự cập nhật (khoảng 15 phút hiệu lực).</p>' +
+        '<p class="jw-hint dim">Sau khi Allow Google, quay lại trang này - sẽ tự cập nhật (khoảng 15 phút hiệu lực).</p>' +
         '<p class="jw-hint" id="dpPairWait">Đang chờ kết nối từ máy bạn…</p>';
     }
     var pairId = res.pair_id;

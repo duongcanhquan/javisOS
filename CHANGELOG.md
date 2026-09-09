@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.166] - 2026-09-09
+### Sửa lỗi
+- **CI đỏ sau Kho Drive 0.55.165:** bỏ dấu tick emoji trên trang Kho Drive; chụp lại bảng route cho endpoint Drive mới.
+
 ## [0.55.165] - 2026-09-09
 ### Cải tiến
 - **Kho Drive đơn giản hơn:** trên VPS chỉ cần tải tool Mac/Windows → double-click → Allow Google; trên máy local bấm một nút. Tạo kho bằng cách dán link thư mục Drive.
