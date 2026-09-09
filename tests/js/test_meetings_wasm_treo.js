@@ -29,7 +29,7 @@ check("không import jsDelivr Moonshine (pthread pool = số CPU → treo)",
   src.indexOf("cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm") === -1 &&
   !/CDN_FALLBACK/.test(src));
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 35)", v >= 35, v);
+check("meetings.js đã bump ?v= (>= 37)", v >= 37, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

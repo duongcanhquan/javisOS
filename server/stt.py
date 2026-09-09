@@ -29,12 +29,23 @@ STT_MODEL_CHUAN = "whisper-large-v3"
 OPENAI_STT_URL = "https://api.openai.com/v1/audio/transcriptions"
 OPENAI_WHISPER_MODEL = "whisper-1"
 
-# Gemini multimodal — thử lần lượt (Google hay đổi id model).
+# Gemini multimodal — thử lần lượt. Không liệt kê 2.5-flash: Google ngừng bán cho user mới
+# (404 `no longer available` — câu đó không có chữ 'not found' nên loop cũ dừng luôn).
 STT_GEMINI_MODELS = (
     "gemini-3.6-flash",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+)
+
+# Câu Google khi model chết: phải skip, không trả dump cho LLM đọc thành tiếng.
+_SKIP_MODEL_MSG = (
+    "not found", "not supported", "invalid", "unknown",
+    "no longer available", "not available to new users",
+    "update your code", "is not available",
+)
+_DUMP_API_MSG = (
+    "no longer available", "not available to new users",
+    "please update your code", "models/gemini", "models/",
 )
 
 _PROMPT_VI = ("Tiếng Việt có dấu. Ghi đúng chính tả và dấu thanh. "
@@ -64,6 +75,58 @@ def _mb(n):
     return round(n / (1024 * 1024), 1)
 
 
+def _chi_tiet_an_toan(chi_tiet: str) -> str:
+    """Bỏ dump API (model id, 'update your code') khỏi lời dặn LLM — user chỉ cần gõ chữ."""
+    s = (chi_tiet or "").strip()
+    if not s:
+        return ""
+    low = s.lower()
+    if any(x in low for x in _DUMP_API_MSG):
+        return ""
+    return s[:200]
+
+
+def _doi_model_khac(status: int, msg: str) -> bool:
+    """404 luôn thử model kế. 400 chỉ khi câu lỗi nói model chết / không hỗ trợ."""
+    if status == 404:
+        return True
+    low = (msg or "").lower()
+    return status == 400 and any(x in low for x in _SKIP_MODEL_MSG)
+
+
+def _doi_id_gemini(mdl: str) -> str:
+    """2.5-flash (và id cũ khác) → id còn mở. Trùng bảng chat engine."""
+    m = (mdl or "").strip()
+    if m.startswith("models/"):
+        m = m[len("models/"):]
+    try:
+        from engine import gemini_resolve_model
+        return gemini_resolve_model(m)
+    except Exception:
+        bang = {
+            "gemini-2.5-flash": "gemini-3.6-flash",
+            "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+            "gemini-2.0-flash": "gemini-3.6-flash",
+            "gemini-2.0-flash-001": "gemini-3.6-flash",
+            "gemini-1.5-flash": "gemini-3.6-flash",
+        }
+        return bang.get(m, m) or "gemini-3.6-flash"
+
+
+def _danh_sach_model_gemini(model: str = "") -> list[str]:
+    raw = []
+    if (model or "").strip():
+        raw.append(model)
+    raw.extend(STT_GEMINI_MODELS)
+    out, seen = [], set()
+    for m in raw:
+        m = _doi_id_gemini(m)
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out
+
+
 def loi_thanh_dong(ly_do, chi_tiet=""):
     if ly_do == "thieu_key":
         return _HD_THIEU_KEY
@@ -73,8 +136,12 @@ def loi_thanh_dong(ly_do, chi_tiet=""):
     if ly_do == "khong_nghe_ro":
         return ("[Người dùng gửi tin thoại nhưng Javis nghe không ra chữ nào (có thể im lặng "
                 "hoặc quá ồn). Nhờ họ thu lại gần micro hơn, hoặc gõ chữ.]")
-    return ("[Người dùng gửi tin thoại nhưng Javis nghe hỏng: " + (chi_tiet or "lỗi không rõ") +
-            ". Nhờ họ gõ chữ, và báo là chỗ nghe giọng đang trục trặc.]")
+    ct = _chi_tiet_an_toan(chi_tiet)
+    if ct:
+        return ("[Người dùng gửi tin thoại nhưng Javis nghe hỏng: " + ct +
+                ". Nhờ họ gõ chữ, và báo là chỗ nghe giọng đang trục trặc.]")
+    return ("[Người dùng gửi tin thoại nhưng Javis nghe hỏng. "
+            "Nhờ họ gõ chữ, và báo là chỗ nghe giọng đang trục trặc.]")
 
 
 def _mime(ten_file: str) -> str:
@@ -188,7 +255,7 @@ async def gemini_nghe(data, ten_file, api_key, ngon_ngu=None, prompt=None, model
         }],
         "generationConfig": {"temperature": 0.0},
     }
-    models = [model] if model else list(STT_GEMINI_MODELS)
+    models = _danh_sach_model_gemini(model)
     last_err = ""
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(STT_TIMEOUT)) as c:
@@ -211,10 +278,9 @@ async def gemini_nghe(data, ten_file, api_key, ngon_ngu=None, prompt=None, model
                     else:
                         msg = str(err or r.text or f"HTTP {r.status_code}")
                     last_err = msg
-                    # Model không tồn tại / không hỗ trợ audio → thử model kế.
-                    low = msg.lower()
-                    if r.status_code in (404, 400) and any(
-                            x in low for x in ("not found", "not supported", "invalid", "unknown")):
+                    # Model chết / không hỗ trợ audio → thử model kế (kể cả câu
+                    # 'no longer available' — không có chữ 'not found').
+                    if _doi_model_khac(r.status_code, msg):
                         print(f"[stt gemini] skip {mdl}: {msg[:160]}", file=sys.stderr)
                         continue
                     print(f"[stt gemini] {mdl}: {msg[:200]}", file=sys.stderr)

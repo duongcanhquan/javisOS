@@ -335,7 +335,7 @@ Các bước:
 3. Bấm **▶ Nghe thử** để nghe một câu chào mẫu bằng giọng vừa chọn.
 4. "Ngôn ngữ nghe" là ngôn ngữ Javis dùng để nhận diện lời bạn nói, khác với giọng đọc trả lời. Để mặc định Tiếng Việt trừ khi bạn quen nói tiếng Anh.
 
-**Độ chính xác:** Mic trên dashboard mặc định **Web Speech** (trình duyệt, không cần key). Cloud STT (Gemini ưu tiên) chỉ khi bạn chọn chế độ whisper/auto và đã có key ở Models. **Cuộc họp:** Moonshine local trước; nếu engine treo thì Web Speech. Cloud STT Gemini không xen vào khi Moonshine đang chạy. Trang họp khuếch đại PCM (AGC) rồi mới lọc im lặng.
+**Độ chính xác:** Mic trên dashboard mặc định **Web Speech** (trình duyệt, không cần key). Cloud STT (Gemini ưu tiên) chỉ khi bạn chọn chế độ whisper/auto và đã có key ở Models. **Cuộc họp:** Moonshine local trước; mix **mic phòng + tiếng máy** (Zoom/Meet — chọn tab/toàn màn hình và bật chia sẻ âm thanh). Không chia sẻ thì mic tắt chống vọng để bắt loa analog. AGC mạnh cho giọng xa; lọc câu bịa giữ. Cloud STT Gemini không xen vào khi Moonshine đang chạy.
 
 Mọi lựa chọn giọng, tốc độ, ngôn ngữ nghe đều được ghi nhớ cho lần sau.
 
@@ -428,6 +428,8 @@ Phím tắt:
 - **Ảnh trong hội thoại thành ô xám "Ảnh đã hết hạn".** File nằm trong vùng cache `attachments/` đã quá 30 ngày hoặc bị dọn do chạm trần 300MB. Nhờ Javis tạo lại, hoặc lần sau chép ảnh quan trọng sang thư mục khác trong brain.
 - **Sơ đồ không vẽ ra, chỉ thấy mã.** Thư viện vẽ sơ đồ tải từ mạng; máy đang offline hoặc bị chặn. Nội dung vẫn còn nguyên ở tab mã nguồn.
 - **Nhờ tạo ảnh thì báo chưa kết nối ChatGPT.** Vào trang **Models** đăng nhập ChatGPT (OAuth), không cần API key, rồi thử lại.
+- **Gửi tin thoại mà Javis nhờ gõ chữ.** Chỗ nghe giọng cloud (Gemini) đang trục trặc hoặc model cũ đã tắt. Gõ chữ trong lúc đó; Javis tự đổi sang `gemini-3.6-flash`, không đọc dump API. Dashboard/cuộc họp vẫn dùng Moonshine + Web Speech.
+- **Họp online, mic sát loa mà không ra chữ phía bên kia.** Trình duyệt chống vọng (AEC) xoá tiếng đang phát ra loa máy này. Trên trang Cuộc họp: giữ tick **Ghi tiếng máy**, bấm Bắt đầu, chọn tab Zoom/Meet hoặc Toàn màn hình và bật «Chia sẻ âm thanh». Không chia sẻ thì mic vẫn bắt loa analog (AEC tắt). Ctrl+F5 nếu chưa thấy ô tick.
 - **Câu trả lời trống.** Nếu ô trả lời hiện dòng gợi ý thử lại hoặc đổi model, có thể do model đang chọn gặp trục trặc. Xem [Models & engine](10-models-va-engine.md) để đổi model/engine.
 - **File tải mãi không xong.** File lớn hoặc mạng chậm; thẻ file sẽ báo lỗi cụ thể (quá thời gian tải, lỗi máy chủ). Thử lại với file nhỏ hơn hoặc kiểm tra kết nối.
 

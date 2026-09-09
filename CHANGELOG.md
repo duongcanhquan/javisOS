@@ -4,6 +4,18 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.182] - 2026-09-09
+### Cải tiến
+- **Cuộc họp ghi đủ giọng phòng, loa máy, giọng xa:** mix mic + tiếng Zoom/Meet (chia sẻ tab/màn hình kèm âm thanh). Có loopback thì AEC trên mic (tránh ghi đôi); không có thì AEC tắt để bắt loa analog. VAD 0.28, AGC boost ×16 / hạ khi mix to, cửa RMS 0.006. Hủy chia sẻ không hỏi lại; thiếu tiếng máy / mix lỗi thì tắt AEC trên mic.
+
+## [0.55.181] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp ghi được tiếng loa họp online:** tắt chống vọng (AEC) trên mic. Chrome đang xoá tiếng Zoom/Meet phát ra loa máy này — giọng nói trực tiếp vẫn vào vì không đi vòng loa. Mic sát loa không giúp khi AEC bật.
+
+## [0.55.180] - 2026-09-09
+### Sửa lỗi
+- **Tin thoại Gemini hết đọc lỗi 2.5-flash:** Google ngừng `gemini-2.5-flash` với tài khoản mới (`no longer available`). Javis đổi sang `gemini-3.6-flash` (rồi 3.5 nếu cần), bỏ dump API khỏi lời dặn — nhờ gõ chữ và báo chỗ nghe giọng đang trục trặc.
+
 ## [0.55.179] - 2026-09-09
 ### Sửa lỗi
 - **Cuộc họp hiện đúng Moonshine:** Bắt đầu dùng Moonshine trước, không đẩy Cloud STT Gemini lên thanh trạng thái. Gemini hỏng không xen vào. Lỗi Moonshine thì Web Speech; Cloud STT chỉ khi không có Web Speech. Thanh «Đang ghi» bám `sttEngine` đang chạy.

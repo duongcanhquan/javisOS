@@ -1,4 +1,4 @@
-/* Độ nhạy mic cuộc họp: AGC + VAD phòng, không EQ worklet, không bịa beamforming.
+/* Độ nhạy mic cuộc họp: AGC xa + mix loa máy, không EQ worklet, không bịa beamforming.
 
        node tests/js/test_meetings_nhay_mic.js
 */
@@ -15,10 +15,14 @@ function check(name, cond, extra) {
   if (!cond) fails.push(name);
 }
 
-check("VAD phòng họp ~0.38 (không còn 0.6)",
-  /vad_threshold:\s*"0\.38"/.test(src) && !/vad_threshold:\s*"0\.6"/.test(src));
-check("cửa RMS sau AGC (~0.01)",
-  /SPEECH_PEAK_MIN\s*=\s*0\.01/.test(src));
+check("VAD phòng họp ~0.28 (giọng xa, không còn 0.38/0.6)",
+  /vad_threshold:\s*"0\.28"/.test(src) && !/vad_threshold:\s*"0\.38"/.test(src) &&
+    !/vad_threshold:\s*"0\.6"/.test(src));
+check("cửa RMS sau AGC (~0.006, bắt xa)",
+  /SPEECH_PEAK_MIN\s*=\s*0\.006/.test(src));
+check("AGC boost tối đa ≥16 và có hạ khi mix to",
+  /AGC_MAX_GAIN\s*=\s*16/.test(src) && /AGC_MIN_GAIN\s*=\s*0\.4/.test(src) &&
+    /if \(want < AGC_MIN_GAIN\)/.test(src));
 check("đo đỉnh giọng trên PCM đã AGC (không chặn giọng xa trước boost)",
   /moonshineAgcChunk\(chunk, cap\)/.test(src) &&
   /if \(rms > \(cap\.lineSpeechPeak/.test(src) &&
@@ -29,25 +33,42 @@ check("AGC không khuếch đại im lặng số",
   /AGC_SILENCE_RMS/.test(src));
 check("giữ lọc câu bịa (subscribe / La La School)",
   /function isMoonshineHallucinationText\(/.test(src) && src.indexOf("subscribe") >= 0 && src.indexOf("thanks for watching") >= 0);
-check("mic họp: khử vọng + AGC, không khử ồn mạnh",
-  /echoCancellation:\s*true/.test(src)
-  && /autoGainControl:\s*true/.test(src)
-  && /noiseSuppression:\s*false/.test(src));
+check("mic: AEC theo opts.aec (tắt khi chỉ analog, bật khi có loa máy số)",
+  /function moonshineMicConstraints\(opts\)/.test(src) &&
+  /echoCancellation:\s*aec/.test(src) &&
+  /voiceIsolation:\s*false/.test(src) &&
+  /noiseSuppression:\s*false/.test(src));
+check("ghi tiếng máy: getDisplayMedia + systemAudio include",
+  /function ensureDisplayAudio\(/.test(src) &&
+  /getDisplayMedia\(attempts/.test(src) &&
+  /systemAudio:\s*"include"/.test(src));
+check("mix mic phòng + loa máy vào worklet",
+  /cap\.sysGain\.gain\.value = 0\.72/.test(src) &&
+  /cap\.mixGain\.connect\(cap\.workletNode\)/.test(src));
+check("checkbox Ghi tiếng máy",
+  /id="mtSysAudio"/.test(src) && /Ghi tiếng máy/.test(src));
 check("getUserMedia không ép channelCount: 1 (dàn mic OS)",
   /function moonshineMicConstraints\(/.test(src) &&
-  !/function moonshineMicConstraints\(\) \{[\s\S]{0,400}channelCount:\s*1/.test(src));
+  !/function moonshineMicConstraints\([\s\S]{0,500}channelCount:\s*1/.test(src));
 check("không EQ Web Audio giữa mic và worklet",
   !/function wireSpeechEmphasis\(/.test(src) && !/createBiquadFilter/.test(src));
 check("addModule worklet một lần + fallback ScriptProcessor",
   /_javisMoonshineWorklet/.test(src) && /createScriptProcessor/.test(src));
-check("hiện mức mic khi chưa ra chữ (không kẹt im lặng)",
-  /startMoonshineMicLevelPulse/.test(src) && /mic /.test(src));
+check("hiện mức tín hiệu khi chưa ra chữ (không kẹt im lặng)",
+  /startMoonshineMicLevelPulse/.test(src) && /mức /.test(src));
 check("không hiện 'không tải lại model' lúc WASM init",
   !/Khởi tạo nhận dạng .*không tải lại model/.test(src));
-check("Cloud STT họp VAD thấp hơn 0.028",
-  /Math\.max\(0\.012, baseline/.test(src));
+check("Cloud STT họp VAD thấp hơn 0.01",
+  /Math\.max\(0\.008, baseline/.test(src));
+check("hủy chia sẻ màn hình không hỏi lần hai",
+  /function displayShareCancelled\(/.test(src) &&
+  /NotAllowedError/.test(src) && /AbortError/.test(src) &&
+  /\{ video: true, audio: true \}/.test(src));
+check("mix loa máy lỗi thì tắt AEC trên mic",
+  /applyMicAec\(false\)/.test(src) &&
+  src.indexOf("state._hasSystemAudio = false") >= 0);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 32)", v >= 32, v);
+check("meetings.js đã bump ?v= (>= 37)", v >= 37, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

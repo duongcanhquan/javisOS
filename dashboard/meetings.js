@@ -58,6 +58,10 @@
     _audioContexts: null,
     _audioResumeTimer: null,
     _visBound: false,
+    _displayStream: null,
+    _displayVideoEl: null,
+    _hasSystemAudio: false,
+    _displayMissedAudio: false,
   };
 
   var archiveState = {
@@ -122,28 +126,28 @@
   var MOONSHINE_LANG = {
     // identify_speakers=false: không kéo model diarization từ CDN (hay treo / 404 local).
     // VI/CJK: max_tokens_per_second=13 theo tài liệu Moonshine (chặn vòng lặp ảo giác).
-    // vad_threshold 0.38: phòng họp ~0,5 m; 0.6 cũ nuốt giọng xa.
+    // vad_threshold 0.28: giọng xa / loa họp; 0.38–0.6 cũ nuốt tiếng nhỏ.
     vi: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.38",
+        vad_threshold: "0.28",
       },
       label: "Tiếng Việt",
     },
     en: {
       arch: "Base",
-      opts: { identify_speakers: "false", vad_threshold: "0.38" },
+      opts: { identify_speakers: "false", vad_threshold: "0.28" },
       label: "English",
     },
-    es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.38" }, label: "Español" },
+    es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.28" }, label: "Español" },
     zh: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.38",
+        vad_threshold: "0.28",
       },
       label: "中文",
     },
@@ -152,7 +156,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.38",
+        vad_threshold: "0.28",
       },
       label: "日本語",
     },
@@ -161,7 +165,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.38",
+        vad_threshold: "0.28",
       },
       label: "한국어",
     },
@@ -170,22 +174,24 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.38",
+        vad_threshold: "0.28",
       },
       label: "العربية",
     },
-    uk: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.38" }, label: "Українська" },
+    uk: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.28" }, label: "Українська" },
   };
   var MOONSHINE_VI_OPTS_LITE = {
     identify_speakers: "false",
     max_tokens_per_second: "13.0",
-    vad_threshold: "0.38",
+    vad_threshold: "0.28",
   };
-  // Cửa RMS sau AGC: im lặng số không boost nên < 0.01; giọng xa được kéo lên thì qua cửa.
-  var SPEECH_PEAK_MIN = 0.01;
-  var AGC_TARGET_RMS = 0.07;
-  var AGC_MAX_GAIN = 10;
-  var AGC_SILENCE_RMS = 0.001;
+  // Cửa RMS sau AGC: im lặng số không boost; giọng xa / loa họp được kéo lên thì qua cửa.
+  var SPEECH_PEAK_MIN = 0.006;
+  var AGC_TARGET_RMS = 0.08;
+  var AGC_MAX_GAIN = 16;
+  var AGC_SILENCE_RMS = 0.00055;
+  var AGC_MIN_GAIN = 0.4;
+  var SYS_AUDIO_KEY = "javis.meeting.sysAudio";
   // Kích thước tối thiểu (byte) — chặn cache/HTML lỗi khiến load “ok” nhưng không ra chữ.
   var MOONSHINE_MIN_BYTES = {
     "encoder_model.ort": 5 * 1024 * 1024,
@@ -217,6 +223,54 @@
   var ALL_LANG_CODES = Object.keys(WEB_SPEECH_BCP47).concat(["auto"]);
 
   var LANG_KEY = "javis.meeting.lang";
+
+  function loadWantSystemAudio() {
+    try {
+      return localStorage.getItem(SYS_AUDIO_KEY) !== "0";
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function saveWantSystemAudio(on) {
+    try {
+      localStorage.setItem(SYS_AUDIO_KEY, on ? "1" : "0");
+    } catch (e) {}
+  }
+
+  function wantSystemAudio() {
+    var el = document.querySelector("#mtSysAudio");
+    if (el) return !!el.checked;
+    return loadWantSystemAudio();
+  }
+
+  function applyMicAec(on) {
+    var streams = [];
+    if (state._moonshineCapture && state._moonshineCapture.mediaStream) {
+      streams.push(state._moonshineCapture.mediaStream);
+    }
+    if (state.whisper && state.whisper._micStream) {
+      streams.push(state.whisper._micStream);
+    }
+    var s;
+    for (s = 0; s < streams.length; s++) {
+      var mic =
+        streams[s].getAudioTracks && streams[s].getAudioTracks()[0]
+          ? streams[s].getAudioTracks()[0]
+          : null;
+      if (mic && mic.applyConstraints) {
+        try {
+          mic.applyConstraints(moonshineMicConstraints({ aec: !!on }));
+        } catch (e) {}
+      }
+    }
+  }
+
+  function captureSourceLabel() {
+    if (state._hasSystemAudio) return "phòng + loa máy";
+    if (state._displayMissedAudio) return "mic phòng · chưa có tiếng máy";
+    return "mic phòng";
+  }
 
   function normalizeLang(v) {
     v = String(v || "vi").trim().toLowerCase();
@@ -378,7 +432,7 @@
   }
 
   function micConstraints() {
-    return { audio: moonshineMicConstraints() };
+    return { audio: moonshineMicConstraints({ aec: !!state._hasSystemAudio }) };
   }
 
   async function tryStartCloudStt(root, micPromise) {
@@ -539,24 +593,153 @@
     "registerProcessor('javis-moonshine-capture',MoonshineCaptureProcessor);";
 
   /**
-   * Mic phòng họp: AEC giữ (loa Javis không vào transcript), AGC bật.
-   * Tắt noiseSuppression: Chrome NS nuốt giọng 0,5 m. Không ép mono
-   * để Windows/macOS còn dùng dàn mic sẵn (beamforming phần cứng nếu máy có).
-   * Không ép một kênh: trình duyệt mới mix stereo/array. Beamforming mềm trên 1 mic
-   * laptop không làm được vì không có từng kênh mảng.
+   * Mic phòng họp:
+   *  - Không có loa máy số: TẮT AEC — Chrome chống vọng xoá tiếng Zoom/Meet đang phát ra loa.
+   *  - Có loopback (getDisplayMedia audio): BẬT AEC — mic chỉ lấy giọng phòng, tiếng máy lấy số.
+   * Tắt NS / voiceIsolation: nuốt giọng xa và nhiều kiểu nói. AGC phần cứng + AGC PCM.
    */
-  function moonshineMicConstraints() {
+  function moonshineMicConstraints(opts) {
+    opts = opts || {};
+    var aec = !!opts.aec;
     return {
-      echoCancellation: true,
+      echoCancellation: aec,
       noiseSuppression: false,
       autoGainControl: true,
-      googEchoCancellation: true,
+      voiceIsolation: false,
+      googEchoCancellation: aec,
       googAutoGainControl: true,
       googNoiseSuppression: false,
     };
   }
 
-  /** Khuếch đại tự động từng khối PCM. Không boost khi RMS ~ im lặng số (tránh khuếch ồn thành chữ bịa). */
+  function displayCaptureConstraints() {
+    return {
+      video: { frameRate: 1, width: 16, height: 16 },
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        suppressLocalAudioPlayback: false,
+      },
+      preferCurrentTab: false,
+      selfBrowserSurface: "exclude",
+      systemAudio: "include",
+      monitorTypeSurfaces: "include",
+    };
+  }
+
+  function displayAudioLive() {
+    var s = state._displayStream;
+    if (!s || !s.getAudioTracks) return false;
+    return s.getAudioTracks().some(function (t) {
+      return t.readyState === "live";
+    });
+  }
+
+  function attachDisplayPreview(disp) {
+    try {
+      var el = state._displayVideoEl;
+      if (!el) {
+        el = document.createElement("video");
+        el.setAttribute("playsinline", "");
+        el.muted = true;
+        el.style.cssText =
+          "position:fixed;width:2px;height:2px;opacity:0.01;pointer-events:none;left:0;top:0";
+        document.body.appendChild(el);
+        state._displayVideoEl = el;
+      }
+      el.srcObject = disp;
+      var p = el.play();
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) {}
+  }
+
+  function stopDisplayAudio() {
+    var s = state._displayStream;
+    state._displayStream = null;
+    state._hasSystemAudio = false;
+    if (s && s.getTracks) {
+      s.getTracks().forEach(function (t) {
+        try {
+          t.stop();
+        } catch (e) {}
+      });
+    }
+    var el = state._displayVideoEl;
+    if (el) {
+      try {
+        el.srcObject = null;
+      } catch (e) {}
+      try {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      } catch (e2) {}
+      state._displayVideoEl = null;
+    }
+  }
+
+  function onDisplayAudioEnded() {
+    state._hasSystemAudio = false;
+    applyMicAec(false);
+  }
+
+  function displayShareCancelled(err) {
+    var name = (err && err.name) || "";
+    return name === "NotAllowedError" || name === "AbortError" || name === "NotFoundError";
+  }
+
+  async function ensureDisplayAudio() {
+    state._displayMissedAudio = false;
+    if (displayAudioLive()) {
+      state._hasSystemAudio = true;
+      return true;
+    }
+    if (!wantSystemAudio()) {
+      state._hasSystemAudio = false;
+      return false;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      state._hasSystemAudio = false;
+      return false;
+    }
+    var attempts = [displayCaptureConstraints(), { video: true, audio: true }];
+    var disp = null;
+    var i;
+    for (i = 0; i < attempts.length; i++) {
+      try {
+        disp = await navigator.mediaDevices.getDisplayMedia(attempts[i]);
+        break;
+      } catch (e) {
+        if (displayShareCancelled(e) || i === attempts.length - 1) {
+          state._hasSystemAudio = false;
+          return false;
+        }
+      }
+    }
+    if (!disp) {
+      state._hasSystemAudio = false;
+      return false;
+    }
+    var aTracks = disp.getAudioTracks ? disp.getAudioTracks() : [];
+    if (!aTracks.length) {
+      state._displayMissedAudio = true;
+      disp.getTracks().forEach(function (t) {
+        try {
+          t.stop();
+        } catch (e) {}
+      });
+      state._hasSystemAudio = false;
+      return false;
+    }
+    state._displayStream = disp;
+    state._hasSystemAudio = true;
+    try {
+      aTracks[0].addEventListener("ended", onDisplayAudioEnded);
+    } catch (eEnd) {}
+    attachDisplayPreview(disp);
+    return true;
+  }
+
+  /** Khuếch đại / hạ PCM. Boost giọng xa; hạ khi mix loa máy quá to (tránh méo). */
   function moonshineAgcChunk(chunk, cap) {
     if (!chunk || !chunk.length) return chunk;
     var n = chunk.length;
@@ -568,11 +751,11 @@
     var want = 1;
     if (cap.agcRms > AGC_SILENCE_RMS) {
       want = AGC_TARGET_RMS / cap.agcRms;
-      if (want < 1) want = 1;
+      if (want < AGC_MIN_GAIN) want = AGC_MIN_GAIN;
       if (want > AGC_MAX_GAIN) want = AGC_MAX_GAIN;
     }
     cap.agcGain = cap.agcGain == null ? want : cap.agcGain * 0.65 + want * 0.35;
-    if (cap.agcGain < 1.04) return chunk;
+    if (Math.abs(cap.agcGain - 1) < 0.04) return chunk;
     var out = new Float32Array(n);
     var g = cap.agcGain;
     for (i = 0; i < n; i++) {
@@ -627,15 +810,18 @@
       if (!cap || !cap.running) return;
       var pct = Math.min(100, Math.round((cap.peakRms || 0) * 2500));
       var label = langLabel(meetingLang());
+      var src = captureSourceLabel();
       if ((cap.chunks || 0) < 8) {
-        setStatus(root, "Đang ghi (Moonshine · " + label + ") — chờ tín hiệu micro…");
+        setStatus(root, "Đang ghi (Moonshine · " + label + " · " + src + ") — chờ tín hiệu…");
         return;
       }
       setStatus(
         root,
         "Đang ghi (Moonshine · " +
           label +
-          ") · mic " +
+          " · " +
+          src +
+          ") · mức " +
           pct +
           "% — nói rõ, chờ chốt câu.",
         pct > 0 ? "ok" : "err"
@@ -727,10 +913,13 @@
       throw new Error("Trình duyệt không hỗ trợ micro (getUserMedia).");
     }
 
+    // Loa máy TRƯỚC mic: hộp chia sẻ màn hình giữ cử chỉ người dùng, rồi getUserMedia còn nhận.
+    var hasSys = await ensureDisplayAudio();
+
     var mediaStream;
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: moonshineMicConstraints(),
+        audio: moonshineMicConstraints({ aec: hasSys }),
       });
     } catch (e1) {
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -789,6 +978,15 @@
       if (cap.silentGain) cap.silentGain.disconnect();
     } catch (e2b) {}
     try {
+      if (cap.mixGain) cap.mixGain.disconnect();
+    } catch (eMix) {}
+    try {
+      if (cap.sysGain) cap.sysGain.disconnect();
+    } catch (eSg) {}
+    try {
+      if (cap.sysSource) cap.sysSource.disconnect();
+    } catch (eSs) {}
+    try {
       if (cap.sourceNode) cap.sourceNode.disconnect();
     } catch (e3) {}
     try {
@@ -845,6 +1043,15 @@
       if (cap.silentGain) cap.silentGain.disconnect();
     } catch (e2b) {}
     try {
+      if (cap.mixGain) cap.mixGain.disconnect();
+    } catch (eMix) {}
+    try {
+      if (cap.sysGain) cap.sysGain.disconnect();
+    } catch (eSg) {}
+    try {
+      if (cap.sysSource) cap.sysSource.disconnect();
+    } catch (eSs) {}
+    try {
       if (cap.sourceNode) cap.sourceNode.disconnect();
     } catch (e3) {}
     try {
@@ -859,6 +1066,9 @@
     cap.hpFilter = null;
     cap.voiceFilter = null;
     cap.sourceNode = null;
+    cap.sysSource = null;
+    cap.sysGain = null;
+    cap.mixGain = null;
     cap.moonStream = null;
     cap.peakRms = 0;
     cap.chunks = 0;
@@ -918,6 +1128,23 @@
     moonStream.start();
     cap.moonStream = moonStream;
     cap.sourceNode = cap.audioContext.createMediaStreamSource(cap.mediaStream);
+    cap.mixGain = cap.audioContext.createGain();
+    cap.mixGain.gain.value = 1;
+    cap.sourceNode.connect(cap.mixGain);
+    if (state._hasSystemAudio && displayAudioLive()) {
+      try {
+        cap.sysSource = cap.audioContext.createMediaStreamSource(state._displayStream);
+        cap.sysGain = cap.audioContext.createGain();
+        cap.sysGain.gain.value = 0.72;
+        cap.sysSource.connect(cap.sysGain);
+        cap.sysGain.connect(cap.mixGain);
+      } catch (eMixIn) {
+        cap.sysSource = null;
+        cap.sysGain = null;
+        state._hasSystemAudio = false;
+        applyMicAec(false);
+      }
+    }
     var inputRate = cap.audioContext.sampleRate || 48000;
 
     var onChunk = function (chunk) {
@@ -977,7 +1204,7 @@
         cap.workletNode.port.onmessage = function (ev) {
           onChunk(ev.data);
         };
-        cap.sourceNode.connect(cap.workletNode);
+        cap.mixGain.connect(cap.workletNode);
         cap.workletNode.connect(cap.silentGain);
         cap.silentGain.connect(cap.audioContext.destination);
         wired = true;
@@ -990,7 +1217,7 @@
       cap.scriptNode.onaudioprocess = function (ev) {
         onChunk(new Float32Array(ev.inputBuffer.getChannelData(0)));
       };
-      cap.sourceNode.connect(cap.scriptNode);
+      cap.mixGain.connect(cap.scriptNode);
       cap.scriptNode.connect(cap.silentGain);
       cap.silentGain.connect(cap.audioContext.destination);
     }
@@ -1449,7 +1676,11 @@
   function setMeetingSttStatus(root) {
     var lang = langLabel(meetingLang());
     if (state.sttEngine === "moonshine") {
-      setStatus(root, "Đang ghi (Moonshine · " + lang + "). Nói rõ từng câu.", "ok");
+      setStatus(
+        root,
+        "Đang ghi (Moonshine · " + lang + " · " + captureSourceLabel() + "). Nói rõ từng câu.",
+        "ok"
+      );
       return;
     }
     if (state.sttEngine === "webspeech") {
@@ -1457,7 +1688,11 @@
       return;
     }
     if (state.sttEngine === "whisper") {
-      setStatus(root, "Micro đang nghe (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
+      setStatus(
+        root,
+        "Đang nghe (" + cloudSttLabel() + " · " + captureSourceLabel() + ") — nói rõ từng câu.",
+        "ok"
+      );
     }
   }
 
@@ -1496,6 +1731,20 @@
         });
       } catch (e) {}
       w.stream = null;
+    }
+    if (w._micStream) {
+      try {
+        w._micStream.getTracks().forEach(function (t) {
+          t.stop();
+        });
+      } catch (eM) {}
+      w._micStream = null;
+    }
+    if (w._audioContext && w._audioContext.state !== "closed") {
+      try {
+        w._audioContext.close();
+      } catch (eC) {}
+      w._audioContext = null;
     }
   }
 
@@ -1559,7 +1808,7 @@
         baseline = Math.max(baseline, rms);
         return;
       }
-      var thresh = Math.max(0.012, baseline * 1.55 + 0.006);
+      var thresh = Math.max(0.008, baseline * 1.4 + 0.004);
       if (rms > thresh) {
         w.speechSeen = true;
         silentTicks = 0;
@@ -1654,12 +1903,34 @@
     };
     state.whisper = w;
     state.sttEngine = "whisper";
+    w._micStream = stream;
 
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    w._audioContext = ctx;
+    try {
+      if (ctx.state === "suspended") ctx.resume();
+    } catch (eRes) {}
+    var mix = ctx.createGain();
     var src = ctx.createMediaStreamSource(stream);
+    src.connect(mix);
+    if (state._hasSystemAudio && displayAudioLive()) {
+      try {
+        var sys = ctx.createMediaStreamSource(state._displayStream);
+        var sg = ctx.createGain();
+        sg.gain.value = 0.72;
+        sys.connect(sg);
+        sg.connect(mix);
+      } catch (eMix) {
+        state._hasSystemAudio = false;
+        applyMicAec(false);
+      }
+    }
+    var dest = ctx.createMediaStreamDestination();
+    mix.connect(dest);
+    w.stream = dest.stream;
     var an = ctx.createAnalyser();
     an.fftSize = 2048;
-    src.connect(an);
+    mix.connect(an);
     w.analyser = an;
     w.timeData = new Uint8Array(an.fftSize);
 
@@ -2415,7 +2686,7 @@
       );
       state.mic = null;
       state.sttEngine = "moonshine";
-      setStatus(root, "Đang ghi (Moonshine · " + label + "). Nói rõ từng câu.", "ok");
+      setMeetingSttStatus(root);
       return;
     }
 
@@ -2583,11 +2854,7 @@
     state.moonshineLang = lang;
     state._moonshineLoadPromise = null;
     state.moonshineLoadingLang = null;
-    setStatus(
-      root,
-      "Đang ghi (Moonshine · " + label + "). Nói rõ từng câu.",
-      "ok"
-    );
+    setMeetingSttStatus(root);
   }
 
   function seedSpeakersFromInput(root) {
@@ -2606,6 +2873,7 @@
     stopWebSpeech();
     stopWhisper();
     await stopMoonshineMic();
+    stopDisplayAudio();
     state.sttEngine = "";
   }
 
@@ -2951,6 +3219,7 @@
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia
     ) {
+      await ensureDisplayAudio();
       micPromise = navigator.mediaDevices.getUserMedia(micConstraints());
     }
     try {
@@ -3824,6 +4093,9 @@
       "</select>" +
       "</div>" +
       '<div id="mtMoonshinePreload" class="dim" style="font-size:12.5px;margin:0 0 10px;line-height:1.4"></div>' +
+      '<label class="dim" style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:0 0 10px;line-height:1.45;cursor:pointer">' +
+      '<input type="checkbox" id="mtSysAudio" style="margin-top:3px">' +
+      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bấm Bắt đầu sẽ hỏi chia sẻ — chọn <b>tab họp</b> hoặc <b>Toàn màn hình</b> và bật «Chia sẻ âm thanh». Giọng trong phòng vẫn lấy từ mic.</span></label>" +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -3831,7 +4103,9 @@
       '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Âm thanh chỉ dùng tạm để STT">' +
       ic("upload-cloud") +
       ' File → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
-      "</div></div>" +
+      "</div>" +
+      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Giọng xa, nhiều người, loa máy: Javis mix mic phòng + tiếng máy, tăng AGC, hạ cửa im lặng. Bỏ tick «Ghi tiếng máy» nếu chỉ họp mặt-to-face (mic vẫn bắt loa analog).</p>' +
+      "</div>" +
       '<div id="mtAfter" hidden>' +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtAnalyze" type="button">' +
@@ -3929,6 +4203,13 @@
     setPhase(el, "setup");
     setMtTab(el, archiveState.tab || "new");
     setStatus(el, "Điền thông tin rồi bấm Bắt đầu cuộc họp.");
+    var sysBox = el.querySelector("#mtSysAudio");
+    if (sysBox) {
+      sysBox.checked = loadWantSystemAudio();
+      sysBox.onchange = function () {
+        saveWantSystemAudio(!!sysBox.checked);
+      };
+    }
     var langSel = el.querySelector("#mtLang");
     var savedLang = loadMeetingLang();
     if (langSel) {
