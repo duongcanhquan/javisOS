@@ -107,9 +107,9 @@ If a brain has the old structure (notes under `Javis/agents`, `Memory` capitalis
 
 1. Go to **Settings** (**System** group on the rail).
 2. Open the **Interface and Brain** group and scroll to **Brain structure**.
-3. Click **Normalise the selected brain**, then confirm the dialog, which explains it moves `Javis/agents`→`agents`, `Javis/workflows`→`workflows`, `Memory`→`memory`, with a git backup.
+3. Click **Normalise the selected brain**, then confirm the dialog, which explains it moves `Javis/agents`→`agents`, `Javis/workflows`→`workflows`, and merges `Memory`→`memory` even when both folders already exist, with a git backup.
 
-The operation is safe: it only moves when the destination folder does not exist yet, never overwriting. It folds `Javis/agents` into `agents/`, `Javis/workflows` into `workflows/`, `Memory` into `memory/`, and moves old skills from `.claude/skills` into `skills/` (including the disabled-skill branch, so skills you turned off do not come back on).
+The agents/workflows moves are safe: they only move when the destination folder does not exist yet, never overwriting. Memory merge folds capital-`Memory/` into lowercase `memory/` (including the Linux dual-folder case), and moves old skills from `.claude/skills` into `skills/` (including the disabled-skill branch, so skills you turned off do not come back on).
 
 ## `attachments/` and `inbox/` are cache, not storage
 
@@ -140,7 +140,7 @@ Because `MEMORY.md` is loaded into **every** chat turn, it has a ceiling of abou
 
 1. Shorten each line's description to 100 characters, then to 60.
 2. Keep only the title and file path, dropping the description.
-3. Only as a last resort drop lines, and when it does Javis states how many memories are not listed plus where to read on in `Memory/facts/`.
+3. Only as a last resort drop lines, and when it does Javis states how many memories are not listed plus where to read on in `memory/facts/`.
 
 So no memory is lost, the index just displays more tersely; the full detail stays in `memory/facts/` and Javis can read it at any time.
 

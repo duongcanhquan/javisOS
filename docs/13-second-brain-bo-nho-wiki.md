@@ -107,9 +107,9 @@ Nếu một brain có cấu trúc cũ (ví dụ ghi chú nằm trong `Javis/agen
 
 1. Vào **Cài đặt** (nhóm **Hệ thống** trên rail).
 2. Mở nhóm **Giao diện & Brain**, kéo tới mục **Cấu trúc brain**.
-3. Bấm **Chuẩn hóa brain đang chọn**, rồi xác nhận hộp thoại: "Chuẩn hóa cấu trúc brain đang chọn? (Di chuyển Javis/agents→agents, Javis/workflows→workflows, Memory→memory. Có git backup.)"
+3. Bấm **Chuẩn hóa brain đang chọn**, rồi xác nhận hộp thoại: "Chuẩn hóa cấu trúc brain đang chọn? (Di chuyển Javis/agents→agents, Javis/workflows→workflows; gộp Memory→memory kể cả khi cả hai đã tồn tại. Có git backup.)"
 
-Thao tác này an toàn: chỉ di chuyển khi thư mục đích chưa tồn tại, không ghi đè. Nó gộp `Javis/agents` về `agents/`, `Javis/workflows` về `workflows/`, `Memory` về `memory/`, và dời skill cũ ở `.claude/skills` sang `skills/` (kể cả nhánh skill đang tắt, để skill bạn đã tắt không bị bật lại).
+Thao tác này an toàn với agents/workflows: chỉ di chuyển khi thư mục đích chưa tồn tại, không ghi đè. Với bộ nhớ: gộp `Memory/` (viết hoa, lệch chuẩn) vào `memory/` (chữ thường) - kể cả khi hai thư mục đã song song trên Linux - rồi dời skill cũ ở `.claude/skills` sang `skills/` (kể cả nhánh skill đang tắt, để skill bạn đã tắt không bị bật lại).
 
 ## `attachments/` và `inbox/` là vùng cache, không phải kho lưu trữ
 
@@ -140,7 +140,7 @@ Vì `MEMORY.md` được nạp vào **mọi** lượt chat, nó có trần kho�
 
 1. Rút mô tả mỗi dòng còn 100 ký tự, rồi 60 ký tự.
 2. Chỉ giữ tiêu đề và đường dẫn file, bỏ mô tả.
-3. Cùng lắm mới bỏ bớt dòng, và khi đó Javis ghi rõ còn bao nhiêu ký ức chưa liệt kê kèm lời chỉ đường đọc tiếp trong `Memory/facts/`.
+3. Cùng lắm mới bỏ bớt dòng, và khi đó Javis ghi rõ còn bao nhiêu ký ức chưa liệt kê kèm lời chỉ đường đọc tiếp trong `memory/facts/`.
 
 Nghĩa là ký ức không mất, chỉ là chỉ mục hiển thị gọn lại; chi tiết đầy đủ vẫn nằm trong `memory/facts/` và Javis đọc được bất cứ lúc nào.
 

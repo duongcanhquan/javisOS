@@ -685,7 +685,7 @@ class LoopFeature:
         if goal == "product":
             base = (
                 "MỤC TIÊU: TỰ CẢI THIỆN JAVIS hữu dụng hơn với người dùng.\n"
-                "Đọc log hội thoại gần đây (Memory/conversations) + các agent/workflow trong Javis/ + ghi chú phản hồi. "
+                "Đọc log hội thoại gần đây (memory/conversations) + các agent/workflow trong Javis/ + ghi chú phản hồi. "
                 "Nhận diện: người dùng hay vướng gì, yêu cầu lặp lại gì, thiếu agent/workflow/skill nào, chỗ nào gây khó. "
                 "KHÔNG sửa code server.\n"
                 + safety

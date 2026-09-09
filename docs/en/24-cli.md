@@ -135,7 +135,7 @@ javis tasks                                              # see the jobs and whic
 
 javis brain ls                                           # list the brain root
 javis brain ls "05 - Data Cache"
-javis brain cat "Memory/MEMORY.md"
+javis brain cat "memory/MEMORY.md"
 
 javis loops                                              # which loops are on, at what level
 ```

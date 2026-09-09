@@ -3172,7 +3172,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const mig = document.getElementById("ovMigrate");
     if (mig) mig.onclick = async () => {
       const brain = (window.currentBrainPath ? currentBrainPath() : "brain");
-      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển Javis/agents→agents, Javis/workflows→workflows, Memory→memory. Có git backup.)")) return;
+      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển Javis/agents→agents, Javis/workflows→workflows; gộp Memory→memory kể cả khi cả hai đã tồn tại. Có git backup.)")) return;
       mig.disabled = true; mig.textContent = "Đang chuẩn hóa...";
       const fd = new FormData(); fd.append("brain", brain);
       let r = {};

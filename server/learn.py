@@ -1563,12 +1563,13 @@ class LearnFeature:
     def _brain_last_active(self, brain: str) -> float:
         """Lần CUỐI người dùng thật sự trò chuyện trên brain này (epoch), 0 = không rõ.
 
-        Đọc Memory/conversations/ chứ KHÔNG đọc mtime cả thư mục: chính curator ghi
+        Đọc memory/conversations/ (qua brain_memory_dir, đã gộp Memory/ nếu lệch chữ hoa)
+        chứ KHÔNG đọc mtime cả thư mục: chính curator ghi
         Javis/learn-log mỗi vòng, nên lấy mtime thư mục là brain nào cũng "vừa mới hoạt
         động" - curator tự nuôi lý do để chạy tiếp trên brain đã bỏ.
         """
         try:
-            d = Path(self.deps.brain_root(brain)) / "Memory" / "conversations"
+            d = Path(self.deps.brain_memory_dir(brain)) / "conversations"
             if not d.is_dir():
                 return 0.0
             return max((f.stat().st_mtime for f in d.glob("*.md")), default=0.0)

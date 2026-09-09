@@ -128,7 +128,7 @@ Graph detail: [Knowledge graph](../03-do-thi-tri-thuc.md).
 
 **The Normalise brain card** collects the `agents`, `workflows`, `memory` and `skills` folders of the selected brain into one flat structure. Press **Normalise the selected brain** to run it.
 
-It is safe: it only moves when the destination does not exist, it never overwrites, and running it repeatedly is harmless (for example moving `Javis/agents` to `agents`, `Memory` to `memory`). Afterwards Javis reports what it moved, or "Nothing to move (already normalised)".
+It is safe: agents/workflows only move when the destination does not exist (never overwrite); capital-`Memory` is merged into lowercase `memory` even when both already exist on Linux. Running it repeatedly is harmless. Afterwards Javis reports what it moved, or "Nothing to move (already normalised)".
 
 **The AI image provenance card** decides whether images Javis generates carry a provenance mark (Content Credentials, the C2PA standard). The corner label reads "Keeping" or "Stripping".
 

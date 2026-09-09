@@ -128,7 +128,7 @@ Chi tiết về đồ thị xem [Đồ thị tri thức](03-do-thi-tri-thuc.md).
 
 **Thẻ Chuẩn hóa brain** gom các thư mục `agents`, `workflows`, `memory`, `skills` của brain đang chọn về cấu trúc phẳng đồng nhất. Bấm **Chuẩn hóa brain đang chọn** để chạy.
 
-Thao tác này an toàn: chỉ di chuyển khi thư mục đích chưa có, không ghi đè, chạy lại nhiều lần cũng vô hại (ví dụ chuyển `Javis/agents` sang `agents`, `Memory` sang `memory`). Sau khi chạy, Javis báo đã di chuyển gì hoặc "Không có gì cần di chuyển (đã chuẩn)".
+Thao tác này an toàn: agents/workflows chỉ di chuyển khi thư mục đích chưa có, không ghi đè; `Memory` (viết hoa) được gộp vào `memory` kể cả khi cả hai đã tồn tại trên Linux. Chạy lại nhiều lần cũng vô hại. Sau khi chạy, Javis báo đã di chuyển gì hoặc "Không có gì cần di chuyển (đã chuẩn)".
 
 **Thẻ Dấu nguồn gốc ảnh AI** quyết định ảnh Javis tạo ra có mang dấu nguồn gốc (Content Credentials, chuẩn C2PA) hay không. Nhãn góc phải là "Đang giữ" hoặc "Đang gỡ".
 

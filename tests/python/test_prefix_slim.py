@@ -117,8 +117,8 @@ tiny = main._fit_memory_index(mem, 1200)
 kept = sum(1 for l in tiny.split("\n") if main._MEM_ITEM_RE.match(l))
 check("tran cuc chat: buoc phai bo bot dong", kept < n_all)
 check("bo dong thi PHAI noi ro con bao nhieu + duong doc tiep",
-      "chưa liệt kê" in tiny and "Memory/MEMORY.md" in tiny)
-check("rut mo ta thi chi duong sang facts/", "Memory/facts/" in main._fit_memory_index(mem, 8000))
+      "chưa liệt kê" in tiny and "memory/MEMORY.md" in tiny)
+check("rut mo ta thi chi duong sang facts/", "memory/facts/" in main._fit_memory_index(mem, 8000))
 check("tran doc duoc tu bien moi truong", "JAVIS_MEMORY_INDEX_MAX" in
       SERVER.joinpath("main.py").read_text(encoding="utf-8"))
 

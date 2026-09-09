@@ -365,15 +365,18 @@ def _atomic_write_text(path, content: str, encoding: str = "utf-8"):
 
 
 def _brain_memory_dir(brain: str) -> Path:
-    """Folder bộ nhớ TRONG brain đang chọn. Cấu trúc mới: <root>/memory; fallback cũ <root>/Memory."""
+    """Folder bộ nhớ TRONG brain đang chọn. Chuẩn: <root>/memory (chữ thường).
+
+    Trên Linux, tài liệu cũ từng ghi Memory/ nên AI có thể tạo thêm thư mục viết hoa
+    song song. Gọi memory_paths.reconcile để gộp/đổi tên trước khi dùng.
+    """
+    import memory_paths as mem_paths
     base = Path(__file__).parent.parent
     if not brain or brain == "brain":
         root = _default_brain_dir()
     else:
         root = Path(brain) if os.path.isdir(brain) else _default_brain_dir()
-    mem = root / "memory"
-    if not mem.is_dir() and (root / "Memory").is_dir():
-        mem = root / "Memory"   # vault cũ chưa migrate
+    mem = mem_paths.memory_dir(root)
     try:
         (mem / "facts").mkdir(parents=True, exist_ok=True)
         (mem / "conversations").mkdir(parents=True, exist_ok=True)
@@ -396,7 +399,7 @@ def _fit_memory_index(mem: str, cap: int = None) -> str:
 
     Hạ dần theo bậc: giữ nguyên -> rút mô tả còn 100 ký tự -> còn 60 -> chỉ còn tiêu đề+link
     -> (cùng lắm) cắt bớt dòng kèm lời chỉ đường. Rút mô tả KHÔNG mất năng lực nhớ: tiêu đề và
-    đường dẫn file vẫn còn nguyên, chi tiết đầy đủ vẫn nằm trong Memory/facts/*.md và đọc được
+    đường dẫn file vẫn còn nguyên, chi tiết đầy đủ vẫn nằm trong memory/facts/*.md và đọc được
     bất cứ lúc nào. Mất hẳn dòng mới là mất trí nhớ, nên đó là bậc CUỐI.
     """
     cap = cap or MEMORY_INDEX_MAX
@@ -426,7 +429,7 @@ def _fit_memory_index(mem: str, cap: int = None) -> str:
         got = rebuild(desc_cap)
         if len(got) <= cap:
             note = ("\n\n> (Mô tả trong chỉ mục đã rút gọn cho vừa ngữ cảnh. Chi tiết đầy đủ của "
-                    "từng ký ức nằm trong file tương ứng ở Memory/facts/ - cứ đọc khi cần.)")
+                    "từng ký ức nằm trong file tương ứng ở memory/facts/ - cứ đọc khi cần.)")
             return got + note
 
     # Bậc cuối: buộc phải bỏ bớt dòng. Giữ các dòng ĐẦU (ký ức nền tảng ghi sớm nhất) và nói rõ
@@ -443,7 +446,7 @@ def _fit_memory_index(mem: str, cap: int = None) -> str:
     con_lai = sum(1 for l in lines if _MEM_ITEM_RE.match(l)) - items
     return "\n".join(kept) + (
         f"\n\n> (Chỉ mục quá dài nên còn {con_lai} ký ức chưa liệt kê ở đây. "
-        "Đọc Memory/MEMORY.md để xem đủ danh sách, và Memory/facts/ để xem chi tiết.)")
+        "Đọc memory/MEMORY.md để xem đủ danh sách, và memory/facts/ để xem chi tiết.)")
 
 
 # ── Khối PROJECT ghép vào system prompt ──────────────────────────────────────
@@ -685,7 +688,7 @@ def build_adaptive_source_prompt(brain: str = "brain", include_memory: bool = Fa
 
 # Redaction patterns - port subset từ hermes-agent/agent/redact.py.
 # Bảo vệ log_conversation() khỏi việc ghi vĩnh viễn API key / Telegram bot token /
-# JWT vào brain/Memory/conversations/*.md khi user vô tình paste vào chat
+# JWT vào brain/memory/conversations/*.md khi user vô tình paste vào chat
 # (file này thường bị commit lên git → leak vĩnh viễn).
 _SECRET_PREFIX_RE = re.compile(
     r"(?<![A-Za-z0-9_-])("
@@ -5260,7 +5263,7 @@ SCHEMA_SEED = (
     "- `01 - Daily Log/` → `04 - Future Log/` - bộ sổ bullet journal (nhật ký ngày/tuần/tháng/tương lai, chứa task `- [ ]`; khối dataview kéo việc từ đây)\n"
     "- `06 - Sources/` - ghi chú thô (source of truth)\n"
     "- `07 - Wiki/` - tri thức đã chưng cất, có `[[wikilink]]`\n"
-    "- `Memory/` - bộ nhớ dài hạn của Javis (facts + conversations)\n"
+    "- `memory/` - bộ nhớ dài hạn của Javis (facts + conversations); KHÔNG dùng `Memory/` viết hoa\n"
     "- `Javis/` - agents + workflows\n\n"
     "Nguyên lý: Sources → (ingest) → Wiki. Tri thức tích luỹ, không tái phát hiện.\n"
 )
@@ -5420,11 +5423,13 @@ async def vault_init(brain: str = Form("brain")):
 @app.post("/brain/migrate")
 async def brain_migrate(brain: str = Form("brain")):
     """Chuẩn hóa cấu trúc brain sang dạng phẳng đồng nhất: agents/ workflows/ memory/ skills/.
-    AN TOÀN: chỉ MOVE khi nguồn tồn tại VÀ đích chưa có (không ghi đè, chạy lại nhiều lần vô hại)."""
+    AN TOÀN: agents/workflows chỉ MOVE khi đích chưa có. Memory→memory: gộp cả khi cả hai
+    đã tồn tại (Linux case-sensitive), không ghi đè file trùng tên trong memory/."""
     import shutil
+    import memory_paths as mem_paths
     root = Path(_brain_root(brain))
     moved, skipped = [], []
-    for old_rel, new_rel in [("Javis/agents", "agents"), ("Javis/workflows", "workflows"), ("Memory", "memory")]:
+    for old_rel, new_rel in [("Javis/agents", "agents"), ("Javis/workflows", "workflows")]:
         src, dst = root / old_rel, root / new_rel
         if dst.exists():
             skipped.append(f"{new_rel} (đã tồn tại - bỏ qua)")
@@ -5436,6 +5441,13 @@ async def brain_migrate(brain: str = Form("brain")):
                 moved.append(f"{old_rel} → {new_rel}")
             except Exception as e:
                 skipped.append(f"{old_rel}: {e}")
+    try:
+        mem_actions = mem_paths.reconcile_memory_dir(root)
+        moved.extend(mem_actions)
+        if not mem_actions and (root / "memory").is_dir():
+            skipped.append("memory/ (đã chuẩn)")
+    except Exception as e:
+        skipped.append(f"Memory→memory: {e}")
     return {"ok": True, "root": str(root), "moved": moved, "skipped": skipped}
 
 
@@ -12140,7 +12152,7 @@ async def _persist_turn(store, conv_sid, brain, user_message, final_text):
     lịch sử, nên bóc khối không mất gì cả.)
 
     Vì sao là hàm chung: trước 0.9.244 chỉ nhánh dashboard lưu, nên hội thoại Telegram vắng
-    mặt ở `/sessions`, ở `brain/Memory/conversations`, và ở vòng tự học.
+    mặt ở `/sessions`, ở `brain/memory/conversations`, và ở vòng tự học.
 
     Trả về text đã bóc khối (rỗng/None thì KHÔNG lưu gì - lượt lỗi hoặc bị huỷ).
     """
@@ -15512,7 +15524,7 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
     trước 0.9.244, chỉ khác là lần này biết trước mà vẫn làm.
 
     Vì sao tách vỏ khỏi lõi: trước 0.9.244 nhánh Telegram không lưu gì cả, nên hội thoại
-    Telegram vắng mặt ở `/sessions`, ở `brain/Memory/conversations`, và ở vòng tự học -
+    Telegram vắng mặt ở `/sessions`, ở `brain/memory/conversations`, và ở vòng tự học -
     lỗ hổng chức năng lớn nhất trong danh sách trôi lệch giữa hai bản dispatch.
 
     Quy ước trả về của lõi: **dict = câu trả lời thật** (đáng lưu), **chuỗi = thông báo lỗi**

@@ -53,9 +53,8 @@ def _terms(value: str) -> list[str]:
 
 
 def _memory_dir(brain: Path) -> Path:
-    canonical = brain / "memory"
-    legacy = brain / "Memory"
-    return canonical if canonical.is_dir() or not legacy.is_dir() else legacy
+    import memory_paths
+    return memory_paths.memory_dir(Path(brain))
 
 
 @dataclass(frozen=True)

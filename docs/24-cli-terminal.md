@@ -135,7 +135,7 @@ javis tasks                                          # xem các việc và cột
 
 javis brain ls                                       # liệt kê thư mục gốc brain
 javis brain ls "05 - Data Cache"
-javis brain cat "Memory/MEMORY.md"
+javis brain cat "memory/MEMORY.md"
 
 javis loops                                          # loop nào đang bật, mức quyền gì
 ```

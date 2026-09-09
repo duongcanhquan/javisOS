@@ -19,7 +19,7 @@ Trên Javis chạy bằng **tool sẵn có** (Tavily MCP / WebSearch / WebFetch 
 
 ## Chuẩn bị
 
-1. Đọc brief / `{{input}}` + Memory/wiki liên quan.
+1. Đọc brief / `{{input}}` + `memory/` + wiki liên quan.
 2. Kiểm tra kết nối: ưu tiên **Tavily** (`tavily_search`, `tavily_extract`); không có thì WebSearch/WebFetch nếu engine hỗ trợ; không có cả hai thì dùng wiki + nêu rõ thiếu tra web.
 3. Chọn tham số (mặc định nếu user không nói):
    - **breadth** = 4 (2-8)
