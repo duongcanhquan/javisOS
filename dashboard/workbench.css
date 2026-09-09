@@ -195,6 +195,52 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-line, transparent);
 }
+.jw-field-range input[type="range"] {
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent, #3b82f6);
+  height: 28px;
+  cursor: pointer;
+}
+.jw-field-range input[type="range"]:focus {
+  border: 0;
+  box-shadow: none;
+  outline: 2px solid color-mix(in srgb, var(--accent, #3b82f6) 45%, transparent);
+  outline-offset: 2px;
+}
+.jw-range-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+.jw-range-head label { margin: 0; }
+.jw-range-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.jw-range-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text3, var(--text2));
+  margin-top: -2px;
+}
+.jw-type-opts {
+  margin: 0 0 8px;
+  padding: 10px 12px 2px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-brd, var(--hairline));
+  background: var(--surface-1, transparent);
+}
 .jw-hint {
   margin: 6px 0 0;
   font-size: 12px;

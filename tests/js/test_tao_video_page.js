@@ -28,7 +28,13 @@ check("video.js export renderTaoVideo", /window\.renderTaoVideo\s*=/.test(videoJ
 check("video.js có tab Promo / pipeline postcard", /postcard-video/.test(videoJs) && /Promo ngắn/.test(videoJs));
 check("video.js form chia mục 1/2", /jw-sec/.test(videoJs) && /Bạn muốn nói gì/.test(videoJs));
 check("video.js tab có blurb", /jw-tab-blurb/.test(videoJs));
+check("video.js thanh kéo thời lượng max 10 phút", /type="range"/.test(videoJs) && /MAX_DURATION_SEC\s*=\s*600/.test(videoJs));
+check("video.js có chọn số slide/cảnh", /vidSlides/.test(videoJs) && /Số shot|Số cảnh|Số poster/.test(videoJs));
+check("video.js có yêu cầu theo kiểu", /jw-type-opts/.test(videoJs) && /Yêu cầu/.test(videoJs));
 check("video.js không em dash", !videoJs.includes("\u2014"));
+
+const css = fs.readFileSync(path.join(root, "dashboard/workbench.css"), "utf8");
+check("workbench.css style range Tạo video", /jw-field-range/.test(css) && /jw-range-val/.test(css));
 check("console rail có id video", /"video"/.test(consoleJs) && /ids: \[.*"video"/.test(consoleJs));
 check("console gọi renderTaoVideo", /renderTaoVideo/.test(consoleJs));
 check("index nạp video.js", /\/static\/video\.js/.test(indexHtml));
