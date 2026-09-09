@@ -4,6 +4,14 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.165] - 2026-09-09
+### Cải tiến
+- **Kho Drive đơn giản hơn:** trên VPS chỉ cần tải tool Mac/Windows → double-click → Allow Google; trên máy local bấm một nút. Tạo kho bằng cách dán link thư mục Drive.
+
+## [0.55.164] - 2026-09-09
+### Cải tiến
+- **Kho Drive — kết nối Google trong app:** nút đăng nhập / dán token / upload `rclone.conf`, tạo kho bằng link thư mục Drive, đồng bộ ngay. Không cần Terminal cho người dùng thường.
+
 ## [0.55.163] - 2026-09-09
 ### Sửa lỗi
 - **Skill openmaic vượt trần description:** cắt mô tả ≤150 ký tự + thêm `description_en` để CI xanh và router không mất đuôi.

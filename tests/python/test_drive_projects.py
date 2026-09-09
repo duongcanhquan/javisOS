@@ -74,12 +74,44 @@ def main():
     check("ascii_slug strips diacritics", dp._ascii_slug("Khoa học AI") == "khoa-hoc-ai")
     check("folder_id ok", dp._folder_id_ok("1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM"))
     check("folder_id reject short", not dp._folder_id_ok("abc"))
+    check(
+        "parse folder from URL",
+        dp.parse_drive_folder_ref(
+            "https://drive.google.com/drive/folders/1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM"
+        )
+        == "1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM",
+    )
+    check(
+        "parse folder raw id",
+        dp.parse_drive_folder_ref("1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM")
+        == "1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM",
+    )
+    tok = dp._extract_token_json(
+        'Paste --->\n{"access_token":"ya29.x","token_type":"Bearer","expiry":"2099-01-01T00:00:00Z"}\n<---End'
+    )
+    check("extract token json", bool(tok) and "ya29.x" in (tok or ""))
+
+    conf_body = "[gdrive]\ntype = drive\nscope = drive\ntoken = {}\n"
+    st = dp.save_rclone_conf_text(conf_body)
+    check("save conf writes file", (Path(_TMP) / "rclone.conf").is_file())
+    check("save conf status keys", "remotes" in st)
 
     try:
         dp.create_project(name="", brain=str(brain), drive_folder_id="1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM")
         check("reject empty name", False)
     except ValueError:
         check("reject empty name", True)
+
+    item_url = dp.create_project(
+        name="Kho URL",
+        brain=str(brain),
+        drive_folder_id="https://drive.google.com/drive/folders/1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM",
+    )
+    check(
+        "create accepts drive URL",
+        item_url.get("drive_folder_id") == "1NwpPUVxnGJfQER-5qKg0ejw7ry57pcGM",
+    )
+    dp.delete_project(item_url["id"])
 
     item = dp.create_project(
         name="Giáo trình MKT",

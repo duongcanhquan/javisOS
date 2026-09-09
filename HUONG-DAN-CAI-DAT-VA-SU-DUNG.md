@@ -6,6 +6,7 @@ Tài liệu này dẫn từ lúc **cài lần đầu** tới lúc **dùng đư�
 Chi tiết từng trang trong app: [docs/README.md](docs/README.md).  
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
 **VPS mới, chưa có tên miền (IP / tunnel / Hostinger miễn phí):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
+**Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
 Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).
 
 ---

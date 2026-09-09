@@ -22,22 +22,16 @@ Google Drive ──rclone sync──► corpus (STATE)
                                               ingest-source → wiki → skill
 ```
 
-## Setup một lần trên VPS
+## Setup trong dashboard (khuyên dùng)
 
-1. Image Javis từ 0.55.154 có sẵn binary `rclone` trong container.
-2. Cấu hình remote **một lần** (token OAuth lưu trên volume state hoặc home trong container):
+1. Image Javis từ 0.55.154 có sẵn `rclone`.
+2. **Bộ não → Kho Drive**:
+   - **localhost:** bấm **Kết nối Google Drive** → Allow.
+   - **VPS:** bấm **Tạo link tải** → tải file Mac (`.command`) hoặc Windows (`.bat`) → double-click trên máy bạn → Allow Google → quay lại trang (tự cập nhật).
+3. **Tên kho** + **dán link thư mục Drive** → **Tạo và đồng bộ**.
+4. Config lưu tại `/data/state/rclone.conf` (Docker).
 
-```bash
-# Ví dụ vào container Javis
-docker exec -it javis bash -lc 'RCLONE_CONFIG=/data/state/rclone.conf rclone config'
-# tạo remote tên gdrive (Full Drive access)
-# Config lưu tại /data/state/rclone.conf (volume STATE, sống qua update)
-```
-
-Hoặc trên host: `bash scripts/setup-rclone-drive-vps.sh` rồi mount `~/.config/rclone` vào container (xem docker-compose).
-
-3. Lấy **Folder ID** từ URL Drive: `https://drive.google.com/drive/folders/FOLDER_ID`.
-4. Dashboard: **Bộ não → Kho Drive** → tên + Folder ID → **Tạo kho** → **Đồng bộ ngay**.
+Cách thủ công (Terminal) vẫn dùng được; xem cuối trang.
 
 ## Dùng hằng ngày
 

@@ -13,14 +13,13 @@ Sync a Google Drive folder into the Second Brain with **rclone**, then work it a
 | Sources | `<brain>/sources/drive/<slug>/` | Mirrored `.md` / PDF stubs |
 | Chat project | Auto-created | Pins README + instructions |
 
-## One-time VPS setup
+## Setup in the dashboard (recommended)
 
-```bash
-bash scripts/setup-rclone-drive-vps.sh
-rclone config   # remote name: gdrive
-```
-
-Then in the dashboard: **Brain → Drive library** → create → **Sync now**.
+1. Javis image ≥ 0.55.154 includes `rclone`.
+2. **Brain → Drive library**:
+   - **localhost:** click **Connect Google Drive** → Allow.
+   - **VPS:** click to get download links → Mac (`.command`) or Windows (`.bat`) → double-click → Allow Google → return to the page.
+3. **Name** + paste Drive folder **URL** → **Create & sync**.
 
 ## Daily use
 

@@ -70,8 +70,9 @@ Chọn **một** trong các cách dễ:
 | **Antigravity CLI** | Có gói Google / Antigravity | Cài `agy` theo hướng dẫn trên thẻ, đăng nhập 1 lần |
 | **Claude Code** | Có Claude Pro/Max | Đăng nhập trên thẻ Claude |
 | **OpenRouter** | Muốn nhanh, chỉ dán key | Tạo key tại openrouter.ai → dán vào |
+| **Ollama (Local)** | Máy đủ RAM, muốn offline | Cài Ollama → Models → Local - **không luôn nhanh hơn cloud** (xem [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md#4-ollama-trên-máy-local---tiện-không-nhanh-hơn-không)) |
 
-Xong là chat được ngay trên web.
+Hướng dẫn local đầy đủ (cấu hình máy, Windows/Mac, Ollama): **[HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md)**.
 
 ---
 

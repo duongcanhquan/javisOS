@@ -52,6 +52,170 @@ async def drive_projects_status(request: Request):
     return dp.status_payload(brain)
 
 
+@router.post("/rclone/authorize/start")
+async def drive_rclone_authorize_start(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    remote = str(body.get("remote_name") or body.get("remote") or "gdrive")
+    res = dp.authorize_start(remote_name=remote)
+    code = 200 if res.get("ok") else 400
+    return JSONResponse(res, status_code=code)
+
+
+@router.get("/rclone/authorize/poll")
+async def drive_rclone_authorize_poll(request: Request):
+    sid = request.query_params.get("session") or request.query_params.get("session_id") or ""
+    res = dp.authorize_poll(sid)
+    code = 200 if res.get("ok") else 400
+    return JSONResponse(res, status_code=code)
+
+
+@router.post("/rclone/connect")
+async def drive_rclone_connect(request: Request):
+    """Kết nối bằng token JSON (paste) hoặc body {token}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    token = str(body.get("token") or body.get("token_json") or "")
+    remote = str(body.get("remote_name") or "gdrive")
+    try:
+        st = dp.save_gdrive_token(token, remote_name=remote)
+        return {"ok": True, "rclone": st, "google_connected": bool(st.get("google_connected"))}
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/rclone/upload-config")
+async def drive_rclone_upload_config(request: Request):
+    """Nhận nội dung rclone.conf (JSON {content} hoặc text/plain)."""
+    ctype = (request.headers.get("content-type") or "").lower()
+    text = ""
+    if "application/json" in ctype:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if isinstance(body, dict):
+            text = str(body.get("content") or body.get("text") or body.get("conf") or "")
+    else:
+        raw = await request.body()
+        try:
+            text = raw.decode("utf-8")
+        except Exception:
+            return JSONResponse({"ok": False, "error": "File không phải UTF-8"}, status_code=400)
+    try:
+        st = dp.save_rclone_conf_text(text)
+        return {"ok": True, "rclone": st, "google_connected": bool(st.get("google_connected"))}
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/rclone/disconnect")
+async def drive_rclone_disconnect(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    remote = str(body.get("remote_name") or "gdrive")
+    st = dp.disconnect_gdrive(remote_name=remote)
+    return {"ok": True, "rclone": st, "google_connected": bool(st.get("google_connected"))}
+
+
+def _public_base(request: Request) -> str:
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "http").split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+    if not host:
+        host = request.url.netloc
+    return f"{proto}://{host}".rstrip("/")
+
+
+@router.post("/rclone/pair/start")
+async def drive_rclone_pair_start(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    base = str(body.get("base_url") or "").strip() or _public_base(request)
+    try:
+        return dp.pair_start(base_url=base)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.get("/rclone/pair/{pair_id}/poll")
+async def drive_rclone_pair_poll(pair_id: str):
+    return dp.pair_poll(pair_id)
+
+
+@router.get("/rclone/pair/{pair_id}/mac.command")
+async def drive_rclone_pair_mac(pair_id: str, request: Request):
+    secret = request.query_params.get("secret") or ""
+    sess = dp._pair_get(pair_id, secret)
+    if not sess:
+        return JSONResponse({"ok": False, "error": "Mã hết hạn hoặc sai"}, status_code=404)
+    script = dp.mac_pair_script(
+        pair_id=pair_id, secret=secret, base_url=str(sess.get("base_url") or _public_base(request))
+    )
+    from fastapi.responses import Response
+
+    return Response(
+        content=script,
+        media_type="application/x-sh; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="Ket-noi-Google-Drive-Javis.command"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.get("/rclone/pair/{pair_id}/win.bat")
+async def drive_rclone_pair_win(pair_id: str, request: Request):
+    secret = request.query_params.get("secret") or ""
+    sess = dp._pair_get(pair_id, secret)
+    if not sess:
+        return JSONResponse({"ok": False, "error": "Mã hết hạn hoặc sai"}, status_code=404)
+    script = dp.win_pair_script(
+        pair_id=pair_id, secret=secret, base_url=str(sess.get("base_url") or _public_base(request))
+    )
+    from fastapi.responses import Response
+
+    return Response(
+        content=script.encode("utf-8"),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": 'attachment; filename="Ket-noi-Google-Drive-Javis.bat"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.post("/rclone/pair/{pair_id}/complete")
+async def drive_rclone_pair_complete(pair_id: str, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    secret = str(body.get("secret") or "")
+    token = str(body.get("token") or body.get("token_json") or "")
+    try:
+        return dp.pair_complete(pair_id, secret, token)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
 @router.post("")
 async def drive_projects_create(request: Request):
     try:
@@ -69,7 +233,15 @@ async def drive_projects_create(request: Request):
             schedule=str(body.get("schedule") or ""),
             slug=str(body.get("slug") or ""),
         )
-        return {"ok": True, "project": item}
+        out: dict = {"ok": True, "project": item}
+        if body.get("sync_now") or body.get("sync"):
+            sync_res = dp.sync_project(item["id"])
+            out["sync"] = sync_res
+            if not sync_res.get("ok"):
+                out["ok"] = False
+                out["error"] = sync_res.get("error") or "Tạo kho xong nhưng sync thất bại"
+                return JSONResponse(out, status_code=502)
+        return out
     except ValueError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 

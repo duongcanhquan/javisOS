@@ -153,3 +153,8 @@ server/conversation_state.db*
 server/memory_index.db*
 vendor/
 deploy/pixelle/config.yaml
+
+# rclone Google Drive OAuth (Kho Drive)
+server/rclone.conf
+**/rclone.conf
+bin/rclone
