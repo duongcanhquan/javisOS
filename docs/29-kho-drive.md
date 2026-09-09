@@ -27,7 +27,7 @@ Google Drive ──rclone sync──► corpus (STATE)
 1. Image Javis từ 0.55.154 có sẵn `rclone`.
 2. **Bộ não → Kho Drive**:
    - **localhost:** bấm **Kết nối Google Drive** → Allow.
-   - **VPS:** bấm **Tạo link tải** → tải file Mac (`.command`) hoặc Windows (`.bat`) → double-click trên máy bạn → Allow Google → quay lại trang (tự cập nhật).
+   - **VPS:** bấm **Bắt đầu kết nối** → trên Mac **sao chép lệnh Terminal** (dán vào Terminal, không tải .command); trên Windows tải `.bat` → Allow Google → quay lại trang.
 3. **Tên kho** + **dán link thư mục Drive** → **Tạo và đồng bộ**.
 4. Config lưu tại `/data/state/rclone.conf` (Docker).
 

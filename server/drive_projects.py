@@ -10,6 +10,7 @@ import json
 import os
 import re
 import secrets
+import shlex
 import shutil
 import subprocess
 import threading
@@ -18,6 +19,7 @@ import unicodedata
 import uuid
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 
 import config as cfgmod
 import winproc
@@ -644,7 +646,7 @@ def _pair_cleanup_locked() -> None:
 
 
 def pair_start(*, base_url: str) -> dict:
-    """Tạo phiên kết nối từ máy Mac/Windows (tool tải về)."""
+    """Tạo phiên kết nối từ máy Mac/Windows (tool tải về / lệnh Terminal)."""
     base = (base_url or "").strip().rstrip("/")
     if not base.startswith("http"):
         raise ValueError("Thiếu địa chỉ Javis (base_url)")
@@ -660,14 +662,19 @@ def pair_start(*, base_url: str) -> dict:
             "started_at": time.time(),
             "base_url": base,
         }
-    q = f"secret={secret}"
+    q = "secret=" + quote(secret, safe="")
+    mac_url = f"{base}/drive-projects/rclone/pair/{pair_id}/mac.command?{q}"
+    win_url = f"{base}/drive-projects/rclone/pair/{pair_id}/win.bat?{q}"
+    # curl|bash tránh Gatekeeper chặn file .command tải về trên macOS.
+    mac_terminal = f"curl -fsSL {shlex.quote(mac_url)} | bash"
     return {
         "ok": True,
         "pair_id": pair_id,
         "secret": secret,
         "expires_in_sec": _PAIR_TTL_SEC,
-        "mac_url": f"{base}/drive-projects/rclone/pair/{pair_id}/mac.command?{q}",
-        "win_url": f"{base}/drive-projects/rclone/pair/{pair_id}/win.bat?{q}",
+        "mac_url": mac_url,
+        "win_url": win_url,
+        "mac_terminal": mac_terminal,
     }
 
 

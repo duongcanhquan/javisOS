@@ -173,8 +173,8 @@
         ? '<p class="jw-hint">Bạn đang mở Javis trên máy này. Bấm một lần, Allow Google là xong.</p>' +
           '<button type="button" class="jw-btn jw-btn-primary" id="dpAuthLocal">Kết nối Google Drive</button>' +
           '<div id="dpAuthProgress" class="jw-hint" style="display:none;margin-top:8px"></div>'
-        : '<p class="jw-hint">Javis đang trên VPS. Tải tool về máy Mac/Windows → double-click → Allow Google → xong.</p>' +
-          '<button type="button" class="jw-btn jw-btn-primary" id="dpPairStart">Tạo link tải (Mac / Windows)</button>' +
+        : '<p class="jw-hint">Javis đang trên VPS. Trên Mac: sao chép lệnh Terminal. Trên Windows: tải file .bat.</p>' +
+          '<button type="button" class="jw-btn jw-btn-primary" id="dpPairStart">Bắt đầu kết nối (Mac / Windows)</button>' +
           '<div id="dpPairBox" style="display:none;margin-top:12px"></div>') +
       '<details style="margin-top:14px"><summary class="dim">Cách khác (hiếm khi cần)</summary>' +
       '<p class="jw-hint dim" style="margin-top:8px">Dán token JSON hoặc upload rclone.conf nếu tool không chạy được.</p>' +
@@ -242,16 +242,42 @@
     }
     if (pairBox) {
       pairBox.innerHTML =
-        '<p class="jw-hint"><b>Tải về máy bạn rồi double-click:</b></p>' +
+        '<p class="jw-hint"><b>Mac (khuyên dùng — không bị Apple chặn):</b></p>' +
+        '<ol class="jw-hint" style="margin:6px 0 10px 1.2em;padding:0">' +
+        "<li>Mở <b>Terminal</b> (Spotlight → gõ Terminal)</li>" +
+        "<li>Bấm nút dưới để sao chép lệnh → dán vào Terminal → Enter</li>" +
+        "<li>Allow Google khi trình duyệt mở</li></ol>" +
+        '<button type="button" class="jw-btn jw-btn-primary" id="dpCopyMac">Sao chép lệnh Terminal (Mac)</button>' +
+        '<pre id="dpMacCmd" class="jw-hint" style="margin-top:8px;padding:8px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-all">' +
+        esc(res.mac_terminal || "") +
+        "</pre>" +
+        '<p class="jw-hint dim" style="margin-top:12px"><b>Windows:</b> tải file .bat rồi double-click.</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">' +
-        '<a class="jw-btn jw-btn-primary" href="' +
-        esc(res.mac_url) +
-        '">Tải cho Mac (.command)</a>' +
-        '<a class="jw-btn jw-btn-primary" href="' +
+        '<a class="jw-btn" href="' +
         esc(res.win_url) +
         '">Tải cho Windows (.bat)</a></div>' +
-        '<p class="jw-hint dim">Sau khi Allow Google, quay lại trang này - sẽ tự cập nhật (khoảng 15 phút hiệu lực).</p>' +
+        '<details style="margin-top:8px"><summary class="dim">Mac: tải file .command (hay bị macOS chặn)</summary>' +
+        '<p class="jw-hint dim" style="margin-top:6px">Nếu vẫn muốn tải file: chuột phải → Open → Open. ' +
+        "Hoặc Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Vẫn mở.</p>" +
+        '<a class="jw-btn" href="' +
+        esc(res.mac_url) +
+        '">Tải .command</a></details>' +
+        '<p class="jw-hint dim" style="margin-top:12px">Sau Allow Google, quay lại trang này (hiệu lực ~15 phút).</p>' +
         '<p class="jw-hint" id="dpPairWait">Đang chờ kết nối từ máy bạn…</p>';
+      var copyBtn = pairBox.querySelector("#dpCopyMac");
+      if (copyBtn && res.mac_terminal) {
+        copyBtn.onclick = async function () {
+          try {
+            await navigator.clipboard.writeText(res.mac_terminal);
+            copyBtn.textContent = "Đã sao chép — dán vào Terminal";
+            setTimeout(function () {
+              copyBtn.textContent = "Sao chép lệnh Terminal (Mac)";
+            }, 2500);
+          } catch (e) {
+            alert("Không sao chép được. Hãy bôi đen lệnh bên dưới rồi Cmd+C.");
+          }
+        };
+      }
     }
     var pairId = res.pair_id;
     var n = 0;
