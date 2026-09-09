@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.184] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp Moonshine bắt lại giọng phòng và loa:** AEC luôn tắt (Chrome chống vọng từng xoá tiếng Zoom/Meet trên loa). AGC chỉ tăng giọng xa, không hạ giọng đã rõ. Worklet gộp 4096 mẫu rồi mới đưa Moonshine (đúng bản smoke), không transcribe từng 128 mẫu.
+
 ## [0.55.183] - 2026-09-09
 ### Cải tiến
 - **Nhãn não khi đang xử lý:** dòng chữ dưới đồ thị đổi từ «ĐANG SUY NGHĨ» thành «KÍCH HOẠT SUY NGHĨ NÃO».

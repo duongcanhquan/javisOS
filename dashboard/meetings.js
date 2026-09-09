@@ -190,7 +190,6 @@
   var AGC_TARGET_RMS = 0.08;
   var AGC_MAX_GAIN = 16;
   var AGC_SILENCE_RMS = 0.00055;
-  var AGC_MIN_GAIN = 0.4;
   var SYS_AUDIO_KEY = "javis.meeting.sysAudio";
   // Kích thước tối thiểu (byte) — chặn cache/HTML lỗi khiến load “ok” nhưng không ra chữ.
   var MOONSHINE_MIN_BYTES = {
@@ -245,6 +244,7 @@
   }
 
   function applyMicAec(on) {
+    void on;
     var streams = [];
     if (state._moonshineCapture && state._moonshineCapture.mediaStream) {
       streams.push(state._moonshineCapture.mediaStream);
@@ -260,7 +260,7 @@
           : null;
       if (mic && mic.applyConstraints) {
         try {
-          mic.applyConstraints(moonshineMicConstraints({ aec: !!on }));
+          mic.applyConstraints(moonshineMicConstraints());
         } catch (e) {}
       }
     }
@@ -432,7 +432,7 @@
   }
 
   function micConstraints() {
-    return { audio: moonshineMicConstraints({ aec: !!state._hasSystemAudio }) };
+    return { audio: moonshineMicConstraints() };
   }
 
   async function tryStartCloudStt(root, micPromise) {
@@ -588,25 +588,28 @@
     "for(c=0;c<channels.length;c++){var ch=channels[c];for(i=0;i<frames;i++)mixed[i]+=ch[i]||0;}" +
     "for(i=0;i<frames;i++)mixed[i]/=channels.length;return mixed;}" +
     "class MoonshineCaptureProcessor extends AudioWorkletProcessor{" +
+    "constructor(){super();this._buf=new Float32Array(4096);this._n=0;}" +
     "process(inputs){var input=inputs[0];if(input&&input.length&&input[0]){" +
-    "this.port.postMessage(downmixToMono(input));}return true;}}" +
+    "var mono=downmixToMono(input),i=0;" +
+    "while(i<mono.length){var space=this._buf.length-this._n,take=Math.min(space,mono.length-i);" +
+    "this._buf.set(mono.subarray(i,i+take),this._n);this._n+=take;i+=take;" +
+    "if(this._n>=this._buf.length){this.port.postMessage(this._buf.slice());this._n=0;}}" +
+    "}return true;}}" +
     "registerProcessor('javis-moonshine-capture',MoonshineCaptureProcessor);";
 
   /**
-   * Mic phòng họp:
-   *  - Không có loa máy số: TẮT AEC — Chrome chống vọng xoá tiếng Zoom/Meet đang phát ra loa.
-   *  - Có loopback (getDisplayMedia audio): BẬT AEC — mic chỉ lấy giọng phòng, tiếng máy lấy số.
-   * Tắt NS / voiceIsolation: nuốt giọng xa và nhiều kiểu nói. AGC phần cứng + AGC PCM.
+   * Mic phòng họp: AEC LUÔN TẮT.
+   * Chrome chống vọng xoá tiếng Zoom/Meet phát ra loa, và nuốt giọng xa trong phòng.
+   * Mix loa máy (getDisplayMedia) là cộng thêm, không thay analog.
+   * Tắt NS / voiceIsolation. AGC phần cứng + AGC PCM chỉ boost.
    */
-  function moonshineMicConstraints(opts) {
-    opts = opts || {};
-    var aec = !!opts.aec;
+  function moonshineMicConstraints() {
     return {
-      echoCancellation: aec,
+      echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: true,
       voiceIsolation: false,
-      googEchoCancellation: aec,
+      googEchoCancellation: false,
       googAutoGainControl: true,
       googNoiseSuppression: false,
     };
@@ -751,7 +754,7 @@
     var want = 1;
     if (cap.agcRms > AGC_SILENCE_RMS) {
       want = AGC_TARGET_RMS / cap.agcRms;
-      if (want < AGC_MIN_GAIN) want = AGC_MIN_GAIN;
+      if (want < 1) want = 1;
       if (want > AGC_MAX_GAIN) want = AGC_MAX_GAIN;
     }
     cap.agcGain = cap.agcGain == null ? want : cap.agcGain * 0.65 + want * 0.35;
@@ -914,12 +917,12 @@
     }
 
     // Loa máy TRƯỚC mic: hộp chia sẻ màn hình giữ cử chỉ người dùng, rồi getUserMedia còn nhận.
-    var hasSys = await ensureDisplayAudio();
+    await ensureDisplayAudio();
 
     var mediaStream;
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: moonshineMicConstraints({ aec: hasSys }),
+        audio: moonshineMicConstraints(),
       });
     } catch (e1) {
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -4095,7 +4098,7 @@
       '<div id="mtMoonshinePreload" class="dim" style="font-size:12.5px;margin:0 0 10px;line-height:1.4"></div>' +
       '<label class="dim" style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:0 0 10px;line-height:1.45;cursor:pointer">' +
       '<input type="checkbox" id="mtSysAudio" style="margin-top:3px">' +
-      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bấm Bắt đầu sẽ hỏi chia sẻ — chọn <b>tab họp</b> hoặc <b>Toàn màn hình</b> và bật «Chia sẻ âm thanh». Giọng trong phòng vẫn lấy từ mic.</span></label>" +
+      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bấm Bắt đầu sẽ hỏi chia sẻ: chọn <b>tab họp</b> hoặc <b>Toàn màn hình</b> và bật «Chia sẻ âm thanh». Mic phòng vẫn bắt loa analog (không chống vọng).</span></label>" +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -4104,7 +4107,7 @@
       ic("upload-cloud") +
       ' File → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
       "</div>" +
-      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Giọng xa, nhiều người, loa máy: Javis mix mic phòng + tiếng máy, tăng AGC, hạ cửa im lặng. Bỏ tick «Ghi tiếng máy» nếu chỉ họp mặt-to-face (mic vẫn bắt loa analog).</p>' +
+      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Mic bắt giọng phòng và loa máy (không chống vọng). Tick «Ghi tiếng máy» để mix thêm tiếng Zoom/Meet số. Bỏ tick nếu chỉ họp mặt-to-face.</p>' +
       "</div>" +
       '<div id="mtAfter" hidden>' +
       '<div class="mt-toolbar">' +

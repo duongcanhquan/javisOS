@@ -20,9 +20,10 @@ check("VAD phòng họp ~0.28 (giọng xa, không còn 0.38/0.6)",
     !/vad_threshold:\s*"0\.6"/.test(src));
 check("cửa RMS sau AGC (~0.006, bắt xa)",
   /SPEECH_PEAK_MIN\s*=\s*0\.006/.test(src));
-check("AGC boost tối đa ≥16 và có hạ khi mix to",
-  /AGC_MAX_GAIN\s*=\s*16/.test(src) && /AGC_MIN_GAIN\s*=\s*0\.4/.test(src) &&
-    /if \(want < AGC_MIN_GAIN\)/.test(src));
+check("AGC chỉ khuếch đại, không hạ giọng đã rõ (want < 1 thì giữ 1)",
+  /AGC_MAX_GAIN\s*=\s*16/.test(src) &&
+    /if \(want < 1\) want = 1/.test(src) &&
+    !/AGC_MIN_GAIN\s*=\s*0\.4/.test(src));
 check("đo đỉnh giọng trên PCM đã AGC (không chặn giọng xa trước boost)",
   /moonshineAgcChunk\(chunk, cap\)/.test(src) &&
   /if \(rms > \(cap\.lineSpeechPeak/.test(src) &&
@@ -33,11 +34,16 @@ check("AGC không khuếch đại im lặng số",
   /AGC_SILENCE_RMS/.test(src));
 check("giữ lọc câu bịa (subscribe / La La School)",
   /function isMoonshineHallucinationText\(/.test(src) && src.indexOf("subscribe") >= 0 && src.indexOf("thanks for watching") >= 0);
-check("mic: AEC theo opts.aec (tắt khi chỉ analog, bật khi có loa máy số)",
-  /function moonshineMicConstraints\(opts\)/.test(src) &&
-  /echoCancellation:\s*aec/.test(src) &&
+check("mic cuộc họp: AEC luôn tắt (Chrome AEC xoá loa họp + giọng xa)",
+  /function moonshineMicConstraints\(/.test(src) &&
+  /echoCancellation:\s*false/.test(src) &&
+  /googEchoCancellation:\s*false/.test(src) &&
+  !/echoCancellation:\s*aec/.test(src) &&
   /voiceIsolation:\s*false/.test(src) &&
   /noiseSuppression:\s*false/.test(src));
+check("getUserMedia không bật AEC theo hasSys",
+  !/moonshineMicConstraints\(\{\s*aec:\s*hasSys\s*\}\)/.test(src) &&
+  !/moonshineMicConstraints\(\{\s*aec:\s*!!state\._hasSystemAudio\s*\}\)/.test(src));
 check("ghi tiếng máy: getDisplayMedia + systemAudio include",
   /function ensureDisplayAudio\(/.test(src) &&
   /getDisplayMedia\(attempts/.test(src) &&
@@ -54,6 +60,9 @@ check("không EQ Web Audio giữa mic và worklet",
   !/function wireSpeechEmphasis\(/.test(src) && !/createBiquadFilter/.test(src));
 check("addModule worklet một lần + fallback ScriptProcessor",
   /_javisMoonshineWorklet/.test(src) && /createScriptProcessor/.test(src));
+check("worklet gộp ~4096 mẫu rồi mới postMessage (khớp smoke test, không transcribe mỗi 128)",
+  /this\._buf=new Float32Array\(4096\)/.test(src) &&
+  /createScriptProcessor\(4096/.test(src));
 check("hiện mức tín hiệu khi chưa ra chữ (không kẹt im lặng)",
   /startMoonshineMicLevelPulse/.test(src) && /mức /.test(src));
 check("không hiện 'không tải lại model' lúc WASM init",
@@ -68,7 +77,7 @@ check("mix loa máy lỗi thì tắt AEC trên mic",
   /applyMicAec\(false\)/.test(src) &&
   src.indexOf("state._hasSystemAudio = false") >= 0);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 37)", v >= 37, v);
+check("meetings.js đã bump ?v= (>= 38)", v >= 38, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));
