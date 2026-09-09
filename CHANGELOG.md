@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.158] - 2026-09-09
+### Sửa lỗi
+- **CI prompt budget:** gọt `CLAUDE.md` (mục memory/) xuống dưới trần 33.600 ký tự, giữ luật chỉ dùng `brain/memory/`.
+
 ## [0.55.157] - 2026-09-09
 ### Sửa lỗi
 - **Hai thư mục memory và Memory trên Linux:** tài liệu/`CLAUDE.md` từng ghi `Memory/` viết hoa nên AI tạo thư mục thứ hai; giờ chuẩn hoá về `memory/`, tự gộp khi cả hai tồn tại, chuẩn hóa brain cũng gộp được.

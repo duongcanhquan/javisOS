@@ -219,23 +219,23 @@ Two rules must be known UP FRONT because they are often broken:
 
 ## Long-term memory and self-learning
 
-Javis has a living memory at `brain/memory/` (lowercase **memory** only - never `Memory/` with a capital M; on Linux that creates a second folder the app does not read). This is what makes Javis "remember you" and grow smarter over time.
+Javis has a living memory at `brain/memory/` only (never `Memory/` - on Linux that creates a second unread folder). This is what makes Javis "remember you" and grow smarter over time.
 
 **Structure:**
-- `brain/memory/MEMORY.md` - the index (1 line per memory). Its content is preloaded ahead of every question.
-- `brain/memory/facts/*.md` - the detail of each memory (1 file = 1 fact).
-- `brain/memory/conversations/YYYY-MM-DD.md` - raw conversation logs (the raw material for learning).
+- `brain/memory/MEMORY.md` - the index (1 line per memory). Preloaded ahead of every question.
+- `brain/memory/facts/*.md` - detail of each memory (1 file = 1 fact).
+- `brain/memory/conversations/YYYY-MM-DD.md` - raw conversation logs (material for learning).
 
 **RECALL (every answer):**
-- MEMORY.md is already loaded - use it to understand context about the user and the business.
-- If you need the detail of one memory → read the matching file in `facts/` (under `memory/facts/`).
+- MEMORY.md is already loaded - use it for user/business context.
+- Need one memory's detail → read `memory/facts/<slug>.md`.
 
-**LEARN (writing a new memory):** when DURABLE, memorable information appears, create a file in `memory/facts/` and add 1 line to `memory/MEMORY.md`. 4 types:
+**LEARN (writing a new memory):** when DURABLE information appears, create `memory/facts/<slug>.md` and add 1 line to `memory/MEMORY.md`. 4 types:
 - `user` - information about the user (role, business, products, goals).
 - `preference` - how the user likes to work / receive reports.
 - `business` - facts about the business (channels, niche, partners, budget...).
 - `decision` - a decision or direction that has been settled, with the reason.
-- When the user says "remember this" → you MUST create the memory immediately **in this turn** (Write the fact file + one MEMORY.md line). Do not only promise.
+- When the user says "remember this" → create the memory **in this turn** (fact file + MEMORY.md line). Do not only promise.
 - Do NOT record transient things, trivial details, or what already exists. If it duplicates, update the old file (or write a new fact with `supersedes: <old-slug>`) instead of creating a copy.
 - **Anti-overload:** at most a few new facts per turn (prefer ≤5/day from chat). Frameworks go to Wiki (`ingest-source` / `notes`), not memory facts. Prefer the Learn page / "học từ hội thoại" for bulk chat distillation. Never create a background loop that mass-rewrites memory/Wiki.
 - Reminder `Học nhớ tối` (if seeded) only *proposes* what to save - still write only durable items.
