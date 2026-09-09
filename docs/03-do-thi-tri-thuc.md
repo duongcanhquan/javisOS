@@ -4,7 +4,7 @@
 
 Đồ thị tri thức biến các ghi chú trong brain thành một mạng lưới trực quan. Mỗi đốm sáng là một file Markdown; mỗi sợi nối là một wikilink `[[...]]` giữa hai ghi chú.
 
-Đồ thị dùng canvas 2D, không dùng WebGL và không cần tải thư viện từ Internet. Nó hiện cả các ghi chú chưa có liên kết, hỗ trợ timelapse và có thể tắt hoàn toàn trong Cài đặt.
+Đồ thị dùng canvas 2D, không dùng WebGL và không cần tải thư viện từ Internet. Mặc định chỉ hiện ghi chú **đã có wikilink** (bỏ note cô đơn và file rác kiểu README dịch / DESIGN-xx). Có thể tắt hoàn toàn trong Cài đặt.
 
 Xem thêm nơi dữ liệu này được tạo ra: [Second Brain: bộ nhớ, Wiki, INGEST](13-second-brain-bo-nho-wiki.md).
 

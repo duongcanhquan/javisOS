@@ -11,6 +11,24 @@ from typing import List, Dict
 # Match [[Note]] và [[folder/Note|alias]]
 WIKILINK_RE = re.compile(r"\[\[([^\]\|#]+)(?:[#\|][^\]]*)?\]\]")
 
+# File không phải "tri thức" (bản dịch README skill, DESIGN-pl, ...): bỏ khỏi đồ thị dù
+# orphans=1. Chỉ nối bằng [[wikilink]] - các file này gần như không bao giờ được link.
+_NOISE_STEM_RE = re.compile(
+    r"(?i)^(?:"
+    r"readme(?:[-_.].*)?|"
+    r"license(?:[-_.].*)?|"
+    r"changelog(?:[-_.].*)?|"
+    r"contributing(?:[-_.].*)?|"
+    r"code[-_.]?of[-_.]?conduct|"
+    r"design(?:-[a-z0-9]{2,12})?"
+    r")$"
+)
+# stem kiểu note.ja-JP / guide.zh-CN (bản dịch theo locale)
+_LOCALE_STEM_RE = re.compile(r"(?i)^.+\.[a-z]{2}(?:-[a-z]{2})?$")
+_SKIP_PATH_PARTS = frozenset({
+    "node_modules", ".git", ".obsidian", ".trash", "__pycache__", "vendor",
+})
+
 # Palette tinh vân tím (như V.A.U.L.T) - tím chủ đạo + vài tông phụ, lõi trắng nóng
 FOLDER_COLORS = {
     "00": "#c77dff", "01": "#a96bff", "02": "#7c5cff", "03": "#d98cff",
@@ -30,6 +48,21 @@ def _top_folder(rel_path: str) -> str:
     return parts[0] if len(parts) > 1 else "root"
 
 
+def is_graph_noise(stem: str, rel: str = "") -> bool:
+    """True = không đưa lên đồ thị tri thức (README dịch, DESIGN-xx, thư mục vendor...)."""
+    s = (stem or "").strip()
+    if not s:
+        return True
+    if _NOISE_STEM_RE.match(s) or _LOCALE_STEM_RE.match(s):
+        return True
+    parts = (rel or "").replace("\\", "/").split("/")
+    for p in parts[:-1]:
+        pl = p.lower()
+        if pl in _SKIP_PATH_PARTS or (p.startswith(".") and p not in (".", "..")):
+            return True
+    return False
+
+
 def build_graph(roots: List[str], max_files: int = 2000, include_orphans: bool = False) -> Dict:
     """
     Quét nhiều thư mục root, dựng graph.
@@ -40,6 +73,7 @@ def build_graph(roots: List[str], max_files: int = 2000, include_orphans: bool =
     stem_to_id = {}     # stem lowercase -> node id
     edges = []
     file_count = 0
+    skipped_noise = 0
 
     # Pass 1: thu thập tất cả file -> tạo node
     all_files = []
@@ -55,6 +89,9 @@ def build_graph(roots: List[str], max_files: int = 2000, include_orphans: bool =
             except ValueError:
                 rel = Path(fpath).name
             stem = Path(fpath).stem
+            if is_graph_noise(stem, rel):
+                skipped_noise += 1
+                continue
             key = stem.lower()
             node_id = key
             if node_id in stem_to_id:
@@ -105,13 +142,14 @@ def build_graph(roots: List[str], max_files: int = 2000, include_orphans: bool =
 
     orphan_count = len([n for n in nodes.values() if n["links"] == 0])
 
-    # Giữ node: mặc định bỏ note cô đơn (0 kết nối); include_orphans=True thì giữ HẾT (như Obsidian).
+    # Giữ node: mặc định bỏ note cô đơn (0 kết nối); include_orphans=True thì giữ note cô đơn
+    # (vẫn đã lọc noise ở Pass 1). Không còn fallback "nếu trống thì hiện hết" - đó chính là
+    # nguyên nhân màn hình đầy chấm rời khi vault toàn README/locale không wikilink.
     if include_orphans:
         keep = set(nodes.keys())
     else:
         keep = {nid for nid, n in nodes.items() if n["links"] > 0}
-        if not keep:
-            keep = set(nodes.keys())
+
     node_list = [n for nid, n in nodes.items() if nid in keep]
     edge_list = [e for e in unique_edges if e["source"] in keep and e["target"] in keep]
 
@@ -135,5 +173,6 @@ def build_graph(roots: List[str], max_files: int = 2000, include_orphans: bool =
             "total_links": len(edge_list),
             "orphans": orphan_count,
             "hidden": len(nodes) - len(node_list),
+            "skipped_noise": skipped_noise,
         }
     }

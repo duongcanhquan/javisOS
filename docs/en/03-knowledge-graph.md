@@ -4,7 +4,7 @@
 
 The knowledge graph turns the notes in a brain into a visual network. Every glowing dot is a Markdown file; every thread is a `[[...]]` wikilink between two notes.
 
-The graph uses a 2D canvas, no WebGL, and loads no library from the internet. It shows notes that have no links yet, supports a timelapse, and can be switched off entirely in Settings.
+The graph uses a 2D canvas, no WebGL, and loads no library from the internet. By default it only shows notes that already have wikilinks (hiding isolates and noise files such as translated READMEs / DESIGN-xx). It can be switched off entirely in Settings.
 
 To see where this data comes from, read [Second Brain: memory, Wiki, INGEST](13-second-brain.md).
 

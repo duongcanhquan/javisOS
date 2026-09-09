@@ -204,7 +204,9 @@ class JavisGraph {
   }
 
   async load(query = "source=all") {
-    const res = await fetch(`/graph?${query}&orphans=1`);   // 2D hiện CẢ note cô đơn (như graph view Obsidian)
+    // Mặc định ẨN note cô đơn (0 wikilink): tránh màn hình đầy chấm rời (README.ja-JP, DESIGN-pl...).
+    // Server còn lọc noise; ?orphans=1 chỉ hiện cô đơn nếu muốn kiểu Obsidian.
+    const res = await fetch(`/graph?${query}&orphans=0`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Không tải được đồ thị (${res.status})`);
     const nodes = Array.isArray(data.nodes) ? data.nodes : [];

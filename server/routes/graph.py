@@ -21,7 +21,7 @@ from typing import Callable
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 import config as cfgmod
-from graph_builder import build_graph, _color_for, _top_folder, WIKILINK_RE
+from graph_builder import build_graph, _color_for, _top_folder, WIKILINK_RE, is_graph_noise
 
 
 @dataclass
@@ -83,7 +83,8 @@ def _root_of(fpath, roots):
 
 
 def _node_payload(fpath, roots):
-    """Tạo node dict (giống build_graph) cho 1 file + danh sách wikilink target (stem lowercase)."""
+    """Tạo node dict (giống build_graph) cho 1 file + danh sách wikilink target (stem lowercase).
+    Trả về (None, []) nếu file là noise (README dịch, DESIGN-xx...) - WS không đẩy lên đồ thị."""
     root = _root_of(fpath, roots)
     root_name = Path(root).name
     try:
@@ -91,6 +92,8 @@ def _node_payload(fpath, roots):
     except ValueError:
         rel = Path(fpath).name
     stem = Path(fpath).stem
+    if is_graph_noise(stem, rel):
+        return None, []
     try:
         _st = os.stat(fpath)
         _born = min(getattr(_st, "st_birthtime", _st.st_ctime), _st.st_mtime)
@@ -234,6 +237,8 @@ def _make_router() -> APIRouter:
                         known[fp] = mt
                 for fp, is_new in changed[:80]:               # chặn burst
                     node, targets = await asyncio.to_thread(_node_payload, fp, roots)
+                    if node is None:
+                        continue   # README dịch / DESIGN-xx / noise - không đẩy lên đồ thị
                     await ws.send_text(json.dumps({
                         "type": "graph_add", "node": node,
                         "linkTargets": targets, "isNew": is_new,
