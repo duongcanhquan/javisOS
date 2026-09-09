@@ -3,6 +3,7 @@
 ***Tiếng Việt** · Bản này dành cho người nhận **bản đóng gói** (ZIP máy cá nhân hoặc image Docker trên VPS).*
 
 Tài liệu này dẫn từ lúc **cài lần đầu** tới lúc **dùng được chat, Studio, Kết nối**.  
+**PDF tải về (có hình / sơ đồ):** [Cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [Sử dụng ban đầu](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf) - mục lục đầy đủ trong [docs/huong-dan/README.md](docs/huong-dan/README.md).  
 Chi tiết từng trang trong app: [docs/README.md](docs/README.md).  
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
 **VPS mới, chưa có tên miền (IP / tunnel / Hostinger miễn phí):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  

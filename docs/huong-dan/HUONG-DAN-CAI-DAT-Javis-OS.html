@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hướng dẫn cài đặt Javis OS - Mac, Windows, VPS</title>
+<style>
+  :root {
+    --ink: #1a2b33;
+    --muted: #5a6b73;
+    --teal: #0d9488;
+    --teal-soft: #ccfbf1;
+    --cream: #f7f4ef;
+    --card: #ffffff;
+    --line: #d7e0e4;
+    --orange: #c2410c;
+    --blue: #1d4ed8;
+    --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--cream);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .page { max-width: 880px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 26px; margin: 0 0 8px; color: var(--teal); }
+  h2 {
+    font-size: 19px; margin: 32px 0 12px; padding-bottom: 6px;
+    border-bottom: 3px solid var(--teal); color: var(--ink); page-break-after: avoid;
+  }
+  h3 { font-size: 15.5px; margin: 18px 0 8px; color: var(--teal); page-break-after: avoid; }
+  p { margin: 0 0 11px; }
+  .lead { font-size: 16px; color: var(--muted); margin-bottom: 16px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .badge {
+    background: var(--teal-soft); color: #115e59; border-radius: 999px;
+    padding: 4px 12px; font-size: 12px; font-weight: 600;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; margin: 12px 0; page-break-inside: avoid;
+  }
+  .tip {
+    background: #fff7ed; border-left: 4px solid var(--orange);
+    padding: 11px 13px; margin: 12px 0; border-radius: 0 10px 10px 0; page-break-inside: avoid;
+  }
+  .okbox {
+    background: #f0fdf4; border-left: 4px solid var(--ok);
+    padding: 11px 13px; margin: 12px 0; border-radius: 0 10px 10px 0;
+  }
+  ol.steps { padding-left: 0; counter-reset: step; list-style: none; }
+  ol.steps > li {
+    counter-increment: step; position: relative;
+    padding: 11px 12px 11px 50px; margin: 9px 0;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    page-break-inside: avoid;
+  }
+  ol.steps > li::before {
+    content: counter(step); position: absolute; left: 12px; top: 12px;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--teal);
+    color: #fff; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; font-size: 13px;
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 10px 0 16px;
+    background: var(--card); font-size: 13.5px; page-break-inside: avoid;
+  }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--teal-soft); color: #115e59; }
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; background: #eef4f6; padding: 1px 5px; border-radius: 4px;
+  }
+  pre {
+    background: #1a2b33; color: #e8f4f2; padding: 12px 14px; border-radius: 10px;
+    overflow-x: auto; font-size: 11.5px; line-height: 1.45; page-break-inside: avoid;
+  }
+  svg.diagram {
+    width: 100%; height: auto; display: block; margin: 10px 0 6px;
+    background: #fff; border-radius: 12px; border: 1px solid var(--line);
+  }
+  .caption { font-size: 12px; color: var(--muted); margin: 0 0 14px; font-style: italic; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .toc a { color: var(--teal); text-decoration: none; }
+  .toc li { margin: 3px 0; }
+  .footer {
+    margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px;
+  }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  @media print {
+    body { background: #fff; font-size: 11.5px; }
+    .page { max-width: none; padding: 0; }
+    a { color: inherit; text-decoration: none; }
+    h2 { break-before: page; }
+    h2.first-h2 { break-before: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Hướng dẫn cài đặt Javis OS</h1>
+  <p class="lead">Cài trên máy tính (Mac / Windows) hoặc máy chủ VPS (Linux / Windows). Bản dành cho người nhận gói phần mềm - làm theo từng bước là chạy được.</p>
+  <div class="meta">
+    <span class="badge">Mac</span>
+    <span class="badge">Windows</span>
+    <span class="badge">VPS Linux</span>
+    <span class="badge">VPS Windows</span>
+    <span class="badge">Cổng 7777</span>
+  </div>
+
+  <div class="card toc">
+    <strong>Mục lục</strong>
+    <ol>
+      <li><a href="#chon">Chọn đúng đường cài</a></li>
+      <li><a href="#toithieu">Cấu hình máy tối thiểu</a></li>
+      <li><a href="#win">Máy cá nhân - Windows</a></li>
+      <li><a href="#mac">Máy cá nhân - macOS</a></li>
+      <li><a href="#vps-linux">VPS Linux (Docker)</a></li>
+      <li><a href="#vps-win">VPS / máy chủ Windows</a></li>
+      <li><a href="#lan-dau">Thiết lập lần đầu trong app</a></li>
+      <li><a href="#loi">Lỗi thường gặp</a></li>
+    </ol>
+  </div>
+
+  <h2 id="chon" class="first-h2">1. Chọn đúng đường cài</h2>
+
+  <svg class="diagram" viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ chọn cách cài">
+    <rect x="280" y="10" width="200" height="44" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="380" y="38" text-anchor="middle" font-size="14" font-family="Segoe UI, Arial" fill="#115e59" font-weight="700">Bạn muốn chạy Javis ở đâu?</text>
+    <path d="M380 54 L380 78" stroke="#94a3b8" stroke-width="2"/>
+    <path d="M160 78 L600 78" stroke="#94a3b8" stroke-width="2"/>
+    <path d="M160 78 L160 98" stroke="#94a3b8" stroke-width="2"/>
+    <path d="M600 78 L600 98" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="40" y="98" width="240" height="100" rx="12" fill="#fff" stroke="#d7e0e4"/>
+    <text x="160" y="125" text-anchor="middle" font-size="13" font-family="Segoe UI, Arial" font-weight="700" fill="#0d9488">Laptop / PC cá nhân</text>
+    <text x="160" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows → mục 3</text>
+    <text x="160" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">macOS → mục 4</text>
+    <text x="160" y="188" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">http://localhost:7777</text>
+    <rect x="480" y="98" width="240" height="100" rx="12" fill="#fff" stroke="#d7e0e4"/>
+    <text x="600" y="125" text-anchor="middle" font-size="13" font-family="Segoe UI, Arial" font-weight="700" fill="#1d4ed8">Máy chủ / VPS 24/7</text>
+    <text x="600" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Linux → mục 5 (Docker)</text>
+    <text x="600" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows Server → mục 6</text>
+    <text x="600" y="188" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">http://IP:7777 hoặc HTTPS</text>
+  </svg>
+  <p class="caption">Hình 1. Chọn Mac/Windows cho máy nhà, hoặc VPS khi cần mở mọi lúc mọi nơi.</p>
+
+  <table>
+    <thead><tr><th>Tình huống</th><th>Chọn</th><th>Ưu điểm</th></tr></thead>
+    <tbody>
+      <tr><td>Dùng một mình trên laptop</td><td>Mac / Windows local</td><td>Nhanh, mic hoạt động trên localhost</td></tr>
+      <tr><td>Cần chat từ điện thoại / nhiều máy</td><td>VPS Linux + Docker</td><td>Chạy 24/7, cập nhật bằng pull image</td></tr>
+      <tr><td>Chỉ có Windows Server</td><td>Docker Desktop hoặc bản .bat</td><td>Giống local nhưng bind ra mạng</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip"><strong>Lưu ý phân phối:</strong> chỉ gửi phần mềm + hướng dẫn. <strong>Không</strong> gửi thư mục brain có memory, mật khẩu, Drive cá nhân hay hội thoại thật.</div>
+
+  <h2 id="toithieu">2. Cấu hình máy tối thiểu</h2>
+  <table>
+    <thead><tr><th></th><th>Tối thiểu</th><th>Khuyến nghị</th></tr></thead>
+    <tbody>
+      <tr><td>CPU</td><td>4 nhân hiện đại</td><td>Apple Silicon M1+ hoặc Intel/AMD gần đây</td></tr>
+      <tr><td>RAM</td><td>8 GB (chỉ cloud/API)</td><td>16 GB</td></tr>
+      <tr><td>Ổ trống</td><td>5 GB</td><td>20 GB+ nếu dùng Ollama local</td></tr>
+      <tr><td>OS</td><td>Windows 10/11, macOS 12+</td><td>Windows 11, macOS 14+</td></tr>
+      <tr><td>Trình duyệt</td><td>Chrome hoặc Edge</td><td>Chrome</td></tr>
+      <tr><td>VPS</td><td>2 vCPU / 4 GB RAM</td><td>4 vCPU / 8 GB RAM</td></tr>
+    </tbody>
+  </table>
+  <p>Javis <strong>không cần GPU</strong>. Model Claude/ChatGPT/API chạy trên cloud. Ollama local mới cần RAM nhiều hơn.</p>
+
+  <h2 id="win">3. Máy cá nhân - Windows</h2>
+  <h3>3.1 Chuẩn bị (một lần)</h3>
+  <ol class="steps">
+    <li>Cài <strong>Python 3.11+</strong> từ <span class="mono">python.org</span>. Khi cài: <strong>tick</strong> “Add python.exe to PATH”.</li>
+    <li>(Khuyến nghị) Cài <strong>Node.js 22 LTS</strong> từ <span class="mono">nodejs.org</span>.</li>
+  </ol>
+
+  <h3>3.2 Lấy Javis &amp; cài</h3>
+  <ol class="steps">
+    <li>Mở GitHub repo Javis → <strong>Code → Download ZIP</strong> → giải nén (ví dụ <span class="mono">D:\Javis</span>).</li>
+    <li>Double-click <strong><span class="mono">1-Cai-dat.bat</span></strong> (lần đầu vài phút).</li>
+    <li>Thấy dòng <span class="mono">http://localhost:7777</span> là xong.</li>
+    <li>Mở Chrome/Edge → vào <strong>http://localhost:7777</strong> → tạo tài khoản admin.</li>
+  </ol>
+
+  <svg class="diagram" viewBox="0 0 760 120" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="30" width="130" height="50" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="85" y="60" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#115e59">1-Cai-dat.bat</text>
+    <path d="M155 55 L195 55" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <rect x="200" y="30" width="130" height="50" rx="10" fill="#fff" stroke="#d7e0e4"/>
+    <text x="265" y="60" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">2-Bat-Javis.bat</text>
+    <path d="M335 55 L375 55" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="380" y="30" width="160" height="50" rx="10" fill="#fff" stroke="#d7e0e4"/>
+    <text x="460" y="60" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">localhost:7777</text>
+    <path d="M545 55 L585 55" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="590" y="30" width="150" height="50" rx="10" fill="#f0fdf4" stroke="#15803d"/>
+    <text x="665" y="60" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#15803d">Chat &amp; dùng</text>
+  </svg>
+  <p class="caption">Hình 2. Luồng Windows: cài một lần → mỗi ngày bật → mở trình duyệt.</p>
+
+  <table>
+    <thead><tr><th>Việc hàng ngày</th><th>File</th></tr></thead>
+    <tbody>
+      <tr><td>Bật Javis</td><td><span class="mono">2-Bat-Javis.bat</span> hoặc <span class="mono">JAVIS OS.bat</span></td></tr>
+      <tr><td>Tắt</td><td><span class="mono">3-Tat-Javis.bat</span></td></tr>
+      <tr><td>Tự chạy khi đăng nhập Windows</td><td><span class="mono">javis-autostart.bat install</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="mac">4. Máy cá nhân - macOS</h2>
+  <h3>4.1 Chuẩn bị (một lần)</h3>
+  <ol class="steps">
+    <li>Mở Terminal, chạy: <span class="mono">xcode-select --install</span></li>
+    <li>Cài Python 3 (python.org/macos hoặc <span class="mono">brew install python</span>).</li>
+    <li>(Khuyến nghị) Node.js 22 LTS.</li>
+  </ol>
+
+  <h3>4.2 Lấy Javis &amp; cài</h3>
+  <ol class="steps">
+    <li>Download ZIP từ GitHub → giải nén (ví dụ <span class="mono">~/Desktop/Javis</span>).</li>
+    <li><strong>Chuột phải</strong> <span class="mono">1-Cai-dat.command</span> → <strong>Open</strong> (macOS có thể hỏi nhà phát triển - chọn Open).</li>
+    <li>Đợi xong → mở <strong>http://localhost:7777</strong>.</li>
+  </ol>
+
+  <div class="tip"><strong>macOS chặn file .command?</strong> Chuột phải → Open → Open. Hoặc Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Vẫn mở. Không double-click lần đầu trong Finder nếu bị chặn.</div>
+
+  <table>
+    <thead><tr><th>Việc hàng ngày</th><th>File</th></tr></thead>
+    <tbody>
+      <tr><td>Bật</td><td><span class="mono">2-Bat-Javis.command</span> hoặc <span class="mono">Start JAVIS OS.command</span></td></tr>
+      <tr><td>Tắt</td><td><span class="mono">3-Tat-Javis.command</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="vps-linux">5. VPS Linux (Docker - khuyến nghị)</h2>
+  <p>Phù hợp Ubuntu/Debian, Hostinger VPS, máy chủ 24/7. Image: <span class="mono">ghcr.io/duongcanhquan/javisos:latest</span>.</p>
+
+  <svg class="diagram" viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="40" width="140" height="70" rx="12" fill="#eff6ff" stroke="#1d4ed8"/>
+    <text x="100" y="70" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" font-weight="700" fill="#1d4ed8">Internet</text>
+    <text x="100" y="90" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">Bạn / điện thoại</text>
+    <path d="M175 75 L220 75" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="225" y="40" width="160" height="70" rx="12" fill="#fff" stroke="#d7e0e4"/>
+    <text x="305" y="70" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" font-weight="700">VPS Linux</text>
+    <text x="305" y="90" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">Docker · cổng 7777</text>
+    <path d="M390 75 L435 75" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="440" y="25" width="280" height="100" rx="12" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="580" y="55" text-anchor="middle" font-size="13" font-family="Segoe UI, Arial" font-weight="700" fill="#115e59">Container javis</text>
+    <text x="580" y="78" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#334155">Dashboard + AI hub</text>
+    <text x="580" y="98" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#334155">Volume: brains + state</text>
+  </svg>
+  <p class="caption">Hình 3. Kiến trúc VPS: trình duyệt → IP:7777 (hoặc HTTPS) → container Javis.</p>
+
+  <h3>5.1 Cài Docker trên VPS</h3>
+  <pre>curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Đăng xuất SSH rồi đăng nhập lại</pre>
+
+  <h3>5.2 Chạy Javis (không tên miền - IP)</h3>
+  <pre>mkdir -p ~/javis &amp;&amp; cd ~/javis
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
+docker compose up -d
+docker compose ps</pre>
+  <div class="okbox">Mở <strong>http://&lt;IP-VPS&gt;:7777</strong>. Firewall/security group phải mở TCP <strong>7777</strong> (và 22 cho SSH).</div>
+
+  <h3>5.3 Hostinger Docker Manager (có HTTPS miễn phí)</h3>
+  <ol class="steps">
+    <li>VPS → Docker Manager → Compose → URL.</li>
+    <li>Dán:
+      <span class="mono">https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml</span>
+    </li>
+    <li>Đặt <span class="mono">DOMAIN_NAME</span> = <span class="mono">javis.&lt;hostname-vps&gt;.hstgr.cloud</span> (xem hostname trong hPanel).</li>
+    <li>Deploy → mở <strong>https://…</strong></li>
+  </ol>
+  <div class="tip">Mic/giọng nói trên trình duyệt <strong>chỉ</strong> chạy với <strong>https://</strong> hoặc <strong>localhost</strong>. Mở bằng <span class="mono">http://IP:7777</span> từ máy khác thì mic bị chặn.</div>
+
+  <h3>5.4 Cập nhật VPS</h3>
+  <pre>cd ~/javis
+docker compose pull
+docker compose up -d</pre>
+
+  <h2 id="vps-win">6. VPS / máy chủ Windows</h2>
+  <h3>6.1 Docker Desktop (gần giống Linux)</h3>
+  <ol class="steps">
+    <li>Cài Docker Desktop (bật WSL2 nếu được hỏi). Đợi engine xanh.</li>
+    <li>PowerShell:</li>
+  </ol>
+  <pre>mkdir $HOME\javis; cd $HOME\javis
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml -OutFile docker-compose.yml
+docker compose up -d</pre>
+  <ol class="steps" start="3">
+    <li>Mở <span class="mono">http://&lt;IP&gt;:7777</span>. Windows Firewall: cho phép inbound TCP <strong>7777</strong>.</li>
+    <li>Cập nhật: <span class="mono">docker compose pull</span> rồi <span class="mono">docker compose up -d</span>.</li>
+  </ol>
+
+  <h3>6.2 Native Windows (không Docker, chạy 24/7)</h3>
+  <ol class="steps">
+    <li>Giải nén gói như máy cá nhân → chạy <span class="mono">1-Cai-dat.bat</span>.</li>
+    <li><span class="mono">javis-autostart.bat install</span> để tự bật khi đăng nhập.</li>
+    <li>Cho Javis lắng nghe mạng (0.0.0.0) - xem tài liệu cấu hình env.</li>
+    <li>Khi chạy public: <strong>bắt buộc</strong> đặt mật khẩu admin mạnh.</li>
+  </ol>
+
+  <h2 id="lan-dau">7. Thiết lập lần đầu trong app (mọi đường)</h2>
+  <svg class="diagram" viewBox="0 0 760 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="15" y="25" width="160" height="50" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
+    <text x="95" y="55" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">1. Admin</text>
+    <path d="M180 50 L210 50" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="215" y="25" width="160" height="50" rx="10" fill="#fff" stroke="#d7e0e4"/>
+    <text x="295" y="55" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">2. Models</text>
+    <path d="M380 50 L410 50" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="415" y="25" width="160" height="50" rx="10" fill="#fff" stroke="#d7e0e4"/>
+    <text x="495" y="55" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">3. Kết nối</text>
+    <path d="M580 50 L610 50" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="615" y="25" width="130" height="50" rx="10" fill="#f0fdf4" stroke="#15803d"/>
+    <text x="680" y="55" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#15803d">4. Chat</text>
+  </svg>
+  <p class="caption">Hình 4. Thứ tự sau khi mở app lần đầu.</p>
+
+  <ol class="steps">
+    <li><strong>Tài khoản admin</strong> - đặt mật khẩu (bắt buộc trên VPS công khai).</li>
+    <li><strong>Models</strong> - chọn bộ não: Claude Code / ChatGPT / Antigravity / API key…</li>
+    <li><strong>Kết nối</strong> (tuỳ chọn) - Gmail, Calendar, Zalo, Ads…</li>
+    <li>Vào <strong>Chat</strong> - hỏi thử một câu.</li>
+  </ol>
+  <p>Chi tiết dùng hàng ngày: xem PDF <strong>Hướng dẫn sử dụng Javis OS</strong> (cùng thư mục).</p>
+
+  <h2 id="loi">8. Lỗi thường gặp</h2>
+  <table>
+    <thead><tr><th>Triệu chứng</th><th>Cách xử lý</th></tr></thead>
+    <tbody>
+      <tr><td>Cổng 7777 bị chiếm</td><td>Tắt bản cũ (<span class="mono">3-Tat-Javis</span>) rồi bật lại</td></tr>
+      <tr><td>macOS không mở .command</td><td>Chuột phải → Open; hoặc Privacy → Vẫn mở</td></tr>
+      <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall mở 7777; <span class="mono">docker compose ps</span></td></tr>
+      <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost (không dùng http://IP)</td></tr>
+      <tr><td>Quên mật khẩu admin</td><td>Xem docs khôi phục / log setup token trên VPS</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Javis OS · Hướng dẫn cài đặt · Repo: github.com/duongcanhquan/javisOS<br/>
+    Image: ghcr.io/duongcanhquan/javisos · Cổng mặc định 7777<br/>
+    Tài liệu kèm: HUONG-DAN-CAI-MAY-LOCAL.md · HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md · DEPLOY.md
+  </div>
+</div>
+</body>
+</html>

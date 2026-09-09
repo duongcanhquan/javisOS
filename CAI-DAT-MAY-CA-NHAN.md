@@ -101,7 +101,7 @@ Hướng dẫn local đầy đủ (cấu hình máy, Windows/Mac, Ollama): **[HU
 
 - Gói đủ 2 đường (máy cá nhân + VPS): **[CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md)** + `deploy/school/`.
 - Gửi link repo + file hướng dẫn này là đủ cho đường máy cá nhân.
-- Kèm bản PDF dùng: `docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf`.
+- Kèm bản PDF: [cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [sử dụng](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf).
 - Không cần dạy Git / Cursor. Không gửi thư mục `brains/` của bạn.
 - Mỗi máy = 1 brain riêng trên ổ cứng người đó (không chung dữ liệu trừ khi họ tự bật sao lưu GitHub).
 - Sau cài: **Models** rồi chat thử - agent/workflow chuẩn đã có sẵn. **Studio → Bộ Trường** chỉ khi muốn làm mới bộ mẫu.
