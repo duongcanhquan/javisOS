@@ -315,14 +315,14 @@
 
   /**
    * Không ưu tiên cloud STT trên mobile nữa (trước từng ép Groq Whisper).
-   * Chuỗi phổ thông: Moonshine (desktop) → Cloud STT Gemini (VI khi thiếu WASM) → Web Speech.
+   * Chuỗi phổ thông: ghi NGAY (Cloud STT / Web Speech). Moonshine chỉ khi engine đã có trong RAM.
    */
   function preferWhisperLive() {
     return false;
   }
 
   /**
-   * Desktop + COOP/COEP OK + model local: Moonshine trước (chuẩn xác, offline).
+   * Desktop + COOP/COEP OK + model local: Moonshine khi ĐÃ nạp xong (không chặn Bắt đầu).
    * Tắt tay: localStorage.setItem("javis.meeting.preferMoonshine","0")
    * Bật lại: localStorage.removeItem("javis.meeting.preferMoonshine")
    */
@@ -335,6 +335,17 @@
     lang = normalizeLang(lang);
     if (MOONSHINE_LOCAL[lang]) return true;
     return lang === "vi";
+  }
+
+  function moonshineEngineReady(lang) {
+    lang = normalizeLang(lang || meetingLang());
+    return !!(
+      state.moonshineTranscriber &&
+      state.moonshineLang === lang &&
+      state.moonshineReady &&
+      state.moonshineMod &&
+      moonshineRuntimeOk()
+    );
   }
 
   /** Failover / giữ Moonshine khi đang ưu tiên local. */
@@ -354,7 +365,6 @@
    * VI/CJK: ưu tiên Cloud STT (Gemini) trước Web Speech — Web Speech VI hay lỗi network.
    */
   function preferCloudBeforeWebSpeech(lang) {
-    if (preferMoonshineFirst(lang)) return false;
     lang = normalizeLang(lang);
     return (
       lang === "vi" ||
@@ -1787,26 +1797,29 @@
         el.textContent =
           "Moonshine sẵn sàng (" +
           label +
-          ") — Bắt đầu chỉ bật micro, không tải lại model.";
+          ") — Bắt đầu dùng engine local, không tải lại model.";
         el.style.color = "var(--ok-ink, var(--text3))";
         return;
       }
       if (typeof frac === "number" && frac > 0 && frac < 1) {
         el.textContent =
-          "Đang chuẩn bị Moonshine (" + label + ")… " + Math.round(frac * 100) + "%";
+          "Đang chuẩn bị Moonshine (" +
+          label +
+          ")… " +
+          Math.round(frac * 100) +
+          "% — Bắt đầu vẫn ghi ngay.";
       } else if (state.moonshinePreloading) {
-        el.textContent = "Đang chuẩn bị Moonshine (" + label + ")…";
+        el.textContent =
+          "Đang chuẩn bị Moonshine (" + label + ")… Bắt đầu vẫn ghi ngay bằng Cloud STT / Web Speech.";
       } else if (state.moonshinePreloadError) {
         el.textContent =
-          "Moonshine lỗi chuẩn bị — Bắt đầu sẽ thử nạp lại (không nhảy Cloud ngay).";
+          "Moonshine chưa sẵn — Bắt đầu ghi ngay bằng Cloud STT / Web Speech.";
       } else if (!moonshineRuntimeOk()) {
         el.textContent =
-          "Thiếu WASM threads — mở Chrome/Edge HTTPS rồi tải lại trang để dùng Moonshine.";
+          "Thiếu WASM threads — Bắt đầu dùng Cloud STT / Web Speech. Chrome/Edge HTTPS nếu muốn Moonshine.";
       } else {
         el.textContent =
-          "Ưu tiên Moonshine (" +
-          label +
-          "). Lần đầu ~135MB; lần sau đọc máy / RAM phiên này.";
+          "Bấm Bắt đầu sẽ ghi ngay (Cloud STT / Web Speech). Moonshine local khi engine đã sẵn trong phiên.";
       }
       el.style.color = "var(--ok-ink, var(--text3))";
       return;
@@ -1836,9 +1849,14 @@
     downloadMoonshineNamedFiles(urls, function (frac) {
       updateMoonshinePreloadHint(root, frac, lang);
     })
-      .then(function () {
+      .then(function (fileMap) {
         state.moonshinePreloading = false;
         updateMoonshinePreloadHint(root, 1, lang);
+        if (fileMap) {
+          try {
+            rememberMoonshineFiles(lang, fileMap);
+          } catch (eMem) {}
+        }
       })
       .catch(function () {
         state.moonshinePreloading = false;
@@ -2803,120 +2821,37 @@
     var micPromise = opts.micPromise || null;
 
     armAudioSessionForMic();
-    state._whisperReady = null; // luôn hỏi lại /stt/status (user có thể vừa dán Gemini)
+    state._whisperReady = null;
 
-    // 1) Desktop + isolation OK: Moonshine trước (chuẩn). Thử lại 1 lần trước khi tạm Cloud.
-    if (preferMoonshineFirst(lang) && moonshineSupports(lang)) {
+    // 1) Moonshine chỉ khi engine đã có trong RAM — không bắt Bắt đầu chờ WASM.
+    if (
+      preferMoonshineFirst(lang) &&
+      moonshineSupports(lang) &&
+      moonshineEngineReady(lang)
+    ) {
       try {
         await startMoonshine(root);
         state._moonshineSoftFails = 0;
+        if (micPromise) await discardMicStream(micPromise);
         return "moonshine";
-      } catch (e) {
-        var hungInit = /Khởi tạo Moonshine treo/i.test(String((e && e.message) || e || ""));
-        if (hungInit) {
-          setStatus(root, "Moonshine WASM treo — chuyển sang ghi bằng Cloud STT…", "err");
-          await cleanupAudio();
-          releaseMicConflicts();
-          var cloudHung = await tryStartCloudStt(root, null);
-          if (cloudHung) {
-            setStatus(
-              root,
-              "Moonshine không mở được engine — đang ghi bằng " +
-                cloudSttLabel() +
-                ". Tải lại trang (Ctrl+F5) rồi Bắt đầu để thử Moonshine lại.",
-              "err"
-            );
-            return cloudHung;
-          }
-          if (hasWebSpeech()) {
-            try {
-              startWebSpeechSafe(root);
-              setStatus(
-                root,
-                "Moonshine WASM treo — tạm Web Speech. Ctrl+F5 rồi Bắt đầu để thử Moonshine.",
-                "err"
-              );
-              return "webspeech";
-            } catch (wsHung) {}
-          }
-          throw e;
-        }
-        setStatus(
-          root,
-          "Moonshine lỗi lần 1 — đang thử lại (giữ model đã nạp)… " + ((e && e.message) || ""),
-          "err"
-        );
-        try {
-          await stopMoonshineMic();
-          releaseMicConflicts();
-          await new Promise(function (r) {
-            setTimeout(r, 400);
-          });
-          await startMoonshine(root);
-          state._moonshineSoftFails = 0;
-          setStatus(root, "Moonshine đã lên (lần thử lại). Nói rõ từng câu.", "ok");
-          return "moonshine";
-        } catch (e2) {
-          state._moonshineSoftFails = (state._moonshineSoftFails || 0) + 2;
-          await cleanupAudio();
-          // Không resetMoonshineCache ở đây — lần Bắt đầu sau còn RAM/cache.
-          releaseMicConflicts();
-          await new Promise(function (r) {
-            setTimeout(r, 350);
-          });
-          var afterMoon = await tryStartCloudStt(root, null);
-          if (afterMoon) {
-            setStatus(
-              root,
-              "Moonshine lỗi 2 lần — tạm " +
-                cloudSttLabel() +
-                ". Tải lại trang rồi Bắt đầu để dùng lại Moonshine. " +
-                ((e2 && e2.message) || e.message || ""),
-              "err"
-            );
-            return afterMoon;
-          }
-          if (hasWebSpeech()) {
-            try {
-              startWebSpeechSafe(root);
-              setStatus(
-                root,
-                "Moonshine lỗi 2 lần — tạm Web Speech. Tải lại trang để thử Moonshine lại.",
-                "err"
-              );
-              return "webspeech";
-            } catch (wsErr) {
-              throw new Error(
-                "Moonshine và Web Speech đều lỗi: " +
-                  ((e2 && e2.message) || e.message || e) +
-                  " / " +
-                  ((wsErr && wsErr.message) || wsErr)
-              );
-            }
-          }
-          throw e2;
-        }
+      } catch (eReady) {
+        /* rơi xuống Cloud / Web Speech */
       }
     }
 
-    // 2) VI/CJK khi không Moonshine: Cloud STT (Gemini) trước — Web Speech VI hay network-fail.
-    if (preferCloudBeforeWebSpeech(lang)) {
-      if (micPromise) {
-        // Cloud STT cần MediaRecorder; giữ micPromise.
-        var cloud1 = await tryStartCloudStt(root, micPromise);
-        if (cloud1) return cloud1;
-        micPromise = null;
-      } else {
-        var cloud2 = await tryStartCloudStt(root, null);
-        if (cloud2) return cloud2;
+    // 2) Ghi ngay: Cloud STT (Gemini) rồi Web Speech.
+    if (preferCloudBeforeWebSpeech(lang) || !hasWebSpeech()) {
+      var cloudNow = await tryStartCloudStt(root, micPromise);
+      micPromise = null;
+      if (cloudNow) {
+        setStatus(root, "Đang ghi (" + cloudSttLabel() + ") — nói rõ từng câu.", "ok");
+        return cloudNow;
       }
     } else if (micPromise) {
-      // Sắp dùng Web Speech → nhả mic sớm kẻo Chrome im.
       await discardMicStream(micPromise);
       micPromise = null;
     }
 
-    // 3) Web Speech (phổ thông, không cần API key).
     if (hasWebSpeech()) {
       if (micPromise) {
         await discardMicStream(micPromise);
@@ -2931,18 +2866,17 @@
       return "webspeech";
     }
 
-    // 4) Không Web Speech: cloud STT.
-    var cloud3 = await tryStartCloudStt(root, micPromise);
-    if (cloud3) return cloud3;
+    var cloudLast = await tryStartCloudStt(root, micPromise);
+    if (cloudLast) return cloudLast;
 
-    // 5) Moonshine VI nếu còn (thiếu Web Speech nhưng có isolation).
+    // 3) Không Cloud / Web Speech: mới nạp Moonshine (timeout 28s).
     if (preferMoonshineFailover(lang) && moonshineSupports(lang)) {
       await startMoonshine(root);
       return "moonshine";
     }
 
     throw new Error(
-      "Không nhận dạng được giọng. Dùng Chrome/Edge qua HTTPS; Models → Gemini cho Cloud STT; hoặc tải lại trang để bật Moonshine."
+      "Không nhận dạng được giọng. Dùng Chrome/Edge qua HTTPS; Models → Gemini cho Cloud STT."
     );
   }
 
@@ -3009,8 +2943,12 @@
     var moonshineFail = null;
     var sttEngine = null;
     var micPromise = null;
-    // Xin mic sớm khi sắp dùng Cloud STT (MediaRecorder). Web Speech: không xin trước (Chrome im).
+    var useMoonNow =
+      preferMoonshineFirst(langAtStart) && moonshineEngineReady(langAtStart);
+    // Xin mic sớm cho Cloud STT (MediaRecorder). Moonshine đã sẵn: mở trong startMoonshine.
+    // Web Speech: không xin getUserMedia trước (Chrome im).
     if (
+      !useMoonNow &&
       (preferCloudBeforeWebSpeech(langAtStart) || !hasWebSpeech()) &&
       navigator.mediaDevices &&
       navigator.mediaDevices.getUserMedia
@@ -3020,22 +2958,10 @@
     try {
       // STT trong cử chỉ bấm — TRƯỚC await fetch (voice.js: await fetch làm Chrome im lặng).
       state.running = true;
-      setStatus(
-        root,
-        preferMoonshineFirst(langAtStart)
-          ? "Bật micro (Moonshine)…"
-          : hasWebSpeech()
-            ? "Bật micro (Web Speech)…"
-            : "Bật micro…"
-      );
-      // Mở mic + AudioContext ngay trong cử chỉ bấm (trước mọi await dài).
-      if (
-        preferMoonshineFirst(langAtStart) &&
-        moonshineSupports(langAtStart) &&
-        moonshineRuntimeOk()
-      ) {
+      setStatus(root, useMoonNow ? "Bật micro (Moonshine)…" : "Bật micro — ghi ngay…");
+      if (useMoonNow) {
         try {
-          await openMoonshineMicEarly({ keepSuspended: true });
+          await openMoonshineMicEarly({ keepSuspended: false });
         } catch (eEarly) {
           /* startMoonshine sẽ báo lỗi micro rõ hơn */
         }

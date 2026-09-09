@@ -1,4 +1,4 @@
-/* Cuộc họp: không kẹt "chờ WASM" — ngủ AudioContext lúc Transcriber.load, timeout 28s, không CDN pthread.
+/* Cuộc họp: hàng rào WASM (pthread, timeout, không CDN) — đi cùng test_meetings_ghi_ngay.js
 
        node tests/js/test_meetings_wasm_treo.js
 */
@@ -28,10 +28,8 @@ check("gắn micro sau load thì resume (keepSuspended: false)",
 check("không import jsDelivr Moonshine (pthread pool = số CPU → treo)",
   src.indexOf("cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm") === -1 &&
   !/CDN_FALLBACK/.test(src));
-check("WASM treo thì nhảy Cloud STT, không thử Moonshine lần 2",
-  /hungInit/.test(src) && /chuyển sang ghi bằng Cloud STT/.test(src));
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 33)", v >= 33, v);
+check("meetings.js đã bump ?v= (>= 34)", v >= 34, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

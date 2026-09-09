@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.178] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp ghi ngay khi Bắt đầu:** không còn chờ Moonshine WASM (kẹt «chờ WASM»). Cloud STT Gemini / Web Speech chạy trước; Moonshine chỉ khi engine đã có trong RAM. AGC + timeout WASM 28s giữ cho đường Moonshine last-resort.
+
 ## [0.55.177] - 2026-09-09
 ### Sửa lỗi
 - **Cuộc họp kẹt «chờ WASM»:** ngủ AudioContext khi `Transcriber.load` (tránh pthread + audio thread treo Chrome); timeout khởi tạo 28s rồi ghi bằng Cloud STT/Web Speech; bỏ fallback jsDelivr (pthread = số CPU).
