@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.175] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp kẹt khởi tạo / không ra chữ:** bỏ EQ Web Audio làm worklet mất sample; cửa RMS đo **sau** AGC (giọng xa không bị bỏ); hiện % mic khi chưa chốt câu; không mở lại micro khi đã có tiếng (tránh kẹt WASM). Lọc câu bịa giữ.
+
 ## [0.55.174] - 2026-09-09
 ### Cải tiến
 - **Cuộc họp nghe phòng xa hơn:** AGC phần mềm + VAD 0,38 (trước 0,6) + cửa RMS 0,0035 (trước 0,012); tắt khử ồn Chrome (vẫn chống vọng); nhấn dải giọng. Lọc câu bịa (subscribe / im lặng số) giữ. Không giả beamforming trên 1 mic laptop.

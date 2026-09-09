@@ -180,8 +180,8 @@
     max_tokens_per_second: "13.0",
     vad_threshold: "0.38",
   };
-  // Cửa RMS thô (trước AGC): 0.012 cũ = phải nói sát mic. 0.0035 = giọng phòng họp.
-  var SPEECH_PEAK_MIN = 0.0035;
+  // Cửa RMS sau AGC: im lặng số không boost nên < 0.01; giọng xa được kéo lên thì qua cửa.
+  var SPEECH_PEAK_MIN = 0.01;
   var AGC_TARGET_RMS = 0.07;
   var AGC_MAX_GAIN = 10;
   var AGC_SILENCE_RMS = 0.001;
@@ -571,21 +571,6 @@
     return out;
   }
 
-  /** High-pass + nhấn dải giọng (300 Hz-3 kHz). Không phải beamforming. */
-  function wireSpeechEmphasis(ctx) {
-    var hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 85;
-    hp.Q.value = 0.7;
-    var peak = ctx.createBiquadFilter();
-    peak.type = "peaking";
-    peak.frequency.value = 1200;
-    peak.Q.value = 0.85;
-    peak.gain.value = 5;
-    hp.connect(peak);
-    return { hp: hp, peak: peak, input: hp, output: peak };
-  }
-
   /** Câu ảo giác phổ biến khi VI model “nghe” im/nhiễu (YouTube outro…). */
   function isMoonshineHallucinationText(text) {
     var t = String(text || "")
@@ -613,10 +598,43 @@
       clearTimeout(state._moonshineSilenceTimer);
       state._moonshineSilenceTimer = null;
     }
+    if (state._moonshineLevelTimer) {
+      clearInterval(state._moonshineLevelTimer);
+      state._moonshineLevelTimer = null;
+    }
+  }
+
+  function startMoonshineMicLevelPulse(root) {
+    if (state._moonshineLevelTimer) {
+      clearInterval(state._moonshineLevelTimer);
+      state._moonshineLevelTimer = null;
+    }
+    state._moonshineLevelTimer = setInterval(function () {
+      if (!state.running || state.abortRequested || state.sttEngine !== "moonshine") return;
+      if ((state.lines || 0) > 0 || (state._lastPartialAt || 0) > 0) return;
+      var cap = state._moonshineCapture;
+      if (!cap || !cap.running) return;
+      var pct = Math.min(100, Math.round((cap.peakRms || 0) * 2500));
+      var label = langLabel(meetingLang());
+      if ((cap.chunks || 0) < 8) {
+        setStatus(root, "Đang ghi (Moonshine · " + label + ") — chờ tín hiệu micro…");
+        return;
+      }
+      setStatus(
+        root,
+        "Đang ghi (Moonshine · " +
+          label +
+          ") · mic " +
+          pct +
+          "% — nói rõ, chờ chốt câu.",
+        pct > 0 ? "ok" : "err"
+      );
+    }, 900);
   }
 
   function startMoonshineSilenceWatch(root) {
     clearMoonshineSilenceWatch();
+    startMoonshineMicLevelPulse(root);
     state._moonshineSilenceTimer = setTimeout(function () {
       if (!state.running || state.abortRequested || state.sttEngine !== "moonshine") return;
       var cap = state._moonshineCapture;
@@ -626,14 +644,25 @@
         (state._lastPartialAt || 0) > 0 ||
         (state._lastFinalAt || 0) > 0;
       if (hasText) return;
-      if ((cap.peakRms || 0) >= 0.002 && (cap.chunks || 0) > 20) return;
+      var deadMic = (cap.chunks || 0) < 8 || (cap.peakRms || 0) < 0.0008;
+      if (!deadMic) {
+        var pct = Math.min(100, Math.round((cap.peakRms || 0) * 2500));
+        setStatus(
+          root,
+          "Có tiếng micro (" +
+            pct +
+            "%) nhưng chưa chốt câu — nói gần hơn, rõ từng câu. Không mở lại micro để khỏi kẹt khởi tạo.",
+          "err"
+        );
+        return;
+      }
       setStatus(
         root,
         "Moonshine không nhận được tiếng micro (tín hiệu ~0). Đang mở lại micro…",
         "err"
       );
       recoverSttSession(root, "silence");
-    }, 5500);
+    }, 6500);
   }
 
   /**
@@ -855,14 +884,19 @@
 
     var onChunk = function (chunk) {
       if (!cap.running || !cap.moonStream || !chunk || !chunk.length) return;
-      var sum = 0;
+      var rawSum = 0;
       var n = chunk.length;
-      for (var i = 0; i < n; i++) sum += chunk[i] * chunk[i];
-      var rms = Math.sqrt(sum / Math.max(1, n));
-      if (rms > (cap.peakRms || 0)) cap.peakRms = rms;
+      var i;
+      for (i = 0; i < n; i++) rawSum += chunk[i] * chunk[i];
+      var rawRms = Math.sqrt(rawSum / Math.max(1, n));
+      if (rawRms > (cap.peakRms || 0)) cap.peakRms = rawRms;
+      var boosted = moonshineAgcChunk(chunk, cap);
+      var sum = 0;
+      var bn = boosted.length;
+      for (i = 0; i < bn; i++) sum += boosted[i] * boosted[i];
+      var rms = Math.sqrt(sum / Math.max(1, bn));
       if (rms > (cap.lineSpeechPeak || 0)) cap.lineSpeechPeak = rms;
       cap.chunks = (cap.chunks || 0) + 1;
-      var boosted = moonshineAgcChunk(chunk, cap);
       var resampled = moonshineResampleTo16k(boosted, inputRate);
       try {
         cap.moonStream.addAudio(resampled, 16000);
@@ -872,39 +906,53 @@
       }
     };
 
-    // Giữ graph sống bằng Gain=0 — KHÔNG đổ mic ra loa (tránh feedback + ảo giác).
+    // Mic → worklet trực tiếp. EQ Web Audio (0.55.174) làm một số máy không ra sample.
+    // AGC phần mềm trong onChunk. Gain=0 giữ graph sống, không đổ mic ra loa.
     cap.silentGain = cap.audioContext.createGain();
     cap.silentGain.gain.value = 0;
-    var emph = wireSpeechEmphasis(cap.audioContext);
-    cap.hpFilter = emph.hp;
-    cap.voiceFilter = emph.peak;
+    cap.hpFilter = null;
+    cap.voiceFilter = null;
 
+    var wired = false;
     if (cap.audioContext.audioWorklet) {
-      var url = URL.createObjectURL(
-        new Blob([MOONSHINE_CAPTURE_WORKLET], { type: "application/javascript" })
-      );
       try {
-        await cap.audioContext.audioWorklet.addModule(url);
-      } finally {
-        try {
-          URL.revokeObjectURL(url);
-        } catch (eUrl) {}
+        if (!cap.audioContext._javisMoonshineWorklet) {
+          var url = URL.createObjectURL(
+            new Blob([MOONSHINE_CAPTURE_WORKLET], { type: "application/javascript" })
+          );
+          try {
+            await cap.audioContext.audioWorklet.addModule(url);
+            cap.audioContext._javisMoonshineWorklet = true;
+          } finally {
+            try {
+              URL.revokeObjectURL(url);
+            } catch (eUrl) {}
+          }
+        }
+        cap.workletNode = new AudioWorkletNode(cap.audioContext, "javis-moonshine-capture", {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+          channelCountMode: "explicit",
+        });
+        cap.workletNode.port.onmessage = function (ev) {
+          onChunk(ev.data);
+        };
+        cap.sourceNode.connect(cap.workletNode);
+        cap.workletNode.connect(cap.silentGain);
+        cap.silentGain.connect(cap.audioContext.destination);
+        wired = true;
+      } catch (eWorklet) {
+        cap.workletNode = null;
       }
-      cap.workletNode = new AudioWorkletNode(cap.audioContext, "javis-moonshine-capture");
-      cap.workletNode.port.onmessage = function (ev) {
-        onChunk(ev.data);
-      };
-      cap.sourceNode.connect(emph.input);
-      emph.output.connect(cap.workletNode);
-      cap.workletNode.connect(cap.silentGain);
-      cap.silentGain.connect(cap.audioContext.destination);
-    } else {
+    }
+    if (!wired) {
       cap.scriptNode = cap.audioContext.createScriptProcessor(4096, 1, 1);
       cap.scriptNode.onaudioprocess = function (ev) {
         onChunk(new Float32Array(ev.inputBuffer.getChannelData(0)));
       };
-      cap.sourceNode.connect(emph.input);
-      emph.output.connect(cap.scriptNode);
+      cap.sourceNode.connect(cap.scriptNode);
       cap.scriptNode.connect(cap.silentGain);
       cap.silentGain.connect(cap.audioContext.destination);
     }
@@ -2300,7 +2348,11 @@
       state.moonshineMod
     ) {
       setStatus(root, "Bật lại micro (Moonshine đã sẵn)…");
-      await bindMoonshineCapture(root, state.moonshineTranscriber);
+      await promiseTimeout(
+        bindMoonshineCapture(root, state.moonshineTranscriber),
+        20000,
+        "Gắn micro treo. Tải lại trang (Ctrl+F5) rồi Bắt đầu."
+      );
       state.mic = null;
       state.sttEngine = "moonshine";
       setStatus(root, "Đang ghi (Moonshine · " + label + "). Nói rõ từng câu.", "ok");
@@ -2315,10 +2367,12 @@
       var sec = Math.round((Date.now() - startedAt) / 1000);
       if (phase === "download" && phaseDetail) {
         setStatus(root, phaseDetail + " · " + sec + "s");
+      } else if (phase === "bind") {
+        setStatus(root, "Gắn micro vào nhận dạng (" + label + ")… " + sec + "s");
       } else if (phase === "init") {
         setStatus(
           root,
-          "Khởi tạo nhận dạng (" + label + ") — không tải lại model… " + sec + "s"
+          "Đang mở engine nhận dạng (" + label + ") — chờ WASM… " + sec + "s"
         );
       } else if (phase === "download") {
         setStatus(root, (phaseDetail || "Đang lấy model…") + " · " + sec + "s");
@@ -2399,10 +2453,7 @@
       }
 
       phase = "init";
-      setStatus(
-        root,
-        "Khởi tạo nhận dạng (" + label + ") — model đã có, gắn micro…"
-      );
+      setStatus(root, "Đang mở engine nhận dạng (" + label + ") — chờ WASM…");
       if (!(fileMap && typeof mod.Transcriber.load === "function")) {
         throw new Error("Thiếu model local Moonshine (" + label + ") trên máy chủ.");
       }
@@ -2428,7 +2479,13 @@
         state.moonshineMod = mod;
       }
       resumeAllAudioContexts();
-      await bindMoonshineCapture(root, transcriber);
+      phase = "bind";
+      setStatus(root, "Gắn micro vào nhận dạng (" + label + ")…");
+      await promiseTimeout(
+        bindMoonshineCapture(root, transcriber),
+        20000,
+        "Gắn micro treo. Tải lại trang (Ctrl+F5) rồi Bắt đầu."
+      );
     } catch (e) {
       try {
         await teardownMoonshineCapture(false);
