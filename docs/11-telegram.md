@@ -143,7 +143,7 @@ Vài điều nên biết:
 - **Việc có tác động ra ngoài thì Javis hỏi lại trước.** Gửi tin, đăng bài, đặt lịch, tiêu tiền, sửa file: Javis mở đầu bằng một dòng "Em nghe: ..." rồi chờ bạn xác nhận.
 - **File ghi âm không được lưu vào brain.** Javis nghe xong lấy chữ, không để lại file `.ogg` trong `inbox/`.
 - Gửi tin thoại kèm caption `/notes` vẫn chạy đúng lệnh, với nội dung là câu bạn vừa nói.
-- Nghe không ra chữ (im lặng, quá ồn) hay API lỗi thì bot nhờ bạn gõ chữ và nói chỗ nghe giọng đang trục trặc. Không đọc nguyên văn lỗi Google (model cũ `gemini-2.5-flash` đã tắt — Javis tự đổi sang `gemini-3.6-flash`). Không có ngả nào im lặng.
+- Nghe không ra chữ (im lặng, quá ồn) hay API lỗi thì bot nhờ bạn gõ chữ và nói chỗ nghe giọng đang trục trặc. Không đọc nguyên văn lỗi Google (model cũ `gemini-2.5-flash` đã tắt; Javis tự đổi sang `gemini-3.6-flash`). Không có ngả nào im lặng.
 
 Kênh Zalo cũng nghe được tin thoại, dùng **chung một key Groq** - đấu một lần là hai kênh cùng chạy. Xem [Kênh Zalo Bot](26-kenh-zalo-bot.md).
 

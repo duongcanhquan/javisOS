@@ -335,7 +335,7 @@ Các bước:
 3. Bấm **▶ Nghe thử** để nghe một câu chào mẫu bằng giọng vừa chọn.
 4. "Ngôn ngữ nghe" là ngôn ngữ Javis dùng để nhận diện lời bạn nói, khác với giọng đọc trả lời. Để mặc định Tiếng Việt trừ khi bạn quen nói tiếng Anh.
 
-**Độ chính xác:** Mic trên dashboard mặc định **Web Speech** (trình duyệt, không cần key). Cloud STT (Gemini ưu tiên) chỉ khi bạn chọn chế độ whisper/auto và đã có key ở Models. **Cuộc họp:** Moonshine local trước; mix **mic phòng + tiếng máy** (Zoom/Meet — chọn tab/toàn màn hình và bật chia sẻ âm thanh). Không chia sẻ thì mic tắt chống vọng để bắt loa analog. AGC mạnh cho giọng xa; lọc câu bịa giữ. Cloud STT Gemini không xen vào khi Moonshine đang chạy.
+**Độ chính xác:** Mic trên dashboard mặc định **Web Speech** (trình duyệt, không cần key). Cloud STT (Gemini ưu tiên) chỉ khi bạn chọn chế độ whisper/auto và đã có key ở Models. **Cuộc họp:** Moonshine local trước; mix **mic phòng + tiếng máy** (Zoom/Meet: chọn tab/toàn màn hình và bật chia sẻ âm thanh). Không chia sẻ thì mic tắt chống vọng để bắt loa analog. AGC mạnh cho giọng xa; lọc câu bịa giữ. Cloud STT Gemini không xen vào khi Moonshine đang chạy.
 
 Mọi lựa chọn giọng, tốc độ, ngôn ngữ nghe đều được ghi nhớ cho lần sau.
 
