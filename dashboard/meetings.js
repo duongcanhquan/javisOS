@@ -121,27 +121,28 @@
   var MOONSHINE_LANG = {
     // identify_speakers=false: không kéo model diarization từ CDN (hay treo / 404 local).
     // VI/CJK: max_tokens_per_second=13 theo tài liệu Moonshine (chặn vòng lặp ảo giác).
+    // vad_threshold 0.38: phòng họp ~0,5 m; 0.6 cũ nuốt giọng xa.
     vi: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.6",
+        vad_threshold: "0.38",
       },
       label: "Tiếng Việt",
     },
     en: {
       arch: "Base",
-      opts: { identify_speakers: "false", vad_threshold: "0.55" },
+      opts: { identify_speakers: "false", vad_threshold: "0.38" },
       label: "English",
     },
-    es: { arch: "Base", opts: { identify_speakers: "false" }, label: "Español" },
+    es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.38" }, label: "Español" },
     zh: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.6",
+        vad_threshold: "0.38",
       },
       label: "中文",
     },
@@ -150,7 +151,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.6",
+        vad_threshold: "0.38",
       },
       label: "日本語",
     },
@@ -159,7 +160,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.6",
+        vad_threshold: "0.38",
       },
       label: "한국어",
     },
@@ -168,17 +169,22 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.6",
+        vad_threshold: "0.38",
       },
       label: "العربية",
     },
-    uk: { arch: "Base", opts: { identify_speakers: "false" }, label: "Українська" },
+    uk: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.38" }, label: "Українська" },
   };
   var MOONSHINE_VI_OPTS_LITE = {
     identify_speakers: "false",
     max_tokens_per_second: "13.0",
-    vad_threshold: "0.6",
+    vad_threshold: "0.38",
   };
+  // Cửa RMS thô (trước AGC): 0.012 cũ = phải nói sát mic. 0.0035 = giọng phòng họp.
+  var SPEECH_PEAK_MIN = 0.0035;
+  var AGC_TARGET_RMS = 0.07;
+  var AGC_MAX_GAIN = 10;
+  var AGC_SILENCE_RMS = 0.001;
   // Kích thước tối thiểu (byte) — chặn cache/HTML lỗi khiến load “ok” nhưng không ra chữ.
   var MOONSHINE_MIN_BYTES = {
     "encoder_model.ort": 5 * 1024 * 1024,
@@ -361,14 +367,7 @@
   }
 
   function micConstraints() {
-    return {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-    };
+    return { audio: moonshineMicConstraints() };
   }
 
   async function tryStartCloudStt(root, micPromise) {
@@ -528,13 +527,63 @@
     "this.port.postMessage(downmixToMono(input));}return true;}}" +
     "registerProcessor('javis-moonshine-capture',MoonshineCaptureProcessor);";
 
-  /** Constraint gần mặc định MicTranscriber — AEC/NS bật để tránh mic nghe lại loa / ảo giác. */
+  /**
+   * Mic phòng họp: AEC giữ (loa Javis không vào transcript), AGC bật.
+   * Tắt noiseSuppression: Chrome NS nuốt giọng 0,5 m. Không ép mono
+   * để Windows/macOS còn dùng dàn mic sẵn (beamforming phần cứng nếu máy có).
+   * Không ép một kênh: trình duyệt mới mix stereo/array. Beamforming mềm trên 1 mic
+   * laptop không làm được vì không có từng kênh mảng.
+   */
   function moonshineMicConstraints() {
     return {
       echoCancellation: true,
-      noiseSuppression: true,
+      noiseSuppression: false,
       autoGainControl: true,
+      googEchoCancellation: true,
+      googAutoGainControl: true,
+      googNoiseSuppression: false,
     };
+  }
+
+  /** Khuếch đại tự động từng khối PCM. Không boost khi RMS ~ im lặng số (tránh khuếch ồn thành chữ bịa). */
+  function moonshineAgcChunk(chunk, cap) {
+    if (!chunk || !chunk.length) return chunk;
+    var n = chunk.length;
+    var sum = 0;
+    var i;
+    for (i = 0; i < n; i++) sum += chunk[i] * chunk[i];
+    var rms = Math.sqrt(sum / n);
+    cap.agcRms = cap.agcRms == null ? rms : cap.agcRms * 0.82 + rms * 0.18;
+    var want = 1;
+    if (cap.agcRms > AGC_SILENCE_RMS) {
+      want = AGC_TARGET_RMS / cap.agcRms;
+      if (want < 1) want = 1;
+      if (want > AGC_MAX_GAIN) want = AGC_MAX_GAIN;
+    }
+    cap.agcGain = cap.agcGain == null ? want : cap.agcGain * 0.65 + want * 0.35;
+    if (cap.agcGain < 1.04) return chunk;
+    var out = new Float32Array(n);
+    var g = cap.agcGain;
+    for (i = 0; i < n; i++) {
+      var x = chunk[i] * g;
+      out[i] = x > 0.98 ? 0.98 : x < -0.98 ? -0.98 : x;
+    }
+    return out;
+  }
+
+  /** High-pass + nhấn dải giọng (300 Hz-3 kHz). Không phải beamforming. */
+  function wireSpeechEmphasis(ctx) {
+    var hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 85;
+    hp.Q.value = 0.7;
+    var peak = ctx.createBiquadFilter();
+    peak.type = "peaking";
+    peak.frequency.value = 1200;
+    peak.Q.value = 0.85;
+    peak.gain.value = 5;
+    hp.connect(peak);
+    return { hp: hp, peak: peak, input: hp, output: peak };
   }
 
   /** Câu ảo giác phổ biến khi VI model “nghe” im/nhiễu (YouTube outro…). */
@@ -645,6 +694,8 @@
       peakRms: 0,
       chunks: 0,
       lineSpeechPeak: 0,
+      agcRms: 0,
+      agcGain: 1,
     };
     return state._moonshineCapture;
   }
@@ -661,6 +712,12 @@
     try {
       if (cap.scriptNode) cap.scriptNode.disconnect();
     } catch (e2) {}
+    try {
+      if (cap.voiceFilter) cap.voiceFilter.disconnect();
+    } catch (e2c) {}
+    try {
+      if (cap.hpFilter) cap.hpFilter.disconnect();
+    } catch (e2d) {}
     try {
       if (cap.silentGain) cap.silentGain.disconnect();
     } catch (e2b) {}
@@ -712,6 +769,12 @@
       if (cap.scriptNode) cap.scriptNode.disconnect();
     } catch (e2) {}
     try {
+      if (cap.voiceFilter) cap.voiceFilter.disconnect();
+    } catch (e2c) {}
+    try {
+      if (cap.hpFilter) cap.hpFilter.disconnect();
+    } catch (e2d) {}
+    try {
       if (cap.silentGain) cap.silentGain.disconnect();
     } catch (e2b) {}
     try {
@@ -726,11 +789,15 @@
     cap.workletNode = null;
     cap.scriptNode = null;
     cap.silentGain = null;
+    cap.hpFilter = null;
+    cap.voiceFilter = null;
     cap.sourceNode = null;
     cap.moonStream = null;
     cap.peakRms = 0;
     cap.chunks = 0;
     cap.lineSpeechPeak = 0;
+    cap.agcRms = 0;
+    cap.agcGain = 1;
 
     var moonStream = transcriber.createStream({});
     moonStream.addListener({
@@ -742,7 +809,7 @@
           return;
         }
         // Partial khi chưa có năng lượng giọng đáng kể → bỏ (tránh chữ ảo khi im).
-        if ((cap.lineSpeechPeak || 0) < 0.012) {
+        if ((cap.lineSpeechPeak || 0) < SPEECH_PEAK_MIN) {
           setPartial(root, "");
           return;
         }
@@ -762,7 +829,7 @@
           return;
         }
         // Không ghi dòng khi gần như không có tiếng nói (model VI hay bịa khi im/nhiễu).
-        if (speechPeak < 0.012) {
+        if (speechPeak < SPEECH_PEAK_MIN) {
           setPartial(root, "");
           return;
         }
@@ -795,7 +862,8 @@
       if (rms > (cap.peakRms || 0)) cap.peakRms = rms;
       if (rms > (cap.lineSpeechPeak || 0)) cap.lineSpeechPeak = rms;
       cap.chunks = (cap.chunks || 0) + 1;
-      var resampled = moonshineResampleTo16k(chunk, inputRate);
+      var boosted = moonshineAgcChunk(chunk, cap);
+      var resampled = moonshineResampleTo16k(boosted, inputRate);
       try {
         cap.moonStream.addAudio(resampled, 16000);
         cap.moonStream.transcribe();
@@ -807,6 +875,9 @@
     // Giữ graph sống bằng Gain=0 — KHÔNG đổ mic ra loa (tránh feedback + ảo giác).
     cap.silentGain = cap.audioContext.createGain();
     cap.silentGain.gain.value = 0;
+    var emph = wireSpeechEmphasis(cap.audioContext);
+    cap.hpFilter = emph.hp;
+    cap.voiceFilter = emph.peak;
 
     if (cap.audioContext.audioWorklet) {
       var url = URL.createObjectURL(
@@ -823,7 +894,8 @@
       cap.workletNode.port.onmessage = function (ev) {
         onChunk(ev.data);
       };
-      cap.sourceNode.connect(cap.workletNode);
+      cap.sourceNode.connect(emph.input);
+      emph.output.connect(cap.workletNode);
       cap.workletNode.connect(cap.silentGain);
       cap.silentGain.connect(cap.audioContext.destination);
     } else {
@@ -831,7 +903,8 @@
       cap.scriptNode.onaudioprocess = function (ev) {
         onChunk(new Float32Array(ev.inputBuffer.getChannelData(0)));
       };
-      cap.sourceNode.connect(cap.scriptNode);
+      cap.sourceNode.connect(emph.input);
+      emph.output.connect(cap.scriptNode);
       cap.scriptNode.connect(cap.silentGain);
       cap.silentGain.connect(cap.audioContext.destination);
     }
@@ -1385,7 +1458,7 @@
         baseline = Math.max(baseline, rms);
         return;
       }
-      var thresh = Math.max(0.028, baseline * 1.8 + 0.012);
+      var thresh = Math.max(0.012, baseline * 1.55 + 0.006);
       if (rms > thresh) {
         w.speechSeen = true;
         silentTicks = 0;

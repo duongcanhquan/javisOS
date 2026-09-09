@@ -4,6 +4,9 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.174] - 2026-09-09
+### Cải tiến
+- **Cuộc họp nghe phòng xa hơn:** AGC phần mềm + VAD 0,38 (trước 0,6) + cửa RMS 0,0035 (trước 0,012); tắt khử ồn Chrome (vẫn chống vọng); nhấn dải giọng. Lọc câu bịa (subscribe / im lặng số) giữ. Không giả beamforming trên 1 mic laptop.
 ## [0.55.173] - 2026-09-09
 ### Cải tiến
 - **Tạo video tận dụng đủ pipeline:** thêm tab HTML kinetic (Ommi); Promo dùng đủ mode/shot card/beat-sync/Jianying; Collage có theme+arc+TTS; Remotion data/maps/caption; chip năng lực + CTA/brand trên form.
