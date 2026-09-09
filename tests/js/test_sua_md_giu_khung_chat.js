@@ -28,7 +28,7 @@ check("tìm thấy _injectChatCss", a !== -1 && b > a);
 
 // ---- 1. Bố cục desktop: trình sửa trái, HỘI THOẠI cột phải, Ô NHẬP trải dài dưới ----
 check("edit-on desktop chuyển sang grid 2 cột (trình sửa + cột hội thoại phải)",
-  /\.chatpage-main\.edit-on\{ display:grid;[\s\S]{0,160}grid-template-columns:minmax\(0,1fr\) 340px/.test(CSS));
+  /\.chatpage-main\.edit-on\{ display:grid;[\s\S]{0,160}grid-template-columns:minmax\(0,1fr\) 476px/.test(CSS));
 check("trình sửa nằm cột TRÁI", CSS.indexOf(".chatpage-main.edit-on > .chatpage-edit{ grid-row:2; grid-column:1") !== -1);
 check("slot tan vào lưới (display:contents) để từng con nhận ô riêng",
   CSS.indexOf(".chatpage-main.edit-on > .chatpage-slot{ display:contents; }") !== -1);

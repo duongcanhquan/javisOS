@@ -6426,9 +6426,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
          nên chật cứng - chủ chỉnh lại: y như màn Javis, các thanh đó phải TRẢI DÀI TOÀN BỀ
          RỘNG dưới cùng (ở màn Javis chúng nằm NGOÀI .hud-body, vắt ngang đáy), chỉ có
          HỘI THOẠI đứng cột phải. Slot tan vào lưới bằng display:contents để từng con của
-         nó tự nhận ô grid riêng. */
+         nó tự nhận ô grid riêng. Cột hội thoại 476px khớp màn Javis (340×1,4). */
       .chatpage-main.edit-on{ display:grid; column-gap:14px;
-        grid-template-columns:minmax(0,1fr) 340px;
+        grid-template-columns:minmax(0,1fr) 476px;
         grid-template-rows:auto minmax(0,1fr) auto auto auto auto; }
       .chatpage-main.edit-on > .chatpage-bar{ grid-row:1; grid-column:1 / -1; }
       .chatpage-main.edit-on > .chatpage-edit{ grid-row:2; grid-column:1; min-width:0; }

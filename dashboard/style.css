@@ -458,18 +458,26 @@ body {
 .hud-body {
   display: grid;
   /* minmax(0, 1fr) rất quan trọng: canvas và chuỗi tool dài không được dùng min-content
-     để nới cột giữa rồi đẩy khung hội thoại ra ngoài viewport. */
-  grid-template-columns: 260px minmax(0, 1fr) 340px;
+     để nới cột giữa rồi đẩy khung hội thoại ra ngoài viewport.
+     Cột phải 476px = 340 × 1,4 (nới ~40% bề ngang hội thoại). */
+  grid-template-columns: 260px minmax(0, 1fr) 476px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   transition: grid-template-columns 0.2s ease;
 }
+/* Màn desktop hẹp: 260+476 làm cột giữa xẹp quá (dưới ~1100px). Giữ chat rộng hơn 340 cũ. */
+@media (max-width: 1100px) {
+  .hud-body { grid-template-columns: 260px minmax(0, 1fr) 380px; }
+}
 /* Vault thu gọn: cột trái còn dải icon, hội thoại bên phải rộng thêm.
    Chỉ áp khi .hud-left còn trong .hud-body (màn home) - lúc mượn sang chat sidebar thì không thu. */
 body.vault-collapsed .hud-body {
-  /* Vault hẹp; cột chat lấy phần còn lại (không kẹp 440px). */
-  grid-template-columns: 44px minmax(0, 1fr) minmax(500px, 1.3fr);
+  /* Vault hẹp; cột chat lấy phần còn lại (không kẹp 440px). Sàn 560 ≈ 500×1,12; 1.55fr nới thêm. */
+  grid-template-columns: 44px minmax(0, 1fr) minmax(560px, 1.55fr);
+}
+@media (max-width: 1100px) {
+  body.vault-collapsed .hud-body { grid-template-columns: 44px minmax(0, 1fr) minmax(420px, 1.3fr); }
 }
 body.vault-collapsed .hud-body > .hud-left .vault-body,
 body.vault-collapsed .hud-body > .hud-left .vault-tools,
@@ -516,8 +524,11 @@ body.vault-collapsed .hud-body > .hud-left .vault-toggle {
    Trò chuyện mượn đúng node này (nằm trong .cside-pane) và ở đó không có gì để thu -
    selector con trực tiếp giữ cho trạng thái thu không đi lạc theo node. */
 .vault-expand { display: none; }
-/* Vault thu: cột hội thoại ~1.5× bề ngang lúc thu (320→480) để tận dụng chỗ trống. */
-body.vault-thu .hud-body { grid-template-columns: 44px minmax(0, 1fr) 560px; }
+/* Vault thu: cột hội thoại ~1.5× bề ngang mặc định (476→714). */
+body.vault-thu .hud-body { grid-template-columns: 44px minmax(0, 1fr) 714px; }
+@media (max-width: 1100px) {
+  body.vault-thu .hud-body { grid-template-columns: 44px minmax(0, 1fr) 480px; }
+}
 body.vault-thu .hud-body > .hud-left { padding: 12px 6px; align-items: center; overflow: hidden; }
 body.vault-thu .hud-body > .hud-left > :not(.vault-expand) { display: none; }
 body.vault-thu .hud-body > .hud-left > .vault-expand {
