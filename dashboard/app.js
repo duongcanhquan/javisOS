@@ -236,7 +236,7 @@ function handleMessage(data) {
   if (data.type === "status") {
     if (t) t.running = true;
     setSessionRunning(sid, true);
-    if (isActive) { setOrbState("thinking", "ĐANG SUY NGHĨ"); showActivity(escapeHtml(data.content || "")); syncActiveUI(); }
+    if (isActive) { setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO"); showActivity(escapeHtml(data.content || "")); syncActiveUI(); }
   } else if (data.type === "tool_call") {
     if (data.tool) trackMCP(data.tool);
     if (isActive) showActivity(escapeHtml(data.content || ""));
@@ -391,7 +391,7 @@ function sendMessage(text) {
   clearAttachments();
   turns[sid] = { text: "", bubble: null, spoke: false, running: true, waitFiller: false };
   setSessionRunning(sid, true);
-  setOrbState("thinking", "ĐANG SUY NGHĨ");
+  setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
   // Chip chờ hiện ngay. KHÔNG đọc filler bằng TTS — đọc rồi cắt khi chữ thật tới
   // làm chậm và không tự nhiên. Loa chỉ nói nội dung trả lời (stream).
   const waitLine = "Cho em chút thời gian để trả lời.";
@@ -607,7 +607,7 @@ async function openStoredSession(id) {
       t.bubble = createStreamingBubble();
       if (t.text) t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
       showActivity(Icons.msg("pen-line", "Đang soạn câu trả lời..."));
-      setOrbState("thinking", "ĐANG SUY NGHĨ");
+      setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
     }
     // Phiên này đang chờ gói thuê bao mở lại hạn mức → gắn thẻ "tự chạy lại" dưới tin cuối.
     try { if (window.JavisResume) window.JavisResume.renderFor(id); } catch (e) {}

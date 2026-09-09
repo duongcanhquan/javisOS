@@ -374,7 +374,7 @@ Dòng chữ ngay dưới quả cầu cho biết Javis đang làm gì:
 | SẴN SÀNG | Đang nghỉ, chờ bạn |
 | ĐANG NGHE | Đang nghe bạn nói (giữ phím Cách) |
 | ĐANG NGHE • LUÔN | Chế độ rảnh tay đang bật |
-| ĐANG SUY NGHĨ | Bộ não đang xử lý câu hỏi |
+| KÍCH HOẠT SUY NGHĨ NÃO | Bộ não đang xử lý câu hỏi |
 | ĐANG NÓI | Javis đang đọc câu trả lời |
 
 ## Bảng tra nhanh nút và phím tắt

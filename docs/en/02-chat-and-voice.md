@@ -372,7 +372,7 @@ The line under the globe says what Javis is doing:
 | READY | Idle, waiting for you |
 | LISTENING | Listening to you (Space held) |
 | LISTENING • ALWAYS | Hands-free mode is on |
-| THINKING | The brain is processing the question |
+| ACTIVATE BRAIN THINKING | The brain is processing the question |
 | SPEAKING | Javis is reading the answer aloud |
 
 ## Quick reference: buttons and shortcuts

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.183] - 2026-09-09
+### Cải tiến
+- **Nhãn não khi đang xử lý:** dòng chữ dưới đồ thị đổi từ «ĐANG SUY NGHĨ» thành «KÍCH HOẠT SUY NGHĨ NÃO».
+
 ## [0.55.182] - 2026-09-09
 ### Cải tiến
 - **Cuộc họp ghi đủ giọng phòng, loa máy, giọng xa:** mix mic + tiếng Zoom/Meet (chia sẻ tab/màn hình kèm âm thanh). Có loopback thì AEC trên mic (tránh ghi đôi); không có thì AEC tắt để bắt loa analog. VAD 0.28, AGC boost ×16 / hạ khi mix to, cửa RMS 0.006. Hủy chia sẻ không hỏi lại; thiếu tiếng máy / mix lỗi thì tắt AEC trên mic.

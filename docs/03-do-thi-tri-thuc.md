@@ -130,7 +130,7 @@ Nếu kết nối theo dõi bị ngắt, Javis tự nối lại. Một lần qu�
 ## Phản ứng theo giọng nói và trạng thái
 
 - Khi bạn nói hoặc Javis đọc câu trả lời, các node phồng nhẹ theo mức âm lượng.
-- Khi Javis chuyển sang **ĐANG SUY NGHĨ**, mạng đổi nhịp.
+- Khi Javis chuyển sang **KÍCH HOẠT SUY NGHĨ NÃO**, mạng đổi nhịp.
 - Khi nghỉ, các node thở nhẹ với pha lệch nhau.
 
 ## Đồ thị được dựng ra sao

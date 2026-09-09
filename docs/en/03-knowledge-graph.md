@@ -130,7 +130,7 @@ If the watch connection drops, Javis reconnects. A periodic scan also catches an
 ## Reacting to voice and status
 
 - While you speak or Javis reads an answer, nodes swell slightly with the volume.
-- When Javis switches to **THINKING**, the network changes rhythm.
+- When Javis switches to **ACTIVATE BRAIN THINKING**, the network changes rhythm.
 - At rest, nodes breathe gently with offset phases.
 
 ## How the graph is built
