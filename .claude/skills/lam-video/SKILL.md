@@ -10,7 +10,8 @@ group: Nội dung
 ## Khi nào dùng
 
 User muốn làm video / short / explainer / quảng cáo / Remotion / collage Vox / paperdesign /
-OmmiStudio / html-video / motion graphics. Dùng skill này TRƯỚC khi nhảy vào một pipeline cụ thể.
+postcard / shotcraft / OmmiStudio / html-video / motion graphics. Dùng skill này TRƯỚC khi nhảy
+vào một pipeline cụ thể.
 
 ## Chuẩn bị
 

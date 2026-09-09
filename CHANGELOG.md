@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.168] - 2026-09-09
+### Cải tiến
+- **Postcard video:** skill hệ thống `postcard-video` (bọc video-shotcraft/Remotion) gắn vào catalog Làm video; clone upstream khi cần, độ dài khuyến nghị 15-45s.
+
 ## [0.55.167] - 2026-09-09
 ### Sửa lỗi
 - **Mac bị chặn file .command Kho Drive:** dùng lệnh dán vào Terminal (`curl | bash`) thay vì tải file, tránh cảnh báo Gatekeeper của Apple.
