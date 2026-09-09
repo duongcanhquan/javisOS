@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.171] - 2026-09-09
+### Sửa lỗi
+- **CI trang Tạo video:** sửa lỗi cú pháp chuỗi trong `video.js` và đổi placeholder `VD:` → `Ví dụ:` theo quy ước UI.
+
 ## [0.55.170] - 2026-09-09
 ### Cải tiến
 - **Tạo video dễ nhìn hơn:** tab rõ nghĩa (Promo / Có lời đọc / Collage…), form chia mục, giữ nội dung khi đổi tab, nút Tạo video nổi, bớt jargon.

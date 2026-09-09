@@ -15,7 +15,7 @@
       when: "Giới thiệu sản phẩm / app / dịch vụ trên Reels, TikTok, ads.",
       example: "Ra mắt app ghi chú → clip 30 giây dọc màn hình.",
       time: "Thường 15–45 giây",
-      topicPh: "VD: Ra mắt app ghi chú cho học sinh",
+      topicPh: "Ví dụ: Ra mắt app ghi chú cho học sinh",
       needsUrl: true,
       assetsLabel: "Link sản phẩm hoặc ảnh chụp màn hình *",
       assetsHint: "Cần link hoặc ảnh thật để làm đúng giao diện sản phẩm.",
@@ -30,7 +30,7 @@
       when: "Muốn clip giải thích hoặc bán hàng có giọng đọc sẵn (tiếng Việt).",
       example: "Máy lọc nước gia đình → 30 giây có lời thoại.",
       time: "Nhanh nếu máy đã có ChatGPT + ffmpeg",
-      topicPh: "VD: Vì sao nên dùng máy lọc nước",
+      topicPh: "Ví dụ: Vì sao nên dùng máy lọc nước",
       needsUrl: false,
       assetsLabel: "Link / ảnh tham khảo (tuỳ chọn)",
       assetsHint: "",
@@ -45,7 +45,7 @@
       when: "Thích kiểu cắt dán báo / Vox: từng cảnh một poster rồi chuyển động.",
       example: "Lạm phát là gì? → collage ~45 giây có lời kể.",
       time: "Cần key Atlas; nên duyệt kịch bản trước khi render",
-      topicPh: "VD: Lạm phát giải thích ngắn",
+      topicPh: "Ví dụ: Lạm phát giải thích ngắn",
       needsUrl: false,
       assetsLabel: "Ảnh / tài liệu (tuỳ chọn)",
       assetsHint: "",
@@ -60,7 +60,7 @@
       when: "Cần biểu đồ, dashboard, chữ/UI chuyển động mượt.",
       example: "Tăng trưởng quý 3 → biểu đồ chuyển động 20 giây.",
       time: "Cần Node trên máy chạy Javis",
-      topicPh: "VD: Số liệu tăng trưởng quý 3",
+      topicPh: "Ví dụ: Số liệu tăng trưởng quý 3",
       needsUrl: false,
       assetsLabel: "Số liệu / ảnh (tuỳ chọn)",
       assetsHint: "",
@@ -75,7 +75,7 @@
       when: "Chưa chắc kiểu nào - điền đủ ý, Javis chọn đường làm.",
       example: "Giới thiệu quán cà phê → Javis chọn kiểu phù hợp.",
       time: "Tùy kiểu được chọn",
-      topicPh: "VD: Video giới thiệu cửa hàng cà phê",
+      topicPh: "Ví dụ: Video giới thiệu cửa hàng cà phê",
       needsUrl: false,
       assetsLabel: "Link / ảnh (tuỳ chọn)",
       assetsHint: "",
@@ -243,7 +243,7 @@
           cls +
           '"><span class="n">' +
           (i + 1) +
-          "</span><span class="jw-step-lab">' +
+          '</span><span class="jw-step-lab">' +
           esc(s.label) +
           "</span></li>"
         );
@@ -317,9 +317,9 @@
         esc(f.topicPh) +
         '"></div>' +
         '<div class="jw-field"><label for="vidGoals">Mục tiêu *</label>' +
-        '<textarea id="vidGoals" rows="2" placeholder="VD: để mọi người nhớ sản phẩm / muốn thử / hiểu một ý"></textarea></div>' +
+        '<textarea id="vidGoals" rows="2" placeholder="Ví dụ: Để mọi người nhớ sản phẩm / muốn thử / hiểu một ý"></textarea></div>' +
         '<div class="jw-field"><label for="vidAudience">Người xem</label>' +
-        '<input id="vidAudience" type="text" placeholder="VD: phụ huynh, chủ quán, học sinh"></div>' +
+        '<input id="vidAudience" type="text" placeholder="Ví dụ: Phụ huynh, chủ quán, học sinh"></div>' +
         '<p class="jw-sec">2. Hình thức</p>' +
         '<div class="jw-row2">' +
         '<div class="jw-field"><label for="vidDuration">Dài bao lâu *</label>' +
@@ -352,7 +352,7 @@
         '<details class="jw-more">' +
         "<summary>Thêm kịch bản, tone, file (tuỳ chọn)</summary>" +
         '<div class="jw-field"><label for="vidTone">Giọng / cảm xúc</label>' +
-        '<input id="vidTone" type="text" placeholder="VD: ấm áp, sạch sẽ, vui, chuyên nghiệp"></div>' +
+        '<input id="vidTone" type="text" placeholder="Ví dụ: Ấm áp, sạch sẽ, vui, chuyên nghiệp"></div>' +
         '<div class="jw-field"><label for="vidScript">Kịch bản sẵn có</label>' +
         '<textarea id="vidScript" rows="5" placeholder="Có outline hoặc lời thoại thì dán vào. Để trống = Javis viết giúp."></textarea></div>' +
         '<div class="jw-field"><label for="vidFiles">Đính kèm ảnh / logo / file nghe</label>' +

@@ -9,6 +9,16 @@ function check(name, cond) {
 }
 
 const videoJs = fs.readFileSync(path.join(root, "dashboard/video.js"), "utf8");
+
+const { execFileSync } = require("child_process");
+try {
+  execFileSync(process.execPath, ["--check", path.join(root, "dashboard/video.js")], { stdio: "pipe" });
+  check("video.js cú pháp hợp lệ (node --check)", true);
+} catch (e) {
+  check("video.js cú pháp hợp lệ (node --check)", false);
+  console.log("      ", (e.stderr || e.message || "").toString().slice(0, 200));
+}
+
 const consoleJs = fs.readFileSync(path.join(root, "dashboard/console.js"), "utf8");
 const indexHtml = fs.readFileSync(path.join(root, "dashboard/index.html"), "utf8");
 const vi = fs.readFileSync(path.join(root, "dashboard/i18n/vi.json"), "utf8");
