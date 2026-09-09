@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.173] - 2026-09-09
+### Cải tiến
+- **Tạo video tận dụng đủ pipeline:** thêm tab HTML kinetic (Ommi); Promo dùng đủ mode/shot card/beat-sync/Jianying; Collage có theme+arc+TTS; Remotion data/maps/caption; chip năng lực + CTA/brand trên form.
+
 ## [0.55.172] - 2026-09-09
 ### Cải tiến
 - **Tạo video theo từng kiểu:** kéo thời lượng tới 10 phút, chọn số slide/cảnh, thêm yêu cầu riêng (nhạc, giọng đọc, kiểu giấy, đồ họa…) theo từng tab.

@@ -25,16 +25,25 @@ const vi = fs.readFileSync(path.join(root, "dashboard/i18n/vi.json"), "utf8");
 const en = fs.readFileSync(path.join(root, "dashboard/i18n/en.json"), "utf8");
 
 check("video.js export renderTaoVideo", /window\.renderTaoVideo\s*=/.test(videoJs));
-check("video.js có tab Promo / pipeline postcard", /postcard-video/.test(videoJs) && /Promo ngắn/.test(videoJs));
+check(
+  "video.js có tab Promo / pipeline postcard",
+  /postcard-video/.test(videoJs) && /Promo cinematic|Promo ngắn/.test(videoJs)
+);
 check("video.js form chia mục 1/2", /jw-sec/.test(videoJs) && /Bạn muốn nói gì/.test(videoJs));
 check("video.js tab có blurb", /jw-tab-blurb/.test(videoJs));
 check("video.js thanh kéo thời lượng max 10 phút", /type="range"/.test(videoJs) && /MAX_DURATION_SEC\s*=\s*600/.test(videoJs));
-check("video.js có chọn số slide/cảnh", /vidSlides/.test(videoJs) && /Số shot|Số cảnh|Số poster/.test(videoJs));
+check("video.js có chọn số slide/cảnh", /vidSlides/.test(videoJs) && /Số shot|Số cảnh|Số poster|Số beat|Số scene/.test(videoJs));
 check("video.js có yêu cầu theo kiểu", /jw-type-opts/.test(videoJs) && /Yêu cầu/.test(videoJs));
+check("video.js tab html-video / Ommi", /pipeline:\s*"html-video"/.test(videoJs) && /HTML kinetic/.test(videoJs));
+check("video.js shotcraft mode + gallery", /vidShotMode/.test(videoJs) && /vidShotFamily/.test(videoJs) && /157/.test(videoJs));
+check("video.js paperdesign theme + arc", /vidPaperTheme/.test(videoJs) && /vidArc/.test(videoJs));
+check("video.js chips năng lực", /jw-feat-chips/.test(videoJs) && /caps:/.test(videoJs));
+check("video.js CTA + brand", /vidCta/.test(videoJs) && /vidBrand/.test(videoJs));
 check("video.js không em dash", !videoJs.includes("\u2014"));
 
 const css = fs.readFileSync(path.join(root, "dashboard/workbench.css"), "utf8");
 check("workbench.css style range Tạo video", /jw-field-range/.test(css) && /jw-range-val/.test(css));
+check("workbench.css chips + subsec", /jw-feat-chips/.test(css) && /jw-subsec/.test(css));
 check("console rail có id video", /"video"/.test(consoleJs) && /ids: \[.*"video"/.test(consoleJs));
 check("console gọi renderTaoVideo", /renderTaoVideo/.test(consoleJs));
 check("index nạp video.js", /\/static\/video\.js/.test(indexHtml));
