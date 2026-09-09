@@ -8460,7 +8460,7 @@ async def studio_seed_video(brain: str = Form("brain")):
                 "30s → 6-8 beat; 60s → 10-12 beat; tỉ lệ và ngôn ngữ theo brief.\n"
                 "Cuối: nhắc user duyệt beat map trước khi đạo diễn gen (paperdesign tốn Atlas).\n"
                 "Đầu ra: JSON-like hoặc markdown bảng rõ ràng, kèm 1 dòng đề xuất pipeline "
-                "(paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
+                "(postcard-video | pixcelvideo | paperdesign | remotion | html-video | manual) và lý do 1 câu.\n"
                 "Cấm: shot >7s; bịa fact mới ngoài nghiên cứu; em dash."
             ),
         },
@@ -8468,19 +8468,21 @@ async def studio_seed_video(brain: str = Form("brain")):
             "name": "Đạo diễn video",
             "slug": "dao-dien-video",
             "role": "Chọn pipeline tốt nhất rồi điều phối render đúng brief và kịch bản.",
-            "skills": ["lam-video", "paperdesign", "remotion-best-practices", "deep-research"],
+            "skills": ["lam-video", "postcard-video", "paperdesign", "pixcelvideo", "remotion-best-practices", "deep-research"],
             "prompt": (
                 "Bạn là đạo diễn / producer video trên Javis.\n"
                 "Mục tiêu: ra được file mp4 (hoặc Manual prompt-pack) khớp brief đã chốt.\n"
                 "Cổng brief + catalog: đọc lam-video/references/brief-checklist.md và catalog.md. "
                 "Thiếu brief bắt buộc hoặc user chưa duyệt beat (paperdesign) → DỪNG hỏi, không gen Atlas.\n"
                 "Bối cảnh pipeline:\n"
+                "- postcard-video: promo cinematic Remotion (video-shotcraft), 15-45s, SFX/BGM; Node+ffmpeg+ensure-shotcraft.\n"
+                "- pixcelvideo: short ảnh AI + Edge-TTS (javis_render_script_video).\n"
                 "- paperdesign: collage Vox, cần ATLASCLOUD_API_KEY + ffmpeg.\n"
                 "- remotion: video React frame-perfect.\n"
                 "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
                 "- manual: thiếu key/binary thì xuất beat + prompts + VO.\n"
                 "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}} (fact lấy từ deep-research trước đó), "
-                "(2) chọn 1 pipeline và nêu lý do, "
+                "(2) nếu brief đã ghi Pipeline: … thì BẮT BUỘC dùng pipeline đó (thiếu môi trường thì nói rõ + Manual), "
                 "(3) kiểm tra điều kiện môi trường, "
                 "(4) nạp đúng skill pipeline và thực thi (paperdesign: duyệt beat+style rồi scripts), "
                 "(5) trả đường dẫn output hoặc Manual pack.\n"

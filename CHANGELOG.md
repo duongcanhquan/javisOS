@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.169] - 2026-09-09
+### Cải tiến
+- **Trang Tạo video:** menu Công việc → Tạo video (wizard brief + kịch bản + bước chạy). Gộp Postcard / Short+VO / Collage / Remotion, không cần timeline.
+
 ## [0.55.168] - 2026-09-09
 ### Cải tiến
 - **Postcard video:** skill hệ thống `postcard-video` (bọc video-shotcraft/Remotion) gắn vào catalog Làm video; clone upstream khi cần, độ dài khuyến nghị 15-45s.

@@ -36,6 +36,7 @@
     learn: "brain",
     meetings: "mic",
     baigiang: "book-open",
+    video: "play",
     marketing: "megaphone",
     kanban: "square-kanban",
     terminal: "terminal",
@@ -84,7 +85,7 @@
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
     "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
-    "terminal", "selfimprove", "learn", "meetings", "baigiang", "marketing", "kanban", "models", "channels", "mcp", "plugins",
+    "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "channels", "mcp", "plugins",
     "packs", "logs", "account", "usage",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
@@ -101,7 +102,7 @@
     // CHUC_NANG của dashboard/code-term.js.
     { get label() { return t("nav.group.code"); },        icon: GICON["Code"],     ids: ["terminal"] },
     { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
-    { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "marketing", "kanban", "selfimprove"] },
+    { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
     { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models"] },
     { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
   ];
@@ -176,7 +177,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "marketing", "kanban", "models", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -478,6 +479,17 @@
       _pageLeave = () => {
         el.classList.remove("cview-flush");
         if (typeof prevBg === "function") try { prevBg(); } catch (e) {}
+      };
+      return;
+    }
+    if (id === "video") {
+      el.classList.add("cview-flush");
+      if (typeof window.renderTaoVideo === "function") window.renderTaoVideo(el);
+      else el.innerHTML = '<div class="dim">Thiếu video.js</div>';
+      const prevVid = _pageLeave;
+      _pageLeave = () => {
+        el.classList.remove("cview-flush");
+        if (typeof prevVid === "function") try { prevVid(); } catch (e) {}
       };
       return;
     }
