@@ -4,6 +4,11 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.162] - 2026-09-09
+### Cải tiến
+- **Skill OpenMAIC vào image:** đưa `.claude/skills/openmaic` vào repo để brain mới nhận skill lớp học tương tác.
+- **Tài liệu giới thiệu đóng gói:** thêm `docs/gioi-thieu/` (HTML + PDF).
+
 ## [0.55.161] - 2026-09-09
 ### Cải tiến
 - **Hoàn thiện đóng gói:** Hostinger compose đúng file HTTPS; package GHCR `javisos`; Studio không còn bắt buộc; migrate gộp `Javis/agents` → `agents/`; chặn ship agent HTĐT trong code.
