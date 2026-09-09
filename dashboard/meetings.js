@@ -4,8 +4,7 @@
   "use strict";
 
   var CDN = "/static/vendor/moonshine-wasm/dist/index.js";
-  var CDN_FALLBACK =
-    "https://cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm@0.1.5/dist/index.js";
+  // Không fallback jsDelivr: bản CDN không giới hạn pthread → treo loadWasmModuleToAllWorkers.
   // Model Moonshine host sẵn trên VPS (cùng origin) — tránh tải HuggingFace/CDN ngoài.
   // (chi tiết từng ngôn ngữ: MOONSHINE_LOCAL)
   var MOONSHINE_VI_LOCAL = null; // legacy alias — dùng moonshineLocalUrls("vi")
@@ -13,6 +12,8 @@
   var MOONSHINE_LOAD_TIMEOUT_MS = 180000;
   var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 120000;
   var MOONSHINE_WASM_TIMEOUT_MS = 25000;
+  // Transcriber.load: máy khỏe vài giây; 180s cũ = ngồi chờ pthread treo. 28s rồi nhảy Cloud STT.
+  var MOONSHINE_INIT_TIMEOUT_MS = 28000;
   var state = {
     meetingId: null,
     path: "",
@@ -665,11 +666,28 @@
     }, 6500);
   }
 
+  async function pauseAudioForWasmLoad() {
+    stopAudioResumeWatch();
+    var cap = state._moonshineCapture;
+    if (cap && cap.audioContext && cap.audioContext.state === "running") {
+      try {
+        await cap.audioContext.suspend();
+      } catch (e1) {}
+    }
+    if (state._unlockCtx && state._unlockCtx.state === "running") {
+      try {
+        await state._unlockCtx.suspend();
+      } catch (e2) {}
+    }
+  }
+
   /**
-   * Mở mic + AudioContext NGAY trong cử chỉ bấm (trước khi nạp ~135MB model).
-   * MicTranscriber mở context sau nhiều await → Chrome hay để suspended → 0 sample, không lỗi.
+   * Mở mic trong cử chỉ bấm. keepSuspended: ngủ AudioContext khi nạp WASM
+   * (pthread + audio thread cùng lúc → Chrome Windows treo Transcriber.load).
    */
-  async function openMoonshineMicEarly() {
+  async function openMoonshineMicEarly(opts) {
+    opts = opts || {};
+    var keepSuspended = !!opts.keepSuspended;
     patchAudioContextTracking();
     armAudioSessionForMic();
     var cap = state._moonshineCapture;
@@ -681,9 +699,13 @@
         });
       } catch (eLive) {}
       if (live) {
-        if (cap.audioContext && cap.audioContext.state === "suspended") {
+        if (cap.audioContext) {
           try {
-            await cap.audioContext.resume();
+            if (keepSuspended && cap.audioContext.state === "running") {
+              await cap.audioContext.suspend();
+            } else if (!keepSuspended && cap.audioContext.state === "suspended") {
+              await cap.audioContext.resume();
+            }
           } catch (eR) {}
         }
         return cap;
@@ -707,7 +729,13 @@
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) throw new Error("Trình duyệt thiếu AudioContext.");
     var audioContext = new AC();
-    if (audioContext.state === "suspended") {
+    if (keepSuspended) {
+      if (audioContext.state === "running") {
+        try {
+          await audioContext.suspend();
+        } catch (eSus) {}
+      }
+    } else if (audioContext.state === "suspended") {
       await audioContext.resume();
     }
 
@@ -780,7 +808,7 @@
     if (!transcriber || typeof transcriber.createStream !== "function") {
       throw new Error("Moonshine Transcriber thiếu createStream");
     }
-    var cap = await openMoonshineMicEarly();
+    var cap = await openMoonshineMicEarly({ keepSuspended: false });
     if (cap.audioContext.state === "suspended") {
       await cap.audioContext.resume();
     }
@@ -1621,8 +1649,10 @@
       state.moonshineMod = await import(/* webpackIgnore: true */ CDN);
       return state.moonshineMod;
     } catch (e) {
-      state.moonshineMod = await import(/* webpackIgnore: true */ CDN_FALLBACK);
-      return state.moonshineMod;
+      throw new Error(
+        "Không nạp được engine Moonshine trên máy chủ. Chrome/Edge HTTPS, Ctrl+F5. " +
+          ((e && e.message) || e)
+      );
     }
   }
 
@@ -2334,10 +2364,10 @@
     var timeoutMs =
       lang === "vi" ? MOONSHINE_LOAD_TIMEOUT_MS : MOONSHINE_LOAD_TIMEOUT_OTHER_MS;
 
-    // Mic sớm trong cử chỉ — trước khi nạp model (tránh AudioContext suspended im lặng).
+    // Mic trong cử chỉ; AudioContext ngủ đến sau khi WASM lên (tránh treo pthread).
     setStatus(root, "Xin quyền micro (Moonshine)…");
     unlockAudioForMeeting();
-    await openMoonshineMicEarly();
+    await openMoonshineMicEarly({ keepSuspended: true });
     if (state.abortRequested) throw new Error("Đã hủy");
 
     // Cùng phiên: model đã nạp sẵn → chỉ gắn lại capture (không tải lại).
@@ -2460,14 +2490,15 @@
       assertMoonshineFileSizes(fileMap);
       // Copy buffer — WASM có thể detach ArrayBuffer gốc, làm cache RAM thành 0 byte.
       var filesForLoad = cloneMoonshineFileMap(fileMap);
+      await pauseAudioForWasmLoad();
       transcriber = await promiseTimeout(
         mod.Transcriber.load({
           files: filesForLoad,
           modelArch: arch,
           options: opts,
         }),
-        timeoutMs,
-        "Khởi tạo Moonshine treo (" + Math.round(timeoutMs / 1000) + "s)."
+        MOONSHINE_INIT_TIMEOUT_MS,
+        "Khởi tạo Moonshine treo (" + Math.round(MOONSHINE_INIT_TIMEOUT_MS / 1000) + "s)."
       );
 
       if (state.abortRequested) throw new Error("Đã hủy");
@@ -2781,6 +2812,35 @@
         state._moonshineSoftFails = 0;
         return "moonshine";
       } catch (e) {
+        var hungInit = /Khởi tạo Moonshine treo/i.test(String((e && e.message) || e || ""));
+        if (hungInit) {
+          setStatus(root, "Moonshine WASM treo — chuyển sang ghi bằng Cloud STT…", "err");
+          await cleanupAudio();
+          releaseMicConflicts();
+          var cloudHung = await tryStartCloudStt(root, null);
+          if (cloudHung) {
+            setStatus(
+              root,
+              "Moonshine không mở được engine — đang ghi bằng " +
+                cloudSttLabel() +
+                ". Tải lại trang (Ctrl+F5) rồi Bắt đầu để thử Moonshine lại.",
+              "err"
+            );
+            return cloudHung;
+          }
+          if (hasWebSpeech()) {
+            try {
+              startWebSpeechSafe(root);
+              setStatus(
+                root,
+                "Moonshine WASM treo — tạm Web Speech. Ctrl+F5 rồi Bắt đầu để thử Moonshine.",
+                "err"
+              );
+              return "webspeech";
+            } catch (wsHung) {}
+          }
+          throw e;
+        }
         setStatus(
           root,
           "Moonshine lỗi lần 1 — đang thử lại (giữ model đã nạp)… " + ((e && e.message) || ""),
@@ -2975,7 +3035,7 @@
         moonshineRuntimeOk()
       ) {
         try {
-          await openMoonshineMicEarly();
+          await openMoonshineMicEarly({ keepSuspended: true });
         } catch (eEarly) {
           /* startMoonshine sẽ báo lỗi micro rõ hơn */
         }

@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.177] - 2026-09-09
+### Sửa lỗi
+- **Cuộc họp kẹt «chờ WASM»:** ngủ AudioContext khi `Transcriber.load` (tránh pthread + audio thread treo Chrome); timeout khởi tạo 28s rồi ghi bằng Cloud STT/Web Speech; bỏ fallback jsDelivr (pthread = số CPU).
+
 ## [0.55.176] - 2026-09-09
 ### Cải tiến
 - **Cột hội thoại màn Javis rộng thêm ~40%:** 340px → 476px (Vault thu / trang Trò chuyện khi sửa file cùng tỷ lệ). Màn hẹp hơn 1100px hạ nhẹ để cột giữa không xẹp.
