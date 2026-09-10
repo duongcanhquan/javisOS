@@ -14,6 +14,12 @@ Người dùng nói những câu như: "chuyển file html này sang webcake", "
 "tạo file webcake từ html", "làm landing này thành file sửa được trên webcake",
 "html to webcake", "convert html sang webcake", "bài sales page vừa viết đưa lên webcake".
 
+## Liên kết
+
+- HTML landing mới từ brief/chủ đề → tạo bằng skill **`landing-page`** trước, rồi mới
+  chuyển `.pke` bằng skill này (bước giao trong `landing-page` / `references/delivery.md`).
+- Không dùng Webcake thay cho bản `exports/landing/<slug>/index.html` - giữ cả hai.
+
 ## Hiểu đúng bản chất trước khi làm
 
 - File `.pke` = `base64( MessagePack( envelope ) )`, trong đó `envelope.source` chính là

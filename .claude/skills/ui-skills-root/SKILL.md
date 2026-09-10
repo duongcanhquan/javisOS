@@ -28,11 +28,16 @@ Khi brief khớp một skill hệ thống dưới đây, **nạp skill đó** (k
 | Audit UI có sẵn + plan handoff | `improve-ui` |
 | Ghi / cập nhật `DESIGN.md` từ repo hoặc site | `create-design-md` |
 | Sơ đồ editorial HTML/SVG (kiến trúc, flowchart, journey, chart…) | `diagram-design` |
+| Landing / sales page HTML (brief hoặc chủ đề → copy + layout) | `landing-page` |
 | A11y / meta / motion HTML | `forming-accessibility` / `forming-metadata` / `forming-motion-performance` |
 
 **Diagram ≠ UI page.** Brief kiểu architecture diagram, flowchart, user journey map,
 org chart, redraw draw.io/Mermaid → **`diagram-design`**, không tự vẽ SVG trong
 `frontend-design`. Mermaid tạm trong chat vẫn ổn khi không cần bản editorial.
+
+**Landing ≠ app UI.** Brief kiểu trang giới thiệu sản phẩm / sales page / waitlist →
+**`landing-page`** (catalog + `exports/landing/`). `frontend-design` dành cho UI sản phẩm
+trong app, không thay cổng chọn layout landing.
 
 ## Protocol
 

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PRODUCT_TITLE — ngắn gọn lợi ích</title>
+  <meta name="description" content="META_DESCRIPTION_155" />
+  <meta property="og:title" content="PRODUCT_TITLE" />
+  <meta property="og:description" content="META_DESCRIPTION_155" />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] },
+          colors: {
+            ink: "#0f172a",
+            muted: "#64748b",
+            accent: "#4f46e5",
+            "accent-dark": "#3730a3",
+            wash: "#f8fafc",
+          },
+          boxShadow: {
+            soft: "0 10px 40px -12px rgba(15, 23, 42, 0.18)",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans text-ink antialiased bg-white">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-3 focus:py-2 focus:shadow">Bỏ qua điều hướng</a>
+
+  <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <a href="#" class="text-lg font-extrabold tracking-tight text-ink">BRAND</a>
+      <nav class="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex" aria-label="Chính">
+        <a class="hover:text-ink" href="#features">Tính năng</a>
+        <a class="hover:text-ink" href="#how">Cách dùng</a>
+        <a class="hover:text-ink" href="#proof">Đánh giá</a>
+      </nav>
+      <a href="#cta" class="inline-flex rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-accent-dark">CTA_NAV</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="relative overflow-hidden">
+      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.12),_transparent_55%)]" aria-hidden="true"></div>
+      <div class="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center lg:py-24">
+        <div>
+          <p class="mb-3 text-sm font-semibold uppercase tracking-wider text-accent">EYEBROW</p>
+          <h1 class="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">HERO_H1</h1>
+          <p class="mt-5 max-w-xl text-lg leading-relaxed text-muted">HERO_SUB</p>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <a href="#cta" class="inline-flex rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white shadow-soft hover:bg-accent-dark">CTA_PRIMARY</a>
+            <a href="#features" class="inline-flex rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-ink hover:border-slate-300">CTA_SECONDARY</a>
+          </div>
+          <p class="mt-5 text-sm text-slate-500">TRUST_LINE</p>
+        </div>
+        <div class="relative">
+          <div class="aspect-[4/3] rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-slate-100 p-6 shadow-soft">
+            <div class="flex h-full flex-col justify-between rounded-xl border border-dashed border-indigo-200/80 bg-white/70 p-5">
+              <div class="space-y-3">
+                <div class="h-3 w-1/3 rounded bg-indigo-200/80"></div>
+                <div class="h-3 w-2/3 rounded bg-slate-200"></div>
+                <div class="h-3 w-1/2 rounded bg-slate-200"></div>
+              </div>
+              <p class="text-sm text-slate-500">HERO_VISUAL_CAPTION — thay bằng ảnh sản phẩm hoặc giữ mock nhẹ.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-y border-slate-100 bg-wash py-10" aria-label="Đối tác">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <p class="mb-6 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">LOGO_STRIP_LABEL</p>
+        <ul class="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm font-semibold text-slate-400">
+          <li>Logo One</li>
+          <li>Logo Two</li>
+          <li>Logo Three</li>
+          <li>Logo Four</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="features" class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+      <div class="mx-auto max-w-2xl text-center">
+        <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">FEATURES_H2</h2>
+        <p class="mt-3 text-muted">FEATURES_SUB</p>
+      </div>
+      <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-accent" aria-hidden="true">1</div>
+          <h3 class="text-lg font-semibold">FEATURE_1_TITLE</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted">FEATURE_1_BODY</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-accent" aria-hidden="true">2</div>
+          <h3 class="text-lg font-semibold">FEATURE_2_TITLE</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted">FEATURE_2_BODY</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-accent" aria-hidden="true">3</div>
+          <h3 class="text-lg font-semibold">FEATURE_3_TITLE</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted">FEATURE_3_BODY</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="how" class="bg-wash py-16 sm:py-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 class="text-center text-3xl font-bold tracking-tight sm:text-4xl">HOW_H2</h2>
+        <ol class="mt-12 grid gap-8 md:grid-cols-3">
+          <li class="relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <span class="text-sm font-bold text-accent">Bước 1</span>
+            <h3 class="mt-2 text-lg font-semibold">STEP_1_TITLE</h3>
+            <p class="mt-2 text-sm text-muted">STEP_1_BODY</p>
+          </li>
+          <li class="relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <span class="text-sm font-bold text-accent">Bước 2</span>
+            <h3 class="mt-2 text-lg font-semibold">STEP_2_TITLE</h3>
+            <p class="mt-2 text-sm text-muted">STEP_2_BODY</p>
+          </li>
+          <li class="relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <span class="text-sm font-bold text-accent">Bước 3</span>
+            <h3 class="mt-2 text-lg font-semibold">STEP_3_TITLE</h3>
+            <p class="mt-2 text-sm text-muted">STEP_3_BODY</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="proof" class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+      <figure class="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-soft sm:p-10">
+        <blockquote class="text-xl font-medium leading-relaxed text-ink sm:text-2xl">“TESTIMONIAL_QUOTE”</blockquote>
+        <figcaption class="mt-6 text-sm text-muted">
+          <span class="font-semibold text-ink">TESTIMONIAL_AUTHOR</span> — TESTIMONIAL_ROLE
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="cta" class="pb-20">
+      <div class="mx-auto max-w-6xl px-4 sm:px-6">
+        <div class="rounded-3xl bg-ink px-6 py-12 text-center text-white sm:px-12">
+          <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">FINAL_CTA_H2</h2>
+          <p class="mx-auto mt-3 max-w-xl text-slate-300">FINAL_CTA_SUB</p>
+          <a href="CTA_HREF" class="mt-8 inline-flex rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-dark">CTA_PRIMARY</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <p>© <span id="y"></span> BRAND. FOOTER_TAGLINE</p>
+      <div class="flex gap-4">
+        <a class="hover:text-ink" href="#">Điều khoản</a>
+        <a class="hover:text-ink" href="#">Riêng tư</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
+</body>
+</html>
