@@ -1,8 +1,14 @@
 ---
 name: fixing-motion-performance
 description: "Audit and fix animation performance: layout thrash, compositor props, scroll motion."
-description_en: "Audit and fix animation performance issues including layout thrashing, compositor properties, scroll-linked motion, and blur effects. Use when anim..."
+description_en: "Fix janky UI animation: layout thrash, compositor-only props, and scroll-linked motion."
+group: Marketing
 ---
+
+## Liên kết
+
+- Motion trên **UI sản phẩm** - motion tùy chọn trong sơ đồ editorial → quy tắc trong **`diagram-design`** (`references/animation.md`), không dùng skill này thay thế.
+- Router UI: `ui-skills-root`.
 
 ## Khi nào dùng
 

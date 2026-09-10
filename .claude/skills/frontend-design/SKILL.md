@@ -13,6 +13,8 @@ license: Complete terms in LICENSE.txt
 - **Trước khi** viết HTML/CSS/React sản phẩm: nếu ý tưởng chưa được duyệt thiết kế, nạp skill **`brainstorming`** (Spike/Bounded/Architectural) và chờ user Say Yes.
 - Đã có spec Architectural → kế hoạch triển khai qua **`writing-plans`**, rồi mới dựng UI theo plan/spec.
 - UX: nêu rõ tối ưu **Hệ thống 1** (nhanh, trực giác) hay **Hệ thống 2** (đọc kỹ) khi brief yêu cầu.
+- **Sơ đồ editorial** (architecture, flowchart, journey, org, chart HTML/SVG; redraw draw.io/Mermaid/Excalidraw): **không** tự vẽ trong skill này - nạp **`diagram-design`**. Skill này chỉ cho UI trang/sản phẩm.
+- Polish nhanh / audit / DESIGN.md: `baseline-ui` / `improve-ui` / `create-design-md`. Router tổng: `ui-skills-root`.
 
 Approach this as the design lead at a small studio known for giving every client a visual identity that could not be mistaken for anyone else's. This client has already rejected proposals that felt templated, and is paying for a distinctive point of view: make deliberate, opinionated choices about palette, typography, and layout that are specific to this brief, and take one real aesthetic risk you can justify.
 

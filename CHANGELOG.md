@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.185] - 2026-09-10
+### Cải tiến
+- **Skill sơ đồ editorial `diagram-design`:** vẽ architecture, flowchart, journey, chart… thành HTML/SVG có brand; vẽ lại draw.io/Mermaid/Excalidraw. Gắn vào bộ UI/UX (`ui-skills-root`, `frontend-design`, `improve-ui`, …) để agent chọn đúng skill thay vì SVG tạm.
+
 ## [0.55.184] - 2026-09-09
 ### Sửa lỗi
 - **Cuộc họp Moonshine bắt lại giọng phòng và loa:** AEC luôn tắt (Chrome chống vọng từng xoá tiếng Zoom/Meet trên loa). AGC chỉ tăng giọng xa, không hạ giọng đã rõ. Worklet gộp 4096 mẫu rồi mới đưa Moonshine (đúng bản smoke), không transcribe từng 128 mẫu.

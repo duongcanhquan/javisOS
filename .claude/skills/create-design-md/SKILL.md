@@ -9,6 +9,8 @@ group: Marketing
 
 - Ghi nhận hệ thống thị giác **đã có** (repo/URL) - không thay skill **`brainstorming`** (ý tưởng → spec mới).
 - Đang thiết kế sản phẩm mới chưa duyệt → dùng **`brainstorming`** trước; `create-design-md` chỉ khi đã có sản phẩm/site để trích.
+- Cần **sơ đồ** minh họa hệ thống thị giác / kiến trúc thông tin → nạp **`diagram-design`** (editorial HTML/SVG), không thay bằng ảnh chụp tạm nếu brief yêu cầu sơ đồ.
+- UI sản phẩm / audit: `frontend-design` / `improve-ui`.
 
 ## Khi nào dùng
 

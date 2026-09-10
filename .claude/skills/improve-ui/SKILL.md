@@ -9,6 +9,8 @@ group: Marketing
 
 - Audit UI **đã có** - không thay **`brainstorming`** (ý tưởng mới → spec).
 - Handoff plan trong `design-plans/` khác với **`writing-plans`** (plan từ spec Architectural). Cần kiến trúc mới → `brainstorming` rồi `writing-plans`.
+- Cần **sơ đồ editorial** minh họa phát hiện (flowchart/journey/architecture HTML/SVG) → nạp **`diagram-design`**; không nhét SVG ad-hoc vào plan.
+- UI mới distinctive / polish nhanh / DESIGN.md: `frontend-design` / `baseline-ui` / `create-design-md`.
 
 ## Khi nào dùng
 

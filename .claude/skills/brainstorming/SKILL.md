@@ -18,7 +18,7 @@ group: AI
 
 **TUYỆT ĐỐI** không gọi bất kỳ skill triển khai (implementation), không viết code sản phẩm, không khởi tạo project cho đến khi người dùng phê duyệt ý định thiết kế. Yêu cầu đơn giản chỉ làm **bản thiết kế ngắn hơn** - không bao giờ được bỏ bước duyệt.
 
-Skill triển khai bị chặn trước cổng gồm (không đủ liệt kê): `frontend-design`, `baseline-ui`, `improve-ui`, `create-design-md` (khi dùng để *xây* UI mới), `agent-browser` để tự click triển khai, mọi skill sinh code/video sản phẩm. Sau Architectural + duyệt spec: **chỉ** được nạp skill **`writing-plans`**.
+Skill triển khai bị chặn trước cổng gồm (không đủ liệt kê): `frontend-design`, `baseline-ui`, `improve-ui`, `create-design-md` (khi dùng để *xây* UI mới), `diagram-design` (khi dùng để xuất sơ đồ sản phẩm thay vì companion brainstorm), `agent-browser` để tự click triển khai, mọi skill sinh code/video sản phẩm. Sau Architectural + duyệt spec: **chỉ** được nạp skill **`writing-plans`**.
 
 ### Đọc bối cảnh
 
@@ -34,7 +34,8 @@ Nếu điều phối đa tác tử (multi-agent) để đọc tài liệu, **par
 |-----------|--------|
 | Cần insight thị trường / JTBD sâu trước khi thiết kế sản phẩm | Nạp **`nghien-cuu-thi-truong`** (đọc output, không thay luồng thiết kế) |
 | Cần proposal kinh doanh sau khi đã có hướng sản phẩm | Nạp **`proposal-chien-luoc`** (sau khi chốt design ý định, không thay HARD-GATE code) |
-| Mockup/diagram thị giác thật | Đọc `skills/brainstorming/visual-companion.md` (chỉ khi câu hỏi mang tính thị giác) |
+| Mockup/diagram thị giác thật (companion tạm trong brainstorm) | Đọc `skills/brainstorming/visual-companion.md` (chỉ khi câu hỏi mang tính thị giác) |
+| Sơ đồ editorial HTML/SVG sau khi đã duyệt hướng (xuất file) | Nạp **`diagram-design`** - vẫn sau HARD-GATE nếu đó là deliverable sản phẩm |
 | Spec Architectural đã được user duyệt | **Chỉ** nạp **`writing-plans`** |
 
 ## Quy trình 3 luồng (phân loại trước khi bắt đầu)

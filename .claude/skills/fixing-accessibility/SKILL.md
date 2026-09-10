@@ -2,7 +2,13 @@
 name: fixing-accessibility
 description: "Audit and fix HTML accessibility: ARIA, keyboard, focus, contrast, and forms."
 description_en: "Audit and fix HTML accessibility: ARIA, keyboard, focus, color contrast, and form errors."
+group: Marketing
 ---
+
+## Liên kết
+
+- A11y trên **trang/UI HTML** - không thay **`diagram-design`** (sơ đồ editorial). Diagram HTML do `diagram-design` xuất vẫn có thể audit a11y bằng skill này nếu user yêu cầu.
+- Router UI: `ui-skills-root`.
 
 ## Khi nào dùng
 

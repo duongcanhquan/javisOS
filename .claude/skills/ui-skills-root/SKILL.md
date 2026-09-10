@@ -17,15 +17,33 @@ If the goal is unclear, ask one short question.
 
 If the goal is clear, choose the right category, load the smallest useful skill context, then implement.
 
+## Javis skill map (ưu tiên trước CLI)
+
+Khi brief khớp một skill hệ thống dưới đây, **nạp skill đó** (không chỉ `npx ui-skills`):
+
+| Brief | Skill |
+|---|---|
+| UI sản phẩm distinctive (palette/type/layout) | `frontend-design` |
+| Polish nhanh spacing/hierarchy (deslop) | `baseline-ui` |
+| Audit UI có sẵn + plan handoff | `improve-ui` |
+| Ghi / cập nhật `DESIGN.md` từ repo hoặc site | `create-design-md` |
+| Sơ đồ editorial HTML/SVG (kiến trúc, flowchart, journey, chart…) | `diagram-design` |
+| A11y / meta / motion HTML | `forming-accessibility` / `forming-metadata` / `forming-motion-performance` |
+
+**Diagram ≠ UI page.** Brief kiểu architecture diagram, flowchart, user journey map,
+org chart, redraw draw.io/Mermaid → **`diagram-design`**, không tự vẽ SVG trong
+`frontend-design`. Mermaid tạm trong chat vẫn ổn khi không cần bản editorial.
+
 ## Protocol
 
-1. decide if the task is UI-related
+1. decide if the task is UI-related (hoặc diagram editorial - vẫn thuộc map trên)
 2. if not, return `no skill needed`
-3. identify the likely category
-4. inspect that category with the CLI
-5. select the smallest useful skill set
-6. load only selected skill(s)
-7. implement using that context
+3. identify the likely category **or** the Javis skill in the map above
+4. if a Javis system skill matches, load it and stop CLI browsing for that goal
+5. otherwise inspect that category with the CLI
+6. select the smallest useful skill set
+7. load only selected skill(s)
+8. implement using that context
 
 ## CLI
 

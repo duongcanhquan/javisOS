@@ -2,11 +2,18 @@
 name: baseline-ui
 description: Quickly deslop UI code by fixing spacing, hierarchy, typography, and small layout issues. Use when the interface needs a fast cleanup or polish pass.
 description_en: "Quickly deslop UI code by fixing spacing, hierarchy, typography, and small layout issues."
+group: Marketing
 ---
 
 # Baseline UI
 
 Enforces an opinionated UI baseline to prevent AI-generated interface slop.
+
+## Liên kết
+
+- Polish UI **đã có** - không thay **`frontend-design`** (hướng thị giác mới) hay **`brainstorming`**.
+- Sơ đồ editorial (architecture/flowchart/journey HTML/SVG) → **`diagram-design`**, không dùng baseline-ui để "vẽ diagram".
+- Audit sâu + plan: `improve-ui`. Router: `ui-skills-root`.
 
 ## How to use
 

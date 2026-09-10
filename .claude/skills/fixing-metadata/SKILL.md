@@ -1,10 +1,16 @@
 ---
 name: fixing-metadata
 description: "Audit and fix HTML metadata: title, description, canonical, Open Graph, favicons."
-description_en: "Audit and fix HTML metadata including page titles, meta descriptions, canonical URLs, Open Graph tags, Twitter cards, favicons, JSON-LD structured..."
+description_en: "Fix page title, meta description, canonical, Open Graph, Twitter cards, and favicons."
 version: 1.0.1
 license: MIT
+group: Marketing
 ---
+
+## Liên kết
+
+- Meta SEO/social cho **trang web** - sơ đồ editorial HTML standalone → **`diagram-design`** (không thay bằng OG tags).
+- Router UI: `ui-skills-root`.
 
 ## Khi nào dùng
 
