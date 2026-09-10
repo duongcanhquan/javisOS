@@ -8654,7 +8654,7 @@ def seed_bai_giang(brain: str) -> dict:
                 "- Ảnh hoặc biểu đồ: gọi javis_generate_image và/hoặc diagram-design khi sẵn; "
                 "lưu attachments/bai-giang/<slug>/; thiếu tool thì ghi prompt rõ\n"
                 "- Script giảng 45-90 giây (cảnh then chốt ~60-90s): cảnh 1 chào ngắn + mục tiêu; "
-                "cảnh 2+ CHỈ nối ý (cấm Xin chào/Chào các em) → giải thích → đi từng ý trên slide "
+                "cảnh 2+ CHỈ nối ý (cấm Xin chào/Chào các học viên) → giải thích → đi từng ý trên slide "
                 "→ ví dụ + phản ví dụ → lỗi hay gặp → takeaway → nối cảnh sau\n"
                 "- Cấm TTS chỉ đọc tiêu đề/bullet; cấm giao plan mỏng\n"
                 "Thêm quiz 4-8 câu + 1 PBL ngắn. Script tiếng Việt dấu đầy đủ.\n"
@@ -11763,7 +11763,7 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
         "",
         "CONTINUITY (critical - users hate re-greetings):",
         "15) Greet / introduce yourself / welcome the class AT MOST ONCE - only on scene 1 (welcome).",
-        "16) From scene 2 onward: NEVER say «Xin chào», «Chào các em», «Chào mừng», «Hello students», "
+        "16) From scene 2 onward: NEVER say «Xin chào», «Chào các học viên», «Chào mừng», «Hello students», "
         "«Hôm nay chúng ta sẽ», or any fresh self-intro. Continue as the SAME teacher mid-lesson.",
         "17) Open each scene 2+ with a SHORT bridge from the previous idea (1 câu), then teach.",
         "18) Keep one persona, one tone, one learning arc across all scenes. No reset.",
@@ -11775,7 +11775,7 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
         "diagram parts, numbers - in the order a student looks.",
         "21) For EACH bullet/block: meaning + why it matters + mini example (from the plan when present).",
         "22) Add: concrete example, contrast/common mistake, and one memorable takeaway.",
-        "23) Do NOT only read the slide title or say «như các em thấy trên slide» without explaining.",
+        "23) Do NOT only read the slide title or say «như trên slide các bạn thấy» without explaining.",
         "24) On-slide text stays scannable (title + 3-5 short bullets); the TALK carries the depth.",
         "",
         "VISUAL EMPHASIS (Remotion-style focus - even if the runtime is not Remotion):",

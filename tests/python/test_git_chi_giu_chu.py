@@ -113,35 +113,45 @@ if shutil.which("git"):
     d3 = tempfile.mkdtemp()
     for sub in ("Javis/learn-log", "attachments", "wiki", "bao-mat"):
         os.makedirs(os.path.join(d3, sub), exist_ok=True)
-    subprocess.run(["git", "init", "-q", "."], cwd=d3, capture_output=True)
-    G._ensure_gitignore_lines(d3)
-    with open(os.path.join(d3, ".gitignore"), "a", encoding="utf-8") as f:
-        f.write("\nbao-mat/\n")
-    ghi = {
-        "wiki/ghi-chu.md": "tri thuc", "wiki/bang.csv": "a,b",
-        "wiki/anh.jpg": "x", "clip.mp4": "x", "am-thanh.mp3": "x",
-        "Javis/learn-log/log.json": '{"secret":"abc"}',
-        "attachments/note.md": "x", "attachments/anh.png": "x",
-        "bao-mat/key.md": "x",
-    }
-    for rel, noi_dung in ghi.items():
-        p = Path(d3) / rel
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(noi_dung, encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=d3, capture_output=True)
-    r = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=d3,
-                       capture_output=True, text=True)
-    theo_doi = set((r.stdout or "").split())
-    check("git THẬT: commit ghi chú .md", "wiki/ghi-chu.md" in theo_doi)
-    check("git THẬT: commit bảng .csv", "wiki/bang.csv" in theo_doi)
-    check("git THẬT: KHÔNG commit ảnh", "wiki/anh.jpg" not in theo_doi)
-    check("git THẬT: KHÔNG commit video", "clip.mp4" not in theo_doi)
-    check("git THẬT: KHÔNG commit âm thanh", "am-thanh.mp3" not in theo_doi)
-    check("git THẬT: KHÔNG commit log thô dù nó là .json (bẫy thứ tự luật)",
-          "Javis/learn-log/log.json" not in theo_doi)
-    check("git THẬT: KHÔNG commit thứ trong attachments dù là .md",
-          "attachments/note.md" not in theo_doi)
-    check("git THẬT: luật riêng của user vẫn có tác dụng", "bao-mat/key.md" not in theo_doi)
+    # Template rỗng: sandbox/mac đôi khi chặn ghi .git/hooks → init lỗi nửa vời rồi
+    # `git add` nhảy sang repo cha. Không template thì không cần hooks.
+    r_init = subprocess.run(
+        ["git", "init", "-q", "."],
+        cwd=d3, capture_output=True, text=True,
+        env={**os.environ, "GIT_TEMPLATE_DIR": ""},
+    )
+    if r_init.returncode != 0 or not (Path(d3) / ".git" / "HEAD").exists():
+        print("BỎ QUA phần git thật: git init không tạo được repo "
+              f"(rc={r_init.returncode}, stderr={(r_init.stderr or '').strip()[:120]})")
+    else:
+        G._ensure_gitignore_lines(d3)
+        with open(os.path.join(d3, ".gitignore"), "a", encoding="utf-8") as f:
+            f.write("\nbao-mat/\n")
+        ghi = {
+            "wiki/ghi-chu.md": "tri thuc", "wiki/bang.csv": "a,b",
+            "wiki/anh.jpg": "x", "clip.mp4": "x", "am-thanh.mp3": "x",
+            "Javis/learn-log/log.json": '{"secret":"abc"}',
+            "attachments/note.md": "x", "attachments/anh.png": "x",
+            "bao-mat/key.md": "x",
+        }
+        for rel, noi_dung in ghi.items():
+            p = Path(d3) / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(noi_dung, encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=d3, capture_output=True)
+        r = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=d3,
+                           capture_output=True, text=True)
+        theo_doi = set((r.stdout or "").split())
+        check("git THẬT: commit ghi chú .md", "wiki/ghi-chu.md" in theo_doi)
+        check("git THẬT: commit bảng .csv", "wiki/bang.csv" in theo_doi)
+        check("git THẬT: KHÔNG commit ảnh", "wiki/anh.jpg" not in theo_doi)
+        check("git THẬT: KHÔNG commit video", "clip.mp4" not in theo_doi)
+        check("git THẬT: KHÔNG commit âm thanh", "am-thanh.mp3" not in theo_doi)
+        check("git THẬT: KHÔNG commit log thô dù nó là .json (bẫy thứ tự luật)",
+              "Javis/learn-log/log.json" not in theo_doi)
+        check("git THẬT: KHÔNG commit thứ trong attachments dù là .md",
+              "attachments/note.md" not in theo_doi)
+        check("git THẬT: luật riêng của user vẫn có tác dụng", "bao-mat/key.md" not in theo_doi)
 else:
     print("BỎ QUA phần git thật: không tìm thấy git trong PATH")
 

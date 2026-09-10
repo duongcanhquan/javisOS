@@ -65,6 +65,18 @@ class TaskStore:
         self._db.execute("PRAGMA busy_timeout=5000")
         self._schema()
 
+    @staticmethod
+    def _norm_root(brain_root: str) -> str:
+        """Chuẩn hoá đường brain: /var/... và /private/var/... (macOS) thành một khoá.
+
+        Không resolve thì set_orchestration(str(tmp)) ghi một hàng, còn board_view qua
+        Path.resolve() đọc hàng khác → bật «AI tự vận hành» mà tool vẫn báo điều phối off.
+        """
+        try:
+            return str(Path(str(brain_root or "")).expanduser().resolve())
+        except Exception:
+            return str(brain_root or "")
+
     def close(self) -> None:
         with self._lock:
             self._db.close()
@@ -168,6 +180,7 @@ class TaskStore:
         self._db.execute("BEGIN IMMEDIATE")
 
     def ensure_board(self, brain_root: str, orchestration: str = "off") -> None:
+        brain_root = self._norm_root(brain_root)
         ts = now()
         with self._lock:
             self._db.execute(
@@ -179,6 +192,7 @@ class TaskStore:
             self._db.commit()
 
     def set_orchestration(self, brain_root: str, mode: str) -> None:
+        brain_root = self._norm_root(brain_root)
         self.ensure_board(brain_root)
         with self._lock:
             self._db.execute(
@@ -188,6 +202,7 @@ class TaskStore:
             self._db.commit()
 
     def board_mode(self, brain_root: str) -> str:
+        brain_root = self._norm_root(brain_root)
         self.ensure_board(brain_root)
         with self._lock:
             row = self._db.execute(
@@ -235,7 +250,7 @@ class TaskStore:
         max_attempts: int = 3,
         task_id: str = "",
     ) -> str:
-        root = str(brain_root)
+        root = self._norm_root(brain_root)
         self.ensure_board(root)
         title = (title or intent or "Task")[:160]
         normalized = norm_title(title)
@@ -318,6 +333,7 @@ class TaskStore:
         include_archived: bool = False,
         limit: int = 500,
     ) -> list[dict]:
+        brain_root = self._norm_root(brain_root)
         sql = "SELECT * FROM tasks WHERE brain_root=?"
         args: list[Any] = [brain_root]
         if not include_archived:
@@ -392,6 +408,7 @@ class TaskStore:
 
     def promote_dependencies(self, brain_root: str) -> int:
         """Move dependency-waiting tasks to ready when every parent is terminal-successful."""
+        brain_root = self._norm_root(brain_root)
         with self._lock:
             self._tx()
             try:
@@ -430,6 +447,7 @@ class TaskStore:
                 raise
 
     def reclaim_stale(self, brain_root: str, active_worker_ids: set[str]) -> int:
+        brain_root = self._norm_root(brain_root)
         ts = now()
         with self._lock:
             self._tx()
@@ -473,6 +491,7 @@ class TaskStore:
         Việc một-lần xong rồi không nằm mãi trên bảng Việc; archived chỉ bị ẨN
         (list_tasks mặc định lọc ra), lịch sử vẫn tra được với include_archived=True.
         Chạy trong housekeep mỗi vòng dispatch nên phải idempotent và rẻ."""
+        brain_root = self._norm_root(brain_root)
         ts = now()
         cutoff = ts - age_days * 86400
         with self._lock:
@@ -544,6 +563,7 @@ class TaskStore:
         Khác purge_terminal (chỉ đụng việc đã kết thúc): đây là lệnh dứt khoát của chủ khi
         cả bảng không còn giá trị. Giữ lại 'running' vì xoá task trong lúc worker còn chạy
         sẽ để lại worker mồ côi ghi vào một task không còn tồn tại."""
+        brain_root = self._norm_root(brain_root)
         with self._lock:
             self._tx()
             try:
@@ -574,6 +594,7 @@ class TaskStore:
         tra lại được. Việc đang chạy KHÔNG bị đụng: xoá task trong lúc worker còn cầm là để
         lại một worker mồ côi ghi vào bản ghi không còn tồn tại.
         """
+        brain_root = self._norm_root(brain_root)
         allowed = tuple(s for s in statuses if s in VALID_STATUS and s != "running")
         if not allowed:
             return 0
@@ -638,6 +659,7 @@ class TaskStore:
                 raise
 
     def next_candidate(self, brain_root: str) -> Optional[dict]:
+        brain_root = self._norm_root(brain_root)
         with self._lock:
             row = self._db.execute(
                 """SELECT * FROM tasks
@@ -922,6 +944,7 @@ class TaskStore:
         The match is intentionally narrow so operator/input blocks and unrelated
         Codex failures remain untouched.
         """
+        brain_root = self._norm_root(brain_root)
         key = "recovery:codex-global-flags-v1:" + str(brain_root)
         with self._lock:
             self._tx()
@@ -999,6 +1022,8 @@ class TaskStore:
                 raise
 
     def health(self, brain_root: Optional[str] = None) -> dict:
+        if brain_root:
+            brain_root = self._norm_root(brain_root)
         where = " WHERE brain_root=?" if brain_root else ""
         args = (brain_root,) if brain_root else ()
         with self._lock:
@@ -1016,6 +1041,7 @@ class TaskStore:
 
     def import_legacy(self, brain_root: str, json_path: Path) -> int:
         """Import a legacy board once, preserving ids and terminal state."""
+        brain_root = self._norm_root(brain_root)
         key = "legacy-json:" + str(Path(json_path).resolve())
         with self._lock:
             seen = self._db.execute(

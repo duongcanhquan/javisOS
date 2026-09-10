@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.190] - 2026-09-10
+### Sửa lỗi
+- **Kanban «AI tự vận hành» trên macOS:** chuẩn hoá đường brain (`/var` vs `/private/var`) để bật điều phối khớp với tool giao việc; trước đó bật rồi vẫn báo xếp hàng. Khôi phục skill `xuat-goi-nghien-cuu`. CI xanh lại (xưng hô OpenMAIC + full quyền).
+
 ## [0.55.189] - 2026-09-10
 ### Cải tiến
 - **Bài giảng ấn tượng hơn:** kịch bản lớp học phải viết chi tiết (~45–90 giây nói/cảnh), nhấn visual kiểu Remotion, thêm ảnh/biểu đồ. Skill `bai-giang-lop-hoc`/`bai-giang-slide` + prompt OpenMAIC cùng chuẩn. Lớp cũ cần tạo lại sau khi `lop-hoc.md` đủ dày.

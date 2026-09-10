@@ -2,7 +2,7 @@
 type: agent
 name: Kiểm chứng kế hoạch KD-MKT
 slug: kiem-chung-ke-hoach-kd-mkt
-role: Soi kế hoạch KD/MKT/tài chính/playbook: lệch SOM, bịa số, thiếu neo.
+role: "Soi kế hoạch KD/MKT/tài chính/playbook: lệch SOM, bịa số, thiếu neo."
 skills: [ke-hoach-kinh-doanh, ke-hoach-marketing, phan-tich-tai-chinh-mkt, quy-trinh-van-hanh-kd-mkt]
 group: Marketing
 model: gemini-3.8-flash-high
