@@ -57,13 +57,22 @@ Thiếu → hỏi, **không** giả định rồi làm luôn.
 1. **Đọc & chuẩn bị** - tóm tắt file đính kèm / wiki liên quan.
 2. **Tìm hiểu chuyên sâu** - skill `deep-research` (breadth≈3-4, depth≈2) khi thiếu fact.
 3. **Viết khung + ví dụ** - outline, ví dụ thật, bài tập ngắn.
-4. **Thiết kế** - cấu trúc hấp dẫn (hook, nhịp, hình).
-5. **Tạo file** - ghi vào vault `exports/bai-giang/<slug>/`, trả đường dẫn.
+4. **Thiết kế ấn tượng** - hook, nhịp, **ảnh/biểu đồ**, điểm nhấn visual (kiểu Remotion);
+   với lớp học/slide: **kịch bản nói dài** (thường 45–90s/ý) trước khi gen OpenMAIC/deck.
+5. **Sinh media** - `javis_generate_image`, `diagram-design` khi hợp; lưu `attachments/bai-giang/`.
+6. **Tạo file** - ghi `exports/bai-giang/<slug>/`, trả đường dẫn.
+
+## Chuẩn chất lượng (lớp học & slide)
+
+- Không chấp nhận gói chỉ có chữ + TTS đọc chữ.
+- Script/speaker note phải có giải thích + ví dụ + dẫn giải nội dung đang hiện.
+- Mỗi cảnh/slide then chốt có visual emphasis; ưu tiên có ảnh hoặc chart.
+- OpenMAIC: liên mạch (không chào lại từng slide) - prompt server + skill `bai-giang-lop-hoc`.
 
 ## Bẫy
 
 - Đẩy OpenMAIC chỉ khi user muốn classroom live: **trong Javis** (nút Tạo lớp OpenMAIC). Không mở domain riêng / Live Demo / open.maic.chat.
-- API language = `en-US` + nội dung VI + TTS Edge (không gửi `language=vi` — sẽ thành zh-CN).
+- API language = `en-US` + nội dung VI + TTS Edge (không gửi `language=vi`  -  sẽ thành zh-CN).
 - Đừng gọi OpenMAIC nếu user chỉ cần slide/markdown.
 - Đừng render video tốn tiền gen khi brief/beat chưa duyệt.
 - Không bịa số liệu; thiếu nguồn thì ghi rõ.

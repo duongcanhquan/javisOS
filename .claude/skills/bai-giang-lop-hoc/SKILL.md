@@ -1,62 +1,108 @@
 ---
 name: Bài giảng lớp học
-description: "Gói lớp học tương tác: outline, cảnh, quiz, script giảng; tạo OpenMAIC ngay trong Javis."
-description_en: "Interactive class pack: outline, scenes, quiz, teaching script; create OpenMAIC inside Javis."
+description: "Gói lớp học ấn tượng: kịch bản chi tiết ~1 phút/cảnh, nhấn visual kiểu Remotion, ảnh/biểu đồ, OpenMAIC."
+description_en: "Impressive class pack: ~1min scripts/scene, Remotion-style emphasis, charts/images, OpenMAIC."
 group: Nội dung
 ---
 
-# Bài giảng lớp học
+# Bài giảng lớp học (ấn tượng, không chỉ chữ)
 
 ## Khi nào dùng
 
-User chọn đầu ra **lớp học** / classroom / interactive lesson.
+User chọn đầu ra **lớp học** / classroom / interactive lesson / OpenMAIC.
 
-**Chuẩn chất lượng:** lớp phải nghe như giảng viên đang dạy (giới thiệu, giải thích,
-ví dụ, chuyển cảnh) kèm giọng đọc — **không** chấp nhận vài dòng nói xong rồi hết.
-Kiến thức nguồn đầy đủ thì script/`lop-hoc.md` phải GIỮ và TRIỂN khai, không nén slogan.
+**Chuẩn vàng:** mỗi cảnh = **slide sinh động** (ảnh/biểu đồ/nhấn visual) + **lời giảng dài**
+(thường **45–75 giây**, cảnh then chốt có thể **~60–90 giây**) gồm giải thích, ví dụ,
+chi tiết - **không** đọc to mấy bullet. Kịch bản phải viết đủ trước khi bấm OpenMAIC.
 
-## Quy trình
+## Chuẩn bị
 
-1. Chốt brief (chủ đề, đối tượng, mục tiêu, thời lượng ước lượng, ngôn ngữ).
-2. Đọc file đính kèm; thiếu kiến thức then chốt → `deep-research`.
-3. Viết **outline cảnh** (8-15 scene): mục tiêu cảnh, hoạt động, câu hỏi, visual.
-4. Thêm **quiz** (4-8 câu) + **PBL ngắn** (1 task thực hành).
-5. Viết **script giảng** từng cảnh (giọng nói tự nhiên, 45–90s/cảnh).
-   - Script **tiếng Việt dấu đầy đủ**; không Pinyin, không chữ Hán, không trộn zh.
-   - **Cấm nội dung mỏng:** mỗi cảnh dạy phải có định nghĩa / vì sao quan trọng / 1–2 ví dụ /
-     lỗi hay gặp / takeaway. Không chỉ liệt kê tiêu đề rồi “xem slide sau”.
-   - **Liên mạch:** chỉ cảnh 1 được chào / giới thiệu lớp. Từ cảnh 2: **cấm** «Xin chào các em»
-     / chào lại; mở bằng câu nối từ ý trước rồi giảng tiếp (cùng một giảng viên).
-   - **Dẫn giải slide:** lời nói phải đi theo nội dung đang hiện (đi từng bullet / nhãn /
-     bước sơ đồ / trục biểu đồ) — không chỉ đọc tiêu đề hay «như trên slide».
-6. Với mỗi cảnh, ghi **gợi ý visual** rõ: layout (2 cột, timeline, bước quy trình…),
-   biểu đồ (loại + trục/nhãn), hoặc mô tả ảnh minh họa cần sinh.
-7. Lưu `exports/bai-giang/<slug>/lop-hoc.md` (+ quiz.md).
-8. **Handoff OpenMAIC trong Javis** — xem khối dưới. **Không** bảo user mở domain `openmaic.*` hay Live Demo.
+1. Brief: chủ đề, đối tượng, mục tiêu, thời lượng, ngôn ngữ.
+2. Đọc file đính kèm; thiếu fact → `deep-research`.
+3. Đọc `references/scene-template.md` (khuôn mỗi cảnh) và `references/visual-motion.md`
+   (nhấn kiểu Remotion + ảnh/chart).
+4. Tool ảnh: `javis_generate_image` nếu ChatGPT OAuth sẵn; biểu đồ/sơ đồ →
+   **`diagram-design`** (HTML/SVG) hoặc mô tả chart có số thật.
+5. Motion video riêng (không bắt buộc OpenMAIC): skill **`remotion-best-practices`** /
+   **`lam-video`** khi user muốn clip nhấn hiệu ứng ngoài classroom.
 
-## Handoff OpenMAIC (trong Javis)
+## Quy trình (bắt buộc theo thứ tự)
 
-Sau khi có `lop-hoc.md`, hướng dẫn:
+### 1. Outline 8–15 cảnh
 
-1. Ở trang **Việc → Bài giảng → Lớp học**, cột Kết quả: bấm **Tạo lớp OpenMAIC**.
-2. Javis gọi API self-host (`POST /openmaic/generate`) — user không gõ key / access code.
-3. Classroom hiện **iframe** ngay trong panel Kết quả.
-4. Lớp cũ bị chào lại từng slide / TTS mỏng → **tạo lại** (prompt server đã siết liên mạch
-   + dẫn giải slide); không sửa được TTS trong iframe một cách đáng tin.
+Mỗi dòng outline: mục tiêu học + **1 ý then chốt** + loại visual (ảnh / chart / sơ đồ /
+so sánh 2 cột / timeline).
 
-Ràng buộc kỹ thuật (server đã xử lý; chỉ nhắc nếu user hỏi):
+### 2. Quiz + PBL
+
+Quiz 4–8 câu; 1 task thực hành ngắn.
+
+### 3. Kịch bản chi tiết từng cảnh (trái tim bài giảng)
+
+Với **mỗi** cảnh dạy, ghi đủ khối trong `scene-template.md`:
+
+| Khối | Yêu cầu |
+|------|---------|
+| `## Slide` | Tiêu đề + ≤5 bullet ngắn (để NHÌN, không phải để ĐỌC to) |
+| `## Visual` | Layout + **emphasis** (phần nào phóng to / highlight / xuất hiện sau) kiểu Remotion |
+| `## Ảnh / biểu đồ` | Prompt ảnh hoặc dữ liệu chart; nếu tạo được → lưu `attachments/bai-giang/<slug>/` và embed |
+| `## Script giảng` | **45–90 giây** nói: nối cảnh trước → giải thích → ví dụ → chi tiết slide → lỗi hay gặp → takeaway → nối sau |
+
+Luật script:
+
+- Tiếng Việt đủ dấu; không Pinyin / chữ Hán.
+- **Chỉ cảnh 1** chào lớp. Cảnh 2+: cấm «Xin chào các em».
+- **Dẫn giải slide:** nói theo thứ tự mắt nhìn (bullet 1 → 2 → hình); không chỉ đọc tiêu đề.
+- Slide đơn giản vẫn có thể cần **~1 phút** nếu ý cần ví dụ + phản ví dụ + ứng dụng.
+- Cấm script mỏng («như trên slide», «xem tiếp»).
+
+### 4. Sinh media (làm trong cùng lượt khi tool sẵn)
+
+- Ảnh minh họa then chốt: `javis_generate_image` → `attachments/bai-giang/<slug>/scene-NN.png`
+- Biểu đồ/sơ đồ quan hệ: `diagram-design` → `exports/bai-giang/<slug>/charts/` hoặc `attachments/`
+- Ghi đường dẫn vào mục Visual của cảnh tương ứng để OpenMAIC / giảng viên dùng lại.
+
+Thiếu tool → ghi prompt + «cần sinh khi có ChatGPT/diagram»; **không** bỏ mục Visual.
+
+### 5. Ghi file
+
+- `exports/bai-giang/<slug>/lop-hoc.md` (đủ template)
+- `exports/bai-giang/<slug>/quiz.md`
+- (tuỳ) `motion-notes.md` - danh sách beat nhấn Remotion nếu user muốn làm video sau
+
+### 6. Handoff OpenMAIC
+
+1. **Việc → Bài giảng → Lớp học** → **Tạo lớp OpenMAIC**.
+2. Server ép liên mạch + narration dài + visual (xem prompt `/openmaic/generate`).
+3. Lớp cũ mỏng / chào lại → **tạo lại** sau khi `lop-hoc.md` đã đủ chi tiết.
 
 | Mục | Giá trị |
 |-----|---------|
-| API `language` | `en-US` (OpenMAIC chỉ nhận en-US\|zh-CN; `vi` sẽ **fallback zh-CN** → giọng Trung) |
-| Nội dung | Requirement + script + quiz **tiếng Việt**; Javis ép **8-15 scene** + giảng dạy chi tiết + visual |
-| TTS | OpenAI → Javis Edge (Hoài My/Nam Minh); cấm Browser Native / Doubao / Qwen / zh-* |
-| Ảnh/biểu đồ | Javis bật `enableImageGeneration` nếu `/api/health` có `imageGeneration=true` (cần provider ảnh trên OpenMAIC) |
-| LLM | Model yếu (vd. `gpt-4o-mini`) → slide mỏng / ít hình — ưu tiên Gemini Flash / `gpt-4o` |
-| Live Demo | Cấm |
+| API `language` | `en-US` (không gửi `vi`) |
+| Nội dung | VI trong requirement; 8–15 scene; script dài |
+| TTS | Edge VI qua proxy Javis |
+| Ảnh | `enableImageGeneration` nếu health cho phép + ảnh đã gắn trong plan |
+| Model | Tránh mini nếu muốn slide/ảnh dày |
 
-**Không phải giới hạn 1 slide của Javis.** OpenMAIC tự sinh outline từ requirement; nếu LLM chỉ outline 1 cảnh (hoặc các cảnh sau fail rồi bỏ qua) thì classroom vẫn “succeeded” với 1 slide. Javis sẽ cảnh báo khi `scenesCount < 3`.
+## Liên kết
 
-## Đầu ra
+- Điều phối đầu ra → `tao-bai-giang`
+- Deck chiếu thuần → `bai-giang-slide` (cùng chuẩn visual + speaker note dài)
+- Video explainer → `lam-video` + `remotion-best-practices`
+- Sơ đồ editorial → `diagram-design`
 
-Markdown: mục tiêu, outline, script (VI), quiz, Sources. Cuối: một dòng nhắc bấm **Tạo lớp OpenMAIC** trong Javis.
+## Bẫy
+
+- Không giao lớp chỉ có bullet + TTS đọc bullet.
+- Không bịa số trên chart.
+- Không em dash.
+- OpenMAIC không phải Remotion player: «Remotion» ở đây = **chỉ dẫn nhấn visual** trong
+  kịch bản + tùy chọn làm clip Remotion riêng nếu user yêu cầu.
+
+## Kiểm chứng
+
+- [ ] ≥8 cảnh; mỗi cảnh dạy có Script ≥ ~120 từ hoặc rõ 45–90s
+- [ ] Cảnh 2+ không chào lại
+- [ ] Mỗi cảnh có Visual + (ảnh hoặc chart hoặc mô tả emphasis)
+- [ ] Có ví dụ thật trong script, không chỉ định nghĩa
+- [ ] File trong `exports/bai-giang/<slug>/`

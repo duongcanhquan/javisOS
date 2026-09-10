@@ -8643,18 +8643,23 @@ def seed_bai_giang(brain: str) -> dict:
             "role": "Biên soạn gói lớp học tương tác từ nghiên cứu: cảnh, quiz, script.",
             "skills": ["bai-giang-lop-hoc", "tao-bai-giang", "deep-research"],
             "prompt": (
-                "Bạn thiết kế lớp học tương tác như GIẢNG VIÊN đang dạy (không phải tóm tắt bullet).\n"
-                "Nạp skill bai-giang-lop-hoc. Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
-                "Tạo outline 8-15 cảnh. Mỗi cảnh dạy phải có trong lop-hoc.md:\n"
-                "- mục tiêu cảnh + visual (layout / biểu đồ / ảnh)\n"
-                "- script giảng 45-90 giây: cảnh 1 chào ngắn + mục tiêu; "
-                "cảnh 2+ CHỈ nối ý (cấm Xin chào/Chào các em) → giải thích theo slide "
-                "(đi từng bullet/sơ đồ) → ví dụ → lỗi hay gặp → takeaway → nối cảnh sau\n"
-                "- dùng ĐỦ kiến thức nguồn; cấm nén thành 1-2 câu slogan; "
-                "cấm TTS chỉ đọc tiêu đề\n"
-                "Thêm quiz 4-8 câu + 1 PBL ngắn. Script tiếng Việt dấu đầy đủ (không Pinyin/chữ Hán).\n"
+                "Bạn thiết kế lớp học tương tác như GIẢNG VIÊN đang dạy bài ẤN TƯỢNG "
+                "(không phải tóm tắt bullet).\n"
+                "Nạp skill bai-giang-lop-hoc + đọc references/scene-template.md và "
+                "visual-motion.md. Đọc nghiên cứu {{prev}} + brief {{input}}.\n"
+                "Tạo outline 8-15 cảnh. Mỗi cảnh dạy trong lop-hoc.md PHẢI đủ khuôn:\n"
+                "- Slide nhìn: tiêu đề + ≤5 bullet ngắn\n"
+                "- Visual/motion kiểu Remotion: 1 điểm nhấn (big number / step reveal / "
+                "compare / callout / diagram focus) + thứ tự xuất hiện\n"
+                "- Ảnh hoặc biểu đồ: gọi javis_generate_image và/hoặc diagram-design khi sẵn; "
+                "lưu attachments/bai-giang/<slug>/; thiếu tool thì ghi prompt rõ\n"
+                "- Script giảng 45-90 giây (cảnh then chốt ~60-90s): cảnh 1 chào ngắn + mục tiêu; "
+                "cảnh 2+ CHỈ nối ý (cấm Xin chào/Chào các em) → giải thích → đi từng ý trên slide "
+                "→ ví dụ + phản ví dụ → lỗi hay gặp → takeaway → nối cảnh sau\n"
+                "- Cấm TTS chỉ đọc tiêu đề/bullet; cấm giao plan mỏng\n"
+                "Thêm quiz 4-8 câu + 1 PBL ngắn. Script tiếng Việt dấu đầy đủ.\n"
                 "Ghi exports/bai-giang/<slug-ascii>/lop-hoc.md và quiz.md.\n"
-                "Cuối: nhắc bấm «Tạo lớp OpenMAIC» trong Javis (không Live Demo / domain riêng).\n"
+                "Cuối: nhắc bấm «Tạo lớp OpenMAIC» trong Javis (không Live Demo).\n"
                 "API: language=en-US + nội dung VI + TTS Edge. Không em dash."
             ),
         },
@@ -11732,21 +11737,19 @@ def _openmaic_rewrite_classroom_urls(payload: dict) -> dict:
 def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> str:
     """Prompt cho OpenMAIC generate-classroom.
 
-    Mục tiêu UX: lớp như GIẢNG VIÊN đang dạy (giới thiệu → giảng → ví dụ → chuyển cảnh),
-    có TTS dài, không phải vài dòng slogan. OpenMAIC tự outline từ `requirement` nên
-    prompt phải ép độ dày + map đủ cảnh từ lop-hoc.md.
-
-    Đặc biệt: chống mỗi slide chào lại («Xin chào các em») và chống TTS chỉ đọc tiêu đề
-    mà không dẫn giải nội dung đang hiện trên slide.
+    Mục tiêu UX: bài giảng ẤN TƯỢNG - kịch bản chi tiết sẵn trong lop-hoc.md được
+    mở rộng thành TTS dài (~45-90s/cảnh, cảnh then chốt ~1 phút), dẫn giải slide,
+    nhấn visual (kiểu Remotion), ảnh/biểu đồ - không phải đọc bullet.
     """
     parts = [
         "You are producing a FULL OpenMAIC interactive classroom as if ONE skilled LECTURER "
-        "is teaching ONE continuous lesson: warm intro once, then explain, examples, checks, "
-        "and smooth transitions — with spoken narration on every teaching scene.",
+        "is teaching ONE continuous, impressive lesson: cinematic visuals + deep spoken teaching "
+        "(often ~60 seconds per simple teaching slide when the idea needs examples).",
         "",
         "SOURCE MATERIAL RULE:",
-        "- The lesson plan below is the FULL knowledge base. EXPAND it into teaching talk.",
-        "- Do NOT compress rich source text into 1-2 slogans. If the plan has detail, KEEP and TEACH it.",
+        "- The lesson plan below is the FULL knowledge base and SCRIPT draft. EXPAND it.",
+        "- If the plan already has long Vietnamese scripts, PRESERVE their depth; polish, do not shrink.",
+        "- Do NOT compress rich source text into 1-2 slogans or title-only talk.",
         "- If a section is dense, split into multiple scenes rather than summarizing away.",
         "",
         "HARD REQUIREMENTS (must follow):",
@@ -11758,38 +11761,50 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
         "6) Voice: server TTS OpenAI-compatible (Edge Vietnamese). No Browser Native / Doubao / Qwen zh.",
         "7) If the plan already lists scene titles or scripts, KEEP that structure and expand each into a full scene.",
         "",
-        "CONTINUITY (critical — users hate re-greetings):",
-        "15) Greet / introduce yourself / welcome the class AT MOST ONCE — only on scene 1 (welcome).",
+        "CONTINUITY (critical - users hate re-greetings):",
+        "15) Greet / introduce yourself / welcome the class AT MOST ONCE - only on scene 1 (welcome).",
         "16) From scene 2 onward: NEVER say «Xin chào», «Chào các em», «Chào mừng», «Hello students», "
         "«Hôm nay chúng ta sẽ», or any fresh self-intro. Continue as the SAME teacher mid-lesson.",
         "17) Open each scene 2+ with a SHORT bridge from the previous idea (1 câu), then teach.",
         "18) Keep one persona, one tone, one learning arc across all scenes. No reset.",
         "",
-        "SLIDE-GROUNDED NARRATION (critical — slides alone are not a lecture):",
-        "19) Spoken script MUST teach what is VISIBLE on that scene's slide: walk through titles, "
-        "bullets, labels, chart axes, diagram parts, numbers — in order a student would look.",
-        "20) Do NOT only read the slide title or say «như các em thấy trên slide» without explaining.",
-        "21) For each bullet/block on the slide: say what it means, why it matters, and 1 mini example "
-        "when the lesson plan provides one. Aim 45-90 seconds of real teaching talk per teaching scene.",
-        "22) If the slide shows a process/diagram, narrate step-by-step pointing to each part.",
-        "23) On-slide text stays scannable (title + 3-6 bullets); the TALK carries the explanation.",
+        "LONG SLIDE-GROUNDED NARRATION (critical - a lecture is NOT reading bullets):",
+        "19) Target 45-90 seconds of REAL teaching talk per teaching scene; key idea scenes ~60-90s "
+        "even if the on-slide text looks simple.",
+        "20) Spoken script MUST teach what is VISIBLE: walk titles, bullets, labels, chart axes, "
+        "diagram parts, numbers - in the order a student looks.",
+        "21) For EACH bullet/block: meaning + why it matters + mini example (from the plan when present).",
+        "22) Add: concrete example, contrast/common mistake, and one memorable takeaway.",
+        "23) Do NOT only read the slide title or say «như các em thấy trên slide» without explaining.",
+        "24) On-slide text stays scannable (title + 3-5 short bullets); the TALK carries the depth.",
+        "",
+        "VISUAL EMPHASIS (Remotion-style focus - even if the runtime is not Remotion):",
+        "25) Every teaching scene has ONE primary visual focus (big number, step reveal, compare split, "
+        "callout definition, diagram node, before/after).",
+        "26) Prefer layouts that highlight that focus; avoid walls of text.",
+        "27) When the plan lists emphasis/motion beats, follow that reveal order in narration.",
+        "",
+        "IMAGES & CHARTS (make it vivid):",
+        "28) Include illustrative images on key scenes when image generation is enabled OR when the "
+        "plan already embeds/paths images - do not leave all slides text-only.",
+        "29) Where numbers/relationships matter, include a chart or labeled diagram (Vietnamese labels).",
+        "30) Never invent precise statistics; if the plan marks estimates, keep them labeled as estimates.",
         "",
         "LECTURE FLOW PER TEACHING SCENE:",
         "8) Structure spoken script like a real teacher (45-90 seconds):",
         "   (a) scene 1 only: brief welcome + learning outcomes; scenes 2+: bridge only (no greeting)",
-        "   (b) explain the idea in plain Vietnamese WHILE referencing slide content (definition + why)",
+        "   (b) explain in plain Vietnamese WHILE pointing through slide/visual content",
         "   (c) 1-2 concrete examples or mini-cases from the source material",
         "   (d) common mistake or contrast",
         "   (e) one takeaway + bridge to the next scene",
-        "9) Forbidden thin output: one-liner slogans, empty welcome-only copy,",
+        "9) Forbidden thin output: one-liner slogans, empty welcome-only copy, reading bullets only,",
         "   'see next slide' without teaching, re-greeting every scene, or dropping examples in the plan.",
-        "10) On-slide text: clear hierarchy (title + 3-6 bullets or short paragraphs).",
-        "    Slides support the talk; they are not the only content.",
+        "10) On-slide text: clear hierarchy (title + 3-5 bullets). Slides support the talk.",
         "",
         "VISUAL DESIGN:",
         "11) Vary layouts: title+visual, two-column compare, process steps, timeline,",
         "    key-stat callout, diagram-with-labels.",
-        "12) Include charts/diagrams where numbers or relationships matter; labels in Vietnamese.",
+        "12) Charts/diagrams where numbers or relationships matter; labels in Vietnamese.",
         "13) When image generation is enabled, request relevant illustrative images for key scenes.",
         "14) Welcome (if any) is ONLY scene 1 and must state learning outcomes; then teach.",
         "",
@@ -11797,19 +11812,22 @@ def _openmaic_build_requirement(topic: str, main_md: str, quiz_md: str = "") -> 
     if topic:
         parts.append(f"Course topic: {topic.strip()}")
         parts.append("")
-    parts.append("--- LESSON PLAN (lop-hoc.md) — expand ALL of this into lecturer-quality scenes ---")
+    parts.append("--- LESSON PLAN (lop-hoc.md) - expand ALL of this into lecturer-quality scenes ---")
     parts.append(main_md.strip() or "(empty)")
     if quiz_md and quiz_md.strip():
         parts.append("")
-        parts.append("--- QUIZ (quiz.md) — turn into quiz scene(s) with brief spoken feedback ---")
+        parts.append("--- QUIZ (quiz.md) - turn into quiz scene(s) with brief spoken feedback ---")
         parts.append(quiz_md.strip())
     parts.append("")
     parts.append(
         "Final check (FAIL if any is true): scripts shorter than ~45s of real teaching; "
-        "only a welcome scene; scenes 2+ reopen with greetings; narration ignores on-slide "
-        "bullets/diagrams. Expand into 8+ full teaching scenes with continuous, slide-grounded talk."
+        "key scenes under ~60s when the plan asked for deep explanation; only a welcome scene; "
+        "scenes 2+ reopen with greetings; narration ignores on-slide bullets/diagrams; "
+        "all slides are text-only with no visual focus. Expand into 8+ full teaching scenes "
+        "with continuous, slide-grounded, example-rich talk and vivid visuals."
     )
     return "\n".join(parts)
+
 
 
 @app.get("/openmaic/health")

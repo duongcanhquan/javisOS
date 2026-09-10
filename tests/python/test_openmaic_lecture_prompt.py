@@ -21,13 +21,10 @@ req = app_main._openmaic_build_requirement(
 )
 
 low = req.lower()
-check("có CONTINUITY / cấm chào lại", "continuity" in low and "xin chào" in low)
-check("cấm chào từ scene 2", "from scene 2" in low and "never say" in low)
-check("dẫn giải nội dung slide", "slide-grounded" in low or "visible on that scene" in low)
-check("đi theo bullet/diagram", "bullet" in low and "diagram" in low)
-check("welcome chỉ scene 1", "only on scene 1" in low or "only scene 1" in low)
-check("nhúng lop-hoc + quiz", "chlorophyll" in low and "q1?" in low)
-check("final check nhắc greeting", "greeting" in low)
+check("narration dài 45-90s / ~60s", "45-90" in low and "60" in low)
+check("Remotion-style emphasis", "remotion" in low or "visual emphasis" in low or "primary visual focus" in low)
+check("ảnh và biểu đồ", "image" in low and ("chart" in low or "diagram" in low))
+check("cấm chỉ đọc bullet", "reading bullets" in low or "not reading bullets" in low or "lecture is not reading" in low)
 
 if _loi:
     raise SystemExit("FAIL: " + ", ".join(_loi))

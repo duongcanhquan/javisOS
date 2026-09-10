@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.189] - 2026-09-10
+### Cải tiến
+- **Bài giảng ấn tượng hơn:** kịch bản lớp học phải viết chi tiết (~45–90 giây nói/cảnh), nhấn visual kiểu Remotion, thêm ảnh/biểu đồ. Skill `bai-giang-lop-hoc`/`bai-giang-slide` + prompt OpenMAIC cùng chuẩn. Lớp cũ cần tạo lại sau khi `lop-hoc.md` đủ dày.
+
 ## [0.55.188] - 2026-09-10
 ### Sửa lỗi
 - **OpenMAIC bài giảng liên mạch hơn:** prompt generate cấm mỗi slide chào lại («Xin chào các em»); TTS phải dẫn giải nội dung đang hiện trên slide (bullet/sơ đồ), không chỉ đọc tiêu đề. Skill `bai-giang-lop-hoc` cùng luật. Lớp cũ cần tạo lại.
