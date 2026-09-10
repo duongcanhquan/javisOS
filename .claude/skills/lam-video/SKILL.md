@@ -39,6 +39,10 @@ Mẫu dán nhanh cho user (copy từ checklist) nếu họ muốn chạy workflo
 
 Chỉ sau khi brief đã chốt. Nạp skill **`deep-research`**: chạy vòng breadth/depth (mặc định 4×2) qua Tavily/WebSearch, rút learnings có nguồn, rồi chưng 5-8 insight then chốt + 3 góc hook cho video. Ghi Sources. Không bịa số.
 
+Nếu brief bám **video mẫu / talk trên YT/Bilibili** → thêm **`tom-tat-video`**.
+Nếu brief bám **trend MXH** → **`lang-nghe-mxh`** rồi (tuỳ chọn)
+**`y-tuong-noi-dung-tu-trend`** trước khi chốt góc kể.
+
 ### 3. Viết kịch bản chuẩn
 
 Xuất `beats` hoặc outline shot-by-shot:

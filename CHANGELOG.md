@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.187] - 2026-09-10
+### Cải tiến
+- **Gói skill Agent-Reach:** `agent-reach` (doctor/cài), `lang-nghe-mxh`, `tom-tat-video`, `theo-doi-rss-chu-de`, `y-tuong-noi-dung-tu-trend`. Gắn vào `deep-research`, nghiên cứu thị trường, `marketing-hub`, `lam-video`. Không nhúng repo Reach vào image - CLI trên máy/VPS, thiếu thì fallback Tavily.
+
 ## [0.55.186] - 2026-09-10
 ### Cải tiến
 - **Skill `landing-page`:** từ chat dựng landing HTML/Tailwind (brief hoặc chủ đề → copy → chọn layout → `exports/landing/`). Giao file + zip + tuỳ chọn Webcake; Next/Cruip chỉ khi hỏi rõ (không ship GPL). Gắn `marketing-hub` và bộ UI/UX.

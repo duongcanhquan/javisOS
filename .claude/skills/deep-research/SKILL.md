@@ -9,7 +9,10 @@ group: Năng suất
 
 Phương pháp từ [dzhng/deep-research](https://github.com/dzhng/deep-research): nghiên cứu lặp, mỗi vòng sinh query → tra web → rút learning → đào sâu thêm.
 
-Trên Javis chạy bằng **tool sẵn có** (Tavily MCP / WebSearch / WebFetch / query-wiki). Không bắt buộc cài Node Firecrawl; muốn CLI gốc xem `references/upstream.md`.
+Trên Javis chạy bằng **tool sẵn có** (Tavily MCP / WebSearch / WebFetch / query-wiki).
+Tuỳ chọn: kênh MXH/video/RSS qua skill **`agent-reach`** + **`lang-nghe-mxh`** /
+**`tom-tat-video`** / **`theo-doi-rss-chu-de`** khi brief đòi voice cộng đồng hoặc
+video công khai. Không bắt buộc cài Node Firecrawl; muốn CLI gốc xem `references/upstream.md`.
 
 ## Khi nào dùng
 
@@ -21,7 +24,10 @@ Trên Javis chạy bằng **tool sẵn có** (Tavily MCP / WebSearch / WebFetch 
 
 1. Đọc brief / `{{input}}` + `memory/` + wiki liên quan.
 2. Kiểm tra kết nối: ưu tiên **Tavily** (`tavily_search`, `tavily_extract`); không có thì WebSearch/WebFetch nếu engine hỗ trợ; không có cả hai thì dùng wiki + nêu rõ thiếu tra web.
-3. Chọn tham số (mặc định nếu user không nói):
+3. Brief có **MXH / “mọi người nói” / XHS / Reddit / trend video** → nạp **`lang-nghe-mxh`**
+   hoặc **`tom-tat-video`** (sau `agent-reach` doctor) như **một nhánh** song song web;
+   không thay cả vòng Tavily bằng scrape.
+4. Chọn tham số (mặc định nếu user không nói):
    - **breadth** = 4 (2-8)
    - **depth** = 2 (1-4)
    - Chế độ **report** (báo cáo dài) trừ khi user chỉ cần câu trả lời ngắn (**answer**).

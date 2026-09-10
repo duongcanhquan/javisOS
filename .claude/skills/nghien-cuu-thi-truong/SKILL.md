@@ -20,6 +20,9 @@ group: Marketing
 3. Có **Tavily** hoặc WebSearch → dùng tra tin mới, báo cáo ngành, đối thủ theo mô hình **Phân tán (Fan-out)** để tối ưu thời gian.
 4. Có MCP bán hàng/quảng cáo → lấy số thật nội bộ (doanh thu, kênh, CAC, LTV) nếu liên quan.
 5. Nạp skill **`deep-research`** để đào sâu web theo breadth 3-5, depth 2 trước khi viết khung.
+6. Cần **voice khách / cộng đồng / “đang nói gì trên MXH”** → nạp **`lang-nghe-mxh`**
+   (và `agent-reach` nếu dùng CLI). RSS ngành tùy chọn: **`theo-doi-rss-chu-de`**.
+   Đưa quote + theme vào mục JTBD / objection; **không** thay số nội bộ bằng like MXH.
 
 ## Quy trình
 

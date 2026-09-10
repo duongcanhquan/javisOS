@@ -16,6 +16,10 @@ Nguồn RSS **tách theo danh mục** trong `Javis/bao-chi-cau-hinh.md`.
 - User gọi tay: «tổng hợp báo chí tài chính», «RSS bất động sản».
 - Cần tối đa **10 bài mới**, mỗi bài **bắt buộc** có: tên báo + giờ xuất bản + **link đọc bấm được**.
 
+**Khác** skill **`theo-doi-rss-chu-de`**: skill này = danh mục báo chí cố định trong
+`Javis/bao-chi-cau-hinh.md`. RSS theo **chủ đề tùy ý** (blog đối thủ, newsletter ngành)
+→ dùng `theo-doi-rss-chu-de`.
+
 ## Chuẩn bị
 
 1. Đọc `Javis/bao-chi-cau-hinh.md`. Thiếu → tạo từ `references/cau-hinh-mau.md`.
