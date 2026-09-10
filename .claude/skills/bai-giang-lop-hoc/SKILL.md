@@ -25,6 +25,10 @@ Kiến thức nguồn đầy đủ thì script/`lop-hoc.md` phải GIỮ và TRI
    - Script **tiếng Việt dấu đầy đủ**; không Pinyin, không chữ Hán, không trộn zh.
    - **Cấm nội dung mỏng:** mỗi cảnh dạy phải có định nghĩa / vì sao quan trọng / 1–2 ví dụ /
      lỗi hay gặp / takeaway. Không chỉ liệt kê tiêu đề rồi “xem slide sau”.
+   - **Liên mạch:** chỉ cảnh 1 được chào / giới thiệu lớp. Từ cảnh 2: **cấm** «Xin chào các em»
+     / chào lại; mở bằng câu nối từ ý trước rồi giảng tiếp (cùng một giảng viên).
+   - **Dẫn giải slide:** lời nói phải đi theo nội dung đang hiện (đi từng bullet / nhãn /
+     bước sơ đồ / trục biểu đồ) — không chỉ đọc tiêu đề hay «như trên slide».
 6. Với mỗi cảnh, ghi **gợi ý visual** rõ: layout (2 cột, timeline, bước quy trình…),
    biểu đồ (loại + trục/nhãn), hoặc mô tả ảnh minh họa cần sinh.
 7. Lưu `exports/bai-giang/<slug>/lop-hoc.md` (+ quiz.md).
@@ -37,6 +41,8 @@ Sau khi có `lop-hoc.md`, hướng dẫn:
 1. Ở trang **Việc → Bài giảng → Lớp học**, cột Kết quả: bấm **Tạo lớp OpenMAIC**.
 2. Javis gọi API self-host (`POST /openmaic/generate`) — user không gõ key / access code.
 3. Classroom hiện **iframe** ngay trong panel Kết quả.
+4. Lớp cũ bị chào lại từng slide / TTS mỏng → **tạo lại** (prompt server đã siết liên mạch
+   + dẫn giải slide); không sửa được TTS trong iframe một cách đáng tin.
 
 Ràng buộc kỹ thuật (server đã xử lý; chỉ nhắc nếu user hỏi):
 

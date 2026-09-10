@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.188] - 2026-09-10
+### Sửa lỗi
+- **OpenMAIC bài giảng liên mạch hơn:** prompt generate cấm mỗi slide chào lại («Xin chào các em»); TTS phải dẫn giải nội dung đang hiện trên slide (bullet/sơ đồ), không chỉ đọc tiêu đề. Skill `bai-giang-lop-hoc` cùng luật. Lớp cũ cần tạo lại.
+
 ## [0.55.187] - 2026-09-10
 ### Cải tiến
 - **Gói skill Agent-Reach:** `agent-reach` (doctor/cài), `lang-nghe-mxh`, `tom-tat-video`, `theo-doi-rss-chu-de`, `y-tuong-noi-dung-tu-trend`. Gắn vào `deep-research`, nghiên cứu thị trường, `marketing-hub`, `lam-video`. Không nhúng repo Reach vào image - CLI trên máy/VPS, thiếu thì fallback Tavily.
