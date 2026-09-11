@@ -22,9 +22,27 @@ check("beginSttFast gọi Moonshine trước (không cần engineReady mới ch�
   beginFn.indexOf("await startMoonshine") !== -1 &&
   beginFn.indexOf("preferMoonshineFirst") < beginFn.indexOf("await startMoonshine") &&
   beginFn.indexOf("await startMoonshine") < beginFn.indexOf("hasWebSpeech"));
-check("Moonshine lỗi thì Web Speech, không đẩy Gemini",
+check("Moonshine lỗi (không ghi loa) thì Web Speech, không đẩy Gemini",
   /không đẩy Gemini/.test(beginFn) &&
   beginFn.indexOf("startWebSpeechSafe") < beginFn.indexOf("tryStartCloudStt"));
+check("đang mix loa máy thì không nhảy Web Speech",
+  /function allowWebSpeechFallback\(/.test(src) &&
+  /allowWebSpeechFallback\(\) && hasWebSpeech\(\)/.test(src) &&
+  /allowWebSpeechFallback\(\) && hasWebSpeech\(\) && prev !== "webspeech"/.test(src));
+check("watchdog không recover Moonshine khi capture còn sống (giọng nhỏ / ngắt câu)",
+  /function moonshineCaptureAlive\(/.test(src) &&
+  /if \(moonshineCaptureAlive\(\)\)/.test(src) &&
+  /recoverSttSession\(root, "cold"\)/.test(src));
+check("recover STT giữ display stream (không mất loa máy)",
+  /function cleanupSttEngines\(/.test(src) &&
+  /cleanupSttEngines\(\{\s*keepDisplay:\s*true/.test(src));
+check("transcribe Moonshine không gọi mỗi chunk (tránh trễ / teardown nhầm)",
+  /MOONSHINE_TRANSCRIBE_MIN_MS\s*=\s*320/.test(src) &&
+  /function moonshineMaybeTranscribe\(/.test(src) &&
+  src.indexOf("moonshineMaybeTranscribe(cap") !== -1 &&
+  !/addAudio\(resampled, 16000\);\s*cap\.moonStream\.transcribe\(\)/.test(src));
+check("EN Moonshine có max_tokens_per_second (chặn decoder chậm / bịa)",
+  /en:\s*\{[\s\S]{0,180}max_tokens_per_second:\s*"13\.0"/.test(src));
 check("thanh trạng thái theo state.sttEngine (setMeetingSttStatus)",
   /function setMeetingSttStatus\(/.test(src) &&
   /Đang ghi \(Moonshine · /.test(src) &&
@@ -36,7 +54,7 @@ check("timeout WASM 28s + ngủ audio lúc load",
 check("không import jsDelivr Moonshine",
   src.indexOf("cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm") === -1);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 35)", v >= 35, v);
+check("meetings.js đã bump ?v= (>= 42)", v >= 42, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

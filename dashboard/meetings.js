@@ -138,7 +138,11 @@
     },
     en: {
       arch: "Base",
-      opts: { identify_speakers: "false", vad_threshold: "0.20" },
+      opts: {
+        identify_speakers: "false",
+        max_tokens_per_second: "13.0",
+        vad_threshold: "0.20",
+      },
       label: "English",
     },
     es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.20" }, label: "Español" },
@@ -190,6 +194,7 @@
   var AGC_TARGET_RMS = 0.08;
   var AGC_MAX_GAIN = 16;
   var AGC_SILENCE_RMS = 0.00055;
+  var MOONSHINE_TRANSCRIBE_MIN_MS = 320;
   var SYS_AUDIO_KEY = "javis.meeting.sysAudio";
   // Kích thước tối thiểu (byte) — chặn cache/HTML lỗi khiến load “ok” nhưng không ra chữ.
   var MOONSHINE_MIN_BYTES = {
@@ -241,6 +246,20 @@
     var el = document.querySelector("#mtSysAudio");
     if (el) return !!el.checked;
     return loadWantSystemAudio();
+  }
+
+  /** Web Speech không đọc được display audio. Đang mix loa máy thì không nhảy sang. */
+  function allowWebSpeechFallback() {
+    return !(wantSystemAudio() && (state._hasSystemAudio || displayAudioLive()));
+  }
+
+  function moonshineCaptureAlive() {
+    if (state.sttEngine !== "moonshine") return false;
+    var cap = state._moonshineCapture;
+    if (!cap || !cap.running) return false;
+    if ((cap.chunks || 0) < 8) return false;
+    if ((cap.peakRms || 0) < AGC_SILENCE_RMS) return false;
+    return true;
   }
 
   function applyMicAec(on) {
@@ -1034,6 +1053,21 @@
     void keepTranscriber;
   }
 
+  function moonshineMaybeTranscribe(cap) {
+    if (!cap || !cap.moonStream) return;
+    var now = Date.now();
+    if (cap._txBusy) return;
+    if (now - (cap._lastTxAt || 0) < MOONSHINE_TRANSCRIBE_MIN_MS) return;
+    cap._txBusy = true;
+    cap._lastTxAt = now;
+    try {
+      cap.moonStream.transcribe();
+    } catch (eTx) {
+      /* overlap/busy: giữ engine, không teardown */
+    }
+    cap._txBusy = false;
+  }
+
   async function bindMoonshineCapture(root, transcriber) {
     if (!transcriber || typeof transcriber.createStream !== "function") {
       throw new Error("Moonshine Transcriber thiếu createStream");
@@ -1187,10 +1221,11 @@
       var resampled = moonshineResampleTo16k(boosted, inputRate);
       try {
         cap.moonStream.addAudio(resampled, 16000);
-        cap.moonStream.transcribe();
       } catch (eAdd) {
         handleMoonshineLiveError(root, eAdd);
+        return;
       }
+      moonshineMaybeTranscribe(cap);
     };
 
     // Mic → worklet trực tiếp. EQ Web Audio (0.55.174) làm một số máy không ra sample.
@@ -2919,14 +2954,19 @@
     });
   }
 
-  async function cleanupAudio() {
+  async function cleanupSttEngines(opts) {
+    opts = opts || {};
     clearSttWatchdog();
     stopAudioResumeWatch();
     stopWebSpeech();
     stopWhisper();
     await stopMoonshineMic();
-    stopDisplayAudio();
+    if (!opts.keepDisplay) stopDisplayAudio();
     state.sttEngine = "";
+  }
+
+  async function cleanupAudio() {
+    await cleanupSttEngines({ keepDisplay: false });
   }
 
   function handleMoonshineLiveError(root, err) {
@@ -3022,7 +3062,7 @@
           return;
         }
         state._sttFailoverDone = true;
-        await cleanupAudio();
+        await cleanupSttEngines({ keepDisplay: true });
         state.running = true;
         if (preferMoonshineFailover(langNow) && moonshineSupports(langNow)) {
           try {
@@ -3033,7 +3073,7 @@
             return;
           } catch (eM2) {}
         }
-        if (hasWebSpeech() && prev !== "webspeech") {
+        if (allowWebSpeechFallback() && hasWebSpeech() && prev !== "webspeech") {
           startWebSpeechSafe(root);
           setStatus(root, "Moonshine lỗi — tạm Web Speech.", "err");
           noteSttActivity("partial");
@@ -3085,6 +3125,10 @@
 
     state._sttIdleTimer = setInterval(function () {
       if (!state.running || state.abortRequested || state._sttRecovering) return;
+      if (moonshineCaptureAlive()) {
+        noteSttActivity("partial");
+        return;
+      }
       var t = Date.now();
       var lastAct = Math.max(state._lastFinalAt || 0, state._lastPartialAt || 0);
       if (state.lines <= linesAtArm && state.lines === 0 && t - armedAt >= coldMs) {
@@ -3171,14 +3215,17 @@
           root,
           "Moonshine chưa lên (" +
             ((eMoon && eMoon.message) || eMoon) +
-            ") — chuyển Web Speech, không đẩy Gemini.",
+            ")" +
+            (!allowWebSpeechFallback()
+              ? " — giữ loa máy, thử Cloud STT, không đẩy Gemini / Web Speech."
+              : " — chuyển Web Speech, không đẩy Gemini."),
           "err"
         );
       }
     }
 
-    // 2) Web Speech (Chrome) — không cần Gemini.
-    if (hasWebSpeech()) {
+    // 2) Web Speech (Chrome) — không bắt loa máy; bỏ qua khi đang mix display audio.
+    if (allowWebSpeechFallback() && hasWebSpeech()) {
       if (micPromise) {
         await discardMicStream(micPromise);
         micPromise = null;
@@ -3193,6 +3240,12 @@
     if (cloudLast) {
       setMeetingSttStatus(root);
       return cloudLast;
+    }
+
+    if (!allowWebSpeechFallback()) {
+      throw new Error(
+        "Moonshine chưa lên (đang ghi loa máy, không dùng Web Speech). Tải lại trang Chrome/Edge HTTPS, chia sẻ lại Toàn màn hình + âm thanh."
+      );
     }
 
     throw new Error(
@@ -3331,7 +3384,7 @@
         if (cloudLast) {
           sttStarted = true;
           sttEngine = cloudLast;
-        } else if (hasWebSpeech()) {
+        } else if (allowWebSpeechFallback() && hasWebSpeech()) {
           try {
             startWebSpeechSafe(root);
             sttStarted = true;

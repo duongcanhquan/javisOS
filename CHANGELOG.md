@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.195] - 2026-09-11
+### Sửa lỗi
+- **Cuộc họp không còn nhảy Web Speech khi đang ghi loa máy:** giọng nhỏ / ngắt câu không còn bị watchdog coi là chết engine. Web Speech không bắt được Zoom/Meet. Transcribe Moonshine giãn 320ms để chữ nhanh hơn, ít vỡ.
+
 ## [0.55.194] - 2026-09-11
 ### Sửa lỗi
 - **Cuộc họp bắt loa máy khi người nói nhỏ / hơi vang:** tăng tiếng loopback (sysGain 2), hạ VAD Moonshine 0.20 và cửa RMS 0.0035. Giọng to rõ vẫn giữ; không bật lại AEC/AGC Chrome.
