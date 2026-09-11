@@ -268,8 +268,10 @@
 
   function captureSourceLabel() {
     if (state._hasSystemAudio) return "phòng + loa máy";
-    if (state._displayMissedAudio) return "mic phòng · chưa có tiếng máy";
-    return "mic phòng";
+    if (state._displayMissedAudio) {
+      return "chỉ mic: chưa có tiếng máy (Zoom app: Toàn màn hình + Chia sẻ âm thanh, đừng chọn cửa sổ)";
+    }
+    return "chỉ mic phòng";
   }
 
   function normalizeLang(v) {
@@ -598,20 +600,25 @@
     "registerProcessor('javis-moonshine-capture',MoonshineCaptureProcessor);";
 
   /**
-   * Mic phòng họp: AEC LUÔN TẮT.
-   * Chrome chống vọng xoá tiếng Zoom/Meet phát ra loa, và nuốt giọng xa trong phòng.
-   * Mix loa máy (getDisplayMedia) là cộng thêm, không thay analog.
-   * Tắt NS / voiceIsolation. AGC phần cứng + AGC PCM chỉ boost.
+   * Mic cuộc họp: tắt HẾT Audio Processing Module của Chrome.
+   * echoCancellation:false mà autoGainControl:true vẫn giữ APM → Chrome Windows
+   * xoá tiếng Zoom/Meet đang phát ra loa; chỉ còn giọng nói sát mic.
+   * AGC PCM (moonshineAgcChunk) lo giọng xa.
    */
   function moonshineMicConstraints() {
     return {
       echoCancellation: false,
       noiseSuppression: false,
-      autoGainControl: true,
+      autoGainControl: false,
       voiceIsolation: false,
       googEchoCancellation: false,
-      googAutoGainControl: true,
+      googEchoCancellation2: false,
+      googDAEchoCancellation: false,
+      googAutoGainControl: false,
+      googAutoGainControl2: false,
       googNoiseSuppression: false,
+      googHighpassFilter: false,
+      googTypingNoiseDetection: false,
     };
   }
 
@@ -925,8 +932,20 @@
         audio: moonshineMicConstraints(),
       });
     } catch (e1) {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+      });
     }
+    try {
+      var rawTrack = mediaStream.getAudioTracks()[0];
+      if (rawTrack && rawTrack.applyConstraints) {
+        await rawTrack.applyConstraints(moonshineMicConstraints());
+      }
+    } catch (eRaw) {}
 
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) throw new Error("Trình duyệt thiếu AudioContext.");
@@ -1138,7 +1157,7 @@
       try {
         cap.sysSource = cap.audioContext.createMediaStreamSource(state._displayStream);
         cap.sysGain = cap.audioContext.createGain();
-        cap.sysGain.gain.value = 0.72;
+        cap.sysGain.gain.value = 1.2;
         cap.sysSource.connect(cap.sysGain);
         cap.sysGain.connect(cap.mixGain);
       } catch (eMixIn) {
@@ -1678,16 +1697,23 @@
 
   function setMeetingSttStatus(root) {
     var lang = langLabel(meetingLang());
+    var srcKind = state._hasSystemAudio ? "ok" : state._displayMissedAudio ? "err" : "ok";
     if (state.sttEngine === "moonshine") {
       setStatus(
         root,
         "Đang ghi (Moonshine · " + lang + " · " + captureSourceLabel() + "). Nói rõ từng câu.",
-        "ok"
+        srcKind
       );
       return;
     }
     if (state.sttEngine === "webspeech") {
-      setStatus(root, "Đang nghe (Web Speech · " + lang + "). Nói rõ từng câu.", "ok");
+      setStatus(
+        root,
+        "Đang nghe (Web Speech · " +
+          lang +
+          "). Web Speech không bắt tiếng loa máy; tick Ghi tiếng máy + Moonshine.",
+        "err"
+      );
       return;
     }
     if (state.sttEngine === "whisper") {
@@ -1920,7 +1946,7 @@
       try {
         var sys = ctx.createMediaStreamSource(state._displayStream);
         var sg = ctx.createGain();
-        sg.gain.value = 0.72;
+        sg.gain.value = 1.2;
         sys.connect(sg);
         sg.connect(mix);
       } catch (eMix) {
@@ -4098,7 +4124,7 @@
       '<div id="mtMoonshinePreload" class="dim" style="font-size:12.5px;margin:0 0 10px;line-height:1.4"></div>' +
       '<label class="dim" style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:0 0 10px;line-height:1.45;cursor:pointer">' +
       '<input type="checkbox" id="mtSysAudio" style="margin-top:3px">' +
-      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bấm Bắt đầu sẽ hỏi chia sẻ: chọn <b>tab họp</b> hoặc <b>Toàn màn hình</b> và bật «Chia sẻ âm thanh». Mic phòng vẫn bắt loa analog (không chống vọng).</span></label>" +
+      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bắt đầu sẽ hỏi chia sẻ. <b>Zoom/Teams app:</b> chọn <b>Toàn màn hình</b> và tick <b>Chia sẻ âm thanh</b> (chọn cửa sổ Zoom thì không có tiếng). <b>Meet trên Chrome:</b> chọn đúng tab họp + chia sẻ âm thanh.</span></label>" +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -4107,7 +4133,7 @@
       ic("upload-cloud") +
       ' File → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
       "</div>" +
-      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Mic bắt giọng phòng và loa máy (không chống vọng). Tick «Ghi tiếng máy» để mix thêm tiếng Zoom/Meet số. Bỏ tick nếu chỉ họp mặt-to-face.</p>' +
+      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Tiếng họp online phải lấy từ chia sẻ màn hình (không phải mic sát loa). Bỏ tick chỉ khi họp mặt-to-face trong phòng.</p>' +
       "</div>" +
       '<div id="mtAfter" hidden>' +
       '<div class="mt-toolbar">' +

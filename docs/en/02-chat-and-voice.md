@@ -427,7 +427,7 @@ Keyboard shortcuts:
 - **A diagram does not render, only the code shows.** The diagram library is fetched from the internet; the machine is offline or blocked. The content is still intact on the source tab.
 - **Asking for an image reports that ChatGPT is not connected.** Go to the **Models** page and sign into ChatGPT (OAuth), no API key needed, then try again.
 - **Sending a voice message and Javis asks you to type.** Cloud STT (Gemini) is failing or an old model was retired. Type for now; Javis switches to `gemini-3.6-flash` and does not dump the API. Dashboard meetings still use Moonshine plus Web Speech.
-- **Online meeting, mic next to the speaker, but the other side does not transcribe.** Meeting mic echo cancellation stays off, so Zoom/Meet speaker audio still reaches the mic. Tick **Capture computer audio**, Start, pick the meeting tab or Entire screen and turn on Share audio to mix in digital loopback. Ctrl+F5 if you do not see the checkbox.
+- **Online meeting, mic next to the speaker, but the other side does not transcribe.** The browser often deletes speaker audio. Tick **Capture computer audio**, Start, then: Zoom/Teams **app** pick **Entire screen** + **Share audio** (picking the Zoom window yields no sound); Meet in Chrome pick **that meeting tab** + share audio. Ctrl+F5 if you do not see the checkbox.
 - **An empty answer.** If the answer area shows a hint to retry or change model, the selected model may be having trouble. See [Models & engines](10-models-and-engines.md) to switch model or engine.
 - **A file never finishes uploading.** Large file or slow network; the file chip reports the specific error (upload timeout, server error). Try a smaller file or check the connection.
 

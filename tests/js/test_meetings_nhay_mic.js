@@ -34,13 +34,17 @@ check("AGC không khuếch đại im lặng số",
   /AGC_SILENCE_RMS/.test(src));
 check("giữ lọc câu bịa (subscribe / La La School)",
   /function isMoonshineHallucinationText\(/.test(src) && src.indexOf("subscribe") >= 0 && src.indexOf("thanks for watching") >= 0);
-check("mic cuộc họp: AEC luôn tắt (Chrome AEC xoá loa họp + giọng xa)",
+check("mic cuộc họp: tắt hết APM Chrome (AEC+NS+AGC phần cứng; AGC true vẫn xoá loa họp)",
   /function moonshineMicConstraints\(/.test(src) &&
   /echoCancellation:\s*false/.test(src) &&
   /googEchoCancellation:\s*false/.test(src) &&
+  /autoGainControl:\s*false/.test(src) &&
+  /googAutoGainControl:\s*false/.test(src) &&
   !/echoCancellation:\s*aec/.test(src) &&
   /voiceIsolation:\s*false/.test(src) &&
   /noiseSuppression:\s*false/.test(src));
+check("getUserMedia không fallback { audio: true } (mặc định Chrome bật AEC)",
+  !/getUserMedia\(\{\s*audio:\s*true\s*\}\)/.test(src));
 check("getUserMedia không bật AEC theo hasSys",
   !/moonshineMicConstraints\(\{\s*aec:\s*hasSys\s*\}\)/.test(src) &&
   !/moonshineMicConstraints\(\{\s*aec:\s*!!state\._hasSystemAudio\s*\}\)/.test(src));
@@ -48,9 +52,10 @@ check("ghi tiếng máy: getDisplayMedia + systemAudio include",
   /function ensureDisplayAudio\(/.test(src) &&
   /getDisplayMedia\(attempts/.test(src) &&
   /systemAudio:\s*"include"/.test(src));
-check("mix mic phòng + loa máy vào worklet",
-  /cap\.sysGain\.gain\.value = 0\.72/.test(src) &&
-  /cap\.mixGain\.connect\(cap\.workletNode\)/.test(src));
+check("mix mic phòng + loa máy vào worklet (sysGain ≥ 1, không hạ tiếng máy)",
+  /cap\.sysGain\.gain\.value = 1(?:\.2)?/.test(src) &&
+  /cap\.mixGain\.connect\(cap\.workletNode\)/.test(src) &&
+  !/sysGain\.gain\.value = 0\.72/.test(src));
 check("checkbox Ghi tiếng máy",
   /id="mtSysAudio"/.test(src) && /Ghi tiếng máy/.test(src));
 check("getUserMedia không ép channelCount: 1 (dàn mic OS)",
@@ -77,7 +82,7 @@ check("mix loa máy lỗi thì tắt AEC trên mic",
   /applyMicAec\(false\)/.test(src) &&
   src.indexOf("state._hasSystemAudio = false") >= 0);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 38)", v >= 38, v);
+check("meetings.js đã bump ?v= (>= 39)", v >= 39, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

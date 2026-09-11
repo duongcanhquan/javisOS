@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.191] - 2026-09-11
+### Sửa lỗi
+- **Cuộc họp bắt tiếng Zoom/Meet từ máy:** tắt hẳn AGC phần cứng Chrome (nó kéo theo chống vọng, chỉ còn giọng sát mic). Mix loa máy đủ lớn. Không fallback `getUserMedia({audio:true})`. Zoom app phải chia sẻ Toàn màn hình + âm thanh, không phải cửa sổ.
+
 ## [0.55.190] - 2026-09-10
 ### Sửa lỗi
 - **Kanban «AI tự vận hành» trên macOS:** chuẩn hoá đường brain (`/var` vs `/private/var`) để bật điều phối khớp với tool giao việc; trước đó bật rồi vẫn báo xếp hàng. Khôi phục skill `xuat-goi-nghien-cuu`. CI xanh lại (xưng hô OpenMAIC + full quyền).
