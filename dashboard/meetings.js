@@ -12,8 +12,8 @@
   var MOONSHINE_LOAD_TIMEOUT_MS = 180000;
   var MOONSHINE_LOAD_TIMEOUT_OTHER_MS = 120000;
   var MOONSHINE_WASM_TIMEOUT_MS = 25000;
-  // Transcriber.load: máy khỏe vài giây; 180s cũ = ngồi chờ pthread treo. 28s rồi nhảy Cloud STT.
-  var MOONSHINE_INIT_TIMEOUT_MS = 28000;
+  // Transcriber.load: máy khỏe vài giây; 180s cũ = ngồi chờ pthread treo. 40s rồi fallback.
+  var MOONSHINE_INIT_TIMEOUT_MS = 40000;
   var state = {
     meetingId: null,
     path: "",
@@ -257,9 +257,8 @@
     if (state.sttEngine !== "moonshine") return false;
     var cap = state._moonshineCapture;
     if (!cap || !cap.running) return false;
-    if ((cap.chunks || 0) < 8) return false;
-    if ((cap.peakRms || 0) < AGC_SILENCE_RMS) return false;
-    return true;
+    var last = cap._lastChunkAt || 0;
+    return last > 0 && Date.now() - last < 1500;
   }
 
   function applyMicAec(on) {
@@ -834,7 +833,7 @@
     }
     state._moonshineLevelTimer = setInterval(function () {
       if (!state.running || state.abortRequested || state.sttEngine !== "moonshine") return;
-      if ((state.lines || 0) > 0 || (state._lastPartialAt || 0) > 0) return;
+      if ((state.lines || 0) > 0) return;
       var cap = state._moonshineCapture;
       if (!cap || !cap.running) return;
       var pct = Math.min(100, Math.round((cap.peakRms || 0) * 2500));
@@ -870,7 +869,7 @@
         (state._lastPartialAt || 0) > 0 ||
         (state._lastFinalAt || 0) > 0;
       if (hasText) return;
-      var deadMic = (cap.chunks || 0) < 8 || (cap.peakRms || 0) < 0.0008;
+      var deadMic = (cap.chunks || 0) < 8;
       if (!deadMic) {
         var pct = Math.min(100, Math.round((cap.peakRms || 0) * 2500));
         setStatus(
@@ -990,6 +989,8 @@
       running: false,
       peakRms: 0,
       chunks: 0,
+      _lastChunkAt: 0,
+      _hadSpeech: false,
       lineSpeechPeak: 0,
       agcRms: 0,
       agcGain: 1,
@@ -1003,6 +1004,9 @@
     state._moonshineCapture = null;
     if (!cap) return;
     cap.running = false;
+    try {
+      moonshineForceTranscribe(cap);
+    } catch (eFlushTx) {}
     try {
       if (cap.workletNode) cap.workletNode.disconnect();
     } catch (e) {}
@@ -1051,6 +1055,16 @@
       }
     } catch (e6) {}
     void keepTranscriber;
+  }
+
+  function moonshineForceTranscribe(cap) {
+    if (!cap || !cap.moonStream) return;
+    cap._txBusy = true;
+    cap._lastTxAt = Date.now();
+    try {
+      cap.moonStream.transcribe();
+    } catch (eTx) {}
+    cap._txBusy = false;
   }
 
   function moonshineMaybeTranscribe(cap) {
@@ -1128,6 +1142,8 @@
     cap.moonStream = null;
     cap.peakRms = 0;
     cap.chunks = 0;
+    cap._lastChunkAt = 0;
+    cap._hadSpeech = false;
     cap.lineSpeechPeak = 0;
     cap.agcRms = 0;
     cap.agcGain = 1;
@@ -1197,8 +1213,10 @@
       } catch (eMixIn) {
         cap.sysSource = null;
         cap.sysGain = null;
-        state._hasSystemAudio = false;
-        applyMicAec(false);
+        if (!displayAudioLive()) {
+          state._hasSystemAudio = false;
+          applyMicAec(false);
+        }
       }
     }
     var inputRate = cap.audioContext.sampleRate || 48000;
@@ -1218,6 +1236,7 @@
       var rms = Math.sqrt(sum / Math.max(1, bn));
       if (rms > (cap.lineSpeechPeak || 0)) cap.lineSpeechPeak = rms;
       cap.chunks = (cap.chunks || 0) + 1;
+      cap._lastChunkAt = Date.now();
       var resampled = moonshineResampleTo16k(boosted, inputRate);
       try {
         cap.moonStream.addAudio(resampled, 16000);
@@ -1225,7 +1244,14 @@
         handleMoonshineLiveError(root, eAdd);
         return;
       }
-      moonshineMaybeTranscribe(cap);
+      var voiced = rms >= SPEECH_PEAK_MIN;
+      if (voiced) cap._hadSpeech = true;
+      if (!voiced && cap._hadSpeech) {
+        cap._hadSpeech = false;
+        moonshineForceTranscribe(cap);
+      } else {
+        moonshineMaybeTranscribe(cap);
+      }
     };
 
     // Mic → worklet trực tiếp. EQ Web Audio (0.55.174) làm một số máy không ra sample.
@@ -2008,8 +2034,10 @@
         sys.connect(sg);
         sg.connect(mix);
       } catch (eMix) {
-        state._hasSystemAudio = false;
-        applyMicAec(false);
+        if (!displayAudioLive()) {
+          state._hasSystemAudio = false;
+          applyMicAec(false);
+        }
       }
     }
     var dest = ctx.createMediaStreamDestination();

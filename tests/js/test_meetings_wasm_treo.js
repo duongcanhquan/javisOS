@@ -15,8 +15,8 @@ function check(name, cond, extra) {
   if (!cond) fails.push(name);
 }
 
-check("timeout khởi tạo WASM ~28s (không 180s)",
-  /MOONSHINE_INIT_TIMEOUT_MS\s*=\s*28000/.test(src) &&
+check("timeout khởi tạo WASM ~40s (không 180s)",
+  /MOONSHINE_INIT_TIMEOUT_MS\s*=\s*40000/.test(src) &&
   /promiseTimeout\(\s*mod\.Transcriber\.load\(\{[\s\S]{0,220}MOONSHINE_INIT_TIMEOUT_MS/.test(src));
 check("ngủ AudioContext trước khi Transcriber.load",
   /function pauseAudioForWasmLoad\(/.test(src) &&
