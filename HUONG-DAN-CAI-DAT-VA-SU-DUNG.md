@@ -8,6 +8,7 @@ Chi tiết từng trang trong app: [docs/README.md](docs/README.md).
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
 **VPS mới, chưa có tên miền (IP / tunnel / Hostinger miễn phí):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
 **Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
+**Cách cài đơn giản nhất:** [CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md).  
 **Cài sẵn trên máy trước Javis (Win / Mac / VPS):** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
 Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).
 

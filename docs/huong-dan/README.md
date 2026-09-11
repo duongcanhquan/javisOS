@@ -24,6 +24,7 @@ bash docs/huong-dan/export-pdfs.sh
 
 | File | Dùng để |
 |---|---|
+| [**CAI-DAT-DON-GIAN.md**](../../CAI-DAT-DON-GIAN.md) | **Cách cài ngắn nhất (4 bước / 3 lệnh)** |
 | [**CHUAN-BI-TRUOC-KHI-CAI.md**](CHUAN-BI-TRUOC-KHI-CAI.md) | **Cài sẵn trên Win/Mac/VPS trước khi cài Javis** |
 | [HUONG-DAN-CAI-DAT-VA-SU-DUNG.md](../../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md) | Sau đóng gói: đủ đường cài + domain + Studio |
 | [HUONG-DAN-CAI-MAY-LOCAL.md](../../HUONG-DAN-CAI-MAY-LOCAL.md) | Máy local Windows/Mac + Ollama |

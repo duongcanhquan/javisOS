@@ -117,6 +117,7 @@
   <div class="card toc">
     <strong>Mục lục</strong>
     <ol>
+      <li><a href="#don-gian"><strong>Cách cài đơn giản nhất</strong></a></li>
       <li><a href="#chon">Chọn đúng đường cài</a></li>
       <li><a href="#toithieu">Cấu hình máy tối thiểu</a></li>
       <li><a href="#chuan-bi">Cài sẵn trước khi cài Javis</a></li>
@@ -129,7 +130,46 @@
     </ol>
   </div>
 
-  <h2 id="chon" class="first-h2">1. Chọn đúng đường cài</h2>
+
+  <h2 id="don-gian" class="first-h2">0. Cách cài đơn giản nhất</h2>
+  <p class="lead">Chỉ làm vài bước. Không cần Git, không cần GPU, không cần biết lập trình.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <strong>Windows (máy nhà)</strong>
+      <ol class="steps">
+        <li>Cài <strong>Python 3.11+</strong> từ python.org - <strong>tick Add to PATH</strong>.</li>
+        <li>GitHub → <strong>Code → Download ZIP</strong> → giải nén.</li>
+        <li>Double-click <span class="mono">1-Cai-dat.bat</span>.</li>
+        <li>Mở Chrome → <strong>http://localhost:7777</strong> → Models → chat.</li>
+      </ol>
+      <p>Ngày sau: <span class="mono">2-Bat-Javis.bat</span>.</p>
+    </div>
+    <div class="card">
+      <strong>Mac (máy nhà)</strong>
+      <ol class="steps">
+        <li>Terminal: <span class="mono">xcode-select --install</span> rồi cài Python 3.</li>
+        <li>Download ZIP → giải nén.</li>
+        <li>Chuột phải <span class="mono">1-Cai-dat.command</span> → <strong>Open</strong>.</li>
+        <li>Mở <strong>http://localhost:7777</strong> → Models → chat.</li>
+      </ol>
+      <p>Ngày sau: <span class="mono">2-Bat-Javis.command</span>.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>VPS Linux (chạy 24/7) - 3 lệnh</strong>
+    <pre>curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker "$USER"   # đăng xuất SSH rồi vào lại
+mkdir -p ~/javis &amp;&amp; cd ~/javis
+curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
+docker compose up -d</pre>
+    <p>Mở <strong>http://IP-VPS:7777</strong>. Firewall cần mở cổng <strong>7777</strong>.</p>
+  </div>
+
+  <div class="okbox">Bản Markdown siêu ngắn (in / gửi giáo viên): <span class="mono">CAI-DAT-DON-GIAN.md</span> ở gốc repo. Các mục dưới đây là chi tiết đầy đủ nếu cần.</div>
+
+  <h2 id="chon">1. Chọn đúng đường cài</h2>
 
   <svg class="diagram" viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ chọn cách cài">
     <rect x="280" y="10" width="200" height="44" rx="10" fill="#ccfbf1" stroke="#0d9488"/>

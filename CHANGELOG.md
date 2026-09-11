@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.199] - 2026-09-11
+### Cải tiến
+- **Cài đặt đơn giản nhất:** thêm `CAI-DAT-DON-GIAN.md` và mục 0 trong hướng dẫn HTML (Windows/Mac 4 bước, VPS Linux 3 lệnh).
+
 ## [0.55.198] - 2026-09-11
 ### Cải tiến
 - **Hướng dẫn cài đặt:** bổ sung mục cài sẵn trước Javis cho Windows, macOS, VPS Linux và VPS Windows (Python/Node/Docker/firewall/ffmpeg…); thêm `docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md`.

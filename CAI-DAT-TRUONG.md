@@ -13,6 +13,8 @@ Mỗi người / mỗi máy một bản riêng - **không** chia sẻ brain, bà
 
 Cập nhật bản mới: máy cá nhân tải ZIP mới; VPS Docker thì Redeploy / `docker compose pull`.
 
+> Gửi giáo viên bản ngắn: **[CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md)** (4 bước).
+
 Chi tiết kỹ thuật máy cá nhân: [CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md).  
 Compose VPS: [`deploy/school/`](deploy/school/).
 

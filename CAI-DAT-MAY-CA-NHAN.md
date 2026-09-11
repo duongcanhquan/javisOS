@@ -1,5 +1,7 @@
 # Cài Javis trên máy cá nhân (Windows / Mac)
 
+> **Muốn ngắn nhất?** Đọc **[CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md)** (4 bước Windows / Mac, 3 lệnh VPS).
+
 Dành cho người **không cần biết lập trình**, không cần Cursor.
 Mỗi người một bản trên máy mình. Mở bằng trình duyệt Chrome/Edge.
 
