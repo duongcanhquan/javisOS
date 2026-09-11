@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.197] - 2026-09-11
+### Sửa lỗi
+- **Tin thoại Telegram/Zalo hết lỗi Gemini `invalid argument`:** file thoại là Ogg/Opus mà Google hiểu `audio/ogg` là Vorbis. Javis gửi `audio/opus`, thử MIME khác, rồi Whisper nếu còn key. Không đọc dump API cho người dùng.
+
 ## [0.55.196] - 2026-09-11
 ### Sửa lỗi
 - **Cuộc họp không restart Moonshine khi phòng đang im / giọng nhỏ:** chunk vẫn chảy thì không coi là mic chết. Chốt câu khi hết giọng và khi Dừng. Mix loa lỗi không tắt cờ khi vẫn đang chia sẻ màn. WASM chờ 40s trước khi bỏ.

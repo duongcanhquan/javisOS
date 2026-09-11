@@ -44,7 +44,9 @@ class _Resp:
 
 class _GeminiFake:
     goi = []
+    mimes = []
     bang = {}
+    theo_mime = {}
 
     def __init__(self, *a, **k):
         pass
@@ -57,6 +59,17 @@ class _GeminiFake:
 
     async def post(self, url, headers=None, data=None, files=None, params=None, json=None):
         _GeminiFake.goi.append(url)
+        mime = ""
+        try:
+            mime = (((json or {}).get("contents") or [{}])[0].get("parts") or [{}, {}])[1].get(
+                "inline_data", {}).get("mime_type") or ""
+        except Exception:
+            mime = ""
+        _GeminiFake.mimes.append(mime)
+        if "groq.com" in (url or ""):
+            return _Resp(200, {"text": "whisper ok"})
+        if mime and mime in _GeminiFake.theo_mime:
+            return _Resp(*_GeminiFake.theo_mime[mime])
         for k, v in _GeminiFake.bang.items():
             if k in url:
                 return _Resp(*v)
@@ -81,6 +94,19 @@ check("lỗi model chết -> KHÔNG nhét 'Please update your code'",
       "Please update" not in _dong and "no longer available" not in _dong)
 check("lỗi ngắn vẫn giữ lý do (mạng chết)",
       "mạng chết" in stt.loi_thanh_dong("loi", "mạng chết"))
+_INV = "Request contains an invalid argument."
+check("400 invalid argument không coi là model chết (là MIME/payload)",
+      not stt._doi_model_khac(400, _INV))
+check("400 no longer available vẫn đổi model",
+      stt._doi_model_khac(400, _LOI_25))
+check("invalid argument không nhét vào lời dặn LLM",
+      "invalid argument" not in stt.loi_thanh_dong("loi", _INV)
+      and "gõ chữ" in stt.loi_thanh_dong("loi", _INV))
+_OPUS = b"OggS" + b"\x00" * 8 + b"OpusHead" + b"\x00" * 16
+check("Telegram Ogg/Opus → MIME audio/opus (không phải Vorbis audio/ogg)",
+      stt._mime("voice.ogg", _OPUS) == "audio/opus")
+check("không có bytes thì .ogg vẫn audio/ogg",
+      stt._mime("voice.ogg") == "audio/ogg")
 
 _that = stt.httpx.AsyncClient
 stt.httpx.AsyncClient = _GeminiFake
@@ -134,6 +160,36 @@ try:
           kq.get("ok") and any("gemini-3.6-flash" in u for u in _GeminiFake.goi))
     check("caller ghim 2.5-flash -> không POST 2.5",
           not any("gemini-2.5-flash" in u for u in _GeminiFake.goi))
+
+    _GeminiFake.goi.clear()
+    _GeminiFake.mimes = []
+    _GeminiFake.theo_mime = {
+        "audio/ogg": (400, {"error": {"message": _INV}}),
+        "audio/opus": (200, _ok_text("nhớ họp chín giờ")),
+    }
+    _GeminiFake.bang = {}
+    kq = chay(stt.gemini_nghe(b"audio", "voice.ogg", "key-gem"))
+    check("ogg Vorbis 400 → thử lại audio/opus thì nghe được",
+          kq.get("ok") and kq.get("text") == "nhớ họp chín giờ")
+    check("đã gửi cả audio/ogg lẫn audio/opus",
+          "audio/ogg" in _GeminiFake.mimes and "audio/opus" in _GeminiFake.mimes)
+
+    _GeminiFake.goi.clear()
+    _GeminiFake.mimes = []
+    _GeminiFake.theo_mime = {
+        "audio/ogg": (400, {"error": {"message": _INV}}),
+        "audio/opus": (400, {"error": {"message": _INV}}),
+        "audio/ogg; codecs=opus": (400, {"error": {"message": _INV}}),
+    }
+    _GeminiFake.bang = {}
+    kq = chay(stt.nghe(
+        b"audio", "voice.ogg",
+        {"gemini_api_key": "gem", "groq_api_key": "gsk"},
+    ))
+    check("Gemini MIME hỏng → fallback Groq Whisper",
+          kq.get("ok") and kq.get("text") == "whisper ok" and kq.get("provider") == "groq")
+    check("fallback Groq không nhét invalid argument cho user",
+          "invalid argument" not in str(kq.get("noi_voi_javis") or kq.get("text") or ""))
 finally:
     stt.httpx.AsyncClient = _that
 

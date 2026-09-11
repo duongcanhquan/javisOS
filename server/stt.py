@@ -39,13 +39,18 @@ STT_GEMINI_MODELS = (
 
 # Câu Google khi model chết: phải skip, không trả dump cho LLM đọc thành tiếng.
 _SKIP_MODEL_MSG = (
-    "not found", "not supported", "invalid", "unknown",
+    "not found", "not supported for", "unknown model",
     "no longer available", "not available to new users",
     "update your code", "is not available",
 )
 _DUMP_API_MSG = (
     "no longer available", "not available to new users",
     "please update your code", "models/gemini", "models/",
+    "invalid argument", "request contains an invalid",
+)
+_PAYLOAD_MSG = (
+    "invalid argument", "invalid mime", "unsupported mime",
+    "unsupported audio", "invalid audio",
 )
 
 _PROMPT_VI = ("Tiếng Việt có dấu. Ghi đúng chính tả và dấu thanh. "
@@ -87,11 +92,20 @@ def _chi_tiet_an_toan(chi_tiet: str) -> str:
 
 
 def _doi_model_khac(status: int, msg: str) -> bool:
-    """404 luôn thử model kế. 400 chỉ khi câu lỗi nói model chết / không hỗ trợ."""
+    """404 luôn thử model kế. 400 chỉ khi câu lỗi nói model chết — không phải MIME audio hỏng."""
     if status == 404:
         return True
     low = (msg or "").lower()
-    return status == 400 and any(x in low for x in _SKIP_MODEL_MSG)
+    if status != 400:
+        return False
+    if any(x in low for x in _PAYLOAD_MSG):
+        return False
+    return any(x in low for x in _SKIP_MODEL_MSG)
+
+
+def _loi_payload(msg: str) -> bool:
+    low = (msg or "").lower()
+    return any(x in low for x in _PAYLOAD_MSG)
 
 
 def _doi_id_gemini(mdl: str) -> str:
@@ -144,11 +158,39 @@ def loi_thanh_dong(ly_do, chi_tiet=""):
             "Nhờ họ gõ chữ, và báo là chỗ nghe giọng đang trục trặc.]")
 
 
-def _mime(ten_file: str) -> str:
+def _sniff_audio(data) -> str:
+    """Đọc magic bytes. Telegram/Zalo thoại là Ogg/Opus — Gemini hiểu audio/ogg là Vorbis."""
+    b = data or b""
+    if len(b) < 4:
+        return ""
+    if b[:4] == b"OggS":
+        head = b[:1024]
+        if b"OpusHead" in head:
+            return "audio/opus"
+        if b"vorbis" in head:
+            return "audio/ogg"
+        return "audio/opus"
+    if b[:4] == b"RIFF" and len(b) >= 12 and b[8:12] == b"WAVE":
+        return "audio/wav"
+    if b[:4] == b"fLaC":
+        return "audio/flac"
+    if b[:3] == b"ID3" or (len(b) >= 2 and b[0] == 0xFF and (b[1] & 0xE0) == 0xE0):
+        return "audio/mp3"
+    if b[:4] == b"\x1aE\xdf\xa3":
+        return "audio/webm"
+    return ""
+
+
+def _mime(ten_file: str, data=b"") -> str:
+    sniffed = _sniff_audio(data)
+    if sniffed:
+        return sniffed
     n = (ten_file or "").lower()
     if n.endswith(".webm"):
         return "audio/webm"
-    if n.endswith(".ogg") or n.endswith(".oga") or n.endswith(".opus"):
+    if n.endswith(".opus"):
+        return "audio/opus"
+    if n.endswith(".ogg") or n.endswith(".oga"):
         return "audio/ogg"
     if n.endswith(".mp3"):
         return "audio/mpeg"
@@ -159,6 +201,23 @@ def _mime(ten_file: str) -> str:
     if n.endswith(".flac"):
         return "audio/flac"
     return "audio/webm"
+
+
+def _mime_candidates(ten_file: str, data=b"") -> list[str]:
+    primary = _mime(ten_file, data)
+    extra = []
+    if primary == "audio/opus":
+        extra = ["audio/ogg", "audio/ogg; codecs=opus"]
+    elif primary == "audio/ogg":
+        extra = ["audio/opus", "audio/ogg; codecs=opus"]
+    elif primary == "audio/webm":
+        extra = ["audio/opus", "audio/ogg"]
+    out, seen = [], set()
+    for m in [primary] + extra:
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out
 
 
 def _check_bytes(data, ten_file="") -> Optional[dict]:
@@ -244,61 +303,65 @@ async def gemini_nghe(data, ten_file, api_key, ngon_ngu=None, prompt=None, model
         instruct = instruct + " " + tip
 
     b64 = base64.b64encode(data).decode("ascii")
-    mime = _mime(ten_file)
-    body = {
-        "contents": [{
-            "role": "user",
-            "parts": [
-                {"text": instruct},
-                {"inline_data": {"mime_type": mime, "data": b64}},
-            ],
-        }],
-        "generationConfig": {"temperature": 0.0},
-    }
     models = _danh_sach_model_gemini(model)
     last_err = ""
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(STT_TIMEOUT)) as c:
-            for mdl in models:
-                if not mdl:
-                    continue
-                url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                       f"{mdl}:generateContent")
-                r = await c.post(url, params={"key": api_key}, json=body)
-                d: dict = {}
-                try:
-                    d = r.json()
-                except Exception:
-                    pass
-                if r.status_code != 200:
-                    err = d.get("error") if isinstance(d, dict) else None
-                    msg = ""
-                    if isinstance(err, dict):
-                        msg = str(err.get("message") or err)
-                    else:
-                        msg = str(err or r.text or f"HTTP {r.status_code}")
-                    last_err = msg
-                    # Model chết / không hỗ trợ audio → thử model kế (kể cả câu
-                    # 'no longer available' — không có chữ 'not found').
-                    if _doi_model_khac(r.status_code, msg):
-                        print(f"[stt gemini] skip {mdl}: {msg[:160]}", file=sys.stderr)
+            for mime in _mime_candidates(ten_file, data):
+                body = {
+                    "contents": [{
+                        "role": "user",
+                        "parts": [
+                            {"text": instruct},
+                            {"inline_data": {"mime_type": mime, "data": b64}},
+                        ],
+                    }],
+                    "generationConfig": {"temperature": 0.0},
+                }
+                doi_mime = False
+                for mdl in models:
+                    if not mdl:
                         continue
-                    print(f"[stt gemini] {mdl}: {msg[:200]}", file=sys.stderr)
-                    return {"ok": False, "ly_do": "loi",
-                            "noi_voi_javis": loi_thanh_dong("loi", msg[:200])}
-                text = ""
-                for cand in (d.get("candidates") or []):
-                    parts = ((cand.get("content") or {}).get("parts") or [])
-                    for p in parts:
-                        if isinstance(p, dict) and p.get("text"):
-                            text += str(p["text"])
-                text = text.strip()
-                if not text:
-                    # Có lúc bị block safety — thử model khác.
-                    fb = d.get("promptFeedback") or {}
-                    last_err = str(fb.get("blockReason") or "empty transcript")
+                    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                           f"{mdl}:generateContent")
+                    r = await c.post(url, params={"key": api_key}, json=body)
+                    d: dict = {}
+                    try:
+                        d = r.json()
+                    except Exception:
+                        pass
+                    if r.status_code != 200:
+                        err = d.get("error") if isinstance(d, dict) else None
+                        msg = ""
+                        if isinstance(err, dict):
+                            msg = str(err.get("message") or err)
+                        else:
+                            msg = str(err or r.text or f"HTTP {r.status_code}")
+                        last_err = msg
+                        if _doi_model_khac(r.status_code, msg):
+                            print(f"[stt gemini] skip {mdl}: {msg[:160]}", file=sys.stderr)
+                            continue
+                        if _loi_payload(msg):
+                            print(f"[stt gemini] mime {mime}: {msg[:160]}", file=sys.stderr)
+                            doi_mime = True
+                            break
+                        print(f"[stt gemini] {mdl}: {msg[:200]}", file=sys.stderr)
+                        return {"ok": False, "ly_do": "loi",
+                                "noi_voi_javis": loi_thanh_dong("loi", msg[:200])}
+                    text = ""
+                    for cand in (d.get("candidates") or []):
+                        parts = ((cand.get("content") or {}).get("parts") or [])
+                        for p in parts:
+                            if isinstance(p, dict) and p.get("text"):
+                                text += str(p["text"])
+                    text = text.strip()
+                    if not text:
+                        fb = d.get("promptFeedback") or {}
+                        last_err = str(fb.get("blockReason") or "empty transcript")
+                        continue
+                    return {"ok": True, "text": text, "model": mdl, "provider": "gemini"}
+                if doi_mime:
                     continue
-                return {"ok": True, "text": text, "model": mdl, "provider": "gemini"}
     except Exception as e:
         loi = f"{type(e).__name__}: {e}"
         print(f"[stt gemini] {loi}", file=sys.stderr)
@@ -333,7 +396,7 @@ async def openai_nghe(data, ten_file, api_key, ngon_ngu=None, prompt=None,
                 OPENAI_STT_URL,
                 headers={"Authorization": f"Bearer {api_key}"},
                 data=form,
-                files={"file": (ten_file or "voice.webm", data, _mime(ten_file))},
+                files={"file": (ten_file or "voice.webm", data, _mime(ten_file, data))},
             )
         d = {}
         try:
@@ -402,19 +465,29 @@ async def groq_nghe(data, ten_file, api_key, model="", ngon_ngu=None, prompt=Non
 
 async def nghe(data, ten_file, model_cfg, ngon_ngu=None, prompt=None,
                prefer_quality: bool = False):
-    """Điểm vào thống nhất: chọn Gemini → OpenAI → Groq theo key có sẵn.
+    """Điểm vào thống nhất: Gemini → OpenAI → Groq theo key có sẵn.
 
+    Gemini hỏng MIME (tin thoại Telegram Ogg/Opus) thì vẫn thử Whisper nếu có key.
     prefer_quality: với Groq dùng large-v3 (dashboard/cuộc họp); kênh chat giữ turbo.
     """
-    picked = pick_provider(model_cfg)
-    if not picked.get("available"):
+    m = model_cfg or {}
+    gem = (m.get("gemini_api_key") or "").strip()
+    oai = (m.get("openai_api_key") or "").strip()
+    groq = (m.get("groq_api_key") or "").strip()
+    if not (gem or oai or groq):
         return {"ok": False, "ly_do": "thieu_key", "noi_voi_javis": loi_thanh_dong("thieu_key")}
-    prov = picked["provider"]
-    key = picked["key"]
-    if prov == "gemini":
-        return await gemini_nghe(data, ten_file, key, ngon_ngu=ngon_ngu, prompt=prompt)
-    if prov == "openai":
-        return await openai_nghe(data, ten_file, key, ngon_ngu=ngon_ngu, prompt=prompt)
-    # groq
-    mdl = STT_MODEL_CHUAN if prefer_quality else STT_MODEL_MAC_DINH
-    return await groq_nghe(data, ten_file, key, model=mdl, ngon_ngu=ngon_ngu, prompt=prompt)
+    last = None
+    if gem:
+        last = await gemini_nghe(data, ten_file, gem, ngon_ngu=ngon_ngu, prompt=prompt)
+        if last.get("ok"):
+            return last
+    if oai:
+        last = await openai_nghe(data, ten_file, oai, ngon_ngu=ngon_ngu, prompt=prompt)
+        if last.get("ok"):
+            return last
+    if groq:
+        mdl = STT_MODEL_CHUAN if prefer_quality else STT_MODEL_MAC_DINH
+        last = await groq_nghe(data, ten_file, groq, model=mdl, ngon_ngu=ngon_ngu, prompt=prompt)
+        if last.get("ok"):
+            return last
+    return last or {"ok": False, "ly_do": "loi", "noi_voi_javis": loi_thanh_dong("loi")}
