@@ -126,28 +126,28 @@
   var MOONSHINE_LANG = {
     // identify_speakers=false: không kéo model diarization từ CDN (hay treo / 404 local).
     // VI/CJK: max_tokens_per_second=13 theo tài liệu Moonshine (chặn vòng lặp ảo giác).
-    // vad_threshold 0.28: giọng xa / loa họp; 0.38–0.6 cũ nuốt tiếng nhỏ.
+    // vad_threshold 0.20: giọng nhỏ / loa họp vang nhẹ; 0.28 cũ nuốt tiếng nhỏ.
     vi: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.28",
+        vad_threshold: "0.20",
       },
       label: "Tiếng Việt",
     },
     en: {
       arch: "Base",
-      opts: { identify_speakers: "false", vad_threshold: "0.28" },
+      opts: { identify_speakers: "false", vad_threshold: "0.20" },
       label: "English",
     },
-    es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.28" }, label: "Español" },
+    es: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.20" }, label: "Español" },
     zh: {
       arch: "Base",
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.28",
+        vad_threshold: "0.20",
       },
       label: "中文",
     },
@@ -156,7 +156,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.28",
+        vad_threshold: "0.20",
       },
       label: "日本語",
     },
@@ -165,7 +165,7 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.28",
+        vad_threshold: "0.20",
       },
       label: "한국어",
     },
@@ -174,19 +174,19 @@
       opts: {
         identify_speakers: "false",
         max_tokens_per_second: "13.0",
-        vad_threshold: "0.28",
+        vad_threshold: "0.20",
       },
       label: "العربية",
     },
-    uk: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.28" }, label: "Українська" },
+    uk: { arch: "Base", opts: { identify_speakers: "false", vad_threshold: "0.20" }, label: "Українська" },
   };
   var MOONSHINE_VI_OPTS_LITE = {
     identify_speakers: "false",
     max_tokens_per_second: "13.0",
-    vad_threshold: "0.28",
+    vad_threshold: "0.20",
   };
-  // Cửa RMS sau AGC: im lặng số không boost; giọng xa / loa họp được kéo lên thì qua cửa.
-  var SPEECH_PEAK_MIN = 0.006;
+  // Cửa RMS sau AGC: im lặng số không boost; giọng nhỏ / loa họp vang nhẹ được kéo lên thì qua cửa.
+  var SPEECH_PEAK_MIN = 0.0035;
   var AGC_TARGET_RMS = 0.08;
   var AGC_MAX_GAIN = 16;
   var AGC_SILENCE_RMS = 0.00055;
@@ -1157,7 +1157,7 @@
       try {
         cap.sysSource = cap.audioContext.createMediaStreamSource(state._displayStream);
         cap.sysGain = cap.audioContext.createGain();
-        cap.sysGain.gain.value = 1.2;
+        cap.sysGain.gain.value = 2;
         cap.sysSource.connect(cap.sysGain);
         cap.sysGain.connect(cap.mixGain);
       } catch (eMixIn) {
@@ -1860,7 +1860,7 @@
         baseline = Math.max(baseline, rms);
         return;
       }
-      var thresh = Math.max(0.008, baseline * 1.4 + 0.004);
+      var thresh = Math.max(0.004, baseline * 1.4 + 0.004);
       if (rms > thresh) {
         w.speechSeen = true;
         silentTicks = 0;
@@ -1969,7 +1969,7 @@
       try {
         var sys = ctx.createMediaStreamSource(state._displayStream);
         var sg = ctx.createGain();
-        sg.gain.value = 1.2;
+        sg.gain.value = 2;
         sys.connect(sg);
         sg.connect(mix);
       } catch (eMix) {

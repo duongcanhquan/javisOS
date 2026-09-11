@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.194] - 2026-09-11
+### Sửa lỗi
+- **Cuộc họp bắt loa máy khi người nói nhỏ / hơi vang:** tăng tiếng loopback (sysGain 2), hạ VAD Moonshine 0.20 và cửa RMS 0.0035. Giọng to rõ vẫn giữ; không bật lại AEC/AGC Chrome.
+
 ## [0.55.193] - 2026-09-11
 ### Cải tiến
 - **Cuộc họp 3 cột trên một màn:** form gọn | transcript | ghi chú tay. Gõ note lúc họp, gộp với voice khi tổng kết. Không phải kéo dài trang.

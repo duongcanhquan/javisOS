@@ -15,11 +15,12 @@ function check(name, cond, extra) {
   if (!cond) fails.push(name);
 }
 
-check("VAD phòng họp ~0.28 (giọng xa, không còn 0.38/0.6)",
-  /vad_threshold:\s*"0\.28"/.test(src) && !/vad_threshold:\s*"0\.38"/.test(src) &&
+check("VAD phòng họp ~0.20 (giọng nhỏ / loa họp, không còn 0.28/0.38/0.6)",
+  /vad_threshold:\s*"0\.20"/.test(src) && !/vad_threshold:\s*"0\.28"/.test(src) &&
+    !/vad_threshold:\s*"0\.38"/.test(src) &&
     !/vad_threshold:\s*"0\.6"/.test(src));
-check("cửa RMS sau AGC (~0.006, bắt xa)",
-  /SPEECH_PEAK_MIN\s*=\s*0\.006/.test(src));
+check("cửa RMS sau AGC (~0.0035, bắt giọng nhỏ / vang nhẹ)",
+  /SPEECH_PEAK_MIN\s*=\s*0\.0035/.test(src));
 check("AGC chỉ khuếch đại, không hạ giọng đã rõ (want < 1 thì giữ 1)",
   /AGC_MAX_GAIN\s*=\s*16/.test(src) &&
     /if \(want < 1\) want = 1/.test(src) &&
@@ -52,10 +53,12 @@ check("ghi tiếng máy: getDisplayMedia + systemAudio include",
   /function ensureDisplayAudio\(/.test(src) &&
   /getDisplayMedia\(attempts/.test(src) &&
   /systemAudio:\s*"include"/.test(src));
-check("mix mic phòng + loa máy vào worklet (sysGain ≥ 1, không hạ tiếng máy)",
-  /cap\.sysGain\.gain\.value = 1(?:\.2)?/.test(src) &&
+check("mix mic phòng + loa máy vào worklet (sysGain ≥ 2, không hạ tiếng máy)",
+  /cap\.sysGain\.gain\.value = 2/.test(src) &&
+  /sg\.gain\.value = 2/.test(src) &&
   /cap\.mixGain\.connect\(cap\.workletNode\)/.test(src) &&
-  !/sysGain\.gain\.value = 0\.72/.test(src));
+  !/sysGain\.gain\.value = 0\.72/.test(src) &&
+  !/sysGain\.gain\.value = 1(?:\.2)?\s*;/.test(src));
 check("checkbox Ghi tiếng máy",
   /id="mtSysAudio"/.test(src) && /Ghi tiếng máy/.test(src));
 check("getUserMedia không ép channelCount: 1 (dàn mic OS)",
@@ -73,7 +76,7 @@ check("hiện mức tín hiệu khi chưa ra chữ (không kẹt im lặng)",
 check("không hiện 'không tải lại model' lúc WASM init",
   !/Khởi tạo nhận dạng .*không tải lại model/.test(src));
 check("Cloud STT họp VAD thấp hơn 0.01",
-  /Math\.max\(0\.008, baseline/.test(src));
+  /Math\.max\(0\.004, baseline/.test(src));
 check("hủy chia sẻ màn hình không hỏi lần hai",
   /function displayShareCancelled\(/.test(src) &&
   /NotAllowedError/.test(src) && /AbortError/.test(src) &&
@@ -82,7 +85,7 @@ check("mix loa máy lỗi thì tắt AEC trên mic",
   /applyMicAec\(false\)/.test(src) &&
   src.indexOf("state._hasSystemAudio = false") >= 0);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 40)", v >= 40, v);
+check("meetings.js đã bump ?v= (>= 41)", v >= 41, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));
