@@ -1381,6 +1381,30 @@
           : "var(--text3)";
   }
 
+  function flushLiveNotes(root) {
+    var mid = state.meetingId;
+    if (!mid) return Promise.resolve();
+    var ta = root.querySelector("#mtLiveNotes");
+    var text = ta ? ta.value : "";
+    var f = new FormData();
+    f.append("brain", fbrain());
+    f.append("text", text);
+    if (state.path) f.append("path", state.path);
+    return fetch("/meetings/" + encodeURIComponent(mid) + "/notes", {
+      method: "POST",
+      body: f,
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function scheduleSaveNotes(root) {
+    if (state._notesTimer) clearTimeout(state._notesTimer);
+    state._notesTimer = setTimeout(function () {
+      flushLiveNotes(root);
+    }, 900);
+  }
+
   function setPhase(root, phase) {
     // phase: setup | live | stopped | done
     root.querySelectorAll("[data-mt-phase]").forEach(function (n) {
@@ -1405,8 +1429,7 @@
     }
     var analyzeBtn = root.querySelector("#mtAnalyze");
     if (analyzeBtn) analyzeBtn.disabled = !(phase === "stopped" || phase === "done");
-    // Khoá form khi đang ghi
-    ["#mtTitle", "#mtPeople", "#mtNotes"].forEach(function (sel) {
+    ["#mtTitle", "#mtPeople"].forEach(function (sel) {
       var n = root.querySelector(sel);
       if (n) n.disabled = phase === "live";
     });
@@ -3090,6 +3113,9 @@
     setPartial(root, "");
     if (state.meetingId) {
       try {
+        await flushLiveNotes(root);
+      } catch (eNotes) {}
+      try {
         var f = new FormData();
         f.append("brain", fbrain());
         await fetch("/meetings/" + encodeURIComponent(state.meetingId) + "/stop", {
@@ -3189,7 +3215,7 @@
       return;
     }
     var title = ((root.querySelector("#mtTitle") || {}).value || "").trim();
-    var notes = ((root.querySelector("#mtNotes") || {}).value || "").trim();
+    var notes = ((root.querySelector("#mtLiveNotes") || {}).value || "").trim();
     var people = ((root.querySelector("#mtPeople") || {}).value || "").trim();
     if (!title) {
       setStatus(root, "Nhập tiêu đề cuộc họp trước khi bắt đầu.", "err");
@@ -3514,6 +3540,9 @@
     if (state.running) {
       await stopRecording(root);
     }
+    try {
+      await flushLiveNotes(root);
+    } catch (eNotes) {}
     setStatus(root, "Đang tổng kết bằng Antigravity… thường 30–90 giây.");
     var box = root.querySelector("#mtSummary");
     if (box) box.innerHTML = '<div class="dim">Trợ lý đang đọc transcript và viết tổng kết…</div>';
@@ -3522,6 +3551,7 @@
     try {
       var f = new FormData();
       f.append("brain", fbrain());
+      if (state.path) f.append("path", state.path);
       var r = await (
         await fetch("/meetings/" + encodeURIComponent(mid) + "/analyze", {
           method: "POST",
@@ -3544,7 +3574,10 @@
       showKnowledgePanel(root, state.path);
       refreshList(root);
     } catch (e) {
-      if (box) box.innerHTML = "";
+      if (box) {
+        box.innerHTML =
+          '<div class="dim">Tổng kết lỗi. Transcript vẫn được lưu - bấm Tổng kết để thử lại.</div>';
+      }
       setStatus(root, "Tổng kết lỗi: " + (e.message || e), "err");
       if (btn) btn.disabled = false;
     }
@@ -3558,7 +3591,7 @@
       if (!state.meetingId) {
         var title =
           ((root.querySelector("#mtTitle") || {}).value || "").trim() || file.name;
-        var notes = ((root.querySelector("#mtNotes") || {}).value || "").trim();
+        var notes = ((root.querySelector("#mtLiveNotes") || {}).value || "").trim();
         var people = ((root.querySelector("#mtPeople") || {}).value || "").trim();
         var fs = new FormData();
         fs.append("title", title);
@@ -3735,16 +3768,12 @@
         )
       ).json();
       if (!r.ok) throw new Error(r.error || "Không đọc được");
-      var people = (r.attendees || []).join(", ") || "—";
+      var people = (r.attendees || []).join(", ") || "-";
       var tabs =
         '<div class="mt-detail-tabs">' +
         '<button type="button" class="mt-dtab mt-dtab-active" data-dtab="transcript">Transcript</button>' +
-        (r.has_summary
-          ? '<button type="button" class="mt-dtab" data-dtab="summary">Tổng kết</button>'
-          : "") +
-        (r.notes_full
-          ? '<button type="button" class="mt-dtab" data-dtab="notes">Ghi chú</button>'
-          : "") +
+        '<button type="button" class="mt-dtab" data-dtab="notes">Ghi chú</button>' +
+        '<button type="button" class="mt-dtab" data-dtab="summary">Tổng kết</button>' +
         "</div>";
       box.innerHTML =
         '<div class="mt-detail-head">' +
@@ -3757,8 +3786,13 @@
         " · " +
         esc(people) +
         (r.line_count ? " · " + r.line_count + " đoạn" : "") +
+        (r.has_summary ? "" : " · chưa tổng kết") +
         "</div>" +
         '<div class="mt-detail-actions">' +
+        '<button type="button" class="s-btn mt-detail-analyze">' +
+        ic("sparkles") +
+        (r.has_summary ? " Tổng kết lại" : " Tổng kết") +
+        "</button>" +
         '<button type="button" class="s-btn mt-detail-know">' +
         ic("brain") +
         " Đưa vào kiến thức</button>" +
@@ -3811,23 +3845,72 @@
       }
       var bodies = {
         transcript: r.transcript || "(Chưa có transcript)",
-        summary: r.summary || "(Chưa có tổng kết)",
-        notes: r.notes_full || "(Không có ghi chú)",
+        summary: r.summary || "(Chưa có tổng kết. Bấm Tổng kết ở trên.)",
+        notes: r.notes_full || "",
       };
+      function paintDetail(key) {
+        var body = box.querySelector("#mtDetailBody");
+        if (!body) return;
+        if (key === "notes") {
+          body.innerHTML =
+            '<textarea class="mt-detail-notes" id="mtArchNotes">' +
+            esc(bodies.notes) +
+            "</textarea>";
+          var ta = body.querySelector("#mtArchNotes");
+          if (ta) {
+            ta.oninput = function () {
+              bodies.notes = ta.value;
+            };
+          }
+          return;
+        }
+        body.innerHTML =
+          '<pre class="mt-detail-pre">' + esc(bodies[key] || "") + "</pre>";
+      }
       box.querySelectorAll(".mt-dtab").forEach(function (btn) {
         btn.onclick = function () {
           box.querySelectorAll(".mt-dtab").forEach(function (b) {
             b.classList.remove("mt-dtab-active");
           });
           btn.classList.add("mt-dtab-active");
-          var key = btn.getAttribute("data-dtab");
-          var body = box.querySelector("#mtDetailBody");
-          if (body) {
-            body.innerHTML =
-              '<pre class="mt-detail-pre">' + esc(bodies[key] || "") + "</pre>";
-          }
+          paintDetail(btn.getAttribute("data-dtab"));
         };
       });
+      var anaBtn = box.querySelector(".mt-detail-analyze");
+      if (anaBtn) {
+        anaBtn.onclick = async function () {
+          anaBtn.disabled = true;
+          setStatus(root, "Đang tổng kết cuộc họp đã lưu…");
+          try {
+            var noteTa = box.querySelector("#mtArchNotes");
+            var noteText = noteTa ? noteTa.value : bodies.notes;
+            var nf = new FormData();
+            nf.append("brain", fbrain());
+            nf.append("text", noteText || "");
+            nf.append("path", r.path || "");
+            await fetch(
+              "/meetings/" + encodeURIComponent(r.id || "file") + "/notes",
+              { method: "POST", body: nf }
+            );
+            var f = new FormData();
+            f.append("brain", fbrain());
+            f.append("path", r.path || "");
+            var ar = await (
+              await fetch(
+                "/meetings/" + encodeURIComponent(r.id || "file") + "/analyze",
+                { method: "POST", body: f }
+              )
+            ).json();
+            if (!ar.ok) throw new Error(ar.error || "Tổng kết lỗi");
+            setStatus(root, "Đã lưu tổng kết · " + (ar.summary_path || ""), "ok");
+            await openMeetingDetail(root, r.path);
+            loadArchive(root);
+          } catch (eAna) {
+            setStatus(root, "Tổng kết lỗi: " + (eAna.message || eAna), "err");
+            anaBtn.disabled = false;
+          }
+        };
+      }
       box.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {
       box.innerHTML =
@@ -3960,9 +4043,9 @@
       /* display:grid trên panel đè [hidden] mặc định → hai tab chồng nhau */
       "#mtPanelNew[hidden],#mtPanelArchive[hidden]{display:none!important}" +
       "#mtPanelArchive:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}" +
-      /* Ghi mới: 2 cột — trái form (1) | phải transcript (3). Không dùng flex kẻo đè grid. */
+      /* Ghi mới: 3 cột - form | transcript | ghi chú. Không dùng flex kẻo đè grid. */
       "#mtPanelNew:not([hidden]){flex:1;min-height:0;display:grid;" +
-      "grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;align-items:stretch;overflow:hidden}" +
+      "grid-template-columns:minmax(0,0.9fr) minmax(0,1.25fr) minmax(0,1.15fr);gap:10px;align-items:stretch;overflow:hidden}" +
       ".mt-hint{font-size:13px;color:var(--text3);line-height:1.45;margin:0 0 8px}" +
       ".mt-tabs{display:flex;gap:6px;margin:0 0 14px;padding:4px;flex:none;align-self:flex-start;" +
       "border:1px solid var(--border);border-radius:10px;background:var(--surface-1,var(--bg))}" +
@@ -3976,15 +4059,17 @@
       "background:var(--surface-2,var(--border));color:var(--text3);font-weight:600}" +
       ".mt-tab-active .mt-tab-badge{background:var(--surface-2,var(--border));color:var(--text2)}" +
       /* —— Split: trái thông tin (~1/4) | phải transcript (~3/4) —— */
-      ".mt-stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
-      ".mt-col-info{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;overflow:auto;padding-right:2px}" +
-      ".mt-col-live{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}" +
+      ".mt-stage{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.25fr) minmax(0,1.15fr);gap:10px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
+      ".mt-col-info{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;overflow:auto;padding-right:2px}" +
+      ".mt-col-live,.mt-col-notes{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}" +
       ".mt-live-shell{flex:1;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:10px 12px;overflow:hidden}" +
       ".mt-live-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;flex:none;margin:0 0 6px}" +
       ".mt-live-title{font-size:13px;font-weight:600;color:var(--text2)}" +
       ".mt-col-live .mt-meta{margin:0;font-size:12px;gap:8px}" +
-      ".mt-col-live #mtSpeakers{margin:0 0 6px;flex:none;max-height:52px;overflow:auto}" +
+      ".mt-col-live #mtSpeakers{margin:0 0 6px;flex:none;max-height:40px;overflow:auto}" +
       ".mt-live{flex:1;min-height:0;max-height:none;overflow:auto;border:none;border-radius:0;background:transparent;padding:4px 2px;font-size:13.5px;line-height:1.5}" +
+      "#mtLiveNotes{flex:1;min-height:0;width:100%;box-sizing:border-box;resize:none;border:none;background:transparent;color:var(--text);font:inherit;font-size:13.5px;line-height:1.5;padding:4px 2px;outline:none}" +
+      ".mt-notes-hint{flex:none;font-size:11.5px;color:var(--text3);margin:0 0 4px;line-height:1.35}" +
       ".mt-partial{flex:none;min-height:1.2em;margin-top:4px;padding-top:6px;font-size:13px}" +
       ".mt-live-actions{flex:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}" +
       ".mt-live-placeholder{display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--text3);font-size:13.5px;line-height:1.5}" +
@@ -3997,7 +4082,7 @@
       ".mt-field{margin:0 0 8px}.mt-field:last-child{margin-bottom:0}" +
       ".mt-field label{display:block;font-size:11.5px;letter-spacing:.01em;color:var(--text3);margin:0 0 3px}" +
       ".mt-field input,.mt-field textarea,.mt-field select{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit;font-size:13px}" +
-      ".mt-field textarea{min-height:52px;max-height:96px;resize:vertical}" +
+      ".mt-field textarea{min-height:40px;max-height:72px;resize:vertical}" +
       ".mt-field input:disabled,.mt-field textarea:disabled{opacity:.72}" +
       ".mt-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 0}" +
       ".mt-toolbar .s-btn,.mt-toolbar .s-btn-ghost{font-size:12.5px;padding:6px 10px}" +
@@ -4048,18 +4133,20 @@
       ".mt-detail-tabs{display:flex;gap:6px;margin:12px 0 10px;border-bottom:1px solid var(--border)}" +
       ".mt-dtab{border:none;background:transparent;color:var(--text3);font:inherit;font-size:13px;padding:8px 10px;margin:0 0 -1px;border-bottom:2px solid transparent;cursor:pointer}" +
       ".mt-dtab-active{color:var(--text);border-bottom-color:var(--accent-ink,var(--text));font-weight:600}" +
-      ".mt-detail-body{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111))}" +
+      ".mt-detail-body{max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111))}" +
+      ".mt-detail-notes{width:100%;min-height:180px;box-sizing:border-box;border:none;background:transparent;color:var(--text);font:inherit;font-size:13px;line-height:1.55;padding:14px;resize:vertical;outline:none}" +
       ".mt-detail-pre{margin:0;padding:14px;font-size:13px;line-height:1.55;white-space:pre-wrap;font-family:inherit;color:var(--text)}" +
       ".mt-steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--text3)}" +
       ".mt-steps span{padding:3px 9px;border:1px solid var(--border);border-radius:999px}" +
       /* Mobile: xếp dọc, cho cuộn trang */
-      "@media (max-width:900px){" +
+      "@media (max-width:1100px){" +
       ".mt-wrap{height:auto;max-height:none;overflow:visible}" +
       "#mtPanelNew:not([hidden]),.mt-stage{grid-template-columns:1fr;overflow:visible;height:auto}" +
       ".mt-col-info{overflow:visible;max-height:none}" +
-      ".mt-col-live{min-height:280px}" +
-      ".mt-live-shell{min-height:280px}" +
-      ".mt-live{max-height:50vh}" +
+      ".mt-col-live,.mt-col-notes{min-height:200px}" +
+      ".mt-live-shell{min-height:200px}" +
+      ".mt-live{max-height:36vh}" +
+      "#mtLiveNotes{min-height:160px}" +
       "}";
   }
 
@@ -4090,8 +4177,6 @@
       '<input type="text" id="mtTitle" placeholder="Họp kế hoạch Q3…" autocomplete="off"></div>' +
       '<div class="mt-field"><label>Thành phần</label>' +
       '<input type="text" id="mtPeople" placeholder="An, Bình, Chi" autocomplete="off"></div>' +
-      '<div class="mt-field"><label>Ghi chú / mục tiêu</label>' +
-      '<textarea id="mtNotes" placeholder="Agenda ngắn…" rows="2"></textarea></div>' +
       '<div class="mt-field"><label>Ngôn ngữ</label>' +
       '<select id="mtLang">' +
       '<optgroup label="Moonshine local (máy chủ)">' +
@@ -4122,9 +4207,9 @@
       "</select>" +
       "</div>" +
       '<div id="mtMoonshinePreload" class="dim" style="font-size:12.5px;margin:0 0 10px;line-height:1.4"></div>' +
-      '<label class="dim" style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin:0 0 10px;line-height:1.45;cursor:pointer">' +
-      '<input type="checkbox" id="mtSysAudio" style="margin-top:3px">' +
-      "<span>Ghi tiếng máy (Zoom/Meet/Teams). Bắt đầu sẽ hỏi chia sẻ. <b>Zoom/Teams app:</b> chọn <b>Toàn màn hình</b> và tick <b>Chia sẻ âm thanh</b> (chọn cửa sổ Zoom thì không có tiếng). <b>Meet trên Chrome:</b> chọn đúng tab họp + chia sẻ âm thanh.</span></label>" +
+      '<label class="dim" style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:0 0 8px;line-height:1.35;cursor:pointer" title="Zoom/Teams app: Toàn màn hình + Chia sẻ âm thanh. Meet trên Chrome: đúng tab họp + chia sẻ âm thanh.">' +
+      '<input type="checkbox" id="mtSysAudio" style="margin-top:2px">' +
+      "<span>Ghi tiếng máy (Zoom/Meet)</span></label>" +
       '<div class="mt-toolbar">' +
       '<button class="s-btn" id="mtStart" type="button">' +
       ic("play") +
@@ -4132,8 +4217,6 @@
       '<label class="s-btn-ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Âm thanh chỉ dùng tạm để STT">' +
       ic("upload-cloud") +
       ' File → chữ<input type="file" id="mtFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" hidden></label>' +
-      "</div>" +
-      '<p class="dim" style="font-size:12px;margin:8px 0 0;line-height:1.45">Tiếng họp online phải lấy từ chia sẻ màn hình (không phải mic sát loa). Bỏ tick chỉ khi họp mặt-to-face trong phòng.</p>' +
       "</div>" +
       '<div id="mtAfter" hidden>' +
       '<div class="mt-toolbar">' +
@@ -4149,7 +4232,7 @@
       "</aside>" +
       '<section class="mt-col mt-col-live" aria-label="Nội dung ghi nhận">' +
       '<div id="mtLivePanel" class="mt-live-shell">' +
-      '<div class="mt-live-placeholder dim">Điền thông tin bên trái, bấm <b>Bắt đầu</b> — transcript hiện ở đây.</div>' +
+      '<div class="mt-live-placeholder dim">Bấm <b>Bắt đầu</b> - chữ họp hiện ở cột này.</div>' +
       '<div class="mt-live-body">' +
       '<div class="mt-live-head">' +
       '<span class="mt-live-title">Transcript</span>' +
@@ -4164,6 +4247,12 @@
       " Dừng / Hủy</button>" +
       "</div></div></div>" +
       "</section>" +
+      '<section class="mt-col mt-col-notes" aria-label="Ghi chú tay">' +
+      '<div class="mt-live-shell">' +
+      '<div class="mt-live-head"><span class="mt-live-title">Ghi chú</span></div>' +
+      '<p class="mt-notes-hint">Gõ trong lúc họp. Gộp với transcript khi tổng kết.</p>' +
+      '<textarea id="mtLiveNotes" placeholder="Agenda, quyết định, việc cần làm…"></textarea>' +
+      "</div></section>" +
       "</div>" +
       '<div id="mtPanelArchive" hidden role="tabpanel" aria-labelledby="mtTabArchive">' +
       '<div class="mt-archive-toolbar">' +
@@ -4200,6 +4289,12 @@
       uploadFallback(el, file);
       ev.target.value = "";
     };
+    var liveNotes = el.querySelector("#mtLiveNotes");
+    if (liveNotes) {
+      liveNotes.oninput = function () {
+        scheduleSaveNotes(el);
+      };
+    }
 
     el.querySelectorAll(".mt-tab").forEach(function (btn) {
       btn.onclick = function () {

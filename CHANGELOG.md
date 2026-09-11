@@ -4,6 +4,12 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.193] - 2026-09-11
+### Cải tiến
+- **Cuộc họp 3 cột trên một màn:** form gọn | transcript | ghi chú tay. Gõ note lúc họp, gộp với voice khi tổng kết. Không phải kéo dài trang.
+### Sửa lỗi
+- **Xem lại cuộc họp thấy tổng kết:** trước đây file summary có rồi mà tab đọc sai (tìm mục Transcript trong file tổng kết nên ra trống). Giờ đọc đúng nội dung. Nếu lần tổng kết lỗi, Lưu trữ có nút Tổng kết / Tổng kết lại trên cuộc họp đã lưu.
+
 ## [0.55.192] - 2026-09-11
 ### Sửa lỗi
 - **Giao diện không còn dính bản JS cũ sau Ctrl+Shift+R:** nạp meetings.js / voice.js (và mọi .js/.css của trang) qua `/asset/<phiên bản>/...` thay vì `/static/...?v=`. Tầng cache giữa máy và Javis hay bỏ qua query nên giữ file cũ; HTML no-store thì banner freshness kêu đúng tên file. Một lần tải lại sau bản này là hết.

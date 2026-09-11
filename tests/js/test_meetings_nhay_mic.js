@@ -82,7 +82,7 @@ check("mix loa máy lỗi thì tắt AEC trên mic",
   /applyMicAec\(false\)/.test(src) &&
   src.indexOf("state._hasSystemAudio = false") >= 0);
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 39)", v >= 39, v);
+check("meetings.js đã bump ?v= (>= 40)", v >= 40, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

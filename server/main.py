@@ -4930,9 +4930,20 @@ async def meetings_stop(meeting_id: str, brain: str = Form("brain")):
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/meetings/{meeting_id}/notes")
+async def meetings_notes(meeting_id: str, text: str = Form(""),
+                         brain: str = Form("brain"), path: str = Form("")):
+    """Ghi chú tay lúc họp hoặc sau khi lưu - gộp vào file, dùng khi tổng kết."""
+    try:
+        return meetings.set_live_notes(
+            meeting_id, text, brain_root=_brain_root(brain), rel_path=path)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/meetings/{meeting_id}/analyze")
 async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
-                           model: str = Form("")):
+                           model: str = Form(""), path: str = Form("")):
     """Dừng (nếu chưa) + tổng kết bằng Antigravity hoặc Gemini/API (Main / Việc nền)."""
     mcfg = cfgmod.read_settings().get("model") or {}
     main = dict(mcfg.get("main") or {})
@@ -5004,7 +5015,8 @@ async def meetings_analyze(meeting_id: str, brain: str = Form("brain"),
 
     try:
         return await meetings.analyze_transcript(
-            meeting_id, stream_fn=_stream, model=pick_model, api_key=pick_key or "")
+            meeting_id, stream_fn=_stream, model=pick_model, api_key=pick_key or "",
+            brain_root=_brain_root(brain), rel_path=path)
     except Exception as e:
         import sys, traceback
         traceback.print_exc(file=sys.stderr)

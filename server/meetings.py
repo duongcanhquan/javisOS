@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 import uuid
 from datetime import datetime
@@ -18,8 +19,9 @@ from typing import Callable, Optional
 _ACTIVE: dict[str, dict] = {}
 
 _ANALYZE_SYSTEM = (
-    "Bạn là trợ lý thư ký cuộc họp chuyên nghiệp. Chỉ dùng transcript được cung cấp. "
-    "Không bịa số liệu, tên người, ý kiến hay quyết định không có trong transcript. "
+    "Bạn là trợ lý thư ký cuộc họp chuyên nghiệp. Chỉ dùng transcript và ghi chú tay được cung cấp. "
+    "Không bịa số liệu, tên người, ý kiến hay quyết định không có trong tài liệu. "
+    "Ghi chú tay gộp với transcript; không bỏ qua ghi chú. "
     "Viết tiếng Việt, rõ ràng, logic, trung lập.\n\n"
     "Trả lời đúng các mục markdown sau:\n"
     "## Diễn biến cuộc họp\n"
@@ -129,7 +131,7 @@ def start(brain_root: str, title: str = "", language: str = "vi",
     jsonl_path = base / f"{stamp}-{slug}-{mid}.jsonl"
     created = _now_stamp()
     people_line = ", ".join(people) if people else "(chưa ghi)"
-    notes_block = f"## Ghi chú trước họp\n\n{notes}\n\n" if notes else ""
+    live_block = f"## Ghi chú trong họp\n\n{notes}\n\n" if notes else "## Ghi chú trong họp\n\n"
     fm = (
         "---\n"
         "type: source\n"
@@ -145,7 +147,7 @@ def start(brain_root: str, title: str = "", language: str = "vi",
         f"# {title}\n\n"
         f"_Bắt đầu: {created}_\n\n"
         f"**Thành phần:** {people_line}\n\n"
-        f"{notes_block}"
+        f"{live_block}"
         "## Transcript\n\n"
     )
     md_path.write_text(fm, encoding="utf-8")
@@ -166,6 +168,8 @@ def start(brain_root: str, title: str = "", language: str = "vi",
         "started_at": time.time(),
         "line_count": 0,
         "stopped": False,
+        "live_notes": notes,
+        "_lock": threading.Lock(),
     }
     return {
         "ok": True,
@@ -181,6 +185,42 @@ def start(brain_root: str, title: str = "", language: str = "vi",
 
 def get_active(meeting_id: str) -> Optional[dict]:
     return _ACTIVE.get(meeting_id)
+
+
+def _sess_lock(sess: dict) -> threading.Lock:
+    lk = sess.get("_lock")
+    if lk is None:
+        lk = threading.Lock()
+        sess["_lock"] = lk
+    return lk
+
+
+def _section_text(body: str, heading: str) -> str:
+    title = heading if heading.startswith("## ") else f"## {heading}"
+    if title not in body:
+        return ""
+    chunk = body.split(title, 1)[1]
+    nxt = re.search(r"\n## ", chunk)
+    if nxt:
+        chunk = chunk[:nxt.start()]
+    return chunk.strip()
+
+
+def _upsert_heading_section(raw: str, heading: str, content: str) -> str:
+    title = heading if heading.startswith("## ") else f"## {heading}"
+    body = (content or "").rstrip()
+    block = f"{title}\n\n{body}\n\n" if body else f"{title}\n\n"
+    start = raw.find(title)
+    if start >= 0:
+        rest = raw[start + len(title):]
+        nxt = re.search(r"\n## ", rest)
+        end = start + len(title) + (nxt.start() if nxt else len(rest))
+        return raw[:start] + block + raw[end:].lstrip("\n")
+    mark = "## Transcript"
+    idx = raw.find(mark)
+    if idx >= 0:
+        return raw[:idx] + block + raw[idx:]
+    return raw.rstrip() + "\n\n" + block
 
 
 def append_line(meeting_id: str, text: str, t0: float = 0, t1: float = 0,
@@ -203,29 +243,30 @@ def append_line(meeting_id: str, text: str, t0: float = 0, t1: float = 0,
         idx = int(speaker_index)
         sp = people[idx] if idx < len(people) else f"Người {idx + 1}"
     ts = _now_stamp()
-    try:
-        with open(sess["md_path"], "a", encoding="utf-8") as f:
-            if sp:
-                f.write(f"**[{ts}] {sp}:** {line}\n\n")
-            else:
-                f.write(f"**[{ts}]** {line}\n\n")
-    except OSError as e:
-        return {"ok": False, "error": f"Ghi md lỗi: {e}"}
-    rec = {
-        "ts": time.time(),
-        "wall": ts,
-        "text": line,
-        "t0": float(t0 or 0),
-        "t1": float(t1 or 0),
-        "speaker": sp,
-        "speaker_index": int(speaker_index) if speaker_index is not None else -1,
-    }
-    try:
-        with open(sess["jsonl_path"], "a", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    except OSError as e:
-        return {"ok": False, "error": f"Ghi jsonl lỗi: {e}"}
-    sess["line_count"] = int(sess.get("line_count") or 0) + 1
+    with _sess_lock(sess):
+        try:
+            with open(sess["md_path"], "a", encoding="utf-8") as f:
+                if sp:
+                    f.write(f"**[{ts}] {sp}:** {line}\n\n")
+                else:
+                    f.write(f"**[{ts}]** {line}\n\n")
+        except OSError as e:
+            return {"ok": False, "error": f"Ghi md lỗi: {e}"}
+        rec = {
+            "ts": time.time(),
+            "wall": ts,
+            "text": line,
+            "t0": float(t0 or 0),
+            "t1": float(t1 or 0),
+            "speaker": sp,
+            "speaker_index": int(speaker_index) if speaker_index is not None else -1,
+        }
+        try:
+            with open(sess["jsonl_path"], "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        except OSError as e:
+            return {"ok": False, "error": f"Ghi jsonl lỗi: {e}"}
+        sess["line_count"] = int(sess.get("line_count") or 0) + 1
     return {"ok": True, "line_count": sess["line_count"], "wall": ts, "speaker": sp}
 
 
@@ -266,6 +307,119 @@ def read_transcript(meeting_id: str = "", md_path: str = "") -> str:
         return ""
 
 
+def hydrate_from_path(brain_root: str, rel_path: str) -> dict:
+    """Nạp cuộc họp đã lưu vào RAM để tổng kết / ghi chú tiếp (sau lỗi hoặc restart)."""
+    det = meeting_detail(brain_root, rel_path)
+    if not det.get("ok"):
+        return det
+    mid = str(det.get("id") or "").strip()
+    if not mid:
+        return {"ok": False, "error": "File không có mã cuộc họp"}
+    if mid in _ACTIVE:
+        return {"ok": True, "id": mid, "reused": True, "path": det.get("path")}
+    root = Path(brain_root).resolve()
+    rel = str(det.get("path") or rel_path or "").replace("\\", "/").lstrip("/")
+    p = (root / rel).resolve()
+    try:
+        p.relative_to(root)
+    except ValueError:
+        return {"ok": False, "error": "Đường dẫn ngoài brain"}
+    jsonl = p.with_suffix(".jsonl")
+    live = ""
+    language = "vi"
+    try:
+        raw = p.read_text(encoding="utf-8")
+        meta, body = _parse_simple_frontmatter(raw)
+        live = _section_text(body, "Ghi chú trong họp")
+        language = str(meta.get("language") or "vi")
+    except OSError:
+        pass
+    rel_jsonl = ""
+    try:
+        if jsonl.is_file():
+            rel_jsonl = str(jsonl.relative_to(root)).replace("\\", "/")
+    except ValueError:
+        pass
+    _ACTIVE[mid] = {
+        "id": mid,
+        "brain_root": str(root),
+        "title": det.get("title") or "Cuộc họp",
+        "language": language,
+        "notes": det.get("notes_full") or "",
+        "live_notes": live,
+        "attendees": det.get("attendees") or [],
+        "md_path": str(p),
+        "jsonl_path": str(jsonl),
+        "rel_md": rel,
+        "rel_jsonl": rel_jsonl,
+        "started_at": time.time(),
+        "line_count": det.get("line_count") or 0,
+        "stopped": True,
+        "_lock": threading.Lock(),
+    }
+    return {"ok": True, "id": mid, "path": rel, "hydrated": True}
+
+
+def hydrate_from_meeting_id(brain_root: str, meeting_id: str) -> dict:
+    mid = (meeting_id or "").strip()
+    if not mid:
+        return {"ok": False, "error": "Thiếu mã cuộc họp"}
+    if mid in _ACTIVE:
+        return {"ok": True, "id": mid, "reused": True}
+    d = meetings_dir(brain_root)
+    found = None
+    for p in d.glob("*.md"):
+        if p.name.endswith("-summary.md"):
+            continue
+        if p.stem.endswith("-" + mid):
+            found = p
+            break
+    if found is None:
+        needle = f"meeting_id: {mid}"
+        for p in d.glob("*.md"):
+            if p.name.endswith("-summary.md"):
+                continue
+            if needle in _read_text_limited(p, 12_000):
+                found = p
+                break
+    if found is None:
+        return {"ok": False, "error": "Không tìm thấy file cuộc họp đã lưu."}
+    rel = str(found.relative_to(Path(brain_root))).replace("\\", "/")
+    return hydrate_from_path(brain_root, rel)
+
+
+def set_live_notes(meeting_id: str, text: str, brain_root: str = "",
+                   rel_path: str = "") -> dict:
+    """Ghi chú tay trong/sau họp - gộp với transcript khi tổng kết."""
+    sess = _ACTIVE.get(meeting_id)
+    if not sess:
+        if rel_path and brain_root:
+            h = hydrate_from_path(brain_root, rel_path)
+        elif brain_root and meeting_id:
+            h = hydrate_from_meeting_id(brain_root, meeting_id)
+        else:
+            h = {"ok": False, "error": "Không tìm thấy phiên họp."}
+        if not h.get("ok"):
+            return h
+        sess = _ACTIVE.get(h["id"])
+    if not sess:
+        return {"ok": False, "error": "Không tìm thấy phiên họp."}
+    text = text if text is not None else ""
+    with _sess_lock(sess):
+        sess["live_notes"] = text
+        p = Path(sess["md_path"])
+        try:
+            raw = p.read_text(encoding="utf-8")
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        neu = _upsert_heading_section(raw, "Ghi chú trong họp", text)
+        try:
+            p.write_text(neu, encoding="utf-8")
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+    return {"ok": True, "id": sess["id"], "path": sess.get("rel_md")}
+
+
 def replace_transcript_from_stt(meeting_id: str, text: str, source: str = "groq") -> dict:
     sess = _ACTIVE.get(meeting_id)
     if not sess:
@@ -275,7 +429,8 @@ def replace_transcript_from_stt(meeting_id: str, text: str, source: str = "groq"
     people = sess.get("attendees") or []
     notes = sess.get("notes") or ""
     people_line = ", ".join(people) if people else "(chưa ghi)"
-    notes_block = f"## Ghi chú trước họp\n\n{notes}\n\n" if notes else ""
+    live = (sess.get("live_notes") or notes or "").strip()
+    live_block = f"## Ghi chú trong họp\n\n{live}\n\n" if live else "## Ghi chú trong họp\n\n"
     body = (
         "---\n"
         "type: source\n"
@@ -292,7 +447,7 @@ def replace_transcript_from_stt(meeting_id: str, text: str, source: str = "groq"
         f"# {title}\n\n"
         f"_Transcript từ file ghi âm ({source}) · {created}_\n\n"
         f"**Thành phần:** {people_line}\n\n"
-        f"{notes_block}"
+        f"{live_block}"
         "## Transcript\n\n"
         f"{(text or '').strip()}\n"
     )
@@ -327,30 +482,56 @@ async def analyze_transcript(
     stream_fn: Callable,
     model: str = "",
     api_key: str = "",
+    brain_root: str = "",
+    rel_path: str = "",
 ) -> dict:
-    """Gọi model cloud (stream_fn) → ghi file summary chuyên nghiệp."""
+    """Gọi model cloud (stream_fn) → ghi file summary chuyên nghiệp.
+
+    Phiên RAM mất (tổng kết lỗi, restart) thì nạp lại từ file đã lưu.
+    """
     sess = _ACTIVE.get(meeting_id)
+    if not sess:
+        if rel_path and brain_root:
+            h = hydrate_from_path(brain_root, rel_path)
+        elif brain_root and meeting_id:
+            h = hydrate_from_meeting_id(brain_root, meeting_id)
+        else:
+            h = {"ok": False, "error": "Không tìm thấy phiên họp."}
+        if not h.get("ok"):
+            return h
+        meeting_id = h["id"]
+        sess = _ACTIVE.get(meeting_id)
     if not sess:
         return {"ok": False, "error": "Không tìm thấy phiên họp."}
     if not sess.get("stopped"):
         stop(meeting_id)
 
     raw = read_transcript(meeting_id=meeting_id)
-    if len(raw.strip()) < 40:
-        return {"ok": False, "error": "Transcript quá ngắn để phân tích."}
+    body_src = raw
+    if raw.startswith("---"):
+        parts = raw.split("---", 2)
+        if len(parts) >= 3:
+            body_src = parts[2]
+    live = _section_text(body_src, "Ghi chú trong họp") or (sess.get("live_notes") or "")
+    pre = _section_text(body_src, "Ghi chú trước họp") or (sess.get("notes") or "")
+    notes_all = "\n\n".join(x for x in (pre.strip(), live.strip()) if x)
 
     body = raw
     if "## Transcript" in raw:
         body = raw.split("## Transcript", 1)[1]
+    if len((body + notes_all).strip()) < 40:
+        return {"ok": False, "error": "Transcript quá ngắn để phân tích."}
 
     meta = (
         f"Tiêu đề: {sess.get('title')}\n"
         f"Thành phần: {', '.join(sess.get('attendees') or []) or '(không ghi)'}\n"
     )
-    if sess.get("notes"):
-        meta += f"Ghi chú trước họp: {sess.get('notes')}\n"
+    if notes_all:
+        meta += "Ghi chú tay (gộp với transcript khi tổng kết):\n" + notes_all + "\n"
 
     chunks = chunk_text(body, 6000)
+    if not chunks and notes_all:
+        chunks = [notes_all]
     system = _skill_system_prompt(sess.get("brain_root") or "")
     partials: list[str] = []
     for i, ch in enumerate(chunks):
@@ -548,19 +729,15 @@ def _date_time_from_file(name: str, meta: dict) -> tuple[str, str]:
 
 
 def _extract_meeting_sections(body: str) -> tuple[str, str, str]:
-    """notes, transcript, heading title line."""
+    """notes (trước họp + trong họp), transcript, heading title line."""
     heading = ""
     for line in body.splitlines():
         if line.startswith("# "):
             heading = line[2:].strip()
             break
-    notes = ""
-    if "## Ghi chú trước họp" in body:
-        chunk = body.split("## Ghi chú trước họp", 1)[1]
-        if "## Transcript" in chunk:
-            notes = chunk.split("## Transcript", 1)[0].strip()
-        else:
-            notes = chunk.strip()
+    pre = _section_text(body, "Ghi chú trước họp")
+    live = _section_text(body, "Ghi chú trong họp")
+    notes = "\n\n".join(x for x in (pre, live) if x)
     transcript = ""
     if "## Transcript" in body:
         transcript = body.split("## Transcript", 1)[1]
@@ -617,8 +794,8 @@ def _meeting_item_from_path(brain_root: str, p: Path) -> Optional[dict]:
     if has_summary:
         summ_rel = str(summ_path.relative_to(Path(brain_root))).replace("\\", "/")
         summ_body = _read_text_limited(summ_path, 120_000)
-        _, summ_text, _ = _extract_meeting_sections(summ_body)
-        summ_excerpt = re.sub(r"\s+", " ", summ_text)[:280]
+        _sm, sbody = _parse_simple_frontmatter(summ_body)
+        summ_excerpt = re.sub(r"\s+", " ", sbody or "")[:280]
     excerpt_src = transcript or notes or summ_excerpt
     excerpt = re.sub(r"\s+", " ", excerpt_src)[:280]
     line_count = _count_transcript_lines(transcript)
@@ -723,7 +900,9 @@ def meeting_detail(brain_root: str, rel_path: str) -> dict:
     if it.get("summary_path"):
         sp = root / it["summary_path"]
         if sp.is_file():
-            _, summary, _ = _extract_meeting_sections(_read_text_limited(sp, 800_000))
+            raw_s = _read_text_limited(sp, 800_000)
+            _sm, sbody = _parse_simple_frontmatter(raw_s)
+            summary = (sbody or "").strip()
     return {
         "ok": True,
         **it,
