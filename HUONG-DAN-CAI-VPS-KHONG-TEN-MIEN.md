@@ -38,11 +38,14 @@ Ghi chú:
 - Việc nền 24/7 + nhiều brain: ưu tiên **8 GB**.
 - Không cần GPU. Model AI chạy qua subscription / API key của bạn (Claude, ChatGPT, OpenRouter…), không bắt buộc cài model local trên VPS.
 
-Bạn cần sẵn:
+Bạn cần sẵn **trước khi cài Javis**:
 
 1. IP VPS + user SSH (thường `root` hoặc `ubuntu`) + mật khẩu / key.
 2. Máy tính có Terminal (Mac/Linux) hoặc PowerShell / PuTTY (Windows) để SSH.
 3. Trình duyệt Chrome / Edge.
+4. (Linux Docker) Chưa cần Python/Node trên VPS - sẽ cài Docker ở bước sau.
+5. Firewall panel nhà cung cấp: sẵn sàng mở TCP **22** và **7777**.
+6. Bảng đủ nền tảng: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
 
 ---
 
@@ -168,6 +171,13 @@ docker compose down             # tắt (data trong volume Docker vẫn còn)
 ---
 
 ## 3. VPS / máy chủ Windows
+
+### 3.0 Cài sẵn trước
+
+1. RDP vào máy (hoặc SSH nếu có).
+2. Bật Virtualization trong BIOS nếu dùng Docker + WSL2.
+3. Chọn đường Docker Desktop **hoặc** Python 3.11+ (PATH) + Node 22.
+4. Chuẩn bị mở Windows Firewall TCP **7777**.
 
 ### 3.1 Cách khuyến nghị: Docker Desktop
 

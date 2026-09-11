@@ -31,6 +31,8 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 
 ### A1 - Windows (laptop giáo viên)
 
+> Cài sẵn trước: Python 3.11+ (PATH), Chrome/Edge; khuyến nghị Node 22 + Git. Chi tiết: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
+
 1. Cài **Python 3.11+** từ python.org - **tick** *Add python.exe to PATH*.
 2. (Khuyến nghị) Cài **Node.js 22 LTS** từ nodejs.org.
 3. GitHub repo nhà trường gửi → **Code → Download ZIP** → giải nén (vd `D:\Javis`).
@@ -41,11 +43,14 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 
 ### A2 - Mac (laptop giáo viên)
 
-1. Cài Python 3 nếu chưa có (python.org hoặc `brew install python`). Lần đầu có thể cần `xcode-select --install`.
-2. GitHub → **Download ZIP** → giải nén (vd `~/Desktop/Javis`).
-3. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận).
-4. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
-5. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.
+> Cài sẵn trước: `xcode-select --install`, Python 3.11+; khuyến nghị Homebrew + Node 22. Chi tiết: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
+
+1. Cài Python 3 nếu chưa có (python.org hoặc `brew install python`). Lần đầu **bắt buộc** `xcode-select --install`.
+2. (Khuyến nghị) Node.js 22 LTS.
+3. GitHub → **Download ZIP** → giải nén (vd `~/Desktop/Javis`).
+4. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận).
+5. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
+6. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.
 
 > Mac báo “không xác định được nhà phát triển”: **System Settings → Privacy & Security → Open Anyway**.
 
@@ -90,6 +95,8 @@ Image mặc định: `ghcr.io/duongcanhquan/javisos:latest`.
 Hai cách, chọn **một**:
 
 #### Cách 1 - Docker trên Windows Server / Windows có Docker Desktop (gần giống Linux)
+
+> Trước đó: RDP được, Virtualization/WSL2 sẵn sàng, firewall TCP 7777. Xem [CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
 
 1. Cài **Docker Desktop** (hoặc Docker Engine trên Windows Server) + bật WSL2 nếu được hỏi.
 2. PowerShell:

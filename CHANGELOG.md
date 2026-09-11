@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.198] - 2026-09-11
+### Cải tiến
+- **Hướng dẫn cài đặt:** bổ sung mục cài sẵn trước Javis cho Windows, macOS, VPS Linux và VPS Windows (Python/Node/Docker/firewall/ffmpeg…); thêm `docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md`.
+
 ## [0.55.197] - 2026-09-11
 ### Sửa lỗi
 - **Tin thoại Telegram/Zalo hết lỗi Gemini `invalid argument`:** file thoại là Ogg/Opus mà Google hiểu `audio/ogg` là Vorbis. Javis gửi `audio/opus`, thử MIME khác, rồi Whisper nếu còn key. Không đọc dump API cho người dùng.

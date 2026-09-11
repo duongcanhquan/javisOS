@@ -8,6 +8,7 @@ Chi tiết từng trang trong app: [docs/README.md](docs/README.md).
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
 **VPS mới, chưa có tên miền (IP / tunnel / Hostinger miễn phí):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
 **Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
+**Cài sẵn trên máy trước Javis (Win / Mac / VPS):** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
 Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).
 
 ---
@@ -53,15 +54,34 @@ Cổng mặc định: **7777**. Trên máy mình: `http://localhost:7777`.
 
 ---
 
+## 2b. Cài sẵn trước khi cài Javis (đọc trước)
+
+Chi tiết một trang: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md) · HTML [mục 3](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.html#chuan-bi).
+
+| Nền tảng | Bắt buộc trên máy trước | Khuyến nghị | Tuỳ chọn |
+|---|---|---|---|
+| Windows PC | Python 3.11+ (tick PATH), Chrome/Edge | Node.js 22 LTS, Git | ffmpeg, Ollama, Docker Desktop |
+| macOS | Xcode CLT, Python 3.11+ | Homebrew, Node 22 | ffmpeg, Ollama |
+| VPS Linux | SSH được, Docker + Compose, mở cổng 22 + 7777 | apt update/upgrade, firewall | Domain / tunnel HTTPS |
+| VPS Windows | RDP được; Docker Desktop *hoặc* Python+Node; Firewall 7777 | WSL2, Virtualization BIOS | HTTPS tunnel |
+
+Không cần GPU để chat qua cloud. Mic từ máy khác cần HTTPS (không dùng `http://IP`).
+
+---
+
 ## 3. Máy cá nhân - Windows
 
-### 3.1 Chuẩn bị (một lần)
+### 3.1 Chuẩn bị (một lần - làm trước khi chạy 1-Cai-dat)
 
-1. Cài **Python 3.11+** từ [python.org](https://www.python.org/downloads/).  
-   Khi cài: **tick** *Add python.exe to PATH*.
-2. (Khuyến nghị) Cài **Node.js 22 LTS** từ [nodejs.org](https://nodejs.org/) - cần cho Claude Code / Codex / một số kết nối (Zalo…).
-3. Tải **ZIP bản đóng gói** (hoặc Download ZIP từ GitHub do admin gửi).
-4. Giải nén ra thư mục dễ nhớ, ví dụ `D:\Javis`.
+1. Cài **Python 3.11 hoặc 3.12** từ [python.org](https://www.python.org/downloads/).  
+   Khi cài: **tick** *Add python.exe to PATH*; nên bật *Disable path length limit*.  
+   Kiểm tra (mở **cmd mới**): `python --version` ≥ 3.11.
+2. Trình duyệt **Chrome** hoặc **Edge** (bản mới).
+3. (Khuyến nghị) **Node.js 22 LTS** từ [nodejs.org](https://nodejs.org/) - Claude Code / Codex / một số kết nối (Zalo…). Kiểm tra: `node -v`.
+4. (Khuyến nghị) **Git for Windows** nếu clone repo thay vì ZIP.
+5. (Tuỳ chọn) **ffmpeg**: `winget install Gyan.FFmpeg` - hỗ trợ media / cuộc họp.
+6. Tải **ZIP bản đóng gói** (hoặc Download ZIP từ GitHub do admin gửi).
+7. Giải nén ra thư mục dễ nhớ, ví dụ `D:\Javis`.
 
 ### 3.2 Cài lần đầu
 
@@ -85,17 +105,18 @@ Chi tiết ngắn: [CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md).
 
 ## 4. Máy cá nhân - macOS
 
-### 4.1 Chuẩn bị (một lần)
+### 4.1 Chuẩn bị (một lần - làm trước Javis)
 
-1. Mở Terminal, chạy (nếu chưa có công cụ build):
+1. Mở Terminal, chạy (bắt buộc lần đầu):
 
 ```bash
 xcode-select --install
 ```
 
-2. Cài Python 3 từ [python.org/macos](https://www.python.org/downloads/macos/) hoặc `brew install python`.
-3. (Khuyến nghị) Node.js 22 LTS.
-4. Tải ZIP → giải nén, ví dụ `~/Desktop/Javis`.
+2. Cài Python 3.11+ từ [python.org/macos](https://www.python.org/downloads/macos/) hoặc `brew install python`. Kiểm tra: `python3 --version`.
+3. (Khuyến nghị) Cài [Homebrew](https://brew.sh) rồi Node.js 22 LTS (`brew install node@22` hoặc tải từ nodejs.org).
+4. (Tuỳ chọn) `brew install ffmpeg` cho media.
+5. Tải ZIP → giải nén, ví dụ `~/Desktop/Javis`.
 
 ### 4.2 Cài lần đầu
 
@@ -122,6 +143,15 @@ Cần quyền SSH vào VPS. Image mặc định fork:
 `ghcr.io/duongcanhquan/javisos:latest`
 
 > Package GHCR phải **Public** (hoặc bạn đã `docker login ghcr.io`) thì Hostinger / máy mới pull được.
+
+### 5.0 Cài sẵn trên VPS trước Docker/Javis
+
+1. SSH được: `ssh root@IP` (hoặc `ubuntu@IP`).
+2. OS: Ubuntu 22.04/24.04 hoặc Debian 12; RAM ≥ 4 GB (khuyến nghị 8 GB).
+3. `sudo apt update && sudo apt upgrade -y`.
+4. **Không cần** cài Python/Node trên host nếu đi đường Docker.
+5. Firewall / Security Group nhà cung cấp: mở TCP **22** và **7777** (thêm 80/443 nếu sau này HTTPS).
+6. Có máy tính + trình duyệt để mở `http://IP:7777` sau khi lên.
 
 ### 5.1 Cài Docker (nếu chưa có)
 
@@ -200,6 +230,13 @@ Script cài Python/Node/CLI, tạo venv, đăng ký **systemd** tự chạy khi 
 ---
 
 ## 6. VPS / máy chủ Windows
+
+### 6.0 Cài sẵn trước
+
+1. RDP (hoặc SSH) vào máy chủ.
+2. Bật **Virtualization** trong BIOS nếu dùng Docker Desktop + WSL2.
+3. Chọn một đường: **Docker Desktop** (khuyến nghị) *hoặc* Python 3.11+ (tick PATH) + Node.js 22.
+4. Windows Firewall: inbound TCP **7777** (và 3389 nếu RDP).
 
 ### 6.1 Docker Desktop (gần giống Linux)
 

@@ -5,23 +5,30 @@ Mỗi người một bản trên máy mình. Mở bằng trình duyệt Chrome/E
 
 ---
 
-## Trước khi bắt đầu (1 lần)
+## Trước khi bắt đầu (1 lần) - cài sẵn trên máy
+
+Bảng đầy đủ: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
 
 ### Windows
 1. Cài **Python 3.11+**: https://www.python.org/downloads/  
-   Khi cài nhớ **tick ô “Add python.exe to PATH”**.
+   Khi cài nhớ **tick ô “Add python.exe to PATH”**. Mở **cmd mới**, gõ `python --version` để kiểm tra.
 2. (Khuyến nghị) Cài **Node.js 22 LTS**: https://nodejs.org/  
    Để dùng Claude Code / ChatGPT trong trang Models.
+3. (Khuyến nghị) Git for Windows nếu clone repo. (Tuỳ chọn) ffmpeg: `winget install Gyan.FFmpeg`.
+4. Trình duyệt Chrome hoặc Edge.
 
 ### Mac
-1. Mở **Terminal**, dán lệnh này rồi Enter (cài Homebrew nếu chưa có):
+1. Mở **Terminal**, dán lệnh này rồi Enter:
 
 ```bash
 xcode-select --install
 ```
 
-2. Nếu máy chưa có Python 3, cài từ https://www.python.org/downloads/macos/  
-   hoặc: `brew install python` (khi đã có Homebrew).
+2. Nếu máy chưa có Python 3.11+, cài từ https://www.python.org/downloads/macos/  
+   hoặc: `brew install python` (khi đã có Homebrew từ https://brew.sh).
+3. (Khuyến nghị) Node.js 22 LTS. (Tuỳ chọn) `brew install ffmpeg`.
+
+> Không cần card đồ họa (GPU) để chat qua Claude/ChatGPT. Ollama offline mới cần RAM nhiều hơn.
 
 ---
 

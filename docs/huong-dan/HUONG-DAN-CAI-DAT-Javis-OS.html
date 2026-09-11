@@ -119,6 +119,7 @@
     <ol>
       <li><a href="#chon">Chọn đúng đường cài</a></li>
       <li><a href="#toithieu">Cấu hình máy tối thiểu</a></li>
+      <li><a href="#chuan-bi">Cài sẵn trước khi cài Javis</a></li>
       <li><a href="#win">Máy cá nhân - Windows</a></li>
       <li><a href="#mac">Máy cá nhân - macOS</a></li>
       <li><a href="#vps-linux">VPS Linux (Docker)</a></li>
@@ -139,13 +140,13 @@
     <path d="M600 78 L600 98" stroke="#94a3b8" stroke-width="2"/>
     <rect x="40" y="98" width="240" height="100" rx="12" fill="#fff" stroke="#d7e0e4"/>
     <text x="160" y="125" text-anchor="middle" font-size="13" font-family="Segoe UI, Arial" font-weight="700" fill="#0d9488">Laptop / PC cá nhân</text>
-    <text x="160" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows → mục 3</text>
-    <text x="160" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">macOS → mục 4</text>
+    <text x="160" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows → mục 4</text>
+    <text x="160" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">macOS → mục 5</text>
     <text x="160" y="188" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">http://localhost:7777</text>
     <rect x="480" y="98" width="240" height="100" rx="12" fill="#fff" stroke="#d7e0e4"/>
     <text x="600" y="125" text-anchor="middle" font-size="13" font-family="Segoe UI, Arial" font-weight="700" fill="#1d4ed8">Máy chủ / VPS 24/7</text>
-    <text x="600" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Linux → mục 5 (Docker)</text>
-    <text x="600" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows Server → mục 6</text>
+    <text x="600" y="148" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Linux → mục 6 (Docker)</text>
+    <text x="600" y="168" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial" fill="#5a6b73">Windows Server → mục 7</text>
     <text x="600" y="188" text-anchor="middle" font-size="11" font-family="Segoe UI, Arial" fill="#64748b">http://IP:7777 hoặc HTTPS</text>
   </svg>
   <p class="caption">Hình 1. Chọn Mac/Windows cho máy nhà, hoặc VPS khi cần mở mọi lúc mọi nơi.</p>
@@ -175,14 +176,71 @@
   </table>
   <p>Javis <strong>không cần GPU</strong>. Model Claude/ChatGPT/API chạy trên cloud. Ollama local mới cần RAM nhiều hơn.</p>
 
-  <h2 id="win">3. Máy cá nhân - Windows</h2>
-  <h3>3.1 Chuẩn bị (một lần)</h3>
-  <ol class="steps">
-    <li>Cài <strong>Python 3.11+</strong> từ <span class="mono">python.org</span>. Khi cài: <strong>tick</strong> “Add python.exe to PATH”.</li>
-    <li>(Khuyến nghị) Cài <strong>Node.js 22 LTS</strong> từ <span class="mono">nodejs.org</span>.</li>
-  </ol>
+  <h2 id="chuan-bi">3. Cài sẵn trước khi cài Javis</h2>
+  <p class="lead" style="font-size:15px;margin-top:-4px">Làm xong mục này <strong>trước</strong> khi chạy <span class="mono">1-Cai-dat</span> / Docker. Thiếu bước này là nguyên nhân lỗi “Python not found”, Docker đỏ, mic không vào được nhiều nhất.</p>
 
-  <h3>3.2 Lấy Javis &amp; cài</h3>
+  <table>
+    <thead><tr><th>Nền tảng</th><th>Bắt buộc trước</th><th>Khuyến nghị</th><th>Tuỳ chọn sau</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Windows PC</strong></td>
+        <td>Python 3.11+ (tick PATH)<br/>Trình duyệt Chrome/Edge</td>
+        <td>Node.js 22 LTS<br/>Git for Windows</td>
+        <td>ffmpeg · Ollama · Docker Desktop</td>
+      </tr>
+      <tr>
+        <td><strong>macOS</strong></td>
+        <td>Xcode Command Line Tools<br/>Python 3.11+</td>
+        <td>Homebrew · Node.js 22 LTS</td>
+        <td>ffmpeg · Ollama</td>
+      </tr>
+      <tr>
+        <td><strong>VPS Linux</strong></td>
+        <td>SSH vào được<br/>Docker Engine + Compose<br/>Mở cổng 22 + 7777</td>
+        <td><span class="mono">apt update &amp;&amp; upgrade</span><br/>ufw / security group</td>
+        <td>Domain / tunnel HTTPS (cho mic)</td>
+      </tr>
+      <tr>
+        <td><strong>VPS Windows</strong></td>
+        <td>RDP/SSH vào được<br/>Docker Desktop <em>hoặc</em> Python+Node<br/>Firewall TCP 7777</td>
+        <td>WSL2 (nếu Docker Desktop)<br/>Virtualization bật trong BIOS</td>
+        <td>Tunnel HTTPS · domain</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card">
+    <strong>Giải thích nhanh từng thứ</strong>
+    <ul style="margin:8px 0 0;padding-left:18px">
+      <li><strong>Python</strong> - lõi chạy server Javis trên máy (không dùng Docker).</li>
+      <li><strong>Node.js</strong> - Claude Code / Codex / một số kết nối (Zalo…). Không có vẫn mở được app; thiếu khi bật CLI trên trang Models.</li>
+      <li><strong>Git</strong> - kéo code bằng <span class="mono">git clone</span>; với ZIP thì không bắt buộc.</li>
+      <li><strong>Docker</strong> - cách khuyến nghị trên VPS: Javis chạy trong container, không cần tự cài Python trên máy chủ.</li>
+      <li><strong>ffmpeg</strong> - cắt/ghép audio-video (cuộc họp, render video). Docker image thường đã có; máy local thiếu thì một số tính năng media yếu hơn.</li>
+      <li><strong>Ollama</strong> - chỉ khi muốn model AI chạy offline trên máy. Không bắt buộc.</li>
+    </ul>
+  </div>
+  <div class="tip"><strong>Không cần GPU</strong> để cài và chat qua Claude/ChatGPT/OpenRouter. GPU chỉ hữu ích nếu bạn chủ động chạy Ollama model lớn hoặc công cụ clone giọng local nặng.</div>
+
+  <h2 id="win">4. Máy cá nhân - Windows</h2>
+  <h3>4.1 Cài sẵn trên Windows (một lần - làm trước Javis)</h3>
+  <ol class="steps">
+    <li><strong>Python 3.11 hoặc 3.12</strong> từ <a href="https://www.python.org/downloads/windows/">python.org/downloads/windows</a>.
+      <ul>
+        <li>Trong installer: <strong>bắt buộc tick</strong> <em>Add python.exe to PATH</em>.</li>
+        <li>Nên chọn <em>Disable path length limit</em> nếu hiện.</li>
+        <li>Kiểm tra: mở <strong>cmd mới</strong> → gõ <span class="mono">python --version</span> (phải ≥ 3.11).</li>
+      </ul>
+    </li>
+    <li><strong>Trình duyệt</strong> Chrome hoặc Edge (bản mới).</li>
+    <li><strong>Node.js 22 LTS</strong> từ <a href="https://nodejs.org/">nodejs.org</a> (khuyến nghị). Kiểm tra: <span class="mono">node -v</span>.</li>
+    <li><strong>Git for Windows</strong> (khuyến nghị) từ <a href="https://git-scm.com/download/win">git-scm.com</a> nếu bạn clone repo thay vì ZIP.</li>
+    <li><strong>ffmpeg</strong> (tuỳ chọn, cho media): <span class="mono">winget install Gyan.FFmpeg</span> hoặc tải bản static rồi thêm vào PATH.</li>
+    <li><strong>Không tắt</strong> Windows Defender hoàn toàn; nếu chặn script <span class="mono">.bat</span>, chọn <em>More info → Run anyway</em>.</li>
+  </ol>
+  <div class="okbox">Xong mục 4.1 mới sang 4.2. Nếu <span class="mono">python</span> không nhận trong cmd, đóng hết cửa sổ rồi mở lại, hoặc cài lại Python và tick PATH.</div>
+
+  <h3>4.2 Lấy Javis &amp; cài</h3>
   <ol class="steps">
     <li>Mở GitHub repo Javis → <strong>Code → Download ZIP</strong> → giải nén (ví dụ <span class="mono">D:\Javis</span>).</li>
     <li>Double-click <strong><span class="mono">1-Cai-dat.bat</span></strong> (lần đầu vài phút).</li>
@@ -214,15 +272,19 @@
     </tbody>
   </table>
 
-  <h2 id="mac">4. Máy cá nhân - macOS</h2>
-  <h3>4.1 Chuẩn bị (một lần)</h3>
+  <h2 id="mac">5. Máy cá nhân - macOS</h2>
+  <h3>5.1 Cài sẵn trên macOS (một lần - làm trước Javis)</h3>
   <ol class="steps">
-    <li>Mở Terminal, chạy: <span class="mono">xcode-select --install</span></li>
-    <li>Cài Python 3 (python.org/macos hoặc <span class="mono">brew install python</span>).</li>
-    <li>(Khuyến nghị) Node.js 22 LTS.</li>
+    <li><strong>Xcode Command Line Tools</strong> (bắt buộc): mở Terminal → <span class="mono">xcode-select --install</span> → Accept. Không có bước này thì Python/Homebrew dễ lỗi.</li>
+    <li><strong>Python 3.11+</strong>: tải từ <a href="https://www.python.org/downloads/macos/">python.org/macos</a> hoặc <span class="mono">brew install python</span> (sau khi có Homebrew).</li>
+    <li><strong>Homebrew</strong> (khuyến nghị): xem <a href="https://brew.sh">brew.sh</a>. Giúp cài Node/ffmpeg nhanh.</li>
+    <li><strong>Node.js 22 LTS</strong> (khuyến nghị): nodejs.org hoặc <span class="mono">brew install node@22</span>. Kiểm tra <span class="mono">node -v</span>.</li>
+    <li><strong>ffmpeg</strong> (tuỳ chọn): <span class="mono">brew install ffmpeg</span>.</li>
+    <li>Kiểm tra nhanh: <span class="mono">python3 --version</span> ≥ 3.11. Apple Silicon (M1/M2/M3) chạy tốt; không cần GPU.</li>
   </ol>
+  <div class="okbox">Gatekeeper: lần đầu nên <strong>chuột phải → Open</strong> với file <span class="mono">.command</span>, không double-click nếu bị chặn.</div>
 
-  <h3>4.2 Lấy Javis &amp; cài</h3>
+  <h3>5.2 Lấy Javis &amp; cài</h3>
   <ol class="steps">
     <li>Download ZIP từ GitHub → giải nén (ví dụ <span class="mono">~/Desktop/Javis</span>).</li>
     <li><strong>Chuột phải</strong> <span class="mono">1-Cai-dat.command</span> → <strong>Open</strong> (macOS có thể hỏi nhà phát triển - chọn Open).</li>
@@ -239,7 +301,7 @@
     </tbody>
   </table>
 
-  <h2 id="vps-linux">5. VPS Linux (Docker - khuyến nghị)</h2>
+  <h2 id="vps-linux">6. VPS Linux (Docker - khuyến nghị)</h2>
   <p>Phù hợp Ubuntu/Debian, Hostinger VPS, máy chủ 24/7. Image: <span class="mono">ghcr.io/duongcanhquan/javisos:latest</span>.</p>
 
   <svg class="diagram" viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
@@ -258,19 +320,31 @@
   </svg>
   <p class="caption">Hình 3. Kiến trúc VPS: trình duyệt → IP:7777 (hoặc HTTPS) → container Javis.</p>
 
-  <h3>5.1 Cài Docker trên VPS</h3>
+  <h3>6.0 Cài sẵn trên VPS Linux (trước khi kéo Javis)</h3>
+  <ol class="steps">
+    <li><strong>SSH</strong> vào VPS từ máy bạn: <span class="mono">ssh root@IP</span> hoặc user <span class="mono">ubuntu</span>.</li>
+    <li><strong>OS</strong> khuyến nghị: Ubuntu 22.04/24.04 hoặc Debian 12. RAM ≥ 4 GB (khuyến nghị 8 GB).</li>
+    <li>Cập nhật hệ thống: <span class="mono">sudo apt update &amp;&amp; sudo apt upgrade -y</span>.</li>
+    <li><strong>Docker Engine + Compose plugin</strong> (bắt buộc với đường Docker). Không cần cài Python/Node trên host.</li>
+    <li><strong>Firewall / Security Group</strong>: mở TCP <strong>22</strong> (SSH) và <strong>7777</strong> (Javis). Nếu dùng HTTPS sau này: thêm 80/443.</li>
+    <li>Tuỳ chọn sau: tên miền hoặc Cloudflare Tunnel nếu cần mic từ điện thoại (HTTPS).</li>
+  </ol>
+
+  <h3>6.1 Cài Docker trên VPS</h3>
   <pre>curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-# Đăng xuất SSH rồi đăng nhập lại</pre>
+# Đăng xuất SSH rồi đăng nhập lại
+docker version
+docker compose version</pre>
 
-  <h3>5.2 Chạy Javis (không tên miền - IP)</h3>
+  <h3>6.2 Chạy Javis (không tên miền - IP)</h3>
   <pre>mkdir -p ~/javis &amp;&amp; cd ~/javis
 curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
 docker compose up -d
 docker compose ps</pre>
   <div class="okbox">Mở <strong>http://&lt;IP-VPS&gt;:7777</strong>. Firewall/security group phải mở TCP <strong>7777</strong> (và 22 cho SSH).</div>
 
-  <h3>5.3 Hostinger Docker Manager (có HTTPS miễn phí)</h3>
+  <h3>6.3 Hostinger Docker Manager (có HTTPS miễn phí)</h3>
   <ol class="steps">
     <li>VPS → Docker Manager → Compose → URL.</li>
     <li>Dán:
@@ -281,13 +355,27 @@ docker compose ps</pre>
   </ol>
   <div class="tip">Mic/giọng nói trên trình duyệt <strong>chỉ</strong> chạy với <strong>https://</strong> hoặc <strong>localhost</strong>. Mở bằng <span class="mono">http://IP:7777</span> từ máy khác thì mic bị chặn.</div>
 
-  <h3>5.4 Cập nhật VPS</h3>
+  <h3>6.4 Cập nhật VPS</h3>
   <pre>cd ~/javis
 docker compose pull
 docker compose up -d</pre>
 
-  <h2 id="vps-win">6. VPS / máy chủ Windows</h2>
-  <h3>6.1 Docker Desktop (gần giống Linux)</h3>
+  <h2 id="vps-win">7. VPS / máy chủ Windows</h2>
+  <h3>7.0 Cài sẵn trên VPS Windows (trước Javis)</h3>
+  <ol class="steps">
+    <li>Đăng nhập máy chủ bằng <strong>Remote Desktop (RDP)</strong> hoặc SSH nếu có.</li>
+    <li>Bật <strong>ảo hóa</strong> trong BIOS/UEFI nếu dùng Docker Desktop (WSL2 cần Hyper-V/Virtualization).</li>
+    <li>Chọn <strong>một</strong> đường:
+      <ul>
+        <li><strong>Docker Desktop</strong> (khuyến nghị): cài từ docker.com, bật WSL2, đợi icon xanh - không cần Python trên host.</li>
+        <li><strong>Native</strong>: cài Python 3.11+ (tick PATH) + Node.js 22 LTS giống máy cá nhân.</li>
+      </ul>
+    </li>
+    <li><strong>Windows Firewall</strong>: cho phép inbound TCP <strong>7777</strong> (và 3389 nếu RDP).</li>
+    <li>Trình duyệt trên máy quản trị để mở <span class="mono">http://IP:7777</span>. Mic từ máy khác cần HTTPS.</li>
+  </ol>
+
+  <h3>7.1 Docker Desktop (gần giống Linux)</h3>
   <ol class="steps">
     <li>Cài Docker Desktop (bật WSL2 nếu được hỏi). Đợi engine xanh.</li>
     <li>PowerShell:</li>
@@ -300,7 +388,7 @@ docker compose up -d</pre>
     <li>Cập nhật: <span class="mono">docker compose pull</span> rồi <span class="mono">docker compose up -d</span>.</li>
   </ol>
 
-  <h3>6.2 Native Windows (không Docker, chạy 24/7)</h3>
+  <h3>7.2 Native Windows (không Docker, chạy 24/7)</h3>
   <ol class="steps">
     <li>Giải nén gói như máy cá nhân → chạy <span class="mono">1-Cai-dat.bat</span>.</li>
     <li><span class="mono">javis-autostart.bat install</span> để tự bật khi đăng nhập.</li>
@@ -308,7 +396,7 @@ docker compose up -d</pre>
     <li>Khi chạy public: <strong>bắt buộc</strong> đặt mật khẩu admin mạnh.</li>
   </ol>
 
-  <h2 id="lan-dau">7. Thiết lập lần đầu trong app (mọi đường)</h2>
+  <h2 id="lan-dau">8. Thiết lập lần đầu trong app (mọi đường)</h2>
   <svg class="diagram" viewBox="0 0 760 100" xmlns="http://www.w3.org/2000/svg">
     <rect x="15" y="25" width="160" height="50" rx="10" fill="#ccfbf1" stroke="#0d9488"/>
     <text x="95" y="55" text-anchor="middle" font-size="12" font-family="Segoe UI, Arial">1. Admin</text>
@@ -332,13 +420,15 @@ docker compose up -d</pre>
   </ol>
   <p>Chi tiết dùng hàng ngày: xem PDF <strong>Hướng dẫn sử dụng Javis OS</strong> (cùng thư mục).</p>
 
-  <h2 id="loi">8. Lỗi thường gặp</h2>
+  <h2 id="loi">9. Lỗi thường gặp</h2>
   <table>
     <thead><tr><th>Triệu chứng</th><th>Cách xử lý</th></tr></thead>
     <tbody>
+      <tr><td><span class="mono">python</span> / Python not found</td><td>Cài Python 3.11+, tick Add to PATH, mở lại cmd, chạy lại <span class="mono">1-Cai-dat</span></td></tr>
+      <tr><td>Docker Desktop đỏ / WSL lỗi</td><td>Bật Virtualization trong BIOS; cài/repair WSL2; mở Docker đợi xanh rồi mới <span class="mono">compose up</span></td></tr>
       <tr><td>Cổng 7777 bị chiếm</td><td>Tắt bản cũ (<span class="mono">3-Tat-Javis</span>) rồi bật lại</td></tr>
       <tr><td>macOS không mở .command</td><td>Chuột phải → Open; hoặc Privacy → Vẫn mở</td></tr>
-      <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall mở 7777; <span class="mono">docker compose ps</span></td></tr>
+      <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall/security group mở 7777; <span class="mono">docker compose ps</span></td></tr>
       <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost (không dùng http://IP)</td></tr>
       <tr><td>Quên mật khẩu admin</td><td>Xem docs khôi phục / log setup token trên VPS</td></tr>
     </tbody>

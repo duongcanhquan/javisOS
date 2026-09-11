@@ -26,13 +26,24 @@ Ghi chú:
 
 ---
 
+## 0b. Cài sẵn trước Javis (tóm tắt)
+
+Xem bảng đầy đủ: [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
+
+- **Windows:** Python 3.11+ (PATH) → Node 22 (khuyến nghị) → Git (tuỳ chọn) → ffmpeg (tuỳ chọn).
+- **Mac:** `xcode-select --install` → Python 3.11+ → Homebrew/Node 22 → ffmpeg (tuỳ chọn).
+- Không bắt buộc GPU / Ollama / Docker trên máy nhà.
+
+---
+
 ## 1. Windows - từng bước
 
-### 1.1 Cài sẵn (một lần)
+### 1.1 Cài sẵn (một lần - trước khi chạy 1-Cai-dat)
 
 1. **Python 3.11+** từ [python.org](https://www.python.org/downloads/)  
-   Khi cài: **tick** *Add python.exe to PATH*.
+   Khi cài: **tick** *Add python.exe to PATH*. Kiểm tra trong **cmd mới**: `python --version`.
 2. **Node.js 22 LTS** từ [nodejs.org](https://nodejs.org/) (khuyến nghị - Claude Code / Codex / một số kết nối).
+3. (Khuyến nghị) Git for Windows. (Tuỳ chọn) `winget install Gyan.FFmpeg`.
 
 ### 1.2 Lấy Javis
 
@@ -58,16 +69,17 @@ Ghi chú:
 
 ## 2. Mac - từng bước
 
-### 2.1 Cài sẵn (một lần)
+### 2.1 Cài sẵn (một lần - trước Javis)
 
-1. Terminal:
+1. Terminal (bắt buộc):
 
 ```bash
 xcode-select --install
 ```
 
-2. Python 3 từ [python.org/macos](https://www.python.org/downloads/macos/) hoặc `brew install python`.
-3. (Khuyến nghị) Node.js 22 LTS.
+2. Python 3.11+ từ [python.org/macos](https://www.python.org/downloads/macos/) hoặc `brew install python`. Kiểm tra: `python3 --version`.
+3. (Khuyến nghị) [Homebrew](https://brew.sh) + Node.js 22 LTS.
+4. (Tuỳ chọn) `brew install ffmpeg`.
 
 ### 2.2 Lấy Javis
 
