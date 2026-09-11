@@ -177,19 +177,23 @@ check("console.js có nhãn macOS theo platform", "macOS" in _console_src)
 check("main.py truyền --server-pid cho updater",
       "--server-pid" in open(os.path.join(str(SERVER), "main.py"), encoding="utf-8").read())
 
-# Khoá cache tĩnh phải gắn theo PHIÊN BẢN, không phải số gõ tay. Bug thật: console.js?v=72
-# đứng yên suốt hàng chục bản nên trình duyệt dùng bản CŨ trong cache, mọi sửa frontend vô
-# hình. Test này chốt: trang chủ phục vụ .js/.css với ?v=<phiên bản app>.
+# Khoá cache tĩnh phải gắn theo PHIÊN BẢN trên PATH, không phải số gõ tay hay chỉ ?v=.
+# Bug thật: console.js?v=72 đứng yên suốt hàng chục bản. Bug sau: Cloudflare/nginx bỏ qua
+# ?v= nên /static/meetings.js giữ bản cũ dù HTML đã mới (banner freshness 0.55.191).
+# Test này chốt: trang chủ phục vụ .js/.css tại /asset/<phiên bản app>/.
 import asyncio as _aio  # noqa: E402
 _html = _aio.run(main.root()).body.decode("utf-8")
 _ver = main._app_version()
-check("trang chủ gắn phiên bản app vào console.js (chống cache giao diện cũ)",
-      f"console.js?v={_ver}" in _html)
+check("trang chủ gắn phiên bản app vào PATH console.js (chống cache giao diện cũ)",
+      f"/asset/{_ver}/console.js" in _html)
 check("KHÔNG còn khoá cache gõ tay ?v=72 (đã thay bằng phiên bản)",
       "?v=72" not in _html)
 import re as _re2  # noqa: E402
-_stale = [m for m in _re2.findall(r'/static/\S+?\.(?:js|css)\?v=([\w.]+)', _html) if m != _ver]
-check("mọi file .js/.css đều mang đúng phiên bản, không sót cái nào", not _stale)
+_query_cu = _re2.findall(r'/static/\S+?\.(?:js|css)\?v=', _html)
+check("HTML phục vụ không còn /static/*.js?v= (path /asset/ mới bẻ cache bỏ query)",
+      not _query_cu)
+_stale = [m for m in _re2.findall(r'/asset/([\w.]+)/[\w./-]+\.(?:js|css)', _html) if m != _ver]
+check("mọi file .js/.css đều mang đúng phiên bản trên path, không sót cái nào", not _stale)
 
 # --- Hộp thư thông báo: dữ liệu cộng đồng + release hợp nhất ---
 _ann_raw = json.dumps({

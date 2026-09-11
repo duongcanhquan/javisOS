@@ -302,7 +302,7 @@ async def _static_cache_headers(request: Request, call_next):
     # Isolation cho cả document HTML lẫn module/worker cùng origin.
     resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     resp.headers.setdefault("Cross-Origin-Embedder-Policy", "credentialless")
-    if request.url.path.startswith("/static/"):
+    if request.url.path.startswith("/static/") or request.url.path.startswith("/asset/"):
         resp.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     if request.url.path == "/static/freshness.js":
         # Người gác cổng mà cũ theo thì nó gác cái gì. Nạp KHÔNG kèm `?v=` và luôn hỏi lại.
@@ -319,6 +319,10 @@ async def _static_cache_headers(request: Request, call_next):
         # cập nhật - code mới gọi khoá mới, màn hình in nguyên mã khoá (khách báo 2026-08-30).
         # no-cache = được cache nhưng PHẢI hỏi lại mỗi lần (ETag/304 của StaticFiles lo phần rẻ).
         resp.headers["Cache-Control"] = "no-cache"
+    elif request.url.path.startswith("/asset/"):
+        # Path đã mang phiên bản: cache 1 năm. Query ?v= trên /static/ vẫn giữ cho file
+        # nạp động (i18n JSON, xterm) chưa đi qua root().
+        resp.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
     elif request.url.path.startswith("/static/") and request.query_params.get("v"):
         resp.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
     return resp
@@ -863,17 +867,55 @@ async def app_version():
     return {"version": _app_version() or "0", "assets": _asset_fps(html)}
 
 
+_ASSET_VER_RE = re.compile(r"^[\w.+-]+$")
+
+
+@app.get("/asset/{ver}/{path:path}")
+async def versioned_dashboard_asset(ver: str, path: str):
+    """JS/CSS mang phiên bản trên PATH, không chỉ query `?v=`.
+
+    Cloudflare/nginx hay cache `/static/meetings.js` và bỏ qua `?v=`. HTML thì no-store
+    nên freshness.js kêu đúng tên file cũ dù Ctrl+Shift+R. Mount `/static` nuốt mọi
+    `/static/...` nên prefix này phải nằm ngoài `/static`.
+    """
+    if not _ASSET_VER_RE.fullmatch(ver or ""):
+        return Response("Not Found", status_code=404)
+    rel = Path(path)
+    if rel.is_absolute() or ".." in rel.parts:
+        return Response("Not Found", status_code=404)
+    base = DASHBOARD_PATH.resolve()
+    f = (DASHBOARD_PATH / path).resolve()
+    try:
+        f.relative_to(base)
+    except ValueError:
+        return Response("Not Found", status_code=404)
+    if not f.is_file() or f.suffix.lower() not in (".js", ".css"):
+        return Response("Not Found", status_code=404)
+    return FileResponse(
+        str(f),
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Cross-Origin-Resource-Policy": "same-origin",
+        },
+    )
+
+
 @app.get("/")
 async def root():
     html = (DASHBOARD_PATH / "index.html").read_text(encoding="utf-8")
     # Ép khoá cache của MỌI file .js/.css theo phiên bản app. Trước đây mỗi file có ?v=NN
     # gõ tay, và suốt hàng chục bản không ai nhớ tăng console.js?v=72 nên trình duyệt cứ
     # dùng console.js CŨ trong cache - máy chủ cập nhật thật mà giao diện đóng băng, mọi
-    # sửa đổi frontend trở nên vô hình. Gắn phiên bản vào đây thì mỗi lần bump là tự bể cache.
+    # sửa đổi frontend trở nên vô hình. Gắn phiên bản vào PATH (`/asset/<ver>/file.js`)
+    # vì `?v=` bị Cloudflare/nginx bỏ qua: HTML mới, meetings.js vẫn bản cũ.
     ver = _app_version() or "0"
-    # Vân tay tính TRƯỚC khi đổi `?v=` - regex tìm theo `?v=` nên thứ tự này bắt buộc.
+    # Vân tay tính TRƯỚC khi đổi URL - regex tìm theo `?v=` trên file nguồn nên bắt buộc.
     fps = _asset_fps(html)
-    html = re.sub(r'(/static/[\w./-]+\.(?:js|css))\?v=[\w.]+', r'\1?v=' + ver, html)
+    html = re.sub(
+        r'/static/([\w./-]+\.(?:js|css))\?v=[\w.]+',
+        rf'/asset/{ver}/\1',
+        html,
+    )
     # Nhúng phiên bản + vân tay vào chính trang. index.html luôn tải mới (no-store) nên khối
     # này LUÔN đúng, kể cả khi mọi file JS quanh nó đã cũ - đó chính là điểm tựa để
     # freshness.js phát hiện ra chuyện đó.

@@ -7,8 +7,8 @@ vá ĐÃ lên main và máy chủ ĐÃ cập nhật. Hoá ra trình duyệt ch�
 khi dòng chữ ngay cạnh chính cái ô đó lại là chữ MỚI. Hai thứ đi hai đường khác nhau:
 
     từ điển i18n   -> fetch kèm `cache: no-cache`          -> LUÔN hỏi lại máy chủ, luôn mới
-    file .js/.css  -> `?v=<phiên bản>` + cache 1 năm immutable -> đứng yên nếu có tầng cache
-                                                                 nào bỏ qua phần `?v=`
+    file .js/.css  -> `/asset/<phiên bản>/file.js` + cache 1 năm immutable.
+                     Trước đây chỉ `?v=` nên tầng cache bỏ qua query thì giữ meetings.js cũ.
 
 Đây là kiểu hỏng tệ nhất vì nó CÂM: người dùng thấy bản vá "không ăn" rồi kết luận code
 sai, còn người sửa thì không tài nào tái hiện. Repo đã vấp đúng chuyện này một lần trước
@@ -67,9 +67,14 @@ check("và trả cả phiên bản lẫn vân tay", '"version"' in _av and '"ass
 
 _root = MAIN.split("async def root()", 1)[1].split("\n@app.", 1)[0]
 check("trang nhúng khối javis-fresh", 'id="javis-fresh"' in _root)
-# Regex tìm vân tay bám vào `?v=`, nên tính SAU khi đã đổi `?v=` là ra rỗng sạch.
-check("CANARY: vân tay tính TRƯỚC khi viết lại ?v= (tính sau là ra rỗng)",
+# Regex tìm vân tay bám vào `?v=` trên file nguồn index.html, nên tính SAU khi đổi
+# URL sang /asset/<ver>/ là ra rỗng sạch.
+check("CANARY: vân tay tính TRƯỚC khi viết lại URL tĩnh (tính sau là ra rỗng)",
       _root.index("_asset_fps(html)") < _root.index("re.sub("), _root[:200])
+check("CANARY: viết lại sang /asset/<phiên bản>/ (không chỉ ?v=; cache hay bỏ query)",
+      '"/asset/"' in _root or "/asset/" in _root)
+check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticFiles nuốt)",
+      '@app.get("/asset/{ver}/{path:path}")' in MAIN)
 check("index.html vẫn trả no-store (điểm tựa phải luôn mới)",
       "no-cache, no-store, must-revalidate" in _root)
 
@@ -126,6 +131,8 @@ check("và khớp cả trên chuỗi UTF-8 có dấu (băm theo byte, không the
 # chạy, nghĩa là để nguyên chế độ cache mặc định.
 check("CANARY: tải file KHÔNG ép làm mới (phải đo đúng bản đang chạy)",
       'cache: "reload"' not in FRESH and 'cache: "no-cache"' not in FRESH)
+check("CANARY: freshness đo /asset/<ver>/file chứ không /static/file?v=",
+      '"/asset/"' in FRESH and "?v=" not in FRESH.split("function doLech", 1)[-1].split("function veDai", 1)[0])
 check("nhưng /app-version thì hỏi thẳng máy chủ", 'cache: "no-store"' in FRESH)
 # Tự tải lại là cướp mất câu người dùng đang gõ dở - tệ hơn hẳn cái nó chữa.
 check("CANARY: KHÔNG tự động tải lại trang, chỉ mời",

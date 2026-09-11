@@ -4,6 +4,10 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.
 
+## [0.55.192] - 2026-09-11
+### Sửa lỗi
+- **Giao diện không còn dính bản JS cũ sau Ctrl+Shift+R:** nạp meetings.js / voice.js (và mọi .js/.css của trang) qua `/asset/<phiên bản>/...` thay vì `/static/...?v=`. Tầng cache giữa máy và Javis hay bỏ qua query nên giữ file cũ; HTML no-store thì banner freshness kêu đúng tên file. Một lần tải lại sau bản này là hết.
+
 ## [0.55.191] - 2026-09-11
 ### Sửa lỗi
 - **Cuộc họp bắt tiếng Zoom/Meet từ máy:** tắt hẳn AGC phần cứng Chrome (nó kéo theo chống vọng, chỉ còn giọng sát mic). Mix loa máy đủ lớn. Không fallback `getUserMedia({audio:true})`. Zoom app phải chia sẻ Toàn màn hình + âm thanh, không phải cửa sổ.

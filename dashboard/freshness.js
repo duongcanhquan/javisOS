@@ -5,8 +5,8 @@
  * cập nhật máy chủ. Hoá ra trình duyệt chạy sessions-ui.js CŨ, trong khi dòng chữ ngay
  * cạnh cái ô đó lại là chữ MỚI - vì hai thứ đi hai đường khác nhau tới trình duyệt:
  *   - từ điển i18n: tải kèm `cache: no-cache`, luôn hỏi lại máy chủ  -> LUÔN mới
- *   - file .js/.css: mang `?v=<phiên bản>` + đóng dấu cache 1 năm immutable -> đứng yên
- *     vĩnh viễn nếu có tầng cache nào bỏ qua phần `?v=`
+ *   - file .js/.css: mang `/asset/<phiên bản>/file.js` + đóng dấu cache 1 năm immutable.
+ *     Trước đây chỉ `?v=` nên tầng cache bỏ qua query thì giữ meetings.js cũ mãi.
  * Kết quả là một sự cố CÂM: bản vá "không ăn", người dùng tưởng code sai, người sửa không
  * tài nào tái hiện. Chú thích trong main.root() cho thấy repo đã vấp đúng chuyện này một
  * lần trước đó (console.js đứng yên suốt hàng chục bản mà không ai biết).
@@ -73,7 +73,7 @@
     if (!ds.length) return Promise.resolve([]);
     var ver = encodeURIComponent(m.version || "0");
     return Promise.all(ds.map(function (rel) {
-      return taiNhuTrang("/static/" + rel + "?v=" + ver).then(function (buf) {
+      return taiNhuTrang("/asset/" + ver + "/" + rel).then(function (buf) {
         if (!buf) return null;                       // không đọc được thì im, đừng báo oan
         return crc32(new Uint8Array(buf)) === m.assets[rel] ? null : rel;
       });
