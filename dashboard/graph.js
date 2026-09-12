@@ -178,6 +178,18 @@ class JavisGraph {
     this._swirlOn = false;
     this._lite = false;
     this._reducedMotion = _prefersReducedMotion();
+    // Flow layer: calm | flow | deep — lưu thông cạnh, pulse node, cite từ chat
+    this._flowMode = "flow";
+    try {
+      const saved = localStorage.getItem("javis.brainFlowMode");
+      if (saved === "calm" || saved === "flow" || saved === "deep") this._flowMode = saved;
+    } catch (e) {}
+    this._hotLinks = new Map();   // key "a||b" -> untilMs
+    this._pulseUntil = new Map(); // nodeId -> untilMs
+    this._citeId = null;
+    this._citeUntil = 0;
+    this._intelEvents = [];       // {t, kind, text, path}
+    this._flowTick = 0;
     window.__javisGraph = this;
     try { window.dispatchEvent(new Event("javis-graph-created")); } catch (e) {}
   }
@@ -247,12 +259,21 @@ class JavisGraph {
           return INK.linkIdle;
         })
         .linkWidth(l => {
+          if (self._isHotLink(l)) return self._flowMode === "deep" ? 2.8 : 2.1;
           if (self._hoverId != null) {
             const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
-            if (s === self._hoverId || t === self._hoverId) return 1;   // hover cũng mảnh (trước 1.8)
+            if (s === self._hoverId || t === self._hoverId) return 1.6;
           }
-          return 0.4;                               // dây mảnh hơn
+          if (self._flowMode === "deep") return 0.85;
+          if (self._flowMode === "flow") return 0.7;
+          return 0.35;
         })
+        .linkDirectionalParticles(l => self._particleCount(l))
+        .linkDirectionalParticleWidth(l => self._isHotLink(l) ? 3.4 : (self._flowMode === "deep" ? 2.6 : 2.1))
+        .linkDirectionalParticleSpeed(l => self._particleSpeed(l))
+        .linkDirectionalParticleColor(l => self._particleColor(l))
+        .linkCanvasObjectMode(() => self._flowMode === "calm" || self._reducedMotion ? undefined : "after")
+        .linkCanvasObject((l, ctx, scale) => self._drawFlowLink(l, ctx, scale))
         .nodeCanvasObjectMode(() => "replace")
         .nodeCanvasObject((n, ctx, scale) => self._drawNode(n, ctx, scale))
         .onNodeHover(n => {
@@ -293,6 +314,8 @@ class JavisGraph {
     links.forEach((l, i) => { l.__ph = ((i * 17) % 628) / 100; });
     this.graph.graphData({ nodes, links });
     this._applySwirlGate();
+    this.startAmbientSynapses();
+    this.noteIntel("born", "não thức — " + nodes.length + " note · " + links.length + " mạch", "");
     this.resize();
     return data;
   }
@@ -311,13 +334,30 @@ class JavisGraph {
     const pulse = this._thinking ? (1 + (0.16 + 0.3 * this.level) * Math.sin(t / 220)) : (1 + 0.25 * this.level);
     let born = 1;
     if (n.__born) { const age = (t - n.__born) / 500; born = age < 1 ? age : 1; if (age >= 1) n.__born = 0; }  // nảy sinh
-    const r = (n.__r || 5) * (isHover ? 1.35 : 1) * breathe * pulse * (0.4 + 0.6 * born);
+    const nowMs = t;
+    const pulseLeft = this._pulseUntil.get(n.id) || 0;
+    const isPulsing = pulseLeft > nowMs;
+    const citeOn = this._citeId === n.id && this._citeUntil > nowMs;
+    const flowBoost = (isPulsing || citeOn) ? (1.15 + 0.2 * Math.sin(nowMs / 90)) : 1;
+    const r = (n.__r || 5) * (isHover ? 1.35 : 1) * breathe * pulse * (0.4 + 0.6 * born) * flowBoost;
     const alpha = (dim ? 0.14 : 1) * ent * (0.4 + 0.6 * born);
+
+    // Quầng cite / pulse — ma mị, phosphor lạnh
+    if ((citeOn || isPulsing) && !this._reducedMotion) {
+      const ring = r * (citeOn ? 3.6 : 2.8);
+      const g = ctx.createRadialGradient(n.x, n.y, r * 0.2, n.x, n.y, ring);
+      g.addColorStop(0, citeOn ? "rgba(255,120,200,0.55)" : "rgba(62,224,214,0.45)");
+      g.addColorStop(0.45, citeOn ? "rgba(180,80,220,0.18)" : "rgba(80,160,255,0.16)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = 0.9 * ent;
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(n.x, n.y, ring, 0, Math.PI * 2); ctx.fill();
+    }
 
     // Quầng sáng (tông sáng: vệt mực loang quanh chấm)
     ctx.globalAlpha = alpha;
     const spr = _glowSprite(n.__c || INK.fallback);
-    const gsz = r * 2.4;                       // quầng sáng tinh linh (to hơn) nhưng vẫn tách chấm
+    const gsz = r * (citeOn ? 3.1 : 2.4);
     ctx.drawImage(spr, n.x - gsz / 2, n.y - gsz / 2, gsz, gsz);
     // Lõi đặc
     ctx.globalAlpha = Math.min(1, alpha + 0.15);
@@ -412,7 +452,12 @@ class JavisGraph {
     this._applySwirlGate();
   }
   resume() { this.wake(); }
-  setThinking(active) { this._thinking = !!active; }
+  setThinking(active) {
+    const on = !!active;
+    if (on && !this._thinking) this.noteIntel("think", "đang suy luận…", "");
+    this._thinking = on;
+    this._refreshFlowPaint();
+  }
   setLevel(l) { this.level = l || 0; }
 
   /** Lite/mobile: tắt xoáy ngân hà (starfield cũng nhận qua console). */
@@ -505,6 +550,208 @@ class JavisGraph {
 
   get timelapseRunning() { return !!this._tlTimer; }
 
+
+  // --- Brain Flow: lưu thông cạnh + intel ---
+  _linkKey(l) {
+    const s = (l.source && l.source.id) || l.source;
+    const t = (l.target && l.target.id) || l.target;
+    return s < t ? s + "||" + t : t + "||" + s;
+  }
+  _isHotLink(l) {
+    const until = this._hotLinks.get(this._linkKey(l));
+    return until && until > (typeof performance !== "undefined" ? performance.now() : Date.now());
+  }
+  _particleCount(l) {
+    // Đậm hơn bản đầu: Flow/Deep phải NHÌN THẤY dòng chảy ngay, không chỉ 1 chấm mờ.
+    if (this._reducedMotion || this._flowMode === "calm" || this._lite) return 0;
+    if (this._isHotLink(l)) return this._flowMode === "deep" ? 8 : 5;
+    if (this._hoverId != null) {
+      const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
+      if (s === this._hoverId || t === this._hoverId) return this._flowMode === "deep" ? 7 : 4;
+    }
+    if (this._thinking) return this._flowMode === "deep" ? 4 : 3;
+    return this._flowMode === "deep" ? 3 : 2;   // flow: 2 hạt/cạnh — nhìn thấy rõ mạng đang chảy
+  }
+  _particleSpeed(l) {
+    if (this._isHotLink(l)) return 0.014;
+    if (this._thinking) return 0.01;
+    return this._flowMode === "deep" ? 0.0075 : 0.0055;
+  }
+  _particleColor(l) {
+    if (this._isHotLink(l)) return "rgba(255,170,230,1)";
+    if (this._thinking) return "rgba(140,220,255,0.95)";
+    return INK === INK_LIGHT ? "rgba(13,148,136,0.9)" : "rgba(140,245,255,0.92)";
+  }
+  _drawFlowLink(l, ctx, scale) {
+    if (this._reducedMotion || this._flowMode === "calm") return;
+    const sa = l.source, ta = l.target;
+    if (!sa || !ta || sa.x == null || ta.x == null) return;
+    const hot = this._isHotLink(l);
+    const hover = this._hoverId != null && (
+      ((sa.id || sa) === this._hoverId) || ((ta.id || ta) === this._hoverId)
+    );
+    const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const ph = (l.__ph || 0) + now / (hot ? 280 : (this._flowMode === "deep" ? 520 : 720));
+    // Vệt axon trên MỌI cạnh ở Flow/Deep — mạng phải nhìn như đang dẫn điện
+    ctx.save();
+    let a = 0.22;
+    if (hot) a = 0.7;
+    else if (hover) a = 0.48;
+    else if (this._thinking) a = 0.34;
+    else if (this._flowMode === "deep") a = 0.28;
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = hot ? "rgba(255,150,220,0.95)"
+      : (INK === INK_LIGHT ? "rgba(13,148,136,0.7)" : "rgba(120,235,255,0.85)");
+    ctx.lineWidth = (hot ? 2.2 : (hover ? 1.4 : 1.05)) / Math.max(scale, 0.4);
+    ctx.setLineDash([5 / scale, 7 / scale]);
+    ctx.lineDashOffset = -ph * 10;
+    ctx.beginPath(); ctx.moveTo(sa.x, sa.y); ctx.lineTo(ta.x, ta.y); ctx.stroke();
+    // Hạt sáng chạy dọc axon (thêm lớp nhìn thấy ngoài particle engine)
+    if (!this._lite) {
+      const t = ((now / (hot ? 900 : 1600)) + (l.__ph || 0)) % 1;
+      const px = sa.x + (ta.x - sa.x) * t;
+      const py = sa.y + (ta.y - sa.y) * t;
+      const grd = ctx.createRadialGradient(px, py, 0, px, py, (hot ? 5 : 3.2) / Math.max(scale, 0.5));
+      grd.addColorStop(0, hot ? "rgba(255,200,240,1)" : "rgba(180,255,255,0.95)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = hot ? 0.95 : 0.65;
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(px, py, (hot ? 5 : 3.2) / Math.max(scale, 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  setFlowMode(mode) {
+    const m = (mode === "calm" || mode === "deep") ? mode : "flow";
+    this._flowMode = m;
+    try { localStorage.setItem("javis.brainFlowMode", m); } catch (e) {}
+    this._refreshFlowPaint();
+    try { window.dispatchEvent(new CustomEvent("javis-flow-mode", { detail: { mode: m } })); } catch (e) {}
+    return m;
+  }
+  getFlowMode() { return this._flowMode || "flow"; }
+
+  /** Nhịp synapse nền: thỉnh thoảng bắn particle trên vài cạnh hub — não "thở". */
+  startAmbientSynapses() {
+    if (this._ambientTimer || this._reducedMotion || this._lite) return;
+    const self = this;
+    this._ambientTimer = setInterval(() => {
+      if (!self.graph || self._flowMode === "calm" || self._reducedMotion) return;
+      try {
+        const links = self.graph.graphData().links || [];
+        if (!links.length) return;
+        const n = self._flowMode === "deep" ? 4 : 2;
+        for (let i = 0; i < n; i++) {
+          const l = links[(Math.random() * links.length) | 0];
+          self._hotLinks.set(self._linkKey(l), (typeof performance !== "undefined" ? performance.now() : Date.now()) + 900);
+          try { self.graph.emitParticle(l); } catch (e) {}
+        }
+        self._refreshFlowPaint();
+      } catch (e) {}
+    }, self._flowMode === "deep" ? 1600 : 2400);
+  }
+  stopAmbientSynapses() {
+    if (this._ambientTimer) { clearInterval(this._ambientTimer); this._ambientTimer = null; }
+  }
+
+  cycleFlowMode() {
+    const order = ["calm", "flow", "deep"];
+    const i = order.indexOf(this.getFlowMode());
+    return this.setFlowMode(order[(i + 1) % order.length]);
+  }
+  _refreshFlowPaint() {
+    if (!this.graph) return;
+    try {
+      this.graph
+        .linkDirectionalParticles(this.graph.linkDirectionalParticles())
+        .linkWidth(this.graph.linkWidth())
+        .linkCanvasObjectMode(this.graph.linkCanvasObjectMode());
+    } catch (e) {}
+  }
+
+  pulseNode(id, ms) {
+    if (!id) return;
+    const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    this._pulseUntil.set(id, now + (ms || 1600));
+    this._pruneFlowMaps(now);
+  }
+  citeNode(idOrPath, ms) {
+    if (!idOrPath || !this.graph) return null;
+    const d = this.graph.graphData();
+    const want = String(idOrPath).replace(/\\/g, "/");
+    const base = want.split("/").pop().replace(/\.md$/i, "");
+    let n = d.nodes.find(x => x.id === want || x.path === want);
+    if (!n) n = d.nodes.find(x => (x.path || "").endsWith("/" + want) || (x.path || "") === want);
+    if (!n) n = d.nodes.find(x => (x.label || "").replace(/\.md$/i, "") === base || (x.id || "").endsWith("/" + base + ".md") || (x.id || "").endsWith("/" + base));
+    if (!n) return null;
+    const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    this._citeId = n.id;
+    this._citeUntil = now + (ms || 2800);
+    this.pulseNode(n.id, ms || 2800);
+    // Đánh nóng các cạnh kề + bắn particle
+    (d.links || []).forEach(l => {
+      const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
+      if (s === n.id || t === n.id) {
+        this._hotLinks.set(this._linkKey(l), now + (ms || 2800));
+        try { this.graph.emitParticle(l); } catch (e) {}
+      }
+    });
+    this._refreshFlowPaint();
+    this.noteIntel("cite", n.label || base, n.path || n.id);
+    return n;
+  }
+  flashNewLinks(nodeId, linkTargets, ms) {
+    if (!this.graph || !nodeId) return;
+    const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const d = this.graph.graphData();
+    const targets = new Set(linkTargets || []);
+    (d.links || []).forEach(l => {
+      const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
+      if ((s === nodeId && targets.has(t)) || (t === nodeId && targets.has(s)) || ((s === nodeId || t === nodeId) && !targets.size)) {
+        this._hotLinks.set(this._linkKey(l), now + (ms || 3200));
+        try { this.graph.emitParticle(l); } catch (e) {}
+      }
+    });
+    this.pulseNode(nodeId, ms || 2200);
+    this._refreshFlowPaint();
+  }
+  noteIntel(kind, text, path) {
+    const ev = { t: Date.now(), kind: kind || "info", text: String(text || "").slice(0, 80), path: path || "" };
+    this._intelEvents.unshift(ev);
+    if (this._intelEvents.length > 12) this._intelEvents.length = 12;
+    try { window.dispatchEvent(new CustomEvent("javis-intel", { detail: ev })); } catch (e) {}
+  }
+  intelSnapshot() {
+    const d = this.graph ? this.graph.graphData() : { nodes: [], links: [] };
+    const nodes = d.nodes || [], links = d.links || [];
+    const deg = new Map();
+    links.forEach(l => {
+      const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
+      deg.set(s, (deg.get(s) || 0) + 1); deg.set(t, (deg.get(t) || 0) + 1);
+    });
+    let orphans = 0;
+    nodes.forEach(n => { if (!(deg.get(n.id) > 0)) orphans += 1; });
+    const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    let hot = 0;
+    this._hotLinks.forEach(u => { if (u > now) hot += 1; });
+    return {
+      mode: this.getFlowMode(),
+      nodes: nodes.length,
+      links: links.length,
+      orphans,
+      hot,
+      thinking: !!this._thinking,
+      recent: this._intelEvents.slice(0, 4),
+    };
+  }
+  _pruneFlowMaps(now) {
+    this._hotLinks.forEach((u, k) => { if (u <= now) this._hotLinks.delete(k); });
+    this._pulseUntil.forEach((u, k) => { if (u <= now) this._pulseUntil.delete(k); });
+    if (this._citeUntil && this._citeUntil <= now) { this._citeId = null; this._citeUntil = 0; }
+  }
+
   addOrUpdate(node, linkTargets, isNew) {
     if (!this.graph || !node || !node.id) return { created: false };
     const d = this.graph.graphData();
@@ -526,6 +773,10 @@ class JavisGraph {
       if (!dup) d.links.push({ source: node.id, target: tid });
     });
     this.graph.graphData({ nodes: d.nodes, links: d.links });
+    if (isNew || (linkTargets && linkTargets.length)) {
+      this.flashNewLinks(node.id, linkTargets, isNew ? 3600 : 2400);
+      this.noteIntel(isNew ? "born" : "link", node.label || node.id, node.path || node.id);
+    }
     return { created: !!isNew };
   }
 }

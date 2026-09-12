@@ -1,5 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.55.201] - 2026-09-12
+### Cải tiến
+- **Não Flow nhìn thấy ngay:** particle dày hơn, axon chạy trên mọi cạnh, synapse nền tự bắn, dải intel sáng + nút FLOW phát sáng. Không còn kiểu “đẹp mà khó nhận ra”.
+
+## [0.55.200] - 2026-09-12
+### Cải tiến
+- **Não vault sống hơn:** cạnh có particle chảy, chế độ Calm/Flow/Deep, dải intel mỏng, pulse cây vault và tia cite từ chat → graph. Cảm giác lưu thông + liên tục, vẫn tôn trọng giảm chuyển động.
+
 Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay trong app tại mục **Cập nhật** trên thanh bên trái.
 
 Định dạng: mỗi phiên bản là một khối `## [x.y.z] - YYYY-MM-DD`.

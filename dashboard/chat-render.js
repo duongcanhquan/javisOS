@@ -836,6 +836,11 @@
     var tgt = wl.getAttribute("data-vault-path") || "";
     if (!tgt) return;
     wl.classList.add("jv-wl-busy");
+    // Brain Flow: tia cite chat → graph ngay khi bấm (trước khi resolve xong).
+    try {
+      if (typeof window.javisBrainCite === "function") window.javisBrainCite(tgt, wl);
+      else window.dispatchEvent(new CustomEvent("javis-brain-cite", { detail: { path: tgt, el: wl } }));
+    } catch (err) {}
     // Nhanh .catch KHONG phai trang tri: lop 'jv-wl-busy' chan moi cu bam sau do, nen mot loi
     // duy nhat khong ai bat la link do CHET HAN cho toi khi ve lai ca bai - dung trieu chung
     // "thi thoang bam khong mo duoc file tiep theo". Go lop bận ra roi bao truot nhu khi khong
@@ -848,6 +853,9 @@
         setTimeout(function () { wl.classList.remove("jv-wl-miss"); }, 1500);
         return;
       }
+      try {
+        if (hit.rel && typeof window.javisPulseVault === "function") window.javisPulseVault(hit.rel);
+      } catch (err2) {}
       moFileVault(hit.rel);
     }).catch(function () {
       wl.classList.remove("jv-wl-busy");

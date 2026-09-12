@@ -1290,13 +1290,19 @@ function connectGraphWatch() {
     let m; try { m = JSON.parse(e.data); } catch (_) { return; }
     if (m.type !== "graph_add" || !javisGraph) return;
     const r = javisGraph.addOrUpdate(m.node, m.linkTargets, m.isNew);
-    if (r && r.created) {
+    if (r && (r.created || m.isNew)) {
       const s = javisGraph.nodeStats();
       graphStats.textContent = `${s.nodes} note · ${s.links} kết nối`;
       // Nháy nhẹ nhãn để báo có note mới sinh ra
       graphStats.classList.add("pulse");
       setTimeout(() => graphStats.classList.remove("pulse"), 700);
     }
+    // Brain Flow: particle + vault pulse + intel
+    try {
+      const path = (m.node && (m.node.path || m.node.id)) || "";
+      if (path && window.javisPulseVault) window.javisPulseVault(path);
+      window.dispatchEvent(new CustomEvent("javis-graph-add", { detail: { path: path, node: m.node, isNew: !!(r && r.created) } }));
+    } catch (_) {}
   };
   graphWs.onclose = () => {
     graphWatchReconnect = setTimeout(connectGraphWatch, 3000);
