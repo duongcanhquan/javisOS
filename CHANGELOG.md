@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.202] - 2026-09-12
+### Cải tiến
+- **Sóng não dưới nền khoang não:** ribbon EEG + gói tin chạy chậm dưới tinh vân/sao. Calm êm, Flow rõ, Deep dày hơn; tôn trọng giảm chuyển động và chế độ lite.
+
 ## [0.55.201] - 2026-09-12
 ### Cải tiến
 - **Não Flow nhìn thấy ngay:** particle dày hơn, axon chạy trên mọi cạnh, synapse nền tự bắn, dải intel sáng + nút FLOW phát sáng. Không còn kiểu “đẹp mà khó nhận ra”.

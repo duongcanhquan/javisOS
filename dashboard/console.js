@@ -264,6 +264,7 @@
   // dù load() chạy xong gọi lại cũng không bật lại.
   if (isNarrow() && window.__javisGraph) { try { window.__javisGraph.pause(); } catch (e) {} }
   if (isNarrow() && window.JavisStarfield) { try { window.JavisStarfield.setLite(true); window.JavisStarfield.pause(); } catch (e) {} }
+  if (isNarrow() && window.JavisBrainWaves) { try { window.JavisBrainWaves.setLite(true); window.JavisBrainWaves.pause(); } catch (e) {} }
 
   // ---- Điều khiển graph: chỉ chạy khi đang ở cockpit + không lite + không mở Studio ----
   function recomputeGraph() {
@@ -278,6 +279,7 @@
     }
     if (sf) {
       try { sf.setLite(liteMode()); } catch (e) {}
+      try { if (window.JavisBrainWaves) window.JavisBrainWaves.setLite(liteMode()); } catch (e) {}
       if (shouldRun) sf.wake(); else sf.pause();
     }
   }
@@ -7493,6 +7495,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     document.addEventListener("keydown", _neKeyHandler, true);
     try { if (window.__javisGraph && window.__javisGraph.pause) window.__javisGraph.pause(); } catch (e) {}
     try { if (window.JavisStarfield && window.JavisStarfield.pause) window.JavisStarfield.pause(); } catch (e) {}
+    try { if (window.JavisBrainWaves && window.JavisBrainWaves.pause) window.JavisBrainWaves.pause(); } catch (e) {}
     document.getElementById("neTitle").innerHTML = `<span class="vt-ico">${_fileIcon(ext)}</span>${esc(it.name || rel)}`;
     const actions = document.getElementById("neActions"); const body = document.getElementById("neBody");
     actions.innerHTML = ""; body.innerHTML = ""; body.className = "ne-body"; _neSaveFn = null;
