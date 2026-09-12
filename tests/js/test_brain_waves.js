@@ -1,4 +1,4 @@
-/* Sóng não nền — kiểm tra surface API + HTML/CSS/gates.
+/* Tín hiệu thiên hà nền — kiểm tra surface API + HTML/CSS/gates.
    Chạy: node tests/js/test_brain_waves.js
 */
 "use strict";
@@ -22,9 +22,11 @@ check("tôn trọng prefers-reduced-motion", /prefers-reduced-motion/.test(WAVES
 check("đổi nhịp theo javis-flow-mode", /javis-flow-mode/.test(WAVES));
 check("HTML có canvas #brainWaves", /id="brainWaves"/.test(HTML));
 check("HTML nạp brain-waves.js", /brain-waves\.js/.test(HTML));
-check("CSS #brainWaves pointer-events none", /#brainWaves[\s\S]{0,120}pointer-events:\s*none/.test(CSS));
+check("CSS #brainWaves pointer-events none", /#brainWaves[\s\S]{0,160}pointer-events:\s*none/.test(CSS));
+check("CSS #brainWaves trên starfield (z-index 1)", /#brainWaves[\s\S]{0,200}z-index:\s*1/.test(CSS));
 check("console.js gate pause/lite BrainWaves", /JavisBrainWaves/.test(CONSOLE) && /JavisBrainWaves[\s\S]{0,40}pause/.test(CONSOLE));
-check("vẽ nhiều ribbon EEG (amp/freq)", (WAVES.match(/amp:/g) || []).length >= 3);
+check("có vòng radar + tia ping", /drawRings/.test(WAVES) && /drawBeams/.test(WAVES) && /drawPings/.test(WAVES));
+check("ribbon sóng chạy (amp/freq/speed)", (WAVES.match(/amp:/g) || []).length >= 3 && /speed:\s*0\.00/.test(WAVES));
 
 if (fails) { console.log("\n" + fails + " FAIL"); process.exit(1); }
 console.log("\nTẤT CẢ PASS");

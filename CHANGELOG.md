@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.203] - 2026-09-12
+### Cải tiến
+- **Tín hiệu thiên hà động rõ:** vòng radar lan ra, tia ping bắn từ nguồn vũ trụ kèm vệt sáng, sóng chạy nhanh hơn. Nằm trên lớp sao để nhìn thấy ngay; Calm/Flow/Deep đổi mật độ.
+
 ## [0.55.202] - 2026-09-12
 ### Cải tiến
 - **Sóng não dưới nền khoang não:** ribbon EEG + gói tin chạy chậm dưới tinh vân/sao. Calm êm, Flow rõ, Deep dày hơn; tôn trọng giảm chuyển động và chế độ lite.
