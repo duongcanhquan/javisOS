@@ -686,7 +686,121 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
    khoang não đã là cả cột giữa, không có gì để bung ra. */
 .brain-max-btn { display: none; }
 /* Nút timelapse: cùng khuôn nút mắt, xếp ngay bên dưới */
+
 .graph-timelapse-btn { top: 58px; }
+/* Brain Flow — nút chế độ Calm/Flow/Deep */
+.brain-flow-btn { top: 102px; flex-direction: column; gap: 0; padding: 4px 6px; min-width: 36px; height: auto; }
+.brain-flow-btn .bf-ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.brain-flow-btn .bf-badge {
+  font-family: var(--font); font-size: 8px; letter-spacing: 0.14em; font-weight: 700;
+  color: var(--brain-ink2); line-height: 1; margin-top: 2px;
+}
+.hud-center.brain-flow-deep .brain-flow-btn {
+  color: var(--text-hi); border-color: rgba(255,120,200,0.45); background: rgba(180,60,140,0.12);
+}
+.hud-center.brain-flow-flow .brain-flow-btn {
+  color: var(--text-hi); border-color: rgba(62,224,214,0.4); background: rgba(62,224,214,0.08);
+}
+.hud-center.brain-overlays-hidden .brain-intel { opacity: 0; visibility: hidden; }
+
+/* Intel strip — tín hiệu sống của não */
+.brain-intel {
+  position: absolute; left: 14px; top: 14px; z-index: 6;
+  max-width: min(280px, 42vw);
+  padding: 8px 12px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--brain-glass-brd);
+  background: var(--brain-glass);
+  box-shadow: var(--brain-glass-shadow);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  font-family: var(--font);
+  color: var(--brain-ink);
+  transition: opacity .3s ease, transform .3s ease, border-color .3s;
+}
+.brain-intel.bi-dim { opacity: 0.35; }
+.brain-intel .bi-mode {
+  font-size: 9px; letter-spacing: 0.22em; font-weight: 700;
+  color: var(--accent); margin-bottom: 4px;
+  text-shadow: 0 0 12px rgba(62,224,214,0.35);
+}
+.hud-center.brain-flow-deep .brain-intel .bi-mode { color: #ff9ad4; text-shadow: 0 0 14px rgba(255,120,200,0.4); }
+.brain-intel .bi-line {
+  font-size: 12px; line-height: 1.35; color: var(--brain-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.brain-intel .bi-tag {
+  display: inline-block; font-size: 9px; letter-spacing: 0.12em; font-weight: 700;
+  color: rgba(62,224,214,0.95); margin-right: 4px;
+  border: 1px solid rgba(62,224,214,0.35); border-radius: 4px; padding: 0 4px;
+}
+.brain-intel .bi-meta {
+  margin-top: 3px; font-size: 10px; letter-spacing: 0.04em; color: var(--brain-ink2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+:root[data-theme="light"] .brain-intel {
+  background: rgba(255,255,255,0.78);
+}
+@media (max-width: 720px) {
+  .brain-intel { max-width: 46vw; left: 10px; top: 10px; padding: 6px 8px; }
+  .brain-intel .bi-meta { display: none; }
+}
+
+/* Trail cite chat → graph */
+.brain-trail {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 4; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+}
+.brain-trail.show { opacity: 1; }
+.brain-trail-path {
+  fill: none; stroke: url(#none); stroke: rgba(255,140,210,0.85);
+  stroke-width: 1.6; stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(255,120,200,0.55));
+  stroke-dasharray: 6 8;
+  animation: brainTrailDash 1.2s linear forwards;
+}
+.brain-trail-dot {
+  fill: rgba(255,180,230,0.95);
+  filter: drop-shadow(0 0 8px rgba(255,120,200,0.8));
+  animation: brainTrailDot 1.2s ease-out forwards;
+}
+@keyframes brainTrailDash {
+  from { stroke-dashoffset: 80; opacity: 0; }
+  20% { opacity: 1; }
+  to { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes brainTrailDot {
+  0% { opacity: 0; r: 2; }
+  30% { opacity: 1; }
+  100% { opacity: 0; r: 7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brain-trail-path, .brain-trail-dot { animation: none; opacity: 0.7; }
+}
+
+/* Vault neural pulse */
+.vt-node.vt-pulse {
+  animation: vtPulse 1.6s ease-out 1;
+  box-shadow: inset 3px 0 0 rgba(62,224,214,0.9), 0 0 18px rgba(62,224,214,0.25);
+  color: #e8fbff;
+  background: rgba(62,224,214,0.14);
+}
+@keyframes vtPulse {
+  0% { background: rgba(255,120,200,0.22); box-shadow: inset 3px 0 0 rgba(255,120,200,0.95), 0 0 22px rgba(255,120,200,0.35); }
+  55% { background: rgba(62,224,214,0.16); }
+  100% { background: transparent; box-shadow: inset 3px 0 0 transparent, 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vt-node.vt-pulse { animation: none; background: rgba(62,224,214,0.18); }
+}
+
+/* Nebula hơi “sống” hơn khi deep */
+.hud-center.brain-flow-deep .brain-nebula {
+  opacity: 1;
+  filter: blur(1.5px) saturate(1.25);
+}
+.hud-center.brain-flow-calm .brain-nebula { opacity: 0.7; }
+
 .graph-timelapse-btn .tl-stop { display: none; }
 .graph-timelapse-btn.playing .tl-play { display: none; }
 .graph-timelapse-btn.playing .tl-stop { display: block; }

@@ -910,6 +910,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
      Xếp lại tường minh, mỗi nút một hàng. */
   .graph-timelapse-btn { top: 46px; }
   .brain-max-btn { top: 85px; }
+  .brain-flow-btn { top: 124px; }
 
   /* Agents / Skills / Workflows thành một thanh mỏng thay vì một card lớn che neuron.
      Số và nhãn nằm CÙNG MỘT DÒNG: xếp chồng như desktop thì dải cao ~56px, tức một phần tư
@@ -949,6 +950,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   /* Màn thấp: ba nút xếp dọc đã chạm mép dưới khoang, kéo khoảng cách lại. */
   .graph-timelapse-btn { top: 42px; }
   .brain-max-btn { top: 77px; }
+  .brain-flow-btn { top: 112px; }
 }
 
 /* ==== Trang Kết nối (kho connector + đa tài khoản) ==== */
