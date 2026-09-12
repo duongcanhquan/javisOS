@@ -628,20 +628,22 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 @media (prefers-reduced-motion: reduce) {
   .hud-center .brain-nebula { animation: none; }
 }
-/* Sóng não / sóng thông tin — dưới starfield, trên tinh vân */
+/* Tín hiệu thiên hà — trên starfield, dưới graph (phải nhìn thấy chuyển động) */
 #brainWaves {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  z-index: 0; display: block; pointer-events: none;
-  opacity: 0.9;
+  z-index: 1; display: block; pointer-events: none;
+  opacity: 1;
+  mix-blend-mode: screen;
 }
+:root[data-theme="light"] #brainWaves { mix-blend-mode: multiply; opacity: 0.85; }
 .hud-center.brain-flow-deep #brainWaves { opacity: 1; }
-.hud-center.brain-flow-calm #brainWaves { opacity: 0.55; }
+.hud-center.brain-flow-calm #brainWaves { opacity: 0.7; }
 .hud-center.brain-galaxy-static #brainWaves,
-.hud-center.brain-galaxy-lite #brainWaves { opacity: 0.4; }
+.hud-center.brain-galaxy-lite #brainWaves { opacity: 0.55; }
 @media (prefers-reduced-motion: reduce) {
-  #brainWaves { opacity: 0.35; }
+  #brainWaves { opacity: 0.4; }
 }
-#starfield { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; display: block; pointer-events: none; }
+#starfield { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; pointer-events: none; }
 #graph2d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; cursor: grab; display: none; }
 .concept-label.cl-active .cl-name { color: var(--accent-ink); text-shadow: var(--brain-halo); }
 /* (Widget MỨC DÙNG nổi đã gỡ - chuyển thành trang riêng "Mức dùng" trong rail, có đồ thị 14 ngày) */
