@@ -689,54 +689,102 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 
 .graph-timelapse-btn { top: 58px; }
 /* Brain Flow — nút chế độ Calm/Flow/Deep */
-.brain-flow-btn { top: 102px; flex-direction: column; gap: 0; padding: 4px 6px; min-width: 36px; height: auto; }
-.brain-flow-btn .bf-ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Brain Flow — nút chế độ phải NHÌN THẤY ngay */
+.brain-flow-btn {
+  top: 102px; flex-direction: column; gap: 0; padding: 5px 7px; min-width: 40px; height: auto;
+  color: #b8fff8; border-color: rgba(62,224,214,0.55);
+  background: rgba(8, 28, 36, 0.72);
+  box-shadow: 0 0 18px rgba(62,224,214,0.28), inset 0 0 12px rgba(62,224,214,0.08);
+  animation: bfBtnGlow 2.8s ease-in-out infinite;
+}
+.brain-flow-btn .bf-ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .brain-flow-btn .bf-badge {
-  font-family: var(--font); font-size: 8px; letter-spacing: 0.14em; font-weight: 700;
-  color: var(--brain-ink2); line-height: 1; margin-top: 2px;
+  font-family: var(--font); font-size: 8px; letter-spacing: 0.16em; font-weight: 700;
+  color: #9ef6ef; line-height: 1; margin-top: 2px;
+}
+@keyframes bfBtnGlow {
+  0%, 100% { box-shadow: 0 0 14px rgba(62,224,214,0.22), inset 0 0 10px rgba(62,224,214,0.06); }
+  50% { box-shadow: 0 0 26px rgba(62,224,214,0.45), inset 0 0 14px rgba(62,224,214,0.12); }
 }
 .hud-center.brain-flow-deep .brain-flow-btn {
-  color: var(--text-hi); border-color: rgba(255,120,200,0.45); background: rgba(180,60,140,0.12);
+  color: #ffd0ec; border-color: rgba(255,120,200,0.6); background: rgba(48,12,40,0.75);
+  box-shadow: 0 0 22px rgba(255,100,190,0.35), inset 0 0 14px rgba(255,100,190,0.1);
+  animation-name: bfBtnGlowDeep;
+}
+@keyframes bfBtnGlowDeep {
+  0%, 100% { box-shadow: 0 0 14px rgba(255,100,190,0.25); }
+  50% { box-shadow: 0 0 28px rgba(255,120,200,0.5); }
 }
 .hud-center.brain-flow-flow .brain-flow-btn {
-  color: var(--text-hi); border-color: rgba(62,224,214,0.4); background: rgba(62,224,214,0.08);
+  color: #c8fff8; border-color: rgba(62,224,214,0.55); background: rgba(8,28,36,0.72);
+}
+.hud-center.brain-flow-calm .brain-flow-btn {
+  animation: none; opacity: 0.75; box-shadow: none;
 }
 .hud-center.brain-overlays-hidden .brain-intel { opacity: 0; visibility: hidden; }
+.hud-center.brain-overlays-hidden .brain-flow-btn { opacity: 0.55; }
 
-/* Intel strip — tín hiệu sống của não */
+/* Intel strip — tín hiệu sống, scan line ma mị */
 .brain-intel {
   position: absolute; left: 14px; top: 14px; z-index: 6;
-  max-width: min(280px, 42vw);
-  padding: 8px 12px 8px 10px;
+  max-width: min(300px, 46vw);
+  padding: 10px 14px 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--brain-glass-brd);
-  background: var(--brain-glass);
-  box-shadow: var(--brain-glass-shadow);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(62,224,214,0.35);
+  background: linear-gradient(135deg, rgba(6,18,28,0.82), rgba(12,24,48,0.72));
+  box-shadow: 0 0 28px rgba(40,180,200,0.18), inset 0 0 20px rgba(62,224,214,0.06);
+  backdrop-filter: blur(12px);
   pointer-events: none;
   font-family: var(--font);
   color: var(--brain-ink);
-  transition: opacity .3s ease, transform .3s ease, border-color .3s;
+  overflow: hidden;
+  transition: opacity .3s ease, transform .3s ease, border-color .3s, box-shadow .3s;
 }
-.brain-intel.bi-dim { opacity: 0.35; }
+.brain-intel::after {
+  content: ""; position: absolute; left: -20%; right: -20%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(140,255,255,0.75), transparent);
+  animation: biScan 3.6s ease-in-out infinite;
+}
+@keyframes biScan {
+  0% { transform: translateY(4px); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 0.7; }
+  100% { transform: translateY(52px); opacity: 0; }
+}
+.brain-intel.bi-dim { opacity: 0.4; }
+.brain-intel.bi-flash {
+  border-color: rgba(255,140,210,0.7);
+  box-shadow: 0 0 32px rgba(255,120,200,0.35), inset 0 0 18px rgba(255,120,200,0.1);
+}
 .brain-intel .bi-mode {
-  font-size: 9px; letter-spacing: 0.22em; font-weight: 700;
-  color: var(--accent); margin-bottom: 4px;
-  text-shadow: 0 0 12px rgba(62,224,214,0.35);
+  font-size: 10px; letter-spacing: 0.28em; font-weight: 700;
+  color: #7ef0e6; margin-bottom: 5px;
+  text-shadow: 0 0 14px rgba(62,224,214,0.55);
 }
-.hud-center.brain-flow-deep .brain-intel .bi-mode { color: #ff9ad4; text-shadow: 0 0 14px rgba(255,120,200,0.4); }
+.hud-center.brain-flow-deep .brain-intel {
+  border-color: rgba(255,120,200,0.4);
+  box-shadow: 0 0 30px rgba(255,100,190,0.2), inset 0 0 18px rgba(255,100,190,0.08);
+}
+.hud-center.brain-flow-deep .brain-intel .bi-mode { color: #ff9ad4; text-shadow: 0 0 16px rgba(255,120,200,0.55); }
 .brain-intel .bi-line {
-  font-size: 12px; line-height: 1.35; color: var(--brain-ink);
+  font-size: 13px; line-height: 1.4; color: #e8f7ff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .brain-intel .bi-tag {
-  display: inline-block; font-size: 9px; letter-spacing: 0.12em; font-weight: 700;
-  color: rgba(62,224,214,0.95); margin-right: 4px;
-  border: 1px solid rgba(62,224,214,0.35); border-radius: 4px; padding: 0 4px;
+  display: inline-block; font-size: 9px; letter-spacing: 0.14em; font-weight: 700;
+  color: #9bffe0; margin-right: 5px;
+  border: 1px solid rgba(100,255,220,0.45); border-radius: 4px; padding: 1px 5px;
+  background: rgba(40,180,160,0.12);
 }
 .brain-intel .bi-meta {
-  margin-top: 3px; font-size: 10px; letter-spacing: 0.04em; color: var(--brain-ink2);
+  margin-top: 4px; font-size: 11px; letter-spacing: 0.05em; color: rgba(180,220,240,0.75);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hud-center.brain-flow-deep .brain-nebula {
+  opacity: 1; filter: blur(1px) saturate(1.35) brightness(1.08);
+}
+.hud-center.brain-flow-flow .brain-nebula {
+  opacity: 0.95; filter: saturate(1.15);
 }
 :root[data-theme="light"] .brain-intel {
   background: rgba(255,255,255,0.78);
@@ -780,8 +828,8 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 
 /* Vault neural pulse */
 .vt-node.vt-pulse {
-  animation: vtPulse 1.6s ease-out 1;
-  box-shadow: inset 3px 0 0 rgba(62,224,214,0.9), 0 0 18px rgba(62,224,214,0.25);
+  animation: vtPulse 1.8s ease-out 1;
+  box-shadow: inset 3px 0 0 rgba(255,140,210,0.95), 0 0 28px rgba(62,224,214,0.4);
   color: #e8fbff;
   background: rgba(62,224,214,0.14);
 }

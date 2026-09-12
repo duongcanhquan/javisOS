@@ -108,11 +108,22 @@
     }
   }
 
+  function flashIntel() {
+    var strip = $("brainIntel");
+    if (!strip) return;
+    strip.classList.remove("bi-flash");
+    void strip.offsetWidth;
+    strip.classList.add("bi-flash");
+    clearTimeout(flashIntel._t);
+    flashIntel._t = setTimeout(function () { strip.classList.remove("bi-flash"); }, 900);
+  }
+
   function renderIntel(snap, ev) {
     var line = $("brainIntelLine");
     var meta = $("brainIntelMeta");
     if (!line || !meta) return;
     if (ev && ev.text) {
+      flashIntel();
       var tag =
         ev.kind === "cite"
           ? "cite"
@@ -293,7 +304,24 @@
       if (document.hidden) return;
       if (!document.body || document.body.classList.contains("in-console")) return;
       refreshFromGraph();
-    }, 8000);
+    }, 4000);
+
+    // Boot: ép FLOW (nếu chưa chọn), flash intel, để người dùng THẤY ngay là não đang chạy
+    setTimeout(function () {
+      var g4 = graph();
+      if (g4 && g4.setFlowMode && g4.getFlowMode && g4.getFlowMode() === "calm") {
+        /* giữ calm nếu user đã chọn */
+      } else if (g4 && g4.setFlowMode) {
+        g4.setFlowMode(g4.getFlowMode() || "flow");
+      }
+      applyModeUi((g4 && g4.getFlowMode && g4.getFlowMode()) || "flow");
+      refreshFromGraph();
+      flashIntel();
+      var line = $("brainIntelLine");
+      if (line && (!line.textContent || line.textContent.indexOf("lắng") >= 0)) {
+        line.innerHTML = '<span class="bi-tag">flow</span> mạch tri thức đang chảy — bấm nút FLOW để đổi nhịp';
+      }
+    }, 700);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

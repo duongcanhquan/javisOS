@@ -259,15 +259,17 @@ class JavisGraph {
           return INK.linkIdle;
         })
         .linkWidth(l => {
-          if (self._isHotLink(l)) return self._flowMode === "deep" ? 2.2 : 1.6;
+          if (self._isHotLink(l)) return self._flowMode === "deep" ? 2.8 : 2.1;
           if (self._hoverId != null) {
             const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
-            if (s === self._hoverId || t === self._hoverId) return 1.2;
+            if (s === self._hoverId || t === self._hoverId) return 1.6;
           }
-          return self._flowMode === "calm" ? 0.35 : 0.55;
+          if (self._flowMode === "deep") return 0.85;
+          if (self._flowMode === "flow") return 0.7;
+          return 0.35;
         })
         .linkDirectionalParticles(l => self._particleCount(l))
-        .linkDirectionalParticleWidth(l => self._isHotLink(l) ? 2.4 : (self._flowMode === "deep" ? 1.8 : 1.35))
+        .linkDirectionalParticleWidth(l => self._isHotLink(l) ? 3.4 : (self._flowMode === "deep" ? 2.6 : 2.1))
         .linkDirectionalParticleSpeed(l => self._particleSpeed(l))
         .linkDirectionalParticleColor(l => self._particleColor(l))
         .linkCanvasObjectMode(() => self._flowMode === "calm" || self._reducedMotion ? undefined : "after")
@@ -312,6 +314,8 @@ class JavisGraph {
     links.forEach((l, i) => { l.__ph = ((i * 17) % 628) / 100; });
     this.graph.graphData({ nodes, links });
     this._applySwirlGate();
+    this.startAmbientSynapses();
+    this.noteIntel("born", "não thức — " + nodes.length + " note · " + links.length + " mạch", "");
     this.resize();
     return data;
   }
@@ -558,24 +562,25 @@ class JavisGraph {
     return until && until > (typeof performance !== "undefined" ? performance.now() : Date.now());
   }
   _particleCount(l) {
+    // Đậm hơn bản đầu: Flow/Deep phải NHÌN THẤY dòng chảy ngay, không chỉ 1 chấm mờ.
     if (this._reducedMotion || this._flowMode === "calm" || this._lite) return 0;
-    if (this._isHotLink(l)) return this._flowMode === "deep" ? 5 : 3;
+    if (this._isHotLink(l)) return this._flowMode === "deep" ? 8 : 5;
     if (this._hoverId != null) {
       const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
-      if (s === this._hoverId || t === this._hoverId) return this._flowMode === "deep" ? 4 : 2;
+      if (s === this._hoverId || t === this._hoverId) return this._flowMode === "deep" ? 7 : 4;
     }
-    if (this._thinking) return this._flowMode === "deep" ? 2 : 1;
-    return this._flowMode === "deep" ? 1 : (this._flowMode === "flow" ? 1 : 0);
+    if (this._thinking) return this._flowMode === "deep" ? 4 : 3;
+    return this._flowMode === "deep" ? 3 : 2;   // flow: 2 hạt/cạnh — nhìn thấy rõ mạng đang chảy
   }
   _particleSpeed(l) {
-    if (this._isHotLink(l)) return 0.008;
-    if (this._thinking) return 0.006;
-    return this._flowMode === "deep" ? 0.0045 : 0.0032;
+    if (this._isHotLink(l)) return 0.014;
+    if (this._thinking) return 0.01;
+    return this._flowMode === "deep" ? 0.0075 : 0.0055;
   }
   _particleColor(l) {
-    if (this._isHotLink(l)) return "rgba(255,150,220,0.95)";
-    if (this._thinking) return "rgba(120,200,255,0.85)";
-    return INK === INK_LIGHT ? "rgba(13,148,136,0.75)" : "rgba(120,230,255,0.7)";
+    if (this._isHotLink(l)) return "rgba(255,170,230,1)";
+    if (this._thinking) return "rgba(140,220,255,0.95)";
+    return INK === INK_LIGHT ? "rgba(13,148,136,0.9)" : "rgba(140,245,255,0.92)";
   }
   _drawFlowLink(l, ctx, scale) {
     if (this._reducedMotion || this._flowMode === "calm") return;
@@ -585,20 +590,36 @@ class JavisGraph {
     const hover = this._hoverId != null && (
       ((sa.id || sa) === this._hoverId) || ((ta.id || ta) === this._hoverId)
     );
-    if (!hot && !hover && this._flowMode !== "deep" && !this._thinking) return;
     const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
-    const ph = (l.__ph || 0) + now / (hot ? 420 : 900);
-    const dx = ta.x - sa.x, dy = ta.y - sa.y;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = dx / len, ny = dy / len;
-    // Vệt axon mờ — chỉ khi deep/hot/hover/thinking
+    const ph = (l.__ph || 0) + now / (hot ? 280 : (this._flowMode === "deep" ? 520 : 720));
+    // Vệt axon trên MỌI cạnh ở Flow/Deep — mạng phải nhìn như đang dẫn điện
     ctx.save();
-    ctx.globalAlpha = hot ? 0.55 : (hover ? 0.35 : 0.14);
-    ctx.strokeStyle = hot ? "rgba(255,130,210,0.9)" : (INK === INK_LIGHT ? "rgba(13,148,136,0.55)" : "rgba(100,210,255,0.7)");
-    ctx.lineWidth = (hot ? 1.8 : 0.9) / Math.max(scale, 0.4);
-    ctx.setLineDash([4 / scale, 6 / scale]);
-    ctx.lineDashOffset = -ph * 8;
+    let a = 0.22;
+    if (hot) a = 0.7;
+    else if (hover) a = 0.48;
+    else if (this._thinking) a = 0.34;
+    else if (this._flowMode === "deep") a = 0.28;
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = hot ? "rgba(255,150,220,0.95)"
+      : (INK === INK_LIGHT ? "rgba(13,148,136,0.7)" : "rgba(120,235,255,0.85)");
+    ctx.lineWidth = (hot ? 2.2 : (hover ? 1.4 : 1.05)) / Math.max(scale, 0.4);
+    ctx.setLineDash([5 / scale, 7 / scale]);
+    ctx.lineDashOffset = -ph * 10;
     ctx.beginPath(); ctx.moveTo(sa.x, sa.y); ctx.lineTo(ta.x, ta.y); ctx.stroke();
+    // Hạt sáng chạy dọc axon (thêm lớp nhìn thấy ngoài particle engine)
+    if (!this._lite) {
+      const t = ((now / (hot ? 900 : 1600)) + (l.__ph || 0)) % 1;
+      const px = sa.x + (ta.x - sa.x) * t;
+      const py = sa.y + (ta.y - sa.y) * t;
+      const grd = ctx.createRadialGradient(px, py, 0, px, py, (hot ? 5 : 3.2) / Math.max(scale, 0.5));
+      grd.addColorStop(0, hot ? "rgba(255,200,240,1)" : "rgba(180,255,255,0.95)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.globalAlpha = hot ? 0.95 : 0.65;
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(px, py, (hot ? 5 : 3.2) / Math.max(scale, 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -611,6 +632,30 @@ class JavisGraph {
     return m;
   }
   getFlowMode() { return this._flowMode || "flow"; }
+
+  /** Nhịp synapse nền: thỉnh thoảng bắn particle trên vài cạnh hub — não "thở". */
+  startAmbientSynapses() {
+    if (this._ambientTimer || this._reducedMotion || this._lite) return;
+    const self = this;
+    this._ambientTimer = setInterval(() => {
+      if (!self.graph || self._flowMode === "calm" || self._reducedMotion) return;
+      try {
+        const links = self.graph.graphData().links || [];
+        if (!links.length) return;
+        const n = self._flowMode === "deep" ? 4 : 2;
+        for (let i = 0; i < n; i++) {
+          const l = links[(Math.random() * links.length) | 0];
+          self._hotLinks.set(self._linkKey(l), (typeof performance !== "undefined" ? performance.now() : Date.now()) + 900);
+          try { self.graph.emitParticle(l); } catch (e) {}
+        }
+        self._refreshFlowPaint();
+      } catch (e) {}
+    }, self._flowMode === "deep" ? 1600 : 2400);
+  }
+  stopAmbientSynapses() {
+    if (this._ambientTimer) { clearInterval(this._ambientTimer); this._ambientTimer = null; }
+  }
+
   cycleFlowMode() {
     const order = ["calm", "flow", "deep"];
     const i = order.indexOf(this.getFlowMode());
