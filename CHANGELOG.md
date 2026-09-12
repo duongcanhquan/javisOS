@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.204] - 2026-09-12
+### Cải tiến
+- **Tín hiệu thiên hà mờ hơn, vẫn chuyển động:** bỏ ribbon sóng não; vòng radar và tia ping dịu mắt nhưng vẫn lan/bắn rõ.
+
 ## [0.55.203] - 2026-09-12
 ### Cải tiến
 - **Tín hiệu thiên hà động rõ:** vòng radar lan ra, tia ping bắn từ nguồn vũ trụ kèm vệt sáng, sóng chạy nhanh hơn. Nằm trên lớp sao để nhìn thấy ngay; Calm/Flow/Deep đổi mật độ.

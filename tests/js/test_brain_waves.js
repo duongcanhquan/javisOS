@@ -24,9 +24,11 @@ check("HTML có canvas #brainWaves", /id="brainWaves"/.test(HTML));
 check("HTML nạp brain-waves.js", /brain-waves\.js/.test(HTML));
 check("CSS #brainWaves pointer-events none", /#brainWaves[\s\S]{0,160}pointer-events:\s*none/.test(CSS));
 check("CSS #brainWaves trên starfield (z-index 1)", /#brainWaves[\s\S]{0,200}z-index:\s*1/.test(CSS));
+check("CSS #brainWaves mờ (opacity < 1)", /#brainWaves[\s\S]{0,220}opacity:\s*0\.\d+/.test(CSS));
 check("console.js gate pause/lite BrainWaves", /JavisBrainWaves/.test(CONSOLE) && /JavisBrainWaves[\s\S]{0,40}pause/.test(CONSOLE));
 check("có vòng radar + tia ping", /drawRings/.test(WAVES) && /drawBeams/.test(WAVES) && /drawPings/.test(WAVES));
-check("ribbon sóng chạy (amp/freq/speed)", (WAVES.match(/amp:/g) || []).length >= 3 && /speed:\s*0\.00/.test(WAVES));
+check("không vẽ ribbon sóng não", !/strokeRibbon|function ribbons\s*\(/.test(WAVES));
+check("ping vẫn chuyển động (spd)", /spd:\s*0\.00/.test(WAVES) && /requestAnimationFrame/.test(WAVES));
 
 if (fails) { console.log("\n" + fails + " FAIL"); process.exit(1); }
 console.log("\nTẤT CẢ PASS");
