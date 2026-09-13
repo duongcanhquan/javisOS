@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.209] - 2026-09-13
+### Sửa lỗi
+- **CI:** test xem HTML không còn ghim cứng `console.js?v=148` / `style.css?v=92` — chỉ yêu cầu sàn tối thiểu nên bump cache-bust không làm đỏ pipeline.
+
 ## [0.55.208] - 2026-09-13
 ### Thêm mới
 - **Báo cáo GitHub Trending 20h.** Skill `bao-cao-github-trending` lấy [trending hôm nay](https://github.com/trending), tóm tắt repo, tư vấn có nên đưa vào Javis (Không / Chỉ xem / skill / connector). Nhắc cron `0 20 * * *` gửi Telegram + Zalo. Seed: `scripts/seed-github-trending-vps.sh`. Không tự cài gì.

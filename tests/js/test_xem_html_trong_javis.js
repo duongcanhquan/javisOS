@@ -61,11 +61,12 @@ check("CSS: ne-html preview ẩn mã nguồn, source ẩn iframe",
   && /\.ne-body\.ne-html\.mode-source \.ne-frame/.test(CSS)
   && /\.ne-actions button\.ne-back/.test(CSS));
 
+const cacheV = (f) => Number((INDEX.match(new RegExp(f.replace(/\./g, "\\.") + "\\?v=(\\d+)")) || [])[1] || 0);
 check("index.html cache-bust console / file-editor / chat-render / style",
-  /console\.js\?v=148/.test(INDEX)
-  && /file-editor\.js\?v=9/.test(INDEX)
-  && /chat-render\.js\?v=15/.test(INDEX)
-  && /style\.css\?v=92/.test(INDEX));
+  cacheV("console.js") >= 149
+  && cacheV("file-editor.js") >= 9
+  && cacheV("chat-render.js") >= 15
+  && cacheV("style.css") >= 93);
 
 console.log();
 if (fails.length) { console.log(fails.length + " test HỎNG: " + fails.join(", ")); process.exit(1); }
