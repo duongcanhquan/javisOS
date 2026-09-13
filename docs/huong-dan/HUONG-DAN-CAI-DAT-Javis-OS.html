@@ -123,8 +123,10 @@
       <li><a href="#chuan-bi">Cài sẵn trước khi cài Javis</a></li>
       <li><a href="#win">Máy cá nhân - Windows</a></li>
       <li><a href="#mac">Máy cá nhân - macOS</a></li>
+      <li><a href="#vps-ket-noi">Kết nối VPS (SSH / RDP)</a></li>
       <li><a href="#vps-linux">VPS Linux (Docker)</a></li>
       <li><a href="#vps-win">VPS / máy chủ Windows</a></li>
+      <li><a href="#ten-mien">Tên miền miễn phí + HTTPS</a></li>
       <li><a href="#lan-dau">Thiết lập lần đầu trong app</a></li>
       <li><a href="#loi">Lỗi thường gặp</a></li>
     </ol>
@@ -159,17 +161,18 @@
 
   <div class="card">
     <strong>VPS Linux (chạy 24/7) - Docker</strong>
+    <p>Chưa biết SSH? Laptop Windows: mở <strong>PowerShell</strong>, gõ <span class="mono">ssh root@IP</span> (hoặc <strong>PuTTY</strong>). Mac: <strong>Terminal</strong>. Gõ <span class="mono">yes</span>, dán mật khẩu (không hiện chữ). Hostinger: dùng Docker Manager, không cần gõ lệnh - xem <span class="mono">HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md</span>.</p>
     <pre>curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker "$USER"   # đăng xuất SSH rồi vào lại
 mkdir -p ~/javis &amp;&amp; cd ~/javis
 curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
 printf 'JAVIS_ADMIN_USER=admin\nJAVIS_ADMIN_PASSWORD=DoiMatKhauManh\n' &gt; .env
 docker compose up -d</pre>
-    <p>Mở <strong>http://IP-VPS:7777</strong>. Firewall TCP <strong>7777</strong>. Hostinger: dùng file <span class="mono">docker-compose.hostinger.yml</span> + <span class="mono">DOMAIN_NAME</span>.</p>
+    <p>Mở <strong>http://IP-VPS:7777</strong>. Firewall TCP <strong>7777</strong>. Tên miền miễn phí: DuckDNS hoặc Hostinger <span class="mono">javis.…hstgr.cloud</span> (file <span class="mono">docker-compose.hostinger.yml</span> + <span class="mono">DOMAIN_NAME</span>).</p>
   </div>
   <div class="card">
     <strong>VPS Windows</strong>
-    <p>Docker Desktop + PowerShell: tải <span class="mono">docker-compose.yml</span>, tạo <span class="mono">.env</span> mật khẩu admin, <span class="mono">docker compose up -d</span>, mở firewall TCP 7777. Native: <span class="mono">1-Cai-dat.bat</span> rồi <span class="mono">JAVIS_HOST=0.0.0.0</span> trong <span class="mono">.env</span>.</p>
+    <p>Từ laptop: <strong>Remote Desktop</strong> (<span class="mono">mstsc</span>), IP VPS, user Administrator. Trên máy chủ: Docker Desktop + PowerShell tải <span class="mono">docker-compose.yml</span>, tạo <span class="mono">.env</span> mật khẩu admin, <span class="mono">docker compose up -d</span>, mở firewall TCP 7777. Native: <span class="mono">1-Cai-dat.bat</span> rồi <span class="mono">JAVIS_HOST=0.0.0.0</span> trong <span class="mono">.env</span>.</p>
   </div>
 
   <div class="okbox">Bản Markdown siêu ngắn (in / gửi giáo viên): <span class="mono">CAI-DAT-DON-GIAN.md</span> ở gốc repo. Các mục dưới đây là chi tiết đầy đủ nếu cần.</div>
@@ -346,6 +349,31 @@ docker compose up -d</pre>
     </tbody>
   </table>
 
+  <h2 id="vps-ket-noi">5b. Kết nối vào VPS (làm trước khi cài)</h2>
+  <p>VPS là máy thuê trên internet. Laptop nhà chỉ dùng để <strong>điều khiển</strong> máy đó. Chi tiết từng nút: file <span class="mono">HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md</span>.</p>
+  <table>
+    <thead><tr><th>Bạn thuê</th><th>Dùng gì trên laptop</th><th>Làm gì</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>VPS <strong>Linux</strong></td>
+        <td>Windows: <strong>PowerShell</strong> (<span class="mono">ssh root@IP</span>) hoặc <strong>PuTTY</strong>. Mac: <strong>Terminal</strong></td>
+        <td>Lần đầu gõ <span class="mono">yes</span>. Gõ mật khẩu: <strong>không hiện chữ</strong>, rồi Enter. Thấy <span class="mono">root@…#</span> là đã vào.</td>
+      </tr>
+      <tr>
+        <td>VPS <strong>Windows</strong></td>
+        <td>Windows: <strong>Remote Desktop</strong> (<span class="mono">mstsc</span>). Mac: app <strong>Windows App</strong></td>
+        <td>Ô Máy tính = IP VPS, user <span class="mono">Administrator</span>. Thấy màn hình máy chủ thì cài trên đó.</td>
+      </tr>
+      <tr>
+        <td><strong>Hostinger</strong> có Docker Manager</td>
+        <td>Chỉ cần Chrome + hPanel</td>
+        <td>Không cần SSH. Dán URL compose + <span class="mono">DOMAIN_NAME=javis.&lt;hostname&gt;.hstgr.cloud</span>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="tip"><strong>Chưa có lệnh ssh trên Windows?</strong> Cài đặt → Ứng dụng → Tính năng tùy chọn → <strong>OpenSSH Client</strong>. Hoặc tải <span class="mono">putty.exe</span> tại putty.org: Host Name = IP, Port 22, Open.</div>
+  <p>Copy lệnh trong hướng dẫn → dán vào cửa sổ SSH bằng <strong>chuột phải</strong> (Windows) hoặc <strong>Cmd+V</strong> (Mac). Không gõ các dòng bắt đầu bằng <span class="mono">#</span>.</p>
+
   <h2 id="vps-linux">6. VPS Linux (Docker - khuyến nghị)</h2>
   <p>Phù hợp Ubuntu/Debian, Hostinger VPS, máy chủ 24/7. Image: <span class="mono">ghcr.io/duongcanhquan/javisos:latest</span>.</p>
 
@@ -367,12 +395,12 @@ docker compose up -d</pre>
 
   <h3>6.0 Cài sẵn trên VPS Linux (trước khi kéo Javis)</h3>
   <ol class="steps">
-    <li><strong>SSH</strong> vào VPS từ máy bạn: <span class="mono">ssh root@IP</span> hoặc user <span class="mono">ubuntu</span>.</li>
+    <li><strong>SSH</strong> vào VPS (mục 5b): <span class="mono">ssh root@IP</span> hoặc user <span class="mono">ubuntu</span>.</li>
     <li><strong>OS</strong> khuyến nghị: Ubuntu 22.04/24.04 hoặc Debian 12. RAM ≥ 4 GB (khuyến nghị 8 GB).</li>
     <li>Cập nhật hệ thống: <span class="mono">sudo apt update &amp;&amp; sudo apt upgrade -y</span>.</li>
     <li><strong>Docker Engine + Compose plugin</strong> (bắt buộc với đường Docker). Không cần cài Python/Node trên host.</li>
-    <li><strong>Firewall / Security Group</strong>: mở TCP <strong>22</strong> (SSH) và <strong>7777</strong> (Javis). Nếu dùng HTTPS sau này: thêm 80/443.</li>
-    <li>Tuỳ chọn sau: tên miền hoặc Cloudflare Tunnel nếu cần mic từ điện thoại (HTTPS).</li>
+    <li><strong>Firewall / Security Group</strong>: mở TCP <strong>22</strong> (SSH) và <strong>7777</strong> (Javis). Nếu dùng HTTPS / DuckDNS sau này: thêm 80/443.</li>
+    <li>Tuỳ chọn sau: DuckDNS, Hostinger <span class="mono">hstgr.cloud</span>, hoặc Cloudflare Tunnel nếu cần mic từ điện thoại (HTTPS).</li>
   </ol>
 
   <h3>6.1 Cài Docker trên VPS</h3>
@@ -408,7 +436,7 @@ docker compose up -d</pre>
   <h2 id="vps-win">7. VPS / máy chủ Windows</h2>
   <h3>7.0 Cài sẵn trên VPS Windows (trước Javis)</h3>
   <ol class="steps">
-    <li>Đăng nhập máy chủ bằng <strong>Remote Desktop (RDP)</strong> hoặc SSH nếu có.</li>
+    <li>Đăng nhập bằng <strong>Remote Desktop</strong>: laptop Windows gõ <span class="mono">mstsc</span>, ô Máy tính = IP; Mac dùng app Windows App. User thường là <span class="mono">Administrator</span>. Panel nhà cung cấp phải mở cổng <strong>3389</strong>.</li>
     <li>Bật <strong>ảo hóa</strong> trong BIOS/UEFI nếu dùng Docker Desktop (WSL2 cần Hyper-V/Virtualization).</li>
     <li>Chọn <strong>một</strong> đường:
       <ul>
@@ -416,8 +444,8 @@ docker compose up -d</pre>
         <li><strong>Native</strong>: cài Python 3.11+ (tick PATH) + Node.js 22 LTS giống máy cá nhân.</li>
       </ul>
     </li>
-    <li><strong>Windows Firewall</strong>: cho phép inbound TCP <strong>7777</strong> (và 3389 nếu RDP).</li>
-    <li>Trình duyệt trên máy quản trị để mở <span class="mono">http://IP:7777</span>. Mic từ máy khác cần HTTPS.</li>
+    <li><strong>Windows Firewall</strong>: cho phép inbound TCP <strong>7777</strong> (và 3389 nếu RDP; 80/443 nếu tên miền).</li>
+    <li>Trình duyệt trên <strong>laptop nhà</strong> mở <span class="mono">http://IP:7777</span>. Mic từ máy khác cần HTTPS (DuckDNS hoặc tunnel).</li>
   </ol>
 
   <h3>7.1 Docker Desktop (gần giống Linux)</h3>
@@ -440,6 +468,30 @@ docker compose up -d</pre>
     <li>Cho Javis lắng nghe mạng (0.0.0.0) - xem tài liệu cấu hình env.</li>
     <li>Khi chạy public: <strong>bắt buộc</strong> đặt mật khẩu admin mạnh.</li>
   </ol>
+
+  <h2 id="ten-mien">7b. Tên miền miễn phí để vào cho dễ</h2>
+  <p><span class="mono">http://IP:7777</span> khó nhớ và <strong>không bật được mic</strong> trên điện thoại. Chọn một cách miễn phí:</p>
+  <table>
+    <thead><tr><th>Cách</th><th>Việc làm</th><th>Link nhận được</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Hostinger</strong></td>
+        <td>Docker Manager: <span class="mono">DOMAIN_NAME=javis.&lt;hostname&gt;.hstgr.cloud</span> (hostname xem ở hPanel)</td>
+        <td><span class="mono">https://javis.srv….hstgr.cloud</span></td>
+      </tr>
+      <tr>
+        <td><strong>DuckDNS</strong></td>
+        <td>Mở duckdns.org → đăng nhập Google → tạo <span class="mono">tenban.duckdns.org</span> trỏ IP VPS → trên VPS bật file <span class="mono">docker-compose.https.yml</span> → trong Javis: Cài đặt → Tên miền &amp; SSL → Bật SSL</td>
+        <td><span class="mono">https://tenban.duckdns.org</span></td>
+      </tr>
+      <tr>
+        <td><strong>Cloudflare Tunnel</strong></td>
+        <td><span class="mono">docker compose --profile tunnel up -d</span> rồi xem log <span class="mono">trycloudflare</span></td>
+        <td><span class="mono">https://….trycloudflare.com</span> (đổi mỗi lần restart)</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="okbox">Người mới: Hostinger dùng cách 1. VPS khác dùng DuckDNS. Cần mic gấp 2 phút: tunnel. Từng nút: <span class="mono">HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md</span> mục G.</div>
 
   <h2 id="lan-dau">8. Thiết lập lần đầu trong app (mọi đường)</h2>
   <svg class="diagram" viewBox="0 0 760 100" xmlns="http://www.w3.org/2000/svg">
@@ -478,7 +530,8 @@ docker compose up -d</pre>
       <tr><td>VPS native không vào bằng IP</td><td><span class="mono">install.sh</span> mặc định chỉ <span class="mono">127.0.0.1</span> - dùng Docker / SSH tunnel / Cloudflare Tunnel</td></tr>
       <tr><td>macOS: Apple không thể xác minh .command</td><td>Terminal: gõ <span class="mono">bash </span> (có dấu cách), kéo file <span class="mono">1-Cai-dat.command</span> thả vào, Enter</td></tr>
       <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall/security group mở 7777; <span class="mono">docker compose ps</span></td></tr>
-      <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost (không dùng http://IP)</td></tr>
+      <tr><td><span class="mono">ssh</span> không có / không biết kết nối</td><td>Windows: OpenSSH Client hoặc PuTTY. Mac: Terminal. Từng nút: <span class="mono">HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md</span></td></tr>
+      <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost. Tên miền miễn phí: DuckDNS / Hostinger hstgr.cloud / tunnel</td></tr>
       <tr><td>Quên mật khẩu admin</td><td>Xem docs khôi phục / log setup token trên VPS</td></tr>
     </tbody>
   </table>

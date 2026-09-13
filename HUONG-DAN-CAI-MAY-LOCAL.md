@@ -3,7 +3,7 @@
 Dành cho laptop / PC cá nhân. Mở bằng trình duyệt tại **http://localhost:7777**.  
 Không cần tên miền. Mic / giọng nói hoạt động bình thường trên localhost.
 
-VPS không domain: [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
+VPS (SSH/RDP, tên miền miễn phí): [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
 Bản rút gọn double-click: [CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md).
 
 ---

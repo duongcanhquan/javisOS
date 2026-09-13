@@ -116,7 +116,11 @@ Safari / Chrome → **http://localhost:7777** → admin → **Models** → chat.
 
 ## VPS Linux (Docker)
 
+> **Chưa biết SSH / PuTTY / mở cổng / tên miền?** Đừng bắt đầu từ khối lệnh dưới. Làm từng nút trong **[HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md)** (kết nối từ Windows/Mac, Hostinger không cần gõ lệnh, DuckDNS miễn phí).
+
 **Khuyến nghị: Docker** (mở được từ IP). Không cài Python trên máy chủ.
+
+**Cách kết nối (nhớ):** laptop Windows mở **PowerShell** gõ `ssh root@IP` (hoặc **PuTTY** nếu chưa có `ssh`). Mac mở **Terminal**. Gõ `yes` lần đầu, dán mật khẩu (không hiện chữ). Thấy `root@…#` rồi mới dán lệnh dưới.
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -131,7 +135,7 @@ docker compose up -d
 Đổi `DoiMatKhauManh` trước khi chạy. Thiếu `.env` thì phải đọc **MÃ THIẾT LẬP** trong `docker compose logs javis`.
 
 Mở trình duyệt: **http://IP-VPS:7777**  
-Firewall nhà cung cấp: mở TCP **7777** (và **22**).
+Firewall nhà cung cấp: mở TCP **7777** (và **22**). Muốn link đẹp + mic: tên miền miễn phí **DuckDNS** hoặc Hostinger `javis.…hstgr.cloud` (file hướng dẫn VPS, mục G).
 
 **Hostinger Docker Manager:** không dùng 3 lệnh trên. Dán URL  
 `https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.hostinger.yml`  
@@ -143,11 +147,13 @@ rồi điền `DOMAIN_NAME` + mật khẩu admin. Chi tiết: [CAI-DAT-TRUONG.md
 
 ## VPS Windows
 
+> Từng nút RDP + Docker: **[HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md)** mục D–E.
+
 Chọn **một** đường.
 
 ### Docker Desktop (khuyến nghị)
 
-RDP vào máy chủ. Cài Docker Desktop (bật WSL2 nếu hỏi), đợi icon xanh. PowerShell:
+Từ laptop: mở **Remote Desktop** (`mstsc`), gõ IP VPS, user `Administrator`. Cài Docker Desktop trên **máy chủ** (bật WSL2 nếu hỏi), đợi icon xanh. PowerShell **trên VPS**:
 
 ```powershell
 mkdir $HOME\javis; cd $HOME\javis
@@ -159,7 +165,7 @@ JAVIS_ADMIN_PASSWORD=DoiMatKhauManh
 docker compose up -d
 ```
 
-Windows Firewall: inbound TCP **7777**. Mở **http://IP-MAY:7777**.
+Windows Firewall: inbound TCP **7777**. Mở **http://IP-MAY:7777**. Tên miền miễn phí: DuckDNS (cùng file VPS, mục G2).
 
 ### Native (không Docker)
 

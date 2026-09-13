@@ -62,6 +62,8 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 
 Phòng CNTT cấp **một link** cho giáo viên (hoặc mỗi tổ một stack riêng).
 
+Người chưa biết SSH / RDP / tên miền: **[HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md)** (Hostinger `hstgr.cloud` hoặc DuckDNS miễn phí).
+
 ### B1 - VPS Linux (khuyến nghị: Docker)
 
 #### Hostinger Docker Manager

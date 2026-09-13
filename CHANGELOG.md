@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.213] - 2026-09-13
+### Cải thiện
+- **Hướng dẫn VPS cho người chưa biết kỹ thuật.** Nói rõ dùng gì để kết nối (PowerShell / PuTTY / Terminal / Remote Desktop), cách dán lệnh, mở cổng, Hostinger không cần gõ lệnh, tên miền miễn phí (DuckDNS, `hstgr.cloud`, Cloudflare Tunnel), và lần đầu trong app chỉ admin + Models. File: `HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md`.
+
 ## [0.55.212] - 2026-09-13
 ### Sửa lỗi
 - **Cài Windows chắc hơn:** nhận Python qua `py -3.12` nếu lệnh `python` là bản Microsoft Store; tự copy `.env`; gỡ chặn SmartScreen cho file `.bat`.

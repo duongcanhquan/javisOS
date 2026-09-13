@@ -160,7 +160,7 @@ Sau khi Redeploy, trở lại Cài đặt và bấm **Kiểm tra lại**. Chi ti
 
 - Ảnh logo nên là ảnh vuông (tỉ lệ 1:1) để không bị cắt méo, vì Javis hiển thị logo trong khung vuông bo góc.
 - Sau khi tải ảnh mới mà chỗ nào đó vẫn còn ảnh cũ, chờ khoảng 1 phút hoặc tải lại trang; hệ thống có bộ nhớ đệm ngắn cho ảnh logo (favicon lâu hơn, khoảng 5 phút).
-- Nếu chưa có tên miền riêng nhưng vẫn muốn truy cập từ xa có HTTPS, có thể dùng cách khác (ví dụ Cloudflare Tunnel) mô tả trong `DEPLOY.md`.
+- Nếu chưa có tên miền riêng nhưng vẫn muốn truy cập từ xa có HTTPS: **DuckDNS** (`tenban.duckdns.org`, miễn phí) hoặc Cloudflare Tunnel, từng nút trong [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](../HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md) mục G. Hostinger dùng sẵn `javis.<hostname>.hstgr.cloud`.
 - Dùng đúng bản ghi loại **A** (trỏ theo IPv4). Đừng dùng CNAME cho tên miền này trừ khi bạn hiểu rõ hệ quả.
 - Đừng bấm **Bật SSL** liên tục khi DNS chưa đúng. Mỗi lần bấm là một lần Javis buộc Caddy đi xin chứng chỉ, xin hỏng nhiều lần sẽ chạm giới hạn của Let's Encrypt.
 

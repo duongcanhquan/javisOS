@@ -51,7 +51,9 @@ Bản HTML có hình: [HUONG-DAN-CAI-DAT-Javis-OS.html](HUONG-DAN-CAI-DAT-Javis-
 
 ## VPS Linux (Docker)
 
-1. SSH: `ssh root@IP` (hoặc `ubuntu@IP`).
+Từng nút (PowerShell / PuTTY / Hostinger / DuckDNS): [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](../../HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).
+
+1. **Kết nối SSH từ laptop:** Windows mở PowerShell, gõ `ssh root@IP` (hoặc `ubuntu@IP`). Chưa có lệnh `ssh` thì cài **OpenSSH Client** hoặc dùng **PuTTY** (Host = IP, Port 22). Mac: Terminal. Lần đầu gõ `yes`; mật khẩu **không hiện chữ**.
 2. Ubuntu 22.04/24.04 hoặc Debian 12; RAM ≥ 4 GB (khuyến nghị 8 GB).
 3. `sudo apt update && sudo apt upgrade -y`
 4. Cài Docker (không cần Python/Node trên host):
@@ -63,19 +65,19 @@ sudo usermod -aG docker "$USER"
 docker version && docker compose version
 ```
 
-5. Firewall / Security Group: mở **22** và **7777** (thêm 80/443 nếu HTTPS).
-6. Mic từ điện thoại cần HTTPS (domain hoặc tunnel) - `http://IP:7777` chỉ chat chữ ổn định.
+5. Firewall / Security Group: mở **22** và **7777** (thêm 80/443 nếu HTTPS / DuckDNS).
+6. Mic từ điện thoại cần HTTPS (DuckDNS, Hostinger `hstgr.cloud`, hoặc Cloudflare Tunnel) - `http://IP:7777` chỉ chat chữ ổn định.
 
 ---
 
 ## VPS / máy chủ Windows
 
-1. RDP (hoặc SSH) vào máy.
+1. **Kết nối RDP:** laptop Windows gõ `mstsc` / Remote Desktop, ô Máy tính = IP VPS, user `Administrator`. Mac: app **Windows App** (Remote Desktop).
 2. Bật ảo hóa trong BIOS nếu dùng Docker Desktop + WSL2.
 3. Chọn **một** đường:
    - **Docker Desktop** (khuyến nghị): docker.com, đợi engine xanh.
    - **Native**: Python 3.11+ (PATH) + Node.js 22 như máy cá nhân.
-4. Windows Firewall: inbound TCP **7777** (và 3389 nếu RDP).
+4. Windows Firewall: inbound TCP **7777** (và 3389 nếu RDP; 80/443 nếu tên miền).
 
 ---
 

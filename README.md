@@ -103,6 +103,8 @@ docker compose up -d                                          # pull image + ch�
 ```
 Mở `http://<ip-vps>:7777` → màn tạo tài khoản admin (xem MÃ THIẾT LẬP trong `docker compose logs javis`).
 
+Chưa biết SSH, PuTTY, RDP, mở cổng, hay tên miền miễn phí (DuckDNS / Hostinger): **[HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md)**.
+
 ### Cách 3 - Cài trực tiếp lên Linux/macOS (không Docker)
 
 ```bash
@@ -257,6 +259,8 @@ cd javis && ./update.sh          # tự pull image + restart (dữ liệu trong 
 Trong app: mở **Cập nhật** (nhóm Hệ thống) → **⬆ Cập nhật ngay** nếu môi trường hỗ trợ, có thanh tiến trình và nút lùi bản khi bản mới hỏng.
 
 ## 🌐 Truy cập từ xa (VPS không phải Hostinger)
+
+Tên miền miễn phí cố định: **DuckDNS** (`tenban.duckdns.org`) - từng nút trong [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md) mục G. HTTPS ngay (URL tạm):
 
 ```bash
 docker compose --profile tunnel up -d

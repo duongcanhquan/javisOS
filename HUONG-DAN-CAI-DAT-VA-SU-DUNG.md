@@ -6,7 +6,7 @@ Tài liệu này dẫn từ lúc **cài lần đầu** tới lúc **dùng đư�
 **PDF tải về (có hình / sơ đồ):** [Cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [Sử dụng ban đầu](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf) - mục lục đầy đủ trong [docs/huong-dan/README.md](docs/huong-dan/README.md).  
 Chi tiết từng trang trong app: [docs/README.md](docs/README.md).  
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
-**VPS mới, chưa có tên miền (IP / tunnel / Hostinger miễn phí):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
+**VPS (SSH/RDP từng nút, Hostinger, DuckDNS miễn phí, lần đầu Models):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
 **Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
 **Cách cài đơn giản nhất:** [CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md).  
 **Cài sẵn trên máy trước Javis (Win / Mac / VPS):** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
@@ -150,20 +150,31 @@ Nếu vẫn muốn Finder: chuột phải → Open, hoặc **System Settings →
 
 ## 5. VPS Linux - Docker (khuyến nghị)
 
+Người chưa từng SSH / mở firewall / đặt tên miền: làm đủ trong **[HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md)** (từ điển, PowerShell/PuTTY, Hostinger không gõ lệnh, DuckDNS). Mục dưới là bản rút.
+
 Cần quyền SSH vào VPS. Image mặc định fork:
 
 `ghcr.io/duongcanhquan/javisos:latest`
 
 > Package GHCR phải **Public** (hoặc bạn đã `docker login ghcr.io`) thì Hostinger / máy mới pull được.
 
-### 5.0 Cài sẵn trên VPS trước Docker/Javis
+### 5.0 Kết nối SSH rồi cài sẵn trên VPS
 
-1. SSH được: `ssh root@IP` (hoặc `ubuntu@IP`).
-2. OS: Ubuntu 22.04/24.04 hoặc Debian 12; RAM ≥ 4 GB (khuyến nghị 8 GB).
-3. `sudo apt update && sudo apt upgrade -y`.
-4. **Không cần** cài Python/Node trên host nếu đi đường Docker.
-5. Firewall / Security Group nhà cung cấp: mở TCP **22** và **7777** (thêm 80/443 nếu sau này HTTPS).
-6. Có máy tính + trình duyệt để mở `http://IP:7777` sau khi lên.
+**Kết nối từ laptop (làm trước mọi lệnh):**
+
+| Laptop bạn | Mở gì | Gõ / dán |
+|---|---|---|
+| Windows 10/11 | **PowerShell** (phím Windows, gõ `powershell`) | `ssh root@IP` hoặc `ssh ubuntu@IP` |
+| Windows, chưa có lệnh `ssh` | Cài **OpenSSH Client** (Tính năng tùy chọn) hoặc tải **PuTTY** (putty.org): Host = IP, Port 22 | Mật khẩu VPS (gõ không hiện chữ) |
+| Mac | **Terminal** | `ssh root@IP` |
+
+Lần đầu gõ `yes`. Thấy `root@máy:~#` = đã vào VPS, mới dán lệnh Docker.
+
+1. OS: Ubuntu 22.04/24.04 hoặc Debian 12; RAM ≥ 4 GB (khuyến nghị 8 GB).
+2. `sudo apt update && sudo apt upgrade -y`.
+3. **Không cần** cài Python/Node trên host nếu đi đường Docker.
+4. Firewall / Security Group nhà cung cấp: mở TCP **22** và **7777** (thêm 80/443 nếu sau này HTTPS / DuckDNS).
+5. Có máy tính + trình duyệt để mở `http://IP:7777` sau khi lên.
 
 ### 5.1 Cài Docker (nếu chưa có)
 
@@ -240,12 +251,16 @@ Script cài Python/Node/CLI, tạo venv, đăng ký **systemd** tự chạy khi 
 
 ## 6. VPS / máy chủ Windows
 
-### 6.0 Cài sẵn trước
+Từng nút (Remote Desktop, Docker, DuckDNS): [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md) mục D–G.
 
-1. RDP (hoặc SSH) vào máy chủ.
-2. Bật **Virtualization** trong BIOS nếu dùng Docker Desktop + WSL2.
-3. Chọn một đường: **Docker Desktop** (khuyến nghị) *hoặc* Python 3.11+ (tick PATH) + Node.js 22.
-4. Windows Firewall: inbound TCP **7777** (và 3389 nếu RDP).
+### 6.0 Kết nối RDP rồi cài sẵn trước
+
+1. **Laptop Windows:** phím Windows → gõ `Remote Desktop` / `mstsc` → ô Máy tính = **IP VPS** → user `Administrator` + mật khẩu.
+2. **Laptop Mac:** App Store → **Windows App** (Microsoft Remote Desktop) → Add PC = IP.
+3. Không vào được: panel VPS mở cổng **3389**; thử Reset password.
+4. Bật **Virtualization** trong BIOS nếu dùng Docker Desktop + WSL2.
+5. Chọn một đường: **Docker Desktop** (khuyến nghị) *hoặc* Python 3.11+ (tick PATH) + Node.js 22.
+6. Windows Firewall: inbound TCP **7777** (và 3389 nếu RDP; 80/443 nếu tên miền HTTPS).
 
 ### 6.1 Docker Desktop (gần giống Linux)
 
@@ -330,16 +345,24 @@ docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 
 Hướng dẫn UI đầy đủ: [docs/15-thuong-hieu-ten-mien.md](docs/15-thuong-hieu-ten-mien.md).
 
-### 7.4 Cloudflare Tunnel (HTTPS không cần mua domain)
+### 7.4 Tên miền miễn phí (không mua domain)
 
-Trên máy đã có `docker-compose.yml` có profile tunnel:
+Chọn **một**:
+
+| Cách | Việc làm | Link |
+|---|---|---|
+| **Hostinger** | `DOMAIN_NAME=javis.<hostname>.hstgr.cloud` | `https://javis.srv….hstgr.cloud` |
+| **DuckDNS** | duckdns.org đăng nhập Google → tạo `tenban.duckdns.org` trỏ IP VPS → bật `docker-compose.https.yml` → trong app **Tên miền & SSL** → **Bật SSL** | `https://tenban.duckdns.org` |
+| **Cloudflare Tunnel** | lệnh dưới | `https://….trycloudflare.com` (đổi mỗi restart) |
+
+Từng nút DuckDNS / Hostinger / tunnel: [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md) mục G.
 
 ```bash
 docker compose --profile tunnel up -d
 docker compose logs tunnel | grep trycloudflare
 ```
 
-Mở URL `https://….trycloudflare.com`. URL đổi mỗi lần restart trừ khi cấu hình *named tunnel* + `TUNNEL_TOKEN` (xem [DEPLOY.md](DEPLOY.md)).
+Mở URL `https://….trycloudflare.com`. Muốn URL cố định: DuckDNS (trên) hoặc *named tunnel* + `TUNNEL_TOKEN` (xem [DEPLOY.md](DEPLOY.md)).
 
 ### 7.5 Checklist DNS nhanh
 
@@ -351,6 +374,8 @@ Mở URL `https://….trycloudflare.com`. URL đổi mỗi lần restart trừ k
 ---
 
 ## 8. Thiết lập lần đầu trong app (mọi đường)
+
+Làm **ít nhất** 2 việc rồi dừng: **admin** + **Models** + chat một câu. Gmail / Zalo / Ads để lần sau.
 
 Làm theo thứ tự:
 
