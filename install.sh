@@ -153,9 +153,23 @@ if [ -d .venv ] && ! py_ok ./.venv/bin/python; then
   warn ".venv runs $(./.venv/bin/python --version 2>&1 || echo 'an unusable Python') - rebuilding with $PYTHON_BIN"
   rm -rf .venv
 fi
+# pip vo (ImportError _musllinux) thi dung lai .venv la chet o buoc cai gói.
+if [ -d .venv ] && ! ./.venv/bin/python -m pip --version >/dev/null 2>&1; then
+  warn ".venv pip broken (_musllinux / vendor packaging) - rebuilding"
+  rm -rf .venv
+fi
 [ -d .venv ] || "$PYTHON_BIN" -m venv .venv
-./.venv/bin/pip install --upgrade pip -q
-./.venv/bin/pip install -r requirements.txt -q
+if ! ./.venv/bin/python -m pip --version >/dev/null 2>&1; then
+  warn "pip missing - ensurepip"
+  ./.venv/bin/python -m ensurepip --upgrade >/dev/null 2>&1 || true
+fi
+if ! ./.venv/bin/python -m pip --version >/dev/null 2>&1; then
+  err "pip still broken after ensurepip. Delete .venv and re-run. Do not keep the folder on iCloud Desktop."
+  exit 1
+fi
+# KHONG `pip install --upgrade pip`: hay vo pip._vendor.packaging._musllinux
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python -c "import yaml, fastapi" || { err "deps missing after pip (yaml)"; exit 1; }
 ok "Python deps installed"
 
 # --- 6. .env (chmod 600 - holds tokens) ---

@@ -49,7 +49,7 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 
 1. Cài Python 3 nếu chưa có (python.org hoặc `brew install python`). Lần đầu **bắt buộc** `xcode-select --install`.
 2. (Khuyến nghị) Node.js 22 LTS.
-3. GitHub → **Download ZIP** → giải nén (vd `~/Desktop/Javis`).
+3. GitHub → **Download ZIP** → giải nén (vd `~/Javis`, không Desktop iCloud).
 4. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận).
 5. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
 6. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.

@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.210] - 2026-09-13
+### Sửa lỗi
+- **Cài Mac/Windows không còn báo chạy xong khi pip hỏng.** Lỗi `_musllinux` rồi `No module named yaml` (ZIP trên Desktop iCloud/OneDrive, `.venv` cũ): xoá venv hỏng, cài bằng `python -m pip`, kiểm tra yaml trước khi mở app. Hướng dẫn: xoá `.venv`, copy ra `~/Javis` hoặc `D:\Javis`, chạy lại `1-Cai-dat`.
+- **Antigravity xuất được Remotion / lệnh máy.** Việc chạy ngầm không còn bị jetski chặn: bỏ sandbox khi `agy -p`, tự duyệt tool, và nới `permissions.allow` (`command(*)`, đọc file, MCP) trong cấu hình agy trên máy.
+
 ## [0.55.209] - 2026-09-13
 ### Sửa lỗi
 - **CI:** test xem HTML không còn ghim cứng `console.js?v=148` / `style.css?v=92` — chỉ yêu cầu sàn tối thiểu nên bump cache-bust không làm đỏ pipeline.

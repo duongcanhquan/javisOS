@@ -78,6 +78,9 @@ Trích frame hoặc mô tả shot-list đối chiếu brief đã chốt. Lệch 
 - Đoán độ dài/tỉ lệ/ngôn ngữ rồi gen Atlas → lãng phí.
 - Shot 10s một mạch trên 9:16 → chết nhịp.
 - Hứa "xong sẽ báo lại" mà không giao việc nền / không làm trong lượt.
+- Lỗi `jetski: no output produced` / `command` permission: Antigravity CLI chạy headless
+  không duyệt được `npx remotion`. Javis từ 0.55.210 tự nới quyền `command(*)` trên máy
+  và bỏ `--sandbox` khi `agy -p`.
 
 ## Kiểm chứng
 

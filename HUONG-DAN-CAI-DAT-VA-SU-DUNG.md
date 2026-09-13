@@ -117,7 +117,7 @@ xcode-select --install
 2. Cài Python 3.11+ từ [python.org/macos](https://www.python.org/downloads/macos/) hoặc `brew install python`. Kiểm tra: `python3 --version`.
 3. (Khuyến nghị) Cài [Homebrew](https://brew.sh) rồi Node.js 22 LTS (`brew install node@22` hoặc tải từ nodejs.org).
 4. (Tuỳ chọn) `brew install ffmpeg` cho media.
-5. Tải ZIP → giải nén, ví dụ `~/Desktop/Javis`.
+5. Tải ZIP → giải nén ra **`~/Javis`** (không để trên Desktop iCloud - pip hay hỏng `_musllinux`).
 
 ### 4.2 Cài lần đầu
 
@@ -463,6 +463,7 @@ Dùng khi bạn **đóng gói để người khác cài**:
 | Hiện tượng | Cách xử lý |
 |---|---|
 | Windows: `python` không nhận | Cài lại Python, tick Add to PATH, mở lại CMD, chạy lại `1-Cai-dat.bat` |
+| `_musllinux` / `No module named yaml` | Cài chưa xong. Xoá `.venv`, copy folder ra `~/Javis` hoặc `D:\Javis` (không iCloud/OneDrive Desktop), chạy lại `1-Cai-dat` |
 | Mac không mở `.command` | Chuột phải → Open; hoặc `chmod +x *.command` |
 | Pull image fail | GHCR chưa Public / sai tên image / hết disk |
 | Mở app hỏi MÃ THIẾT LẬP | `docker compose logs` hoặc `cat /data/state/.setup_token`; hoặc điền sẵn admin trong `.env` |

@@ -47,7 +47,7 @@ Thấy `Python 3.11…` hoặc `3.12…` là được.
 ### 2) Tải Javis
 1. Mở link GitHub do admin gửi
 2. **Code → Download ZIP**
-3. Giải nén ra ví dụ `D:\Javis`
+3. Giải nén ra ví dụ `D:\Javis` (**không** để trong Desktop OneDrive)
 
 ### 3) Chạy cài
 1. Mở thư mục vừa giải nén
@@ -82,7 +82,7 @@ python3 --version
 ```
 
 ### 2) Tải Javis
-GitHub → **Code → Download ZIP** → giải nén (ví dụ `~/Desktop/Javis`).
+GitHub → **Code → Download ZIP** → giải nén ra **`~/Javis`** (không để trên Desktop iCloud: pip hay hỏng `_musllinux`).
 
 ### 3) Chạy cài
 Chuột phải **`1-Cai-dat.command`** → **Open** (lần đầu macOS có thể hỏi - chọn Open).
@@ -132,6 +132,7 @@ Nhớ mở cổng **7777** trên firewall nhà cung cấp.
 | Hiện tượng | Làm gì |
 |---|---|
 | `python` không nhận | Cài lại Python, tick PATH, **mở cmd mới** |
+| `_musllinux` / `No module named yaml` | Cài **chưa xong**. Xoá thư mục `.venv`, copy cả folder ra `~/Javis` (Mac) hoặc `D:\Javis` (Win) - **không** để trên Desktop iCloud/OneDrive - rồi chạy lại `1-Cai-dat` |
 | Cổng 7777 bị chiếm | Chạy `3-Tat-Javis` rồi `2-Bat-Javis` |
 | Mac không mở `.command` | Chuột phải → Open |
 | VPS không vào được | Mở firewall TCP 7777; `docker compose ps` |

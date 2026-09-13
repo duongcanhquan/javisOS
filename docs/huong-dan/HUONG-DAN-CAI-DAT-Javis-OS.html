@@ -326,7 +326,7 @@ docker compose up -d</pre>
 
   <h3>5.2 Lấy Javis &amp; cài</h3>
   <ol class="steps">
-    <li>Download ZIP từ GitHub → giải nén (ví dụ <span class="mono">~/Desktop/Javis</span>).</li>
+    <li>Download ZIP từ GitHub → giải nén ra <span class="mono">~/Javis</span> (không để Desktop iCloud).</li>
     <li><strong>Chuột phải</strong> <span class="mono">1-Cai-dat.command</span> → <strong>Open</strong> (macOS có thể hỏi nhà phát triển - chọn Open).</li>
     <li>Đợi xong → mở <strong>http://localhost:7777</strong>.</li>
   </ol>
@@ -466,6 +466,7 @@ docker compose up -d</pre>
     <thead><tr><th>Triệu chứng</th><th>Cách xử lý</th></tr></thead>
     <tbody>
       <tr><td><span class="mono">python</span> / Python not found</td><td>Cài Python 3.11+, tick Add to PATH, mở lại cmd, chạy lại <span class="mono">1-Cai-dat</span></td></tr>
+      <tr><td><span class="mono">_musllinux</span> / <span class="mono">No module named yaml</span></td><td>Cài chưa xong. Xoá thư mục <span class="mono">.venv</span>, copy cả folder ra <span class="mono">~/Javis</span> (Mac) hoặc <span class="mono">D:\Javis</span> (Win) - không để Desktop iCloud/OneDrive - chạy lại <span class="mono">1-Cai-dat</span></td></tr>
       <tr><td>Docker Desktop đỏ / WSL lỗi</td><td>Bật Virtualization trong BIOS; cài/repair WSL2; mở Docker đợi xanh rồi mới <span class="mono">compose up</span></td></tr>
       <tr><td>Cổng 7777 bị chiếm</td><td>Tắt bản cũ (<span class="mono">3-Tat-Javis</span>) rồi bật lại</td></tr>
       <tr><td>Chat lỗi dù mở được app</td><td>Vào <strong>Models</strong> chọn bộ não. <span class="mono">agy</span> (Antigravity) phải cài tay theo thẻ - không nằm trong <span class="mono">1-Cai-dat</span></td></tr>

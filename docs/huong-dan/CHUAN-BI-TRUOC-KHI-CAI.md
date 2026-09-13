@@ -2,6 +2,8 @@
 
 Làm xong mục này **trước** khi chạy `1-Cai-dat` / Docker. Thiếu bước này hay gây lỗi `Python not found`, Docker đỏ, không mở được cổng.
 
+Giải nén ZIP ra **`~/Javis`** (Mac) hoặc **`D:\Javis`** (Windows). Desktop iCloud/OneDrive hay cắt file trong `.venv` và nổ `_musllinux` / `No module named yaml`.
+
 Bản HTML có hình: [HUONG-DAN-CAI-DAT-Javis-OS.html](HUONG-DAN-CAI-DAT-Javis-OS.html) mục 3.
 
 ---

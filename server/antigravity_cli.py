@@ -582,30 +582,70 @@ def co_quyen_cho_mode(mode: Optional[str], headless: bool = False) -> list[str]:
 
     Chỉ có `--dangerously-skip-permissions` (tự duyệt mọi tool) và `--sandbox` (siết terminal)
     là thấy trong tài liệu. KHÔNG có nấc "chỉ đọc" tương đương `--approval-mode plan` của Gemini
-    CLI, nên `suggest` ở đây được siết bằng SANDBOX cộng với lời dặn trong system prompt, chứ
-    không phải một cái chốt cứng của CLI. Khác biệt này phải nói thật ở tài liệu, đừng để người
-    dùng tưởng mức Chỉ đọc do CLI chặn như bên Gemini.
+    CLI, nên `suggest` khi CÓ TTY được siết bằng SANDBOX. Mọi lượt Javis thì là print mode
+    (`agy -p`): không có người bấm duyệt.
 
-    `headless=True` cho mọi lượt `agy -p` (nhắc hẹn, việc nền, loop): không có ai bấm duyệt
-    tool nên BẮT BUỘC tự duyệt, kể cả mức suggest - nếu không `read_file` bị auto-deny và việc
-    chết với "no output produced". Rào ghi file / hành động ra ngoài vẫn ở MCP Hub + prompt.
+    Từ agy 1.1.3, `--sandbox` trong print mode làm jetski TỪ CHỐI `command` / `read_file`
+    kể cả khi đã `--dangerously-skip-permissions` - triệu chứng: "no output produced",
+    `npx remotion` không chạy. Headless vì thế KHÔNG kèm sandbox; tự duyệt tool; rào tiền /
+    đơn / đăng bài vẫn ở MCP Hub + prompt.
     """
     m = str(mode or "").strip().lower()
     co: list[str] = []
+    skip = co_co("--dangerously-skip-permissions")
+    sand = co_co("--sandbox")
     if m == "full":
-        if co_co("--dangerously-skip-permissions"):
+        if skip:
             co.append("--dangerously-skip-permissions")
         return co
-    # suggest + auto + mọi giá trị lạ: bật sandbox nếu bản CLI có.
-    if co_co("--sandbox"):
-        co.append("--sandbox")
-    if headless and co_co("--dangerously-skip-permissions"):
+    if headless and skip:
         co.append("--dangerously-skip-permissions")
-    elif m == "auto" and co_co("--dangerously-skip-permissions"):
-        # auto = được ghi file nháp trong brain. Headless mà dừng lại hỏi duyệt là treo tới hết
-        # giờ, nên vẫn phải tự duyệt; rào tiền/đơn/đăng bài nằm ở MCP Hub chứ không ở đây.
+        return co
+    if sand:
+        co.append("--sandbox")
+    if m == "auto" and skip:
         co.append("--dangerously-skip-permissions")
     return co
+
+
+# Jetski (agy -p) auto-deny tool nếu settings.json không có allow-rule, kể cả khi đã
+# --dangerously-skip-permissions. Nới đúng bộ này để Remotion / npm / MCP chạy được.
+# command(*) = mọi lệnh máy trên tài khoản chạy Javis - chủ đã yêu cầu nới để render chạy.
+_QUYEN_HEADLESS = ("read_file(*)", "command(*)", "mcp(*)")
+_QUYEN_DA_GHI = False
+
+
+def duong_settings_agy() -> Path:
+    return _home_dir() / ".gemini" / "antigravity-cli" / "settings.json"
+
+
+def dam_bao_quyen_headless() -> None:
+    """Ghi allow-rule jetski vào ~/.gemini/antigravity-cli/settings.json (gộp, không xoá rule cũ)."""
+    global _QUYEN_DA_GHI
+    if _QUYEN_DA_GHI:
+        return
+    try:
+        p = duong_settings_agy()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        doc = {}
+        if p.is_file():
+            try:
+                doc = json.loads(p.read_text(encoding="utf-8")) or {}
+            except Exception:
+                doc = {}
+        if not isinstance(doc, dict):
+            doc = {}
+        perm = doc.get("permissions") if isinstance(doc.get("permissions"), dict) else {}
+        allow = [str(x) for x in (perm.get("allow") or []) if str(x).strip()]
+        for q in _QUYEN_HEADLESS:
+            if q not in allow:
+                allow.append(q)
+        perm["allow"] = allow
+        doc["permissions"] = perm
+        p.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        _QUYEN_DA_GHI = True
+    except (OSError, NotImplementedError, TypeError, ValueError):
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -1055,6 +1095,7 @@ class AntigravityCLI:
 
     def _build_args(self, prompt_argv: Optional[str], noi_mach: bool = True,
                     them: Optional[list] = None, ct_stdin: str = "") -> list[str]:
+        dam_bao_quyen_headless()
         args = [self.cli_path]
         if self.model and co_co("--model"):
             args += ["--model", self.model]

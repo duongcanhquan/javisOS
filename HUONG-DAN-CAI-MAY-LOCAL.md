@@ -83,7 +83,7 @@ xcode-select --install
 
 ### 2.2 Lấy Javis
 
-Download ZIP từ GitHub → giải nén, ví dụ `~/Desktop/Javis`.
+Download ZIP từ GitHub → giải nén ra `~/Javis` (không để Desktop iCloud).
 
 ### 2.3 Cài lần đầu
 
@@ -103,7 +103,7 @@ Nếu báo không xác định được nhà phát triển: **System Settings �
 Trong Terminal nếu `.command` không chạy:
 
 ```bash
-cd ~/Desktop/Javis   # đúng thư mục của bạn
+cd ~/Javis   # đúng thư mục của bạn
 chmod +x *.command
 ```
 

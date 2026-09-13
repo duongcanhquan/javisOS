@@ -8,23 +8,35 @@ echo " De may cua ban ~ 2-10 phut tuy mang"
 echo "=========================================="
 echo
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "[LOI] Chua co Python 3."
+if [ ! -f scripts/ensure-venv.sh ]; then
+  echo "[LOI] Thieu scripts/ensure-venv.sh."
+  echo "Giai nen SAI (chi lay mot file). Can CA folder ZIP, roi chay file nay trong do."
+  read -r -p "Nhan Enter de dong..."
+  exit 1
+fi
+# shellcheck disable=SC1091
+source scripts/ensure-venv.sh
+
+if ! javis_find_python; then
+  echo "[LOI] Chua co Python 3.10+."
   echo "Cai tai: https://www.python.org/downloads/macos/"
   echo "Hoac: brew install python"
   read -r -p "Nhan Enter de dong..."
   exit 1
 fi
+echo "Dung: $PYTHON_BIN ($("$PYTHON_BIN" --version 2>/dev/null))"
 
-if [ ! -d .venv ]; then
-  echo "[1/3] Tao moi truong ao..."
-  python3 -m venv .venv
+if ! javis_ensure_venv "$PYTHON_BIN"; then
+  read -r -p "Nhan Enter de dong..."
+  exit 1
 fi
 
-echo "[2/3] Cai thu vien..."
-# shellcheck disable=SC1091
-source .venv/bin/activate
-pip install -r requirements.txt -q
+if ! javis_cai_thu_vien; then
+  echo
+  echo "Cai dat CHUA XONG. Javis khong duoc mo (tranh loi No module named yaml)."
+  read -r -p "Nhan Enter de dong..."
+  exit 1
+fi
 
 if command -v npm >/dev/null 2>&1; then
   echo "[3/3] Kiem tra Claude Code / Codex (neu can)..."
@@ -53,4 +65,4 @@ echo "Nhan Ctrl+C de dung."
 echo
 (sleep 3 && open "http://localhost:7777") &
 cd server
-exec python main.py
+exec ../.venv/bin/python main.py

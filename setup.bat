@@ -9,7 +9,7 @@ echo.
 
 cd /d "%~dp0"
 
-REM Check Python
+REM Check Python (khong dung ban Store stub / qua cu)
 python --version >nul 2>&1
 if errorlevel 1 (
   echo [LOI] Python chua cai. Tai tai python.org roi tick "Add to PATH".
@@ -17,17 +17,80 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-
-REM Tao venv neu chua co
-if not exist ".venv" (
-  echo [1/4] Tao virtual environment...
-  python -m venv .venv
+python -c "import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)" >nul 2>&1
+if errorlevel 1 (
+  echo [LOI] Python qua cu. Can 3.10 tro len, nen 3.11 hoac 3.12.
+  echo Tai: https://www.python.org/downloads/windows/
+  echo.
+  pause
+  exit /b 1
 )
 
-REM Cai dependencies
-echo [2/4] Kiem tra dependencies...
-call .venv\Scripts\activate.bat
-pip install -r requirements.txt -q
+set "VPY=%~dp0.venv\Scripts\python.exe"
+
+REM .venv cu / pip vo (_musllinux) -> xoa roi tao lai, khong dung tiep
+if exist ".venv\" (
+  if exist "%VPY%" (
+    "%VPY%" -c "import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)" >nul 2>&1
+    if errorlevel 1 (
+      echo .venv Python cu - xoa roi tao lai...
+      rmdir /s /q .venv 2>nul
+    ) else (
+      "%VPY%" -m pip --version >nul 2>&1
+      if errorlevel 1 (
+        echo pip trong .venv hong - xoa roi tao lai...
+        rmdir /s /q .venv 2>nul
+      )
+    )
+  ) else (
+    echo .venv thieu python.exe - xoa roi tao lai...
+    rmdir /s /q .venv 2>nul
+  )
+)
+
+if not exist ".venv\" (
+  echo [1/4] Tao virtual environment...
+  python -m venv .venv
+  if errorlevel 1 (
+    echo [LOI] Tao .venv that bai. Cai Python 3.11+ tu python.org, tick PATH, mo cmd MOI.
+    pause
+    exit /b 1
+  )
+)
+
+"%VPY%" -m pip --version >nul 2>&1
+if errorlevel 1 (
+  echo pip hong - khoi phuc ensurepip...
+  "%VPY%" -m ensurepip --upgrade >nul 2>&1
+)
+"%VPY%" -m pip --version >nul 2>&1
+if errorlevel 1 (
+  echo [LOI] pip khong chay duoc (hay gap ImportError _musllinux).
+  echo   1. Xoa thu muc .venv
+  echo   2. Copy Javis ra D:\Javis ^(KHONG de Desktop OneDrive^)
+  echo   3. Chay lai 1-Cai-dat.bat
+  pause
+  exit /b 1
+)
+
+echo [2/4] Cai thu vien...
+"%VPY%" -m pip install -r requirements.txt
+if errorlevel 1 (
+  echo [LOI] Cai thu vien THAT BAI. Khong khoi dong Javis.
+  echo Neu thay _musllinux hoac No module named yaml:
+  echo   1. Xoa thu muc .venv
+  echo   2. Copy ra D:\Javis (KHONG de Desktop OneDrive)
+  echo   3. Chay lai 1-Cai-dat.bat
+  pause
+  exit /b 1
+)
+
+"%VPY%" -c "import yaml, fastapi" >nul 2>&1
+if errorlevel 1 (
+  echo [LOI] Thieu yaml - cai dat chua xong. Xoa .venv roi chay lai 1-Cai-dat.bat
+  pause
+  exit /b 1
+)
 
 REM ---- CLI dang ky subscription (khong bat buoc API key) ----
 REM Chi cai Claude Code + Codex (npm). Antigravity (`agy`) KHONG cai o day:
@@ -62,8 +125,8 @@ echo   Nhan Ctrl+C de dung.
 echo  ==========================================
 echo.
 
-cd server
-python main.py
+cd /d "%~dp0server"
+"%VPY%" main.py
 
 REM Neu python thoat (loi), giu cua so de doc loi
 echo.

@@ -39,8 +39,8 @@ xcode-select --install
 1. Vào repo GitHub (link do nhà trường / admin gửi).
 2. Bấm nút xanh **Code** → **Download ZIP**.
 3. Giải nén ra thư mục dễ nhớ, ví dụ:
-   - Windows: `D:\Javis`
-   - Mac: `~/Desktop/Javis`
+   - Windows: `D:\Javis` (tránh Desktop OneDrive)
+   - Mac: `~/Javis` (tránh Desktop iCloud)
 
 ---
 
@@ -99,6 +99,7 @@ Hướng dẫn local đầy đủ (cấu hình máy, Windows/Mac, Ollama): **[HU
 | Hiện tượng | Cách xử lý |
 |---|---|
 | Windows: “Python chưa cài” | Cài Python, tick Add to PATH, **mở lại** cửa sổ rồi chạy `1-Cai-dat.bat` |
+| `_musllinux` / `No module named yaml` | Xoá `.venv`, copy folder ra `D:\Javis` hoặc `~/Javis` (không OneDrive/iCloud Desktop), chạy lại `1-Cai-dat` |
 | Cổng 7777 bị chiếm | Chạy `3-Tat-Javis` rồi `2-Bat-Javis` lại |
 | Mở được app nhưng chat lỗi | Vào **Models**, kiểm tra đã đăng nhập / dán key chưa |
 | Mac không chạy được `.command` | Chuột phải → Open; hoặc trong Terminal: `chmod +x *.command` rồi double-click lại |

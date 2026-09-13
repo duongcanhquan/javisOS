@@ -10,6 +10,13 @@ if [ ! -d .venv ]; then
   exit 1
 fi
 
+if ! .venv/bin/python -c "import yaml" >/dev/null 2>&1; then
+  echo "Cai dat chua xong (thieu yaml). Hay chay lai 1-Cai-dat.command."
+  echo "Neu lan truoc loi pip/_musllinux: xoa .venv, copy folder ra ~/Javis, chay lai."
+  read -r -p "Nhan Enter de dong..."
+  exit 1
+fi
+
 # Tat ban cu neu co
 if lsof -tiTCP:7777 -sTCP:LISTEN >/dev/null 2>&1; then
   lsof -tiTCP:7777 -sTCP:LISTEN | xargs kill -9 2>/dev/null || true

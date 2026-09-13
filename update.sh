@@ -44,7 +44,13 @@ if [ "$MODE" = "docker" ] || { [ "$MODE" = "auto" ] && is_docker; }; then
   echo "==> Xong. Theo dõi:  docker compose logs -f"
 else
   echo "==> Native → cập nhật thư viện Python + restart dịch vụ..."
-  [ -d .venv ] && ./.venv/bin/pip install -r requirements.txt -q || true
+  if [ -d .venv ]; then
+    if ! ./.venv/bin/python -m pip --version >/dev/null 2>&1; then
+      echo "==> pip trong .venv hong (_musllinux). Xoa .venv roi chay ./install.sh lai."
+      exit 1
+    fi
+    ./.venv/bin/python -m pip install -r requirements.txt
+  fi
   if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q "^$NAME\.service"; then
     $SUDO systemctl restart "$NAME"
     echo "==> Đã restart. Theo dõi:  journalctl -u $NAME -f"
