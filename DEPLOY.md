@@ -243,12 +243,19 @@ claude auth login --claudeai
 ```
 Quản lý dịch vụ: `journalctl -u javis -f` · `sudo systemctl restart javis`
 
+> ⚠️ **`install.sh` mặc định bind `127.0.0.1`** - chỉ vào được từ chính máy đó
+> (`http://127.0.0.1:7777`). Mở `http://IP-VPS:7777` từ máy khác sẽ **không được**.
+> Muốn lộ ra ngoài: dùng **Docker** (Cách 1 / compose `0.0.0.0`), SSH tunnel, hoặc Cloudflare Tunnel.
+> Antigravity (`agy`) **không** được `install.sh` cài giúp - vào trang Models lấy lệnh.
+
 ---
 
 ## Cách 3 - Windows (máy cá nhân)
 
-Double-click `setup.bat` (chạy hiện cửa sổ) hoặc `start-javis.vbs` (chạy ngầm).
-Dừng bằng `stop-javis.bat`. Mở http://localhost:7777
+Double-click **`1-Cai-dat.bat`** lần đầu (gọi `setup.bat` bên trong).  
+Ngày sau: **`2-Bat-Javis.bat`**. Tắt: **`3-Tat-Javis.bat`**.  
+(Kỹ thuật: `start-javis.vbs` / `stop-javis.bat` vẫn dùng được.)  
+Mở http://localhost:7777 → **Models** → chọn bộ não.
 
 ---
 

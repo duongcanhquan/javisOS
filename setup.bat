@@ -29,18 +29,20 @@ echo [2/4] Kiem tra dependencies...
 call .venv\Scripts\activate.bat
 pip install -r requirements.txt -q
 
-REM ---- Cac bo nao CLI chay bang GOI DANG DANG NHAP (khong can mua API key) ----
-REM Ba engine nay can binary tren may moi hien o trang Models, va trong app KHONG cai ho duoc.
-REM Truoc day setup.bat khong cai cai nao - nguoi dung Windows phai tu mo terminal go npm.
-REM BEST-EFFORT het: chua co Node thi bo qua, Javis van chay bang cac engine dung API key.
-echo [3/4] Kiem tra cac bo nao CLI...
+REM ---- CLI dang ky subscription (khong bat buoc API key) ----
+REM Chi cai Claude Code + Codex (npm). Antigravity (`agy`) KHONG cai o day:
+REM Google dung script rieng; user cai theo the Models trong app.
+REM Chua co Node: bo qua - Javis van chay, chat bang API key o trang Models.
+echo [3/4] Kiem tra cac bo nao CLI (Claude Code, Codex)...
 where npm >nul 2>&1
 if errorlevel 1 (
   echo     [!] Chua co Node.js nen bo qua buoc nay.
-  echo         Muon dung Claude Code / ChatGPT / Gemini CLI: cai Node 22 o nodejs.org roi chay lai file nay.
+  echo         Muon Claude Code / ChatGPT-Codex: cai Node 22 o nodejs.org roi chay lai.
+  echo         Muon Google Antigravity: xem the Models trong app ^(khong cai bang npm^).
 ) else (
   call :cai_cli @anthropic-ai/claude-code claude "Claude Code"
   call :cai_cli @openai/codex codex "Codex - goi ChatGPT"
+  echo     - Antigravity CLI ^(agy^): khong cai o day - vao Models de lay lenh cai.
 )
 
 REM Giai phong port 7777 neu dang bi chiem
@@ -53,7 +55,9 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":7777" ^| findstr "LISTENING
 echo.
 echo  ==========================================
 echo   Javis OS dang chay tai: http://localhost:7777
-echo   (Chon bo nao o trang Models - khong bat buoc mua API key)
+echo   Buoc tiep: mo trang Models, chon 1 bo nao roi chat.
+echo   ^(Claude/Codex neu da cai; API key; hoac Antigravity `agy`^)
+echo   File nay = nhan cua 1-Cai-dat.bat. Ngay sau: 2-Bat-Javis.bat
 echo   Nhan Ctrl+C de dung.
 echo  ==========================================
 echo.

@@ -10,6 +10,7 @@
 3. **Dev:** `.venv` + `pip install -r requirements.txt` → run server (or `setup.bat` / `./install.sh`).
 4. Open **http://localhost:7777** → create admin → **Models** → pick an engine.
 5. Later: `2-Bat-Javis.bat` / `2-Bat-Javis.command` (or `start-javis.bat` / stop scripts).
+   Antigravity (`agy`) is **not** installed by `1-Cai-dat` - follow the Models card.
 
 Docker: `docker compose up -d` (image `ghcr.io/duongcanhquan/javisos`). Hostinger HTTPS: `docker-compose.hostinger.yml`. Native Linux: `./install.sh`.
 

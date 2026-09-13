@@ -312,6 +312,9 @@ fi
 
 echo ""
 ok "Javis OS is up at: http://127.0.0.1:$PORT"
+warn "install.sh bind 127.0.0.1 - KHONG mo duoc bang http://IP-VPS:$PORT tu may khac."
+warn "Muon mo cong khai: dung Docker (docker compose) / SSH tunnel / Cloudflare Tunnel."
+warn "Antigravity (agy) KHONG duoc cai o day - vao trang Models trong app de lay lenh."
 log "Remote access (SSH tunnel): ssh -L $PORT:localhost:$PORT $(whoami)@<vps-ip>"
 
 # Mật khẩu tự sinh chỉ in ra ĐÚNG chỗ này, đúng một lần. Không ghi vào log service, không in

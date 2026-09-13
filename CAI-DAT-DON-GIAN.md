@@ -2,6 +2,10 @@
 
 Chỉ làm **4 bước**. Không cần Docker, không cần Git, không cần GPU.
 
+> **Sau khi cài bạn có gì?** Dashboard web tại cổng **7777**, chat UI, Second Brain, skills/agents hệ thống.  
+> **Chưa có sẵn:** bộ não AI. Bắt buộc vào **Models** chọn Claude / ChatGPT / Antigravity / API key rồi mới chat được.  
+> **Antigravity (`agy`) không tự cài** khi chạy `1-Cai-dat` - cài tay theo thẻ Models nếu muốn dùng gói Google.
+
 ---
 
 ## Bạn dùng máy nào?
@@ -13,6 +17,16 @@ Chỉ làm **4 bước**. Không cần Docker, không cần Git, không cần GP
 | **VPS Linux** (chạy 24/7) | [VPS](#vps-linux-3-lệnh) |
 
 Chi tiết đầy đủ (Node, ffmpeg, firewall…): [CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).
+
+### Tên file cần nhớ (máy cá nhân)
+
+| Việc | Windows | Mac |
+|---|---|---|
+| Cài lần đầu | **`1-Cai-dat.bat`** (gọi nội bộ `setup.bat`) | **`1-Cai-dat.command`** |
+| Bật ngày sau | **`2-Bat-Javis.bat`** | **`2-Bat-Javis.command`** |
+| Tắt | **`3-Tat-Javis.bat`** | **`3-Tat-Javis.command`** |
+
+> Đừng lẫn với `setup.bat` / `start-javis.bat`: đó là file kỹ thuật bên trong. Người dùng cuối chỉ cần bộ **1 / 2 / 3** ở trên.
 
 ---
 
@@ -43,7 +57,7 @@ Thấy `Python 3.11…` hoặc `3.12…` là được.
 ### 4) Mở dùng
 1. Chrome / Edge → **http://localhost:7777**
 2. Tạo tài khoản admin
-3. Vào **Models** → chọn Claude / ChatGPT / API → chat thử
+3. Vào **Models** → chọn Claude / ChatGPT / Antigravity / API → chat thử
 
 **Ngày sau:** double-click `2-Bat-Javis.bat` rồi mở lại `http://localhost:7777`.
 
@@ -84,7 +98,7 @@ Safari / Chrome → **http://localhost:7777** → admin → **Models** → chat.
 
 ## VPS Linux (3 lệnh)
 
-Chỉ cần SSH vào VPS (Ubuntu khuyến nghị). Không cài Python trên máy chủ.
+**Khuyến nghị: Docker** (mở được từ IP công khai). Không cài Python trên máy chủ.
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -98,11 +112,16 @@ docker compose up -d
 Mở trình duyệt: **http://IP-VPS:7777**  
 Nhớ mở cổng **7777** trên firewall nhà cung cấp.
 
+> **Không dùng Docker?** `./install.sh` mặc định chỉ lắng nghe **`127.0.0.1`** (an toàn hơn) - mở `http://IP:7777` từ máy khác sẽ **không vào được**. Muốn vào từ xa: dùng SSH tunnel, Cloudflare Tunnel, hoặc Docker/`0.0.0.0`. Chi tiết: [DEPLOY.md](DEPLOY.md).
+
 ---
 
 ## Xong rồi làm gì?
 
-1. **Models** → chọn 1 bộ não (Claude / ChatGPT / OpenRouter…)
+1. **Models** → chọn 1 bộ não:
+   - Claude Code / ChatGPT-Codex (nếu đã có Node khi chạy `1-Cai-dat`)
+   - **Antigravity (`agy`)** - cài tay theo thẻ Models (gói Google cá nhân)
+   - OpenRouter / API key khác
 2. Chat thử một câu
 3. (Tuỳ chọn) Kết nối Gmail / Zalo sau
 
@@ -116,5 +135,7 @@ Nhớ mở cổng **7777** trên firewall nhà cung cấp.
 | Cổng 7777 bị chiếm | Chạy `3-Tat-Javis` rồi `2-Bat-Javis` |
 | Mac không mở `.command` | Chuột phải → Open |
 | VPS không vào được | Mở firewall TCP 7777; `docker compose ps` |
+| Chat lỗi dù mở được app | Chưa chọn bộ não ở **Models** |
+| Muốn Google / Antigravity | `agy` **không** nằm trong `1-Cai-dat` - cài theo thẻ Models |
 
 Hướng dẫn dài hơn: [CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md) · [HUONG-DAN-CAI-DAT-VA-SU-DUNG.md](HUONG-DAN-CAI-DAT-VA-SU-DUNG.md).

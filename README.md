@@ -115,21 +115,29 @@ Script tự cài Python + Node + hai engine CLI (Claude Code, Codex), tạo venv
 
 ### Cách 4 - Windows / Mac máy cá nhân
 
-Hướng dẫn ngắn (fork): **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)** - Windows: `1-Cai-dat.bat` → `2-Bat-Javis.bat`; Mac: `1-Cai-dat.command` → `2-Bat-Javis.command`.
+Hướng dẫn ngắn nhất: **[CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md)** · chi tiết: **[CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md)**.
+
+| Việc | Windows | Mac |
+|---|---|---|
+| Cài lần đầu | **`1-Cai-dat.bat`** | **`1-Cai-dat.command`** |
+| Bật ngày sau | **`2-Bat-Javis.bat`** | **`2-Bat-Javis.command`** |
+| Tắt | **`3-Tat-Javis.bat`** | **`3-Tat-Javis.command`** |
+
+`1-Cai-dat.bat` gọi nội bộ `setup.bat` (tạo venv, deps, best-effort Claude Code + Codex). **Antigravity (`agy`) không tự cài** - vào trang **Models** lấy lệnh nếu dùng gói Google.
 
 **Phát hành cho trường** (Windows/Mac cá nhân + VPS Linux/Windows, không chia sẻ brain): **[CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md)** · compose sẵn trong [`deploy/school/`](deploy/school/).
 
 #### Windows (chi tiết)
 
 ```
-1. Cài Python 3.12 (tick "Add to PATH") + Node.js LTS
-2. Double-click  setup.bat   (chạy hiện cửa sổ - tự cài Claude Code + Codex)
-   Lần sau muốn chạy ngầm: start-javis.vbs   (log ở server\javis.log)
-3. Mở http://localhost:7777 → trang Models, đăng nhập bộ não muốn dùng
-4. Dừng: stop-javis.bat
+1. Cài Python 3.12 (tick "Add to PATH"); khuyến nghị thêm Node.js LTS
+2. Double-click  1-Cai-dat.bat   (lần đầu - hiện cửa sổ)
+3. Mở http://localhost:7777 → Models → chọn bộ não → chat
+4. Ngày sau: 2-Bat-Javis.bat    |  Tắt: 3-Tat-Javis.bat
+   (Kỹ thuật: start-javis.vbs / stop-javis.bat vẫn dùng được)
 ```
 
-> 🪟 **Windows - mở như một app:** sau khi `setup.bat` chạy xong lần đầu, từ đó về sau chỉ cần double-click **`JAVIS OS.bat`** - server tự chạy nền (không cửa sổ đen) rồi dashboard tự mở thành **cửa sổ riêng** không thanh địa chỉ, có ô riêng trên taskbar. Tự chạy khi đăng nhập máy: `javis-autostart.bat install` (gỡ: `uninstall`).
+> 🪟 **Windows - mở như một app:** sau lần cài đầu, có thể double-click **`JAVIS OS.bat`** - server chạy nền rồi dashboard mở cửa sổ riêng. Tự chạy khi đăng nhập: `javis-autostart.bat install` (gỡ: `uninstall`).
 
 ### Nhiều bản Javis trên cùng một VPS (mỗi bản một link riêng)
 
