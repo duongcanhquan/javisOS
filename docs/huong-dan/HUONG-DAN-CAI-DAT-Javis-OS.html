@@ -454,7 +454,8 @@ docker compose up -d</pre>
 
   <ol class="steps">
     <li><strong>Tài khoản admin</strong> - đặt mật khẩu (bắt buộc trên VPS công khai).</li>
-    <li><strong>Models</strong> - chọn bộ não: Claude Code / ChatGPT / Antigravity / API key…</li>
+    <li><strong>Models</strong> - chọn bộ não: Claude Code / ChatGPT / Antigravity / API key…
+      <br><span class="note">Antigravity (<span class="mono">agy</span>) <strong>không</strong> tự cài khi chạy <span class="mono">1-Cai-dat</span> - lấy lệnh trên thẻ Models. Gemini CLI đã gỡ.</span></li>
     <li><strong>Kết nối</strong> (tuỳ chọn) - Gmail, Calendar, Zalo, Ads…</li>
     <li>Vào <strong>Chat</strong> - hỏi thử một câu.</li>
   </ol>
@@ -467,6 +468,8 @@ docker compose up -d</pre>
       <tr><td><span class="mono">python</span> / Python not found</td><td>Cài Python 3.11+, tick Add to PATH, mở lại cmd, chạy lại <span class="mono">1-Cai-dat</span></td></tr>
       <tr><td>Docker Desktop đỏ / WSL lỗi</td><td>Bật Virtualization trong BIOS; cài/repair WSL2; mở Docker đợi xanh rồi mới <span class="mono">compose up</span></td></tr>
       <tr><td>Cổng 7777 bị chiếm</td><td>Tắt bản cũ (<span class="mono">3-Tat-Javis</span>) rồi bật lại</td></tr>
+      <tr><td>Chat lỗi dù mở được app</td><td>Vào <strong>Models</strong> chọn bộ não. <span class="mono">agy</span> (Antigravity) phải cài tay theo thẻ - không nằm trong <span class="mono">1-Cai-dat</span></td></tr>
+      <tr><td>VPS native không vào bằng IP</td><td><span class="mono">install.sh</span> mặc định chỉ <span class="mono">127.0.0.1</span> - dùng Docker / SSH tunnel / Cloudflare Tunnel</td></tr>
       <tr><td>macOS không mở .command</td><td>Chuột phải → Open; hoặc Privacy → Vẫn mở</td></tr>
       <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall/security group mở 7777; <span class="mono">docker compose ps</span></td></tr>
       <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost (không dùng http://IP)</td></tr>

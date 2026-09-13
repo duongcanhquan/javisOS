@@ -76,7 +76,7 @@ Chọn **một** trong các cách dễ:
 
 | Cách | Ai hợp | Việc cần làm |
 |---|---|---|
-| **Antigravity CLI** | Có gói Google / Antigravity | Cài `agy` theo hướng dẫn trên thẻ, đăng nhập 1 lần |
+| **Antigravity CLI** | Có gói Google / Antigravity | **Không** nằm trong `1-Cai-dat` - cài `agy` theo thẻ Models, đăng nhập 1 lần |
 | **Claude Code** | Có Claude Pro/Max | Đăng nhập trên thẻ Claude |
 | **OpenRouter** | Muốn nhanh, chỉ dán key | Tạo key tại openrouter.ai → dán vào |
 | **Ollama (Local)** | Máy đủ RAM, muốn offline | Cài Ollama → Models → Local - **không luôn nhanh hơn cloud** (xem [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md#4-ollama-trên-máy-local---tiện-không-nhanh-hơn-không)) |
@@ -103,6 +103,7 @@ Hướng dẫn local đầy đủ (cấu hình máy, Windows/Mac, Ollama): **[HU
 | Mở được app nhưng chat lỗi | Vào **Models**, kiểm tra đã đăng nhập / dán key chưa |
 | Mac không chạy được `.command` | Chuột phải → Open; hoặc trong Terminal: `chmod +x *.command` rồi double-click lại |
 | Muốn cập nhật bản mới | Tải ZIP mới từ GitHub, giải nén đè thư mục cũ (hoặc folder mới), chạy lại `1-Cai-dat` |
+| Muốn dùng Google / Antigravity | `agy` không tự cài - vào **Models** lấy lệnh cài + đăng nhập |
 
 ---
 

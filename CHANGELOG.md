@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.205] - 2026-09-13
+### Cải tiến
+- **Cài đặt rõ ràng hơn:** thống nhất đường `1-Cai-dat` / `2-Bat-Javis` / `3-Tat-Javis`; bỏ nhắc Gemini CLI; nói thẳng Antigravity (`agy`) phải cài tay từ Models; cảnh báo `install.sh` chỉ bind localhost (khác Docker).
+
 ## [0.55.204] - 2026-09-12
 ### Cải tiến
 - **Tín hiệu thiên hà mờ hơn, vẫn chuyển động:** bỏ ribbon sóng não; vòng radar và tia ping dịu mắt nhưng vẫn lan/bắn rõ.

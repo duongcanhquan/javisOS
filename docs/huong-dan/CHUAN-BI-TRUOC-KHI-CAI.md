@@ -15,7 +15,10 @@ Bản HTML có hình: [HUONG-DAN-CAI-DAT-Javis-OS.html](HUONG-DAN-CAI-DAT-Javis-
 | **VPS Linux** | SSH được, Docker Engine + Compose, mở cổng 22 + 7777 | `apt update && upgrade`, ufw / security group | Domain / tunnel HTTPS (cho mic) |
 | **VPS Windows** | RDP/SSH được; Docker Desktop *hoặc* Python+Node; Firewall TCP 7777 | WSL2 (Docker), bật Virtualization trong BIOS | Tunnel HTTPS, domain |
 
-**Không cần GPU** để cài và chat qua Claude / ChatGPT / OpenRouter.
+**Không cần GPU** để cài và chat qua Claude / ChatGPT / OpenRouter / Antigravity.
+
+> Sau `1-Cai-dat` / Docker bạn có **dashboard**, chưa có bộ não. Vào **Models** chọn Claude / ChatGPT / Antigravity / API.  
+> **Antigravity (`agy`) không tự cài** trong bộ `1-Cai-dat` hay `install.sh` - lấy lệnh trên thẻ Models. Gemini CLI đã gỡ.
 
 ---
 

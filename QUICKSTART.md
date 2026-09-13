@@ -28,16 +28,19 @@ docker compose -f docker-compose.yml up -d
 ```
 Mở http://localhost:7777. Muốn HTTPS qua Caddy: thêm `-f docker-compose.https.yml`.
 
-## Cách 3 - Chạy trực tiếp (Windows, không Docker)
+## Cách 3 - Chạy trực tiếp (Windows / Mac, không Docker)
 
-1. Cài Python 3.12 + Node 22.
-2. Trong thư mục dự án: `setup.bat` một lần - tạo .venv, cài deps, và cài sẵn hai engine CLI (Claude Code, Codex).
-3. `start-javis.bat` để chạy nền (tắt: `stop-javis.bat`).
-4. Mở http://localhost:7777.
+1. Cài Python 3.12 (tick PATH). Khuyến nghị thêm Node 22 nếu muốn Claude Code / Codex.
+2. **Windows:** double-click `1-Cai-dat.bat` một lần (gọi `setup.bat` bên trong).  
+   **Mac:** chuột phải `1-Cai-dat.command` → Open.
+3. Ngày sau: `2-Bat-Javis.bat` / `2-Bat-Javis.command` (tắt: `3-Tat-Javis.*`).
+4. Mở http://localhost:7777 → **Models** → chọn bộ não → chat.
+
+> Antigravity CLI (`agy`) **không** được `1-Cai-dat` cài giúp - vào thẻ Models lấy lệnh nếu dùng gói Google cá nhân. Gemini CLI đã gỡ; đừng tìm đường đó nữa.
 
 ## Sau khi chạy
 
-- **Chọn engine/model**: trang **Models** (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Google Gemini, Anthropic API, Groq, DeepSeek, Ollama).
+- **Chọn engine/model**: trang **Models** (Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Google Gemini API, Anthropic API, Groq, DeepSeek, Ollama).
 - **Đấu kết nối** (POS, quảng cáo, lịch, Zalo...) để báo cáo số liệu thật: trang **Kết nối** - xem [docs/09](docs/09-mcp-va-so-lieu.md).
 - **Sao lưu brain lên GitHub** để không mất dữ liệu: trang **Tự học** - xem [docs/18](docs/18-sao-luu-github.md).
 - **Theo dõi token đã dùng**: trang **Mức dùng** - xem [docs/23](docs/23-muc-dung-token.md).

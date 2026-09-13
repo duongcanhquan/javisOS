@@ -30,8 +30,10 @@ if command -v npm >/dev/null 2>&1; then
   echo "[3/3] Kiem tra Claude Code / Codex (neu can)..."
   command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || true
   command -v codex >/dev/null 2>&1 || npm install -g @openai/codex >/dev/null 2>&1 || true
+  echo "     Antigravity (agy): KHONG cai o day - vao Models trong app de lay lenh."
 else
-  echo "[3/3] Chua co Node.js - bo qua CLI. Van chat duoc bang API key o trang Models."
+  echo "[3/3] Chua co Node.js - bo qua Claude/Codex. Van chat bang API key o Models."
+  echo "     Antigravity (agy) cung cai tay tu trang Models (khong qua npm)."
 fi
 
 [ -f .env ] || { cp env.example .env 2>/dev/null || true; }
@@ -45,6 +47,8 @@ fi
 
 echo
 echo "Javis dang chay tai: http://localhost:7777"
+echo "Buoc tiep: Models -> chon 1 bo nao -> chat."
+echo "Ngay sau: double-click 2-Bat-Javis.command"
 echo "Nhan Ctrl+C de dung."
 echo
 (sleep 3 && open "http://localhost:7777") &
