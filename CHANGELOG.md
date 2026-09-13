@@ -1,5 +1,20 @@
 # Nhật ký cập nhật
 
+## [0.55.206] - 2026-09-13
+### Sửa lỗi
+- **Mở landing/HTML trên Javis có nút Về Javis.** Bấm link `index.html` (skill landing-page) trước đây mở mã nguồn, muốn xem trang thì "Mở tab mới" — trên PWA/iPhone cửa sổ app bị thay bằng trang thuần, không nút đóng. Nay xem trang trong iframe, thanh Javis luôn còn; tab mới đi qua `/files/html-view`. File xuất không bị chèn UI.
+- **Cài gói không còn văng `Unexpected token '<'` khi máy chủ trả HTML 502/504.** Kho gói đọc body rồi mới parse JSON; lỗi nói tiếng Việt.
+- **Ảnh và file đính kèm không còn rơi mất khi bấm Enter sớm.** Dán ảnh rồi Enter ngay khi file còn đang tải: trước đây tin bay đi tay không. Nay chờ upload xong rồi mới gửi; file hỏng thì nói thẳng. Mở lại hội thoại cũ vẫn thấy ảnh/file đã gửi.
+- **Xem ảnh trên điện thoại giờ thoát ra được.** Nút X lùi xuống dưới thanh trạng thái (tai thỏ / notch). Vuốt cạnh hoặc bấm Back đóng ảnh, không văng khỏi Javis.
+- **Bản tin Telegram không còn dính câu trạng thái tiếng Anh ở đầu** khi dùng Antigravity.
+
+### Thêm mới
+- **Javis học được từ việc nền**, không chỉ từ chat. Việc Kanban xong hoặc bị chặn được xếp vào cùng hàng đợi học; việc do chính vòng học đẻ ra thì không quay lại tự khuếch đại.
+- **Javis sửa được skill cũ tại chỗ** (`op=update`): giữ tên/nhóm/tuỳ chỉnh của bạn, bắt buộc nêu lý do.
+
+### Cải thiện
+- **Bộ nhớ dài hạn tự dọn thông tin đã hết hạn** khỏi `MEMORY.md` (fact đã bị thay thế, dòng trỏ file đã xoá). File ký ức không bị xoá.
+
 ## [0.55.205] - 2026-09-13
 ### Cải tiến
 - **Cài đặt rõ ràng hơn:** thống nhất đường `1-Cai-dat` / `2-Bat-Javis` / `3-Tat-Javis`; bỏ nhắc Gemini CLI; nói thẳng Antigravity (`agy`) phải cài tay từ Models; cảnh báo `install.sh` chỉ bind localhost (khác Docker).

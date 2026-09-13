@@ -29,7 +29,7 @@ import fastyaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form, Request, Body, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse
 # edge_tts CỐ TÌNH không import ở đây mà nạp lười trong _tts_edge và /tts/voices.
 # Nó chiếm 944ms trong 2.263ms nạp main (41%), và kéo theo cả chuỗi aiohttp 212ms vào
 # đường khởi động, trong khi TTS là tính năng TUỲ CHỌN mà đa số phiên không đụng tới.
@@ -6620,9 +6620,14 @@ async def files_zip(brain: str = Query("brain"), path: str = Query(""), probe: i
     return await zip_dir_response(brain, path, probe=bool(probe))
 
 
-def raw_file_response(brain: str, path: str, dl: bool = False):
+def raw_file_response(brain: str, path: str, dl: bool = False,
+                      dest: str = "", plain: bool = False):
     """Lõi thuần của /files/raw (route handler KHÔNG được gọi nhau như hàm thường, xem
-    test_handler_khong_goi_truc_tiep). Trả file inline, hoặc ép tải khi dl=True."""
+    test_handler_khong_goi_truc_tiep). Trả file inline, hoặc ép tải khi dl=True.
+
+    dest=document (tab/cửa sổ thật) + file HTML: chuyển sang /files/html-view để còn
+    nút Về Javis. dest=iframe (xem trong trình sửa) và plain=1 (xem trang thuần) giữ raw.
+    Không chèn chrome vào file xuất — chỉ đổi chỗ mở."""
     try:
         f = _safe_serve_path(brain, path)
     except ValueError as e:
@@ -6631,6 +6636,16 @@ def raw_file_response(brain: str, path: str, dl: bool = False):
         return JSONResponse({"error": "Không tìm thấy file"}, status_code=404)
     if dl:
         return FileResponse(str(f), filename=f.name)   # ép tải (giữ tên, kể cả tên tiếng Việt)
+    if (
+        not plain
+        and str(dest).lower() == "document"
+        and f.suffix.lower() in (".html", ".htm")
+        and ":" not in str(brain)
+        and "\\" not in str(brain)
+        and not str(brain).startswith("/")
+    ):
+        q = f"brain={urlquote(str(brain), safe='')}&path={urlquote(path, safe='')}"
+        return RedirectResponse(url=f"/files/html-view?{q}", status_code=302)
     mt, _ = mimetypes.guess_type(f.name)
     resp = FileResponse(str(f), media_type=mt or "application/octet-stream")
     resp.headers["Content-Disposition"] = "inline"      # hiển thị trong trình duyệt, không ép tải
@@ -6638,16 +6653,65 @@ def raw_file_response(brain: str, path: str, dl: bool = False):
     return resp
 
 
+def html_view_response(brain: str, path: str):
+    """Khung Javis bọc một file HTML: thanh Về Javis + iframe raw. Không sửa file xuất."""
+    import html as _html
+    try:
+        f = _safe_serve_path(brain, path)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    if not f.is_file():
+        return JSONResponse({"error": "Không tìm thấy file"}, status_code=404)
+    if f.suffix.lower() not in (".html", ".htm"):
+        return JSONResponse({"error": "Chỉ xem được file HTML"}, status_code=400)
+    ten = _html.escape(f.name)
+    raw = f"/files/raw?brain={urlquote(str(brain), safe='')}&path={urlquote(path, safe='')}&plain=1"
+    page = (
+        "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">"
+        f"<title>{ten} · Javis</title><style>"
+        "html,body{margin:0;height:100%;background:#0b0f14;color:#e8eef5;"
+        "font:14px/1.4 system-ui,sans-serif}"
+        "body{display:flex;flex-direction:column;min-height:100dvh}"
+        ".bar{flex:none;display:flex;align-items:center;gap:12px;padding:8px 14px;"
+        "padding-top:max(8px,env(safe-area-inset-top));background:#111827;"
+        "border-bottom:1px solid #243044}"
+        ".bar a{color:#7dd3fc;text-decoration:none;font-weight:600}"
+        ".bar a:hover{text-decoration:underline}"
+        ".name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;"
+        "white-space:nowrap;color:#9ca3af}"
+        "iframe{flex:1;border:0;width:100%;background:#fff;min-height:0}"
+        "</style></head><body>"
+        f"<div class=\"bar\"><a href=\"/\">← Về Javis</a>"
+        f"<span class=\"name\">{ten}</span>"
+        f"<a href=\"{_html.escape(raw)}\" target=\"_blank\" rel=\"noopener\">Trang thuần</a></div>"
+        f"<iframe src=\"{_html.escape(raw)}\" title=\"{ten}\"></iframe>"
+        "</body></html>"
+    )
+    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/files/html-view")
+async def files_html_view(brain: str = Query("brain"), path: str = Query(...)):
+    """Xem landing/HTML trong khung Javis (nút Về Javis). File xuất không bị sửa."""
+    return html_view_response(brain, path)
+
+
 @app.get("/files/raw")
-async def files_raw(brain: str = Query("brain"), path: str = Query(...), dl: int = Query(0)):
+async def files_raw(request: Request, brain: str = Query("brain"), path: str = Query(...),
+                   dl: int = Query(0), plain: int = Query(0)):
     """Phục vụ file THÔ để XEM INLINE trong trình duyệt: ảnh hiện trong <img>, pdf mở thẳng trên
     tab, mọi file khác có URL tĩnh để mở/tải. Khác /files/download (luôn ép tải về): mặc định
-    inline; truyền dl=1 để ép tải. Cùng rào chống traversal (_safe_serve_path)."""
-    return raw_file_response(brain, path, dl=bool(dl))
+    inline; truyền dl=1 để ép tải. Cùng rào chống traversal (_safe_serve_path).
+    HTML mở thành tab thật thì sang /files/html-view (còn nút Về Javis); iframe vẫn raw."""
+    dest = request.headers.get("sec-fetch-dest", "")
+    return raw_file_response(brain, path, dl=bool(dl), dest=dest, plain=bool(plain))
 
 
 @app.get("/brains/{brain_name}/{path:path}")
-async def brain_file_compat(brain_name: str, path: str, dl: int = Query(0)):
+async def brain_file_compat(brain_name: str, path: str,
+                           dl: int = Query(0), plain: int = Query(0),
+                           request: Request = None):
     """Tương thích link file cũ do chat/AI đã xuất dạng ``/brains/<tên>/<path>``.
 
     Route chuẩn vẫn là /files/raw. Link cũ đã nằm trong lịch sử chat hoặc đã được copy ra ngoài
@@ -6662,7 +6726,15 @@ async def brain_file_compat(brain_name: str, path: str, dl: int = Query(0)):
     root = (base / safe_name).resolve()
     if root.parent != base or not root.is_dir():
         return JSONResponse({"error": "Không tìm thấy brain"}, status_code=404)
-    return raw_file_response(str(root), path, dl=bool(dl))
+    dest = request.headers.get("sec-fetch-dest", "") if request is not None else ""
+    if (
+        not dl and not plain
+        and str(dest).lower() == "document"
+        and Path(path).suffix.lower() in (".html", ".htm")
+    ):
+        q = f"brain={urlquote(safe_name, safe='')}&path={urlquote(path, safe='')}"
+        return RedirectResponse(url=f"/files/html-view?{q}", status_code=302)
+    return raw_file_response(str(root), path, dl=bool(dl), dest="", plain=bool(plain))
 
 
 # ============================================================
@@ -9605,6 +9677,11 @@ tasks_feature = tasks_mod.register(app, tasks_mod.TasksDeps(
 # Nối learn → Kanban: engine học đề xuất việc nền → enqueue vào backlog.
 # Gate ở learn.py (cap "task" mặc định off + chỉ enqueue khi allow_write); dedup ở tasks.enqueue.
 learn_feature.deps.enqueue_task = tasks_feature.enqueue
+
+# Nối ngược Kanban → learn: việc nền chạy xong (hoặc vướng) thì xếp vào hàng đợi tự học.
+# Không có nhánh này thì Javis chỉ học được từ những gì NÓI trong chat, còn những gì nó TỰ LÀM
+# trong nền - phần kinh nghiệm thực chiến - trôi qua không để lại bài học nào.
+tasks_feature.deps.learn_hook = learn_feature.enqueue_job
 
 
 # ============================================================

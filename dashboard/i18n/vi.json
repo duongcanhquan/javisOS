@@ -660,6 +660,8 @@
   "studio.group_ph": "Ví dụ: Marketing",
   "studio.sk_desc": "Mô tả (description - quyết định khi nào skill kích hoạt)",
   "studio.sk_body": "Nội dung (SKILL.md - hướng dẫn cho AI)",
+  "app.att_wait_send": "Chờ file đính kèm tải lên xong rồi gửi...",
+  "app.att_failed_send": "Có file chưa tải lên được. Gỡ file lỗi (nút X) hoặc đính lại rồi gửi.",
   "chat.att_zoom": "Bấm để xem phóng to",
   "chat.att_gone": "không còn xem lại được",
   "chat.att_gone_hint": "File tạm đã được dọn sau vài ngày. Lúc gửi thì Javis vẫn đọc được ảnh, chỉ là ảnh không lưu lại lâu dài.",

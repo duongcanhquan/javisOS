@@ -20,7 +20,7 @@ Trong câu trả lời cuối, nhúng:
 [Tải zip](exports/landing/<slug>/landing-<slug>.zip)
 ```
 
-Dashboard phục vụ qua `/files/raw`. Trình sửa file mở HTML trong iframe.
+Dashboard phục vụ qua `/files/raw` (iframe) và `/files/html-view` (tab, có nút Về Javis). Trình sửa mở HTML ở chế độ xem trang, không phải mã nguồn.
 
 ### 2. Chat preview
 

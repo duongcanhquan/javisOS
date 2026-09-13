@@ -47,6 +47,19 @@
   function rawUrl(b, ceilRel, dl) {
     return "/files/raw?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceilRel) + (dl ? "&dl=1" : "");
   }
+  function htmlViewUrl(b, ceilRel) {
+    return "/files/html-view?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceilRel);
+  }
+  function laHtml(p) {
+    var e = extOf(p);
+    return e === ".html" || e === ".htm";
+  }
+  function laPwa() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+        || window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
 
   // ---------------------------------------------------------------- CSS (chen 1 lan)
   function injectCss() {
@@ -90,7 +103,11 @@
       ".jvfe-note a{color:var(--accent)}" +
       ".jvfe-img{padding:16px;text-align:center;overflow:auto}" +
       ".jvfe-img img{max-width:100%;height:auto;border-radius:8px}" +
-      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff}";
+      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff}" +
+      ".jvfe-modal.jvfe-html .jvfe-card{width:min(1100px,98vw);max-height:96vh}" +
+      ".jvfe-modal.jvfe-html .jvfe-frame{height:calc(96vh - 58px)}" +
+      ".jvfe-btn.jvfe-back{font-weight:600;color:var(--accent);border-color:var(--accent);order:99}" +
+      "@media(max-width:700px){.jvfe-actions .jvfe-back{order:99}}";
     document.head.appendChild(s);
   }
 
@@ -125,12 +142,15 @@
   function close() {
     if (!modal) return;
     modal.classList.remove("open");
+    modal.classList.remove("jvfe-html");
     elBody.innerHTML = ""; elActions.innerHTML = ""; curSave = null;   // don iframe/textarea
     document.body.classList.remove("jvfe-open");
   }
-  function closeBtn() {
+  function closeBtn(veJavis) {
     var b = document.createElement("button");
-    b.className = "jvfe-btn icon"; b.innerHTML = ic("x"); b.title = "Đóng (Esc)";
+    b.className = veJavis ? "jvfe-btn jvfe-back" : "jvfe-btn icon";
+    b.innerHTML = veJavis ? "← Về Javis" : ic("x");
+    b.title = veJavis ? "Đóng và về Javis (Esc)" : "Đóng (Esc)";
     b.onclick = close; return b;
   }
 
@@ -143,6 +163,7 @@
     elActions.innerHTML = ""; elBody.innerHTML = '<div class="jvfe-note">Đang mở…</div>';
     curSave = null;
     modal.classList.add("open");
+    modal.classList.remove("jvfe-html");
     document.body.classList.add("jvfe-open");
 
     var ext = extOf(brainRel);
@@ -151,6 +172,7 @@
       // Anh / PDF: xem truoc thang qua /files/raw (khong doc dang text).
       if (IMG.indexOf(ext) >= 0) { renderImage(b, ceil, brainRel); return; }
       if (ext === ".pdf") { renderPdf(b, ceil, brainRel); return; }
+      if (laHtml(brainRel)) { renderHtml(b, ceil, brainRel); return; }
       // Con lai: doc noi dung.
       fetch("/files/read?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceil))
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
@@ -193,16 +215,80 @@
   // phai co san ngay tren thanh nay. Trinh sua dinh (console.js) da co doi nut nay tu truoc.
   function openLink(b, ceil) {
     var a = document.createElement("a");
-    a.href = rawUrl(b, ceil); a.target = "_blank"; a.rel = "noopener"; a.title = "Mở tab mới";
+    var html = laHtml(ceil);
+    a.href = html ? htmlViewUrl(b, ceil) : rawUrl(b, ceil);
+    a.target = "_blank"; a.rel = "noopener"; a.title = "Mở tab mới";
     a.innerHTML = '<button class="jvfe-btn icon" type="button">↗</button>';
+    if (html) {
+      a.addEventListener("click", function (e) {
+        if (laPwa()) e.preventDefault();
+      });
+    }
     return a;
   }
 
+  // .html: xem TRANG trong iframe (thanh Javis con nut Dong). Khong mo raw full-page
+  // trong PWA - window.open thuong thay chinh cua so app, khong co nut ve.
+  function renderHtml(b, ceil, brainRel) {
+    modal.classList.add("jvfe-html");
+    elBody.innerHTML =
+      '<iframe class="jvfe-frame" src="' + esc(rawUrl(b, ceil)) + '" title="' + esc(baseOf(brainRel)) + '"></iframe>' +
+      '<textarea class="jvfe-text" spellcheck="false" hidden></textarea>';
+    var frame = elBody.querySelector(".jvfe-frame");
+    var ta = elBody.querySelector(".jvfe-text");
+    var loaded = false;
+    function loadSrc(cb) {
+      if (loaded) { if (cb) cb(); return; }
+      fetch("/files/read?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceil))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!isOpen()) return;
+          ta.value = (d && d.content) || "";
+          loaded = true;
+          try {
+            var lang = window.JavisCodeHL ? window.JavisCodeHL.langFromPath(ceil) : "";
+            if (lang) window.JavisCodeHL.attach(ta, lang);
+          } catch (e) {}
+          if (cb) cb();
+        })
+        .catch(function () { if (cb) cb(); });
+    }
+    var seg = document.createElement("span");
+    seg.className = "jvfe-seg";
+    var bXem = document.createElement("button");
+    bXem.className = "jvfe-btn active"; bXem.textContent = "Xem trang";
+    var bSua = document.createElement("button");
+    bSua.className = "jvfe-btn"; bSua.textContent = "Sửa mã";
+    bXem.onclick = function () {
+      frame.hidden = false; ta.hidden = true;
+      bXem.classList.add("active"); bSua.classList.remove("active");
+      frame.src = rawUrl(b, ceil) + "&_=" + Date.now();
+    };
+    bSua.onclick = function () {
+      loadSrc(function () {
+        if (!isOpen()) return;
+        frame.hidden = true; ta.hidden = false;
+        bSua.classList.add("active"); bXem.classList.remove("active");
+        try { ta.focus(); } catch (e) {}
+      });
+    };
+    elActions.appendChild(seg);
+    seg.appendChild(bXem); seg.appendChild(bSua);
+    appendSaveAndClose(b, ceil, function () { return ta.value; }, true, function () { return loaded; });
+    loadSrc();
+  }
+
   // Nut Luu (dung getContent de lay noi dung THAT theo che do dang mo) + Tai + Dong.
-  function appendSaveAndClose(b, ceil, getContent) {
+  // ready(): HTML xem trang tai ma nguon xong moi cho luu — bam Luu som se ghi de file thanh rong.
+  function appendSaveAndClose(b, ceil, getContent, veJavis, ready) {
     var save = document.createElement("button");
     save.className = "jvfe-btn"; save.innerHTML = ic("save") + " Lưu"; save.title = "Lưu (Ctrl+S)";
     curSave = function () {
+      if (typeof ready === "function" && !ready()) {
+        save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Đang tải";
+        setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1200);
+        return;
+      }
       var fd = new FormData();
       fd.append("brain", b); fd.append("path", ceil); fd.append("content", getContent());
       save.textContent = "…"; save.disabled = true;
@@ -221,7 +307,7 @@
     elActions.appendChild(save);
     elActions.appendChild(openLink(b, ceil));
     elActions.appendChild(dlLink(b, ceil));
-    elActions.appendChild(closeBtn());
+    elActions.appendChild(closeBtn(!!veJavis));
   }
 
   function renderEditor(b, ceil, brainRel, d) {

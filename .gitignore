@@ -158,3 +158,6 @@ deploy/pixelle/config.yaml
 server/rclone.conf
 **/rclone.conf
 bin/rclone
+
+# Script tạm lúc debug trên máy (không ship)
+scripts/_tmp_*

@@ -57,6 +57,10 @@ check("CANARY: về trang Tệp tin chỉ là ĐƯỜNG LUI cuối cùng, không
       than.lastIndexOf("openFilesAt") > than.lastIndexOf("JavisEditFile"));
 check(".html nằm trong danh sách sửa được của trình sửa cây",
       /VT_TEXT_EXTS = \[[^\]]*"\.html"/.test(CONSOLE));
+check(".html mở ra XEM TRANG (iframe) chứ không chỉ mã nguồn",
+      /function _neRenderHtmlPage/.test(CONSOLE) && /mode-preview/.test(CONSOLE));
+check("HTML có lối về Javis trên thanh trình sửa",
+      /Về Javis/.test(CONSOLE));
 
 // ============================================================
 // 3. Chữ trên link phải đúng việc cú bấm đó LÀM

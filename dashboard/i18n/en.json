@@ -660,6 +660,8 @@
   "studio.group_ph": "e.g. Marketing",
   "studio.sk_desc": "Description (decides when the skill triggers)",
   "studio.sk_body": "Content (SKILL.md - instructions for the AI)",
+  "app.att_wait_send": "Waiting for the attachment to finish uploading, then sending...",
+  "app.att_failed_send": "A file failed to upload. Remove it (the X button) or attach it again, then send.",
   "chat.att_zoom": "Click to enlarge",
   "chat.att_gone": "no longer viewable",
   "chat.att_gone_hint": "The temporary file was cleaned up after a few days. Javis did read the image when you sent it; it just is not kept long term.",

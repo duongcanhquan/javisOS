@@ -82,7 +82,14 @@ function nap(traLoi) {
   const fetchGia = (url, opt) => {
     const body = JSON.parse((opt && opt.body) || "{}");
     goi.push({ url, body });
-    return Promise.resolve({ json: () => Promise.resolve(traLoi(url, body)) });
+    const payload = traLoi(url, body);
+    const txt = JSON.stringify(payload == null ? {} : payload);
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(txt),
+      json: () => Promise.resolve(payload),
+    });
   };
   const alpineCu = globalThis.Alpine;
   globalThis.Alpine = win.Alpine;

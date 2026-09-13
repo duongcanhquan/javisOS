@@ -47,7 +47,25 @@
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(obj || {})
       });
-      return await r.json();
+      let txt = "";
+      if (typeof r.text === "function") txt = await r.text();
+      else if (typeof r.json === "function") return await r.json();
+      let d = null;
+      try { d = txt ? JSON.parse(txt) : {}; }
+      catch (e) {
+        // Nginx/Cloudflare hay trả HTML (502/504) khi upstream restart — .json() sẽ ra
+        // SyntaxError "Unexpected token '<'" khó hiểu. Đổi thành câu tiếng Việt.
+        const html = /^\s*</.test(txt || "");
+        const msg = html
+          ? ("Máy chủ tạm ngắt (HTTP " + r.status + "). Thử cài lại sau vài giây.")
+          : ("Phản hồi không phải JSON (HTTP " + r.status + ").");
+        return { ok: false, error: msg, status: r.status };
+      }
+      if (d && typeof d === "object" && d.ok === undefined && !r.ok) {
+        d.ok = false;
+        if (!d.error) d.error = "HTTP " + r.status;
+      }
+      return d || { ok: false, error: "Phản hồi trống" };
     } catch (e) { return { ok: false, error: String(e) }; }
   }
 

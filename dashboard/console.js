@@ -6802,6 +6802,32 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   let _neDangDiLichSu = false; // cờ: lần openNote này là do bấm Lùi/Tiến, đừng ghi thêm vệt
   const NE_LICH_SU_MAX = 50;   // vệt là để quay lại chỗ vừa đọc, không phải nhật ký cả phiên
   const _vtRaw = (rel, dl) => `/files/raw?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}${dl ? "&dl=1" : ""}`;
+  // Landing / trang HTML: xem trong khung Javis (có nút đóng). Tab mới đi qua
+  // /files/html-view chứ không phải /files/raw — raw là trang thuần, không có chrome,
+  // và trên PWA/iOS standalone window.open thường thay chính cửa sổ app.
+  const _laHtml = (rel) => {
+    const n = String(rel || "").split("/").pop().split("?")[0].toLowerCase();
+    return n.endsWith(".html") || n.endsWith(".htm");
+  };
+  const _laPwa = () => {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+        || window.navigator.standalone === true;
+    } catch (e) { return false; }
+  };
+  const _vtHtmlView = (rel) => `/files/html-view?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}`;
+  const _moFileNgoai = (rel) => {
+    if (_laHtml(rel)) {
+      if (_laPwa()) {
+        const ed = document.getElementById("noteEditor");
+        if (ed) { ed.classList.add("ne-full"); _neSyncFull(); }
+        return;
+      }
+      window.open(_vtHtmlView(rel), "_blank");
+      return;
+    }
+    window.open(_vtRaw(rel), "_blank");
+  };
   const _vtNoAccent = (s) => (s || "").toString().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "d").toLowerCase();
 
   async function _vtList(path) {
@@ -7217,10 +7243,77 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const ed = document.getElementById("noteEditor");
     actions.appendChild(mk(ic("pencil"), "Đổi tên file", () => _neRenameCur(rel, it)));
     actions.appendChild(mk(ic("trash-2"), "Xoá file", () => _neDeleteCur(rel, it)));
-    actions.appendChild(mk("↗", "Mở tab mới", () => window.open(_vtRaw(rel), "_blank")));
+    actions.appendChild(mk("↗", "Mở tab mới", () => _moFileNgoai(rel)));
     actions.appendChild(mk("⤓ Tải", "Tải file về máy", () => _dlFile(rel)));
     actions.appendChild(mk(ic("maximize"), "Phóng to / thu nhỏ", () => { ed.classList.toggle("ne-full"); _neSyncFull(); }));
-    actions.appendChild(mk(X_ICON, "Đóng (Esc)", closeNote));
+    const dong = mk(X_ICON, "Đóng (Esc)", closeNote);
+    if (_laHtml(rel)) {
+      dong.className = (dong.className ? dong.className + " " : "") + "ne-back";
+      dong.innerHTML = "← Về Javis";
+      dong.title = "Đóng và về Javis (Esc)";
+    }
+    actions.appendChild(dong);
+  }
+  // .html/.htm: mặc định XEM TRANG (iframe /files/raw) chứ không phải mã nguồn.
+  // Skill landing-page giao [Mở landing](...) — người dùng muốn thấy trang chạy,
+  // rồi mới sửa mã. Thanh Javis luôn còn, nút Về Javis/Esc không bị landing che.
+  function _neRenderHtmlPage(body, actions, rel, it, content) {
+    body.className = "ne-body ne-html mode-preview";
+    body.innerHTML = `<iframe class="ne-frame" src="${_vtRaw(rel)}" title="${esc(it.name || "landing")}"></iframe>`
+      + `<div class="ne-src"><textarea id="neText" spellcheck="false"></textarea></div>`;
+    const frame = body.querySelector("iframe.ne-frame");
+    const ta = body.querySelector("#neText");
+    ta.value = content || "";
+    try {
+      const hlLang = window.JavisCodeHL ? window.JavisCodeHL.langFromPath(rel) : "";
+      if (hlLang) window.JavisCodeHL.attach(ta, hlLang);
+    } catch (e) {}
+    const napLai = () => { if (frame) frame.src = _vtRaw(rel) + "&_=" + Date.now(); };
+    let curMode = "preview";
+    const seg = document.createElement("span"); seg.className = "ne-seg";
+    [["Xem trang", "preview"], ["Sửa mã", "source"]].forEach(([lbl, mode]) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = lbl;
+      b.classList.toggle("active", mode === curMode);
+      b.onclick = async () => {
+        if (mode === curMode) return;
+        if (mode === "preview" && _neCoSuaChua()) {
+          if ((await _neSaveFn()) === false) return;
+        }
+        curMode = mode;
+        body.className = "ne-body ne-html mode-" + mode;
+        seg.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        if (mode === "preview") napLai();
+        else { try { ta.focus(); } catch (e) {} }
+      };
+      seg.appendChild(b);
+    });
+    actions.appendChild(seg);
+    const saveBtn = document.createElement("button");
+    saveBtn.innerHTML = SAVE_ICON + " Lưu"; saveBtn.title = "Lưu (Ctrl+S)";
+    _neLayNoiDung = () => ta.value;
+    try { _neGocText = ta.value; } catch (e) { _neGocText = null; }
+    _neSaveFn = async () => {
+      const text = _neLayNoiDung();
+      const fd = new FormData(); fd.append("brain", fbrain()); fd.append("path", rel); fd.append("content", text);
+      try {
+        const r = await (await fetch("/files/write", { method: "POST", body: fd })).json();
+        if (r.ok) {
+          saveBtn.innerHTML = CHECK_ICON + " Đã lưu"; saveBtn.classList.add("ne-saved");
+          setTimeout(() => { saveBtn.innerHTML = SAVE_ICON + " Lưu"; saveBtn.classList.remove("ne-saved"); }, 1400);
+          _neGocText = text;
+          if (curMode === "preview") napLai();
+          return true;
+        }
+        saveBtn.innerHTML = WARN_ICON + " Lỗi";
+      } catch (e) { saveBtn.innerHTML = WARN_ICON + " Lỗi"; }
+      return false;
+    };
+    saveBtn.onclick = _neSaveFn;
+    actions.appendChild(saveBtn);
+    _neCommonBtns(actions, rel, it);
+    _vtMarkActive(null);
   }
   function _neRenderDownload(body, actions, rel, it) {
     body.className = "ne-body";
@@ -7523,6 +7616,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       // nên chỉ cần gọi set() ở đây, không phải dọn ghim cũ. Đóng trình sửa KHÔNG bỏ ghim:
       // đóng ra để quay sang chat về chính file đó là luồng thường gặp nhất.
       try { if (window.JavisPin && d.abs) window.JavisPin.set({ name: d.name || it.name || rel, rel, abs: d.abs }); } catch (e) {}
+      if (ext === ".html" || ext === ".htm") {
+        _neRenderHtmlPage(body, actions, rel, it, d.content || "");
+        return;
+      }
       const isMd = ext === ".md";
       if (isMd) { try { await _ensureTurndown(); } catch (e) {} }   // để lưu bản render (WYSIWYG) → markdown
       const wysOk = isMd && !!window.TurndownService;

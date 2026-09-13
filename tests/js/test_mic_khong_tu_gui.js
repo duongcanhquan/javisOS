@@ -65,7 +65,7 @@ check("_muteRecognition vẫn là chỗ duy nhất bật _resumeAfterTTS khi đa
 check("onTranscript vẫn gửi thẳng, không qua bước xác nhận",
   /onTranscript:\s*\(text\)\s*=>\s*\{[\s\S]{0,500}sendMessage\(text\);/.test(app));
 const goiGui = (app.match(/(?<!function )\bsendMessage\(/g) || []).length;
-check("chỉ có 4 chỗ gọi sendMessage (giọng nói, thử lại, Enter, nút gửi)", goiGui === 4, goiGui);
+check("chỉ có 5 chỗ gọi sendMessage (giọng nói, thử lại, Enter, nút gửi, đợi upload xong)", goiGui === 5, goiGui);
 
 // ---- 4. Server không tự nhập liệu: việc nền luôn là tin của Javis ----
 check("push_to_chat ghi vai assistant, không bao giờ là user",
