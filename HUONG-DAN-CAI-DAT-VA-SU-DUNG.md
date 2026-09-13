@@ -82,7 +82,8 @@ Không cần GPU để chat qua cloud. Mic từ máy khác cần HTTPS (không d
 4. (Khuyến nghị) **Git for Windows** nếu clone repo thay vì ZIP.
 5. (Tuỳ chọn) **ffmpeg**: `winget install Gyan.FFmpeg` - hỗ trợ media / cuộc họp.
 6. Tải **ZIP bản đóng gói** (hoặc Download ZIP từ GitHub do admin gửi).
-7. Giải nén ra thư mục dễ nhớ, ví dụ `D:\Javis`.
+7. Giải nén ra thư mục dễ nhớ, ví dụ `D:\Javis` (không Desktop OneDrive).
+8. Double-click **`1-Cai-dat.bat`**. SmartScreen: **More info → Run anyway**. Python phải là python.org, không Microsoft Store.
 
 ### 3.2 Cài lần đầu
 
@@ -121,7 +122,9 @@ xcode-select --install
 
 ### 4.2 Cài lần đầu
 
-1. Chuột phải **`1-Cai-dat.command`** hay bị Apple chặn. Chắc hơn: mở Terminal:
+1. Chuột phải **`1-Cai-dat.command`** hay bị Apple chặn. **Kéo file vào Terminal:** gõ `bash ` (có dấu cách), thả file vào cửa sổ, Enter.
+
+   Hoặc:
 
 ```bash
 cd ~/Javis
@@ -175,10 +178,7 @@ sudo usermod -aG docker "$USER"
 ```bash
 mkdir -p ~/javis && cd ~/javis
 curl -fsSLO https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml
-
-# (Tuỳ chọn) đăng nhập Claude trong container một lần
-docker compose run --rm javis claude auth login --claudeai
-
+printf 'JAVIS_ADMIN_USER=admin\nJAVIS_ADMIN_PASSWORD=DoiMatKhauManh\n' > .env
 docker compose up -d
 ```
 
@@ -255,6 +255,10 @@ Script cài Python/Node/CLI, tạo venv, đăng ký **systemd** tự chạy khi 
 ```powershell
 mkdir $HOME\javis; cd $HOME\javis
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml -OutFile docker-compose.yml
+@"
+JAVIS_ADMIN_USER=admin
+JAVIS_ADMIN_PASSWORD=DoiMatKhauManh
+"@ | Set-Content -Encoding ascii .env
 docker compose up -d
 ```
 
@@ -267,9 +271,16 @@ Giống máy cá nhân (§3) nhưng:
 
 1. Giải nén trên ổ máy chủ, chạy `1-Cai-dat.bat`.
 2. `javis-autostart.bat install` để tự bật khi đăng nhập.
-3. Bind ra mạng: cấu hình lắng nghe `0.0.0.0` (xem [DEPLOY.md](DEPLOY.md) / [docs/16-cau-hinh-env.md](docs/16-cau-hinh-env.md)).
-4. Javis **bắt buộc đăng nhập** khi chạy public - đặt admin mạnh.
-5. Đăng nhập Claude / Antigravity trên VPS không màn hình: dùng tab **Code / Terminal** trong dashboard (link + dán mã).
+3. Trong `.env` (copy từ `env.example` nếu chưa có):
+
+```text
+JAVIS_HOST=0.0.0.0
+JAVIS_ADMIN_USER=admin
+JAVIS_ADMIN_PASSWORD=DoiMatKhauManh
+```
+
+4. Javis **bắt buộc đăng nhập** khi chạy public.
+5. Đăng nhập Claude / Antigravity trên VPS không màn hình: tab **Code / Terminal** trong dashboard.
 
 ---
 
@@ -470,9 +481,9 @@ Dùng khi bạn **đóng gói để người khác cài**:
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Windows: `python` không nhận | Cài lại Python, tick Add to PATH, mở lại CMD, chạy lại `1-Cai-dat.bat` |
-| `_musllinux` / `No module named yaml` | Cài chưa xong. Xoá `.venv`, copy folder ra `~/Javis` hoặc `D:\Javis` (không iCloud/OneDrive Desktop), chạy lại `1-Cai-dat` |
-| Mac: Apple không xác minh `.command` | Terminal: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command` |
+| Windows: `python` không nhận / Store | python.org, tick PATH, không bản Store; `py -3.12`; SmartScreen: More info → Run anyway |
+| Mac: Apple không xác minh `.command` | Terminal: gõ `bash `, kéo file thả vào, Enter |
+| `_musllinux` / `No module named yaml` | Xoá `.venv`, copy folder ra `~/Javis` hoặc `D:\Javis`, chạy lại `1-Cai-dat` |
 | Pull image fail | GHCR chưa Public / sai tên image / hết disk |
 | Mở app hỏi MÃ THIẾT LẬP | `docker compose logs` hoặc `cat /data/state/.setup_token`; hoặc điền sẵn admin trong `.env` |
 | Chat báo chưa có bộ não | Models chưa đăng nhập / thiếu API key |

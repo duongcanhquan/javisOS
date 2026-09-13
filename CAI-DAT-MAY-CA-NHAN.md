@@ -57,7 +57,9 @@ Tắt: double-click **`3-Tat-Javis.bat`**.
 
 ### Mac
 1. Mở thư mục vừa giải nén.
-2. Lần đầu **đừng double-click** nếu Apple báo không xác minh được. Mở **Terminal**:
+2. Lần đầu Apple hay chặn double-click. **Kéo file vào Terminal:** mở Terminal → gõ `bash ` (có dấu cách) → kéo **`1-Cai-dat.command`** thả vào cửa sổ → Enter.
+
+   Hoặc:
 
 ```bash
 cd ~/Javis
@@ -71,7 +73,7 @@ bash ./1-Cai-dat.command
 Các lần sau: double-click **`2-Bat-Javis.command`**.  
 Tắt: **`3-Tat-Javis.command`**.
 
-> Apple chặn `.command` là bình thường với ZIP GitHub (chưa ký Developer ID). Cách chắc: lệnh Terminal ở trên. Chuột phải → Open / **Open Anyway** cũng được.
+> Apple chặn `.command` là bình thường với ZIP GitHub. **Cách dễ:** Terminal, gõ `bash `, kéo file thả vào, Enter. Chuột phải → Open / **Open Anyway** cũng được.
 
 ---
 

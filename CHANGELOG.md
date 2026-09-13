@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.212] - 2026-09-13
+### Sửa lỗi
+- **Cài Windows chắc hơn:** nhận Python qua `py -3.12` nếu lệnh `python` là bản Microsoft Store; tự copy `.env`; gỡ chặn SmartScreen cho file `.bat`.
+- **Hướng dẫn đủ 4 đường.** Mac: kéo `1-Cai-dat.command` thả vào Terminal khi Apple chặn. Thêm VPS Windows. VPS Linux/Windows Docker ghi mật khẩu admin vào `.env` trước khi `up`.
+
 ## [0.55.211] - 2026-09-13
 ### Sửa lỗi
 - **Mac: cảnh báo Apple không xác minh được `1-Cai-dat.command`.** ZIP GitHub chưa ký Developer ID nên Finder chặn double-click. Cài bằng Terminal (`xattr -c *.command` rồi `bash ./1-Cai-dat.command`); lần chạy đó gỡ tem quarantine nên `2-Bat` / `3-Tat` sau đó bấm được.

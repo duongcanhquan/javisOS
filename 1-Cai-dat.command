@@ -1,7 +1,8 @@
 #!/bin/bash
 # Double-click trên Mac để CÀI lần đầu + chạy Javis.
-# Lan dau macOS hay chan ZIP: mo Terminal, chay:
-#   cd ~/Javis && bash ./1-Cai-dat.command
+# Neu Apple bao khong xac minh duoc: mo Terminal, go "bash " (co dau cach),
+# keo file nay tha vao cua so Terminal, Enter.
+# Hoac: cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command
 cd "$(dirname "$0")"
 # shellcheck disable=SC1091
 [ -f scripts/mo-khoa-mac.sh ] && . scripts/mo-khoa-mac.sh

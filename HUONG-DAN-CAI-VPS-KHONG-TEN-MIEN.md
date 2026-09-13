@@ -187,6 +187,10 @@ docker compose down             # tắt (data trong volume Docker vẫn còn)
 ```powershell
 mkdir $HOME\javis; cd $HOME\javis
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/duongcanhquan/javisOS/main/docker-compose.yml -OutFile docker-compose.yml
+@"
+JAVIS_ADMIN_USER=admin
+JAVIS_ADMIN_PASSWORD=DoiMatKhauManh
+"@ | Set-Content -Encoding ascii .env
 docker compose up -d
 ```
 
@@ -216,7 +220,7 @@ Giống máy cá nhân, nhưng máy chạy 24/7:
 1. Cài **Python 3.11+** (tick *Add to PATH*) + **Node.js 22 LTS**.
 2. Tải ZIP repo: https://github.com/duongcanhquan/javisOS → Code → Download ZIP → giải nén.
 3. Chạy **`1-Cai-dat.bat`** lần đầu; sau đó **`2-Bat-Javis.bat`** (hoặc `javis-autostart.bat install`).
-4. Mở firewall TCP **7777**; bind public (Javis tự bắt buộc đăng nhập).
+4. Mở firewall TCP **7777**; trong `.env` đặt `JAVIS_HOST=0.0.0.0` và mật khẩu admin.
 5. Mở `http://IP:7777`.
 
 Chi tiết: [CAI-DAT-MAY-CA-NHAN.md](CAI-DAT-MAY-CA-NHAN.md).

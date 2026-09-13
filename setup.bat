@@ -9,22 +9,19 @@ echo.
 
 cd /d "%~dp0"
 
-REM Check Python (khong dung ban Store stub / qua cu)
-python --version >nul 2>&1
-if errorlevel 1 (
-  echo [LOI] Python chua cai. Tai tai python.org roi tick "Add to PATH".
+REM Go chan SmartScreen/Zone.Identifier cua ZIP (lan sau bam .bat de hon)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem -LiteralPath '%~dp0' -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match '\.(bat|cmd|vbs|ps1)$' } | Unblock-File" >nul 2>&1
+
+call :tim_python
+if not defined PYEXE (
+  echo [LOI] Chua co Python 3.10+ ^(ban Microsoft Store khong dung duoc^).
+  echo Tai python.org, tick "Add python.exe to PATH", mo cua so MOI.
+  echo Neu da cai: thu go "py -3.12" trong cmd.
   echo.
   pause
   exit /b 1
 )
-python -c "import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)" >nul 2>&1
-if errorlevel 1 (
-  echo [LOI] Python qua cu. Can 3.10 tro len, nen 3.11 hoac 3.12.
-  echo Tai: https://www.python.org/downloads/windows/
-  echo.
-  pause
-  exit /b 1
-)
+echo Dung Python: %PYEXE%
 
 set "VPY=%~dp0.venv\Scripts\python.exe"
 
@@ -50,12 +47,18 @@ if exist ".venv\" (
 
 if not exist ".venv\" (
   echo [1/4] Tao virtual environment...
-  python -m venv .venv
+  "%PYEXE%" -m venv .venv
   if errorlevel 1 (
     echo [LOI] Tao .venv that bai. Cai Python 3.11+ tu python.org, tick PATH, mo cmd MOI.
+    echo Khong dung ban Microsoft Store.
     pause
     exit /b 1
   )
+)
+if not exist "%VPY%" (
+  echo [LOI] .venv khong co python.exe. Xoa thu muc .venv roi chay lai 1-Cai-dat.bat
+  pause
+  exit /b 1
 )
 
 "%VPY%" -m pip --version >nul 2>&1
@@ -90,6 +93,10 @@ if errorlevel 1 (
   echo [LOI] Thieu yaml - cai dat chua xong. Xoa .venv roi chay lai 1-Cai-dat.bat
   pause
   exit /b 1
+)
+
+if not exist ".env" (
+  if exist "env.example" copy /Y env.example .env >nul
 )
 
 REM ---- CLI dang ky subscription (khong bat buoc API key) ----
@@ -135,6 +142,23 @@ pause
 exit /b 0
 
 REM ============================ Ham phu ============================
+:tim_python
+set "PYEXE="
+call :thu_py python
+if defined PYEXE goto :eof
+call :thu_py py -3.12
+if defined PYEXE goto :eof
+call :thu_py py -3.11
+if defined PYEXE goto :eof
+call :thu_py py -3
+goto :eof
+
+:thu_py
+%* -c "import sys; p=sys.executable.replace(chr(92),'/').lower(); raise SystemExit(0 if sys.version_info[:2]>=(3,10) and 'windowsapps' not in p else 1)" >nul 2>&1
+if errorlevel 1 goto :eof
+for /f "delims=" %%i in ('%* -c "import sys; print(sys.executable)"') do set "PYEXE=%%i"
+goto :eof
+
 REM %1 = goi npm, %2 = ten binary, %3 = ten hien thi. Da co thi bo qua, hong thi chi bao mot
 REM dong roi di tiep - mot engine cai hong khong duoc chan ca lan cai.
 REM LUU Y khi them dong goi moi: ten hien thi KHONG duoc chua dau ngoac don. No bi echo ben

@@ -250,12 +250,13 @@ Quản lý dịch vụ: `journalctl -u javis -f` · `sudo systemctl restart javi
 
 ---
 
-## Cách 3 - Windows (máy cá nhân)
+## Cách 3 - Windows (máy cá nhân hoặc VPS native)
 
 Double-click **`1-Cai-dat.bat`** lần đầu (gọi `setup.bat` bên trong).  
 Ngày sau: **`2-Bat-Javis.bat`**. Tắt: **`3-Tat-Javis.bat`**.  
-(Kỹ thuật: `start-javis.vbs` / `stop-javis.bat` vẫn dùng được.)  
 Mở http://localhost:7777 → **Models** → chọn bộ não.
+
+VPS Windows không Docker: trong `.env` đặt `JAVIS_HOST=0.0.0.0` + `JAVIS_ADMIN_PASSWORD`, mở firewall 7777.
 
 ---
 

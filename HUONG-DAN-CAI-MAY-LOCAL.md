@@ -87,7 +87,9 @@ Download ZIP từ GitHub → giải nén ra `~/Javis` (không để Desktop iClo
 
 ### 2.3 Cài lần đầu
 
-1. Mở **Terminal** (Finder hay chặn ZIP):
+1. **Kéo file vào Terminal:** mở Terminal, gõ `bash ` (có dấu cách), kéo `1-Cai-dat.command` thả vào, Enter.
+
+   Hoặc:
 
 ```bash
 cd ~/Javis

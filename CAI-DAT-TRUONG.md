@@ -50,11 +50,11 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 1. Cài Python 3 nếu chưa có (python.org hoặc `brew install python`). Lần đầu **bắt buộc** `xcode-select --install`.
 2. (Khuyến nghị) Node.js 22 LTS.
 3. GitHub → **Download ZIP** → giải nén (vd `~/Javis`, không Desktop iCloud).
-4. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận).
+4. Chuột phải **`1-Cai-dat.command`** hay bị chặn. **Kéo file vào Terminal:** gõ `bash ` (có dấu cách), thả file vào cửa sổ, Enter. Hoặc: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command`
 5. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
 6. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.
 
-> Mac: Apple không xác minh `.command` (ZIP GitHub). Terminal: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command`
+> Mac: Apple không xác minh `.command`. Terminal: gõ `bash `, kéo `1-Cai-dat.command` thả vào, Enter.
 
 ---
 
@@ -153,8 +153,8 @@ Giống máy cá nhân nhưng máy chạy 24/7:
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Windows: Python / PATH | Cài lại Python, tick Add to PATH, mở lại cửa sổ, chạy `1-Cai-dat` |
-| Mac không mở `.command` | Chuột phải → Open; hoặc `chmod +x *.command` |
+| Windows: Python / PATH / Store | Cài python.org (không Store), tick PATH, mở lại cửa sổ; SmartScreen: More info → Run anyway |
+| Mac: Apple không xác minh `.command` | Terminal: gõ `bash `, kéo file thả vào, Enter |
 | Chat lỗi sau khi mở app | Models chưa đăng nhập / thiếu API key |
 | Hostinger không HTTPS | Chưa đặt `DOMAIN_NAME` đúng |
 | Pull image fail | Package GHCR chưa Public |

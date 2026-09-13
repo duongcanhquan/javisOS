@@ -96,7 +96,15 @@ check("Windows nói _musllinux trong hướng dẫn sửa",
 check("Windows chạy server bằng python của .venv",
       "%VPY%" in WIN and "main.py" in WIN)
 check("Windows từ chối Python < 3.10",
-      "sys.version_info[:2] >= (3, 10)" in WIN)
+      "sys.version_info[:2]>=" in WIN and "(3, 10)" in WIN or "(3,10)" in WIN)
+check("Windows chối python Microsoft Store (WindowsApps)",
+      "windowsapps" in WIN.lower())
+check("Windows thử py -3.12 nếu lệnh python hỏng",
+      "py -3.12" in WIN)
+check("Windows copy env.example thành .env nếu chưa có",
+      "copy /Y env.example .env" in WIN or "copy /y env.example .env" in WIN.lower())
+check("Windows Unblock-File file .bat (SmartScreen ZIP)",
+      "Unblock-File" in WIN)
 
 # ---- install.sh / update.sh (VPS native + Mac install.sh) ----
 check("CANARY: install.sh KHÔNG còn lệnh pip install --upgrade pip",
@@ -134,6 +142,14 @@ check("1/2/3 .command đều nạp mo-khoa-mac (lan Terminal go tem cho lan bam 
       and "scripts/mo-khoa-mac.sh" in CMD3)
 check("CAI-DAT-DON-GIAN day Terminal bash ./1-Cai-dat.command (tranh Gatekeeper)",
       "bash ./1-Cai-dat.command" in DOC and "xattr -c" in DOC)
+check("CAI-DAT-DON-GIAN ghi cach keo file .command vao Terminal",
+      "kéo file" in DOC.lower() or "Kéo file" in DOC)
+check("CAI-DAT-DON-GIAN có mục VPS Windows",
+      "VPS Windows" in DOC and "JAVIS_HOST=0.0.0.0" in DOC)
+check("CAI-DAT-DON-GIAN VPS Linux ghi mật khẩu admin vào .env trước up",
+      "JAVIS_ADMIN_PASSWORD" in DOC)
+check("CAI-DAT-DON-GIAN nhắc Hostinger dùng compose riêng",
+      "docker-compose.hostinger.yml" in DOC)
 check("mo-khoa-mac.sh source được (bash -n)",
       subprocess.run(["bash", "-n", str(ROOT / "scripts" / "mo-khoa-mac.sh")]).returncode == 0)
 
