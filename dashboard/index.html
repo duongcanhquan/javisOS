@@ -30,7 +30,7 @@
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=92">
+  <link rel="stylesheet" href="/static/style.css?v=93">
   <link rel="stylesheet" href="/static/console.css?v=59">
   <link rel="stylesheet" href="/static/workbench.css?v=6">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
@@ -197,7 +197,7 @@
         </div>
         <div class="vault-search">
           <i class="vs-ico" data-ic="search"></i>
-          <input id="vaultSearch" type="text" placeholder="Tìm note..." data-i18n-ph="vault.search_ph" spellcheck="false" autocomplete="off">
+          <input id="vaultSearch" type="search" name="javis-vault-note-q" placeholder="Tìm note..." data-i18n-ph="vault.search_ph" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="none" enterkeyhint="search" data-lpignore="true" data-1p-ignore="true" data-form-type="search">
           <button class="vs-clear" id="vaultSearchClear" title="Xoá tìm kiếm" data-i18n-title="vault.search_clear" hidden><i data-ic="x"></i></button>
         </div>
         <div class="vault-modes">
@@ -790,7 +790,7 @@
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
   <script src="/static/theme.js?v=2"></script>
   <script src="/static/starfield.js?v=1"></script>
-  <script src="/static/brain-waves.js?v=3"></script>
+  <script src="/static/brain-waves.js?v=4"></script>
   <script src="/static/voice.js?v=23"></script>
   <script src="/static/graph.js?v=20"></script>
   <script src="/static/chat-render.js?v=15"></script>
@@ -830,7 +830,7 @@
   <script src="/static/drive-projects.js?v=4"></script>
   <script src="/static/marketing.js?v=5"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=148"></script>
+  <script src="/static/console.js?v=149"></script>
   <script src="/static/mobile-chat.js?v=8"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>

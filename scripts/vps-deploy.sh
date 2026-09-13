@@ -174,6 +174,10 @@ if [ "${JAVIS_DEPLOY_EXTRAS:-0}" = "1" ]; then
     chmod +x "$ROOT/scripts/seed-chat-brief-vps.sh"
     bash "$ROOT/scripts/seed-chat-brief-vps.sh" || echo "WARN: seed-chat-brief skipped"
   fi
+  if [ -f "$ROOT/scripts/seed-github-trending-vps.sh" ]; then
+    chmod +x "$ROOT/scripts/seed-github-trending-vps.sh"
+    bash "$ROOT/scripts/seed-github-trending-vps.sh" || echo "WARN: seed-github-trending skipped"
+  fi
   if [ -f "$ROOT/scripts/optimize-vps.sh" ]; then
     chmod +x "$ROOT/scripts/optimize-vps.sh"
     bash "$ROOT/scripts/optimize-vps.sh" || echo "WARN: optimize-vps skipped"

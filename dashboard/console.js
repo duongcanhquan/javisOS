@@ -7070,6 +7070,36 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     _vtRenderResults(box, items, true);
   }
 
+  // Chrome/Edge coi ô tìm note là ô username (nằm gần đầu trang, cạnh form đăng nhập).
+  // Tự điền "duongcanhquan" → ẩn cây vault. Chỉ tin lần gõ/dán thật, không tin sự kiện input giả.
+  function _vtChanAutofill(input, apply) {
+    if (!input || input.dataset.vtAf === "1") return;
+    input.dataset.vtAf = "1";
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("readonly", "readonly");
+    const moKhoa = () => { input.removeAttribute("readonly"); };
+    input.addEventListener("focus", moKhoa);
+    input.addEventListener("pointerdown", moKhoa);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Tab" || e.key === "Shift" || e.key === "Escape") return;
+      input.dataset.vtUserTyped = "1";
+    });
+    input.addEventListener("paste", () => { input.dataset.vtUserTyped = "1"; });
+    const quet = () => {
+      if (input.dataset.vtUserTyped === "1") return;
+      if ((input.value || "").trim() === "") return;
+      input.value = "";
+      if (typeof apply === "function") apply();
+    };
+    input.addEventListener("animationstart", (e) => {
+      if (e.animationName === "javis-vt-af") quet();
+    });
+    setTimeout(quet, 0);
+    setTimeout(quet, 250);
+    setTimeout(quet, 900);
+    window.addEventListener("pageshow", quet);
+  }
+
   function _vtWire() {
     if (_vtWired) return; _vtWired = true;
     const input = document.getElementById("vaultSearch");
@@ -7087,6 +7117,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       tree.hidden = true; results.hidden = false;
       if (mode === "name") _vtNameSearch(q); else _vtSearchContent(q);
     };
+    _vtChanAutofill(input, apply);
     const deb = () => { clearTimeout(t); t = setTimeout(apply, mode === "name" ? 150 : 280); };
     input.addEventListener("input", deb);
     input.addEventListener("keydown", (e) => {

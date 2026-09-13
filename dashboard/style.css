@@ -632,16 +632,16 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 #brainWaves {
   position: absolute; inset: 0; width: 100%; height: 100%;
   z-index: 1; display: block; pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.74;
   mix-blend-mode: screen;
 }
-:root[data-theme="light"] #brainWaves { mix-blend-mode: multiply; opacity: 0.45; }
-.hud-center.brain-flow-deep #brainWaves { opacity: 0.62; }
-.hud-center.brain-flow-calm #brainWaves { opacity: 0.38; }
+:root[data-theme="light"] #brainWaves { mix-blend-mode: multiply; opacity: 0.62; }
+.hud-center.brain-flow-deep #brainWaves { opacity: 0.88; }
+.hud-center.brain-flow-calm #brainWaves { opacity: 0.58; }
 .hud-center.brain-galaxy-static #brainWaves,
-.hud-center.brain-galaxy-lite #brainWaves { opacity: 0.32; }
+.hud-center.brain-galaxy-lite #brainWaves { opacity: 0.52; }
 @media (prefers-reduced-motion: reduce) {
-  #brainWaves { opacity: 0.25; }
+  #brainWaves { opacity: 0.42; }
 }
 #starfield { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; pointer-events: none; }
 #graph2d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; cursor: grab; display: none; }
@@ -2554,23 +2554,23 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
     radial-gradient(1.2px 1.2px at 15% 92%, rgba(200, 220, 255, 0.7), transparent),
     radial-gradient(2.2px 2.2px at 50% 6%, rgba(255, 255, 255, 1), transparent),
     radial-gradient(1px 1px at 96% 40%, rgba(180, 200, 255, 0.8), transparent);
-  opacity: 0.85;
+  opacity: 1;
   animation: vx-twinkle 6s ease-in-out infinite alternate;
 }
 /* Tinh vân trôi chậm */
 .hud-body > .hud-left::after {
   background:
-    radial-gradient(ellipse 70% 45% at 0% 15%, rgba(62, 224, 214, 0.35), transparent 70%),
-    radial-gradient(ellipse 65% 50% at 100% 5%, rgba(107, 140, 255, 0.4), transparent 72%),
-    radial-gradient(ellipse 80% 55% at 50% 100%, rgba(160, 60, 180, 0.32), transparent 68%),
-    radial-gradient(ellipse 45% 35% at 30% 55%, rgba(62, 224, 214, 0.12), transparent 75%);
+    radial-gradient(ellipse 70% 45% at 0% 15%, rgba(62, 224, 214, 0.48), transparent 70%),
+    radial-gradient(ellipse 65% 50% at 100% 5%, rgba(107, 140, 255, 0.5), transparent 72%),
+    radial-gradient(ellipse 80% 55% at 50% 100%, rgba(160, 60, 180, 0.4), transparent 68%),
+    radial-gradient(ellipse 45% 35% at 30% 55%, rgba(62, 224, 214, 0.2), transparent 75%);
   filter: blur(0.5px);
   animation: vx-drift 22s ease-in-out infinite alternate;
-  opacity: 0.95;
+  opacity: 1;
 }
 @keyframes vx-twinkle {
-  from { opacity: 0.55; }
-  to { opacity: 0.95; }
+  from { opacity: 0.78; }
+  to { opacity: 1; }
 }
 @keyframes vx-drift {
   from { transform: translate3d(0, 0, 0) scale(1); }
@@ -2631,6 +2631,9 @@ a.jv-fcode:hover code { color: var(--accent); text-decoration: underline; }
 .vault-search input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--text);
   font-size: 13px; font-family: inherit; }
 .vault-search input::placeholder { color: var(--text3); }
+/* Chrome/Edge hay nhét username vào ô tìm đầu trang — bắt animation để JS xoá. */
+@keyframes javis-vt-af { from { opacity: 1; } to { opacity: 1; } }
+#vaultSearch:-webkit-autofill { animation-name: javis-vt-af; }
 .vs-clear { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 12px; padding: 0 2px; }
 .vs-clear:hover { color: var(--accent); }
 .vault-modes { display: flex; gap: 6px; margin: 0 12px 8px; }

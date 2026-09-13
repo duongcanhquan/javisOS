@@ -1,4 +1,4 @@
-// Tín hiệu thiên hà mờ dưới nền khoang não (#brainWaves).
+// Tín hiệu thiên hà dưới nền khoang não (#brainWaves) — nhìn thấy được, không át graph.
 // Chỉ vòng radar + tia ping chuyển động (không ribbon sóng não).
 // Tôn trọng lite / pause / document.hidden / prefers-reduced-motion.
 (function () {
@@ -127,19 +127,19 @@
 
   function drawOriginGlow(ox, oy, alphaMul, t) {
     var pulse = 0.7 + 0.3 * Math.sin(t * 0.0035);
-    var r = Math.min(w, h) * 0.055 * pulse;
+    var r = Math.min(w, h) * 0.062 * pulse;
     var g = ctx.createRadialGradient(ox, oy, 0, ox, oy, r);
-    g.addColorStop(0, col(true, 0.14 * alphaMul));
-    g.addColorStop(0.4, col(false, 0.08 * alphaMul));
+    g.addColorStop(0, col(true, 0.24 * alphaMul));
+    g.addColorStop(0.4, col(false, 0.14 * alphaMul));
     g.addColorStop(1, col(true, 0));
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(ox, oy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = col(true, 0.22 * alphaMul);
+    ctx.fillStyle = col(true, 0.42 * alphaMul);
     ctx.beginPath();
-    ctx.arc(ox, oy, 1.6 + pulse * 0.6, 0, Math.PI * 2);
+    ctx.arc(ox, oy, 2.1 + pulse * 0.7, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -152,8 +152,8 @@
       var fade = 1 - u;
       ctx.beginPath();
       ctx.arc(ox, oy, rad, 0, Math.PI * 2);
-      ctx.strokeStyle = col(rg.cool, (0.04 + 0.07 * fade) * alphaMul);
-      ctx.lineWidth = 0.9 + fade * 0.9;
+      ctx.strokeStyle = col(rg.cool, (0.10 + 0.16 * fade) * alphaMul);
+      ctx.lineWidth = 1.15 + fade * 1.1;
       ctx.setLineDash(rg.cool ? [5, 14] : [2, 12]);
       ctx.lineDashOffset = animated ? -t * 0.05 : 0;
       ctx.stroke();
@@ -173,14 +173,14 @@
       ctx.beginPath();
       ctx.moveTo(ox, oy);
       ctx.lineTo(x2, y2);
-      ctx.strokeStyle = col(b.cool, 0.04 * shimmer * alphaMul);
-      ctx.lineWidth = 0.9;
+      ctx.strokeStyle = col(b.cool, 0.12 * shimmer * alphaMul);
+      ctx.lineWidth = 1.2;
       ctx.setLineDash([b.dash, b.dash * 1.6]);
       ctx.lineDashOffset = animated ? -t * (0.09 + i * 0.012) * modeScale().speed : 0;
       ctx.stroke();
 
-      ctx.strokeStyle = col(b.cool, 0.015 * shimmer * alphaMul);
-      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = col(b.cool, 0.045 * shimmer * alphaMul);
+      ctx.lineWidth = 3.6;
       ctx.setLineDash([]);
       ctx.stroke();
     }
@@ -210,17 +210,17 @@
       var ty = oy + Math.sin(b.ang) * len * Math.max(0, p.u - p.trail);
       var grad = ctx.createLinearGradient(tx, ty, x, y);
       grad.addColorStop(0, col(p.cool, 0));
-      grad.addColorStop(1, col(p.cool, 0.18 * alphaMul));
+      grad.addColorStop(1, col(p.cool, 0.42 * alphaMul));
       ctx.strokeStyle = grad;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.moveTo(tx, ty);
       ctx.lineTo(x, y);
       ctx.stroke();
 
       var g = ctx.createRadialGradient(x, y, 0, x, y, p.r * 4);
-      g.addColorStop(0, col(p.cool, 0.26 * alphaMul));
-      g.addColorStop(0.45, col(p.cool, 0.08 * alphaMul));
+      g.addColorStop(0, col(p.cool, 0.48 * alphaMul));
+      g.addColorStop(0.45, col(p.cool, 0.16 * alphaMul));
       g.addColorStop(1, col(p.cool, 0));
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -233,8 +233,8 @@
     if (!ctx || !w) return;
     ctx.clearRect(0, 0, w, h);
     var t = animated ? (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0 : 0;
-    var alphaMul = mode === "calm" ? 0.32 : mode === "deep" ? 0.5 : 0.4;
-    if (lightTheme) alphaMul *= 0.75;
+    var alphaMul = mode === "calm" ? 0.55 : mode === "deep" ? 0.82 : 0.68;
+    if (lightTheme) alphaMul *= 0.88;
     seedScene(false);
 
     var o = origin();

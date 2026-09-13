@@ -1,5 +1,14 @@
 # Nhật ký cập nhật
 
+## [0.55.208] - 2026-09-13
+### Thêm mới
+- **Báo cáo GitHub Trending 20h.** Skill `bao-cao-github-trending` lấy [trending hôm nay](https://github.com/trending), tóm tắt repo, tư vấn có nên đưa vào Javis (Không / Chỉ xem / skill / connector). Nhắc cron `0 20 * * *` gửi Telegram + Zalo. Seed: `scripts/seed-github-trending-vps.sh`. Không tự cài gì.
+
+## [0.55.207] - 2026-09-13
+### Cải thiện
+- **Tín hiệu vệ tinh / sóng trên màn Vault rõ hơn một chút:** vòng radar, tia ping và sao/tinh vân cột trái sáng hơn, vẫn không át chữ.
+- **Ô tìm note không còn tự điền tên tài khoản** (Chrome/Edge hay nhét username vào ô tìm đầu trang). Placeholder «Tìm note...» hiện bình thường.
+
 ## [0.55.206] - 2026-09-13
 ### Sửa lỗi
 - **Mở landing/HTML trên Javis có nút Về Javis.** Bấm link `index.html` (skill landing-page) trước đây mở mã nguồn, muốn xem trang thì "Mở tab mới" — trên PWA/iPhone cửa sổ app bị thay bằng trang thuần, không nút đóng. Nay xem trang trong iframe, thanh Javis luôn còn; tab mới đi qua `/files/html-view`. File xuất không bị chèn UI.

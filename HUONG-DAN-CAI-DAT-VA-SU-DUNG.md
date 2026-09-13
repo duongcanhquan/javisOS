@@ -389,7 +389,7 @@ Agents / workflows chuẩn nằm trong `system/agents/` và `system/workflows/` 
 - **Bài giảng / nội dung:** `tao-bai-giang`, `bai-giang-lop-hoc`, `bai-giang-slide`, `bai-giang-van-ban`, `openmaic`
 - **Video:** `lam-video`, `paperdesign`, `pixcelvideo`, `remotion-best-practices`
 - **Pháp chế:** `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`
-- **Vận hành ngày:** `tong-ket-sang`, `tong-hop-bao-chi`, `phan-tich-cuoc-hop`, `tong-ket-chat-ngay`, `deep-research`
+- **Vận hành ngày:** `tong-ket-sang`, `tong-hop-bao-chi`, `bao-cao-github-trending`, `phan-tich-cuoc-hop`, `tong-ket-chat-ngay`, `deep-research`
 - **UI / web:** `frontend-design`, `improve-ui`, `baseline-ui`, `create-design-md`, …
 
 Danh sách đầy đủ: thư mục `.claude/skills/` trong bản đóng gói.
