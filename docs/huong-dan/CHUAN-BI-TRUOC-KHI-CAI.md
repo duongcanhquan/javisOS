@@ -45,7 +45,7 @@ Bản HTML có hình: [HUONG-DAN-CAI-DAT-Javis-OS.html](HUONG-DAN-CAI-DAT-Javis-
 3. Homebrew (khuyến nghị): [brew.sh](https://brew.sh).
 4. Node.js 22 LTS: nodejs.org hoặc `brew install node@22`.
 5. Tuỳ chọn: `brew install ffmpeg`.
-6. File `.command`: chuột phải → **Open** (Gatekeeper).
+6. File `.command` tải ZIP bị Gatekeeper chặn: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command`
 
 ---
 

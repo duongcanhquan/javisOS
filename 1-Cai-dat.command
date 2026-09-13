@@ -1,6 +1,10 @@
 #!/bin/bash
 # Double-click trên Mac để CÀI lần đầu + chạy Javis.
+# Lan dau macOS hay chan ZIP: mo Terminal, chay:
+#   cd ~/Javis && bash ./1-Cai-dat.command
 cd "$(dirname "$0")"
+# shellcheck disable=SC1091
+[ -f scripts/mo-khoa-mac.sh ] && . scripts/mo-khoa-mac.sh
 clear
 echo "=========================================="
 echo " CAI DAT JAVIS (LAN DAU)"

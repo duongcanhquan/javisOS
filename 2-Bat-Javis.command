@@ -1,6 +1,8 @@
 #!/bin/bash
 # Double-click trên Mac để BẬT Javis (chạy nền).
 cd "$(dirname "$0")"
+# shellcheck disable=SC1091
+[ -f scripts/mo-khoa-mac.sh ] && . scripts/mo-khoa-mac.sh
 clear
 echo "Bat Javis OS..."
 

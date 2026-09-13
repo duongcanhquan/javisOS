@@ -121,11 +121,19 @@ xcode-select --install
 
 ### 4.2 Cài lần đầu
 
-1. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi xác nhận nhà phát triển).
+1. Chuột phải **`1-Cai-dat.command`** hay bị Apple chặn. Chắc hơn: mở Terminal:
+
+```bash
+cd ~/Javis
+xattr -c *.command
+chmod +x *.command
+bash ./1-Cai-dat.command
+```
+
 2. Đợi script xong → mở **http://localhost:7777**.
 3. Tạo tài khoản admin.
 
-Nếu báo *không xác định được nhà phát triển*: **System Settings → Privacy & Security → Open Anyway**, rồi chạy lại.
+Nếu vẫn muốn Finder: chuột phải → Open, hoặc **System Settings → Privacy & Security → Open Anyway**.
 
 ### 4.3 Các ngày sau
 
@@ -464,7 +472,7 @@ Dùng khi bạn **đóng gói để người khác cài**:
 |---|---|
 | Windows: `python` không nhận | Cài lại Python, tick Add to PATH, mở lại CMD, chạy lại `1-Cai-dat.bat` |
 | `_musllinux` / `No module named yaml` | Cài chưa xong. Xoá `.venv`, copy folder ra `~/Javis` hoặc `D:\Javis` (không iCloud/OneDrive Desktop), chạy lại `1-Cai-dat` |
-| Mac không mở `.command` | Chuột phải → Open; hoặc `chmod +x *.command` |
+| Mac: Apple không xác minh `.command` | Terminal: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command` |
 | Pull image fail | GHCR chưa Public / sai tên image / hết disk |
 | Mở app hỏi MÃ THIẾT LẬP | `docker compose logs` hoặc `cat /data/state/.setup_token`; hoặc điền sẵn admin trong `.env` |
 | Chat báo chưa có bộ não | Models chưa đăng nhập / thiếu API key |

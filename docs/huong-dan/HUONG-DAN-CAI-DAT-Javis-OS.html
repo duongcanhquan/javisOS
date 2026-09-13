@@ -322,16 +322,16 @@ docker compose up -d</pre>
     <li><strong>ffmpeg</strong> (tuỳ chọn): <span class="mono">brew install ffmpeg</span>.</li>
     <li>Kiểm tra nhanh: <span class="mono">python3 --version</span> ≥ 3.11. Apple Silicon (M1/M2/M3) chạy tốt; không cần GPU.</li>
   </ol>
-  <div class="okbox">Gatekeeper: lần đầu nên <strong>chuột phải → Open</strong> với file <span class="mono">.command</span>, không double-click nếu bị chặn.</div>
+  <div class="okbox">Gatekeeper: ZIP tải từ web bị Apple chặn double-click. Cài bằng Terminal: <span class="mono">cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command</span></div>
 
   <h3>5.2 Lấy Javis &amp; cài</h3>
   <ol class="steps">
     <li>Download ZIP từ GitHub → giải nén ra <span class="mono">~/Javis</span> (không để Desktop iCloud).</li>
-    <li><strong>Chuột phải</strong> <span class="mono">1-Cai-dat.command</span> → <strong>Open</strong> (macOS có thể hỏi nhà phát triển - chọn Open).</li>
+    <li>Mở <strong>Terminal</strong>, dán: <span class="mono">cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command</span> (tránh cảnh báo “Apple không thể xác minh”).</li>
     <li>Đợi xong → mở <strong>http://localhost:7777</strong>.</li>
   </ol>
 
-  <div class="tip"><strong>macOS chặn file .command?</strong> Chuột phải → Open → Open. Hoặc Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Vẫn mở. Không double-click lần đầu trong Finder nếu bị chặn.</div>
+  <div class="tip"><strong>macOS chặn file .command?</strong> Đó là Gatekeeper với ZIP chưa ký. Chạy lệnh Terminal ở trên. Hoặc chuột phải → Open / Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Vẫn mở.</div>
 
   <table>
     <thead><tr><th>Việc hàng ngày</th><th>File</th></tr></thead>
@@ -471,7 +471,7 @@ docker compose up -d</pre>
       <tr><td>Cổng 7777 bị chiếm</td><td>Tắt bản cũ (<span class="mono">3-Tat-Javis</span>) rồi bật lại</td></tr>
       <tr><td>Chat lỗi dù mở được app</td><td>Vào <strong>Models</strong> chọn bộ não. <span class="mono">agy</span> (Antigravity) phải cài tay theo thẻ - không nằm trong <span class="mono">1-Cai-dat</span></td></tr>
       <tr><td>VPS native không vào bằng IP</td><td><span class="mono">install.sh</span> mặc định chỉ <span class="mono">127.0.0.1</span> - dùng Docker / SSH tunnel / Cloudflare Tunnel</td></tr>
-      <tr><td>macOS không mở .command</td><td>Chuột phải → Open; hoặc Privacy → Vẫn mở</td></tr>
+      <tr><td>macOS: Apple không thể xác minh .command</td><td>Terminal: <span class="mono">cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command</span></td></tr>
       <tr><td>VPS mở không vào được</td><td>Kiểm tra firewall/security group mở 7777; <span class="mono">docker compose ps</span></td></tr>
       <tr><td>Mic không hoạt động</td><td>Dùng https:// hoặc localhost (không dùng http://IP)</td></tr>
       <tr><td>Quên mật khẩu admin</td><td>Xem docs khôi phục / log setup token trên VPS</td></tr>

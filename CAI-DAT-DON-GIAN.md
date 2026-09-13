@@ -84,15 +84,23 @@ python3 --version
 ### 2) Tải Javis
 GitHub → **Code → Download ZIP** → giải nén ra **`~/Javis`** (không để trên Desktop iCloud: pip hay hỏng `_musllinux`).
 
-### 3) Chạy cài
-Chuột phải **`1-Cai-dat.command`** → **Open** (lần đầu macOS có thể hỏi - chọn Open).
+### 3) Chạy cài (qua Terminal)
+
+Finder hay chặn file `.command` tải từ ZIP ("Apple không thể xác minh"). **Mở Terminal**, dán 4 dòng:
+
+```bash
+cd ~/Javis
+xattr -c *.command
+chmod +x *.command
+bash ./1-Cai-dat.command
+```
+
+Cách khác: chuột phải file → **Open**, hoặc **System Settings → Privacy & Security → Open Anyway**.
 
 ### 4) Mở dùng
 Safari / Chrome → **http://localhost:7777** → admin → **Models** → chat.
 
-**Ngày sau:** double-click `2-Bat-Javis.command`.
-
-> Mac chặn file? **System Settings → Privacy & Security → Open Anyway**.
+**Ngày sau:** double-click `2-Bat-Javis.command` (sau lần Terminal ở trên thì không còn bị chặn).
 
 ---
 
@@ -134,7 +142,7 @@ Nhớ mở cổng **7777** trên firewall nhà cung cấp.
 | `python` không nhận | Cài lại Python, tick PATH, **mở cmd mới** |
 | `_musllinux` / `No module named yaml` | Cài **chưa xong**. Xoá thư mục `.venv`, copy cả folder ra `~/Javis` (Mac) hoặc `D:\Javis` (Win) - **không** để trên Desktop iCloud/OneDrive - rồi chạy lại `1-Cai-dat` |
 | Cổng 7777 bị chiếm | Chạy `3-Tat-Javis` rồi `2-Bat-Javis` |
-| Mac không mở `.command` | Chuột phải → Open |
+| Mac: Apple không thể xác minh `.command` | Mở **Terminal**, chạy `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command` |
 | VPS không vào được | Mở firewall TCP 7777; `docker compose ps` |
 | Chat lỗi dù mở được app | Chưa chọn bộ não ở **Models** |
 | Muốn Google / Antigravity | `agy` **không** nằm trong `1-Cai-dat` - cài theo thẻ Models |

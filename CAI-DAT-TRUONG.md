@@ -54,7 +54,7 @@ Compose VPS: [`deploy/school/`](deploy/school/).
 5. Chrome → **http://localhost:7777** → Models → chat thử (agent/workflow chuẩn đã sync sẵn).
 6. Các ngày sau: **`2-Bat-Javis.command`**. Tắt: **`3-Tat-Javis.command`**.
 
-> Mac báo “không xác định được nhà phát triển”: **System Settings → Privacy & Security → Open Anyway**.
+> Mac: Apple không xác minh `.command` (ZIP GitHub). Terminal: `cd ~/Javis && xattr -c *.command && chmod +x *.command && bash ./1-Cai-dat.command`
 
 ---
 

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.211] - 2026-09-13
+### Sửa lỗi
+- **Mac: cảnh báo Apple không xác minh được `1-Cai-dat.command`.** ZIP GitHub chưa ký Developer ID nên Finder chặn double-click. Cài bằng Terminal (`xattr -c *.command` rồi `bash ./1-Cai-dat.command`); lần chạy đó gỡ tem quarantine nên `2-Bat` / `3-Tat` sau đó bấm được.
+
 ## [0.55.210] - 2026-09-13
 ### Sửa lỗi
 - **Cài Mac/Windows không còn báo chạy xong khi pip hỏng.** Lỗi `_musllinux` rồi `No module named yaml` (ZIP trên Desktop iCloud/OneDrive, `.venv` cũ): xoá venv hỏng, cài bằng `python -m pip`, kiểm tra yaml trước khi mở app. Hướng dẫn: xoá `.venv`, copy ra `~/Javis` hoặc `D:\Javis`, chạy lại `1-Cai-dat`.

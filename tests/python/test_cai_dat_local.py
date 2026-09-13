@@ -37,6 +37,8 @@ INS = (ROOT / "install.sh").read_text(encoding="utf-8")
 HELP = (ROOT / "scripts" / "ensure-venv.sh").read_text(encoding="utf-8")
 BAT2 = (ROOT / "start-javis.bat").read_text(encoding="utf-8")
 CMD2 = (ROOT / "2-Bat-Javis.command").read_text(encoding="utf-8")
+CMD3 = (ROOT / "3-Tat-Javis.command").read_text(encoding="utf-8")
+MO = (ROOT / "scripts" / "mo-khoa-mac.sh").read_text(encoding="utf-8")
 DOC = (ROOT / "CAI-DAT-DON-GIAN.md").read_text(encoding="utf-8")
 UPD = (ROOT / "update.sh").read_text(encoding="utf-8")
 
@@ -122,6 +124,18 @@ check("CAI-DAT-DON-GIAN có hàng _musllinux / yaml",
       "_musllinux" in DOC and "yaml" in DOC)
 check("hướng dẫn bảo copy ra ~/Javis, không Desktop iCloud",
       "~/Javis" in DOC)
+
+# ---- Gatekeeper: ZIP chưa ký, cài qua Terminal ----
+check("scripts/mo-khoa-mac.sh gỡ tem bằng xattr -c",
+      "xattr -c" in MO)
+check("1/2/3 .command đều nạp mo-khoa-mac (lan Terminal go tem cho lan bam sau)",
+      "scripts/mo-khoa-mac.sh" in MAC
+      and "scripts/mo-khoa-mac.sh" in CMD2
+      and "scripts/mo-khoa-mac.sh" in CMD3)
+check("CAI-DAT-DON-GIAN day Terminal bash ./1-Cai-dat.command (tranh Gatekeeper)",
+      "bash ./1-Cai-dat.command" in DOC and "xattr -c" in DOC)
+check("mo-khoa-mac.sh source được (bash -n)",
+      subprocess.run(["bash", "-n", str(ROOT / "scripts" / "mo-khoa-mac.sh")]).returncode == 0)
 
 
 if _fails:

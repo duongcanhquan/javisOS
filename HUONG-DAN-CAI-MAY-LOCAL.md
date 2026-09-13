@@ -87,10 +87,16 @@ Download ZIP từ GitHub → giải nén ra `~/Javis` (không để Desktop iClo
 
 ### 2.3 Cài lần đầu
 
-1. Chuột phải **`1-Cai-dat.command`** → **Open** (macOS có thể hỏi nhà phát triển).
-2. Đợi xong → mở **http://localhost:7777**.
+1. Mở **Terminal** (Finder hay chặn ZIP):
 
-Nếu báo không xác định được nhà phát triển: **System Settings → Privacy & Security → Open Anyway**.
+```bash
+cd ~/Javis
+xattr -c *.command
+chmod +x *.command
+bash ./1-Cai-dat.command
+```
+
+2. Đợi xong → mở **http://localhost:7777**.
 
 ### 2.4 Mỗi ngày
 
