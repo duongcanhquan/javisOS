@@ -1,20 +1,25 @@
 ---
 name: agent-reach
-description: "Cài/kiểm Agent-Reach: doctor kênh MXH/video/RSS/web; hướng dẫn khi thiếu CLI hoặc Cookie."
-description_en: "Install/check Agent-Reach: doctor for social/video/RSS/web channels; guide when CLI or cookies missing."
+description: "Doctor/cài kênh MXH, video, RSS, GitHub, web (Agent-Reach) khi Tavily hay MCP chưa đủ."
+description_en: "Install/check Agent-Reach channels (social, video, RSS, GitHub, web) when Tavily/MCP is not enough."
 group: Marketing
 license: MIT
 metadata:
-  version: "1.0"
+  version: "1.1"
   upstream: "https://github.com/Panniantong/Agent-Reach"
 ---
 
 # Agent-Reach (lớp kênh internet)
 
-Skill meta cho [Agent-Reach](https://github.com/Panniantong/Agent-Reach) (MIT): **cài,
-doctor, chọn backend**, không tự scrape. Skill nghiệp vụ (`lang-nghe-mxh`,
-`tom-tat-video`, `theo-doi-rss-chu-de`, `y-tuong-noi-dung-tu-trend`) nạp skill này
-khi cần kênh ngoài Tavily/MCP Meta.
+## Dùng để làm gì
+
+Cho agent **đọc/tìm** trên internet thật (X/Twitter, Reddit, YouTube, Bilibili, XHS, GitHub,
+RSS, web…) khi Tavily hay MCP Meta **chưa** phủ. Việc của skill này: **cài, doctor, chọn
+backend** - không tự viết scraper.
+
+Nguồn: [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) (MIT).
+Skill nghiệp vụ (`lang-nghe-mxh`, `tom-tat-video`, `theo-doi-rss-chu-de`,
+`y-tuong-noi-dung-tu-trend`) nạp skill này khi cần kênh ngoài.
 
 ## Khi nào dùng
 

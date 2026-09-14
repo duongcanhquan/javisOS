@@ -141,3 +141,12 @@ I can still help you with this task directly! Would you like me to proceed?
 If this is something you do often, you could create your own skill:
 npx skills init my-xyz-skill
 ```
+
+## Javis vault (không import cả kho)
+
+`npx skills add vercel-labs/agent-skills` cài **cả package** vào Cursor/Claude Code - **không**
+đổ nguyên repo vào `skills/` của Javis.
+
+Khi user muốn một kỹ năng nằm trong Javis (Studio / router): nạp **`cherry-pick-agent-skills`**
+- lấy **đúng một** `SKILL.md`, viết lại chuẩn Javis (`description` ≤150, `group`). Cấm clone
+cả `agent-skills` monorepo vào vault.

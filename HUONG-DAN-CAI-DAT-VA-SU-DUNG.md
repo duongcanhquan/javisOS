@@ -434,6 +434,8 @@ Agents / workflows chuẩn nằm trong `system/agents/` và `system/workflows/` 
 - **Video:** `lam-video`, `paperdesign`, `pixcelvideo`, `remotion-best-practices`
 - **Pháp chế:** `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`
 - **Vận hành ngày:** `tong-ket-sang`, `tong-hop-bao-chi`, `bao-cao-github-trending`, `phan-tich-cuoc-hop`, `tong-ket-chat-ngay`, `deep-research`
+- **Giọng / review / skill ngoài:** `voicestudio` (TTS/lồng tiếng/chép lời local), `open-code-review` (diff + ruleset), `cherry-pick-agent-skills` (lấy từng SKILL.md, không cả kho), `agent-reach` (kênh MXH/video/RSS)
+- **Kế toán:** `doc-hoa-don`, `so-ke-toan-kep`, `doc-bao-cao-tai-chinh`, `ke-hoach-ke-toan`, `tro-ly-thi-truong-chung-khoan` (giá/tin, không phải sổ). Workflow Studio: **Kế toán chuẩn**.
 - **UI / web:** `frontend-design`, `improve-ui`, `baseline-ui`, `create-design-md`, …
 
 Danh sách đầy đủ: thư mục `.claude/skills/` trong bản đóng gói.

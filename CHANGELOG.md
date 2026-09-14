@@ -1,5 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.55.216] - 2026-09-14
+### Thêm mới
+- **Gói kế toán chuẩn.** Skill: `doc-hoa-don` (schema + cờ lệch tiền, từ ai-invoice-parser), `so-ke-toan-kep` (sổ kép P&L/CĐKT/LCTT, từ python-accounting), `doc-bao-cao-tai-chinh` (5 tỷ số + briefing, từ Financial-report-analyzer), `tro-ly-thi-truong-chung-khoan` (giá/tin MCP, không phải sổ), `ke-hoach-ke-toan` (đóng sổ, tiền, tuổi nợ). Workflow `ke-toan-chuan`: hóa đơn → sổ → phân tích → kế hoạch kỳ → kiểm chứng → xuất `sources/accounting/<slug>/`.
+
+## [0.55.215] - 2026-09-14
+### Thêm mới
+- **Bốn skill từ GitHub Trending.** `voicestudio`: TTS / nhân bản giọng / lồng tiếng / chép lời trên máy (API localhost:3900). `open-code-review`: soi diff Git theo ruleset (bug, bảo mật, hiệu năng), có khung khi chưa cài CLI ocr. `cherry-pick-agent-skills`: lấy đúng một SKILL.md từ kho cộng đồng, viết lại chuẩn Javis, cấm import cả repo. `agent-reach`: làm rõ «dùng để làm gì» (mở kênh MXH/video/RSS/web khi Tavily/MCP chưa đủ).
+
 ## [0.55.214] - 2026-09-14
 ### Cải thiện
 - **Trang Trò chuyện dùng gần hết màn.** Cột chat không còn kẹp 900px giữa hai khoảng trống: hội thoại, ô nhập và thanh model trải hết phần còn lại (cột lịch sử bên trái vẫn 280px). Chữ trong khung này to hơn một chút cho dễ đọc.
