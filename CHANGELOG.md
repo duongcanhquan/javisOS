@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.221] - 2026-09-14
+### Sửa
+- **Bảng route:** chụp lại snapshot sau khi thêm `GET/POST /tool-apis` (Khóa API). CI không còn đỏ vì lệch số mục.
+
 ## [0.55.220] - 2026-09-14
 ### Thêm mới
 - **Trang Khóa API** (nhóm Kết nối): chỗ dán khóa dịch vụ ngoài chưa có nhà. Sẵn ô video (Atlas, xAI, Pixelle, Kling, Seedance, Veo, Sora), ảnh (Seedream, Qwen, Nano Banana), tìm web (Tavily, Exa, Firecrawl), giọng OpenMAIC (Azure/GLM/Qwen TTS, VoxCPM), bản đồ Google, hoặc tự thêm `FOO_API_KEY`. Không đụng khóa đã có trên Models / Cài đặt / Kênh, không ghi đè biến `.env` hay Docker đã đặt. ElevenLabs vẫn chỉ nằm Cài đặt. Trang Tạo video có lối tắt.
