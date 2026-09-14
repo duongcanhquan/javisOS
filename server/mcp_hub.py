@@ -568,7 +568,7 @@ async def _async_const(v):
 # ============================================================
 # LAZY TOOLS - chống phình context khi đấu nhiều connector.
 # Thay vì phơi hết hàng trăm schema tool MCP MỖI lượt (câu nào cũng gánh), hub chỉ phơi
-# builtins + plugin + 2 meta-tool: javis_search_tools (tìm tool theo nhu cầu) và
+# nhóm hạt nhân + tool ghim + 2 meta-tool: javis_search_tools (tìm tool theo nhu cầu) và
 # javis_run_tool (gọi tool tìm được). Model tự tìm theo NGỮ CẢNH rồi mới nạp schema →
 # câu không cần MCP tốn gần 0 token tool. Kế thừa NGUYÊN lớp quyền/audit/rate-limit vì
 # run đi qua đúng call_route của route ĐẦY ĐỦ (đã _guard). Model chỉ THẤY meta-tool nên
@@ -599,6 +599,13 @@ CORE_TOOL_FNS = frozenset({
     "javis_read_file",
     "javis_list_dir",
     "javis_write_file",
+})
+
+# Tool nội bộ luôn hiện thẳng (không vào pool lazy), dù không phải builtin hạt nhân.
+# javis_schedule: cổng huỷ/đọc lịch gọi thẳng theo tên. Giấu nó thì chat báo
+# "không có trong MCP của phiên" dù plugin vẫn nạp.
+PINNED_TOOL_FNS = frozenset({
+    "javis_schedule",
 })
 
 # Mô tả nhóm tool nội bộ cho thực đơn lazy. Builtin/plugin không có connector trong
@@ -830,11 +837,13 @@ def _lazy_tools_and_route(visible_tools, visible_route, pool, full_route, top_k,
 
 def _apply_lazy(tools_spec, route, include_ambient=False, hidden=None, force=False):
     """Nếu bật lazy: giấu tool sau meta-tool search/run; không bật → trả nguyên.
-    Pool = MỌI tool trừ nhóm hạt nhân CORE_TOOL_FNS - gồm cả builtin và plugin, không riêng
-    tool MCP. Xem chú thích ở CORE_TOOL_FNS về lý do không suy pool ra từ 'conn'.
+    Pool = MỌI tool trừ nhóm hạt nhân CORE_TOOL_FNS và PINNED_TOOL_FNS - gồm cả builtin
+    và plugin, không riêng tool MCP. Xem chú thích ở CORE_TOOL_FNS về lý do không suy
+    pool ra từ 'conn'.
     include_ambient (đường engine Claude): kèm connector tài khoản Claude vào menu/search để
     model biết còn nhóm tool native mcp__* ngoài pool của hub."""
-    pool = [t for t in tools_spec if t["fn"] not in CORE_TOOL_FNS]
+    giu = CORE_TOOL_FNS | PINNED_TOOL_FNS
+    pool = [t for t in tools_spec if t["fn"] not in giu]
     if not force and not _lazy_on(len(pool), _pool_chars(pool)):
         return tools_spec, route
     pool_fns = {t["fn"] for t in pool}

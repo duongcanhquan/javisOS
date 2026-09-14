@@ -1772,6 +1772,29 @@ def _direct_schedule_cancel_request(messages):
     return text, match
 
 
+def _schedule_callable(mcp_tools, mcp_route=None):
+    """Tool lịch gọi được: hiện thẳng, nằm trong route, hoặc gọi qua javis_run_tool (tầng lazy)."""
+    names = {t.get("fn") for t in (mcp_tools or [])}
+    if "javis_schedule" in names:
+        return True
+    route = mcp_route or {}
+    return "javis_schedule" in route or "javis_run_tool" in route
+
+
+async def _call_javis_schedule(mcp_route, args):
+    """Gọi javis_schedule; nếu tầng lazy giấu tên thì đi qua javis_run_tool."""
+    import mcp_client
+    route = mcp_route or {}
+    if "javis_schedule" in route:
+        return await mcp_client.call_route(route, "javis_schedule", args)
+    if "javis_run_tool" in route:
+        return await mcp_client.call_route(
+            route, "javis_run_tool",
+            {"name": "javis_schedule", "args": args or {}},
+        )
+    return "ERROR: javis_schedule không có trong MCP của phiên"
+
+
 def _tool_requirement(messages, mcp_tools):
     """Tool phải gọi ở vòng đầu cho câu hỏi cần dữ liệu sống; None nếu chat kiến thức thuần."""
     names = {t.get("fn") for t in (mcp_tools or [])}
@@ -1795,7 +1818,7 @@ def _tool_requirement(messages, mcp_tools):
             "cron", "nhac", "nhac hen", "nhac thuoc", "lich thuoc", "lich nhac", "uong thuoc",
             "viec dinh ky", "morning briefing", "reminder",
         ))
-        if schedule_action and schedule and "javis_schedule" in names:
+        if schedule_action and schedule and _schedule_callable(mcp_tools):
             # Phân loại theo ý định đã siết chặt thay vì chỉ dựa vào việc câu có chữ "lịch/nhắc".
             # Nhờ vậy câu bàn về "đặt lịch tư vấn 1-1 có ổn không?" không bị ép function-call.
             if (
@@ -2004,15 +2027,13 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
     """
     if not _schedule_cancel_request(messages):
         return None
-    names = {t.get("fn") for t in (mcp_tools or [])}
-    if "javis_schedule" not in names:
+    if not _schedule_callable(mcp_tools, mcp_route):
         return {
             "handled": False,
             "error": "javis_schedule không có trong MCP của phiên",
             "calls": [],
         }
-    import mcp_client
-    listed = await mcp_client.call_route(mcp_route, "javis_schedule", {"op": "list"})
+    listed = await _call_javis_schedule(mcp_route, {"op": "list"})
     listed = _clip_tool_result(listed)
     if listed.startswith("ERROR:"):
         return {"handled": False, "error": listed, "calls": ["javis_schedule:list"]}
@@ -2031,8 +2052,8 @@ async def schedule_cancel_gateway(messages, mcp_tools, mcp_route):
             "list_result": listed,
             "calls": ["javis_schedule:list"],
         }
-    cancelled = await mcp_client.call_route(
-        mcp_route, "javis_schedule", {"op": "cancel", "id": item_id}
+    cancelled = await _call_javis_schedule(
+        mcp_route, {"op": "cancel", "id": item_id}
     )
     cancelled = _clip_tool_result(cancelled)
     return {
@@ -2108,7 +2129,7 @@ async def _cc_tool_loop(url, headers, model, messages, mcp_tools, mcp_route, rea
     # vẫn nhận dữ liệu thật để tóm tắt, thay vì rơi về memory hoặc nói "không có tool".
     if requirement == "javis_schedule" and _schedule_read_request(messages):
         yield {"type": "tool_call", "name": "javis_schedule"}
-        result = await mcp_client.call_route(mcp_route, "javis_schedule", {"op": "list"})
+        result = await _call_javis_schedule(mcp_route, {"op": "list"})
         clipped = _clip_tool_result(result)
         if clipped.startswith("ERROR:"):
             yield {"type": "error", "content": clipped}

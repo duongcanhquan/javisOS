@@ -282,6 +282,24 @@ async def schedule_cancel_gateway_tests():
         )
         check("kho lịch trống -> báo không có, không nói mơ hồ/thiếu tool",
               empty.get("not_found") and not empty.get("needs_choice"))
+
+        calls.clear()
+        mcp_client.call_route = fake_call
+        lazy_only = await engine.schedule_cancel_gateway(
+            [{"role": "user", "content": "Huỷ lịch Brainstorm cách làm việc quan trọng hôm nay"}],
+            [],
+            {"javis_schedule": {}},
+        )
+        check("gateway vẫn huỷ khi tool chỉ có trong route (tầng lazy giấu tên)",
+              lazy_only.get("handled") and lazy_only.get("id") == "rem_b")
+
+        missing = await engine.schedule_cancel_gateway(
+            [{"role": "user", "content": "Huỷ lịch Brainstorm cách làm việc quan trọng hôm nay"}],
+            [],
+            {},
+        )
+        check("thiếu hẳn tool thì báo không có trong MCP",
+              missing and missing.get("error") and "không có trong MCP" in missing.get("error", ""))
     finally:
         mcp_client.call_route = old_call
 

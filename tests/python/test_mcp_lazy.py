@@ -337,6 +337,16 @@ cfns = {t["fn"] for t in ct}
 check("tool hạt nhân KHÔNG bao giờ bị giấu", mcp_hub.CORE_TOOL_FNS <= cfns)
 check("tool ngoài nhóm hạt nhân vẫn bị giấu", "pos__pos_order" not in cfns)
 
+# javis_schedule là plugin, không phải builtin, nhưng cổng lịch gọi thẳng theo tên.
+set_lazy({"lazy_tools": True})
+_pin_tools, _pin_route = _core_fixture()
+_ps, _pe = _builtin("javis_schedule", "đặt việc định kỳ")
+_pin_tools.append(_ps)
+_pin_route[_ps["fn"]] = _pe
+_pt, _pr = mcp_hub._apply_lazy(_pin_tools, _pin_route)
+check("javis_schedule không bị tầng lazy giấu",
+      "javis_schedule" in {t["fn"] for t in _pt} and "javis_schedule" in _pr)
+
 # Rào khoá hai chiều: tên trong CORE_TOOL_FNS phải là builtin CÓ THẬT. Gõ sai hoặc đổi tên
 # builtin mà quên sửa danh sách thì tool đó âm thầm rơi vào pool - hỏng câm, không ai biết.
 _vault = tempfile.mkdtemp(prefix="javis-corecheck-")

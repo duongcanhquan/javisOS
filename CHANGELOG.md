@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.222] - 2026-09-14
+### Sửa
+- **Lịch/cron trong chat:** `javis_schedule` không còn bị tầng lazy giấu, nên huỷ/xem nhắc hẹn không báo "không có trong MCP của phiên".
+
 ## [0.55.221] - 2026-09-14
 ### Sửa
 - **Bảng route:** chụp lại snapshot sau khi thêm `GET/POST /tool-apis` (Khóa API). CI không còn đỏ vì lệch số mục.

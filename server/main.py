@@ -2870,6 +2870,12 @@ async def _schedule_cancel_action(message: str, brain):
     try:
         vault_root = _brain_root(brain)
         tools, route = await mcp_hub.discover_all("full", vault_root=vault_root)
+        # Tầng lazy có thể giấu javis_schedule khỏi danh sách hiện; route đầy đủ vẫn
+        # nằm inventory. Gắn lại để cổng huỷ/đọc lịch gọi thẳng được.
+        _, inv_route = mcp_hub.registry_inventory("full", vault_root=vault_root)
+        if inv_route.get("javis_schedule") and "javis_schedule" not in route:
+            route = dict(route)
+            route["javis_schedule"] = inv_route["javis_schedule"]
         return await engine.schedule_cancel_gateway(messages, tools, route)
     except Exception as exc:
         return {
