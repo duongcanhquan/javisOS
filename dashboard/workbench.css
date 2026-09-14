@@ -452,8 +452,8 @@
 }
 .jw-tabs-video .jw-tab-stack {
   flex: 1 1 0;
-  min-width: 7.5rem;
-  max-width: 11rem;
+  min-width: 8.2rem;
+  max-width: 13.5rem;
 }
 .jw-tab-stack {
   display: flex;
@@ -473,7 +473,8 @@
   font-weight: 500;
   color: var(--text2);
   white-space: normal;
-  max-width: 14ch;
+  max-width: none;
+  line-height: 1.35;
 }
 .jw-tab.on .jw-tab-blurb { color: var(--text); opacity: 0.85; }
 .jw-tab-hint {

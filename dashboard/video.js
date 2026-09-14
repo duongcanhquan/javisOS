@@ -18,11 +18,11 @@
     {
       id: "postcard",
       pipeline: "postcard-video",
-      label: "Promo cinematic",
-      blurb: "Shotcraft · 157 thẻ shot + SFX/BGM",
-      full: "Promo cinematic (video-shotcraft)",
-      when: "Promo / launch / demo UI sản phẩm: recipe shot Remotion, chụp trang thật, SFX/BGM.",
-      example: "Ra mắt app ghi chú → clip ~30s dọc, mode tự do hoặc template Ink Press.",
+      label: "Promo sản phẩm",
+      blurb: "Demo app/web, nhạc + hiệu ứng",
+      full: "Promo sản phẩm (cinematic, chụp trang thật)",
+      when: "Clip ra mắt hoặc demo sản phẩm: máy quay 2.5D, nhạc và hiệu ứng. Cần URL hoặc ảnh trang thật. Giọng đọc thường không có.",
+      example: "Ra mắt app ghi chú → clip dọc ~30 giây, có nhạc, không cần lời đọc.",
       time: "Gợi ý 15–45s (template ~36s); kéo tối đa 10 phút",
       topicPh: "Ví dụ: Ra mắt app ghi chú cho học sinh",
       needsUrl: true,
@@ -30,11 +30,11 @@
       assetsHint: "Shotcraft cần trang thật hoặc ảnh chụp - không bịa UI.",
       assetsPh: "https://… hoặc đường dẫn ảnh đã có",
       caps: [
-        "3 mode (template / tự do / cùng làm)",
-        "157 shot card + gallery",
-        "2.5D camera + beat-sync",
-        "SFX 16 nhóm + BGM đôi bản",
-        "Workbench + xuất Jianying",
+        "Chụp trang thật / screenshot",
+        "Máy quay 2.5D, khóa nhịp nhạc",
+        "Nhạc nền + hiệu ứng âm thanh",
+        "15–45 giây là đẹp nhất",
+        "Có thể xuất sang CapCut (Jianying)",
       ],
       aspects: DEFAULT_ASPECTS,
       duration: {
@@ -197,10 +197,10 @@
       id: "short-vo",
       pipeline: "pixcelvideo",
       label: "Có lời đọc",
-      blurb: "Ảnh từng cảnh + Edge-TTS",
-      full: "Video có lời đọc (pixcelvideo)",
-      when: "Clip giải thích / bán hàng: bắt buộc ảnh mỗi cảnh + giọng đọc.",
-      example: "Máy lọc nước → 45 giây có lời thoại và phụ đề.",
+      blurb: "Ảnh từng cảnh + giọng + phụ đề",
+      full: "Video có lời đọc (ảnh từng cảnh)",
+      when: "Clip giải thích hoặc bán hàng: mỗi cảnh một ảnh, có giọng đọc tiếng Việt và phụ đề. Không cần URL sản phẩm.",
+      example: "Máy lọc nước → 45 giây, ảnh minh họa + lời + phụ đề.",
       time: "Kéo tới 10 phút; số cảnh chia theo lời",
       topicPh: "Ví dụ: Vì sao nên dùng máy lọc nước",
       needsUrl: false,
@@ -208,10 +208,10 @@
       assetsHint: "",
       assetsPh: "Có thì dán, không có cũng được",
       caps: [
-        "Ảnh bắt buộc từng cảnh",
-        "ChatGPT hoặc Pollinations",
-        "Edge-TTS + phụ đề",
-        "Pixelle RunningHub (tuỳ chọn)",
+        "Mỗi cảnh một ảnh (bắt buộc)",
+        "Giọng đọc Edge-TTS + phụ đề",
+        "Hợp kể chuyện, bán hàng",
+        "Không cần link trang sản phẩm",
       ],
       aspects: [
         { value: "9:16", label: "Dọc / portrait" },
@@ -317,11 +317,11 @@
     {
       id: "collage",
       pipeline: "paperdesign",
-      label: "Collage Vox",
-      blurb: "Paperdesign · theme + beat + VO",
-      full: "Video collage giấy (paperdesign / Vox)",
-      when: "Explainer kiểu cắt dán báo: beat map, theme bake-off, poster → motion → VO/BGM.",
-      example: "Lạm phát là gì? → collage ~45s, theme swiss-modern.",
+      label: "Collage giấy",
+      blurb: "Cắt dán poster, explainer",
+      full: "Collage giấy kiểu Vox (cắt dán explainer)",
+      when: "Giải thích một ý như cắt dán báo: mỗi ý một poster, rồi chuyển động + lời. Cần khóa Atlas (gen ảnh).",
+      example: "Lạm phát là gì? → collage ~45 giây, vài tờ poster + giọng đọc.",
       time: "Số poster = số beat; kéo tới 10 phút",
       topicPh: "Ví dụ: Lạm phát giải thích ngắn",
       needsUrl: false,
@@ -329,11 +329,11 @@
       assetsHint: "C-roll: ảnh chân dung hoặc sản phẩm để neo sticker.",
       assetsPh: "Ảnh sản phẩm, logo, clip talking-head…",
       caps: [
-        "9 theme preset + bake-off",
-        "Narrative arc (PAS/AIDA…)",
-        "Motion calm/punchy/max",
-        "TTS xAI + BGM Minimax",
-        "C-roll / A-roll / local engine",
+        "Mỗi ý một poster giấy",
+        "Có theme sẵn (swiss, báo…)",
+        "Chuyển động + lời đọc",
+        "Hợp explainer, kiến thức",
+        "Cần khóa Atlas trước khi gen",
       ],
       aspects: [
         { value: "9:16", label: "9:16 dọc" },
@@ -478,11 +478,11 @@
     {
       id: "remotion",
       pipeline: "remotion",
-      label: "Đồ họa Remotion",
-      blurb: "Data viz · UI · caption · maps",
-      full: "Video đồ họa Remotion",
-      when: "Biểu đồ, dashboard, chữ frame-perfect, maps, composition React.",
-      example: "Tăng trưởng quý 3 → chart draw 30s + caption.",
+      label: "Đồ họa số liệu",
+      blurb: "Biểu đồ, dashboard, bản đồ",
+      full: "Đồ họa số liệu (Remotion)",
+      when: "Không quay người: motion graphics từ số liệu, biểu đồ, dashboard, chữ, bản đồ.",
+      example: "Tăng trưởng quý 3 → biểu đồ vẽ 30 giây + chữ chú thích.",
       time: "Kéo tới 10 phút; chọn loại composition",
       topicPh: "Ví dụ: Số liệu tăng trưởng quý 3",
       needsUrl: false,
@@ -490,11 +490,11 @@
       assetsHint: "",
       assetsPh: "Link sheet, CSV, ảnh dashboard, GeoJSON…",
       caps: [
-        "Data viz & UI motion",
-        "Captions word-level",
-        "Maps / geo flyover",
-        "Studio + render ffmpeg",
-        "Transparent / SaaS player",
+        "Biểu đồ, dashboard, chỉ số",
+        "Chữ hiện đúng từng khung",
+        "Bản đồ / flyover",
+        "Không phải clip người nói",
+        "Cần Node + ffmpeg để render",
       ],
       aspects: DEFAULT_ASPECTS,
       duration: {
@@ -598,11 +598,11 @@
     {
       id: "html-video",
       pipeline: "html-video",
-      label: "HTML kinetic",
-      blurb: "OmmiStudio · template + brand",
-      full: "Video HTML → MP4 (OmmiStudio / nexu)",
-      when: "Short marketing từ template HTML, brand pack, chữ kinetic (motion-anything).",
-      example: "Brand pack quán cà phê → HTML kinetic 20s xuất mp4.",
+      label: "HTML thương hiệu",
+      blurb: "Template + logo, chữ bay",
+      full: "HTML thương hiệu (template → MP4)",
+      when: "Promo ngắn từ template HTML sẵn: logo, màu brand, chữ bay. Cần OmmiStudio trên máy.",
+      example: "Quán cà phê có sẵn màu/logo → clip 20 giây xuất mp4.",
       time: "Cần OmmiStudio (Node, Playwright, ffmpeg)",
       topicPh: "Ví dụ: Promo khai trương quán cà phê",
       needsUrl: false,
@@ -610,11 +610,10 @@
       assetsHint: "Ghi hex màu, font, logo path nếu có.",
       assetsPh: "Logo, màu #…, font…",
       caps: [
-        "html-video + Playwright",
-        "motion-anything chữ kinetic",
-        "html-still thumbnail",
-        "Brand pack / template",
-        "Ommi UI :5173",
+        "Template HTML + logo/màu",
+        "Chữ bay (kinetic)",
+        "Xuất mp4 từ trang HTML",
+        "Cần OmmiStudio trên máy",
       ],
       aspects: DEFAULT_ASPECTS,
       duration: {
@@ -694,10 +693,10 @@
       id: "auto",
       pipeline: "để đạo diễn chọn",
       label: "Javis chọn",
-      blurb: "Đọc catalog rồi quyết",
-      full: "Để Javis chọn pipeline phù hợp",
-      when: "Chưa chắc kiểu nào - điền brief; đạo diễn chọn theo catalog lam-video.",
-      example: "Giới thiệu quán cà phê → Javis chọn postcard / collage / HTML…",
+      blurb: "Chưa chắc kiểu nào",
+      full: "Để Javis chọn kiểu video phù hợp",
+      when: "Chưa biết dùng loại nào: điền chủ đề và mục tiêu, đạo diễn chọn hộ (promo / lời đọc / collage / đồ họa / HTML).",
+      example: "Giới thiệu quán cà phê → Javis chọn kiểu rồi làm.",
       time: "Thời lượng + số cảnh gợi ý",
       topicPh: "Ví dụ: Video giới thiệu cửa hàng cà phê",
       needsUrl: false,
@@ -705,9 +704,9 @@
       assetsHint: "",
       assetsPh: "Có gì dán vào đây",
       caps: [
-        "postcard / pixcel / paper / remotion / html",
-        "Đổi pipeline nếu thiếu key",
-        "Manual pack khi bí",
+        "Tự chọn trong 5 kiểu trên",
+        "Đổi kiểu nếu thiếu khóa/máy",
+        "Chưa chắc thì dùng tab này",
       ],
       aspects: DEFAULT_ASPECTS,
       duration: {
@@ -1001,7 +1000,7 @@
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
       "<div><h2 class=\"jw-title\">Tạo video</h2>" +
-      '<p class="jw-lead">Chọn kiểu tab → kéo thời lượng/số cảnh → chỉnh yêu cầu theo pipeline → <b>Tạo video</b>.</p></div>' +
+      '<p class="jw-lead">Mỗi tab một kiểu video (dòng nhỏ trên tab là dùng khi nào). Chọn xong, kéo thời lượng, bấm <b>Tạo video</b>.</p></div>' +
       "</div>" +
       '<div class="jw-tabs jw-tabs-video" role="tablist" id="vidTabs"></div>' +
       '<p class="jw-tab-hint" id="vidTabHint"></p>' +
@@ -1055,9 +1054,9 @@
       if (!el) return;
       el.innerHTML =
         "<b>" +
-        esc(f.full) +
+        esc(f.label) +
         "</b> · " +
-        esc(f.blurb) +
+        esc(f.when) +
         ' <span class="dim">· ' +
         esc(f.time) +
         "</span>";

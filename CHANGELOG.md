@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.217] - 2026-09-14
+### Cải thiện
+- **Tạo video: tab nói tiếng người.** Promo sản phẩm, Có lời đọc, Collage giấy, Đồ họa số liệu, HTML thương hiệu, Javis chọn. Dòng nhỏ trên tab + gợi ý «dùng khi» / ví dụ, bớt jargon Shotcraft/Ommi/Edge-TTS.
+
 ## [0.55.216] - 2026-09-14
 ### Thêm mới
 - **Gói kế toán chuẩn.** Skill: `doc-hoa-don` (schema + cờ lệch tiền, từ ai-invoice-parser), `so-ke-toan-kep` (sổ kép P&L/CĐKT/LCTT, từ python-accounting), `doc-bao-cao-tai-chinh` (5 tỷ số + briefing, từ Financial-report-analyzer), `tro-ly-thi-truong-chung-khoan` (giá/tin MCP, không phải sổ), `ke-hoach-ke-toan` (đóng sổ, tiền, tuổi nợ). Workflow `ke-toan-chuan`: hóa đơn → sổ → phân tích → kế hoạch kỳ → kiểm chứng → xuất `sources/accounting/<slug>/`.

@@ -27,14 +27,15 @@ const en = fs.readFileSync(path.join(root, "dashboard/i18n/en.json"), "utf8");
 check("video.js export renderTaoVideo", /window\.renderTaoVideo\s*=/.test(videoJs));
 check(
   "video.js có tab Promo / pipeline postcard",
-  /postcard-video/.test(videoJs) && /Promo cinematic|Promo ngắn/.test(videoJs)
+  /postcard-video/.test(videoJs) && /Promo sản phẩm|Promo cinematic|Promo ngắn/.test(videoJs)
 );
 check("video.js form chia mục 1/2", /jw-sec/.test(videoJs) && /Bạn muốn nói gì/.test(videoJs));
 check("video.js tab có blurb", /jw-tab-blurb/.test(videoJs));
 check("video.js thanh kéo thời lượng max 10 phút", /type="range"/.test(videoJs) && /MAX_DURATION_SEC\s*=\s*600/.test(videoJs));
 check("video.js có chọn số slide/cảnh", /vidSlides/.test(videoJs) && /Số shot|Số cảnh|Số poster|Số beat|Số scene/.test(videoJs));
 check("video.js có yêu cầu theo kiểu", /jw-type-opts/.test(videoJs) && /Yêu cầu/.test(videoJs));
-check("video.js tab html-video / Ommi", /pipeline:\s*"html-video"/.test(videoJs) && /HTML kinetic/.test(videoJs));
+check("video.js tab html-video / Ommi", /pipeline:\s*"html-video"/.test(videoJs) && /HTML thương hiệu|HTML kinetic/.test(videoJs));
+check("video.js mô tả kiểu bằng tiếng Việt", /Demo app\/web/.test(videoJs) && /Cắt dán poster/.test(videoJs) && /Biểu đồ, dashboard/.test(videoJs));
 check("video.js shotcraft mode + gallery", /vidShotMode/.test(videoJs) && /vidShotFamily/.test(videoJs) && /157/.test(videoJs));
 check("video.js paperdesign theme + arc", /vidPaperTheme/.test(videoJs) && /vidArc/.test(videoJs));
 check("video.js chips năng lực", /jw-feat-chips/.test(videoJs) && /caps:/.test(videoJs));
