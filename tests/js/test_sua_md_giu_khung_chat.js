@@ -42,6 +42,9 @@ check("thanh model + file chip + bg-strip cũng vắt ngang đáy như màn Javi
   && CSS.indexOf(".chatpage-main.edit-on > .chatpage-slot > .bg-strip{ grid-row:3; grid-column:1 / -1; }") !== -1);
 check("bỏ trần 900px của slot trong chế độ này",
   CSS.indexOf(".chatpage-main.edit-on > .chatpage-slot > *{ max-width:none; }") !== -1);
+check("trang Trò chuyện: cột chat không còn trần 900px, chiếm hết phần còn lại",
+  !/\.chatpage-slot > \*\{[^}]*max-width:900px/.test(CSS)
+  && /\.chatpage-slot > \*\{[^}]*max-width:none/.test(CSS));
 check("thanh tiêu đề vắt ngang cả hai cột",
   CSS.indexOf(".chatpage-main.edit-on > .chatpage-bar{ grid-row:1; grid-column:1 / -1; }") !== -1);
 

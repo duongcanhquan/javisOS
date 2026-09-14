@@ -6374,7 +6374,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     .chatpage{ display:flex; height:100%; min-height:0; position:relative; }
     .chatpage-side{ width:280px; flex:none; display:flex; flex-direction:column; gap:10px;
       min-height:0; padding:14px 12px; border-right:1px solid var(--glass-brd); background:var(--surface-1); }
-    .chatpage-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; padding:14px 20px 16px; }
+    .chatpage-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; min-height:0; padding:10px 16px 12px; }
     .chatpage-bar{ display:flex; align-items:center; gap:10px; padding:0 4px 10px; flex:none; }
     /* Chip project lùi hẳn về mép phải: thanh này giờ chỉ còn hai nút bên trái, để chip
        dính ngay sau chúng thì nó trông như nút thứ ba chứ không phải nhãn của cuộc chat. */
@@ -6465,8 +6465,15 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
        vô hiệu hoá nút phóng to (hai selector cùng độ ưu tiên, khối này nạp sau nên thắng). */
     .chatpage-edit > .note-editor:not(.ne-full){ position:static; inset:auto; z-index:auto;
       flex:1 1 auto; min-height:0; min-width:0; border-radius:12px; }
-    .chatpage-slot > *{ width:100%; max-width:900px; margin-left:auto; margin-right:auto; }
+    /* Trước đây trần 900px + căn giữa: cửa sổ Trò chuyện rộng hết màn mà cột chat chỉ một
+       dải hẹp giữa hai khoảng trống. Chủ muốn hội thoại TO, gần full phần còn lại (cột
+       lịch sử 280px vẫn giữ). Không đặt trần pixel; padding của .chatpage-main là khoảng thở. */
+    .chatpage-slot > *{ width:100%; max-width:none; margin-left:0; margin-right:0; }
     .chatpage-slot .transcript{ flex:1 1 auto; min-height:0; max-height:none; background:transparent; }
+    /* Bong bóng trên trang này theo bề rộng cột (HUD vẫn 76ch). Chữ 15px vì 12.5px trên
+       cột rộng trông như chữ chú thích. User không bung full để câu ngắn không thành thanh. */
+    .chatpage-slot .msg-javis .bubble{ max-width:100%; font-size:15px; }
+    .chatpage-slot .msg-user .bubble{ max-width:min(78%, 72ch); font-size:15px; }
     /* Khung nhập giữ NGUYÊN bộ mặt của thanh nhập ở màn Javis (--bg2 + bo 18px). Trước đây
        gõ cứng rgba(24,24,34,.6) nên tông sáng lòi ra một dải xám đen giữa nền giấy. */
     .chatpage-slot .hud-voice{ background:var(--bg2); border:1px solid var(--border); border-radius:18px; }

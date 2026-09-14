@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.214] - 2026-09-14
+### Cải thiện
+- **Trang Trò chuyện dùng gần hết màn.** Cột chat không còn kẹp 900px giữa hai khoảng trống: hội thoại, ô nhập và thanh model trải hết phần còn lại (cột lịch sử bên trái vẫn 280px). Chữ trong khung này to hơn một chút cho dễ đọc.
+
 ## [0.55.213] - 2026-09-13
 ### Cải thiện
 - **Hướng dẫn VPS cho người chưa biết kỹ thuật.** Nói rõ dùng gì để kết nối (PowerShell / PuTTY / Terminal / Remote Desktop), cách dán lệnh, mở cổng, Hostinger không cần gõ lệnh, tên miền miễn phí (DuckDNS, `hstgr.cloud`, Cloudflare Tunnel), và lần đầu trong app chỉ admin + Models. File: `HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md`.
