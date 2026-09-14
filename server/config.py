@@ -50,13 +50,15 @@ _DEFAULT = {
     },
     # Nhà cung cấp giọng đọc (TTS). edge = Edge TTS miễn phí (mặc định, dự phòng).
     # openai = OpenAI TTS (dùng model.openai_api_key). elevenlabs = ElevenLabs (key riêng).
+    # zerotts = ZeroTTS local ONNX (pip install zerotts; ~900MB weights lần đầu). Thiếu/lỗi → Edge.
     "voice": {
-        "tts_provider": "edge",                       # edge | openai | elevenlabs
+        "tts_provider": "edge",                       # edge | openai | elevenlabs | zerotts
         "openai_tts_voice": "alloy",                  # alloy|echo|fable|onyx|nova|shimmer|ash|sage|coral
         "openai_tts_model": "gpt-4o-mini-tts",        # hoặc tts-1 / tts-1-hd
         "elevenlabs_key": "",
         "elevenlabs_voice": "21m00Tcm4TlvDq8ikWAM",   # Rachel (premade, đa ngôn ngữ) - đổi được
         "elevenlabs_model": "eleven_multilingual_v2",
+        "zerotts_voice": "maichi",                    # preset: maichi|baotrang|kimoanh|hamy|…
         # Chốt câu nhanh (kiểu Pipecat VAD): im lặng 0.4s hết câu / 0.9s câu thường, giữ 1.9s
         # nếu còn interim / cụm dở. False = hành vi cũ 1.9s mọi lúc. Không đụng engine/MCP.
         "fast_turn": True,

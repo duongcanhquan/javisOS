@@ -40,6 +40,7 @@ def check(name, cond):
 NANG_PHAI_LUOI = {
     "edge_tts": "TTS (giọng đọc) - 944ms, kéo theo cả aiohttp",
     "aiohttp": "chỉ đi kèm edge_tts, không code nào của Javis dùng trực tiếp",
+    "zerotts": "ZeroTTS tuỳ chọn - onnxruntime + weights ~900MB, chỉ nạp khi gọi /tts",
 }
 
 import main  # noqa: E402,F401

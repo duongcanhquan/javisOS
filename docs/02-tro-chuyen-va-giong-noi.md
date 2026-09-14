@@ -306,17 +306,18 @@ Mọi thứ về giọng nằm trong **Cài đặt → Giọng nói, thương hi
 
 ### Chọn nhà cung cấp giọng đọc
 
-Khối **NHÀ CUNG CẤP GIỌNG ĐỌC** có ba lựa chọn:
+Khối **NHÀ CUNG CẤP GIỌNG ĐỌC** có bốn lựa chọn:
 
 | Lựa chọn trong danh sách | Cần gì thêm |
 |---|---|
 | Edge TTS - miễn phí (mặc định) | Không cần gì |
 | OpenAI - mượt, đa ngôn ngữ | OpenAI API key (dùng chung với chat) + chọn một trong 11 giọng: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse |
 | ElevenLabs - tự nhiên nhất | ElevenLabs API key + **Voice ID** (lấy ở ElevenLabs → Voices) |
+| ZeroTTS - local, tiếng Việt (tuỳ chọn) | `pip install zerotts` trên máy chạy Javis (lần đầu tải ~900MB weights). Chọn preset (Mai Chi, …). Không nhân bản giọng từ audio trong bản mở nguồn. |
 
-Chọn xong bấm **Lưu nhà cung cấp**. Dòng trạng thái bên dưới ghi đang dùng cái nào. Nếu nhà cung cấp trả phí gặp lỗi (hết hạn mức, sai key, mất mạng), Javis **tự quay về Edge TTS** để giọng không bao giờ tắt hẳn.
+Chọn xong bấm **Lưu nhà cung cấp**. Dòng trạng thái bên dưới ghi đang dùng cái nào. Nếu nhà cung cấp trả phí / ZeroTTS gặp lỗi (hết hạn mức, sai key, mất mạng, chưa cài gói), Javis **tự quay về Edge TTS** để giọng không bao giờ tắt hẳn.
 
-Khi chọn OpenAI hoặc ElevenLabs, khối hai giọng Edge (Ngọc Thu / Nam Minh) tự ẩn đi vì lúc đó giọng chọn ngay trong khối của nhà cung cấp.
+Khi chọn OpenAI, ElevenLabs hoặc ZeroTTS, khối hai giọng Edge (Ngọc Thu / Nam Minh) tự ẩn đi vì lúc đó giọng chọn ngay trong khối của nhà cung cấp.
 
 ### Chọn giọng Edge và tốc độ
 

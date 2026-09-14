@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.223] - 2026-09-14
+### Thêm mới
+- **ZeroTTS (tuỳ chọn):** nhà cung cấp giọng đọc local tiếng Việt trong Cài đặt. Cài `pip install zerotts` (lần đầu ~900MB), chọn preset, thiếu gói/lỗi thì tự về Edge. Không đụng OpenAI/ElevenLabs/Edge đang chạy.
+
 ## [0.55.222] - 2026-09-14
 ### Sửa
 - **Lịch/cron trong chat:** `javis_schedule` không còn bị tầng lazy giấu, nên huỷ/xem nhắc hẹn không báo "không có trong MCP của phiên".
