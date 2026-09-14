@@ -42,6 +42,7 @@ from claude_cli import CodexCLI, claude_engine, find_claude_cli, find_codex_cli,
 import claude_cli   # binary `claude`: tìm đường, auth, và danh mục model nhúng sẵn trong CLI
 import codex_models   # thang effort mà CHÍNH Codex khai cho từng model (model/list)
 import config as cfgmod
+import tool_apis
 import update_state
 _ver_tuple = update_state.ver_tuple
 _ver_newer = update_state.ver_newer
@@ -4011,6 +4012,13 @@ async def settings_get():
     safe.setdefault("backup", {})
     safe["backup"]["token"] = ("••••" + bt[-4:]) if bt else ""
     safe["backup"]["token_set"] = bool(bt)
+    # Khóa trang Khóa API: GET /settings không được lộ giá trị, kể cả đã mã hoá.
+    raw_ta = ((cfg.get("tool_apis") or {}).get("keys") if isinstance(cfg.get("tool_apis"), dict) else {}) or {}
+    if not isinstance(raw_ta, dict):
+        raw_ta = {}
+    safe["tool_apis"] = {
+        "keys_set": {str(k): bool(str(v or "").strip()) for k, v in raw_ta.items()}
+    }
     safe["model"]["providers"] = _providers_view(cfg)   # danh sách provider + trạng thái + model
     safe["model"]["main"] = _effective_main(cfg)         # model chính hiệu lực (suy từ legacy nếu cần)
     return safe
@@ -4198,6 +4206,32 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
     if section == "voice":
         cfgmod.apply_tool_env(cfg)   # key ElevenLabs -> env cho tool ngoài (video-use) ngay, không cần restart
     return {"ok": True}
+
+
+@app.get("/tool-apis")
+async def tool_apis_get():
+    """Danh sách ô khóa + trạng thái đã nạp. Không trả khóa đầy đủ."""
+    return tool_apis.view(cfgmod.read_settings())
+
+
+@app.post("/tool-apis")
+async def tool_apis_set(
+    op: str = Form(...),
+    id: str = Form(""),
+    env: str = Form(""),
+    key: str = Form(""),
+):
+    """Lưu / xoá một khóa. Bơm env ngay, không restart."""
+    cfg = cfgmod.read_settings()
+    try:
+        tool_apis.mutate(cfg, op=op, id=id, env=env, key=key)
+    except tool_apis.ToolApiError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    cfgmod.write_settings(cfg)
+    cfgmod.apply_tool_env(cfg)
+    out = tool_apis.view(cfg)
+    out["ok"] = True
+    return out
 
 
 # ============================================================
@@ -12496,7 +12530,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             await ws.send_text(json.dumps({
                 "type": "status",
-                "content": "Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật..."
+                "content": "wait"
             }))
 
             # Dựng prompt cũ theo nhu cầu. Fast Path không đọc/nạp memory hoặc lịch sử cũ.

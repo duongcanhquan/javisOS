@@ -236,17 +236,31 @@ function handleMessage(data) {
   if (data.type === "status") {
     if (t) t.running = true;
     setSessionRunning(sid, true);
-    if (isActive) { setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO"); showActivity(escapeHtml(data.content || "")); syncActiveUI(); }
+    if (isActive) {
+      setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
+      const raw = data.content || "";
+      // Câu chờ generic: rotator trên chip đang xoay 4 câu cho lượt lâu, đừng đè.
+      if (!(window.JavisWait && window.JavisWait.isWaitFiller(raw))) {
+        stopWaitRotate();
+        showActivity(escapeHtml(raw));
+      }
+      syncActiveUI();
+    }
   } else if (data.type === "tool_call") {
     if (data.tool) trackMCP(data.tool);
-    if (isActive) showActivity(escapeHtml(data.content || ""));
+    if (isActive) { stopWaitRotate(); showActivity(escapeHtml(data.content || "")); }
   } else if (data.type === "tool_result") {
-    if (isActive) showActivity(Icons.msg("check", "Nhận data - đang phân tích...", { cls: "ic-ok" }));
+    if (isActive) { stopWaitRotate(); showActivity(Icons.msg("check", "Nhận data - đang phân tích...", { cls: "ic-ok" })); }
   } else if (data.type === "stream") {
     if (!t) return;
     t.text += (data.content || "");
     if (isActive) {
-      if (!t.bubble) { t.bubble = createStreamingBubble(); showActivity(Icons.msg("pen-line", "Đang soạn câu trả lời...")); }
+      if (!t.bubble) {
+        stopWaitRotate();
+        t.bubble = createStreamingBubble();
+        const soan = (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời...";
+        showActivity(Icons.msg("pen-line", soan));
+      }
       t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
       scrollBottom();
       // Đọc theo stream: chữ tới đâu loa đọc tới đó (voice.feedStream gom cụm ngắn).
@@ -421,10 +435,10 @@ function sendMessage(text) {
   turns[sid] = { text: "", bubble: null, spoke: false, running: true, waitFiller: false };
   setSessionRunning(sid, true);
   setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
-  // Chip chờ hiện ngay. KHÔNG đọc filler bằng TTS — đọc rồi cắt khi chữ thật tới
-  // làm chậm và không tự nhiên. Loa chỉ nói nội dung trả lời (stream).
-  const waitLine = "Cho em chút thời gian để trả lời.";
-  showActivity(waitLine);
+  // Chip chờ hiện ngay, xoay câu khi lượt lâu. TTS đọc từng câu chờ (nếu bật loa),
+  // cắt khi chữ thật bắt đầu stream (waitFiller).
+  hideActivity();
+  startWaitRotate();
   syncActiveUI();
   // Server đóng dấu model đang chạy cho phiên ngay từ tin đầu -> bar hiện "ghim" tại chỗ.
   try { if (window.JavisModelBar) window.JavisModelBar.noteStamped(sid); } catch (e) {}
@@ -639,7 +653,7 @@ async function openStoredSession(id) {
     if (t && t.running) {
       t.bubble = createStreamingBubble();
       if (t.text) t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
-      showActivity(Icons.msg("pen-line", "Đang soạn câu trả lời..."));
+      showActivity(Icons.msg("pen-line", (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời..."));
       setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
     }
     // Phiên này đang chờ gói thuê bao mở lại hạn mức → gắn thẻ "tự chạy lại" dưới tin cuối.
@@ -908,6 +922,18 @@ function escapeHtml(t) { return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 //      biến mất khi phóng to chat). Chip là 1 "bong bóng" 3 chấm nhún + dòng trạng thái
 //      + đồng hồ đếm giây, luôn nằm CUỐI khung chat, đi theo cả chế độ zoom. ----
 let activityEl = null, activityT0 = 0, activityTimer = null;
+let waitRotTimer = null, waitRotSpoken = -1;
+function stopWaitRotate() {
+  if (waitRotTimer) { clearInterval(waitRotTimer); waitRotTimer = null; }
+  waitRotSpoken = -1;
+}
+function speakWaitLine(text) {
+  const t = savedSessionId ? turns[savedSessionId] : null;
+  if (!voice || !voice.ttsEnabled || !text) return;
+  try { voice.stopSpeaking(); } catch (e) {}
+  voice.enqueueSpeak(text);
+  if (t) t.waitFiller = true;
+}
 // Thời lượng đọc được cho task dài: "45s" → "1m 56s" → "1h 30m 40s". Chủ repo báo (2026-08-24)
 // việc nền chạy hàng chục phút mà đồng hồ đếm "1856s" thì không ai nhẩm ra là bao lâu.
 function fmtElapsed(s) {
@@ -937,7 +963,31 @@ function showActivity(html) {
   chatAppend(activityEl);   // re-append → luôn dưới cùng (kể cả dưới bubble đang stream)
   scrollBottom();
 }
+function startWaitRotate() {
+  stopWaitRotate();
+  const first = (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời...";
+  showActivity(escapeHtml(first));
+  const tick = function () {
+    if (!activityEl || !window.JavisWait) return;
+    const s = Math.floor((Date.now() - activityT0) / 1000);
+    const idx = window.JavisWait.waitIndexAt(s);
+    const line = window.JavisWait.waitLineAt(s);
+    const el = activityEl.querySelector(".act-text");
+    if (!el) return;
+    if (el.getAttribute("data-wait") !== String(idx)) {
+      el.setAttribute("data-wait", String(idx));
+      el.textContent = line;
+    }
+    if (idx !== waitRotSpoken) {
+      waitRotSpoken = idx;
+      speakWaitLine(line);
+    }
+  };
+  tick();
+  waitRotTimer = setInterval(tick, 1000);
+}
 function hideActivity() {
+  stopWaitRotate();
   if (activityTimer) { clearInterval(activityTimer); activityTimer = null; }
   if (activityEl && activityEl.parentNode) activityEl.parentNode.removeChild(activityEl);
   activityEl = null;

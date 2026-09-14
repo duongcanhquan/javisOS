@@ -158,7 +158,7 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
   const JS_DUNG_T = ["console.js", "studio.js", "theme.js", "app.js", "chat-render.js",
     "sessions-ui.js", "dataview.js", "brains-ui.js", "file-editor.js", "editor-cmds.js",
     "chatbots.js", "model-picker.js", "quick-settings.js", "usage.js", "code-term.js",
-    "notifications.js"];
+    "notifications.js", "tool-apis.js"];
   const thieuJs = [];
   for (const f of JS_DUNG_T) {
     const p = path.join(ROOT, "dashboard", f);

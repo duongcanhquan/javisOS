@@ -1,5 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.55.220] - 2026-09-14
+### Thêm mới
+- **Trang Khóa API** (nhóm Kết nối): chỗ dán khóa dịch vụ ngoài chưa có nhà. Sẵn ô video (Atlas, xAI, Pixelle, Kling, Seedance, Veo, Sora), ảnh (Seedream, Qwen, Nano Banana), tìm web (Tavily, Exa, Firecrawl), giọng OpenMAIC (Azure/GLM/Qwen TTS, VoxCPM), bản đồ Google, hoặc tự thêm `FOO_API_KEY`. Không đụng khóa đã có trên Models / Cài đặt / Kênh, không ghi đè biến `.env` hay Docker đã đặt. ElevenLabs vẫn chỉ nằm Cài đặt. Trang Tạo video có lối tắt.
+
+## [0.55.219] - 2026-09-14
+### Cải thiện
+- **Câu chờ khi trả lời lâu:** chip (và TTS nếu bật loa) xoay lần lượt `Em đang soạn câu trả lời...` (0s), `Thời gian đọc dữ liệu có thể hơi lâu, anh chờ em nhé...` (8s), `Sắp xong rồi, em cần chuẩn hóa dữ liệu...` (20s), `Dữ liệu khá nhiều, em sẽ không bốc phét đâu...` (35s, giữ nguyên). Tool/stream vẫn đè chip như cũ.
+
 ## [0.55.218] - 2026-09-14
 ### Cải thiện
 - **Câu chờ lúc Javis đang làm:** chip (và TTS nếu bật loa) đọc `Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật...` thay cho `Cho mình chút thời gian để trả lời.`

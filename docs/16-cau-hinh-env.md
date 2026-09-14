@@ -18,10 +18,10 @@ nội bộ về cổng, state, brain và thư mục làm việc nằm sẵn tron
 Cần phân biệt rõ 3 nơi cấu hình để khỏi nhầm:
 
 - **File `.env`**: các thiết lập cấp hệ thống, đọc 1 lần lúc khởi động. Đổi xong phải khởi động lại Javis mới có hiệu lực.
-- **Bảng ⚙ Cài đặt trong app** (trang Tài khoản, Models, Kênh...): các thiết lập đổi nóng qua giao diện, lưu vào `settings.json`, không cần sửa file. Ví dụ: đổi model, khoá API OpenRouter, token Telegram, tên miền riêng, logo. Xem thêm ở [Models & engine](10-models-va-engine.md), [Bảo mật & tài khoản](14-bao-mat-tai-khoan.md), [Thương hiệu & tên miền](15-thuong-hieu-ten-mien.md).
+- **Bảng ⚙ Cài đặt trong app** (trang Tài khoản, Models, Kênh, **Khóa API**...): các thiết lập đổi nóng qua giao diện, lưu vào `settings.json`, không cần sửa file. Ví dụ: đổi model, khoá API OpenRouter, token Telegram, khóa Atlas/Tavily, tên miền riêng, logo. Xem thêm ở [Models & engine](10-models-va-engine.md), [Kết nối & số liệu](09-mcp-va-so-lieu.md), [Bảo mật & tài khoản](14-bao-mat-tai-khoan.md), [Thương hiệu & tên miền](15-thuong-hieu-ten-mien.md).
 - **Vài khoá trong `settings.json` chưa có giao diện**: hiện có khối `media` (luật dọn ảnh/tệp tạm). Muốn đổi thì phải mở file sửa tay. Xem mục riêng bên dưới.
 
-Nói gọn: `.env` lo phần "chạy ở đâu, ai được vào, dữ liệu nằm đâu". Bảng Cài đặt trong app lo phần "dùng model nào, khoá gì, giọng gì". Còn `settings.json` là nơi cả hai gặp nhau, và một vài khoá hiếm dùng chỉ sửa được ở đó.
+Nói gọn: `.env` lo phần "chạy ở đâu, ai được vào, dữ liệu nằm đâu". Bảng Cài đặt trong app lo phần "dùng model nào, khoá gì, giọng gì". Trang **Khóa API** lo khóa dịch vụ ngoài (video, ảnh, tìm web, giọng, bản đồ) để Javis nhớ và nạp vào skill. Còn `settings.json` là nơi cả hai gặp nhau, và một vài khoá hiếm dùng chỉ sửa được ở đó.
 
 ## Mở ở đâu trong Javis
 

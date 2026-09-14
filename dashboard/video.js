@@ -1000,7 +1000,7 @@
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
       "<div><h2 class=\"jw-title\">Tạo video</h2>" +
-      '<p class="jw-lead">Mỗi tab một kiểu video (dòng nhỏ trên tab là dùng khi nào). Chọn xong, kéo thời lượng, bấm <b>Tạo video</b>.</p></div>' +
+      '<p class="jw-lead">Mỗi tab một kiểu video (dòng nhỏ trên tab là dùng khi nào). Chọn xong, kéo thời lượng, bấm <b>Tạo video</b>. Collage giấy cần khóa Atlas: <button type="button" class="jw-link" id="vidGotoKeys">Kết nối → Khóa API</button>.</p></div>' +
       "</div>" +
       '<div class="jw-tabs jw-tabs-video" role="tablist" id="vidTabs"></div>' +
       '<p class="jw-tab-hint" id="vidTabHint"></p>' +
@@ -1035,6 +1035,14 @@
         "</span>";
       tabsEl.appendChild(b);
     });
+    var gotoKeys = root.querySelector("#vidGotoKeys");
+    if (gotoKeys) {
+      gotoKeys.onclick = function () {
+        try {
+          if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("tool_apis");
+        } catch (e) {}
+      };
+    }
 
     function feat() {
       return FEATURES[tabIdx] || FEATURES[0];

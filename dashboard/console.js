@@ -41,6 +41,7 @@
     kanban: "square-kanban",
     terminal: "terminal",
     models: "cpu",
+    tool_apis: "key",
     channels: "send",
     mcp: "plug",
     plugins: "toolbox",
@@ -85,7 +86,7 @@
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
     "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
-    "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "channels", "mcp", "plugins",
+    "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins",
     "packs", "logs", "account", "usage",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
@@ -103,7 +104,7 @@
     { get label() { return t("nav.group.code"); },        icon: GICON["Code"],     ids: ["terminal"] },
     { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
     { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
-    { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models"] },
+    { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
     { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
   ];
   const RAIL_BY_ID = Object.fromEntries(RAIL_ITEMS.map(i => [i.id, i]));
@@ -177,7 +178,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -319,6 +320,7 @@
     if (document.startViewTransition && !skipVT) document.startViewTransition(swap);
     else swap();
   }
+  if (typeof window !== "undefined") window.JavisNavigate = navigateTo;
 
   // Mở trang Tệp tin ĐÚNG vị trí một file/thư mục (gọi từ link trong chat qua window.JavisOpenFiles,
   // hoặc từ deep-link #open=<đường-dẫn> khi mở ở tab trình duyệt mới). fullPath tương đối GỐC BRAIN
@@ -451,6 +453,11 @@
     if (STUDIO_PAGES.includes(id)) return renderStudioPage(el, id);
     if (id === "settings") return renderSettings(el);
     if (id === "models")   return renderModels(el);
+    if (id === "tool_apis") {
+      if (window.JavisToolApis) return window.JavisToolApis.render(el);
+      el.innerHTML = placeholder("tool_apis", "tool-apis.js chưa sẵn sàng.");
+      return;
+    }
     if (id === "mcp")      return renderConnect(el);
     if (id === "plugins")  return renderPlugins(el);
     // Trang Gói do packs.js dựng, uỷ quyền y như renderStudioPage uỷ cho studio.js. Để riêng
@@ -6156,6 +6163,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           </div>
           <div class="settings-links">
             <button data-settings-go="models"><span>◈</span><b>${esc(t("page.models.label"))}</b><small>${esc(t("settings.link_models_sub"))}</small></button>
+            <button data-settings-go="tool_apis"><span>${ic("key")}</span><b>${esc(t("page.tool_apis.label"))}</b><small>${esc(t("settings.link_tool_apis_sub"))}</small></button>
             <button data-settings-go="channels"><span>${ic("send")}</span><b>${esc(t("page.channels.label"))}</b><small>${esc(t("settings.link_channels_sub"))}</small></button>
             <button data-settings-go="account"><span>${ic("circle-user")}</span><b>${esc(t("page.account.label"))}</b><small>${esc(t("settings.link_account_sub"))}</small></button>
             ${window.JAVIS_UPDATES_UI === false ? "" : `<button data-settings-go="logs"><span>${ic("scroll-text")}</span><b>${esc(t("page.logs.label"))}</b><small>${esc(t("settings.link_logs_sub"))}</small></button>`}

@@ -19,7 +19,7 @@ Một chỗ duy nhất để làm việc với Javis:
 
 Câu trả lời do **engine bạn đang chọn** xử lý chứ không mặc định là Claude: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API hay Google Gemini API. Badge nhỏ cạnh chữ HỘI THOẠI cho biết engine + model THẬT vừa chạy lượt đó. Mọi engine đều gọi được công cụ và nguồn dữ liệu của Javis qua MCP Hub, không riêng Claude. Chi tiết ở [Models & engine](10-models-va-engine.md).
 
-Trong lúc Javis suy nghĩ, một chip hoạt động hiện ngay cuối khung chat với ba chấm nhún, dòng trạng thái ("Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật...", "✓ Nhận data - đang phân tích...", "✍ Đang soạn câu trả lời...") và đồng hồ đếm giây (số giây chỉ hiện từ giây thứ 3 trở đi). Nếu TTS đang bật, Javis đọc luôn câu chờ để bớt cảm giác im lặng.
+Trong lúc Javis suy nghĩ, một chip hoạt động hiện ngay cuối khung chat với ba chấm nhún, dòng trạng thái xoay khi chờ lâu (`Em đang soạn câu trả lời...` rồi `Thời gian đọc dữ liệu có thể hơi lâu, anh chờ em nhé...`, `Sắp xong rồi, em cần chuẩn hóa dữ liệu...`, `Dữ liệu khá nhiều, em sẽ không bốc phét đâu...`; khi có tool thì `✓ Nhận data - đang phân tích...`) và đồng hồ đếm giây (số giây chỉ hiện từ giây thứ 3 trở đi). Nếu TTS đang bật, Javis đọc từng câu chờ để bớt cảm giác im lặng.
 
 ## Mở ở đâu trong Javis
 

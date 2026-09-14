@@ -27,10 +27,25 @@ Underneath, each connection is an MCP (Model Context Protocol) pipe joining Javi
 - **Every brain shares them**: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API and Google Gemini (API) all use this same Connections store through Javis's hub, so you wire once and change model freely. Gemini has one discrepancy: the runtime already calls tools through the hub, but the Connections page still shows a yellow warning saying the main model is Google Gemini (API) and does not support tool calling, because the interface list has not been updated. Use it normally.
 - **Hard permissions**: each account has a permission level. Javis genuinely BLOCKS over-permission actions (rather than merely discouraging them in words), for example creating an order while set to Read only.
 
+## API keys (video, images, web search, voice, skills)
+
+The **Connections → API keys** page is where you paste external service keys so Javis remembers them and loads them when a skill calls an API. Built-in cards cover:
+
+- **Video:** Atlas Cloud (paper collage), xAI, the Pixelle URL, Kling, Seedance, Google Veo, OpenAI Sora
+- **Images:** Seedream, Qwen Image, Nano Banana
+- **Web search:** Tavily, Exa, Firecrawl
+- **Voice:** Azure / GLM / Qwen TTS, the VoxCPM URL (ElevenLabs stays in Settings)
+- **Maps:** Google Maps (Remotion)
+- **Custom keys** named like `FOO_API_KEY` when a new skill needs a variable with no card yet
+
+Keys are encrypted in `settings.json`, then injected into the environment when a skill or CLI child runs, with no `.env` edit and no restart. If a variable is already set in `.env` or Docker, Javis **leaves it as is** and does not overwrite.
+
+Chat model keys (OpenRouter, Gemini, OpenAI) still live on the **Models** page. ElevenLabs voice still lives in **Settings**. Telegram / Zalo tokens live on **Channels**. MCP tokens live on **Connections**.
+
 ## Where to find it in Javis
 
 1. Open the dashboard (port `7777` by default).
-2. In the left sidebar, open the **Connections** group and click **Connections** (the plug icon, subtitled "Data sources & tools").
+2. In the left sidebar, open the **Connections** group and click **Connections** (the plug icon, subtitled "Data sources & tools"). To load Atlas / Kling / Tavily / ElevenLabs keys, click **API keys** in the same group.
 3. The page has 3 areas:
    - **◆ Connected** - the accounts you have wired, with a "Only use Javis connections (ignore the machine's own)" checkbox.
    - **◆ Available connections** - services present on the machine, ready to take an account, with a "Find a service…" box and filter buttons: **All**, App store, Sales, Messaging, Marketing, Office, Ads, Social, Creative. The six Google services collapse into ONE **Google** card reading "6 services"; click **Pick a service** on that card to see the sub-list.

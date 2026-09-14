@@ -31,7 +31,7 @@
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
   <link rel="stylesheet" href="/static/style.css?v=93">
-  <link rel="stylesheet" href="/static/console.css?v=59">
+  <link rel="stylesheet" href="/static/console.css?v=60">
   <link rel="stylesheet" href="/static/workbench.css?v=6">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
@@ -806,7 +806,8 @@
   <script src="/static/chat-slash.js?v=1"></script>
   <script src="/static/chat-acts.js?v=2"></script>
   <script src="/static/chat-marks.js?v=3"></script>
-  <script src="/static/app.js?v=108"></script>
+  <script src="/static/chat-wait.js?v=1"></script>
+  <script src="/static/app.js?v=109"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=7"></script>
@@ -817,6 +818,7 @@
   <script src="/static/sessions-ui.js?v=17"></script>
   <script src="/static/studio.js?v=35"></script>
   <script src="/static/packs.js?v=2"></script>
+  <script src="/static/tool-apis.js?v=2"></script>
   <script src="/static/chatbots.js?v=10"></script>
   <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
   <script src="/static/usage.js?v=1"></script>
@@ -826,11 +828,11 @@
   <!-- Trang Cuộc họp (Moonshine / Web Speech / Cloud STT Gemini): nạp TRƯỚC console.js. -->
   <script src="/static/meetings.js?v=43"></script>
   <script src="/static/baigiang.js?v=8"></script>
-  <script src="/static/video.js?v=3"></script>
+  <script src="/static/video.js?v=4"></script>
   <script src="/static/drive-projects.js?v=4"></script>
   <script src="/static/marketing.js?v=5"></script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=150"></script>
+  <script src="/static/console.js?v=151"></script>
   <script src="/static/mobile-chat.js?v=8"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>

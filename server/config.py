@@ -188,6 +188,9 @@ _DEFAULT = {
     # Kho gói: một tệp JSON công khai. Đổi được sang kho khác; rỗng thì dùng kho
     # mặc định của Javis. Xem docs/dev/pack-store-index.md.
     "packs": {"store_url": "", "tokens": {}},
+    # Khóa dịch vụ ngoài (Atlas, Kling, Tavily, ElevenLabs, khóa tự thêm). Mã hoá qua _SECRET_PATHS.
+    # Bơm vào env lúc khởi động / lúc lưu trang Khóa API. Xem server/tool_apis.py.
+    "tool_apis": {"keys": {}},
     "media": {"enabled": True, "max_age_days": 30, "max_mb": 300, "staging_days": 3},
     "telegram": {"enabled": False, "token": "", "chat_id": ""},
     # Kênh Zalo Bot của CHỦ (API chính thức bot.zaloplatforms.com). Cùng hình dạng với telegram
@@ -489,6 +492,7 @@ _SECRET_PATHS = (
     # "mọi khoá của dict này" - cần vì tên máy do người dùng nhập nên không liệt kê trước
     # được. Xem `_secret_keys`.
     "packs.tokens.*",
+    "tool_apis.keys.*",
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
     "model.groq_api_key", "model.deepseek_api_key", "model.ollama_key", "model.ollama_local_key",
     "model.copilot_github_token",
@@ -806,29 +810,34 @@ def write_settings(cfg):
     SETTINGS_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-_TOOL_ENV_OWNED = False   # ELEVENLABS_API_KEY trong env hiện do apply_tool_env đặt → được phép gỡ khi user xoá key
+_TOOL_ENV_OWNED = set()   # tên biến env do apply_tool_env đặt → được phép gỡ khi user xoá key
 
 
 def apply_tool_env(cfg=None):
     """Bơm secret dùng chung từ Cài đặt vào os.environ để TOOL NGOÀI thừa kế khi engine CLI
-    (Claude Code/Codex) spawn tiến trình con (Bash -> python/node). Hiện có: key ElevenLabs
-    (Cài đặt > Giọng đọc) -> ELEVENLABS_API_KEY cho video-use phiên âm khi cắt sửa video.
+    (Claude Code/Codex) spawn tiến trình con (Bash -> python/node). Gồm: ElevenLabs
+    (Cài đặt > Giọng đọc) và khóa trang Khóa API (Atlas, Kling, Tavily, Firecrawl, khóa tự thêm).
     Lưu ý phạm vi: đặt vào env của CẢ server nên mọi tiến trình con (MCP stdio, script vault...)
-    đều thừa kế - chấp nhận vì mục đích chính là đến được Bash con của engine, và cùng user
-    thì con nào cũng đọc được settings.json + .secret_key; blast radius chỉ là key TTS.
-    Chỉ ghi đè khi settings có giá trị; user xoá key trong settings thì gỡ khỏi env (nhưng
-    không đụng biến user tự đặt ngoài shell). Gọi lúc startup + sau khi lưu Cài đặt giọng đọc."""
+    đều thừa kế. Chỉ ghi đè khi settings có giá trị; user xoá thì gỡ biến MÀ HÀM NÀY đã đặt
+    (không đụng biến user tự đặt ngoài shell / Docker nếu chưa từng ghi đè). Gọi lúc startup
+    + sau khi lưu Cài đặt giọng đọc / Khóa API."""
     global _TOOL_ENV_OWNED
+    now = set()
     try:
         if cfg is None:
             cfg = read_settings()
         k = ((cfg.get("voice") or {}).get("elevenlabs_key") or "").strip()
         if k and not k.startswith("••••"):   # bỏ qua giá trị che mà client lỡ gửi lại
             os.environ["ELEVENLABS_API_KEY"] = k
-            _TOOL_ENV_OWNED = True
-        elif not k and _TOOL_ENV_OWNED:
-            os.environ.pop("ELEVENLABS_API_KEY", None)
-            _TOOL_ENV_OWNED = False
+            now.add("ELEVENLABS_API_KEY")
+        try:
+            import tool_apis
+            now |= tool_apis.inject(cfg, duoc_ghi_de=_TOOL_ENV_OWNED)
+        except Exception as e:
+            print(f"[config] tool_apis.inject lỗi: {e}", file=__import__('sys').stderr)
+        for env in _TOOL_ENV_OWNED - now:
+            os.environ.pop(env, None)
+        _TOOL_ENV_OWNED = now
     except Exception as e:
         print(f"[config] apply_tool_env lỗi: {e}", file=__import__('sys').stderr)
     # Windows: helper Python con (vd video-use) in Unicode ra console cp1252 sẽ crash

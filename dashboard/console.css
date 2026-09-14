@@ -145,6 +145,32 @@ body.in-console .hud-actions { display: none; }
   padding: 14px 16px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   transition: border-color 0.18s;
 }
+.ta-page { width: min(100%, 960px); }
+.ta-page .jx-page-lead { margin-bottom: 8px; }
+.ta-note { margin: 0 0 18px; font-size: 13px; color: var(--text2); line-height: 1.45; }
+.ta-group { margin: 0 0 22px; }
+.ta-h { margin: 0 0 10px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text2); }
+.ta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.ta-card .ta-desc { margin: 8px 0 6px; font-size: 13px; line-height: 1.45; color: var(--text2); }
+.ta-env { font-size: 12px; margin-bottom: 6px; opacity: 0.8; }
+.ta-where { display: inline-block; font-size: 12.5px; margin-bottom: 8px; color: var(--accent); }
+.ta-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.ta-row .js-input { flex: 1 1 160px; min-width: 0; }
+.ta-add-row { margin-top: 0; }
+.ta-pill { font-size: 12px; }
+.ta-pill.on { color: var(--green, #3ec8a0); }
+.ta-pill.env { color: var(--text2); }
+.ta-msg.ta-err { color: var(--red, #e66); }
+.jw-link {
+  background: none; border: 0; padding: 0; color: var(--accent);
+  cursor: pointer; text-decoration: underline; font: inherit;
+}
+.jw-link:hover { opacity: 0.85; }
+.jw-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  .ta-row { flex-direction: column; align-items: stretch; }
+  .ta-row .gcard-btn { width: 100%; }
+}
 .prov-card-sm { padding: 12px 12px; border-radius: 12px; }
 .prov-card-sm .prov-name { font-size: 14.5px; }
 .prov-card-sm .prov-action { margin-top: 8px; }

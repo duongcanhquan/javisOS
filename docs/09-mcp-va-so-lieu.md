@@ -27,10 +27,25 @@ Bên dưới, mỗi kết nối là một "đường ống" MCP (Model Context P
 - **Mọi bộ não dùng chung**: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API và Google Gemini (API) đều dùng chung kho Kết nối này qua "hub" của Javis - đấu một lần, đổi model thoải mái. Riêng Gemini có một điểm lệch: phần chạy bên dưới đã gọi được công cụ qua hub, nhưng trang Kết nối vẫn hiện dòng cảnh báo vàng "⚠ Main Model đang là Google Gemini (API) - chưa hỗ trợ gọi công cụ. Đổi ở trang Models." vì danh sách trên giao diện chưa được cập nhật. Cứ dùng bình thường.
 - **Phân quyền cứng**: mỗi tài khoản có mức quyền. Javis CHẶN thật sự (không phải chỉ nhắc bằng lời) các thao tác vượt quyền, ví dụ tạo đơn khi đang ở mức Chỉ đọc.
 
+## Khóa API (video, ảnh, tìm web, giọng, skill)
+
+Trang **Kết nối → Khóa API** là chỗ dán khóa dịch vụ ngoài rồi để Javis nhớ và nạp lúc skill gọi API. Sẵn ô cho:
+
+- **Video:** Atlas Cloud (collage giấy), xAI, địa chỉ Pixelle, Kling, Seedance, Google Veo, OpenAI Sora
+- **Ảnh:** Seedream, Qwen Image, Nano Banana
+- **Tìm web:** Tavily, Exa, Firecrawl
+- **Giọng:** Azure / GLM / Qwen TTS, địa chỉ VoxCPM (ElevenLabs vẫn trang Cài đặt)
+- **Bản đồ:** Google Maps (Remotion)
+- **Khóa tự thêm** dạng `FOO_API_KEY` khi skill mới cần biến chưa có thẻ
+
+Khóa được mã hoá trong `settings.json`, rồi bơm vào biến môi trường lúc skill/CLI chạy, không cần sửa `.env` hay restart. Nếu biến đã có sẵn từ `.env` / Docker, Javis **giữ nguyên**, không ghi đè.
+
+Khóa model chat (OpenRouter, Gemini, OpenAI) vẫn nằm trang **Models**. Giọng ElevenLabs vẫn nằm **Cài đặt**. Token Telegram / Zalo nằm **Kênh**. Token MCP nằm trang **Kết nối**.
+
 ## Mở ở đâu trong Javis
 
 1. Vào dashboard (cổng mặc định `7777`).
-2. Thanh bên trái, mở nhóm **Kết nối**, rồi bấm mục **Kết nối** (biểu tượng phích cắm, phụ đề "Nguồn dữ liệu & công cụ").
+2. Thanh bên trái, mở nhóm **Kết nối**, rồi bấm mục **Kết nối** (biểu tượng phích cắm, phụ đề "Nguồn dữ liệu & công cụ"). Muốn nạp khóa Atlas / Kling / Tavily / ElevenLabs thì bấm **Khóa API** ngay dưới nhóm đó.
 3. Trang có 3 khu:
    - **◆ Đã kết nối** - các tài khoản bạn đang đấu, kèm ô tick "Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)".
    - **◆ Kết nối sẵn có** - những dịch vụ đã có trên máy, sẵn sàng đấu tài khoản, có ô "Tìm dịch vụ…" và dãy nút lọc: **Tất cả**, Kho ứng dụng, Bán hàng, Nhắn tin, Marketing, Văn phòng, Quảng cáo, Mạng xã hội, Sáng tạo. Sáu dịch vụ Google gom chung vào MỘT thẻ **Google** ghi "6 dịch vụ" - bấm **Chọn dịch vụ** trên thẻ đó mới ra danh sách con.

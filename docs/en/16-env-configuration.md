@@ -15,10 +15,10 @@ If you install through **Hostinger Docker Manager**, you do not need the full ad
 Three configuration places need to be kept apart:
 
 - **The `.env` file**: system-level settings, read once at startup. A change only takes effect after restarting Javis.
-- **The ⚙ Settings panel in the app** (the Account, Models, Channels pages...): settings changed live through the interface, saved into `settings.json`, no file editing. For example: switching model, the OpenRouter API key, the Telegram token, the custom domain, the logo. More in [Models and engines](10-models-and-engines.md), [Security and accounts](14-security-and-accounts.md), [Branding and domains](15-branding-and-domains.md).
+- **The ⚙ Settings panel in the app** (the Account, Models, Channels, **API keys** pages...): settings changed live through the interface, saved into `settings.json`, no file editing. For example: switching model, the OpenRouter API key, the Telegram token, Atlas/Tavily keys, the custom domain, the logo. More in [Models and engines](10-models-and-engines.md), [Connections and business data](09-connections-and-business-data.md), [Security and accounts](14-security-and-accounts.md), [Branding and domains](15-branding-and-domains.md).
 - **A few `settings.json` keys with no interface**: currently the `media` block (the rules for clearing images and temporary files). Changing them means opening the file by hand. See the dedicated section below.
 
-In short: `.env` handles "where it runs, who gets in, where the data lives". The in-app Settings panel handles "which model, which key, which voice". `settings.json` is where the two meet, and a few rare keys can only be edited there.
+In short: `.env` handles "where it runs, who gets in, where the data lives". The in-app Settings panel handles "which model, which key, which voice". The **API keys** page stores external service keys (video, images, web search, voice, maps) so Javis remembers them and loads them into skills. `settings.json` is where the two meet, and a few rare keys can only be edited there.
 
 ## Where to open it in Javis
 
