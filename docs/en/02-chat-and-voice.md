@@ -19,7 +19,7 @@ One place to work with Javis:
 
 Answers are produced by **the engine you selected**, not Claude by default: Claude Code, ChatGPT (Codex), OpenRouter, OpenAI API, Anthropic API or Google Gemini API. The small badge next to the CONVERSATION label shows the engine and model that ACTUALLY ran that turn. Every engine can call Javis tools and data sources through the MCP Hub, not just Claude. Details in [Models & engines](10-models-and-engines.md).
 
-While Javis thinks, an activity chip appears at the bottom of the chat with three bouncing dots, a status line ("Javis is thinking...", "✓ Data received, analysing...", "✍ Writing the answer...") and a seconds counter (the number only appears from the third second onward).
+While Javis thinks, an activity chip appears at the bottom of the chat with three bouncing dots, a status line ("Please give me time to work; it may take a little longer because I need to connect and compare real data...", "✓ Data received, analysing...", "✍ Writing the answer...") and a seconds counter (the number only appears from the third second onward). If TTS is on, Javis also speaks that waiting line so the silence feels shorter.
 
 ## Where to find it in Javis
 

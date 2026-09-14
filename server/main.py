@@ -12496,7 +12496,7 @@ async def websocket_endpoint(ws: WebSocket):
 
             await ws.send_text(json.dumps({
                 "type": "status",
-                "content": "Cho mình chút thời gian để trả lời."
+                "content": "Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật..."
             }))
 
             # Dựng prompt cũ theo nhu cầu. Fast Path không đọc/nạp memory hoặc lịch sử cũ.

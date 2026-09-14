@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.218] - 2026-09-14
+### Cải thiện
+- **Câu chờ lúc Javis đang làm:** chip (và TTS nếu bật loa) đọc `Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật...` thay cho `Cho mình chút thời gian để trả lời.`
+
 ## [0.55.217] - 2026-09-14
 ### Cải thiện
 - **Tạo video: tab nói tiếng người.** Promo sản phẩm, Có lời đọc, Collage giấy, Đồ họa số liệu, HTML thương hiệu, Javis chọn. Dòng nhỏ trên tab + gợi ý «dùng khi» / ví dụ, bớt jargon Shotcraft/Ommi/Edge-TTS.
