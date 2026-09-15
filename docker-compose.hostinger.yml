@@ -45,6 +45,8 @@ services:
       DOMAIN_NAME: ${DOMAIN_NAME:-localhost}
       JAVIS_ADMIN_USER: ${JAVIS_ADMIN_USER:-admin}
       JAVIS_ADMIN_PASSWORD: ${JAVIS_ADMIN_PASSWORD:-}
+      # Chuông + trang Cập nhật (so VERSION trên GitHub). Hostinger cập nhật bằng Redeploy.
+      JAVIS_UPDATES_UI: ${JAVIS_UPDATES_UI:-1}
     ports:
       # Đường vào dự phòng (nút Open / http://<ip>:7777). Bản thứ hai PHẢI đổi cổng này
       # (JAVIS_HOST_PORT=7778) vì một cổng máy chủ chỉ một container giữ được.

@@ -104,7 +104,8 @@ ENV JAVIS_HOST=0.0.0.0 \
     OBSIDIAN_VAULT_PATH=/data/vault \
     CLAUDE_CWD=/app \
     HOME=/home/javis \
-    PATH=/usr/local/bin:$PATH
+    PATH=/usr/local/bin:$PATH \
+    JAVIS_UPDATES_UI=1
 
 # Codex (ChatGPT) bọc mọi lệnh đọc/ghi file của nó bằng bubblewrap. Bubblewrap cần tạo được user
 # namespace + đổi propagation của `/`, mà container này chạy user thường, không có CAP_SYS_ADMIN,

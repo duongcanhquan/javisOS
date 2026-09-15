@@ -36,6 +36,8 @@ services:
       # Các mặc định cổng/state/brain đã nằm trong Docker image; compose chỉ giữ
       # token thật sự cần chia sẻ giữa app và Watchtower.
       WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN:-javis-update}   # để nút "Cập nhật" gọi được Watchtower
+      # Chuông + trang Cập nhật (so VERSION trên GitHub fork này). Tắt: JAVIS_UPDATES_UI=0
+      JAVIS_UPDATES_UI: ${JAVIS_UPDATES_UI:-1}
       # Tài khoản quản trị đặt SẴN lúc deploy. Điền hai dòng này vào file `.env` nằm cạnh
       # compose là xong: server boot lên đã có admin, nên KHÔNG bao giờ hỏi MÃ THIẾT LẬP.
       # Bỏ trống thì rơi về đường cũ - phải đọc mã trong log container rồi dán vào trình duyệt

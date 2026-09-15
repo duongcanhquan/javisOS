@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.242] - 2026-09-15
+### Cải thiện
+- **Người cài bản này thấy thông báo + nút Cập nhật.** `JAVIS_UPDATES_UI` mặc định bật (Docker image + compose). Chuông và trang Cập nhật so `VERSION` trên GitHub `duongcanhquan/javisOS`. Tắt bằng `JAVIS_UPDATES_UI=0` nếu không cần.
+
 ## [0.55.241] - 2026-09-15
 ### Sửa
 - **CI xanh sau QA 0.55.240:** ngân sách capsule test (CORE_CONTRACT lớn hơn); bỏ emoji trong comment app.js; docs branding hết em dash; prompt kênh dùng «mình» trong ví dụ cấm; test voice.js chấp nhận ?v= >= 23.

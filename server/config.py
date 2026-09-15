@@ -863,14 +863,14 @@ def auth_enabled(cfg=None):
 def updates_ui_bat() -> bool:
     """Chuông thông báo cập nhật / cộng đồng + trang Cập nhật có hiện không.
 
-    Mặc định TẮT (fork triển khai không cần hộp thư changelog GitHub).
-    Bật tường minh: JAVIS_UPDATES_UI=1|on|true|yes.
-    Tắt: 0|off|false|no hoặc để trống.
+    Mặc định BẬT (fork này muốn người cài thấy bản mới + nút cập nhật).
+    Tắt tường minh: JAVIS_UPDATES_UI=0|off|false|no.
+    Bật: 1|on|true|yes hoặc để trống / không đặt biến.
     """
-    v = str(os.getenv("JAVIS_UPDATES_UI", "0")).strip().lower()
-    if v in ("1", "on", "true", "yes"):
-        return True
-    return False
+    v = str(os.getenv("JAVIS_UPDATES_UI", "1")).strip().lower()
+    if v in ("0", "off", "false", "no"):
+        return False
+    return True
 
 
 def require_login():

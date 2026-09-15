@@ -869,7 +869,8 @@
   async function renderLogs(el) {
     if (window.JAVIS_UPDATES_UI === false) {
       el.innerHTML = `<div class="cview-section"><h3>Cập nhật đã tắt</h3>
-        <p class="dim">Máy chủ đặt <code>JAVIS_UPDATES_UI=0</code> — chuông tin cập nhật/cộng đồng và nhật ký phiên bản bị ẩn.
+        <p class="dim">Máy chủ đặt <code>JAVIS_UPDATES_UI=0</code> - chuông tin cập nhật/cộng đồng và nhật ký phiên bản bị ẩn.
+          Bỏ biến hoặc đặt <code>JAVIS_UPDATES_UI=1</code> rồi khởi động lại để bật.</p>
         Bỏ biến hoặc đặt khác <code>0</code> rồi khởi động lại Javis nếu muốn bật lại.</p></div>`;
       return;
     }
