@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.247] - 2026-09-16
+### Cải thiện
+- **Chat tự ưu tiên Slide Wright** khi hỏi làm slide, pitch, PDF trình chiếu, proposal chiếu. Agent/workflow nghiên cứu & marketing (proposal, xuất gói, MKT, kế hoạch) đã gắn skill; deck đẹp vào `exports/slides/`.
+
 ## [0.55.246] - 2026-09-16
 ### Thêm mới
 - **Slide đẹp hơn với skill Slide Wright:** deck HTML 16:9 (theme riêng, preview 2 slide rồi mới gen full). Tab Bài giảng → Slide và agent `bg-slide` dùng skill này; file vào `exports/slides/<slug>/index.html`. Nguồn MIT [arifszn/slide-wright](https://github.com/arifszn/slide-wright).

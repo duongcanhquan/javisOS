@@ -1,7 +1,7 @@
 ---
 name: Slide Wright
-description: "Deck HTML 16:9 đẹp (Reveal CDN): theme riêng, preview 2 slide rồi gen full; sửa deck sẵn. Xuất exports/slides/."
-description_en: "Polished 16:9 HTML decks (Reveal CDN): unique theme, 2-slide preview then full build; edit in place. Writes exports/slides/."
+description: "Slide/pitch/proposal HTML đẹp: trình chiếu, PDF chiếu, pitch deck. Theme riêng, preview rồi gen. exports/slides/."
+description_en: "Polished HTML slides/pitch/proposal decks: presentation, pitch PDF, unique theme, preview then full. Writes exports/slides/."
 group: Nội dung
 metadata:
   upstream: https://github.com/arifszn/slide-wright
@@ -19,12 +19,15 @@ self-contained HTML file that runs in any browser.
 
 ## Khi nào dùng
 
-- User muốn slide / presentation / pitch deck / talk deck đẹp (không chỉ outline Markdown).
-- Tab **Việc → Bài giảng → Slide**, hoặc chat «làm slide / deck HTML».
+- User muốn slide / presentation / pitch deck / talk deck / **PDF trình chiếu** / PowerPoint đẹp.
+- Proposal hoặc nghiên cứu xong cần **chiếu** (không chỉ đọc Markdown).
+- Tab **Việc → Bài giảng → Slide**, chat «làm slide / deck HTML / pitch / trình bày».
 - Sửa deck HTML sẵn (thêm/bớt/đổi slide) mà giữ theme đã duyệt.
 
 **Không dùng** khi user chỉ cần outline sư phạm + speaker note (Markdown) → `bai-giang-slide`.
+Proposal nội dung (chữ) trước → `proposal-chien-luoc`, rồi mới skill này để chiếu.
 Lớp học tương tác OpenMAIC → `bai-giang-lop-hoc`. Video → `lam-video` / `paperdesign`.
+Gói PDF/PPTX tóm tắt research → `xuat-goi-nghien-cuu` (PPTX đơn giản); deck đẹp vẫn là skill này.
 
 ## Javis output path
 

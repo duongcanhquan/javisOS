@@ -1,7 +1,7 @@
 ---
 name: Xuất gói nghiên cứu
-description: "Gom Markdown+ảnh nghiên cứu/kế hoạch (01–09) thành index, HTML, PDF (Chrome) và PPTX."
-description_en: "Pack research/plan Markdown+images (01–09) into index, HTML, PDF (Chrome) and simple PPTX."
+description: "Gom Markdown+ảnh nghiên cứu/kế hoạch (01-09) thành index, HTML, PDF (Chrome), PPTX; deck đẹp → slide-wright."
+description_en: "Pack research/plan Markdown+images (01-09) into index, HTML, PDF (Chrome), simple PPTX; polished deck → slide-wright."
 group: Marketing
 ---
 
@@ -9,8 +9,9 @@ group: Marketing
 
 ## Khi nào dùng
 
-- Đã có thư mục `sources/research/<slug>/` với các file nghiên cứu `01`–`05` và/hoặc kế hoạch `06`–`09`.
+- Đã có thư mục `sources/research/<slug>/` với các file nghiên cứu `01`-`05` và/hoặc kế hoạch `06`-`09`.
 - Cần giao nộp PDF báo cáo dài và/hoặc PPTX trình bày ngắn.
+- Cần **deck HTML đẹp** để chiếu → sau bước này (hoặc song song) nạp **`slide-wright`**.
 
 ## Chuẩn bị
 
@@ -58,12 +59,12 @@ python3 skills/xuat-goi-nghien-cuu/scripts/export_pack.py \
 
 ## Pipeline liên quan
 
-- Sau nghiên cứu: workflow **`nghien-cuu-thi-truong-chuyen-sau`** (01–05).
-- Sau kế hoạch: workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`** (06–09 + cập nhật index).
+- Sau nghiên cứu: workflow **`nghien-cuu-thi-truong-chuyen-sau`** (01-05).
+- Sau kế hoạch: workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`** (06-09 + cập nhật index).
 
 ## Bẫy
 
 - Đường dẫn ảnh trong MD phải relative so với vault (`attachments/...`), không dùng absolute máy.
-- PPTX là deck tóm tắt, không thay PDF đầy đủ.
+- PPTX là deck tóm tắt, không thay PDF đầy đủ và **không thay** deck HTML đẹp (`slide-wright`).
 - Không có Chrome: đừng giả PDF đã tạo - chỉ giao HTML + MD.
 - Script không gọi mạng; không cần API key.

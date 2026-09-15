@@ -1,4 +1,4 @@
-# Slide Wright — Agent Guide
+# Slide Wright - Agent Guide
 
 Installed as skill **`slide-wright`** from
 [arifszn/slide-wright](https://github.com/arifszn/slide-wright) (MIT).

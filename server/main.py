@@ -557,7 +557,8 @@ def _project_block(project_id: str, chi_huong_dan: bool = False) -> str:
 def build_system_prompt(brain: str = "brain", include_memory: bool = True,
                         include_skills: bool = True,
                         lang: "lang_mod.LangDecision | str | None" = None,
-                        project_id: str = "") -> str:
+                        project_id: str = "",
+                        skill_hint: str = "") -> str:
     """CLAUDE.md + nạp MEMORY.md của vault đang chọn → Javis luôn nhớ ngữ cảnh.
 
     `project_id`: hội thoại đang nằm trong project nào. Có thì ghép thêm hướng dẫn riêng +
@@ -631,7 +632,9 @@ def build_system_prompt(brain: str = "brain", include_memory: bool = True,
         pass
     try:
         if include_skills:
-            base += _skill_router_block(brain, root, _skills)   # ROUTER SKILL đa-engine: list skill + cách gọi
+            base += _skill_router_block(
+                brain, root, _skills, hint=skill_hint or ""
+            )   # ROUTER SKILL đa-engine: list skill + cách gọi
     except Exception:
         pass
     # Đồng hồ. Cùng một dòng với capsule của đường tiết kiệm (context_compiler.dong_ho), để
@@ -658,7 +661,8 @@ def build_system_prompt(brain: str = "brain", include_memory: bool = True,
 
 
 def build_adaptive_source_prompt(brain: str = "brain", include_memory: bool = False,
-                                 include_skills: bool = False) -> str:
+                                 include_skills: bool = False,
+                                 skill_hint: str = "") -> str:
     """Small Phase 8 base. Context Compiler already owns identity/safety/output contracts.
 
     Only a source that has not entered its canary is restored here. This intentionally
@@ -689,7 +693,7 @@ def build_adaptive_source_prompt(brain: str = "brain", include_memory: bool = Fa
             system_sync.ensure_synced(root)
             system_sync.mirror_skills(root)
             skill_meta = skill_router.list_skills(root)
-            parts.append(_skill_router_block(brain, root, skill_meta))
+            parts.append(_skill_router_block(brain, root, skill_meta, hint=skill_hint or ""))
         except Exception:
             # The caller records source fallback through Phase 8 status; empty router
             # remains safer than aborting the existing chat request here.
@@ -8838,7 +8842,7 @@ def seed_bai_giang(brain: str) -> dict:
         (
             "slide-wright",
             "Slide Wright",
-            "Deck HTML 16:9 đẹp (Reveal CDN): theme riêng, preview 2 slide rồi gen full; sửa deck sẵn. Xuất exports/slides/.",
+            "Slide/pitch/proposal HTML đẹp: trình chiếu, PDF chiếu, pitch deck. Theme riêng, preview rồi gen. exports/slides/.",
             (
                 "# Slide Wright\n\n"
                 "Nạp skill hệ thống đầy đủ từ .claude/skills/slide-wright.\n"
@@ -9231,13 +9235,14 @@ async def studio_seed_marketing(brain: str = Form("brain")):
             "name": "Nghiên cứu thị trường (MKT)",
             "slug": "mkt-nghien-cuu",
             "role": "Nghiên cứu thị trường cho Marketing: phân khúc, đối thủ, insight hành động.",
-            "skills": ["marketing-hub", "nghien-cuu-thi-truong", "deep-research", "query-wiki"],
+            "skills": ["marketing-hub", "nghien-cuu-thi-truong", "deep-research", "query-wiki", "slide-wright"],
             "prompt": (
                 "Bạn là researcher Marketing (Gemini). Nạp marketing-hub + nghien-cuu-thi-truong.\n"
                 "Cổng brief {{input}}: chủ đề/sản phẩm + đối tượng + mục tiêu nghiên cứu + ngôn ngữ. "
                 "Thiếu → DỪNG, hỏi (JAVIS_ASK). Không giả định.\n"
                 "Chạy deep-research (breadth≈4, depth≈2) rồi khung JTBD/đối thủ/xu hướng/insight.\n"
                 "Đầu ra markdown + Sources. Ghi exports/marketing/<slug>/nghien-cuu.md nếu được.\n"
+                "Nếu brief muốn pitch/slide/trình chiếu → nạp slide-wright (preview rồi full HTML).\n"
                 "Không bịa số. Không em dash."
             ),
         },
@@ -10429,12 +10434,13 @@ def _javis_capability_summary(brain: str, skills=None) -> str:
     return "\n".join(parts)
 
 
-def _skill_router_block(brain: str, root: str, skills=None) -> str:
+def _skill_router_block(brain: str, root: str, skills=None, hint: str = "") -> str:
     """ROUTER SKILL đa-engine (chèn vào system prompt của MỌI engine). Liệt kê skill đang BẬT kèm
     mô tả (trigger) + chỉ rõ 2 cách nạp: tool javis_use_skill (engine API có tool) HOẶC mở thẳng
     file SKILL.md bằng công cụ đọc file (Claude/Codex - dùng ĐƯỜNG DẪN TUYỆT ĐỐI vì cwd có thể là
     /app). Đây là thứ giúp skill chạy trên cả ChatGPT/Codex, không phụ thuộc cơ chế native của Claude.
     Cap skill_router.SKILL_LIST_MAX để không phình context (nhiều hơn → trỏ Javis/index.md).
+    `hint`: câu user vừa gõ - xếp skill khớp ý định (slide/proposal/…) lên đầu danh sách rút gọn.
     skills: cây skill đã quét sẵn (list_skills), lọc tại chỗ thay vì quét lại - xem
     _gather_capabilities. None = tự quét (đường cũ)."""
     metas = ([s for s in skills if s.get("enabled")] if skills is not None
@@ -10442,19 +10448,20 @@ def _skill_router_block(brain: str, root: str, skills=None) -> str:
     if not metas:
         return ""
     sk_dir = skill_router.skills_base(root, canonical=True)
+    picked = skill_router.pick_for_router(metas, hint=hint or "")
     lines = ["\n\n# === SKILL KHẢ DỤNG (router - dùng được trên MỌI engine) ==="]
-    cap = skill_router.SKILL_LIST_MAX
-    for s in metas[:cap]:
+    for s in picked:
         desc = (s.get("description") or "").replace("\n", " ")[:skill_router.SKILL_DESC_MAX]
         lines.append(f"- {s['slug']} ({s['name']}): {desc}")
-    if len(metas) > cap:
-        lines.append(f"…(+{len(metas) - cap} skill nữa - xem `Javis/index.md`)")
+    if len(metas) > len(picked):
+        lines.append(f"…(+{len(metas) - len(picked)} skill nữa - xem `Javis/index.md`)")
     lines.append(
         "CÁCH DÙNG: khi yêu cầu của user KHỚP mô tả 1 skill ở trên, hãy NẠP skill đó rồi LÀM THEO - "
         "gọi tool `javis_use_skill(name=<slug>)` nếu engine có tool này; nếu không, mở file "
         f"`{sk_dir}/<slug>/SKILL.md` bằng công cụ đọc file rồi tuân theo hướng dẫn trong đó. "
         "Chỉ nạp khi thực sự khớp, không nạp tràn lan."
     )
+    lines.append(skill_router.intent_router_footer())
     return "\n".join(lines)
 
 
@@ -12778,7 +12785,8 @@ async def websocket_endpoint(ws: WebSocket):
                 nonlocal sysprompt
                 if sysprompt is None:
                     sysprompt = build_system_prompt(
-                        brain, lang=_lang_qd, project_id=_row0.get("project_id") or ""
+                        brain, lang=_lang_qd, project_id=_row0.get("project_id") or "",
+                        skill_hint=user_message or "",
                     ) + channel_context.build_channel_block(
                         "dashboard", {"session_id": conv_sid}, telegram_running=bool(_TG_BOT),
                         port=_javis_port(), brain_root=_brain_root(brain),
@@ -12804,6 +12812,7 @@ async def websocket_endpoint(ws: WebSocket):
                     return build_system_prompt(
                         brain, include_memory=include_memory, include_skills=include_skills,
                         lang=_lang_qd, project_id=_row0.get("project_id") or "",
+                        skill_hint=user_message or "",
                     ) + channel_context.build_channel_block(
                         "dashboard", {"session_id": conv_sid}, telegram_running=bool(_TG_BOT),
                         port=_javis_port(), brain_root=_brain_root(brain),
@@ -13404,7 +13413,8 @@ async def websocket_endpoint(ws: WebSocket):
                     # ===== API/OAuth: Phase 8 sources canary, fallback độc lập về legacy =====
                     def _phase8_base(include_memory: bool, include_skills: bool) -> str:
                         return build_adaptive_source_prompt(
-                            brain, include_memory=include_memory, include_skills=include_skills
+                            brain, include_memory=include_memory, include_skills=include_skills,
+                            skill_hint=user_message or "",
                         ) + channel_context.build_channel_block(
                             "dashboard", {"session_id": conv_sid},
                             telegram_running=bool(_TG_BOT), port=_javis_port(),
@@ -16525,7 +16535,8 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         # không - người dùng không có cách nào biết vì sao, chỉ thấy Javis bướng. Danh sách
         # tài liệu là dữ liệu tra cứu, bỏ thì cùng lắm model phải hỏi lại.
         _n = build_adaptive_source_prompt(
-            brain, include_memory=include_memory, include_skills=include_skills)
+            brain, include_memory=include_memory, include_skills=include_skills,
+            skill_hint=text or "")
         if _pid:
             try:
                 _n += _project_block(_pid, chi_huong_dan=True)
@@ -16548,7 +16559,8 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
     # dashboard (bản đầy đủ còn TO HƠN cái vừa bị từ chối vì quá to), nhưng ở kênh này ta chưa
     # có đường nào khác để đi, nên cứ chạy tiếp và để nhà cung cấp nói nếu thật sự quá hạn mức.
     if not sysprompt:
-        sysprompt = build_system_prompt(brain, lang=_lang_qd, project_id=_pid)
+        sysprompt = build_system_prompt(
+            brain, lang=_lang_qd, project_id=_pid, skill_hint=text or "")
     sysprompt += channel_context.build_channel_block(
         channel, meta, telegram_running=(channel == "telegram"), port=_javis_port(),
         brain_root=_brain_root(brain))

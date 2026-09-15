@@ -1,7 +1,7 @@
 ---
 name: Proposal, chiến lược kinh doanh & marketing
-description: "Soạn proposal & chiến lược KD/MKT từ nghiên cứu chuyên sâu (TAM/SAM/SOM, JTBD, STEEPLE); GTM, pitch."
-description_en: "Write business/marketing strategy proposals from deep market research (TAM/SAM/SOM, JTBD, STEEPLE); GTM, pitch."
+description: "Soạn proposal & chiến lược KD/MKT từ nghiên cứu chuyên sâu (TAM/SAM/SOM, JTBD, STEEPLE); GTM, pitch; deck HTML đẹp qua slide-wright."
+description_en: "Write business/marketing strategy proposals from deep market research (TAM/SAM/SOM, JTBD, STEEPLE); GTM, pitch; polished HTML deck via slide-wright."
 group: Marketing
 ---
 
@@ -11,6 +11,7 @@ group: Marketing
 
 - Đã có (hoặc vừa xong) **nghiên cứu thị trường chuyên sâu** (đã có số liệu TAM/SAM/SOM, phân tích STEEPLE, và hành vi khách hàng).
 - User nói: proposal, pitch, kế hoạch kinh doanh, go-to-market, chiến lược marketing.
+- User muốn **chiếu** proposal / pitch deck → sau khi viết `05-proposal.md`, nạp **`slide-wright`**.
 
 ## Chuẩn bị
 
@@ -82,4 +83,6 @@ Giọng: chuyên nghiệp, súc tích, có số khi có thể. Tiếng Việt tr
 
 1. Nghiên cứu: skill **`nghien-cuu-thi-truong`** / workflow **`nghien-cuu-thi-truong-chuyen-sau`**.
 2. Proposal tóm tắt (file này): **`proposal-chien-luoc`**.
-3. Kế hoạch chi tiết + vận hành: skills **`phan-tich-tai-chinh-mkt`** → **`ke-hoach-kinh-doanh`** → **`ke-hoach-marketing`** → **`quy-trinh-van-hanh-kd-mkt`** (workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`**).
+3. Pitch / trình chiếu đẹp: **`slide-wright`** → `exports/slides/<slug>/index.html`.
+4. Kế hoạch chi tiết + vận hành: skills **`phan-tich-tai-chinh-mkt`** → **`ke-hoach-kinh-doanh`** → **`ke-hoach-marketing`** → **`quy-trinh-van-hanh-kd-mkt`** (workflow **`ke-hoach-kd-mkt-tu-nghien-cuu`**).
+5. Đóng gói PDF/PPTX tóm tắt: **`xuat-goi-nghien-cuu`**.
