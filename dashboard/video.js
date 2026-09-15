@@ -407,18 +407,32 @@
         },
         {
           group: "Giọng & phụ đề",
+          id: "vidNarrBackend",
+          type: "select",
+          label: "Nguồn lời thoại",
+          def: "atlas",
+          options: [
+            { value: "atlas", label: "Atlas xAI TTS (mặc định, đa ngôn ngữ)" },
+            { value: "zerotts", label: "ZeroTTS local (tiếng Việt, miễn phí)" },
+          ],
+        },
+        {
           id: "vidPaperVoice",
           type: "select",
-          label: "Giọng TTS (xAI)",
+          label: "Giọng đọc",
           def: "vi-Mai",
           options: [
-            { value: "vi-Mai", label: "Mai (nữ, Việt)" },
-            { value: "vi-Duc", label: "Duc (nam, Việt)" },
-            { value: "vi-Minh", label: "Minh (nam, Việt)" },
-            { value: "leo", label: "Leo (đa ngôn ngữ, mặc định skill)" },
-            { value: "ara", label: "Ara (nữ, đa ngôn ngữ)" },
-            { value: "eve", label: "Eve (nữ, đa ngôn ngữ)" },
-            { value: "clone đính kèm", label: "Clone từ file mẫu đính kèm" },
+            { value: "vi-Mai", label: "Mai (nữ, Việt) — Atlas / map ZeroTTS Mai Chi" },
+            { value: "vi-Duc", label: "Duc (nam, Việt) — Atlas / map ZeroTTS Gia Huy" },
+            { value: "vi-Minh", label: "Minh (nam, Việt) — Atlas / map ZeroTTS Quang Minh" },
+            { value: "maichi", label: "ZeroTTS Mai Chi (nữ)" },
+            { value: "baotrang", label: "ZeroTTS Bao Trang (nữ)" },
+            { value: "giahuy", label: "ZeroTTS Gia Huy (nam)" },
+            { value: "quangminh", label: "ZeroTTS Quang Minh (nam)" },
+            { value: "leo", label: "Leo (Atlas, đa ngôn ngữ)" },
+            { value: "ara", label: "Ara (Atlas, nữ, đa ngôn ngữ)" },
+            { value: "eve", label: "Eve (Atlas, nữ, đa ngôn ngữ)" },
+            { value: "clone đính kèm", label: "Clone từ file mẫu đính kèm (chỉ Atlas)" },
           ],
         },
         {
@@ -848,6 +862,31 @@
       v.extras.forEach(function (ex) {
         parts.push("- " + ex.label + ": " + ex.value);
       });
+      // Paperdesign: ép voice.backend khi user chọn ZeroTTS (tránh agent quên ghi beats.json)
+      var narrBackend = "";
+      var narrVoice = "";
+      v.extras.forEach(function (ex) {
+        if (ex.id === "vidNarrBackend") narrBackend = String(ex.value || "");
+        if (ex.id === "vidPaperVoice") narrVoice = String(ex.value || "");
+      });
+      if (narrBackend === "zerotts") {
+        parts.push(
+          "BẮT BUỘC trong beats.json: " +
+            '"voice": {"backend":"zerotts","voice_id":"' +
+            (narrVoice || "maichi") +
+            '","language":"vi","speed":1.0}. ' +
+            "Lời thoại dùng ZeroTTS local; BGM vẫn Atlas. Không dùng clone_ref với ZeroTTS."
+        );
+      } else if (f.pipeline === "paperdesign" && narrVoice) {
+        parts.push(
+          "beats.json voice (Atlas TTS): " +
+            '"voice": {"backend":"atlas","voice_id":"' +
+            narrVoice +
+            '","language":"' +
+            (v.lang || "vi") +
+            '","speed":1.0}'
+        );
+      }
     }
     if (v.assets) parts.push("Tài sản / URL: " + v.assets);
     if (v.script) parts.push("Kịch bản / beat dán sẵn:\n" + v.script);
