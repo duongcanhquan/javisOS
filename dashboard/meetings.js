@@ -1408,10 +1408,13 @@
 
   function fbrain() {
     try {
-      return window.currentBrainPath ? currentBrainPath() : "brain";
-    } catch (e) {
-      return "brain";
-    }
+      if (window.JavisSessions && typeof window.JavisSessions.brain === "function") {
+        var viaSess = window.JavisSessions.brain();
+        if (viaSess) return viaSess;
+      }
+      if (typeof currentBrainPath === "function") return currentBrainPath() || "brain";
+    } catch (e) {}
+    return "brain";
   }
 
   function esc(s) {
@@ -3475,26 +3478,155 @@
     }
   }
 
+  function closeSummaryOverlay() {
+    var ov = document.getElementById("mtSumOverlay");
+    if (ov) ov.hidden = true;
+  }
+
+  function ensureSummaryOverlay() {
+    var ov = document.getElementById("mtSumOverlay");
+    if (ov) return ov;
+    ov = document.createElement("div");
+    ov.id = "mtSumOverlay";
+    ov.className = "mt-sum-overlay";
+    ov.hidden = true;
+    ov.innerHTML =
+      '<div class="mt-sum-dialog" role="dialog" aria-modal="true" aria-labelledby="mtSumOverlayTitle">' +
+      '<div class="mt-sum-dialog-head">' +
+      '<span id="mtSumOverlayTitle">Tổng kết cuộc họp</span>' +
+      '<button type="button" class="s-btn-ghost" id="mtSumOverlayClose">' +
+      ic("x") +
+      " Đóng</button></div>" +
+      '<pre class="mt-sum-dialog-body" id="mtSumOverlayBody"></pre></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener("click", function (e) {
+      if (e.target === ov) closeSummaryOverlay();
+    });
+    var closeBtn = ov.querySelector("#mtSumOverlayClose");
+    if (closeBtn) closeBtn.onclick = closeSummaryOverlay;
+    if (!document._mtSumEsc) {
+      document._mtSumEsc = true;
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeSummaryOverlay();
+      });
+    }
+    return ov;
+  }
+
+  function openSummaryOverlay(text, path) {
+    var ov = ensureSummaryOverlay();
+    var title = ov.querySelector("#mtSumOverlayTitle");
+    var body = ov.querySelector("#mtSumOverlayBody");
+    if (title) title.textContent = path ? "Tổng kết · " + path : "Tổng kết cuộc họp";
+    if (body) body.textContent = text || "";
+    ov.hidden = false;
+    var closeBtn = ov.querySelector("#mtSumOverlayClose");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function paintSummaryBox(box, summary, path) {
+    if (!box) return;
+    var text = summary || "";
+    box.innerHTML =
+      '<div class="mt-sum-toolbar">' +
+      '<div class="mt-sum-path dim">' +
+      (path ? "Đã lưu: " + esc(path) : "Tổng kết") +
+      "</div>" +
+      '<button type="button" class="s-btn-ghost mt-sum-expand">' +
+      ic("chevrons-up") +
+      " Mở rộng</button></div>" +
+      '<pre class="mt-sum-body">' +
+      esc(text) +
+      "</pre>";
+    var btn = box.querySelector(".mt-sum-expand");
+    if (btn) {
+      btn.onclick = function () {
+        openSummaryOverlay(text, path || "");
+      };
+    }
+  }
+
   async function stopRecording(root) {
     await stopOrCancelMeeting(root);
   }
 
-  async function loadProjectOptions(selectEl, selectedId) {
+  function paintProjectSelect(selectEl, list, selectedId, query) {
+    var q = (query || "").trim().toLowerCase();
+    selectEl.innerHTML = '<option value="">- Không gắn dự án (chỉ Wiki) -</option>';
+    var n = 0;
+    (list || []).forEach(function (p) {
+      var name = p.name || p.id || "Dự án";
+      if (q && String(name).toLowerCase().indexOf(q) < 0) return;
+      var opt = document.createElement("option");
+      opt.value = p.id || "";
+      opt.textContent = name;
+      if (selectedId && selectedId === p.id) opt.selected = true;
+      selectEl.appendChild(opt);
+      n++;
+    });
+    return n;
+  }
+
+  async function loadProjectOptions(selectEl, selectedId, extra) {
     if (!selectEl) return;
-    selectEl.innerHTML = '<option value="">— Không gắn dự án (chỉ Wiki) —</option>';
+    extra = extra || {};
+    var emptyEl = extra.emptyEl || null;
+    var queryEl = extra.queryEl || null;
+    selectEl.innerHTML = '<option value="">Đang tải dự án…</option>';
+    if (emptyEl) {
+      emptyEl.hidden = true;
+      emptyEl.textContent = "";
+    }
+    var list = [];
     try {
-      var r = await (
-        await fetch("/projects?brain=" + encodeURIComponent(fbrain()))
-      ).json();
-      var list = r.projects || r.items || [];
-      list.forEach(function (p) {
-        var opt = document.createElement("option");
-        opt.value = p.id || "";
-        opt.textContent = p.name || p.id || "Dự án";
-        if (selectedId && selectedId === p.id) opt.selected = true;
-        selectEl.appendChild(opt);
+      var res = await fetch("/projects?brain=" + encodeURIComponent(fbrain()), {
+        credentials: "same-origin",
       });
-    } catch (e) {}
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var r = await res.json();
+      list = r.projects || r.items || [];
+    } catch (e) {
+      selectEl.innerHTML = '<option value="">- Không gắn dự án (chỉ Wiki) -</option>';
+      if (emptyEl) {
+        emptyEl.hidden = false;
+        emptyEl.textContent =
+          "Không tải được danh sách dự án (" +
+          ((e && e.message) || e) +
+          "). Tải lại trang rồi thử lại.";
+      }
+      return;
+    }
+    selectEl._mtProjects = list;
+    selectEl._mtSelected = selectedId || "";
+    var shown = paintProjectSelect(selectEl, list, selectedId, queryEl ? queryEl.value : "");
+    if (emptyEl) {
+      if (!list.length) {
+        emptyEl.hidden = false;
+        emptyEl.textContent =
+          "Chưa thấy dự án trên bộ não đang mở. Tạo ở cột Lịch sử hội thoại, rồi mở lại ô này.";
+      } else if (!shown) {
+        emptyEl.hidden = false;
+        emptyEl.textContent = "Không có dự án khớp chữ tìm.";
+      } else {
+        emptyEl.hidden = true;
+      }
+    }
+    if (queryEl && !queryEl._mtBound) {
+      queryEl._mtBound = true;
+      queryEl.addEventListener("input", function () {
+        var n = paintProjectSelect(
+          selectEl,
+          selectEl._mtProjects || [],
+          selectEl._mtSelected || "",
+          queryEl.value
+        );
+        if (emptyEl) {
+          if (!(selectEl._mtProjects || []).length) return;
+          emptyEl.hidden = n > 0;
+          if (!n) emptyEl.textContent = "Không có dự án khớp chữ tìm.";
+        }
+      });
+    }
   }
 
   function knowledgePanelHtml(prefix, pathHint) {
@@ -3511,9 +3643,17 @@
       prefix +
       'KnowTopic" placeholder="Ví dụ: Quyết định pricing Q3 · Brief landing"></div>' +
       '<div class="mt-field"><label>Gắn dự án (tuỳ chọn)</label>' +
+      '<div class="mt-proj-pick">' +
+      '<input type="search" id="' +
+      prefix +
+      'KnowProjectQ" placeholder="Tìm tên dự án…" autocomplete="off">' +
       '<select id="' +
       prefix +
-      'KnowProject"></select></div>' +
+      'KnowProject" size="6"></select>' +
+      '<p class="mt-proj-empty dim" id="' +
+      prefix +
+      'KnowProjectEmpty" hidden></p>' +
+      "</div></div>" +
       '<label class="mt-know-pin"><input type="checkbox" id="' +
       prefix +
       'KnowPin" checked> Ghim tài liệu vào dự án (nạp khi chat trong dự án)</label>' +
@@ -3539,7 +3679,10 @@
     host.hidden = false;
     host.innerHTML = knowledgePanelHtml("mt", path || state.path || "");
     var sel = host.querySelector("#mtKnowProject");
-    loadProjectOptions(sel, "");
+    loadProjectOptions(sel, "", {
+      queryEl: host.querySelector("#mtKnowProjectQ"),
+      emptyEl: host.querySelector("#mtKnowProjectEmpty"),
+    });
     var topic = host.querySelector("#mtKnowTopic");
     var titleEl = root.querySelector("#mtTitle");
     if (topic && titleEl && titleEl.value) topic.value = titleEl.value.trim();
@@ -3642,14 +3785,7 @@
       if (!r.ok) throw new Error(r.error || "Tổng kết lỗi");
       state.summaryPath = r.summary_path || "";
       state.knowledgeDone = false;
-      if (box) {
-        box.innerHTML =
-          '<div class="mt-sum-path dim">Đã lưu: ' +
-          esc(r.summary_path || "") +
-          '</div><pre class="mt-sum-body">' +
-          esc(r.summary || "") +
-          "</pre>";
-      }
+      paintSummaryBox(box, r.summary || "", r.summary_path || "");
       setPhase(root, "done");
       setStatus(root, "Xong tổng kết · " + (r.summary_path || ""), "ok");
       showKnowledgePanel(root, state.path);
@@ -3791,9 +3927,190 @@
     return p.toString();
   }
 
+  function goConnect() {
+    try {
+      if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("mcp");
+      else location.hash = "#mcp";
+    } catch (e) {
+      location.hash = "#mcp";
+    }
+  }
+
+  function mtFd() {
+    var f = new FormData();
+    f.append("brain", fbrain());
+    return f;
+  }
+
+  function safeHttpUrl(u) {
+    var s = String(u || "").trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    return "";
+  }
+
+  function setFathomSyncEnabled(root, on) {
+    var btn = root.querySelector("#mtFathomSync");
+    if (btn) btn.disabled = !on;
+  }
+
+  function paintFathom(root, data) {
+    var host = root.querySelector("#mtFathomBody");
+    if (!host) return;
+    if (!data || data.connected === false) {
+      host.innerHTML =
+        '<div class="mt-archive-empty">' +
+        "<p><b>Fathom không ghi mic trong Javis.</b> Bot Fathom vào Zoom, Google Meet hoặc Teams. Kết nối xong, đồng bộ tóm tắt và transcript về vault.</p>" +
+        '<p class="dim">Chưa kết nối Fathom.</p>' +
+        '<button type="button" class="s-btn" id="mtFathomGoMcp">' +
+        ic("plug") +
+        " Mở Kết nối</button></div>";
+      var go = host.querySelector("#mtFathomGoMcp");
+      if (go) go.onclick = goConnect;
+      return;
+    }
+    if (data.error && !(data.items && data.items.length)) {
+      host.innerHTML = '<div class="dim">' + esc(data.error) + "</div>";
+      return;
+    }
+    var items = data.items || [];
+    if (!items.length) {
+      host.innerHTML =
+        '<div class="mt-archive-empty"><p>Chưa thấy cuộc họp trên Fathom, hoặc Fathom chưa xử lý xong.</p></div>';
+      return;
+    }
+    host.innerHTML = items
+      .map(function (it) {
+        var people = (it.people || [])
+          .map(function (p) {
+            return '<span class="mt-chip">' + esc(p) + "</span>";
+          })
+          .join("");
+        var btn = it.imported
+          ? '<span class="mt-tag mt-tag-ok">Đã lưu vault</span>'
+          : '<button type="button" class="s-btn" data-fathom-import="' +
+            esc(it.recording_id) +
+            '" data-fathom-title="' +
+            esc(it.title) +
+            '">Lưu vào vault</button>';
+        var url = safeHttpUrl(it.url);
+        return (
+          '<article class="mt-card-item mt-fathom-card">' +
+          '<div class="mt-card-top"><span class="mt-card-time">' +
+          esc((it.date || "") + " " + (it.time || "")) +
+          "</span>" +
+          '<h3 class="mt-card-title">' +
+          esc(it.title) +
+          "</h3></div>" +
+          (people ? '<div class="mt-card-people">' + people + "</div>" : "") +
+          (it.excerpt ? '<p class="mt-card-excerpt">' + esc(it.excerpt) + "</p>" : "") +
+          '<div class="mt-card-actions">' +
+          btn +
+          (url
+            ? '<a class="s-btn-ghost" href="' +
+              esc(url) +
+              '" target="_blank" rel="noopener">Mở Fathom</a>'
+            : "") +
+          "</div></article>"
+        );
+      })
+      .join("");
+    host.querySelectorAll("[data-fathom-import]").forEach(function (btn) {
+      btn.onclick = function () {
+        importFathomOne(
+          root,
+          btn.getAttribute("data-fathom-import"),
+          btn.getAttribute("data-fathom-title") || ""
+        );
+      };
+    });
+  }
+
+  async function loadFathom(root) {
+    var host = root.querySelector("#mtFathomBody");
+    var statusEl = root.querySelector("#mtFathomStatus");
+    if (host) host.innerHTML = '<div class="dim">Đang tải danh sách Fathom…</div>';
+    try {
+      var st = await (
+        await fetch("/meetings/fathom/status", { credentials: "same-origin" })
+      ).json();
+      if (statusEl) {
+        statusEl.textContent = st.connected
+          ? "Đã kết nối" +
+            (st.label ? " · " + st.label : "") +
+            ". Fathom ghi trên Zoom/Meet/Teams, không ghi mic trong Javis."
+          : "Chưa kết nối. Fathom ghi trên Zoom/Meet/Teams; Javis chỉ kéo note về vault.";
+      }
+      if (!st.connected) {
+        setFathomSyncEnabled(root, false);
+        paintFathom(root, { connected: false });
+        return;
+      }
+      setFathomSyncEnabled(root, true);
+      var r = await (
+        await fetch("/meetings/fathom/list?brain=" + encodeURIComponent(fbrain()), {
+          credentials: "same-origin",
+        })
+      ).json();
+      paintFathom(root, r);
+      if (r.error && statusEl) statusEl.textContent = r.error;
+    } catch (e) {
+      if (host)
+        host.innerHTML = '<div class="dim">Không tải được: ' + esc(e.message || e) + "</div>";
+    }
+  }
+
+  async function syncFathom(root) {
+    var btn = root.querySelector("#mtFathomSync");
+    if (btn) btn.disabled = true;
+    var statusEl = root.querySelector("#mtFathomStatus");
+    if (statusEl) statusEl.textContent = "Đang đồng bộ (tối đa 5 cuộc mới mỗi lần)…";
+    try {
+      var r = await (
+        await fetch("/meetings/fathom/sync", {
+          method: "POST",
+          body: mtFd(),
+          credentials: "same-origin",
+        })
+      ).json();
+      await loadFathom(root);
+      if (statusEl) statusEl.textContent = r.message || r.error || "";
+    } catch (e) {
+      if (statusEl) statusEl.textContent = e.message || String(e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function importFathomOne(root, rid, title) {
+    var statusEl = root.querySelector("#mtFathomStatus");
+    if (statusEl) statusEl.textContent = "Đang lưu vào vault…";
+    try {
+      var f = mtFd();
+      f.append("recording_id", rid);
+      f.append("title", title || "");
+      var r = await (
+        await fetch("/meetings/fathom/import", {
+          method: "POST",
+          body: f,
+          credentials: "same-origin",
+        })
+      ).json();
+      await loadFathom(root);
+      if (statusEl) {
+        statusEl.textContent = r.ok
+          ? r.skipped
+            ? "Cuộc này đã có trong vault."
+            : "Đã lưu: " + (r.path || r.title || "")
+          : r.error || "Không lưu được.";
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = e.message || String(e);
+    }
+  }
+
   function setMtTab(root, tab) {
-    archiveState.tab = tab === "archive" ? "archive" : "new";
-    tab = archiveState.tab;
+    if (tab !== "archive" && tab !== "fathom") tab = "new";
+    archiveState.tab = tab;
     root.querySelectorAll(".mt-tab").forEach(function (btn) {
       var on = btn.getAttribute("data-mt-tab") === tab;
       btn.classList.toggle("mt-tab-active", on);
@@ -3802,6 +4119,7 @@
     });
     var panelNew = root.querySelector("#mtPanelNew");
     var panelArch = root.querySelector("#mtPanelArchive");
+    var panelFathom = root.querySelector("#mtPanelFathom");
     // Ẩn hẳn panel không chọn — không chồng nội dung dưới tab kia.
     if (panelNew) {
       panelNew.hidden = tab !== "new";
@@ -3811,9 +4129,14 @@
       panelArch.hidden = tab !== "archive";
       panelArch.setAttribute("aria-hidden", tab !== "archive" ? "true" : "false");
     }
+    if (panelFathom) {
+      panelFathom.hidden = tab !== "fathom";
+      panelFathom.setAttribute("aria-hidden", tab !== "fathom" ? "true" : "false");
+    }
     var wrap = root.querySelector(".mt-wrap") || root;
-    wrap.classList.toggle("mt-on-archive", tab === "archive");
+    wrap.classList.toggle("mt-on-archive", tab === "archive" || tab === "fathom");
     if (tab === "archive") loadArchive(root);
+    if (tab === "fathom") loadFathom(root);
   }
 
   function openMeetingEditor(relPath) {
@@ -3903,7 +4226,10 @@
           if (!host) return;
           host.hidden = false;
           host.innerHTML = knowledgePanelHtml("mtArch", r.path || "");
-          loadProjectOptions(host.querySelector("#mtArchKnowProject"), r.project_id || "");
+          loadProjectOptions(host.querySelector("#mtArchKnowProject"), r.project_id || "", {
+            queryEl: host.querySelector("#mtArchKnowProjectQ"),
+            emptyEl: host.querySelector("#mtArchKnowProjectEmpty"),
+          });
           var topicIn = host.querySelector("#mtArchKnowTopic");
           if (topicIn) {
             topicIn.value = (r.knowledge_topic || r.title || "").trim();
@@ -3941,6 +4267,24 @@
           if (ta) {
             ta.oninput = function () {
               bodies.notes = ta.value;
+            };
+          }
+          return;
+        }
+        if (key === "summary") {
+          body.innerHTML =
+            '<div class="mt-sum-toolbar">' +
+            '<div class="mt-sum-path dim">Tổng kết</div>' +
+            '<button type="button" class="s-btn-ghost mt-sum-expand">' +
+            ic("chevrons-up") +
+            " Mở rộng</button></div>" +
+            '<pre class="mt-detail-pre">' +
+            esc(bodies.summary || "") +
+            "</pre>";
+          var exp = body.querySelector(".mt-sum-expand");
+          if (exp) {
+            exp.onclick = function () {
+              openSummaryOverlay(bodies.summary || "", r.path || "");
             };
           }
           return;
@@ -4122,8 +4466,8 @@
       "height:calc(100dvh - 108px);max-height:calc(100dvh - 108px)}" +
       ".mt-wrap.mt-on-archive{height:auto;max-height:none;overflow:visible}" +
       /* display:grid trên panel đè [hidden] mặc định → hai tab chồng nhau */
-      "#mtPanelNew[hidden],#mtPanelArchive[hidden]{display:none!important}" +
-      "#mtPanelArchive:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}" +
+      "#mtPanelNew[hidden],#mtPanelArchive[hidden],#mtPanelFathom[hidden]{display:none!important}" +
+      "#mtPanelArchive:not([hidden]),#mtPanelFathom:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}" +
       /* Ghi mới: 3 cột - form | transcript | ghi chú. Không dùng flex kẻo đè grid. */
       "#mtPanelNew:not([hidden]){flex:1;min-height:0;display:grid;" +
       "grid-template-columns:minmax(0,0.9fr) minmax(0,1.25fr) minmax(0,1.15fr);gap:10px;align-items:stretch;overflow:hidden}" +
@@ -4168,11 +4512,23 @@
       ".mt-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 0}" +
       ".mt-toolbar .s-btn,.mt-toolbar .s-btn-ghost{font-size:12.5px;padding:6px 10px}" +
       "#mtAfter:not([hidden]){flex:none;display:flex;flex-direction:column;gap:8px;min-height:0}" +
-      "#mtAfter .mt-sum{max-height:140px;overflow:auto}" +
-      ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:12.5px;line-height:1.45;background:var(--bg,var(--surface-0,#111));border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px 0 0}" +
-      ".mt-know{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);padding:10px;margin:0}" +
+      "#mtAfter .mt-sum{max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--bg,var(--surface-0,#111))}" +
+      ".mt-sum-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px}" +
+      ".mt-sum-path{font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+      ".mt-sum-expand{flex:none;font-size:12px!important;padding:4px 8px!important}" +
+      ".mt-sum-body{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;background:transparent;border:none;border-radius:0;padding:0;margin:0}" +
+      ".mt-sum-overlay{position:fixed;inset:0;z-index:240;background:rgba(12,14,18,.55);display:flex;align-items:center;justify-content:center;padding:20px}" +
+      ".mt-sum-overlay[hidden]{display:none!important}" +
+      ".mt-sum-dialog{width:min(960px,96vw);height:min(88vh,920px);display:flex;flex-direction:column;background:var(--surface-1,var(--bg,#111));border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.28);overflow:hidden}" +
+      ".mt-sum-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:650;flex:none}" +
+      ".mt-sum-dialog-body{flex:1;min-height:0;overflow:auto;margin:0;padding:18px 20px;white-space:pre-wrap;font:inherit;font-size:15.5px;line-height:1.6;color:var(--text)}" +
+      ".mt-know{border:1px solid var(--border);border-radius:10px;background:var(--surface-1);padding:10px;margin:0;overflow:visible}" +
       ".mt-know-title{font-size:13px;font-weight:600;color:var(--text);margin:0 0 4px;display:flex;align-items:center;gap:6px}" +
       ".mt-know-hint{font-size:12px;color:var(--text3);line-height:1.4;margin:0 0 8px}" +
+      ".mt-proj-pick{display:flex;flex-direction:column;gap:6px}" +
+      ".mt-proj-pick input[type=search]{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit;font-size:13px}" +
+      ".mt-proj-pick select{width:100%;min-height:8.4em;box-sizing:border-box;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit;font-size:13px}" +
+      ".mt-proj-empty{font-size:12px;line-height:1.4;margin:0}" +
       ".mt-know-pin{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:var(--text2);margin:2px 0 0;cursor:pointer;line-height:1.35}" +
       ".mt-know-result{margin-top:6px;font-size:12px;min-height:1.1em}" +
       ".mt-know-ok{color:var(--ok-ink,var(--text2))}" +
@@ -4206,6 +4562,11 @@
       ".mt-card-actions .s-btn,.mt-card-actions .s-btn-ghost{font-size:12.5px;padding:5px 10px}" +
       ".mt-archive-empty{text-align:center;padding:36px 16px;color:var(--text3)}" +
       ".mt-archive-empty p{margin:8px 0 0}" +
+      ".mt-fathom-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px}" +
+      "#mtFathomStatus{font-size:13px;color:var(--text3);line-height:1.45;margin:0;flex:1;min-width:180px}" +
+      "#mtFathomBody{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}" +
+      "#mtFathomBody .mt-archive-empty,#mtFathomBody .dim{grid-column:1/-1}" +
+      ".mt-fathom-card{cursor:default}" +
       "#mtArchiveDetail{margin:16px 0 0;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);padding:16px}" +
       ".mt-detail-head{margin:0 0 12px}" +
       ".mt-detail-title{font-size:17px;font-weight:600;color:var(--text);margin:0 0 4px}" +
@@ -4247,6 +4608,9 @@
       '<button type="button" class="mt-tab mt-tab-active" id="mtTabNew" data-mt-tab="new" role="tab" aria-selected="true" aria-controls="mtPanelNew">' +
       ic("mic") +
       " Ghi mới</button>" +
+      '<button type="button" class="mt-tab" id="mtTabFathom" data-mt-tab="fathom" role="tab" aria-selected="false" aria-controls="mtPanelFathom">' +
+      ic("download") +
+      " Fathom</button>" +
       '<button type="button" class="mt-tab" id="mtTabArchive" data-mt-tab="archive" role="tab" aria-selected="false" aria-controls="mtPanelArchive">' +
       ic("folder-open") +
       ' Lưu trữ <span class="mt-tab-badge" id="mtArchiveBadge"></span></button>' +
@@ -4350,6 +4714,19 @@
       '<div id="mtArchiveList"><div class="dim">Đang tải…</div></div>' +
       '<div id="mtArchiveDetail" hidden></div>' +
       "</div>" +
+      '<div id="mtPanelFathom" hidden role="tabpanel" aria-labelledby="mtTabFathom">' +
+      '<p class="mt-hint">Fathom không ghi mic trong Javis. Bot Fathom vào Zoom/Meet/Teams; xong cuộc thì kéo tóm tắt và transcript vào vault.</p>' +
+      '<div class="mt-fathom-toolbar">' +
+      '<button type="button" class="s-btn" id="mtFathomSync">' +
+      ic("download") +
+      " Đồng bộ cuộc mới</button>" +
+      '<button type="button" class="s-btn-ghost" id="mtFathomConnect">' +
+      ic("plug") +
+      " Kết nối Fathom</button>" +
+      '<p id="mtFathomStatus" class="dim"></p>' +
+      "</div>" +
+      '<div id="mtFathomList"><div id="mtFathomBody"><div class="dim">Đang tải…</div></div></div>' +
+      "</div>" +
       "</div>";
 
     el.querySelector("#mtStart").onclick = function () {
@@ -4382,6 +4759,16 @@
         setMtTab(el, btn.getAttribute("data-mt-tab"));
       };
     });
+    var fathomSync = el.querySelector("#mtFathomSync");
+    if (fathomSync) {
+      fathomSync.onclick = function () {
+        syncFathom(el);
+      };
+    }
+    var fathomConn = el.querySelector("#mtFathomConnect");
+    if (fathomConn) {
+      fathomConn.onclick = goConnect;
+    }
     var searchIn = el.querySelector("#mtArchiveSearch");
     if (searchIn) {
       searchIn.oninput = function () {

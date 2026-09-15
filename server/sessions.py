@@ -665,10 +665,17 @@ class SessionStore:
         ))
         return pid
 
-    def list_projects(self, brain: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_projects(self, brain: Optional[Any] = None) -> List[Dict[str, Any]]:
         """Project kèm số hội thoại đang nằm trong đó (đếm cả cuộc đã cất vào kho lưu:
-        con số này để người dùng biết xoá project sẽ gỡ nhãn bao nhiêu cuộc)."""
-        where_sql, params = ("WHERE p.brain = ?", (brain,)) if brain else ("", ())
+        con số này để người dùng biết xoá project sẽ gỡ nhãn bao nhiêu cuộc).
+
+        `brain` một chuỗi hoặc DANH SÁCH bí danh (giống list_sessions / loc_brain).
+        Cuộc họp và cột Lịch sử từng lệch nhau: một bên gửi "brain", một bên gửi path
+        tuyệt đối của đúng vault đó, dropdown gắn dự án ra trống.
+        """
+        cond, bparams = loc_brain(brain, cot="p.brain")
+        where_sql = ("WHERE " + cond) if cond else ""
+        params = tuple(bparams)
         rows = self._read(
             f"""
             SELECT p.id, p.name, p.icon, p.brain, p.pinned, p.created_at, p.updated_at,

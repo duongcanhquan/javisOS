@@ -1,5 +1,14 @@
 # Nhật ký cập nhật
 
+## [0.55.234] - 2026-09-15
+### Tính năng
+- **Cuộc họp Fathom.** Kết nối Fathom trên trang Kết nối, rồi mở tab Fathom trên Cuộc họp. Fathom vẫn ghi trên Zoom/Meet/Teams (không ghi mic trong Javis); xong cuộc thì đồng bộ tóm tắt và transcript vào vault.
+
+### Sửa lỗi
+- **Tổng kết cuộc họp đọc được hết.** Sau khi họp, ô tổng kết không còn bị cắt thấp; có nút Mở rộng ra khung lớn.
+- **Gắn dự án sau họp thấy đúng list.** Ô tìm dự án hiện danh sách, không còn trống vì não ghi `brain` một kiểu còn cuộc họp hỏi kiểu khác.
+- **Tổng kết lại cuộc họp đã lưu trên Mac.** Mở file họp cũ rồi tổng kết không còn vấp vì máy ghi `/var` một kiểu còn đọc `/private/var`.
+
 ## [0.55.233] - 2026-09-15
 ### Sửa lỗi
 - **Hai hội thoại hết dính file đang mở của nhau.** File ghim ở trình sửa chỉ đi vào đúng cuộc đã mở nó, không còn nhét vào mọi khung chat trên trang.

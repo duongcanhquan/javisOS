@@ -770,6 +770,42 @@
       "risk": "Higgsfield là công cụ TẠO nội dung: mỗi lần sinh hoặc chỉnh ảnh, video sẽ TIÊU CREDIT trả trước trong tài khoản Higgsfield của bạn.\n\nMặc định để mức Ghi nháp để Javis tạo được nội dung ngay, đồng thời chặn các thao tác xoá và thanh toán.\n\nMuốn Javis chỉ xem lịch sử và kết quả mà không tự tạo (đỡ tốn credit) thì hạ xuống Chỉ đọc. Muốn mở tất cả thì nâng Toàn quyền.\n\nTên tool chính xác của Higgsfield chưa công bố nên phân loại quyền dựa trên heuristic."
     },
     {
+      "id": "fathom",
+      "name": "Fathom",
+      "icon": "mic",
+      "category": "Văn phòng",
+      "description": "Cuộc họp Zoom/Meet/Teams do bot Fathom ghi sẵn: liệt kê, tìm, lấy tóm tắt và transcript rồi đưa vào vault. Không ghi mic trong Javis. Đăng nhập Fathom 1 chạm.",
+      "status": "beta",
+      "transport": "http",
+      "url": "https://api.fathom.ai/mcp",
+      "auth": {
+        "type": "oauth",
+        "fields": [],
+        "guide": "Fathom ghi cuộc họp trên Zoom/Google Meet/Teams (bot vào cuộc), không ghi mic trong trang Javis.\n\nLàm 1 lần:\n1. Bấm Kết nối rồi đăng nhập tài khoản Fathom và cấp quyền.\n2. Javis tự đăng ký ứng dụng theo chuẩn OAuth, không cần tạo app hay dán key.\n3. Vào Cuộc họp > tab Fathom, bấm Đồng bộ để kéo tóm tắt và transcript vào vault.\n\nChỉ thấy cuộc bạn đã ghi hoặc được share. Tìm trong MCP đọc tiêu đề và tóm tắt, không quét hết lời nói.",
+        "guide_url": "https://developers.fathom.ai/mcp-docs"
+      },
+      "validate": {
+        "tool": "get_identity",
+        "args": {},
+        "label_paths": ["email", "name", "user.email", "user.name"]
+      },
+      "tool_meta": {
+        "read": [
+          "list_meetings",
+          "search_meetings",
+          "get_meeting_summary",
+          "get_meeting_transcript",
+          "get_recording_by_url",
+          "get_recording_by_call_id",
+          "find_person",
+          "list_teams",
+          "get_identity"
+        ]
+      },
+      "default_perm": "readonly",
+      "risk": "Fathom chỉ đọc cuộc họp bạn đã được phép xem trên Fathom. Khi bấm đồng bộ, tóm tắt và transcript được ghi vào vault Javis.\n\nGiữ mức Chỉ đọc. Javis không bật mic và không tự ghi cuộc họp mới thay Fathom."
+    },
+    {
       "id": "x-twitter",
       "name": "X (Twitter)",
       "icon": "/static/logos/x.png",

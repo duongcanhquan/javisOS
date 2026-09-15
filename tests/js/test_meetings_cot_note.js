@@ -34,8 +34,29 @@ check("nút Tổng kết lại trên chi tiết lưu trữ",
   /mt-detail-analyze/.test(src) && /Tổng kết/.test(src));
 check("màn ghi mới khóa chiều cao viewport (không kéo dài trang)",
   /height:calc\(100dvh - 108px\)/.test(src) && /#mtPanelNew:not\(\[hidden\]\)\{flex:1/.test(src));
+check("nút mở rộng tổng kết (overlay đọc được)",
+  /function openSummaryOverlay\(/.test(src) &&
+  /Mở rộng/.test(src) &&
+  /mt-sum-overlay/.test(src) &&
+  /mtSumOverlay/.test(src));
+check("ô gắn dự án có tìm + danh sách hiện (không chỉ select 1 hàng)",
+  /KnowProjectQ/.test(src) &&
+  /size="6"/.test(src) &&
+  /Chưa thấy dự án trên bộ não/.test(src) &&
+  /function paintProjectSelect\(/.test(src));
+check("GET dự án cuộc họp dùng credentials và não đang mở",
+  /\/projects\?brain=/.test(src) &&
+  /credentials:\s*"same-origin"/.test(src));
+check("tab Fathom trên trang cuộc họp (không ghi mic trong Javis)",
+  /data-mt-tab="fathom"/.test(src) &&
+  /mtPanelFathom/.test(src) &&
+  /Fathom không ghi mic trong Javis/.test(src) &&
+  /\/meetings\/fathom\/sync/.test(src) &&
+  /\/meetings\/fathom\/import/.test(src) &&
+  /Alpine\.store\("nav"\)\.go\("mcp"\)/.test(src) &&
+  /function safeHttpUrl\(/.test(src));
 const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 40)", v >= 40, v);
+check("meetings.js đã bump ?v= (>= 45)", v >= 45, v);
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

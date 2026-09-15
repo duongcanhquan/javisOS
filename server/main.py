@@ -81,6 +81,7 @@ import inbox         # hòm thư: mọi kết quả chạy nền để lại m�
 import webpush       # thông báo đẩy trình duyệt (Web Push, tự mã hoá - không thêm thư viện)
 import stt            # nghe tin thoại (Gemini ưu tiên; OpenAI/Groq tuỳ chọn) -> chữ
 import meetings       # cuộc họp: transcript Moonshine WASM + tổng hợp Ollama local
+import fathom_meetings  # kéo cuộc họp Fathom (MCP) vào vault
 import phap_che       # kho pháp chế: search local md + RAG sidecar tuỳ chọn
 import instant_social # chào/cảm ơn thuần → trả ngay, không spawn CLI
 import lenh_dung_viec # "dừng việc nền" → huỷ thật, không giao việc mới
@@ -5149,6 +5150,40 @@ async def meetings_list(brain: str = Query("brain"), limit: int = Query(20)):
         return {"ok": False, "error": str(e), "items": []}
 
 
+@app.get("/meetings/fathom/status")
+async def meetings_fathom_status():
+    return fathom_meetings.status()
+
+
+@app.get("/meetings/fathom/list")
+async def meetings_fathom_list(brain: str = Query("brain")):
+    try:
+        return await fathom_meetings.list_meetings(_brain_root(brain))
+    except Exception as e:
+        return {"ok": False, "error": str(e), "items": []}
+
+
+@app.post("/meetings/fathom/import")
+async def meetings_fathom_import(
+    brain: str = Form("brain"),
+    recording_id: str = Form(""),
+    title: str = Form(""),
+):
+    try:
+        return await fathom_meetings.import_one(
+            _brain_root(brain), recording_id, title=title)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/meetings/fathom/sync")
+async def meetings_fathom_sync(brain: str = Form("brain")):
+    try:
+        return await fathom_meetings.sync_new(_brain_root(brain))
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.get("/meetings/archive")
 async def meetings_archive(
     brain: str = Query("brain"),
@@ -5197,9 +5232,11 @@ async def meetings_to_knowledge(
         p = get_store().get_project(pid)
         if not p:
             return {"ok": False, "error": "Không tìm thấy dự án."}
-        # Chỉ gắn project cùng brain đang mở
-        if (p.get("brain") or "brain") != (brain or "brain"):
-            return {"ok": False, "error": "Dự án thuộc brain khác — đổi brain hoặc chọn dự án khác."}
+        # Chỉ gắn project cùng vault đang mở (kể cả khi một bên lưu "brain", bên kia lưu path).
+        want = set(_brain_keys(brain or "brain"))
+        have = set(_brain_keys(p.get("brain") or "brain"))
+        if not (want & have):
+            return {"ok": False, "error": "Dự án thuộc brain khác - đổi brain hoặc chọn dự án khác."}
         pname = (p.get("name") or "").strip()
 
     def _add(proj_id: str, fpath: str, name: str = ""):
@@ -14089,7 +14126,10 @@ async def sessions_set_project(session_id: str, project_id: str = Form(""),
 # ============================================================
 @app.get("/projects")
 async def projects_list(brain: str = Query(None)):
-    return {"projects": get_store().list_projects(brain=brain)}
+    # Cùng bí danh với /sessions: "brain" và path tuyệt đối của vault mặc định là một.
+    if not brain:
+        return {"projects": get_store().list_projects()}
+    return {"projects": get_store().list_projects(brain=_brain_keys(brain))}
 
 
 @app.post("/projects")

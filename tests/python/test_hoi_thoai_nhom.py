@@ -114,6 +114,16 @@ st.create_project("Của brain khác", brain="brain-2")
 check("project lọc theo brain", len(st.list_projects(brain="brain")) == 0
       and len(st.list_projects(brain="brain-2")) == 1)
 
+# Bí danh: cuộc họp gửi "brain", chat có lúc lưu path. Một chuỗi vẫn khớp đúng;
+# danh sách bí danh thì gom cả hai cách viết của CÙNG vault.
+st.create_project("Wiki tắt", brain="brain")
+st.create_project("Wiki path", brain="/data/brains/default")
+check("một khoá không kéo nhầm path khác",
+      {p["name"] for p in st.list_projects(brain="brain")} == {"Wiki tắt"})
+check("list_projects nhận danh sách bí danh",
+      {p["name"] for p in st.list_projects(brain=["brain", "/data/brains/default"])} ==
+      {"Wiki tắt", "Wiki path"})
+
 # ============================================================
 # 4. Gắn nhãn cho hội thoại CHƯA tồn tại (chat mới trong lúc đang mở project)
 # ============================================================

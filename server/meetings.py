@@ -108,6 +108,14 @@ def meetings_dir(brain_root: str) -> Path:
     return d
 
 
+def _rel_to_brain(brain_root: str, p: Path) -> str:
+    """Đường tương đối từ vault. Resolve cả hai phía (macOS /var → /private/var)."""
+    try:
+        return str(p.resolve().relative_to(Path(brain_root).resolve())).replace("\\", "/")
+    except ValueError:
+        return p.name
+
+
 def _parse_attendees(raw: str) -> list[str]:
     names = []
     for part in re.split(r"[,;\n]+", raw or ""):
@@ -152,8 +160,8 @@ def start(brain_root: str, title: str = "", language: str = "vi",
     )
     md_path.write_text(fm, encoding="utf-8")
     jsonl_path.write_text("", encoding="utf-8")
-    rel_md = str(md_path.relative_to(Path(brain_root))).replace("\\", "/")
-    rel_jsonl = str(jsonl_path.relative_to(Path(brain_root))).replace("\\", "/")
+    rel_md = _rel_to_brain(brain_root, md_path)
+    rel_jsonl = _rel_to_brain(brain_root, jsonl_path)
     _ACTIVE[mid] = {
         "id": mid,
         "brain_root": str(brain_root),
@@ -785,14 +793,14 @@ def _meeting_item_from_path(brain_root: str, p: Path) -> Optional[dict]:
     date_key, time_label = _date_time_from_file(p.name, meta)
     if not date_key:
         date_key = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d")
-    rel = str(p.relative_to(Path(brain_root))).replace("\\", "/")
+    rel = _rel_to_brain(brain_root, p)
     stem = p.stem
     summ_path = p.parent / f"{stem}-summary.md"
     summ_rel = ""
     summ_excerpt = ""
     has_summary = summ_path.is_file()
     if has_summary:
-        summ_rel = str(summ_path.relative_to(Path(brain_root))).replace("\\", "/")
+        summ_rel = _rel_to_brain(brain_root, summ_path)
         summ_body = _read_text_limited(summ_path, 120_000)
         _sm, sbody = _parse_simple_frontmatter(summ_body)
         summ_excerpt = re.sub(r"\s+", " ", sbody or "")[:280]
