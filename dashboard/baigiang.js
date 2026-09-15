@@ -13,7 +13,7 @@
       full: "Slide trình chiếu",
       tagline: "Dạy trên lớp / seminar",
       when: "Cần chiếu máy chiếu hoặc gửi trước cho học viên. Ít chữ, có gợi ý hình.",
-      gets: ["Deck 10–16 slide", "Speaker notes", "Gợi ý ảnh / biểu đồ"],
+      gets: ["Deck HTML đẹp (theme + preview)", "Outline + speaker notes", "Gợi ý ảnh / biểu đồ"],
       example: "«Quang hợp lớp 8» → hook → 3 bước → ví dụ → quiz → tóm tắt.",
       time: "~10–20 phút",
       topicPh: "VD: Quang hợp cho học sinh lớp 8",

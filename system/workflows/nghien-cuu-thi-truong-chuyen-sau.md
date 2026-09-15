@@ -15,26 +15,26 @@ steps:
   - agent: thiet-ke-do-hoa-minh-hoa
     task: "Từ insight {{prev}} + file research: visual SOM, bản đồ cạnh tranh, JTBD, funnel, cover proposal. Tạo ảnh nếu được phép. Lưu sources/research/<slug>/04-visual-brief.md."
   - agent: soan-proposal-chien-luoc
-    task: "Nạp skill `proposal-chien-luoc`. Chưng cất 01–04 + brief {{input}} thành proposal đủ mục (Exec Summary ≤200 từ; KPI neo SOM base case; KD+MKT; rủi ro pháp lý NĐ13; consent). Lưu sources/research/<slug>/05-proposal.md."
+    task: "Nạp skill `proposal-chien-luoc`. Chưng cất 01-04 + brief {{input}} thành proposal đủ mục (Exec Summary ≤200 từ; KPI neo SOM base case; KD+MKT; rủi ro pháp lý NĐ13; consent). Lưu sources/research/<slug>/05-proposal.md."
     verify_agent: kiem-chung-nghien-cuu
     max_retries: 1
   - agent: kiem-chung-nghien-cuu
-    task: "Nạp skill `nghien-cuu-thi-truong` + `proposal-chien-luoc`. Kiểm chứng 01–05 theo checklist. Liệt kê FAIL + đoạn sửa cụ thể."
+    task: "Nạp skill `nghien-cuu-thi-truong` + `proposal-chien-luoc`. Kiểm chứng 01-05 theo checklist. Liệt kê FAIL + đoạn sửa cụ thể."
   - agent: soan-proposal-chien-luoc
-    task: "Áp dụng chỉnh từ {{prev}} vào 05-proposal.md (và 01–03 nếu được chỉ). Giữ file sạch để xuất."
+    task: "Áp dụng chỉnh từ {{prev}} vào 05-proposal.md (và 01-03 nếu được chỉ). Giữ file sạch để xuất."
   - agent: xuat-goi-bao-cao
-    task: "Nạp skill `xuat-goi-nghien-cuu`. Viết 00-index.md (01–05; ghi rõ bước tiếp theo là workflow ke-hoach-kd-mkt-tu-nghien-cuu cho 06–09). Xuất html+pdf+pptx vào exports/research/<slug>/. Báo đường dẫn + nhắc chạy /run ke-hoach-kd-mkt-tu-nghien-cuu với SLUG=... Title từ {{input}}."
-updated: 2026-09-06
+    task: "Nạp `xuat-goi-nghien-cuu`. Viết 00-index.md (01-05; ghi rõ bước tiếp theo là workflow ke-hoach-kd-mkt-tu-nghien-cuu cho 06-09). Xuất html+pdf+pptx vào exports/research/<slug>/. Nếu brief {{input}} muốn pitch/slide/trình chiếu: nạp `slide-wright`, preview 2 slide rồi full → exports/slides/<slug>/index.html. Báo đường dẫn + nhắc chạy /run ke-hoach-kd-mkt-tu-nghien-cuu với SLUG=... Title từ {{input}}."
+updated: 2026-09-16
 ---
 
 # Nghiên cứu thị trường chuyên sâu (gói giao nộp)
 
 ## Chuỗi chuẩn (2 workflow)
 
-1. **Workflow này** → file `01`–`05` + xuất gói.
+1. **Workflow này** → file `01`-`05` + xuất gói (+ deck HTML đẹp nếu cần chiếu).
 2. **`ke-hoach-kd-mkt-tu-nghien-cuu`** → `09` tài chính → `06` KD → `07` MKT → `08` vận hành → xuất lại.
 
-Skills: `nghien-cuu-thi-truong` ↔ `proposal-chien-luoc` → (`phan-tich-tai-chinh-mkt`, `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `quy-trinh-van-hanh-kd-mkt`) → `xuat-goi-nghien-cuu`.
+Skills: `nghien-cuu-thi-truong` ↔ `proposal-chien-luoc` → (`phan-tich-tai-chinh-mkt`, `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `quy-trinh-van-hanh-kd-mkt`) → `xuat-goi-nghien-cuu` + **`slide-wright`** (pitch/deck HTML).
 
 ## Cách chạy
 

@@ -549,14 +549,16 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
     # Trần lấy từ skill_router (CHUNG với system prompt) - trước đây hub tự cắt 60, system prompt
     # cắt 100 - người viết skill không biết mình bị chấm theo thước nào.
     metas = skill_router.list_enabled_meta(vault_root, lang)
-    _cap = skill_router.SKILL_LIST_MAX
+    picked = skill_router.pick_for_router(metas, cap=skill_router.SKILL_LIST_MAX)
     listing = "; ".join(f"{s['slug']}: {(s['description'] or '')[:skill_router.SKILL_DESC_MAX]}"
-                        for s in metas[:_cap])
-    if len(metas) > _cap:
-        listing += f"; …(+{len(metas) - _cap} skill nữa)"
+                        for s in picked)
+    if len(metas) > len(picked):
+        listing += f"; …(+{len(metas) - len(picked)} skill nữa)"
     add("javis_use_skill",
         "Nạp nội dung 1 skill (hướng dẫn chuyên sâu) rồi LÀM THEO. Truyền name=<slug>. "
-        "Skill khả dụng (slug: mô tả): " + (listing or "(chưa có)"),
+        "Skill khả dụng (slug: mô tả): " + (listing or "(chưa có)") + ". "
+        "Slide/pitch/trình chiếu/PDF chiếu/deck HTML → name=slide-wright. "
+        "Proposal chiến lược → name=proposal-chien-luoc (+ slide-wright nếu cần chiếu).",
         {"name": {"type": "string"}}, ["name"], _skill)
     return tools, route
 

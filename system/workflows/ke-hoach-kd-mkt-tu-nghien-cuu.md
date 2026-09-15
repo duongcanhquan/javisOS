@@ -15,7 +15,7 @@ steps:
   - agent: soan-quy-trinh-van-hanh
     task: "Từ {{prev}}: Nạp skill `quy-trinh-van-hanh-kd-mkt`. Đọc 06, 07, 09. Viết 08-ops-playbook.md (RACI, SOP, cổng duyệt)."
   - agent: kiem-chung-ke-hoach-kd-mkt
-    task: "Nạp skill `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `phan-tich-tai-chinh-mkt`, `quy-trinh-van-hanh-kd-mkt`. Kiểm chứng 06–09 (+01). Trả ĐẠT/CHƯA ĐẠT + lỗi cụ thể."
+    task: "Nạp skill `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `phan-tich-tai-chinh-mkt`, `quy-trinh-van-hanh-kd-mkt`. Kiểm chứng 06-09 (+01). Trả ĐẠT/CHƯA ĐẠT + lỗi cụ thể."
   - agent: soan-ke-hoach-kinh-doanh
     task: "Nếu {{prev}} CHƯA ĐẠT: sửa đúng file bị lỗi (ưu tiên 06; nếu lỗi ở 09/07/08 thì ghi rõ cần bước sau). Nếu ĐẠT: xác nhận path + 5 quyết định."
   - agent: soan-ke-hoach-marketing
@@ -23,8 +23,8 @@ steps:
   - agent: soan-quy-trinh-van-hanh
     task: "Áp lỗi vận hành còn lại vào 08-ops-playbook.md. Nếu kiểm chứng ĐẠT và không lỗi ops: xác nhận 08 ổn."
   - agent: xuat-goi-bao-cao
-    task: "Nạp skill `xuat-goi-nghien-cuu`. Cập nhật 00-index.md liệt kê đủ 01–09 (đánh dấu thiếu nếu có). Xuất exports/research/<slug>/. Báo path. Title từ {{input}}."
-updated: 2026-09-06
+    task: "Nạp `xuat-goi-nghien-cuu`. Cập nhật 00-index.md liệt kê đủ 01-09 (đánh dấu thiếu nếu có). Xuất exports/research/<slug>/. Nếu brief {{input}} muốn pitch/slide/trình chiếu: nạp `slide-wright` → exports/slides/<slug>/index.html. Báo path. Title từ {{input}}."
+updated: 2026-09-16
 ---
 
 # Kế hoạch KD & Marketing từ nghiên cứu
@@ -40,10 +40,10 @@ updated: 2026-09-06
 |------|-------|-------|
 | Tài chính | `phan-tich-tai-chinh-marketing` | `phan-tich-tai-chinh-mkt` |
 | Kế hoạch KD | `soan-ke-hoach-kinh-doanh` | `ke-hoach-kinh-doanh` (+ `proposal-chien-luoc`) |
-| Kế hoạch MKT | `soan-ke-hoach-marketing` | `ke-hoach-marketing` (+ `proposal-chien-luoc`) |
+| Kế hoạch MKT | `soan-ke-hoach-marketing` | `ke-hoach-marketing` (+ `proposal-chien-luoc`, `slide-wright`) |
 | Vận hành | `soan-quy-trinh-van-hanh` | `quy-trinh-van-hanh-kd-mkt` |
 | Kiểm chứng | `kiem-chung-ke-hoach-kd-mkt` | cả bốn skill kế hoạch |
-| Xuất | `xuat-goi-bao-cao` | `xuat-goi-nghien-cuu` |
+| Xuất | `xuat-goi-bao-cao` | `xuat-goi-nghien-cuu` + `slide-wright` (khi cần chiếu) |
 
 ## Cách chạy
 
@@ -59,7 +59,7 @@ sources/research/<slug>/
   07-marketing-plan.md
   08-ops-playbook.md
   09-finance-model.md
-  00-index.md   # cập nhật đủ 01–09
+  00-index.md   # cập nhật đủ 01-09
 exports/research/<slug>/
 ```
 

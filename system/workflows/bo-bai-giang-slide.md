@@ -4,7 +4,7 @@ name: Bài giảng → Slide
 slug: bo-bai-giang-slide
 status: active
 group: Nội dung
-description: Nghiên cứu → deck slide hấp dẫn → kiểm chứng.
+description: Nghiên cứu → deck HTML đẹp (slide-wright) + notes → kiểm chứng.
 steps:
 - agent: bg-nghien-cuu
   task: 'Cổng brief + nghiên cứu cho slide từ: {{input}}'
@@ -16,7 +16,7 @@ steps:
   max_retries: 1
 model: gemini-2.5-flash
 model_provider: gemini
-updated: '2026-09-07'
+updated: '2026-09-16'
 ---
 
-Nghiên cứu → deck slide hấp dẫn → kiểm chứng.
+Nghiên cứu → deck HTML đẹp (slide-wright) + notes → kiểm chứng.

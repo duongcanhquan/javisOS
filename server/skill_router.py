@@ -256,6 +256,129 @@ def list_enabled_meta(root, lang: str = "") -> list:
     return [s for s in list_skills(root, lang) if s.get("enabled")]
 
 
+# Từ khoá → skill cần nổi lên khi câu user khớp (router chỉ liệt kê SKILL_LIST_MAX skill
+# theo alphabet nên skill muộn chữ cái như slide-wright/proposal dễ biến mất khỏi prompt).
+# Mỗi bộ: (từ khoá thường, slug). Khớp không dấu + có dấu.
+_INTENT_BOOSTS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        (
+            "slide", "slides", "pitch", "deck", "powerpoint", "pptx", "ppt",
+            "trình chiếu", "trinh chieu", "thuyết trình", "thuyet trinh",
+            "bài thuyết trình", "pdf trình chiếu", "pdf chieu", "deck html",
+            "làm slide", "lam slide", "tạo slide", "tao slide", "pitch deck",
+        ),
+        "slide-wright",
+    ),
+    (
+        (
+            "proposal", "chiến lược", "chien luoc", "go-to-market", "gtm",
+            "pitch strategy", "đề xuất chiến lược", "de xuat chien luoc",
+        ),
+        "proposal-chien-luoc",
+    ),
+    (
+        (
+            "xuất pdf", "xuat pdf", "xuất pptx", "xuat pptx", "gói nghiên cứu",
+            "goi nghien cuu", "pack research", "export research",
+        ),
+        "xuat-goi-nghien-cuu",
+    ),
+    (
+        (
+            "nghiên cứu thị trường", "nghien cuu thi truong", "tam/sam/som",
+            "jtbd", "đối thủ", "doi thu", "market research",
+        ),
+        "nghien-cuu-thi-truong",
+    ),
+    (
+        (
+            "kế hoạch marketing", "ke hoach marketing", "marketing plan",
+            "lịch content", "lich content",
+        ),
+        "ke-hoach-marketing",
+    ),
+)
+
+_WORD_RE = re.compile(r"[^\W_]{2,}", re.UNICODE)
+
+
+def pick_for_router(metas: list, hint: str = "", cap: int | None = None) -> list:
+    """Chọn tối đa `cap` skill BẬT để bơm router: ưu tiên khớp `hint`, rồi alphabet.
+
+    Không có hint → giữ thứ tự đầu vào (thường alphabet từ list_skills) cắt `cap`.
+    Có hint → cộng điểm từ khoá + INTENT_BOOSTS để skill muộn chữ cái vẫn vào top.
+    """
+    if cap is None:
+        cap = SKILL_LIST_MAX
+    enabled = [s for s in (metas or []) if s.get("enabled", True)]
+    if not enabled:
+        return []
+    q = (hint or "").strip().lower()
+    if not q:
+        return enabled[:cap]
+
+    by_slug = {str(s.get("slug") or ""): s for s in enabled}
+    terms = set(_WORD_RE.findall(q))
+    scores: dict[str, int] = {}
+
+    for s in enabled:
+        slug = str(s.get("slug") or "")
+        hay = " ".join([
+            slug,
+            str(s.get("name") or ""),
+            str(s.get("description") or ""),
+            str(s.get("group") or ""),
+        ]).lower()
+        score = 8 if q in hay else 0
+        score += sum(1 for w in terms if w in hay)
+        if score:
+            scores[slug] = scores.get(slug, 0) + score
+
+    for keys, slug in _INTENT_BOOSTS:
+        if slug not in by_slug:
+            continue
+        if any(k in q for k in keys):
+            scores[slug] = scores.get(slug, 0) + 40
+
+    ranked = sorted(
+        ((sc, slug) for slug, sc in scores.items() if sc > 0),
+        key=lambda x: (-x[0], x[1]),
+    )
+    out: list = []
+    seen: set[str] = set()
+    for _sc, slug in ranked:
+        if slug in seen:
+            continue
+        out.append(by_slug[slug])
+        seen.add(slug)
+        if len(out) >= cap:
+            return out
+    for s in enabled:
+        slug = str(s.get("slug") or "")
+        if slug in seen:
+            continue
+        out.append(s)
+        seen.add(slug)
+        if len(out) >= cap:
+            break
+    return out
+
+
+def intent_router_footer() -> str:
+    """Dòng ưu tiên ý định luôn gắn sau danh sách skill (dù skill không nằm trong top N)."""
+    return (
+        "ƯU TIÊN THEO Ý ĐỊNH (luôn đúng, kể cả khi skill không nằm trong danh sách rút gọn trên):\n"
+        "- slide / pitch deck / trình chiếu / PDF chiếu / deck HTML / PowerPoint đẹp → "
+        "NẠP `slide-wright` rồi làm theo (HTML `exports/slides/<slug>/index.html`; "
+        "không dừng ở Markdown hay PPTX tóm tắt).\n"
+        "- proposal / chiến lược KD-MKT (nội dung) → `proposal-chien-luoc` "
+        "(và `slide-wright` nếu user muốn chiếu / pitch).\n"
+        "- xuất gói PDF/PPTX từ research 01-09 → `xuat-goi-nghien-cuu` "
+        "(+ `slide-wright` khi cần deck đẹp).\n"
+        "- nghiên cứu thị trường sâu → `nghien-cuu-thi-truong` / `deep-research`."
+    )
+
+
 def list_skill_manifests(root, lang: str = "") -> list:
     """Enabled SkillSource manifests. Only frontmatter and relative path are exposed."""
     root = Path(root)
