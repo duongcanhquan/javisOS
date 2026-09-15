@@ -765,7 +765,13 @@ class JavisGraph {
       Object.assign(n, { label: node.label, path: node.path, links: node.links, color: node.color });
       this._prep([n]);
     }
+    // CHỈ nối tới node CÓ THẬT trong đồ thị. force-graph ném "node not found" và chết cả vòng
+    // vẽ khi gặp một đầu dây trỏ vào hư không - note bị lọc vì không có liên kết, vừa xoá, hay
+    // một đoạn mã bash `[[ ... ]]` bị đọc nhầm thành wikilink. Phía server đã thôi gửi rác,
+    // nhưng chốt phải có ở đây: một đầu dây hỏng không được phép giết đồ thị.
+    const coNode = new Set(d.nodes.map(x => x.id));
     (linkTargets || []).forEach(tid => {
+      if (!coNode.has(tid)) return;
       const dup = d.links.some(l => {
         const s = (l.source && l.source.id) || l.source, t = (l.target && l.target.id) || l.target;
         return (s === node.id && t === tid) || (s === tid && t === node.id);

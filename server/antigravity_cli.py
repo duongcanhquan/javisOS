@@ -1460,7 +1460,9 @@ class AntigravityCLI:
         đẹp còn hơn mất câu trả lời.
         """
         if "_raw" in ev:
-            cac_manh.append(str(ev["_raw"]))
+            sach = _loc_thong_bao_he_thong(str(ev["_raw"]))
+            if sach:
+                cac_manh.append(sach)
             return []
         if "_exit" in ev:
             loi = str(ev.get("_err") or "").strip()
@@ -1516,6 +1518,9 @@ class AntigravityCLI:
             return [{"type": "tool_result", "id": str(ev.get("tool_id") or ev.get("id") or ""),
                      "status": str(ev.get("status") or ""),
                      "content": str(ev.get("output") or ev.get("content") or "")[:2000]}]
+        # Thông báo nội bộ khi task nền xong (pip list, số trang PDF…). Không phải câu người dùng.
+        if t in ("message", "inbox", "task", "task_update", "task_complete", "notification"):
+            return []
         if t == "error":
             tin = str(ev.get("message") or ev.get("error") or "Antigravity CLI lỗi.")
             if _la_loi_chua_dang_nhap(tin):
@@ -1555,14 +1560,15 @@ class AntigravityCLI:
                     for k in ("response", "content", "text", "output"):
                         v = ev.get(k)
                         if isinstance(v, str) and v.strip():
-                            chan["toan_van"] = v.strip()
+                            chan["toan_van"] = _loc_thong_bao_he_thong(v.strip())
                             break
                 return ra
 
         # Bước không phải câu trả lời (docs headless: user_input / checkpoint / tool) -
         # đừng gom `output` của tool thành chữ trợ lý rồi bỏ qua `result.response`.
         _step = str(ev.get("step_type") or "").lower()
-        if _step in ("user_input", "checkpoint", "tool"):
+        if _step in ("user_input", "checkpoint", "tool", "system_message", "system",
+                     "task", "task_update", "notification", "message"):
             if _step == "tool":
                 info = ev.get("tool_info") if isinstance(ev.get("tool_info"), dict) else {}
                 ten = str(ev.get("tool_name") or info.get("name") or "")
@@ -1579,14 +1585,61 @@ class AntigravityCLI:
             for k in ("text_delta", "content", "text", "delta", "message", "response", "output"):
                 v = ev.get(k)
                 if isinstance(v, str) and v:
-                    cac_manh.append(v)
+                    sach = _loc_thong_bao_he_thong(v)
+                    if sach:
+                        cac_manh.append(sach)
                     break
                 if isinstance(v, dict):
                     vv = v.get("text") or v.get("content")
                     if isinstance(vv, str) and vv:
-                        cac_manh.append(vv)
+                        sach = _loc_thong_bao_he_thong(vv)
+                        if sach:
+                            cac_manh.append(sach)
                         break
         return ra
+
+
+_MO_DAU_HE_THONG = (
+    "The following is a <SYSTEM_MESSAGE> not actually sent by the user. "
+    "It is provided by the system as important information to pay attention to."
+)
+# Khối đầy đủ, hoặc bị cắt giữa chừng (chat người dùng dán tới "task-49 fin").
+_KHOI_HE_THONG_RE = re.compile(
+    r"(?:" + re.escape(_MO_DAU_HE_THONG) + r"\s*)?"
+    r"<SYSTEM_MESSAGE>\s*"
+    r"[\s\S]*?"
+    r"(?:</SYSTEM_MESSAGE>|$)",
+    re.IGNORECASE,
+)
+_DONG_TASK_NEN_RE = re.compile(
+    r"^The task has been started in the background\. Waiting for results\.\s*",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _loc_thong_bao_he_thong(text: str) -> str:
+    """Gỡ thông báo nội bộ Antigravity (task nền xong) khỏi chữ gửi ra chat.
+
+    Ca 15/09: lượt `run-command` chạy nền xong thì `agy` nhét khối
+    `<SYSTEM_MESSAGE> Task id ... finished ... pip list / số trang PDF` vào stream.
+    Vòng đọc gom rộng nên nguyên dump hiện như câu trả lời. Không phải lỗi API hay não kém.
+    """
+    s = str(text or "")
+    if not s:
+        return ""
+    doi = False
+    if "<SYSTEM_MESSAGE>" in s or _MO_DAU_HE_THONG[:40] in s:
+        moi = _KHOI_HE_THONG_RE.sub("", s)
+        moi = moi.replace(_MO_DAU_HE_THONG, "")
+        doi = moi != s
+        s = moi
+    moi = _DONG_TASK_NEN_RE.sub("", s)
+    if moi != s:
+        doi = True
+        s = moi
+    if not s.strip():
+        return ""
+    return s.strip() if doi else s
 
 
 def _chot_van(gom: str, toan_van: str) -> str:
@@ -1606,6 +1659,8 @@ def _chot_van(gom: str, toan_van: str) -> str:
     là tự tay xén mất phần đuôi. Không khớp thì giữ nguyên chỗ gom - thà thừa một dòng lạ
     người đọc nhận ra ngay, còn hơn thiếu một đoạn không ai biết là đã mất.
     """
+    gom = _loc_thong_bao_he_thong(gom)
+    toan_van = _loc_thong_bao_he_thong(toan_van)
     if not toan_van or not gom or gom == toan_van:
         return gom
     if gom.endswith(toan_van):

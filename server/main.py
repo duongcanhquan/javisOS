@@ -82,6 +82,8 @@ import stt            # nghe tin thoại (Gemini ưu tiên; OpenAI/Groq tuỳ ch
 import meetings       # cuộc họp: transcript Moonshine WASM + tổng hợp Ollama local
 import phap_che       # kho pháp chế: search local md + RAG sidecar tuỳ chọn
 import instant_social # chào/cảm ơn thuần → trả ngay, không spawn CLI
+import lenh_dung_viec # "dừng việc nền" → huỷ thật, không giao việc mới
+import nhan_tool      # chip «Đang gọi» → câu tiếng Việt, ẩn tên kebab của CLI
 import zalo_login
 import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
@@ -12553,6 +12555,20 @@ async def websocket_endpoint(ws: WebSocket):
                 await _persist_turn(store, conv_sid, brain, user_message, final_text)
                 return final_text
 
+            # "Dừng việc ngầm" là LỆNH: huỷ việc đang chạy, không hỏi model (model hay giao
+            # thêm một việc mới mang nội dung "dừng việc đang chạy").
+            if lenh_dung_viec.la_lenh_dung_viec(user_message):
+                final_text = lenh_dung_viec.thu_huy(brain)
+                used_fast_path = True
+                await ws.send_text(json.dumps({
+                    "type": "response", "content": final_text,
+                    "engine": "instant", "model": "stop-job",
+                    "session_id": conv_sid,
+                    **_ctx_frame(runtime_trace, 0),
+                }))
+                await _persist_turn(store, conv_sid, brain, user_message, final_text)
+                return final_text
+
             await ws.send_text(json.dumps({
                 "type": "status",
                 "content": "wait"
@@ -12757,7 +12773,7 @@ async def websocket_endpoint(ws: WebSocket):
                         if et == "tool_call":
                             await ws.send_text(json.dumps({
                                 "type": "tool_call", "tool": ev.get("name", ""),
-                                "content": f"⚙ Đang gọi: {ev.get('name', '')}"}))
+                                "content": nhan_tool.dong_dang_goi(ev.get("name") or "")}))
                         elif et == "final":
                             final_text = ev.get("content") or ""
                         elif et == "usage":
@@ -12833,7 +12849,7 @@ async def websocket_endpoint(ws: WebSocket):
                         if et == "tool_call":
                             await ws.send_text(json.dumps({
                                 "type": "tool_call", "tool": ev.get("name", ""),
-                                "content": f"⚙ Đang gọi: {ev.get('name', '')}"}))
+                                "content": nhan_tool.dong_dang_goi(ev.get("name") or "")}))
                         elif et == "final":
                             final_text = ev.get("content") or ""
                         elif et == "usage":
@@ -12895,7 +12911,7 @@ async def websocket_endpoint(ws: WebSocket):
                         if et == "tool_call":
                             await ws.send_text(json.dumps({
                                 "type": "tool_call", "tool": ev.get("name", ""),
-                                "content": f"⚙ Đang gọi: {ev.get('name', '')}"}))
+                                "content": nhan_tool.dong_dang_goi(ev.get("name") or "")}))
                         elif et == "final":
                             final_text = ev.get("content") or ""
                         elif et == "usage":
@@ -13399,7 +13415,7 @@ async def websocket_endpoint(ws: WebSocket):
                 async for event in cli.query(_cli_prompt):
                     etype = event["type"]
                     if etype == "tool_call":
-                        await ws.send_text(json.dumps({"type": "tool_call", "tool": event["name"], "content": f"⚙ Đang gọi: {event['name']}"}))
+                        await ws.send_text(json.dumps({"type": "tool_call", "tool": event["name"], "content": nhan_tool.dong_dang_goi(event.get("name") or "")}))
                     elif etype == "tool_result":
                         await ws.send_text(json.dumps({"type": "tool_result", "content": event["content"][:200]}))
                     elif etype == "text":
@@ -16235,6 +16251,8 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         _social = instant_social.try_reply(text, _ten)
         if _social:
             return {"reply": _social, "engine": "instant", "model": "social"}
+        if lenh_dung_viec.la_lenh_dung_viec(text):
+            return {"reply": lenh_dung_viec.thu_huy(brain), "engine": "instant", "model": "stop-job"}
 
     async def _p(s):
         # Báo trạng thái trung gian về kênh (Telegram) cho user đỡ lo khi chờ. Bỏ qua nếu lỗi.
@@ -16403,7 +16421,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         async for ev in kcli.query(_hoi):
             et = ev.get("type")
             if et == "tool_call":
-                await _p(f"⚙ Đang gọi: {ev.get('name', '')}")
+                await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
             elif et == "final":
                 out = ev.get("content") or ""
             elif et == "error":
@@ -16444,7 +16462,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         async for ev in acli.query(_hoi):
             et = ev.get("type")
             if et == "tool_call":
-                await _p(f"⚙ Đang gọi: {ev.get('name', '')}")
+                await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
             elif et == "final":
                 out = ev.get("content") or ""
             elif et == "error":
@@ -16481,7 +16499,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         async for ev in ccli.query(_hoi):
             et = ev.get("type")
             if et == "tool_call":
-                await _p(f"⚙ Đang gọi: {ev.get('name', '')}")
+                await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
             elif et == "final":
                 out = ev.get("content") or ""
             elif et == "error":
@@ -16543,7 +16561,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                 et = ev.get("type")
                 if et in ("tool_call", "item"):
                     if et == "tool_call":
-                        await _p(f"⚙ Đang gọi: {ev.get('name', '')}")
+                        await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
                     # Codex KHÔNG phát file_path có cấu trúc như Claude nên phải moi từ payload,
                     # nếu không thì file nó ghi ra chỉ được gửi kèm khi tình cờ được nhắc tên.
                     # 'item' = item lạ (vd bản vá file) - không in ra nhưng vẫn moi đường dẫn.
@@ -16644,7 +16662,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                 _CONTEXT_RUNTIME.record_usage(
                     runtime_trace, ev.get("input", 0), ev.get("output", 0))
             elif ev["type"] == "tool_call":
-                await _p(f"⚙ Đang gọi công cụ: {ev.get('name', '')}")
+                await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
             elif ev["type"] == "error":
                 # KHÔNG return ngay: một tool hỏng giữa chừng không có nghĩa là cả lượt hỏng,
                 # luồng thường chạy tiếp và vẫn ra câu trả lời. Dashboard vốn xử lý như vậy.
@@ -16714,7 +16732,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                     fp = (ev.get("input") or {}).get("file_path") or (ev.get("input") or {}).get("notebook_path")
                     if fp:
                         written.append(str(fp))
-                await _p(f"⚙ Đang gọi: {nm}")
+                await _p(nhan_tool.dong_dang_goi(nm))
             elif et == "tool_result":
                 await _p("✓ Nhận kết quả - đang phân tích…")
             elif et == "text":

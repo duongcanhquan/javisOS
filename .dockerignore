@@ -32,7 +32,9 @@ Brain Default/
 brain/
 brains/
 **/brains-backup
+**/brains-backup-local
 **/brain-trash
+exports/
 vault/
 
 # TRẠNG THÁI + BÍ MẬT trong server/. Danh sách này phải bám theo mục "Runtime / temp" của
@@ -76,6 +78,7 @@ server/packs-store-cache.json
 server/conversation_state.db*
 server/memory_index.db*
 server/antigravity-duong-prompt.json
+server/.javis-agy/
 server/usage-marks.jsonl*
 server/usage.json
 server/usage-events.jsonl*
@@ -94,6 +97,7 @@ server/_selfupdate.bat
 server/javis.log
 *.log
 *.mp3
+Cau-hinh-Rclone-Drive.command
 .DS_Store
 Thumbs.db
 desktop.ini

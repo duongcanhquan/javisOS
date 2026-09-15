@@ -60,6 +60,8 @@ server/packs-store-cache.json
 server/conversation_state.db*
 server/memory_index.db*
 server/antigravity-duong-prompt.json
+# File ngữ cảnh agy sinh ra khi chạy thử (không thuộc mã nguồn).
+server/.javis-agy/
 server/usage-marks.jsonl*
 server/conversations.db
 server/conversations.db-wal
@@ -120,6 +122,10 @@ brain/Memory/
 brains/
 # Bản backup brain do server tự tạo (DỮ LIỆU CÁ NHÂN) - tuyệt đối không version.
 brains-backup/
+brains-backup-local/
+
+# File xuất cục bộ (zip, PDF, slide) - không thuộc mã nguồn.
+exports/
 
 # Dữ liệu CÁ NHÂN trong brain mặc định CŨ (không version): bộ nhớ, cache số liệu KD,
 # automations (chứa chat_id). Cấu trúc thư mục + agent/workflow mẫu vẫn được version.
@@ -143,6 +149,7 @@ brain/Brain Default/Javis/automations.json
 # (mảnh log "- Move: Jarvis\agents -" do một lệnh redirect hỏng), nhưng hệ quả là chặn vĩnh
 # viễn việc tạo thư mục agents/ hay workflows/ THẬT ở gốc. Hai file rác đã xoá hẳn.
 parse_ads*.ps1
+Cau-hinh-Rclone-Drive.command
 
 # OS
 .DS_Store

@@ -29,9 +29,9 @@
 
   // Mac hien "Cmd", con lai hien "Ctrl". CO Y dung CHU chu khong dung ky hieu Apple: repo cam
   // ky tu hinh trong giao dien (test_icons.py gac), va chu thi bo doc man hinh doc ra tu te.
-  // Duoi node khong co navigator -> coi nhu khong phai Mac, nho vay nhan phim tat trong test la
-  // chuoi co dinh, khong doi theo may chay test.
-  var MAC = (typeof navigator !== "undefined") &&
+  // Trinh duyet that moi co window. Node 21+ van co navigator tren Mac, neu chi do navigator
+  // thi nhan phim tat doi thanh Cmd+... va test CI/local lech nhau. Khong co window -> Ctrl.
+  var MAC = (typeof window !== "undefined") && (typeof navigator !== "undefined") &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
 
   // ---------------------------------------------------------------- thao tac tren 2 che do

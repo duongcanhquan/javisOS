@@ -1,5 +1,19 @@
 # Nhật ký cập nhật
 
+## [0.55.229] - 2026-09-15
+### Sửa lỗi
+- **Chat Antigravity hết hiện khối SYSTEM_MESSAGE.** Lệnh nền xong (pip list, số trang PDF, log `task-42`) từng bị nhét vào khung chat như câu trả lời. Giờ lọc ra; câu thật vẫn giữ.
+
+## [0.55.228] - 2026-09-15
+### Sửa lỗi
+- **Chip chat hết hiện «Đang gọi: view-file / run-command».** Đó là Antigravity đang đọc file và chạy lệnh, không phải lỗi. Chip giờ nói «Đang đọc file» / «Đang chạy lệnh». Tên MCP (POS, ads…) vẫn hiện như cũ.
+
+## [0.55.227] - 2026-09-15
+### Sửa lỗi
+- **Đồ thị không còn chết vì mã bash trong note.** Dòng `[[ ! "$file" =~ \.md$ ]]` trong skill bị đọc nhầm thành wikilink; giờ bỏ khối mã trước khi dò, và một đầu dây hỏng không giết cả đồ thị.
+- **Bảo dừng việc ngầm thì dừng thật.** Không còn giao thêm một việc mới mang nội dung «dừng việc đang chạy». Không có việc nào chạy thì nói thẳng.
+- **Việc nền báo xong không khoá khung chat.** Kết quả việc đẩy về không còn làm nút gửi khoá cứng và nuốt tin gõ tiếp.
+
 ## [0.55.226] - 2026-09-15
 ### Sửa lỗi
 - **Chat Antigravity hết báo oan «CLI quá cũ mất stdout».** Chat dài / chat liên tục hay bị đứt mạch: `agy` chạy xong không chữ. Javis tự mở mạch mới trong cùng lượt. Vẫn trống thì nói gửi lại hoặc hội thoại mới, không đổ hết cho bản CLI.

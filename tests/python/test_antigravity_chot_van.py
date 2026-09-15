@@ -39,8 +39,8 @@ check("cắt cả khi có xuống dòng ngăn giữa",
 
 # ---- KHÔNG được xén nhầm ----
 check("gom trùng khít toàn văn thì giữ nguyên", _chot_van(BAN_TIN, BAN_TIN) == BAN_TIN)
-check("không có toàn văn (bản agy cũ, chỉ có delta) thì giữ nguyên chỗ gom",
-      _chot_van(TRANG_THAI + BAN_TIN, "") == TRANG_THAI + BAN_TIN)
+check("không có toàn văn thì vẫn gỡ câu chờ task nền (không phải câu trả lời)",
+      _chot_van(TRANG_THAI + BAN_TIN, "") == BAN_TIN)
 check("chỗ gom rỗng thì trả rỗng, không dựng câu trả lời từ hư không",
       _chot_van("", BAN_TIN) == "")
 check("CANARY: toàn văn bị CẮT NGẮN (chuỗi con giữa chừng) thì KHÔNG tin - giữ bản đầy đủ, "
@@ -86,6 +86,51 @@ check("luồng thật: câu trả lời KHÔNG bị hiện hai lần khi result 
 check("CANARY: _doi_su_kien gọi được KHÔNG kèm chan (chữ ký cũ vẫn chạy)",
       AntigravityCLI(tag="test")._doi_su_kien(
           {"event": "result", "result": {"status": "SUCCESS", "response": BAN_TIN}}, []) is not None)
+
+
+# ---- 15/09: khối SYSTEM_MESSAGE (task nền agy) không được hiện ra chat ----
+from antigravity_cli import _loc_thong_bao_he_thong  # noqa: E402
+
+MAU_PIP = (
+    "The following is a <SYSTEM_MESSAGE> not actually sent by the user. "
+    "It is provided by the system as important information to pay attention to.\n\n"
+    "<SYSTEM_MESSAGE>\n"
+    "[Message] timestamp=2026-09-15T03:07:47Z "
+    "sender=b345750c-284d-4b56-864d-37f07be12ad7/task-42 "
+    "priority=MESSAGE_PRIORITY_HIGH content=Task id "
+    '"b345750c-284d-4b56-864d-37f07be12ad7/task-42" finished with result:\n\n'
+    "The command exited with code 0.\nOutput:\n"
+    "Package                   Version\n"
+    "fastapi                   0.115.0\n"
+    "\nLog: file:///home/javis/.gemini/antigravity-cli/brain/x/.system_generated/tasks/task-42.log\n"
+    "</SYSTEM_MESSAGE>"
+)
+
+check("gỡ khối SYSTEM_MESSAGE, không còn pip list",
+      _loc_thong_bao_he_thong(MAU_PIP) == ""
+      and "fastapi" not in _loc_thong_bao_he_thong(MAU_PIP)
+      and "SYSTEM_MESSAGE" not in _loc_thong_bao_he_thong(MAU_PIP))
+check("giữ câu trả lời THẬT đứng sau khối dump",
+      _loc_thong_bao_he_thong(MAU_PIP + "\n\nĐã cài xong các gói.") == "Đã cài xong các gói.")
+check("khối bị cắt giữa chừng (không có thẻ đóng) cũng gỡ",
+      "task-49" not in _loc_thong_bao_he_thong(
+          "Chào.\n<SYSTEM_MESSAGE>\n[Message] task-49 fin"))
+check("câu thường không bị đụng",
+      _loc_thong_bao_he_thong(BAN_TIN) == BAN_TIN)
+
+check("luồng thật: dump SYSTEM_MESSAGE + bản tin + result -> chỉ còn bản tin",
+      _gom([
+          {"event": "step_update", "step_update": {"step_type": "agent_response",
+                                                   "text_delta": MAU_PIP}},
+          {"event": "step_update", "step_update": {"step_type": "agent_response",
+                                                   "text_delta": BAN_TIN}},
+          {"event": "result", "result": {"status": "SUCCESS", "response": BAN_TIN}},
+      ]) == BAN_TIN)
+check("sự kiện type=message (task xong) không lọt vào câu trả lời",
+      _gom([
+          {"event": "message", "message": {"content": MAU_PIP}},
+          {"event": "result", "result": {"status": "SUCCESS", "response": BAN_TIN}},
+      ]) == BAN_TIN)
 
 
 print()

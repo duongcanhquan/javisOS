@@ -41,6 +41,7 @@ Phạm vi v1: `add` và `list`. Chuyển cột, huỷ, duyệt việc chờ phê
 from __future__ import annotations
 
 import tasks as tasks_mod
+from lenh_dung_viec import la_lenh_dung_viec
 
 # Trần ký tự cho phần liệt kê việc. Kết quả tool đi thẳng vào ngữ cảnh của lượt chat, và engine
 # API còn bị cắt ở 8000 ký tự (engine._clip_tool_result) - liệt kê 200 việc là đẩy văng phần
@@ -102,13 +103,24 @@ def _them(args, ctx) -> str:
     if loi:
         return loi
 
+    intent = str((args or {}).get("intent") or "").strip() or tieu_de
+    # Lưới 2: model vẫn cố giao việc "để đi dừng việc" thì chặn. Giao việc để dừng việc
+    # khác là đẻ thêm đúng thứ người dùng đang muốn bỏ.
+    if la_lenh_dung_viec(tieu_de) or la_lenh_dung_viec(intent):
+        ids = f.huy_viec_dang_chay(ctx.vault_root)
+        if ids:
+            return ("KHÔNG giao việc mới. Đây là lệnh DỪNG việc đang chạy, không phải việc mới. "
+                    f"Đã huỷ {len(ids)} việc. Chỉ xác nhận với người dùng, đừng gọi tool này nữa.")
+        return ("KHÔNG giao việc mới. Người dùng bảo dừng việc nền nhưng hiện không có việc nào "
+                "đang chạy. Nói thật, đừng bịa đã dừng.")
+
     chat_id = str((args or {}).get("chat_id") or "").strip()
     deps = [d.strip() for d in str((args or {}).get("deps") or "").split(",") if d.strip()]
     try:
         tid = f.enqueue(
             ctx.vault_root,
             tieu_de,
-            str((args or {}).get("intent") or "").strip() or tieu_de,
+            intent,
             "auto",
             2,
             deps,
@@ -192,6 +204,8 @@ def register(ctx):
         "javis_task",
         "Giao việc nền vào hàng đợi Kanban, hoặc xem việc đang chạy tới đâu. "
         "CHỈ op=add khi NGƯỜI DÙNG bảo làm một việc cụ thể mà lượt này không làm xong được. "
+        "KHÔNG op=add khi người dùng bảo dừng/huỷ/tạm dừng việc nền đang chạy: đó là lệnh dừng, "
+        "không phải việc mới; hệ thống đã tự huỷ. "
         "KHÔNG giao việc cho kế hoạch hay 'bước tiếp theo' do chính bạn vừa nghĩ ra và user chưa "
         "gật (vd 'áp dụng kế hoạch vừa trình bày', 'cập nhật timeline', 'theo dõi rồi nhắc lại'): "
         "mỗi việc đều bắn thông báo về chuông và về khung chat khi nó xong hoặc kẹt. "

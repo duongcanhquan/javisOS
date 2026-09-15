@@ -31,7 +31,7 @@ check("emitParticle khi cite/flash", /emitParticle\s*\(/.test(GRAPH));
 check("calm/_reducedMotion tắt particle",
   /_flowMode === "calm"/.test(GRAPH) && /_reducedMotion/.test(GRAPH));
 check("addOrUpdate gọi flashNewLinks",
-  /addOrUpdate[\s\S]{0,1200}?flashNewLinks/.test(GRAPH));
+  /addOrUpdate[\s\S]{0,2500}?flashNewLinks/.test(GRAPH));
 
 global.window = global;
 global.document = {

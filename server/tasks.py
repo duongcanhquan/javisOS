@@ -225,6 +225,31 @@ class TasksFeature:
         self.wake()
         return tid
 
+    def huy_viec_dang_chay(self, brain: str, reason: str = "người dùng bảo dừng") -> list[str]:
+        """Huỷ mọi việc Kanban đang chạy của brain. Trả danh sách id đã huỷ.
+
+        Người dùng bảo dừng việc ngầm phải DỪNG thật, không để model giao thêm một việc mới
+        mang nội dung "dừng việc đang chạy". Worker sống thì cancel asyncio + CLI tag; việc
+        kẹt trạng thái running mà không còn worker thì gạch trong kho.
+        """
+        root = self._ensure(brain)
+        ids: list[str] = []
+        for t in self.store.list_tasks(root):
+            if t.get("status") != "running":
+                continue
+            tid = str(t["id"])
+            worker = self._workers.get(tid)
+            if worker and not worker.done():
+                cancel_all(f"dispatch:{tid}")
+                worker.cancel()
+                ids.append(tid)
+            elif self.store.cancel_running(tid, reason):
+                ids.append(tid)
+        if ids:
+            self._snapshot(root)
+            self.wake()
+        return ids
+
     # ------------------------------------------------------------------
     # Dedicated dispatcher
     # ------------------------------------------------------------------

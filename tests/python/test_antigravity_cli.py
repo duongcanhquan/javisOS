@@ -275,6 +275,28 @@ check("id hội thoại lấy ở TẦNG NGOÀI, không bị payload lồng đè
 check("đọc được token từ usage lồng bên trong result",
       any(e["type"] == "usage" and e["input_tokens"] == 120 for e in _evsl), _evsl)
 
+# Ca 15/09: step_type tool phải thành tool_call (để không nuốt output vào câu trả lời),
+# tên view-file / run-command vẫn nằm ở trường name; chip chat dịch ở nhan_tool.
+_TOOL_STEP = [
+    json.dumps({"event": "init", "conversation_id": "t"}),
+    json.dumps({"event": "step_update", "step_update": {
+        "step_type": "tool", "tool_name": "view-file",
+        "tool_info": {"name": "view-file", "parameters": {"path": "a.md"}}}}),
+    json.dumps({"event": "step_update", "step_update": {
+        "step_type": "tool", "tool_name": "run-command",
+        "tool_info": {"name": "run-command"}}}),
+    json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "Xong."}}),
+]
+_evst, _, _ = _chay_gia(_TOOL_STEP, help_text=_HELP_MOI)
+_ten = [e.get("name") for e in _evst if e.get("type") == "tool_call"]
+check("step_type tool → tool_call view-file (không nuốt vào câu trả lời)",
+      "view-file" in _ten, _ten)
+check("step_type tool → tool_call run-command",
+      "run-command" in _ten, _ten)
+check("câu trả lời không dính tên tool kebab",
+      any(e["type"] == "final" and e["content"] == "Xong." for e in _evst)
+      and not any("view-file" in str(e.get("content") or "") for e in _evst if e.get("type") == "final"))
+
 # Ca NGƯỢC LẠI, và đây là chỗ patch của người dùng còn hở: lượt trả lời NGẮN có bản chỉ phát
 # mỗi `result`, không có text_delta nào. `return ra` vô điều kiện ở nhánh result là câu trả lời
 # biến mất sạch. Nên chỉ bỏ qua khi ĐÃ gom được chữ.
