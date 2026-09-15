@@ -2517,14 +2517,27 @@ def _fast_path_kem_lich_su(plan, store, conv_sid, user_message, row=None):
         return plan
     if store is None or not conv_sid:
         return plan
+    try:
+        raw_all = store.get_messages(conv_sid)
+    except Exception:
+        return plan
     raw = [{"role": _m["role"], "content": _m["content"]}
-           for _m in store.get_messages(conv_sid)[:-1]
-           if _m.get("role") in ("user", "assistant") and _m.get("content")]
+           for _m in (raw_all or [])
+           if _m.get("role") in ("user", "assistant") and (_m.get("content") or "").strip()]
+    # Cùng luật _tg_lich_su_kho: chỉ bỏ tin user ĐANG hỏi. Cắt cứng [:-1] sẽ nuốt câu
+    # trợ lý vừa rồi nếu lượt hiện tại chưa kịp ghi vào kho.
+    if raw and raw[-1]["role"] == "user" and raw[-1]["content"] == user_message:
+        raw = raw[:-1]
     if not raw:
         return plan
+    tom = (row or {}).get("compact_summary") or ""
+    if not tom:
+        try:
+            tom = ((store.get_session(conv_sid) or {}).get("compact_summary") or "")
+        except Exception:
+            tom = ""
     msgs = compaction.chem_lich_su_vao_messages(
-        list(plan.messages or ()), raw, user_message,
-        summary=(row or {}).get("compact_summary") or "",
+        list(plan.messages or ()), raw, user_message, summary=tom,
     )
     return replace(plan, messages=tuple(msgs))
 
@@ -12860,13 +12873,13 @@ async def websocket_endpoint(ws: WebSocket):
                     _a_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
-                    # Có mạch + argv/stdin: chỉ gửi câu hiện tại (CLI nhớ lịch sử).
-                    # Mất mạch / đường file tắt --conversation: PHẢI mồi transcript, không
-                    # thì model chỉ thấy câu vừa gõ rồi trả lời lệch.
+                    # Luôn mồi transcript SQLite. `--conversation` của agy không đủ tin:
+                    # chat ngắn vẫn quên câu trước (báo 2026-09-15). Có mạch native thì
+                    # lịch sử nằm cả trong prompt lẫn mạch; đường file vốn tắt mạch.
                     _a_boot = compaction.bootstrap_prompt(
                         _a_raw, _a_cur, summary=_row0.get("compact_summary") or "")
                     acli.prompt_khoi_phuc = _a_boot
-                    _a_prompt = _a_cur if _a_mach else _a_boot
+                    _a_prompt = _a_boot
                     _CONTEXT_RUNTIME.observe_payload(
                         runtime_trace,
                         [{"role": "system", "content": sysprompt},
@@ -16413,7 +16426,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         # nhà cung cấp nói ra - lấy nó chặn lượt chat là vượt quyền (cùng lý do với dashboard).
         if _fp is not None and _fp.action == "execute":
             await _p("⚡ Đường tắt…")
-            _fp = _fast_path_kem_lich_su(_fp, store, conv_sid, text, store.get_session(conv_sid) or {})
+            _fp = _fast_path_kem_lich_su(_fp, store, conv_sid, text)
             _txt, _mdl, _ = await _fast_path_core(
                 _fp, prov, api_key, api_model or mcfg.get("claude_model") or "mặc định",
                 reasoning, runtime_trace, text, im_lang_khi_loi=True, channel=channel)
@@ -16483,16 +16496,13 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
             return ("⚠ Chưa cài Antigravity CLI trên máy chạy Javis. Cài một lần:\n"
                     f"`{antigravity_cli.lenh_cai()}`\n"
                     "Rồi gõ `agy` một lần để đăng nhập Google.")
-        _hoi = text
         _raw_cu, _tom_cu = _tg_lich_su_kho(store, conv_sid, text)
-        _a_boot = compaction.bootstrap_prompt(_raw_cu, _hoi, summary=_tom_cu)
+        _a_boot = compaction.bootstrap_prompt(_raw_cu, text, summary=_tom_cu)
         acli.prompt_khoi_phuc = _a_boot
-        if not getattr(acli, "session_id", None):
-            # Chưa có mạch native (phiên mới, hoặc vừa restart nên object engine dựng lại từ
-            # đầu) thì mồi transcript đã lưu vào ĐÚNG MỘT lượt, y như dashboard vẫn làm. Có mạch
-            # rồi thì engine tự nhớ, gửi lại là tốn token vô ích - trừ khi query() phải bỏ mạch
-            # (đường file / lượt trống), lúc đó dùng prompt_khoi_phuc.
-            _hoi = _a_boot
+        # Luôn gửi transcript đã mồi. Có mạch native mà chỉ gửi câu mới thì agy hay
+        # trả lời lệch (cùng hội thoại ngắn, báo 2026-09-15). query() tự chọn đường file
+        # nếu gói dài; đường file tắt --conversation.
+        _hoi = _a_boot
         out, loi = "", []
         async for ev in acli.query(_hoi):
             et = ev.get("type")

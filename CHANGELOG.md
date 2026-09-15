@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.231] - 2026-09-15
+### Sửa lỗi
+- **Chat hết trả lời lệch khi hỏi tiếp trong cùng hội thoại.** Bản trước vẫn chỉ gửi câu mới nếu Antigravity đang nối mạch - đúng lúc chat ngắn. Giờ luôn mang đoạn vừa nói. Telegram đường tắt hết crash khi không có kho phiên.
+
 ## [0.55.230] - 2026-09-15
 ### Sửa lỗi
 - **Chat hết quên đoạn vừa nói trong cùng hội thoại ngắn.** Hai lỗ: Antigravity đi đường file / mở mạch mới thì chỉ gửi câu vừa gõ; mức Siêu tiết kiệm (đường tắt) cũng trả lời không mang lịch sử. Giờ cả hai đều mang đoạn chat đã lưu.

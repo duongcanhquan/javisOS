@@ -246,6 +246,31 @@ check("lõi đường tắt không dính ws", "async def _fast_path_core(" in _S
       and "ws" not in _SRC[_SRC.index("async def _fast_path_core("):
                            _SRC.index("async def _execute_fast_path(")].replace("gui_stream", ""))
 
+from fast_path_runtime import FastPathPlan  # noqa: E402
+_p_rong = FastPathPlan("execute", "t", "fast",
+                       messages=({"role": "user", "content": "2+2"},))
+check("CANARY: đường tắt store=None không văng (Telegram test không truyền kho)",
+      main._fast_path_kem_lich_su(_p_rong, None, "sid", "2+2") is _p_rong)
+
+
+class _KhoGia:
+    def get_messages(self, sid):
+        return [
+            {"role": "user", "content": "Viết kế hoạch Q3"},
+            {"role": "assistant", "content": "Kế hoạch Q3 gồm 3 bước."},
+            {"role": "user", "content": "làm tiếp cái đó"},
+        ]
+
+
+_p_ls = FastPathPlan(
+    "execute", "t", "fast",
+    messages=({"role": "system", "content": "c"},
+              {"role": "user", "content": "làm tiếp cái đó"}),
+)
+_out_ls = main._fast_path_kem_lich_su(_p_ls, _KhoGia(), "s", "làm tiếp cái đó")
+check("đường tắt nhồi câu trước, không nuốt câu trợ lý vừa rồi",
+      "3 bước" in ((_out_ls.messages[-1].get("content") or "") if _out_ls else ""))
+
 print()
 if _fails:
     print(f"ĐỎ {len(_fails)} mục: " + ", ".join(_fails))

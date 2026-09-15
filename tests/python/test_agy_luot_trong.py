@@ -166,6 +166,11 @@ check("dashboard xoá mạch khi mach_khoi_phuc",
       "mach_khoi_phuc" in main_py and "clear_agy_conversation_id" in main_py)
 check("dashboard gắn prompt_khoi_phuc từ transcript SQLite",
       "prompt_khoi_phuc" in main_py and "bootstrap_prompt" in main_py)
+check("dashboard Antigravity luôn gửi transcript đã mồi, không cắt khi còn mạch",
+      "_a_prompt = _a_boot" in main_py
+      and "_a_cur if _a_mach" not in main_py)
+check("Telegram Antigravity luôn gửi transcript đã mồi",
+      "_hoi = _a_boot" in main_py)
 check("đường tắt nhồi lịch sử trước khi gọi model",
       "_fast_path_kem_lich_su" in main_py)
 
