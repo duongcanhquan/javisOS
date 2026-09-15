@@ -252,7 +252,7 @@ function handleMessage(data) {
       syncActiveUI();
     }
   } else if (data.type === "tool_call") {
-    // Tool vẫn ghi dải MCP; KHÔNG đè chip chờ bằng "⚙ Đang gọi: …" / "Đang đọc file".
+    // Tool vẫn ghi dải MCP; KHÔNG đè chip chờ bằng "Dang goi: …" / "Đang đọc file".
     if (data.tool) trackMCP(data.tool);
   } else if (data.type === "tool_result") {
     // Im chip: rotator chờ tiếp tục tới khi có stream/response.

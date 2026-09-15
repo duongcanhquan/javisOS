@@ -29,7 +29,7 @@ Every time you open Settings, Javis reloads the current values, checks DNS/HTTPS
 
 The browser tab icon (favicon) is the one exception and lags a beat: Javis serves it with a 5-minute cache, and browsers hold onto icons stubbornly. To see it right away, reopen the tab or reload bypassing the cache.
 
-**“Open as app” / installed shortcut icon:** Javis serves it from the same avatar (`/brand-icon/192` and `/brand-icon/512`). Operating systems usually **keep the old icon** after the first install — to see the new image, remove the shortcut / home-screen app and install again (the **Open as app** button or the browser menu).
+**“Open as app” / installed shortcut icon:** Javis serves it from the same avatar (`/brand-icon/192` and `/brand-icon/512`). Operating systems usually **keep the old icon** after the first install - to see the new image, remove the shortcut / home-screen app and install again (the **Open as app** button or the browser menu).
 
 ### Restoring the default image
 

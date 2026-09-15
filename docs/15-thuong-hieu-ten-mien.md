@@ -29,7 +29,7 @@ Mỗi lần mở Cài đặt, Javis tự nạp lại giá trị đang dùng, ki�
 
 Riêng icon tab trình duyệt (favicon) đổi chậm hơn một nhịp: Javis phục vụ nó với bộ nhớ đệm 5 phút, và trình duyệt còn giữ icon rất lì. Muốn thấy ngay thì mở lại tab hoặc tải lại trang bỏ qua cache.
 
-**Icon “Mở như app” / shortcut đã cài:** Javis lấy từ cùng ảnh đại diện (`/brand-icon/192` và `/brand-icon/512`). Hệ điều hành thường **giữ icon cũ** sau lần cài đầu — muốn thấy ảnh mới thì gỡ shortcut / app đã thêm vào màn hình chính rồi cài lại (nút **Mở như app** hoặc trình đơn trình duyệt).
+**Icon “Mở như app” / shortcut đã cài:** Javis lấy từ cùng ảnh đại diện (`/brand-icon/192` và `/brand-icon/512`). Hệ điều hành thường **giữ icon cũ** sau lần cài đầu - muốn thấy ảnh mới thì gỡ shortcut / app đã thêm vào màn hình chính rồi cài lại (nút **Mở như app** hoặc trình đơn trình duyệt).
 
 ### Khôi phục ảnh mặc định
 

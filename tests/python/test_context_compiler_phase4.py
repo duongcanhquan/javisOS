@@ -172,7 +172,7 @@ def test_budget_explains_excluded_schema(tmp_path):
                            "required_mode": "readonly", "health": "healthy"}}
     registry.refresh_tools("brain-b", tools, route)
     registry.refresh_model_profile("tiny", "budgeted", "api", True, {
-        "max_input_tokens": 700, "reserved_output_tokens": 100
+        "max_input_tokens": 1200, "reserved_output_tokens": 100
     })
     cap = registry.search("huge", "brain-b")[0]
     request = _request(task_id="t2", step_id="s2", brain="brain-b", provider="tiny", model="budgeted")
@@ -182,7 +182,7 @@ def test_budget_explains_excluded_schema(tmp_path):
     assert result.status == "compiled"
     assert result.trace_report["selected_count"] == 0
     assert result.trace_report["excluded"][cap["capability_id"]] == "budget"
-    assert result.trace_report["estimated_input_tokens"] <= 700
+    assert result.trace_report["estimated_input_tokens"] <= 1200
 
 
 def test_quality_gate_baselines_legacy_output_without_changing_it():

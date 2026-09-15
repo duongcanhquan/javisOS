@@ -1,8 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.55.241] - 2026-09-15
+### Sửa
+- **CI xanh sau QA 0.55.240:** ngân sách capsule test (CORE_CONTRACT lớn hơn); bỏ emoji trong comment app.js; docs branding hết em dash; prompt kênh dùng «mình» trong ví dụ cấm; test voice.js chấp nhận ?v= >= 23.
+
 ## [0.55.240] - 2026-09-15
 ### Sửa
-- **QA kết nối / báo cáo:** prompt Telegram phân biệt rõ — được gọi Bash curl send-file với đúng `chat_id`, nhưng không paste lệnh vào tin nhắn (tránh model bỏ curl vì hiểu nhầm cấm). Typing Telegram throttle 2,5s; Zalo progress no-op (đã có `_giu_typing`). Reset logo trả `logo_v` để cache icon PWA bust đúng.
+- **QA kết nối / báo cáo:** prompt Telegram phân biệt rõ: được gọi Bash curl send-file với đúng `chat_id`, nhưng không paste lệnh vào tin nhắn (tránh model bỏ curl vì hiểu nhầm cấm). Typing Telegram throttle 2,5s; Zalo progress no-op (đã có `_giu_typing`). Reset logo trả `logo_v` để cache icon PWA bust đúng.
 
 ## [0.55.239] - 2026-09-15
 ### Cải thiện

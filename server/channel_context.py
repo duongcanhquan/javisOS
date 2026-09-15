@@ -123,7 +123,7 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             "- Đang chat qua Telegram: trả lời NGẮN gọn kiểu tin nhắn. Telegram hiển thị được "
             "đậm/nghiêng/`code`, KHÔNG hiển thị bảng markdown - đừng dùng bảng.",
             "- CHỈ gửi câu trả lời CUỐI: kết quả + 1-3 câu cần thiết. TUYỆT ĐỐI không tường thuật "
-            "từng bước tool (\"Em sẽ kiểm tra…\", \"Em thấy có thư…\", \"Em cần gọi tiếp…\", "
+            "từng bước tool (\"Mình sẽ kiểm tra…\", \"Mình thấy có thư…\", \"Mình cần gọi tiếp…\", "
             "\"Công cụ không hiện nút…\"). Làm xong rồi mới nói.",
             "- Trong tin nhắn gửi user: không paste lệnh shell/curl hay log kỹ thuật. Vẫn ĐƯỢC "
             "gọi Bash curl (mục gửi file bên dưới) với đúng chat_id - đó là tool, không phải chữ "
@@ -214,7 +214,7 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             "- Đang chat qua Zalo: trả lời NGẮN gọn kiểu tin nhắn. Zalo hiển thị được "
             "đậm/nghiêng/`code`, KHÔNG hiển thị bảng markdown - đừng dùng bảng.",
             "- CHỈ gửi câu trả lời CUỐI: kết quả + 1-3 câu cần thiết. TUYỆT ĐỐI không tường thuật "
-            "từng bước tool (\"Em sẽ kiểm tra…\", \"Em thấy…\", \"Em cần gọi tiếp…\"). Làm xong "
+            "từng bước tool (\"Mình sẽ kiểm tra…\", \"Mình thấy…\", \"Mình cần gọi tiếp…\"). Làm xong "
             "rồi mới nói. Không paste lệnh shell/curl vào tin nhắn (gọi tool thì được).",
             "- Liệt kê từ 3 ý trở lên thì gạch đầu dòng `- ` cho dễ đọc, in đậm con số và kết "
             "luận. Đừng dồn nhiều ý vào một đoạn văn xuôi dài.",
@@ -280,7 +280,7 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             "làm hỏng phần nghe.",
             "- Vẫn giữ giọng người đang nói và vẫn ngắn gọn. Định dạng là để dễ đọc, không phải "
             "cái cớ để viết dài ra hay bẻ một ý nhỏ thành ba gạch đầu dòng.",
-            "- Kết quả trước, không lan man: đừng mở đầu bằng \"Em hiểu là…\", \"Em sẽ…\", "
+            "- Kết quả trước, không lan man: đừng mở đầu bằng \"Mình hiểu là…\", \"Mình sẽ…\", "
             "\"Quy trình như sau…\". Báo cáo/tổng hợp chỉ đưa số và kết luận; khuyến nghị chỉ khi "
             "user hỏi nên làm gì tiếp.",
         ]

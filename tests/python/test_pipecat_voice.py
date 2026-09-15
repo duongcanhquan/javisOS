@@ -8,6 +8,7 @@ extra websocket của họ đòi fastapi>=0.115.6, Javis đang ghim 0.115.0.
 from _paths import ROOT, SERVER  # noqa: E402,F401
 import ast
 import os
+import re
 import sys
 import tempfile
 
@@ -83,8 +84,11 @@ check("/tts có stream: bool = Query(False)",
       "stream: bool = Query(False)" in _main)
 check("Edge TTS có iterator khung (không đợi cả file khi stream)",
       "async def _tts_edge_iter" in _main)
-check("voice.js trong index đã bump ?v=23",
-      "voice.js?v=23" in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
+check("voice.js trong index đã bump ?v= (>= 23)",
+      bool(re.search(r"voice\.js\?v=(\d+)",
+                     (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")))
+      and int(re.search(r"voice\.js\?v=(\d+)",
+                        (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")).group(1)) >= 23)
 check("/tts stream đợi khung đầu trước khi 200",
       "await pv.lay_khung_dau(agen)" in _main)
 check("/tts không stream khi chưa có khung đầu",
