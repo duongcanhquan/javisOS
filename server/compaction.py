@@ -161,6 +161,33 @@ def bootstrap_prompt(raw_msgs, current_prompt: str,
     return header + note + "".join(blocks) + footer + current_prompt
 
 
+def chem_lich_su_vao_messages(messages, raw_msgs, current_prompt: str,
+                              summary: str = "", max_chars: int = 24_000):
+    """Nhồi transcript vào messages của đường tắt (fast path).
+
+    Đường tắt chỉ nhận `objective` hiện tại, không có mạch CLI. Follow-up «cái đó», «làm tiếp»
+    thành câu trả lời lệch. Gói lịch sử bằng cùng khuôn bootstrap, trần nhỏ hơn mạch đầy đủ
+    vì đây là đường tiết kiệm.
+    """
+    boot = bootstrap_prompt(raw_msgs, current_prompt, max_chars=max_chars, summary=summary)
+    if not boot or boot == current_prompt:
+        return list(messages or [])
+    out = []
+    da = False
+    for m in reversed(list(messages or [])):
+        if not da and (m.get("role") == "user"):
+            mm = dict(m)
+            mm["content"] = boot
+            out.append(mm)
+            da = True
+        else:
+            out.append(dict(m) if isinstance(m, dict) else m)
+    out.reverse()
+    if not da:
+        out.append({"role": "user", "content": boot})
+    return out
+
+
 # Tên cũ, giữ lại vì đã có sẵn ở nhiều chỗ gọi. Hàm chưa bao giờ riêng cho Codex, nay Claude
 # Code dùng chung nên tên chính đổi cho đúng việc nó làm.
 codex_bootstrap_prompt = bootstrap_prompt

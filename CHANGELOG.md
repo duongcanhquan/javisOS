@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.230] - 2026-09-15
+### Sửa lỗi
+- **Chat hết quên đoạn vừa nói trong cùng hội thoại ngắn.** Hai lỗ: Antigravity đi đường file / mở mạch mới thì chỉ gửi câu vừa gõ; mức Siêu tiết kiệm (đường tắt) cũng trả lời không mang lịch sử. Giờ cả hai đều mang đoạn chat đã lưu.
+
 ## [0.55.229] - 2026-09-15
 ### Sửa lỗi
 - **Chat Antigravity hết hiện khối SYSTEM_MESSAGE.** Lệnh nền xong (pip list, số trang PDF, log `task-42`) từng bị nhét vào khung chat như câu trả lời. Giờ lọc ra; câu thật vẫn giữ.

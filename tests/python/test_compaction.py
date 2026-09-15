@@ -232,6 +232,19 @@ async def mem_tests():
           outE[0]["content"] == "SYS+ident" and len(outE) <= 1 + 1 + 12 and any(m["content"] == "e19" for m in outE))
 
 
+msgs_fp = [{"role": "system", "content": "luật"}, {"role": "user", "content": "làm tiếp cái đó"}]
+raw_fp = [
+    {"role": "user", "content": "Viết kế hoạch bán hàng Q3"},
+    {"role": "assistant", "content": "Kế hoạch Q3 gồm 3 bước."},
+]
+out_fp = compaction.chem_lich_su_vao_messages(msgs_fp, raw_fp, "làm tiếp cái đó")
+check("fast-path: nhồi lịch sử vào user message",
+      "Kế hoạch Q3" in (out_fp[-1].get("content") or "")
+      and "làm tiếp cái đó" in (out_fp[-1].get("content") or ""))
+check("fast-path: không lịch sử thì giữ nguyên",
+      compaction.chem_lich_su_vao_messages(msgs_fp, [], "hi") == msgs_fp)
+
+
 asyncio.run(main())
 asyncio.run(prepare_tests())
 asyncio.run(mem_tests())

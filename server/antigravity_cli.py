@@ -495,13 +495,13 @@ def _viet_file_ngu_canh(cwd: str, noi_dung: str) -> tuple[str, str]:
 def _loi_nhac_file(duong_dan: str, cau_hoi: str) -> str:
     """Prompt NGẮN thay cho cả gói: bảo model tự mở file ngữ cảnh ra đọc.
 
-    Câu hỏi thật vẫn được nhắc lại ở đây (cắt ngắn) chứ không chỉ nằm trong file. Đó là lưới an
-    toàn: bản CLI nào bướng không chịu đọc file thì ít ra vẫn trả lời đúng câu người dùng hỏi,
-    chỉ thiếu luật riêng của Javis, chứ không trả lời trống trơn.
+    Câu hỏi + đuôi lịch sử vẫn được nhắc lại ở đây (cắt từ CUỐI) chứ không chỉ nằm trong file.
+    Lưới an toàn: bản CLI nào bướng không chịu đọc file thì vẫn thấy đoạn chat vừa nói, không
+    trả lời lệch như khi chỉ còn câu vừa gõ.
     """
     hoi = (cau_hoi or "").strip()
-    if len(hoi) > 1500:
-        hoi = hoi[:1500] + " [...]"
+    if len(hoi) > 8000:
+        hoi = "[...đầu đã lược...]\n" + hoi[-8000:]
     return (
         f"BẮT BUỘC LÀM TRƯỚC: mở và đọc HẾT file `{duong_dan}`.\n"
         "File đó chứa toàn bộ chỉ dẫn hệ thống, bộ nhớ và lịch sử hội thoại của bạn. Đọc xong "
@@ -1078,6 +1078,10 @@ class AntigravityCLI:
         # True khi lượt này phải bỏ --conversation vì agy trả về rỗng / cắt mạch.
         # Dashboard xoá id đã lưu để lượt sau mồi lại transcript, không nối mạch hỏng.
         self.mach_khoi_phuc = False
+        # Transcript SQLite đã gói (compaction.bootstrap_prompt). BẮT BUỘC khi không nối
+        # được --conversation: đường file tắt mạch, và lượt trống tự mở mạch mới. Thiếu cái
+        # này thì agy chỉ thấy câu vừa gõ - quên sạch đoạn chat cùng phiên.
+        self.prompt_khoi_phuc = None
         self.mode = "suggest"
         # File mcp_config riêng cho ĐÚNG lượt này. Chỉ dùng được nếu bản `agy` trên máy có cờ
         # nhận file cấu hình (hỏi `co_co` trước khi truyền). Có thì hết cảnh hai brain chạy cùng
@@ -1147,6 +1151,20 @@ class AntigravityCLI:
             return "argv"     # vừa dòng lệnh thì cứ đường cũ, đã chạy tốt trên Linux/macOS
         return duong_prompt_dai(self.cli_path)
 
+    def _gop_prompt(self, phan_user: str) -> str:
+        return (self.instructions.strip() + "\n\n" + phan_user) if self.instructions else phan_user
+
+    def phan_user_gui(self, prompt: str, duong: str) -> str:
+        """Phần user đưa vào agy.
+
+        Có mạch native và không đi file → CLI tự nhớ, chỉ gửi câu hiện tại.
+        Đường file tắt `--conversation`; lượt trống cũng bỏ mạch. Hai ca đó phải gửi
+        transcript đã mồi (`prompt_khoi_phuc`), không thì model quên đoạn chat cùng phiên.
+        """
+        if duong != "file" and self.session_id:
+            return prompt
+        return (self.prompt_khoi_phuc or prompt)
+
     async def query(self, prompt: str) -> AsyncIterator[dict]:
         """Một lượt chat. Tự chọn đường đưa prompt, và tự thử lại nếu đường đó không tới nơi."""
         if not self.cli_path:
@@ -1155,12 +1173,11 @@ class AntigravityCLI:
                               f"chạy Javis:\n\n`{lenh_cai()}`\n\nRồi gõ `agy` một lần để đăng "
                               f"nhập Google."}
             return
-        full = (self.instructions.strip() + "\n\n" + prompt) if self.instructions else prompt
-        # Ba đường đưa prompt cho CLI, xếp theo mức trung thực giảm dần:
-        #   argv  - nhét thẳng vào dòng lệnh. Nguyên vẹn, nhưng đụng trần của hệ điều hành.
-        #   stdin - bơm qua ống dẫn. Cũng nguyên vẹn, không trần. Đường ĐÚNG khi prompt dài.
-        #   file  - ghi ra file rồi bảo model tự đọc. Không trần, nhưng phụ thuộc model chịu mở.
-        duong = await asyncio.to_thread(self._chon_duong, full)
+        cau = prompt
+        # Đo đường đi theo câu hiện tại (có mạch thì payload ngắn). Nếu ra file thì
+        # `phan_user_gui` đổi sang transcript mồi trước khi chạy.
+        duong = await asyncio.to_thread(self._chon_duong, self._gop_prompt(cau))
+        full = self._gop_prompt(self.phan_user_gui(cau, duong))
         ket: dict = {}
         # Lượt đi stdin là lượt CÓ THỂ HỎNG rồi thử lại, nên giữ lỗi của nó lại thay vì bắn ngay
         # ra màn hình. Chủ repo đã thấy đúng cảnh ngược lại: hai bong bóng đỏ "Error: empty
@@ -1168,7 +1185,7 @@ class AntigravityCLI:
         # cách nào biết cái đỏ đó Javis đã tự xử xong.
         # Giữ lỗi tới cuối: còn có thể thử lại (stdin→file, mạch mới, bỏ MCP). Bắn lỗi sớm
         # làm người dùng thấy 2-3 bong bóng đỏ rồi mới có câu trả lời / hoặc ô trống.
-        async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+        async for ev in self._mot_luot(full, cau, duong, ket, giu_loi=True):
             yield ev
         # Vượt trần dòng lệnh: chạy lại NGAY bằng đường không có trần. Không có nhánh này thì
         # người dùng nhận nguyên "OSError: [Errno 7] Argument list too long" - một câu họ không
@@ -1180,7 +1197,8 @@ class AntigravityCLI:
             print(f"[antigravity] prompt vượt trần dòng lệnh, chuyển sang {_duong_lui}",
                   file=sys.stderr)
             ket = {}
-            async for ev in self._mot_luot(full, prompt, _duong_lui, ket, giu_loi=True):
+            full = self._gop_prompt(self.phan_user_gui(cau, _duong_lui))
+            async for ev in self._mot_luot(full, cau, _duong_lui, ket, giu_loi=True):
                 yield ev
             duong = _duong_lui
         # Prompt KHÔNG TỚI NƠI có hai hình dạng, và bản trước chỉ bắt được một:
@@ -1208,7 +1226,8 @@ class AntigravityCLI:
             await asyncio.to_thread(nho_duong, self.cli_path, "file", _vi_sao)
             _ket_cu = ket
             ket = {}
-            async for ev in self._mot_luot(full, prompt, "file", ket, giu_loi=True):
+            full = self._gop_prompt(self.phan_user_gui(cau, "file"))
+            async for ev in self._mot_luot(full, cau, "file", ket, giu_loi=True):
                 yield ev
             # Đường file cũng hỏng dấu, mà lượt stdin thì có chữ: giữ lượt nào cũng vậy thôi,
             # lấy lượt sau cho nhất quán rồi nói thẳng là lỗi nằm trong CLI.
@@ -1229,7 +1248,9 @@ class AntigravityCLI:
             self.session_id = None
             self.mach_khoi_phuc = True
             ket = {}
-            async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+            full = self._gop_prompt(self.phan_user_gui(cau, duong))
+            duong = await asyncio.to_thread(self._chon_duong, full)
+            async for ev in self._mot_luot(full, cau, duong, ket, giu_loi=True):
                 yield ev
         if (not (ket.get("text") or "").strip() and ket.get("loi")
                 and _mcp_cu and _la_loi_agent_cut("\n".join(ket.get("cac_loi") or []))):
@@ -1239,7 +1260,9 @@ class AntigravityCLI:
             self.mach_khoi_phuc = True
             ket = {}
             try:
-                async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                full = self._gop_prompt(self.phan_user_gui(cau, duong))
+                duong = await asyncio.to_thread(self._chon_duong, full)
+                async for ev in self._mot_luot(full, cau, duong, ket, giu_loi=True):
                     yield ev
             finally:
                 self.mcp_config = _mcp_cu
@@ -1314,14 +1337,14 @@ class AntigravityCLI:
                                   f"quyền ghi của thư mục state, hoặc đổi bộ não khác ở trang "
                                   f"Models."}
                 return
-            prompt_argv = _loi_nhac_file(ten_ngu_canh, prompt)
+            prompt_argv = _loi_nhac_file(ten_ngu_canh, self.prompt_khoi_phuc or prompt)
             # File nằm ngoài cwd (xem `_viet_file_ngu_canh`) nên phải mở quyền đọc cho đúng thư
             # mục đó, không thì model nhìn thấy đường dẫn mà mở không được.
             if co_co("--add-dir"):
                 them_args = ["--add-dir", str(Path(tep_ngu_canh).parent)]
-        # Không nối mạch cũ khi đi đường file: lịch sử phía CLI còn nguyên câu "đọc file X" của
-        # lượt trước, mà file đó đã bị xoá cuối lượt trước - model đi mở lại là tốn một vòng tool
-        # để nhận lỗi. Nối mạch cũng chẳng tiết kiệm được gì vì Javis gửi lại đủ ngữ cảnh mỗi lượt.
+        # Không nối --conversation khi đi đường file: mạch CLI còn trỏ file ngữ cảnh lượt
+        # trước (đã xoá). Phần lịch sử lúc đó phải nằm TRONG `full` (prompt_khoi_phuc), không
+        # phải ở mạch native - query() chọn transcript mồi trước khi gọi hàm này.
         qua_stdin = duong.startswith("stdin")
         args = self._build_args(None if qua_stdin else prompt_argv,
                                 noi_mach=(duong != "file"), them=them_args,

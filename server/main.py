@@ -18,6 +18,7 @@ import hashlib
 # phá cả luồng. Import một lần ở đây thì mọi chỗ dùng đều an toàn.
 import sys
 import uuid
+from dataclasses import replace
 from pathlib import Path
 import re
 import secrets
@@ -2504,6 +2505,28 @@ def _record_quality_shadow(trace, objective: str, response: str, channel: str) -
         _CONTEXT_RUNTIME.record_quality_shadow(trace, decision.trace_report())
     except Exception as exc:
         print(f"[quality shadow] {type(exc).__name__}", file=__import__('sys').stderr)
+
+
+def _fast_path_kem_lich_su(plan, store, conv_sid, user_message, row=None):
+    """Đường tắt không nối mạch CLI/API. Nhồi transcript SQLite vào messages.
+
+    Mức Siêu tiết kiệm mặc định: follow-up «cái đó» bị coi chat-thuần rồi trả lời không
+    có đoạn trước - đúng ca «cùng hội thoại ngắn mà lệch ngữ cảnh».
+    """
+    if plan is None or getattr(plan, "action", None) != "execute":
+        return plan
+    if store is None or not conv_sid:
+        return plan
+    raw = [{"role": _m["role"], "content": _m["content"]}
+           for _m in store.get_messages(conv_sid)[:-1]
+           if _m.get("role") in ("user", "assistant") and _m.get("content")]
+    if not raw:
+        return plan
+    msgs = compaction.chem_lich_su_vao_messages(
+        list(plan.messages or ()), raw, user_message,
+        summary=(row or {}).get("compact_summary") or "",
+    )
+    return replace(plan, messages=tuple(msgs))
 
 
 async def _fast_path_core(plan, provider: str, api_key: str, model: str, reasoning: str,
@@ -12676,6 +12699,8 @@ async def websocket_endpoint(ws: WebSocket):
                 # vài trăm token. Đường tắt đi đúng một vòng.
                 # _execute_fast_path tự gửi gói `response` kèm dòng đường chạy, y như nhánh
                 # engine API vẫn dùng nó. Gửi thêm một gói nữa ở đây là hiện hai câu trả lời.
+                _codex_fast_plan = _fast_path_kem_lich_su(
+                    _codex_fast_plan, store, conv_sid, user_message, _row0)
                 final_text, _fast_model = await _execute_fast_path(
                     _codex_fast_plan, prov, "",
                     _codex_safe_model(api_model) if kind == "oauth"
@@ -12835,9 +12860,13 @@ async def websocket_endpoint(ws: WebSocket):
                     _a_raw = [{"role": _m["role"], "content": _m["content"]}
                               for _m in store.get_messages(conv_sid)[:-1]
                               if _m["role"] in ("user", "assistant") and _m.get("content")]
-                    # Có mạch: chỉ gửi câu hiện tại (CLI nhớ lịch sử). Không mạch: mồi transcript.
-                    _a_prompt = (_a_cur if _a_mach else compaction.bootstrap_prompt(
-                        _a_raw, _a_cur, summary=_row0.get("compact_summary") or ""))
+                    # Có mạch + argv/stdin: chỉ gửi câu hiện tại (CLI nhớ lịch sử).
+                    # Mất mạch / đường file tắt --conversation: PHẢI mồi transcript, không
+                    # thì model chỉ thấy câu vừa gõ rồi trả lời lệch.
+                    _a_boot = compaction.bootstrap_prompt(
+                        _a_raw, _a_cur, summary=_row0.get("compact_summary") or "")
+                    acli.prompt_khoi_phuc = _a_boot
+                    _a_prompt = _a_cur if _a_mach else _a_boot
                     _CONTEXT_RUNTIME.observe_payload(
                         runtime_trace,
                         [{"role": "system", "content": sysprompt},
@@ -13186,6 +13215,8 @@ async def websocket_endpoint(ws: WebSocket):
                     }))
                 elif fast_plan and fast_plan.action == "execute":
                     used_fast_path = True
+                    fast_plan = _fast_path_kem_lich_su(
+                        fast_plan, store, conv_sid, user_message, _row0)
                     final_text, _actual_model = await _execute_fast_path(
                         fast_plan, prov, api_key, api_model, reasoning, ws, conv_sid,
                         runtime_trace, user_message,
@@ -16382,6 +16413,7 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         # nhà cung cấp nói ra - lấy nó chặn lượt chat là vượt quyền (cùng lý do với dashboard).
         if _fp is not None and _fp.action == "execute":
             await _p("⚡ Đường tắt…")
+            _fp = _fast_path_kem_lich_su(_fp, store, conv_sid, text, store.get_session(conv_sid) or {})
             _txt, _mdl, _ = await _fast_path_core(
                 _fp, prov, api_key, api_model or mcfg.get("claude_model") or "mặc định",
                 reasoning, runtime_trace, text, im_lang_khi_loi=True, channel=channel)
@@ -16452,12 +16484,15 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                     f"`{antigravity_cli.lenh_cai()}`\n"
                     "Rồi gõ `agy` một lần để đăng nhập Google.")
         _hoi = text
+        _raw_cu, _tom_cu = _tg_lich_su_kho(store, conv_sid, text)
+        _a_boot = compaction.bootstrap_prompt(_raw_cu, _hoi, summary=_tom_cu)
+        acli.prompt_khoi_phuc = _a_boot
         if not getattr(acli, "session_id", None):
             # Chưa có mạch native (phiên mới, hoặc vừa restart nên object engine dựng lại từ
             # đầu) thì mồi transcript đã lưu vào ĐÚNG MỘT lượt, y như dashboard vẫn làm. Có mạch
-            # rồi thì engine tự nhớ, gửi lại là tốn token vô ích.
-            _raw_cu, _tom_cu = _tg_lich_su_kho(store, conv_sid, text)
-            _hoi = compaction.bootstrap_prompt(_raw_cu, _hoi, summary=_tom_cu)
+            # rồi thì engine tự nhớ, gửi lại là tốn token vô ích - trừ khi query() phải bỏ mạch
+            # (đường file / lượt trống), lúc đó dùng prompt_khoi_phuc.
+            _hoi = _a_boot
         out, loi = "", []
         async for ev in acli.query(_hoi):
             et = ev.get("type")

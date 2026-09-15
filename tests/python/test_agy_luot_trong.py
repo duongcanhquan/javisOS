@@ -78,6 +78,7 @@ async def _thu_query(co_mach: bool):
     g = A.AntigravityCLI(cwd=tempfile.mkdtemp(prefix="agy-cwd-"),
                          model="gemini-3.8-flash-medium")
     g.cli_path = cli
+    g.prompt_khoi_phuc = "[KHÔI PHỤC NGỮ CẢNH] marker-lich-su-XYZ"
     if co_mach:
         g.session_id = "mach-cu-bi-dut"
     evs = []
@@ -108,6 +109,21 @@ check("lần đầu còn --conversation (nối mạch cũ)",
       any("--conversation" in r for r in _chat), _chat)
 check("có lần sau bỏ --conversation (mạch mới)",
       any("--conversation" not in r for r in _chat), _chat)
+
+
+def _p_arg(argv):
+    if "-p" in argv:
+        i = argv.index("-p")
+        return argv[i + 1] if i + 1 < len(argv) else ""
+    return " ".join(argv)
+
+
+_lan_moi = [r for r in _chat if "--conversation" not in r]
+_lan_cu = [r for r in _chat if "--conversation" in r]
+check("lần mạch mới mang transcript mồi, không chỉ câu hiện tại",
+      any("marker-lich-su-XYZ" in _p_arg(r) for r in _lan_moi), _lan_moi[:2])
+check("lần nối mạch không nhồi transcript (tránh Agent terminated)",
+      all("marker-lich-su-XYZ" not in _p_arg(r) for r in _lan_cu), _lan_cu[:1])
 
 
 def _gia_agy_luon_rong():
@@ -148,6 +164,19 @@ check("câu lỗi không đổ hết cho 'CLI quá cũ'",
 main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("dashboard xoá mạch khi mach_khoi_phuc",
       "mach_khoi_phuc" in main_py and "clear_agy_conversation_id" in main_py)
+check("dashboard gắn prompt_khoi_phuc từ transcript SQLite",
+      "prompt_khoi_phuc" in main_py and "bootstrap_prompt" in main_py)
+check("đường tắt nhồi lịch sử trước khi gọi model",
+      "_fast_path_kem_lich_su" in main_py)
+
+g_sel = A.AntigravityCLI(cwd=tempfile.mkdtemp(prefix="agy-sel-"))
+g_sel.prompt_khoi_phuc = "BOOT"
+g_sel.session_id = "s1"
+check("có mạch + argv → chỉ câu hiện tại", g_sel.phan_user_gui("hi", "argv") == "hi")
+check("có mạch + file → transcript mồi (file tắt --conversation)",
+      g_sel.phan_user_gui("hi", "file") == "BOOT")
+g_sel.session_id = None
+check("mất mạch + argv → transcript mồi", g_sel.phan_user_gui("hi", "argv") == "BOOT")
 
 
 print()
