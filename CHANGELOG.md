@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.224] - 2026-09-15
+### Cải thiện
+- **ZeroTTS cho video ngắn:** khi Cài đặt chọn ZeroTTS, pipeline kịch bản→mp4 dùng giọng local (lỗi/thiếu gói → Edge). Chat TTS giữ nguyên. Collage giấy (Atlas) vẫn dùng TTS Atlas riêng.
+- **Kiểm tra Atlas:** smoke offline xác nhận catalog, client `atlas_cloud`, tab Tạo video paperdesign còn khớp.
+
 ## [0.55.223] - 2026-09-14
 ### Thêm mới
 - **ZeroTTS (tuỳ chọn):** nhà cung cấp giọng đọc local tiếng Việt trong Cài đặt. Cài `pip install zerotts` (lần đầu ~900MB), chọn preset, thiếu gói/lỗi thì tự về Edge. Không đụng OpenAI/ElevenLabs/Edge đang chạy.

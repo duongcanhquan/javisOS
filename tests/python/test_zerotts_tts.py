@@ -112,6 +112,73 @@ for k in list(sys.modules):
         del sys.modules[k]
 zt.reset_engine_for_tests()
 
+
+# ---- script_video tôn trọng tts_provider=zerotts (mock, không ffmpeg nếu dest .wav) ----
+import script_video as sv  # noqa: E402
+import types as _types
+
+# gắn lại mock package (đã xoá ở trên) — tạo lại tối thiểu
+_fake2 = _types.ModuleType("zerotts")
+
+class _FakeEngine2:
+    sample_rate = 16000
+    @classmethod
+    def from_pretrained(cls, _repo):
+        return cls()
+    def synthesize(self, text, voice=None, **_kw):
+        n = max(160, int(self.sample_rate * 0.05))
+        step = 0.4 / max(1, n - 1)
+        return [-0.2 + i * step for i in range(n)]
+
+_fake2.ZeroTTS = _FakeEngine2
+_fake2.normalize_vi_text = lambda s: s
+sys.modules["zerotts"] = _fake2
+sys.modules["zerotts.chunking"] = _types.ModuleType("zerotts.chunking")
+sys.modules["zerotts.chunking"].chunk_text = lambda t, max_chunk_sec=15: [t]
+sys.modules["zerotts.chunking"].clean_segment_punctuation = lambda s: s
+sys.modules["zerotts.chunking"].normalize_punctuation = lambda s: s
+zt.reset_engine_for_tests()
+
+_orig_voice = sv._voice_settings
+sv._voice_settings = lambda: {"tts_provider": "zerotts", "zerotts_voice": "maichi"}
+_called = {"edge": 0, "zt": 0}
+_orig_edge = sv._tts_edge_to_file
+_orig_zt = sv._tts_zerotts_to_file
+
+async def _edge_spy(text, dest, voice):
+    _called["edge"] += 1
+    dest.write_bytes(b"ID3edge")
+
+async def _zt_spy(text, dest, voice_cfg):
+    _called["zt"] += 1
+    # dùng đường thật tới WAV để kiểm synthesize
+    await _orig_zt(text, dest.with_suffix(".wav"), voice_cfg)
+    dest.write_bytes(dest.with_suffix(".wav").read_bytes()[:4] and b"ID3zt" or b"x")
+
+sv._tts_edge_to_file = _edge_spy
+# Gọi _tts_zerotts_to_file thật với dest .wav để khỏi cần ffmpeg
+async def _run():
+    out = Path(tempfile.mkdtemp()) / "a.wav"
+    await sv._tts_file("Xin chào video.", out, "vi-VN-HoaiMyNeural")
+    return out
+import tempfile
+out = asyncio.run(_run())
+check("script_video provider=zerotts không gọi Edge", _called["edge"] == 0 and out.is_file() and out.stat().st_size > 44)
+sv._voice_settings = lambda: {"tts_provider": "edge"}
+async def _run_edge():
+    out2 = Path(tempfile.mkdtemp()) / "b.mp3"
+    await sv._tts_file("Hello", out2, "vi-VN-HoaiMyNeural")
+    return out2
+out2 = asyncio.run(_run_edge())
+check("script_video provider=edge đi Edge spy", _called["edge"] == 1 and out2.read_bytes() == b"ID3edge")
+sv._voice_settings = _orig_voice
+sv._tts_edge_to_file = _orig_edge
+sv._tts_zerotts_to_file = _orig_zt
+for k in list(sys.modules):
+    if k == "zerotts" or k.startswith("zerotts."):
+        del sys.modules[k]
+zt.reset_engine_for_tests()
+
 if _fails:
     print("FAILED:", ", ".join(_fails))
     sys.exit(1)
