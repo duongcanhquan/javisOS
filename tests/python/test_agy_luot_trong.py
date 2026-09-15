@@ -162,19 +162,21 @@ check("câu lỗi không đổ hết cho 'CLI quá cũ'",
       not any("quá cũ" in (e.get("content") or "") for e in evs2))
 
 main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
-check("dashboard xoá mạch agy đã lưu (không nối giữa hai hội thoại)",
+check("dashboard xoá mạch agy khi xoay mạch / lượt hỏng",
       "clear_agy_conversation_id" in main_py)
 check("dashboard gắn prompt_khoi_phuc từ transcript SQLite",
       "prompt_khoi_phuc" in main_py and "bootstrap_prompt" in main_py)
-check("dashboard Antigravity luôn gửi transcript đã mồi, không cắt khi còn mạch",
-      "_a_prompt = _a_boot" in main_py
-      and "_a_cur if _a_mach" not in main_py)
-check("CANARY: dashboard không nối --conversation (tránh trộn hai hội thoại cùng brain)",
-      "acli.session_id = None" in main_py and "_a_mach" not in main_py)
+check("dashboard Antigravity lượt sau chỉ gửi câu hiện tại khi đã có mạch",
+      "_a_prompt = _a_cur if _a_mach else _a_boot" in main_py)
+check("CANARY: dashboard nối --conversation theo đúng phiên (agy_conversation_id)",
+      '_a_mach = (_row0.get("agy_conversation_id")' in main_py
+      and "set_agy_conversation_id(conv_sid, acli.session_id)" in main_py)
 check("dashboard Antigravity mồi lịch sử bằng _tg_lich_su_kho (không cắt cứng [:-1])",
       "_a_raw, _a_tom = _tg_lich_su_kho" in main_py)
-check("Telegram Antigravity luôn gửi transcript đã mồi",
-      "_hoi = _a_boot" in main_py)
+check("Telegram Antigravity mồi transcript khi chưa có mạch",
+      "_hoi = text if getattr(acli, \"session_id\", None) else _a_boot" in main_py)
+check("Telegram Antigravity nối mạch đã lưu của đúng phiên",
+      'acli.session_id = (_row_tg.get("agy_conversation_id")' in main_py)
 check("đường tắt nhồi lịch sử trước khi gọi model",
       "_fast_path_kem_lich_su" in main_py)
 

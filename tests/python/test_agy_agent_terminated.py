@@ -139,12 +139,13 @@ check("mạch mới sau phục hồi",
       g.session_id)
 
 
-# ---------- dashboard không nối mạch native (tránh trộn hai hội thoại) ----------
+# ---------- dashboard nối mạch native THEO PHIÊN (lượt sau khỏi mở CLI lạnh) ----------
 main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
-check("dashboard xoá agy_conversation_id đã lưu",
+check("dashboard xoá agy_conversation_id khi xoay mạch / lượt hỏng",
       "clear_agy_conversation_id" in main_py)
-check("CANARY: dashboard không nối mạch agy đã lưu",
-      "acli.session_id = None" in main_py and "_a_mach" not in main_py)
+check("CANARY: dashboard nối mạch agy đã lưu của đúng phiên",
+      "_a_mach" in main_py
+      and "set_agy_conversation_id(conv_sid, acli.session_id)" in main_py)
 check("dashboard không gửi response rỗng",
       'không trả lời được lượt này' in main_py or "Antigravity không trả lời" in main_py)
 

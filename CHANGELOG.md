@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.235] - 2026-09-15
+### Sửa lỗi
+- **Chat hết chậm khi sửa vài câu.** Antigravity từng mở mạch mới rồi nhồi cả lịch sử mỗi lượt, nên hỏi tiếp về file đang mở rất lâu. Giờ nối đúng cuộc đang nói; file đã đọc thì không bắt đọc lại.
+
 ## [0.55.234] - 2026-09-15
 ### Tính năng
 - **Cuộc họp Fathom.** Kết nối Fathom trên trang Kết nối, rồi mở tab Fathom trên Cuộc họp. Fathom vẫn ghi trên Zoom/Meet/Teams (không ghi mic trong Javis); xong cuộc thì đồng bộ tóm tắt và transcript vào vault.

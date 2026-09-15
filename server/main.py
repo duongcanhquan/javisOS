@@ -12793,10 +12793,8 @@ async def websocket_endpoint(ws: WebSocket):
             elif prov == "grok-cli":
                 # ===== Gói SuperGrok / X Premium+ qua GROK BUILD CLI - tool native + MCP hub =====
                 #
-                # CÓ nối lại mạch như nhánh Gemini/Codex, khác nhánh `agy` ngay dưới: `grok`
-                # tự sinh id phiên rồi phát ra trong dòng sự kiện, nên Javis chỉ ĐỌC LẠI id đó
-                # chứ không tự bịa ra một cái. Không có chuyện lưu nhầm một id sai dạng rồi
-                # lượt sau nối vào mạch không tồn tại - lý do khiến `agy` phải bỏ resume.
+                # CÓ nối lại mạch như nhánh Gemini/Codex. `grok` tự sinh id phiên rồi phát
+                # ra trong dòng sự kiện, nên Javis chỉ ĐỌC LẠI id đó chứ không tự bịa.
                 actual_model = api_model or None
                 sysprompt, _sub_plan = await _subscription_system_prompt(
                     "grok-cli", actual_model or "", kind)
@@ -12869,8 +12867,9 @@ async def websocket_endpoint(ws: WebSocket):
             elif prov == "antigravity-cli":
                 # ===== Gói Google qua ANTIGRAVITY CLI (`agy`) - tool native + MCP hub =====
                 #
-                # Không nối `--conversation`: cùng brain = cùng cwd, hai hội thoại Javis bị
-                # trộn mạch native. Mỗi lượt mồi transcript SQLite của ĐÚNG phiên này.
+                # Nối `--conversation` THEO PHIÊN Javis (cột agy_conversation_id), giống Grok.
+                # Cùng cwd không trộn hai hội thoại vì mỗi cuộc giữ một id riêng. Tắt resume
+                # (0.55.232) khiến mỗi lượt mở CLI lạnh + nhồi cả lịch sử: sửa vài câu cũng lâu.
                 actual_model = api_model or None
                 sysprompt, _sub_plan = await _subscription_system_prompt(
                     "antigravity-cli", actual_model or "", kind)
@@ -12888,19 +12887,31 @@ async def websocket_endpoint(ws: WebSocket):
                         "model": actual_model or "", "session_id": conv_sid,
                         **_ctx_frame(runtime_trace, _ctx_in)}))
                 else:
-                    # Không nối `--conversation`. Cùng một brain = cùng cwd của `agy`; mạch
-                    # native cuộc A dính vào cuộc B (hai hội thoại, báo 2026-09-15). Lịch sử
-                    # lấy từ SQLite của ĐÚNG phiên này. Xoá id đã lưu kẻo lượt sau lại nối nhầm.
-                    if (_row0.get("agy_conversation_id") or "").strip():
+                    _a_mach = (_row0.get("agy_conversation_id") or "").strip()
+                    if _a_mach and compaction.nen_mach_thue_bao(
+                            _row0.get("last_input_tokens"), msg_count=_row0.get("msg_count"),
+                            rotated_at=_row0.get("thread_rotated_msg")):
+                        _a_mach = ""
                         store.clear_agy_conversation_id(conv_sid)
-                    acli.session_id = None
+                        store.mark_thread_rotated(conv_sid)
+                        _CONTEXT_RUNTIME.record_runtime_event(
+                            runtime_trace, "thread.rotated",
+                            {"engine": "antigravity-cli",
+                             "last_input_tokens": int(_row0.get("last_input_tokens") or 0),
+                             "threshold": compaction.SUBSCRIPTION_THREAD_MAX_TOKENS})
+                        await ws.send_text(json.dumps({
+                            "type": "tool_call", "tool": "javis_nen_mach",
+                            "content": "⚙ Mạch hội thoại đã dài, Javis mở mạch mới."}))
+                    acli.session_id = _a_mach or None
                     _a_cur = _cli_do_sau_khac(acli, antigravity_cli, reasoning, user_message)
                     _a_raw, _a_tom = _tg_lich_su_kho(store, conv_sid, user_message)
                     _a_boot = compaction.bootstrap_prompt(
                         _a_raw, _a_cur,
                         summary=_a_tom or _row0.get("compact_summary") or "")
                     acli.prompt_khoi_phuc = _a_boot
-                    _a_prompt = _a_boot
+                    # Có mạch native thì CLI đã nhớ; chỉ gửi câu hiện tại. Mạch mới / xoay
+                    # mạch thì mồi transcript SQLite của ĐÚNG phiên này.
+                    _a_prompt = _a_cur if _a_mach else _a_boot
                     _CONTEXT_RUNTIME.observe_payload(
                         runtime_trace,
                         [{"role": "system", "content": sysprompt},
@@ -12922,10 +12933,12 @@ async def websocket_endpoint(ws: WebSocket):
                             _a_loi_cuoi = ev.get("content") or _a_loi_cuoi
                             await ws.send_text(_limit_frame(
                                 ev.get("content") or "", "antigravity-cli", actual_model or ""))
-                    # Không lưu mạch native: lượt sau vẫn mồi từ SQLite, không nối `--conversation`.
-                    if acli.session_id or getattr(acli, "mach_khoi_phuc", False):
+                    if getattr(acli, "mach_khoi_phuc", False):
+                        acli.mach_khoi_phuc = False
+                    if (final_text or "").strip() and acli.session_id:
+                        store.set_agy_conversation_id(conv_sid, acli.session_id)
+                    elif not (final_text or "").strip():
                         store.clear_agy_conversation_id(conv_sid)
-                        acli.session_id = None
                     # Đừng gửi response rỗng → dashboard sẽ hiện "(không có nội dung trả về)".
                     if not (final_text or "").strip():
                         final_text = (_a_loi_cuoi or (
@@ -16514,13 +16527,14 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
             return ("⚠ Chưa cài Antigravity CLI trên máy chạy Javis. Cài một lần:\n"
                     f"`{antigravity_cli.lenh_cai()}`\n"
                     "Rồi gõ `agy` một lần để đăng nhập Google.")
+        _row_tg = store.get_session(conv_sid) or {}
+        if not getattr(acli, "session_id", None):
+            acli.session_id = (_row_tg.get("agy_conversation_id") or "").strip() or None
         _raw_cu, _tom_cu = _tg_lich_su_kho(store, conv_sid, text)
         _a_boot = compaction.bootstrap_prompt(_raw_cu, text, summary=_tom_cu)
         acli.prompt_khoi_phuc = _a_boot
-        # Không nối mạch native: cùng brain với dashboard thì cwd `agy` trùng, nối là
-        # trộn hai hội thoại. Lịch sử lấy từ SQLite của đúng phiên Telegram này.
-        acli.session_id = None
-        _hoi = _a_boot
+        # Có mạch native thì CLI đã nhớ, chỉ gửi câu này. Mạch mới / đứt mạch thì mồi SQLite.
+        _hoi = text if getattr(acli, "session_id", None) else _a_boot
         out, loi = "", []
         async for ev in acli.query(_hoi):
             et = ev.get("type")
@@ -16528,11 +16542,17 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                 await _p(nhan_tool.dong_dang_goi(ev.get("name") or ""))
             elif et == "final":
                 out = ev.get("content") or ""
+            elif et == "usage":
+                store.set_last_input_tokens(conv_sid, int(ev.get("input_tokens") or 0))
             elif et == "error":
                 loi.append(str(ev.get("content") or ""))
         if getattr(acli, "mach_khoi_phuc", False):
             acli.mach_khoi_phuc = False
-        acli.session_id = None
+        if (out or "").strip() and acli.session_id:
+            store.set_agy_conversation_id(conv_sid, acli.session_id)
+        elif not (out or "").strip():
+            store.clear_agy_conversation_id(conv_sid)
+            acli.session_id = None
         if not out and loi:
             _noi = _subscription_limit_message(loi[0], "antigravity-cli")
             return _noi or ("⚠ Antigravity CLI lỗi: " + loi[0][:400])

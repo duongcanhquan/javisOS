@@ -445,8 +445,8 @@ function sendMessage(text) {
     }
     outMsg = `[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}\n`
       + `Đây là file người dùng ĐANG LÀM VIỆC TRÊN ĐÓ - coi như đầu vào của cuộc trò chuyện này. `
-      + `Đọc nó trước khi trả lời. Khi được yêu cầu sửa/viết thêm/dọn lại mà không nói rõ file nào `
-      + `thì ghi thẳng vào chính file này.]\n\n${outMsg}`;
+      + `Khi được yêu cầu sửa/viết thêm/dọn lại mà không nói rõ file nào thì ghi thẳng vào chính file này. `
+      + `Đã đọc trong lượt trước thì khỏi đọc lại nếu không cần.]\n\n${outMsg}`;
   }
 
   chatInput.value = ""; chatInput.style.height = "auto";
