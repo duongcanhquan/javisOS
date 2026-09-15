@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.246] - 2026-09-16
+### Thêm mới
+- **Slide đẹp hơn với skill Slide Wright:** deck HTML 16:9 (theme riêng, preview 2 slide rồi mới gen full). Tab Bài giảng → Slide và agent `bg-slide` dùng skill này; file vào `exports/slides/<slug>/index.html`. Nguồn MIT [arifszn/slide-wright](https://github.com/arifszn/slide-wright).
+
 ## [0.55.245] - 2026-09-15
 ### Sửa
 - **Chrome «Mở trong ứng dụng» hết hiện avatar cũ.** Logo mặc định đổi thành chữ J (không còn ảnh chân dung); manifest PWA phục vụ động tại `/manifest.webmanifest` với `?v=` theo logo để trình duyệt không giữ icon cache. Muốn logo riêng: Cài đặt → Ảnh đại diện, rồi gỡ/cài lại app nếu OS còn giữ icon cũ.

@@ -25,7 +25,7 @@ Hỏi **một lần** nếu chưa chọn. Nói rõ + ví dụ, không dùng jarg
 
 | Chọn | Khi nào | Ví dụ | Workflow |
 |------|---------|-------|----------|
-| **Slide trình chiếu** | Dạy trên lớp, chiếu máy chiếu | Quang hợp lớp 8 → 12 slide + notes | `bo-bai-giang-slide` |
+| **Slide trình chiếu** | Dạy trên lớp, chiếu máy chiếu | Quang hợp lớp 8 → deck HTML đẹp + notes | `bo-bai-giang-slide` (+ `slide-wright`) |
 | **Video giải thích** | Clip ngắn xem lại / LMS / Zalo | «Vì sao trời xanh?» 75 giây | `bo-bai-giang-video` |
 | **Lớp học tương tác** | Buổi live: cảnh, quiz, thực hành | Python biến → outline + quiz + script | `bo-bai-giang-lop-hoc` |
 | **Bài đọc + ảnh & biểu đồ** | Handout / đọc trước / gửi phụ huynh | An toàn mạng + checklist | `bo-bai-giang-van-ban` |
@@ -60,13 +60,15 @@ Thiếu → hỏi, **không** giả định rồi làm luôn.
 4. **Thiết kế ấn tượng** - hook, nhịp, **ảnh/biểu đồ**, điểm nhấn visual (kiểu Remotion);
    với lớp học/slide: **kịch bản nói dài** (thường 45–90s/ý) trước khi gen OpenMAIC/deck.
 5. **Sinh media** - `javis_generate_image`, `diagram-design` khi hợp; lưu `attachments/bai-giang/`.
-6. **Tạo file** - ghi `exports/bai-giang/<slug>/`, trả đường dẫn.
+6. **Tạo file** - outline/notes vào `exports/bai-giang/<slug>/`; deck HTML đẹp (skill
+   `slide-wright`) vào `exports/slides/<slug>/index.html`. Trả đường dẫn cả hai khi có.
 
 ## Chuẩn chất lượng (lớp học & slide)
 
 - Không chấp nhận gói chỉ có chữ + TTS đọc chữ.
 - Script/speaker note phải có giải thích + ví dụ + dẫn giải nội dung đang hiện.
 - Mỗi cảnh/slide then chốt có visual emphasis; ưu tiên có ảnh hoặc chart.
+- Slide trình chiếu: đầu ra cuối là **HTML deck** (`slide-wright`), không chỉ `slides.md`.
 - OpenMAIC: liên mạch (không chào lại từng slide) - prompt server + skill `bai-giang-lop-hoc`.
 
 ## Bẫy

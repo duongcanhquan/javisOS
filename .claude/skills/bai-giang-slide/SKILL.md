@@ -26,13 +26,16 @@ slide then chốt). Có ảnh hoặc biểu đồ; có điểm nhấn visual (ki
    - **Ảnh hoặc biểu đồ:** `javis_generate_image` / `diagram-design` khi sẵn; embed path
    - **Speaker note** đoạn văn dài: giải thích + ví dụ + chi tiết (không 2 câu rỗng)
 5. Palette 1 câu; tránh tường chữ.
-6. Xuất `exports/bai-giang/<slug>/slides.md` (+ HTML tuỳ chọn; Webcake qua `html-to-webcake`).
-7. User muốn video nhấn motion → `lam-video` / `remotion-best-practices` từ cùng outline.
+6. Xuất `exports/bai-giang/<slug>/slides.md` (outline + speaker notes).
+7. **Deck HTML đẹp:** nạp skill `slide-wright` → theme + preview 2 slide → sau duyệt ghi
+   `exports/slides/<slug>/index.html`. Đừng dừng ở Markdown nếu user muốn chiếu đẹp.
+8. User muốn video nhấn motion → `lam-video` / `remotion-best-practices` từ cùng outline.
 
 ## Liên kết
 
-Lớp OpenMAIC tương tác → `bai-giang-lop-hoc`. Điều phối → `tao-bai-giang`.
+HTML deck đẹp → `slide-wright`. Lớp OpenMAIC → `bai-giang-lop-hoc`. Điều phối → `tao-bai-giang`.
 
 ## Bẫy
 
 Không nhồi >6 bullet/slide. Không bịa số trên biểu đồ. Không speaker note chỉ đọc bullet.
+Không coi `slides.md` là deck trình chiếu cuối nếu user đã hỏi slide đẹp.

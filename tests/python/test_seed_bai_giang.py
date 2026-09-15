@@ -65,7 +65,7 @@ for slug in (
 for slug in body["workflows"]:
     check(f"file workflow {slug}", (wf_dir / f"{slug}.md").is_file())
 
-for sk in ("tao-bai-giang", "bai-giang-lop-hoc", "bai-giang-slide", "bai-giang-van-ban"):
+for sk in ("tao-bai-giang", "bai-giang-lop-hoc", "bai-giang-slide", "bai-giang-van-ban", "slide-wright"):
     check(f"skill brain {sk}", (sk_dir / sk / "SKILL.md").is_file())
     check(
         f"skill hệ thống {sk}",
@@ -77,11 +77,14 @@ check("nghiên cứu gắn deep-research", "deep-research" in ag)
 check("nghiên cứu cổng brief", "cổng brief" in ag.lower() or "Cổng brief" in ag)
 
 # description ≤ 150 ký tự (router cắt im lặng)
-for sk in ("tao-bai-giang", "bai-giang-lop-hoc", "bai-giang-slide", "bai-giang-van-ban"):
+for sk in ("tao-bai-giang", "bai-giang-lop-hoc", "bai-giang-slide", "bai-giang-van-ban", "slide-wright"):
     raw = (ROOT / ".claude" / "skills" / sk / "SKILL.md").read_text(encoding="utf-8")
     m = re.search(r'^description:\s*"?([^"\n]+)"?\s*$', raw, re.M)
     check(f"{sk} có description", bool(m))
     if m:
         check(f"{sk} description ≤150", len(m.group(1).strip()) <= 150, str(len(m.group(1))))
+
+ag_slide = (agents_dir / "bg-slide.md").read_text(encoding="utf-8")
+check("bg-slide gắn slide-wright", "slide-wright" in ag_slide)
 
 print("OK - test_seed_bai_giang")

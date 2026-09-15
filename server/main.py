@@ -8828,10 +8828,21 @@ def seed_bai_giang(brain: str) -> dict:
         (
             "bai-giang-slide",
             "Bài giảng slide",
-            "Thiết kế deck slide hấp dẫn: outline, layout, bullet, gợi ý hình/biểu đồ, xuất markdown/HTML.",
+            "Deck slide ấn tượng: 1 ý/slide, speaker note dài, nhấn visual, ảnh/biểu đồ, xuất md/HTML.",
             (
                 "# Bài giảng slide\n\n"
-                "10-16 slide, 1 ý/slide, speaker notes, gợi ý visual. Lưu exports/bai-giang/<slug>/slides.md.\n"
+                "10-16 slide, 1 ý/slide, speaker notes. Lưu exports/bai-giang/<slug>/slides.md.\n"
+                "Deck HTML đẹp: nạp slide-wright → exports/slides/<slug>/index.html.\n"
+            ),
+        ),
+        (
+            "slide-wright",
+            "Slide Wright",
+            "Deck HTML 16:9 đẹp (Reveal CDN): theme riêng, preview 2 slide rồi gen full; sửa deck sẵn. Xuất exports/slides/.",
+            (
+                "# Slide Wright\n\n"
+                "Nạp skill hệ thống đầy đủ từ .claude/skills/slide-wright.\n"
+                "Preview 2 slide → duyệt → full HTML tại exports/slides/<slug>/index.html.\n"
             ),
         ),
         (
@@ -8928,13 +8939,24 @@ def seed_bai_giang(brain: str) -> dict:
         {
             "name": "Thiết kế slide bài giảng",
             "slug": "bg-slide",
-            "role": "Thiết kế deck slide hấp dẫn từ nghiên cứu.",
-            "skills": ["bai-giang-slide", "tao-bai-giang", "frontend-design"],
+            "role": "Thiết kế deck slide hấp dẫn từ nghiên cứu - outline sư phạm rồi HTML đẹp.",
+            "skills": [
+                "bai-giang-slide",
+                "slide-wright",
+                "tao-bai-giang",
+                "frontend-design",
+                "diagram-design",
+            ],
             "prompt": (
-                "Bạn thiết kế slide bài giảng (Gemini). Nạp bai-giang-slide.\n"
-                "Từ {{prev}} + {{input}}: 10-16 slide, 1 ý/slide, speaker notes, gợi ý visual/biểu đồ.\n"
-                "Xuất exports/bai-giang/<slug>/slides.md. Có thể thêm HTML đơn giản nếu phù hợp.\n"
-                "Không tường chữ. Không em dash."
+                "Bạn thiết kế slide bài giảng (Gemini). Nạp bai-giang-slide rồi slide-wright.\n"
+                "Từ {{prev}} + {{input}}:\n"
+                "1. Outline 10-16 slide, 1 ý/slide, speaker notes dài → "
+                "exports/bai-giang/<slug>/slides.md.\n"
+                "2. Render deck HTML đẹp theo slide-wright: theme riêng, preview 2 slide trước, "
+                "chờ duyệt rồi mới full → exports/slides/<slug>/index.html.\n"
+                "3. Biểu đồ → diagram-design; ảnh → javis_generate_image khi sẵn.\n"
+                "Không tường chữ. Không em dash. Không dừng ở Markdown nếu brief yêu cầu chiếu đẹp.\n"
+                "Chạy nền không người duyệt: ghi preview 2 slide + báo chờ duyệt, không tự bung full."
             ),
         },
         {
@@ -9027,7 +9049,7 @@ def seed_bai_giang(brain: str) -> dict:
         _wf(
             "Bài giảng → Slide",
             "bo-bai-giang-slide",
-            "Nghiên cứu → deck slide hấp dẫn → kiểm chứng.",
+            "Nghiên cứu → deck HTML đẹp (slide-wright) + notes → kiểm chứng.",
             [
                 {
                     "agent": "bg-nghien-cuu",
