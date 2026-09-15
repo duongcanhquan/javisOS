@@ -12843,9 +12843,11 @@ async def websocket_endpoint(ws: WebSocket):
                             _a_loi_cuoi = ev.get("content") or _a_loi_cuoi
                             await ws.send_text(_limit_frame(
                                 ev.get("content") or "", "antigravity-cli", actual_model or ""))
-                    # Lưu / xoá mạch: thành công thì giữ id mới; bị cắt thì bỏ id cũ để lần sau
-                    # không nối vào mạch hỏng.
-                    if final_text and acli.session_id:
+                    # Lưu / xoá mạch: thành công thì giữ id mới; bị cắt / lượt trống phải
+                    # mở mạch mới thì bỏ id cũ để lượt sau mồi lại transcript.
+                    if getattr(acli, "mach_khoi_phuc", False):
+                        store.clear_agy_conversation_id(conv_sid)
+                    elif final_text and acli.session_id:
                         store.set_agy_conversation_id(conv_sid, acli.session_id)
                     elif _a_loi_cuoi and antigravity_cli._la_loi_agent_cut(_a_loi_cuoi):
                         store.clear_agy_conversation_id(conv_sid)
@@ -16447,6 +16449,9 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
                 out = ev.get("content") or ""
             elif et == "error":
                 loi.append(str(ev.get("content") or ""))
+        if getattr(acli, "mach_khoi_phuc", False):
+            acli.session_id = None
+            acli.mach_khoi_phuc = False
         if not out and loi:
             _noi = _subscription_limit_message(loi[0], "antigravity-cli")
             return _noi or ("⚠ Antigravity CLI lỗi: " + loi[0][:400])

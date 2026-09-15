@@ -1075,6 +1075,9 @@ class AntigravityCLI:
         self.instructions = instructions
         self.session_id = None          # có giá trị -> nối lại mạch cũ
         self._session_moi = None
+        # True khi lượt này phải bỏ --conversation vì agy trả về rỗng / cắt mạch.
+        # Dashboard xoá id đã lưu để lượt sau mồi lại transcript, không nối mạch hỏng.
+        self.mach_khoi_phuc = False
         self.mode = "suggest"
         # File mcp_config riêng cho ĐÚNG lượt này. Chỉ dùng được nếu bản `agy` trên máy có cờ
         # nhận file cấu hình (hỏi `co_co` trước khi truyền). Có thì hết cảnh hai brain chạy cùng
@@ -1214,38 +1217,32 @@ class AntigravityCLI:
         elif duong.startswith("stdin") and ket.get("text"):
             await asyncio.to_thread(nho_duong, self.cli_path, duong, "đã chạy được")
 
-        # Agent bị cắt giữa chừng (generic "Agent execution terminated") / thoát mã 1 không chữ:
-        # tự phục hồi trong CÙNG lượt - mở mạch mới, rồi (nếu cần) bỏ MCP hub một lần.
-        # Không làm thì dashboard hiện cả lỗi + "(không có nội dung trả về)" mỗi lần agy xìu.
-        _loi_gop = "\n".join(ket.get("cac_loi") or [])
-        _cut = (not (ket.get("text") or "").strip()
-                and (ket.get("loi") or False)
-                and (_la_loi_agent_cut(_loi_gop)
-                     or any("thoát với mã" in (x or "").lower() for x in (ket.get("cac_loi") or []))
-                     or any("exit" in (x or "").lower() and "1" in (x or "")
-                            for x in (ket.get("cac_loi") or []))))
-        if _cut:
-            _mcp_cu = self.mcp_config
-            # 1) Mạch mới (bỏ --conversation): mạch hỏng / tràn context là nguyên nhân phổ biến.
-            if self.session_id:
-                print("[antigravity] agent bị cắt - thử lại với mạch hội thoại mới",
-                      file=sys.stderr)
-                self.session_id = None
-                ket = {}
+        # Lượt TRỐNG (thoát 0, không chữ) hay gặp khi chat dài / nối `--conversation`:
+        # agy xìu mạch nhưng không báo lỗi, Javis trước đây cứ bảo "CLI quá cũ mất stdout".
+        # Agent bị cắt ("Agent execution terminated" / thoát mã 1) cùng một đường chữa:
+        # mở mạch mới trong CÙNG lượt, rồi (nếu cần) bỏ MCP hub một lần.
+        _rong = not (ket.get("text") or "").strip()
+        _mcp_cu = self.mcp_config
+        if _rong and self.session_id:
+            print("[antigravity] lượt trống hoặc agent bị cắt - thử lại mạch hội thoại mới",
+                  file=sys.stderr)
+            self.session_id = None
+            self.mach_khoi_phuc = True
+            ket = {}
+            async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
+                yield ev
+        if (not (ket.get("text") or "").strip() and ket.get("loi")
+                and _mcp_cu and _la_loi_agent_cut("\n".join(ket.get("cac_loi") or []))):
+            print("[antigravity] vẫn cắt - thử lại không MCP hub (một lần)", file=sys.stderr)
+            self.mcp_config = None
+            self.session_id = None
+            self.mach_khoi_phuc = True
+            ket = {}
+            try:
                 async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
                     yield ev
-            # 2) Vẫn chết: thử một lần không MCP (MCP lỗi / schema conflict hay làm agy xìu).
-            if (not (ket.get("text") or "").strip() and ket.get("loi")
-                    and _mcp_cu and _la_loi_agent_cut("\n".join(ket.get("cac_loi") or []))):
-                print("[antigravity] vẫn cắt - thử lại không MCP hub (một lần)", file=sys.stderr)
-                self.mcp_config = None
-                self.session_id = None
-                ket = {}
-                try:
-                    async for ev in self._mot_luot(full, prompt, duong, ket, giu_loi=True):
-                        yield ev
-                finally:
-                    self.mcp_config = _mcp_cu
+            finally:
+                self.mcp_config = _mcp_cu
 
         # Không có chữ trả lời: lỗi auth vẫn là `error` (dashboard + test đòi type đó). Các lỗi
         # còn lại (agent cut đã thử lại xong, thoát mã lạ...) thành `final` để dashboard không
@@ -1280,12 +1277,13 @@ class AntigravityCLI:
             else:
                 yield {"type": "final", "content": noi_dung}
         else:
-            # Lưới an toàn cuối. Bản 1.0.0 của agy có lỗi nuốt stdout khi chạy qua ống dẫn
-            # (issue #76 của google-antigravity/antigravity-cli); im lặng ở đây thì người dùng
-            # lại thấy đúng cái bong bóng rỗng như hồi Gemini CLI.
+            # Lưới an toàn cuối. Hay gặp khi nối mạch chat dài (agy thoát 0, stdout trống) -
+            # không phải lúc nào cũng "CLI quá cũ" (issue #76). Im lặng thì bong bóng rỗng.
             yield {"type": "error",
-                   "content": "Antigravity CLI chạy xong nhưng không trả về nội dung nào. Bản "
-                              "CLI quá cũ có lỗi mất stdout khi chạy nền - thử nâng cấp: "
+                   "content": "Antigravity chạy xong nhưng không trả lời. Hay gặp khi chat "
+                              "dài (mạch hội thoại bị đứt). Javis đã thử lại với mạch mới "
+                              "nếu có. Gửi lại câu hỏi hoặc mở hội thoại mới. Nếu mọi lượt "
+                              "đều trống, nâng cấp CLI: "
                               f"`{lenh_cai()}`"}
 
     async def _mot_luot(self, full: str, prompt: str, duong: str, ket: dict,
@@ -1551,7 +1549,7 @@ class AntigravityCLI:
             # Nhưng cũng KHÔNG được bỏ hẳn: lượt trả lời ngắn có bản chỉ phát mỗi `result`,
             # không có delta nào. Nên chỉ lấy khi tay trắng - đúng một lần, và không bao giờ
             # rỗng vì lý do "đã bỏ qua chỗ duy nhất có chữ".
-            if cac_manh:
+            if any((x or "").strip() for x in cac_manh):
                 # Vẫn GIỮ LẠI toàn văn để `_chot_van` gọt phần chữ thừa đứng trước nó.
                 if chan is not None:
                     for k in ("response", "content", "text", "output"):
@@ -1560,6 +1558,20 @@ class AntigravityCLI:
                             chan["toan_van"] = v.strip()
                             break
                 return ra
+
+        # Bước không phải câu trả lời (docs headless: user_input / checkpoint / tool) -
+        # đừng gom `output` của tool thành chữ trợ lý rồi bỏ qua `result.response`.
+        _step = str(ev.get("step_type") or "").lower()
+        if _step in ("user_input", "checkpoint", "tool"):
+            if _step == "tool":
+                info = ev.get("tool_info") if isinstance(ev.get("tool_info"), dict) else {}
+                ten = str(ev.get("tool_name") or info.get("name") or "")
+                if ten:
+                    return [{"type": "tool_call",
+                             "name": ten,
+                             "id": str(ev.get("tool_id") or ev.get("id") or ""),
+                             "input": info.get("parameters") or ev.get("parameters") or {}}]
+            return []
 
         # Còn lại: mọi thứ trông như chữ của trợ lý đều gom vào câu trả lời. Đây là chỗ hứng
         # những hình dạng chưa đo được, nên viết rộng có chủ đích.
@@ -1660,8 +1672,9 @@ def kiem_tra_nhanh(timeout: float = 60.0) -> dict:
         return {"ok": False, "error": loi[:400] or f"Thoát mã {r.returncode}"}
     if not out:
         return {"ok": False,
-                "error": "CLI chạy xong nhưng không in ra gì. Bản cũ có lỗi mất stdout khi chạy "
-                         f"nền - nâng cấp bằng: {lenh_cai()}"}
+                "error": "CLI chạy xong nhưng không in ra gì. Hay gặp khi chạy nền / mạch "
+                         f"chat dài. Thử `agy` trong terminal; nếu vẫn trống thì nâng cấp: "
+                         f"{lenh_cai()}"}
     try:
         d = json.loads(out)
     except json.JSONDecodeError:

@@ -294,7 +294,7 @@ _evs5, _, _ = _chay_gia([], help_text=_HELP_MOI)
 check("CANARY: chạy xong mà không in gì -> BÁO LỖI, không trả bong bóng rỗng",
       any(e["type"] == "error" for e in _evs5) and not any(e["type"] == "final" for e in _evs5),
       _evs5)
-check("và mách nước nâng cấp (bản cũ có lỗi nuốt stdout khi chạy nền)",
+check("và mách nước nâng cấp (khi vẫn trống sau khi thử lại)",
       any("nâng cấp" in e.get("content", "") or "install" in e.get("content", "")
           for e in _evs5))
 

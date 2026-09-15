@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.226] - 2026-09-15
+### Sửa lỗi
+- **Chat Antigravity hết báo oan «CLI quá cũ mất stdout».** Chat dài / chat liên tục hay bị đứt mạch: `agy` chạy xong không chữ. Javis tự mở mạch mới trong cùng lượt. Vẫn trống thì nói gửi lại hoặc hội thoại mới, không đổ hết cho bản CLI.
+
 ## [0.55.225] - 2026-09-15
 ### Thêm mới
 - **Collage giấy (Atlas) dùng ZeroTTS được:** chọn «Nguồn lời thoại → ZeroTTS local» trên Tạo video. Lời đọc chạy ZeroTTS trên máy; nhạc nền vẫn Atlas. Clone giọng vẫn chỉ Atlas. Thiếu gói/lỗi → tự về xAI TTS.
