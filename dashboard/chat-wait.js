@@ -4,6 +4,9 @@
      node tests/js/test_chat_wait.js
    Chip + TTS nam trong app.js.
 
+   Hop dong UI (0.55.223+): chip chi hien 4 cau nay. tool_call / tool_result /
+   status khac KHONG duoc de chip (van track MCP o noi khac).
+
    Ghi chu: KHONG dung ky tu em dash o bat ky dau. */
 (function () {
   "use strict";

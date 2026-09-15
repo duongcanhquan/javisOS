@@ -248,25 +248,23 @@ function handleMessage(data) {
     setSessionRunning(sid, true);
     if (isActive) {
       setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
-      const raw = data.content || "";
-      // Câu chờ generic: rotator trên chip đang xoay 4 câu cho lượt lâu, đừng đè.
-      if (!(window.JavisWait && window.JavisWait.isWaitFiller(raw))) {
-        stopWaitRotate();
-        showActivity(escapeHtml(raw));
-      }
+      // Chip chỉ giữ 4 câu chờ (chat-wait). Status khác (kể cả "wait") không đè rotator.
       syncActiveUI();
     }
   } else if (data.type === "tool_call") {
+    // Tool vẫn ghi dải MCP; KHÔNG đè chip chờ bằng "⚙ Đang gọi: …" / "Đang đọc file".
     if (data.tool) trackMCP(data.tool);
-    if (isActive) { stopWaitRotate(); showActivity(escapeHtml(data.content || "")); }
   } else if (data.type === "tool_result") {
-    if (isActive) { stopWaitRotate(); showActivity(Icons.msg("check", "Nhận data - đang phân tích...", { cls: "ic-ok" })); }
+    // Im chip: rotator chờ tiếp tục tới khi có stream/response.
   } else if (data.type === "stream") {
     if (!t) return;
     t.text += (data.content || "");
     if (isActive) {
       if (!t.bubble) {
         stopWaitRotate();
+        // Cắt TTS câu chờ ngay cả khi engine gửi stream kèm tts:false (Codex/API):
+        // không thì loa cứ đọc filler trong lúc chữ đã hiện, rồi lượt cuối dễ bị nuốt.
+        if (t.waitFiller) { try { voice.stopSpeaking({ resumeMic: false }); } catch (e) {} t.waitFiller = false; }
         t.bubble = createStreamingBubble();
         const soan = (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời...";
         showActivity(Icons.msg("pen-line", soan));
@@ -275,11 +273,13 @@ function handleMessage(data) {
       scrollBottom();
       // Đọc theo stream: chữ tới đâu loa đọc tới đó (voice.feedStream gom cụm ngắn).
       if (voice.ttsEnabled && data.tts !== false) {
-        if (t.waitFiller) { voice.stopSpeaking(); t.waitFiller = false; }
-        setOrbState("speaking", "ĐANG NÓI");
+        if (t.waitFiller) { try { voice.stopSpeaking({ resumeMic: false }); } catch (e) {} t.waitFiller = false; }
         const safeChunk = (data.content || "").replace(/<!--[\s\S]*/, "");
-        if (safeChunk) voice.feedStream(safeChunk);
-        t.spoke = true;
+        if (safeChunk) {
+          setOrbState("speaking", "ĐANG NÓI");
+          voice.feedStream(safeChunk);
+          t.spoke = true;   // chỉ đánh dấu khi thật sự đẩy chữ vào loa
+        }
       }
     }
   } else if (data.type === "response") {
@@ -303,9 +303,18 @@ function handleMessage(data) {
       _renderCtxLine(msgEl, data);   // lượt này đi đường nào, tốn bao nhiêu
       if (finalText.trim()) recordTurn("javis", finalText, null, ask);
       if (voice.ttsEnabled && t) {
-        if (t.waitFiller) { t.waitFiller = false; }  // speak() bên dưới đã stopSpeaking
+        // Antigravity/CLI final-only + Codex tts:false: chưa feedStream → phải đọc cả câu ở đây.
+        // Cắt filler TRƯỚC flush/speak; đừng stopSpeaking khi stream TTS đang đọc dở (spoke).
+        if (t.waitFiller) {
+          try { voice.stopSpeaking({ resumeMic: false }); } catch (e) {}
+          t.waitFiller = false;
+        }
         voice.flushStream();
-        if (!t.spoke && finalText) { setOrbState("speaking", "ĐANG NÓI"); voice.speak(finalText); }
+        if (!t.spoke && finalText.trim()) {
+          setOrbState("speaking", "ĐANG NÓI");
+          voice.speak(finalText);
+          t.spoke = true;
+        }
       }
       else if (!voice.ttsEnabled) setOrbState("", "SẴN SÀNG");
       maybeAutoLearn();
@@ -951,7 +960,9 @@ function stopWaitRotate() {
 function speakWaitLine(text) {
   const t = savedSessionId ? turns[savedSessionId] : null;
   if (!voice || !voice.ttsEnabled || !text) return;
-  try { voice.stopSpeaking(); } catch (e) {}
+  // resumeMic:false — cắt filler cũ rồi đọc câu chờ mới, không mở mic giữa hai lần đọc
+  // (barge-in sẽ nuốt luôn câu chờ / câu trả lời kế tiếp).
+  try { voice.stopSpeaking({ resumeMic: false }); } catch (e) {}
   voice.enqueueSpeak(text);
   if (t) t.waitFiller = true;
 }

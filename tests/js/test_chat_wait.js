@@ -50,6 +50,23 @@ check("app.js gọi startWaitRotate", /startWaitRotate\s*\(/.test(appJs));
 check("app.js gọi stopWaitRotate", /stopWaitRotate\s*\(/.test(appJs));
 check("app.js không còn Cho em chút thời gian để trả lời",
   !appJs.includes("Cho em chút thời gian để trả lời."));
+// 0.55.223: tool không được đè chip chờ (trước đây stopWaitRotate + showActivity trên tool_call).
+check("tool_call không stopWaitRotate / showActivity trên chip", (() => {
+  const m = appJs.match(/data\.type === ["']tool_call["'][\s\S]{0,280}?else if/);
+  if (!m) return false;
+  const block = m[0];
+  return block.includes("trackMCP")
+    && !/stopWaitRotate\s*\(/.test(block)
+    && !/showActivity\s*\(/.test(block);
+})());
+check("tool_result không đè chip chờ", (() => {
+  const m = appJs.match(/data\.type === ["']tool_result["'][\s\S]{0,220}?else if/);
+  if (!m) return false;
+  return !/stopWaitRotate\s*\(/.test(m[0]) && !/showActivity\s*\(/.test(m[0]);
+})());
+check("response TTS cắt waitFiller rồi speak khi chưa spoke",
+  /waitFiller[\s\S]{0,200}?resumeMic:\s*false/.test(appJs)
+  && /!t\.spoke && finalText\.trim\(\)/.test(appJs));
 check("isWaitFiller nhận marker wait từ server", W.isWaitFiller("wait"));
 check("server status là marker wait (chip dashboard xoay 4 câu)",
   /"content":\s*"wait"/.test(mainPy));

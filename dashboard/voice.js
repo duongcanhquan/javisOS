@@ -676,8 +676,10 @@ class JavisVoice {
 
   // Đọc NGAY: ngắt phần đang đọc + xoá hàng đợi, rồi đọc đoạn này.
   // opts.force = đọc kể cả khi đang tắt tiếng (dùng cho nút "nghe thử giọng").
+  // Không mở mic giữa stop → enqueue: nếu resume ngay, barge-in dễ nuốt câu trả lời
+  // (đặc biệt sau câu chờ filler rồi speak(final)).
   speak(text, opts = {}) {
-    this.stopSpeaking();
+    this.stopSpeaking({ resumeMic: false });
     this.enqueueSpeak(text, opts);
   }
 
@@ -1134,7 +1136,8 @@ class JavisVoice {
     playNext();
   }
 
-  stopSpeaking() {
+  // opts.resumeMic=false: chỉ cắt loa, chưa mở mic (dùng khi sắp enqueueSpeak ngay sau đó).
+  stopSpeaking(opts = {}) {
     this._chunkToken = (this._chunkToken || 0) + 1;
     this._streamOpen = false;
     this._awaitingMore = false;
@@ -1156,6 +1159,7 @@ class JavisVoice {
     this.speechQueue = [];
     this._lastQueued = "";
     this.isPlaying = false;
+    if (opts.resumeMic === false) return;
     this._resumeRecognitionIfNeeded();   // mic từng bị tạm ngừng vì TTS → mở nghe lại
   }
 

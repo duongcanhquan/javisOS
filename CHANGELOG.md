@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.236] - 2026-09-15
+### Sửa
+- **Chip chờ chỉ còn 4 câu wait:** tool_call / tool_result / status khác không còn đè chip bằng trạng thái công cụ (Đang gọi… / Đang đọc file). Dải MCP vẫn cập nhật.
+- **TTS đọc câu trả lời:** cắt filler trước khi đọc final (Antigravity / Codex tts:false); spoke chỉ khi thật sự feedStream; stopSpeaking(resumeMic=false) khi sắp đọc tiếp để barge-in không nuốt câu trả lời.
+
 ## [0.55.235] - 2026-09-15
 ### Sửa lỗi
 - **Chat hết chậm khi sửa vài câu.** Antigravity từng mở mạch mới rồi nhồi cả lịch sử mỗi lượt, nên hỏi tiếp về file đang mở rất lâu. Giờ nối đúng cuộc đang nói; file đã đọc thì không bắt đọc lại.
