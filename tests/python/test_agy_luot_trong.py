@@ -162,13 +162,15 @@ check("câu lỗi không đổ hết cho 'CLI quá cũ'",
       not any("quá cũ" in (e.get("content") or "") for e in evs2))
 
 main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
-check("dashboard xoá mạch khi mach_khoi_phuc",
-      "mach_khoi_phuc" in main_py and "clear_agy_conversation_id" in main_py)
+check("dashboard xoá mạch agy đã lưu (không nối giữa hai hội thoại)",
+      "clear_agy_conversation_id" in main_py)
 check("dashboard gắn prompt_khoi_phuc từ transcript SQLite",
       "prompt_khoi_phuc" in main_py and "bootstrap_prompt" in main_py)
 check("dashboard Antigravity luôn gửi transcript đã mồi, không cắt khi còn mạch",
       "_a_prompt = _a_boot" in main_py
       and "_a_cur if _a_mach" not in main_py)
+check("CANARY: dashboard không nối --conversation (tránh trộn hai hội thoại cùng brain)",
+      "acli.session_id = None" in main_py and "_a_mach" not in main_py)
 check("Telegram Antigravity luôn gửi transcript đã mồi",
       "_hoi = _a_boot" in main_py)
 check("đường tắt nhồi lịch sử trước khi gọi model",

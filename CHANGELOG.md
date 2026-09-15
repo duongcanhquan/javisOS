@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.232] - 2026-09-15
+### Sửa lỗi
+- **Hai hội thoại hết trộn ngữ cảnh.** Cùng một bộ não thì Antigravity dùng chung thư mục, mạch cuộc này dính sang cuộc kia. Giờ mỗi cuộc chỉ mang lịch sử đã lưu của đúng cuộc đó, không nối mạch CLI chung.
+
 ## [0.55.231] - 2026-09-15
 ### Sửa lỗi
 - **Chat hết trả lời lệch khi hỏi tiếp trong cùng hội thoại.** Bản trước vẫn chỉ gửi câu mới nếu Antigravity đang nối mạch - đúng lúc chat ngắn. Giờ luôn mang đoạn vừa nói. Telegram đường tắt hết crash khi không có kho phiên.
