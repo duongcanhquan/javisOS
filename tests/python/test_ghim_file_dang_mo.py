@@ -52,7 +52,7 @@ check("set() gán đè (một ghim duy nhất), không push",
 # Thanh chip phải bung ra khi CHỈ có ghim (chưa đính kèm gì) - nếu quên vế này thì
 # ghim vô hình vì .attach-bar cao 0 khi không có .has-items.
 check("thanh chip bung ra khi chỉ có ghim",
-      'pendingAttachments.length > 0 || !!pinnedNote' in APP)
+      "pinThuocPhienDangXem()" in APP)
 check("chip ghim render với class riêng .pinned", '"attach-chip pinned"' in APP)
 check("chip ghim có nút bỏ ghim riêng", 'data-unpin="1"' in APP and "if (b.dataset.unpin) JavisPin.clear();" in APP)
 
@@ -83,6 +83,10 @@ check("clearAttachments() KHÔNG đụng tới ghim", "pinnedNote" not in _clear
 # Khối ngữ cảnh phải nằm TRƯỚC câu của user và mang đường dẫn thật.
 _send = APP.split("function sendMessage(", 1)[1].split("\nfunction ", 1)[0]
 check("gửi kèm khối FILE ĐANG MỞ", "[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}" in _send)
+check("CANARY: khối ghim chỉ đi vào đúng cuộc đã mở file (không trộn hai hội thoại)",
+      "pinnedNote.sessionId === sid" in _send)
+check("set() gắn sessionId của cuộc đang mở",
+      "sessionId: savedSessionId" in _set)
 check("khối ghim đứng TRƯỚC nội dung user gõ (câu của user nối vào cuối)",
       re.search(r"outMsg = `\[FILE ĐANG MỞ[\s\S]{0,900}?\\n\\n\$\{outMsg\}`;", _send) is not None)
 check("bong bóng chat vẫn hiện câu GỐC của user, không lẫn khối ghim",

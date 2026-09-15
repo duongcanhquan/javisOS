@@ -436,10 +436,13 @@ function sendMessage(text) {
         : `${ctx}\n\nHãy đọc (các) file trên và phản hồi / tóm tắt nội dung chính.`;
     }
   }
-  // File đang ghim đi TRƯỚC mọi thứ: nó là ngữ cảnh nền của cả lượt, không phải dữ liệu
-  // đính kèm một lần. Gửi lại mỗi lượt vì engine API dựng lại payload từ SQLite mỗi lần,
-  // không giữ trạng thái "đang mở file nào" giữa các lượt.
-  if (pinnedNote) {
+  // File đang ghim chỉ đi vào ĐÚNG cuộc đã mở file đó. Gửi vào mọi cuộc trên trang
+  // là hai hội thoại trộn ngữ cảnh (báo 2026-09-15).
+  if (pinnedNote && (!pinnedNote.sessionId || pinnedNote.sessionId === sid)) {
+    if (!pinnedNote.sessionId) {
+      pinnedNote.sessionId = sid;
+      _pinSave();
+    }
     outMsg = `[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}\n`
       + `Đây là file người dùng ĐANG LÀM VIỆC TRÊN ĐÓ - coi như đầu vào của cuộc trò chuyện này. `
       + `Đọc nó trước khi trả lời. Khi được yêu cầu sửa/viết thêm/dọn lại mà không nói rõ file nào `
@@ -678,6 +681,7 @@ async function openStoredSession(id) {
     scrollBottom(true);
     notifySessions();
     syncActiveUI();
+    try { renderChips(); } catch (e) {}
     // Dải việc nền đánh dấu "việc CỦA hội thoại này" theo chat_id, nên đổi phiên là nó sai
     // ngay. Xoá rồi hỏi lại thay vì để chip của phiên trước nằm lại vài giây.
     try { if (window.JavisBackground) window.JavisBackground.reset(); } catch (e) {}
@@ -695,6 +699,7 @@ function resetChatView(opts) {
   if (!(opts && opts.skipPersist)) persistSession();
   notifySessions();
   syncActiveUI();
+  try { renderChips(); } catch (e) {}
   try { if (window.JavisBackground) window.JavisBackground.reset(); } catch (e) {}
 }
 function newChat() {
@@ -1960,8 +1965,14 @@ const dropOverlay = document.getElementById("dropOverlay");
 // Khác đính kèm ở hai điểm: (1) không mất sau khi gửi - nó là "file đầu vào" của cả cuộc
 // trò chuyện, mở file nào thì làm việc trên file đó; (2) không upload gì cả, chỉ trỏ tới
 // file có sẵn trong brain. Mở file khác thì thay chỗ, bấm nút đóng trên chip thì bỏ ghim.
-let pinnedNote = null;      // {name, rel, abs, brain}
+let pinnedNote = null;      // {name, rel, abs, brain, sessionId}
 const PIN_KEY = "javis.pinnedNote";
+
+function pinThuocPhienDangXem() {
+  if (!pinnedNote) return false;
+  if (!pinnedNote.sessionId) return true;
+  return pinnedNote.sessionId === savedSessionId;
+}
 
 function _pinSave() {
   try {
@@ -1982,9 +1993,9 @@ function _pinRestore() {
 // tải file mới kế tiếp.
 let attachNote = "";
 function renderChips() {
-  attachBar.classList.toggle("has-items", pendingAttachments.length > 0 || !!pinnedNote || !!attachNote);
+  attachBar.classList.toggle("has-items", pendingAttachments.length > 0 || pinThuocPhienDangXem() || !!attachNote);
   attachBar.innerHTML = "";
-  if (pinnedNote) {
+  if (pinThuocPhienDangXem()) {
     const chip = document.createElement("div");
     chip.className = "attach-chip pinned";
     chip.setAttribute("role", "button");
@@ -2065,7 +2076,8 @@ const JavisPin = {
   set(note) {
     if (!note || !note.abs) return;
     pinnedNote = { name: note.name || note.rel || "", rel: note.rel || "",
-                   abs: note.abs, brain: currentBrainPath() };
+                   abs: note.abs, brain: currentBrainPath(),
+                   sessionId: savedSessionId || null };
     _pinSave(); renderChips();
   },
   clear() { pinnedNote = null; _pinSave(); renderChips(); },

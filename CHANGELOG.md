@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.233] - 2026-09-15
+### Sửa lỗi
+- **Hai hội thoại hết dính file đang mở của nhau.** File ghim ở trình sửa chỉ đi vào đúng cuộc đã mở nó, không còn nhét vào mọi khung chat trên trang.
+
 ## [0.55.232] - 2026-09-15
 ### Sửa lỗi
 - **Hai hội thoại hết trộn ngữ cảnh.** Cùng một bộ não thì Antigravity dùng chung thư mục, mạch cuộc này dính sang cuộc kia. Giờ mỗi cuộc chỉ mang lịch sử đã lưu của đúng cuộc đó, không nối mạch CLI chung.

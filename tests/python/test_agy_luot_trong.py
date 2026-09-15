@@ -171,6 +171,8 @@ check("dashboard Antigravity luôn gửi transcript đã mồi, không cắt khi
       and "_a_cur if _a_mach" not in main_py)
 check("CANARY: dashboard không nối --conversation (tránh trộn hai hội thoại cùng brain)",
       "acli.session_id = None" in main_py and "_a_mach" not in main_py)
+check("dashboard Antigravity mồi lịch sử bằng _tg_lich_su_kho (không cắt cứng [:-1])",
+      "_a_raw, _a_tom = _tg_lich_su_kho" in main_py)
 check("Telegram Antigravity luôn gửi transcript đã mồi",
       "_hoi = _a_boot" in main_py)
 check("đường tắt nhồi lịch sử trước khi gọi model",

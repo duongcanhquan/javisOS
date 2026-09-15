@@ -12858,11 +12858,10 @@ async def websocket_endpoint(ws: WebSocket):
                         store.clear_agy_conversation_id(conv_sid)
                     acli.session_id = None
                     _a_cur = _cli_do_sau_khac(acli, antigravity_cli, reasoning, user_message)
-                    _a_raw = [{"role": _m["role"], "content": _m["content"]}
-                              for _m in store.get_messages(conv_sid)[:-1]
-                              if _m["role"] in ("user", "assistant") and _m.get("content")]
+                    _a_raw, _a_tom = _tg_lich_su_kho(store, conv_sid, user_message)
                     _a_boot = compaction.bootstrap_prompt(
-                        _a_raw, _a_cur, summary=_row0.get("compact_summary") or "")
+                        _a_raw, _a_cur,
+                        summary=_a_tom or _row0.get("compact_summary") or "")
                     acli.prompt_khoi_phuc = _a_boot
                     _a_prompt = _a_boot
                     _CONTEXT_RUNTIME.observe_payload(
