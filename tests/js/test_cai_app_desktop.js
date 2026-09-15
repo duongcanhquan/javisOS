@@ -79,8 +79,13 @@ check("đã chạy dạng app thì không bày nút (display-mode: standalone)",
 check("cài xong thì giấu nút (appinstalled)", app.indexOf('addEventListener("appinstalled"') !== -1);
 
 // ---- cache-bust: đổi manifest phải đổi ?v= để trình duyệt đọc bản mới ----
-check("manifest.json đã bump ?v= (>= 4)",
-  Number((html.match(/manifest\.json\?v=(\d+)/) || [])[1] || 0) >= 4);
+check("index.html dùng /manifest.webmanifest (động, bust logo_v)",
+  html.indexOf('href="/manifest.webmanifest"') !== -1
+  || html.indexOf("href='/manifest.webmanifest'") !== -1);
+check("không còn link /static/manifest.json (Chrome cache icon cũ)",
+  html.indexOf("/static/manifest.json") === -1);
+check("main.py có route brand_manifest",
+  /async def brand_manifest/.test(mainPy) && mainPy.indexOf("/manifest.webmanifest") !== -1);
 
 console.log();
 if (fails.length) {

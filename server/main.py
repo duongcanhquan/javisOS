@@ -169,7 +169,8 @@ app.add_middleware(CORSMiddleware,
 _AUTH_PUBLIC_PREFIX = ("/static", "/health", "/drive-projects/rclone/pair/")
 # /brand-logo: hiện trên màn đăng nhập (trước session). /tls-check: Caddy gọi (không đăng nhập được).
 _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth/setup",
-                      "/brand-logo", "/brand-icon/192", "/brand-icon/512", "/tls-check",
+                      "/brand-logo", "/brand-icon/192", "/brand-icon/512",
+                      "/manifest.webmanifest", "/tls-check",
                       # /hub/mcp: Claude CLI/Codex gọi bằng Bearer hub_token riêng (không có cookie).
                       # /connect/oauth/callback: browser redirect từ provider OAuth về.
                       "/hub/mcp", "/connect/oauth/callback")
@@ -11644,6 +11645,51 @@ async def brand_icon(size: int):
     return Response(
         content=data, media_type="image/png",
         headers={"Cache-Control": "public, max-age=60, must-revalidate"},
+    )
+
+
+@app.get("/manifest.webmanifest")
+async def brand_manifest():
+    """Manifest PWA động: icon URL kèm logo_v để Chrome/Edge không giữ icon cũ
+    (nút 'Mở trong ứng dụng' trên thanh địa chỉ ăn theo file này, không theo HTML)."""
+    br = (cfgmod.read_settings().get("branding", {}) or {})
+    v = int(br.get("logo_v", 0) or 0)
+    # Chưa từng bump logo_v nhưng đã có file tùy chỉnh / vừa đổi default → dùng mtime.
+    src = _current_logo_file() or _DEFAULT_LOGO
+    try:
+        if src.exists():
+            v = max(v, int(src.stat().st_mtime))
+    except Exception:
+        pass
+    # Thêm VERSION để mỗi bản ship cũng bust icon mặc định mới.
+    try:
+        v = max(v, abs(hash(_read_version())) % 10_000_000)
+    except Exception:
+        pass
+    q = f"?v={v}"
+    name = (cfgmod.read_settings().get("workspace_name") or "Javis OS").strip() or "Javis OS"
+    body = {
+        "name": name,
+        "short_name": (name[:12] if len(name) > 12 else name) or "Javis",
+        "description": "Javis - trợ lý AI cá nhân báo cáo kinh doanh và cuộc sống",
+        "id": f"/?icon={v}",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#0e0e16",
+        "theme_color": "#0e0e16",
+        "icons": [
+            {"src": f"/brand-icon/192{q}", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": f"/brand-icon/512{q}", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": f"/brand-icon/192{q}", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+            {"src": f"/brand-icon/512{q}", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    return JSONResponse(
+        body,
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-store, max-age=0, must-revalidate"},
     )
 
 

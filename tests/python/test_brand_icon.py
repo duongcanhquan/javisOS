@@ -41,9 +41,9 @@ check("reset logo trả logo_v",
       "async def branding_logo_reset" in main_src
       and 'return {"ok": True, "logo_v": cfg["branding"]["logo_v"]}' in main_src)
 
-man = (ROOT / "dashboard" / "manifest.json").read_text(encoding="utf-8")
-check("manifest trỏ brand-icon/192", '"/brand-icon/192"' in man)
-check("manifest trỏ brand-icon/512", '"/brand-icon/512"' in man)
+check("manifest trỏ brand-icon qua endpoint động",
+      '"/manifest.webmanifest"' in main_src and "async def brand_manifest" in main_src)
+check("manifest public auth", '"/manifest.webmanifest"' in main_src)
 
 # Fallback PNG hợp lệ (signature + IHDR size).
 for size in (192, 512):

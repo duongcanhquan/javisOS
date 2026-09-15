@@ -74,7 +74,7 @@
     var apple = document.getElementById("brandAppleTouch");
     if (apple) apple.href = icon192;
     var man = document.getElementById("brandManifest");
-    if (man) man.href = "/static/manifest.json?v=" + v;
+    if (man) man.href = "/manifest.webmanifest?v=" + v;
   }
 
   // ---------- Logo / avatar ----------

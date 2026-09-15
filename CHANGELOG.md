@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.245] - 2026-09-15
+### Sửa
+- **Chrome «Mở trong ứng dụng» hết hiện avatar cũ.** Logo mặc định đổi thành chữ J (không còn ảnh chân dung); manifest PWA phục vụ động tại `/manifest.webmanifest` với `?v=` theo logo để trình duyệt không giữ icon cache. Muốn logo riêng: Cài đặt → Ảnh đại diện, rồi gỡ/cài lại app nếu OS còn giữ icon cũ.
+
 ## [0.55.244] - 2026-09-15
 ### Sửa
 - **Nút «Mở như app» + favicon/PWA dùng đúng logo đại diện.** Bỏ SVG màn hình; favicon/apple-touch/`/favicon.ico` lấy `/brand-icon/192`; manifest thêm maskable; fallback icon-192/512 đồng bộ từ logo.png. Gỡ nhãn Minh Quy khỏi LICENSE, CODEOWNERS, bundle id Mac, ví dụ UI/test.
