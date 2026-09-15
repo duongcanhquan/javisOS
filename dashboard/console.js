@@ -6128,6 +6128,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       </div>`;
 
     // Nhà cung cấp giọng đọc - gộp NGAY trong nhóm giọng nói (render vào #ttsProviderHost), không tách section riêng.
+    const zt = v.zerotts || {};
+    const ztVoices = Array.isArray(zt.voices) && zt.voices.length
+      ? zt.voices
+      : [{ id: "maichi", name: "Mai Chi", gender: "nu", tags: "" }];
+    const ztCur = v.zerotts_voice || zt.default_voice || "maichi";
+    const ztHint = zt.available
+      ? ""
+      : `<div class="qs-hint">${esc(t("settings.tts_zerotts_missing"))}</div>`;
     const provHtml = `
       <div class="qs-block">
         <div class="popover-label">${esc(t("settings.tts_provider"))}</div>
@@ -6135,6 +6143,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           ${opt("edge", t("settings.tts_edge"), prov)}
           ${opt("openai", t("settings.tts_openai"), prov)}
           ${opt("elevenlabs", t("settings.tts_eleven"), prov)}
+          ${opt("zerotts", t("settings.tts_zerotts"), prov)}
         </select>
         <div id="vpOpenai" style="display:none">
           <label class="js-lbl">OpenAI API key ${oaSet ? `<span class="dim">${esc(t("settings.key_set"))}</span>` : ""}</label>
@@ -6147,6 +6156,15 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <input class="js-input" id="vpElKey" type="password" placeholder="${esc(t("settings.eleven_ph"))}">
           <label class="js-lbl">Voice ID <span class="dim">${esc(t("settings.voice_id_hint"))}</span></label>
           <input class="js-input" id="vpElVoice" value="${esc(v.elevenlabs_voice || "")}" placeholder="${esc(t("settings.eleven_voice_ph"))}">
+        </div>
+        <div id="vpZerotts" style="display:none">
+          <label class="js-lbl">${esc(t("settings.tts_zerotts_voice"))}</label>
+          <select class="js-input" id="vpZtVoice">${ztVoices.map(x => {
+            const id = x.id || x;
+            const label = x.name ? (x.name + (x.gender ? " (" + x.gender + ")" : "")) : id;
+            return opt(id, label, ztCur);
+          }).join("")}</select>
+          ${ztHint}
         </div>
         <div class="js-actions"><button class="gcard-btn" id="vpSave">${esc(t("settings.save_provider"))}</button></div>
         <div class="gcard-meta" id="vpStatus">${esc(t("settings.tts_using"))} <b>${esc(prov)}</b>. ${esc(t("settings.tts_note"))}</div>
@@ -6265,8 +6283,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         const p = provSel.value;
         document.getElementById("vpOpenai").style.display = p === "openai" ? "block" : "none";
         document.getElementById("vpEleven").style.display = p === "elevenlabs" ? "block" : "none";
+        document.getElementById("vpZerotts").style.display = p === "zerotts" ? "block" : "none";
         // Giọng Ngọc Thu/Nam Minh chỉ áp dụng cho Edge. Provider khác chọn giọng ngay trong khối trên
-        // (vpOaVoice / vpElVoice) nên ẩn khối này cho gọn. Radio vẫn nằm trong DOM + giữ 'checked'
+        // (vpOaVoice / vpElVoice / vpZtVoice) nên ẩn khối này cho gọn. Radio vẫn nằm trong DOM + giữ 'checked'
         // để app.js đọc input[name=voice] không lỗi; server dùng provider đã lưu nên giá trị này vô hại.
         const edgeVoice = document.getElementById("edgeVoiceSection");
         if (edgeVoice) edgeVoice.style.display = p === "edge" ? "" : "none";
@@ -6280,6 +6299,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           tts_provider: provSel.value,
           openai_tts_voice: document.getElementById("vpOaVoice").value,
           elevenlabs_voice: document.getElementById("vpElVoice").value.trim(),
+          zerotts_voice: document.getElementById("vpZtVoice").value,
         };
         const elKey = document.getElementById("vpElKey").value.trim();
         if (elKey) data.elevenlabs_key = elKey;

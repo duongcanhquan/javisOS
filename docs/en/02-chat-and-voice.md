@@ -306,17 +306,18 @@ Everything about the voice lives in **Settings → Voice, branding & access**.
 
 ### Choosing a voice provider
 
-The **VOICE PROVIDER** block has three options:
+The **VOICE PROVIDER** block has four options:
 
 | Option in the list | What else it needs |
 |---|---|
 | Edge TTS - free (default) | Nothing |
 | OpenAI - smooth, multilingual | An OpenAI API key (shared with chat) plus one of 11 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer, verse |
 | ElevenLabs - most natural | An ElevenLabs API key plus a **Voice ID** (from ElevenLabs → Voices) |
+| ZeroTTS - local, Vietnamese (optional) | `pip install zerotts` on the Javis host (~900MB weights on first run). Pick a preset (Mai Chi, …). Open-source build cannot clone a voice from audio. |
 
-Pick one and click **Save provider**. The status line underneath says which one is active. If a paid provider fails (quota exhausted, wrong key, network down), Javis **falls back to Edge TTS** automatically so the voice never goes silent.
+Pick one and click **Save provider**. The status line underneath says which one is active. If a paid provider or ZeroTTS fails (quota exhausted, wrong key, network down, package missing), Javis **falls back to Edge TTS** automatically so the voice never goes silent.
 
-When you pick OpenAI or ElevenLabs, the two Edge voices (Ngọc Thu / Nam Minh) hide themselves, because the voice is then chosen inside the provider's own block.
+When you pick OpenAI, ElevenLabs or ZeroTTS, the two Edge voices (Ngọc Thu / Nam Minh) hide themselves, because the voice is then chosen inside the provider's own block.
 
 ### Choosing an Edge voice and the speed
 

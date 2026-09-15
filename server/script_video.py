@@ -1,9 +1,11 @@
 """Render short video từ kịch bản - chạy TRONG Javis.
 
 Pipeline đầy đủ:
-  tách cảnh → (tuỳ chọn) ảnh AI ChatGPT từng cảnh → Edge-TTS → overlay chữ → ffmpeg → mp4
+  tách cảnh → (tuỳ chọn) ảnh AI ChatGPT từng cảnh → TTS → overlay chữ → ffmpeg → mp4
 
-Không phụ thuộc Pixelle/RunningHub. Thiếu ChatGPT OAuth thì vẫn ra video khung chữ.
+TTS tôn trọng `voice.tts_provider` trong settings (edge / openai / elevenlabs / zerotts).
+Thiếu gói hoặc lỗi → fallback Edge. Không phụ thuộc Pixelle/RunningHub.
+Thiếu ChatGPT OAuth thì vẫn ra video khung chữ.
 """
 from __future__ import annotations
 
@@ -178,10 +180,61 @@ def ve_khung(text: str, size: Tuple[int, int], title: str = "",
     return img
 
 
-async def _tts_file(text: str, dest: Path, voice: str) -> None:
+def _voice_settings() -> dict:
+    try:
+        import config as cfgmod
+        return (cfgmod.read_settings().get("voice") or {}) if hasattr(cfgmod, "read_settings") else {}
+    except Exception:
+        return {}
+
+
+async def _tts_edge_to_file(text: str, dest: Path, voice: str) -> None:
     import edge_tts
     communicate = edge_tts.Communicate(text, voice=voice)
     await communicate.save(str(dest))
+
+
+async def _tts_zerotts_to_file(text: str, dest: Path, voice_cfg: dict) -> None:
+    """ZeroTTS → WAV rồi ffmpeg sang MP3 (dest thường .mp3 cho ghép cảnh)."""
+    import zerotts_tts as ztts
+    voice_id = (voice_cfg.get("zerotts_voice") or "").strip() or ztts.DEFAULT_VOICE
+    wav_bytes, _media = await ztts.synthesize(text, voice=voice_id)
+    if not wav_bytes:
+        raise RuntimeError("ZeroTTS trả audio rỗng")
+    wav_path = dest.with_suffix(".wav")
+    wav_path.write_bytes(wav_bytes)
+    try:
+        if dest.suffix.lower() == ".wav":
+            if dest.resolve() != wav_path.resolve():
+                shutil.copyfile(wav_path, dest)
+            return
+        # MP3 (hoặc đuôi khác): convert bằng ffmpeg đã có sẵn trong pipeline video
+        r = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(wav_path), "-codec:a", "libmp3lame", "-q:a", "4",
+             str(dest)],
+            capture_output=True, text=True, **winproc.kwargs_no_window(),
+        )
+        if r.returncode != 0 or not dest.is_file() or dest.stat().st_size < 64:
+            raise RuntimeError((r.stderr or r.stdout or "ffmpeg ZeroTTS→mp3 lỗi")[-400:])
+    finally:
+        try:
+            if wav_path.exists() and wav_path.resolve() != dest.resolve():
+                wav_path.unlink()
+        except Exception:
+            pass
+
+
+async def _tts_file(text: str, dest: Path, voice: str) -> None:
+    """Sinh audio tại dest. Tôn trọng settings.voice.tts_provider; lỗi → Edge."""
+    vcfg = _voice_settings()
+    provider = (vcfg.get("tts_provider") or "edge").strip().lower()
+    if provider == "zerotts":
+        try:
+            await _tts_zerotts_to_file(text, dest, vcfg)
+            return
+        except Exception as e:
+            print(f"[script_video ZeroTTS] {type(e).__name__}: {e} → Edge", flush=True)
+    await _tts_edge_to_file(text, dest, voice)
 
 
 def _ffprobe_duration(path: Path) -> float:

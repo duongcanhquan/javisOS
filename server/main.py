@@ -4014,6 +4014,11 @@ async def settings_get():
     safe.setdefault("voice", {})
     safe["voice"]["elevenlabs_key"] = ("••••" + vk[-4:]) if vk else ""
     safe["voice"]["elevenlabs_key_set"] = bool(vk)
+    try:
+        import zerotts_tts as _ztts
+        safe["voice"]["zerotts"] = _ztts.status()
+    except Exception:
+        safe["voice"]["zerotts"] = {"available": False, "voices": [], "hint": ""}
     bt = (cfg.get("backup", {}) or {}).get("token", "")
     safe.setdefault("backup", {})
     safe["backup"]["token"] = ("••••" + bt[-4:]) if bt else ""
@@ -4160,9 +4165,10 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             cfg["image"]["strip_c2pa"] = bool(patch["strip_c2pa"])
     elif section == "voice":
         v = cfg.setdefault("voice", {})
-        if patch.get("tts_provider") in ("edge", "openai", "elevenlabs"):
+        if patch.get("tts_provider") in ("edge", "openai", "elevenlabs", "zerotts"):
             v["tts_provider"] = patch["tts_provider"]
-        for k in ("openai_tts_voice", "openai_tts_model", "elevenlabs_voice", "elevenlabs_model"):
+        for k in ("openai_tts_voice", "openai_tts_model", "elevenlabs_voice",
+                  "elevenlabs_model", "zerotts_voice"):
             if patch.get(k):
                 v[k] = str(patch[k]).strip()
         # Chỉ ghi khi có key mới THẬT: client lỡ gửi lại giá trị che "••••abcd" (lấy từ GET
@@ -11642,6 +11648,14 @@ async def _tts_elevenlabs(text: str, cfg: dict) -> bytes:
         return r.content
 
 
+async def _tts_zerotts(text: str, cfg: dict) -> tuple[bytes, str]:
+    """ZeroTTS local → (wav_bytes, media_type). Lazy import; thiếu gói thì raise để fallback Edge."""
+    import zerotts_tts as ztts
+    v = cfg.get("voice", {}) or {}
+    voice_id = (v.get("zerotts_voice") or "").strip() or ztts.DEFAULT_VOICE
+    return await ztts.synthesize(text, voice=voice_id)
+
+
 @app.get("/tts")
 async def tts(
     text: str = Query(...),
@@ -11649,22 +11663,25 @@ async def tts(
     rate: str = Query("+5%"),
     stream: bool = Query(False),
 ):
-    """Sinh audio TTS theo nhà cung cấp đã chọn (edge/openai/elevenlabs). Provider trả phí lỗi
-    → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn.
+    """Sinh audio TTS theo nhà cung cấp đã chọn (edge/openai/elevenlabs/zerotts).
+    Provider lỗi → tự fallback về Edge TTS để giọng không bao giờ tắt hẳn.
 
     stream=1: trả MP3 từng khung (Edge) để trình duyệt phát sớm. Mặc định tắt - OpenMAIC
-    và GET /tts cũ vẫn nhận cả file. Không đổi path nên không đụng bảng route."""
+    và GET /tts cũ vẫn nhận cả file. Không đổi path nên không đụng bảng route.
+    ZeroTTS trả WAV (audio/wav); các nhà khác vẫn MP3."""
     from fastapi import HTTPException
     cfg = cfgmod.read_settings()
     provider = ((cfg.get("voice", {}) or {}).get("tts_provider") or "edge").lower()
     hdr = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
-    async def _mot_nha(p: str):
+    async def _mot_nha(p: str) -> tuple[bytes, str]:
         if p == "openai":
-            return await _tts_openai(text, rate, cfg)
+            return await _tts_openai(text, rate, cfg), "audio/mpeg"
         if p == "elevenlabs":
-            return await _tts_elevenlabs(text, cfg)
-        return await _tts_edge(text, voice, rate)
+            return await _tts_elevenlabs(text, cfg), "audio/mpeg"
+        if p == "zerotts":
+            return await _tts_zerotts(text, cfg)
+        return await _tts_edge(text, voice, rate), "audio/mpeg"
 
     if stream and provider == "edge":
         import pipecat_voice as pv
@@ -11692,20 +11709,22 @@ async def tts(
         # Không có khung đầu: đi đường file đủ bên dưới (tránh HTTP 200 rỗng treo loa).
 
     audio = b""
+    media = "audio/mpeg"
     try:
-        audio = await _mot_nha(provider)
+        audio, media = await _mot_nha(provider)
     except Exception as e:
         print(f"[TTS {provider}] {type(e).__name__}: {e} - thử fallback Edge", file=sys.stderr)
         if provider != "edge":
             try:
                 audio = await _tts_edge(text, voice, rate)
+                media = "audio/mpeg"
             except Exception as e2:
                 raise HTTPException(502, f"TTS failed: {type(e2).__name__}: {e2}")
         else:
             raise HTTPException(502, f"TTS failed: {type(e).__name__}: {e}")
     if not audio:
         raise HTTPException(502, "TTS không trả audio.")
-    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "no-cache"})
+    return Response(content=audio, media_type=media, headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/tts/voices")
