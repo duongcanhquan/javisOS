@@ -92,7 +92,7 @@ for (const [ten, o] of [["vi.json", vi], ["en.json", en]]) {
 {
   const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8")
     .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/g, "");
-  const NGOAI_LE_TEXT = ["Ngọc Thu", "by Minh Quý", "1.10×"];
+  const NGOAI_LE_TEXT = ["Ngọc Thu", "1.10×"];
   const chuaGan = [];
   for (const m of html.matchAll(/<([a-zA-Z0-9]+)((?:[^<>"]|"[^"]*")*)>([^<>]*)/g)) {
     const [, , attrs, text] = m;

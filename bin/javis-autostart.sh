@@ -4,7 +4,7 @@
 #   ./bin/javis-autostart.sh install     # start at login (default)
 #   ./bin/javis-autostart.sh uninstall    # remove
 #
-# Generates ~/Library/LaunchAgents/vn.minhquy.javis-os.plist with paths
+# Generates ~/Library/LaunchAgents/com.javis.os.plist with paths
 # computed for THIS machine (nothing hardcoded in the repo).
 # ============================================================
 set -u

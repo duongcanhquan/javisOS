@@ -40,6 +40,8 @@ check("manifest có icon 512x512", !!i512);
 check("icon khai type image/png", icons.every((i) => i.type === "image/png"));
 check("không còn icon PNG khai sizes 'any' (Chrome coi là không hợp lệ)",
   !icons.some((i) => i.sizes === "any"));
+check("manifest có icon maskable",
+  JSON.stringify(manifest.icons || []).indexOf("maskable") !== -1);
 check("display standalone giữ nguyên", manifest.display === "standalone");
 check("icon 192 trỏ /brand-icon/192 (ảnh đại diện)",
   !!(i192 && String(i192.src).indexOf("/brand-icon/192") === 0));
@@ -57,7 +59,15 @@ check("brand-icon 192/512 nằm trong AUTH public",
 check("index.html có nút installAppBtn", html.indexOf('id="installAppBtn"') !== -1);
 check("nút ẩn mặc định (chỉ hiện khi trình duyệt báo cài được)",
   /id="installAppBtn"[^>]*hidden|hidden[^>]*id="installAppBtn"/.test(html));
+check("nút Mở như app dùng /brand-icon/192 (logo), không SVG màn hình",
+  html.indexOf('id="installAppIcon"') !== -1
+  && html.indexOf('src="/brand-icon/192"') !== -1
+  && html.indexOf('id="installAppBtn"') < html.indexOf('id="installAppIcon"'));
+check("favicon/apple-touch trỏ brand-icon (không brand-logo thô)",
+  /rel="icon"[^>]+href="\/brand-icon\/192/.test(html)
+  && /rel="apple-touch-icon"[^>]+href="\/brand-icon\/192/.test(html));
 check("CSS có .install-app-btn", css.indexOf(".install-app-btn") !== -1);
+check("CSS có .install-app-icon", css.indexOf(".install-app-icon") !== -1);
 
 // ---- 4. app.js bắt đúng luồng cài của Chromium ----
 check("nghe beforeinstallprompt", app.indexOf('addEventListener("beforeinstallprompt"') !== -1);
@@ -69,8 +79,8 @@ check("đã chạy dạng app thì không bày nút (display-mode: standalone)",
 check("cài xong thì giấu nút (appinstalled)", app.indexOf('addEventListener("appinstalled"') !== -1);
 
 // ---- cache-bust: đổi manifest phải đổi ?v= để trình duyệt đọc bản mới ----
-check("manifest.json đã bump ?v= (>= 3)",
-  Number((html.match(/manifest\.json\?v=(\d+)/) || [])[1] || 0) >= 3);
+check("manifest.json đã bump ?v= (>= 4)",
+  Number((html.match(/manifest\.json\?v=(\d+)/) || [])[1] || 0) >= 4);
 
 console.log();
 if (fails.length) {

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.244] - 2026-09-15
+### Sửa
+- **Nút «Mở như app» + favicon/PWA dùng đúng logo đại diện.** Bỏ SVG màn hình; favicon/apple-touch/`/favicon.ico` lấy `/brand-icon/192`; manifest thêm maskable; fallback icon-192/512 đồng bộ từ logo.png. Gỡ nhãn Minh Quy khỏi LICENSE, CODEOWNERS, bundle id Mac, ví dụ UI/test.
+
 ## [0.55.243] - 2026-09-15
 ### Sửa
 - **CI Hostinger:** không nhét `JAVIS_UPDATES_UI` vào form Environment (vẫn 3 trường). Chuông/trang Cập nhật lấy mặc định từ Docker image.

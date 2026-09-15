@@ -10,8 +10,8 @@ Chủ repo chụp lại khung chat trên điện thoại, chỗ đáng lẽ là 
     "must_report_missing_evidence": true,
     "no_false_action_claim": true,
     "type": "text",
-    "content": "Chào anh Minh Quy!"
-    }
+    "content": "Xin chào!"
+}
 
 Nguyên nhân: capsule nhét thẳng object đó vào prompt dưới nhãn `Output contract: {...}`. Đặt
 một object JSON ngay trước chỗ model phải trả lời thì model yếu hiểu là "hãy phát ra object

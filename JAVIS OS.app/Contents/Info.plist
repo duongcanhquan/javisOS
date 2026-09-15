@@ -7,7 +7,7 @@
     <key>CFBundleDisplayName</key>
     <string>JAVIS OS</string>
     <key>CFBundleIdentifier</key>
-    <string>vn.minhquy.javis-os</string>
+    <string>com.javis.os</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundleShortVersionString</key>

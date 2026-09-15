@@ -58,19 +58,21 @@
   function bustLogos(logoV) {
     var v = String(logoV || Date.now());
     var logoUrl = "/brand-logo?v=" + v;
+    var icon192 = "/brand-icon/192?v=" + v;
+    var icon512 = "/brand-icon/512?v=" + v;
     document.querySelectorAll('img[src*="brand-logo"], img[src*="brand-icon"]').forEach(function (img) {
       if (/brand-icon\/512/.test(img.getAttribute("src") || "")) {
-        img.src = "/brand-icon/512?v=" + v;
-      } else if (/brand-icon\/192/.test(img.getAttribute("src") || "")) {
-        img.src = "/brand-icon/192?v=" + v;
+        img.src = icon512;
+      } else if (/brand-icon\/192/.test(img.getAttribute("src") || "") || img.id === "installAppIcon") {
+        img.src = icon192;
       } else {
         img.src = logoUrl;
       }
     });
     var fav = document.getElementById("brandFavicon");
-    if (fav) fav.href = logoUrl;
+    if (fav) fav.href = icon192;
     var apple = document.getElementById("brandAppleTouch");
-    if (apple) apple.href = logoUrl;
+    if (apple) apple.href = icon192;
     var man = document.getElementById("brandManifest");
     if (man) man.href = "/static/manifest.json?v=" + v;
   }

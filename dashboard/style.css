@@ -442,6 +442,9 @@ body {
   display: flex; align-items: center; gap: 6px;
   font: 600 11.5px var(--font); white-space: nowrap; transition: all 0.2s;
 }
+.install-app-icon {
+  width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: none; display: block;
+}
 .install-app-btn:hover { color: var(--accent); border-color: var(--accent); }
 .install-app-btn[hidden] { display: none; }
 @media (max-width: 1180px) {

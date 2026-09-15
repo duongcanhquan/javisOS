@@ -35,8 +35,10 @@ main_src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("có def _brand_icon_png_bytes", "def _brand_icon_png_bytes" in main_src)
 check("có route brand_icon", '@app.get("/brand-icon/{size}")' in main_src)
 check("192/512 public auth", '"/brand-icon/192"' in main_src and '"/brand-icon/512"' in main_src)
+check("favicon_ico dùng _brand_icon_png_bytes",
+      "async def favicon_ico" in main_src and "_brand_icon_png_bytes(192)" in main_src)
 check("reset logo trả logo_v",
-      'async def branding_logo_reset' in main_src
+      "async def branding_logo_reset" in main_src
       and 'return {"ok": True, "logo_v": cfg["branding"]["logo_v"]}' in main_src)
 
 man = (ROOT / "dashboard" / "manifest.json").read_text(encoding="utf-8")

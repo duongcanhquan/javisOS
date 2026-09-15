@@ -1111,7 +1111,7 @@ def _doi_phien_that(request: Request):
 
 
 def _ten_hien_thi(cfg=None) -> str:
-    """Tên NGƯỜI để hiện trong app Authenticator, sau tên workspace: "Javis OS: Minh Quý".
+    """Tên NGƯỜI để hiện trong app Authenticator, sau tên workspace: "Javis OS: admin".
 
     Thứ tự ưu tiên có lý do: `USER_NAME` là tên người dùng tự đặt cho chính mình, còn
     `auth.username` là tên ĐĂNG NHẬP - thường là "admin", đúng về kỹ thuật nhưng vô nghĩa khi
@@ -11649,14 +11649,16 @@ async def brand_icon(size: int):
 
 @app.get("/favicon.ico")
 async def favicon_ico():
-    """Favicon = logo hiện tại. Trình duyệt LUÔN tự gọi /favicon.ico và cache rất lì;
-    trước đây route này trả 404 nên tab giữ icon cũ. Trả thẳng ảnh logo cho khớp app."""
-    p = _current_logo_file() or _DEFAULT_LOGO
-    if not p.exists():
-        return JSONResponse({"error": "no favicon"}, status_code=404)
-    media = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-             ".webp": "image/webp", ".gif": "image/gif"}.get(p.suffix.lower(), "image/png")
-    return FileResponse(str(p), media_type=media, headers={"Cache-Control": "public, max-age=300"})
+    """Favicon tab = cùng PNG vuông với PWA (/brand-icon/192), không lấy file logo thô
+    (có thể không vuông / JPEG) để icon cài app và tab luôn khớp ảnh đại diện."""
+    try:
+        data = _brand_icon_png_bytes(192)
+    except Exception as e:
+        return JSONResponse({"error": f"no favicon: {e}"}, status_code=404)
+    return Response(
+        content=data, media_type="image/png",
+        headers={"Cache-Control": "public, max-age=60, must-revalidate"},
+    )
 
 
 @app.post("/branding/logo")

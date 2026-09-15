@@ -8,9 +8,9 @@
        chặn thêm bằng touch-action trong style.css làm lớp thứ hai. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Javis OS</title>
-  <!-- Favicon + apple-touch + PWA icons đều theo ảnh đại diện (/brand-logo, /brand-icon/…). -->
-  <link rel="icon" href="/brand-logo?v=6" id="brandFavicon">
-  <link rel="apple-touch-icon" href="/brand-logo?v=6" id="brandAppleTouch">
+  <!-- Favicon + apple-touch + PWA icons đều theo ảnh đại diện (/brand-icon vuông PNG). -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/brand-icon/192?v=7" id="brandFavicon">
+  <link rel="apple-touch-icon" href="/brand-icon/192?v=7" id="brandAppleTouch">
   <!-- Thêm vào màn hình chính iPhone = KHÔNG thanh địa chỉ: iOS chỉ mở app "standalone"
        (ẩn chrome Safari) khi có ĐỦ cụm apple-mobile-web-app-* này VÀ manifest.json bên dưới -
        thiếu một trong hai là một số bản iOS vẫn hiện thanh địa chỉ dù bản khác thì không.
@@ -25,12 +25,12 @@
        Chrome/Edge DESKTOP coi trang là cài được (icon "any" trên PNG bị coi là không hợp lệ
        nên trước đây chỉ mobile chạy dạng app, desktop không bao giờ có nút cài). Nút
        "Mở như app" trên thanh trạng thái + icon cài trong thanh địa chỉ ăn theo file này. -->
-  <link rel="manifest" href="/static/manifest.json?v=3" id="brandManifest">
+  <link rel="manifest" href="/static/manifest.json?v=4" id="brandManifest">
   <link rel="stylesheet" href="/static/vendor/fonts/montserrat.css?v=1">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=93">
+  <link rel="stylesheet" href="/static/style.css?v=94">
   <link rel="stylesheet" href="/static/console.css?v=60">
   <link rel="stylesheet" href="/static/workbench.css?v=6">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng.
@@ -87,11 +87,7 @@
         <button class="install-app-btn" id="installAppBtn" type="button" hidden
                 title="Cài Javis thành app riêng - mở từ Desktop/Dock, không lẫn giữa các tab" data-i18n-title="top.install_title"
                 aria-label="Cài Javis thành app riêng" data-i18n-aria="top.install">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <path d="M8 21h8M12 17v4"/>
-            <path d="M12 6v6M9.5 9.5 12 12l2.5-2.5"/>
-          </svg>
+          <img class="install-app-icon" id="installAppIcon" src="/brand-icon/192" width="18" height="18" alt="" aria-hidden="true">
           <span class="install-app-label" data-i18n="top.install_label">Mở như app</span>
         </button>
         <button class="hud-icon-btn theme-toggle" id="themeToggle" type="button" aria-pressed="false"
@@ -811,7 +807,7 @@
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=7"></script>
-  <script src="/static/branding.js?v=8"></script>
+  <script src="/static/branding.js?v=9"></script>
   <script src="/static/quick-settings.js?v=9"></script>
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=8"></script>
