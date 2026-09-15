@@ -54,8 +54,15 @@ _ATLAS_TO_ZEROTTS = {
 
 
 def probe_dur(path: str) -> float:
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                          "-of", "csv=p=0", path], capture_output=True, text=True).stdout
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", path],
+            capture_output=True, text=True,
+        ).stdout
+    except FileNotFoundError:
+        # CI / máy chưa cài ffmpeg: đừng phá cả nhánh ZeroTTS đã render xong.
+        return 0.0
     try:
         return float(out.strip())
     except ValueError:

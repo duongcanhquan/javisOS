@@ -80,6 +80,7 @@ if hasattr(ztts, "reset_engine_for_tests"):
 
 import audio as au  # noqa: E402
 au._wav_to_mp3 = lambda wav, mp3, speed=1.0: Path(mp3).write_bytes(b"ID3" + b"\0" * 200)
+au.probe_dur = lambda path: 1.25  # không phụ thuộc ffprobe trên CI
 
 td = Path(tempfile.mkdtemp(prefix="pd-zt-"))
 (td / "audio").mkdir()
