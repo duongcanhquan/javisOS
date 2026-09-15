@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.225] - 2026-09-15
+### Thêm mới
+- **Collage giấy (Atlas) dùng ZeroTTS được:** chọn «Nguồn lời thoại → ZeroTTS local» trên Tạo video. Lời đọc chạy ZeroTTS trên máy; nhạc nền vẫn Atlas. Clone giọng vẫn chỉ Atlas. Thiếu gói/lỗi → tự về xAI TTS.
+
 ## [0.55.224] - 2026-09-15
 ### Cải thiện
 - **ZeroTTS cho video ngắn:** khi Cài đặt chọn ZeroTTS, pipeline kịch bản→mp4 dùng giọng local (lỗi/thiếu gói → Edge). Chat TTS giữ nguyên. Collage giấy (Atlas) vẫn dùng TTS Atlas riêng.

@@ -231,7 +231,8 @@ or a collage ad built around a real product shot (validated on both, 2026-07-17)
   "motion_style": "punchy",               // amplitude: calm | punchy | max (theme sets a default)
   "constraints": "strict",                // strict = defect guards on | loose = let AI explore + re-roll
   "voice": {"voice_id": "leo", "language": "en", "speed": 1.0},  // pick per topic/language — see references/voices.md
-                                          // + optional "clone_ref": "path/to/sample.mp3" (clone that voice via seed-audio)
+                                          // + optional "backend": "zerotts" for local Vietnamese narration (BGM still Atlas)
+                                          // + optional "clone_ref": "path/to/sample.mp3" (clone that voice via seed-audio; forces Atlas)
                                           //   and "persona": "YouTube tutorial creator" (delivery style for cloned VO)
   "music": "epic cinematic orchestral, instrumental, no vocals",
   "mix": {"music": 0.6, "voice": 1.25},   // audio balance — optional; these are the defaults (BGM ducks under the VO)
@@ -277,7 +278,8 @@ Model IDs change — fetch the live list first: `GET https://api.atlascloud.ai/a
 | Cut out an element | `youchuan/v8.1/remove-background` | advanced path only |
 | Animate (non-real content) | `google/gemini-omni-flash/image-to-video` | keeps text stable, layered motion |
 | Animate (**real people / brands**) | `kwaivgi/kling-video-o3-pro/image-to-video` | Omni & Seedance BLOCK celebrities |
-| Narration | `xai/tts-v1` | clean, multilingual, `voice_id` |
+| Narration | `xai/tts-v1` (default) or local **ZeroTTS** when `voice.backend: "zerotts"` | clean multilingual / VI-local |
+| Voice clone | `bytedance/seed-audio-1.0` | Atlas only (`clone_ref`) |
 | Music | `minimax/music-2.6` | `is_instrumental: true` |
 
 See `references/models-and-gotchas.md` for the full model-choice reasoning and every
