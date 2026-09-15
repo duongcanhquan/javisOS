@@ -422,9 +422,9 @@
           label: "Giọng đọc",
           def: "vi-Mai",
           options: [
-            { value: "vi-Mai", label: "Mai (nữ, Việt) — Atlas / map ZeroTTS Mai Chi" },
-            { value: "vi-Duc", label: "Duc (nam, Việt) — Atlas / map ZeroTTS Gia Huy" },
-            { value: "vi-Minh", label: "Minh (nam, Việt) — Atlas / map ZeroTTS Quang Minh" },
+            { value: "vi-Mai", label: "Mai (nữ, Việt) - Atlas / map ZeroTTS Mai Chi" },
+            { value: "vi-Duc", label: "Duc (nam, Việt) - Atlas / map ZeroTTS Gia Huy" },
+            { value: "vi-Minh", label: "Minh (nam, Việt) - Atlas / map ZeroTTS Quang Minh" },
             { value: "maichi", label: "ZeroTTS Mai Chi (nữ)" },
             { value: "baotrang", label: "ZeroTTS Bao Trang (nữ)" },
             { value: "giahuy", label: "ZeroTTS Gia Huy (nam)" },
