@@ -10448,7 +10448,9 @@ def _skill_router_block(brain: str, root: str, skills=None, hint: str = "") -> s
     if not metas:
         return ""
     sk_dir = skill_router.skills_base(root, canonical=True)
-    picked = skill_router.pick_for_router(metas, hint=hint or "")
+    picked = skill_router.pick_for_router(
+        metas, hint=hint or "", cap=skill_router.SKILL_LIST_MAX
+    )
     lines = ["\n\n# === SKILL KHẢ DỤNG (router - dùng được trên MỌI engine) ==="]
     for s in picked:
         desc = (s.get("description") or "").replace("\n", " ")[:skill_router.SKILL_DESC_MAX]
