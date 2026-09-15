@@ -1,8 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.55.243] - 2026-09-15
+### Sửa
+- **CI Hostinger:** không nhét `JAVIS_UPDATES_UI` vào form Environment (vẫn 3 trường). Chuông/trang Cập nhật lấy mặc định từ Docker image.
+
 ## [0.55.242] - 2026-09-15
 ### Cải thiện
-- **Người cài bản này thấy thông báo + nút Cập nhật.** `JAVIS_UPDATES_UI` mặc định bật (Docker image + compose). Chuông và trang Cập nhật so `VERSION` trên GitHub `duongcanhquan/javisOS`. Tắt bằng `JAVIS_UPDATES_UI=0` nếu không cần.
+- **Người cài bản này thấy thông báo + nút Cập nhật.** `JAVIS_UPDATES_UI` mặc định bật (Docker image + compose VPS). Chuông và trang Cập nhật so `VERSION` trên GitHub `duongcanhquan/javisOS`. Tắt bằng `JAVIS_UPDATES_UI=0` nếu không cần.
 
 ## [0.55.241] - 2026-09-15
 ### Sửa

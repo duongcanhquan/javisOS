@@ -31,11 +31,12 @@ finally:
         os.environ["JAVIS_UPDATES_UI"] = _cu
 
 compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-check("compose đặt JAVIS_UPDATES_UI mặc định 1",
+check("compose VPS đặt JAVIS_UPDATES_UI mặc định 1",
       "JAVIS_UPDATES_UI: ${JAVIS_UPDATES_UI:-1}" in compose)
+# Hostinger giữ form 3 trường; UI cập nhật lấy mặc định từ Dockerfile / config.py.
 hostinger = (ROOT / "docker-compose.hostinger.yml").read_text(encoding="utf-8")
-check("hostinger compose cũng mặc định 1",
-      "JAVIS_UPDATES_UI: ${JAVIS_UPDATES_UI:-1}" in hostinger)
+check("Hostinger KHÔNG thêm JAVIS_UPDATES_UI vào form Environment",
+      "JAVIS_UPDATES_UI" not in hostinger)
 dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 check("Dockerfile ENV JAVIS_UPDATES_UI=1", "JAVIS_UPDATES_UI=1" in dockerfile)
 main = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
