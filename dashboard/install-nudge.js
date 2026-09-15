@@ -78,7 +78,7 @@
       '<div class="inud-nen"></div>'
       + '<div class="inud-hop">'
       + '  <div class="inud-dau">'
-      + '    <img class="inud-icon" src="/static/icon-192.png" alt="">'
+      + '    <img class="inud-icon" src="/brand-icon/192" alt="">'
       + '    <div class="inud-tieude">'
       + '      <b>Thêm Javis vào Màn hình chính</b>'
       + '      <span>Mở nhanh như một app, và <b>nhận được thông báo</b> khi việc chạy nền xong.</span>'

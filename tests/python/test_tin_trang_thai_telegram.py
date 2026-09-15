@@ -1,28 +1,15 @@
-"""Tin trạng thái Telegram: gửi im lặng, KHÔNG xoá, chốt thành dòng vết. Chạy tay / CI:
+"""Tin trạng thái Telegram: gửi im lặng, không đè tool, chốt gọn. Chạy:
 
     python tests/python/test_tin_trang_thai_telegram.py
 
-Không cần pytest, không chạm mạng (client HTTP giả), không đụng CSDL.
-
-Bệnh (chủ repo báo 2026-08-08): mỗi lượt hỏi, bot gửi tin "🤔 Javis đang xử lý…" rồi XOÁ nó
-đi và gửi câu trả lời. Hai chỗ sai: người dùng thấy một tin nhấp nháy rồi biến mất (đọc như
-lỗi), và điện thoại nổ HAI thông báo mà cái đầu chỉ nói "đang xử lý".
-
-Đã kiểm với tài liệu Telegram: KHÔNG có bề mặt nào hiện chữ tuỳ ý ngoài tin nhắn
-(`sendChatAction` chỉ nhận một bộ hành động cố định, không nhận chữ). Nên "hiện trạng thái mà
-không gửi tin" là bất khả; thứ sửa được là đừng để tin nào biến mất và đừng nổ thông báo thừa.
-
-Bốn điều file này ghim lại:
-  1. tin trạng thái gửi kèm `disable_notification` → không nổ chuông;
-  2. KHÔNG bao giờ gọi `deleteMessage` nữa;
-  3. lần sửa CUỐI biến nó thành dòng vết công cụ, và câu trả lời là một tin MỚI;
-  4. tên công cụ được gom TRƯỚC cửa throttle, nên tool chạy nhanh không rụng khỏi dòng vết.
+0.55.238: bỏ dòng vết liệt kê shell/tool (trước đây thành tin kiểu
+`⚙ /bin/sh -lc "rg …" · 1m16s`). Progress tool không còn sửa tin trạng thái.
 """
-from _paths import ROOT, SERVER  # noqa: E402,F401  - nạp server/ vào sys.path
+from _paths import ROOT, SERVER  # noqa: E402,F401
 import asyncio
 import sys
 
-from bot_gateway import RE_TEN_TOOL
+from bot_gateway import RE_TEN_TOOL, dong_vet_gon
 from telegram_bot import TelegramBot
 
 loi = []
@@ -34,14 +21,14 @@ def check(ten, dieu_kien, them=""):
         loi.append(ten)
 
 
-# ---- 1. Bóc tên công cụ từ ĐÚNG ba khuôn main.py đang bắn ra ----
+# ---- 1. Bóc tên công cụ (helper vẫn đúng; bot chủ không còn hiện lên chat) ----
 
 MAU_CO_TOOL = [
-    ("⚙ Đang gọi: pos_statistics", "pos_statistics"),                  # engine Claude
-    ("⚙ Đang gọi công cụ: Read", "Read"),                              # engine API
+    ("⚙ Đang gọi: pos_statistics", "pos_statistics"),
+    ("⚙ Đang gọi công cụ: Read", "Read"),
     ("⚙ Đang dùng công cụ: mcp__pancake-pos__pos_order",
-     "mcp__pancake-pos__pos_order"),                                   # nhánh còn lại
-    ("⚙ Đang gọi: `Write`", "Write"),                                  # có backtick bao quanh
+     "mcp__pancake-pos__pos_order"),
+    ("⚙ Đang gọi: `Write`", "Write"),
 ]
 for chuoi, mong in MAU_CO_TOOL:
     m = RE_TEN_TOOL.match(chuoi)
@@ -52,19 +39,17 @@ for chuoi in ("✓ Nhận kết quả - đang phân tích…", "✍ Đang soạn
     check(f"KHÔNG bóc nhầm: {chuoi[:26]}", RE_TEN_TOOL.match(chuoi) is None)
 
 
-# ---- 2. Dòng vết: lượt không gọi tool cũng phải nói được một điều thật ----
+# ---- 2. Dòng vết gọn + helper cũ vẫn có ----
 
 bot_tron = TelegramBot.__new__(TelegramBot)
-check("không tool → nói rõ trả lời trực tiếp",
+check("dong_vet_gon chỉ thời gian",
+      dong_vet_gon(3.2) == "✓ Đã xong · 3s", dong_vet_gon(3.2))
+check("dong_vet_gon trên 1 phút",
+      dong_vet_gon(76) == "✓ Đã xong · 1m16s", dong_vet_gon(76))
+check("_dong_vet_gon qua bot",
+      bot_tron._dong_vet_gon(8.7) == "✓ Đã xong · 9s", bot_tron._dong_vet_gon(8.7))
+check("helper cũ không tool vẫn nói trả lời trực tiếp",
       bot_tron._dong_vet([], 3.2) == "✓ Trả lời trực tiếp · 3s", bot_tron._dong_vet([], 3.2))
-check("có tool → liệt kê tên + thời gian",
-      bot_tron._dong_vet(["pos_statistics", "Read"], 8.7) == "⚙ pos_statistics · Read · 9s",
-      bot_tron._dong_vet(["pos_statistics", "Read"], 8.7))
-check("quá 6 tool → gộp phần dư thành +n",
-      bot_tron._dong_vet(list("abcdefgh"), 75.4) == "⚙ a · b · c · d · e · f +2 · 1m15s",
-      bot_tron._dong_vet(list("abcdefgh"), 75.4))
-check("lượt trên 1 phút → định dạng phút giây",
-      bot_tron._dong_vet(["X"], 61) == "⚙ X · 1m01s", bot_tron._dong_vet(["X"], 61))
 
 
 # ---- 3. Chạy trọn một lượt với client HTTP giả ----
@@ -79,10 +64,8 @@ class FakeResp:
 
 
 class FakeClient:
-    """Ghi lại mọi lời gọi. `post(url, json=...)` là đủ cho đường đi của _handle_turn."""
-
     def __init__(self):
-        self.calls = []      # [(method, payload)]
+        self.calls = []
         self._mid = 100
 
     async def post(self, url, json=None, data=None, files=None):
@@ -107,10 +90,9 @@ def chay_luot(answer_fn, giau_trang_thai=False):
 
 
 async def _answer_hai_tool(text, meta, progress):
-    # HAI tool trong cùng một khoảnh khắc: cửa throttle 2.5s sẽ nuốt lần sửa thứ hai, nhưng
-    # TÊN thì không được phép rụng - đây đúng là con bọ mà việc gom-trước-throttle ngăn lại.
     await progress("⚙ Đang gọi: pos_statistics")
     await progress("⚙ Đang gọi: Read")
+    await progress("⚙ Đang gọi: /bin/sh -lc \"rg --files /brains\"")
     await progress("✍ Đang soạn câu trả lời…")
     return {"text": "Doanh thu 12,4 triệu, tăng 8%."}
 
@@ -134,14 +116,20 @@ check("câu trả lời KHÔNG bị tắt chuông",
       len(gui) == 2 and not gui[-1].get("disable_notification"), gui[-1] if len(gui) > 1 else None)
 
 sua = c.goi("editMessageText")
-check("có sửa tin trạng thái", len(sua) >= 1, len(sua))
+check("có sửa tin trạng thái (chốt xong)", len(sua) >= 1, len(sua))
 vet = (sua[-1].get("text") or "") if sua else ""
-check("lần sửa CUỐI là dòng vết công cụ", vet.startswith("⚙ "), vet)
-check("dòng vết giữ ĐỦ hai tool dù throttle nuốt bớt lần sửa",
-      "pos_statistics" in vet and "Read" in vet, vet)
+check("lần sửa CUỐI là dòng gọn ✓ Đã xong", vet.startswith("✓ Đã xong"), vet)
+check("KHÔNG lộ tên tool/shell trong dòng chốt",
+      "pos_statistics" not in vet and "Read" not in vet and "/bin/sh" not in vet
+      and "Đang gọi" not in vet and "Đang đọc" not in vet, vet)
+# Progress tool không được sửa tin thành "⏳ ⚙ …"
+check("không sửa tin trạng thái bằng dòng tool giữa lượt",
+      all("Đang gọi" not in (p.get("text") or "") and "Đang đọc" not in (p.get("text") or "")
+          for p in sua[:-1] or []),
+      sua)
 
 
-# ---- 4. /stop: tin trạng thái ở lại nói rõ đã dừng, không biến mất ----
+# ---- 4. /stop ----
 
 async def _answer_bi_cat(text, meta, progress):
     await progress("⚙ Đang gọi: pos_order")
@@ -157,7 +145,7 @@ check("/stop → KHÔNG gửi thêm câu trả lời nào", len(c2.goi("sendMess
       len(c2.goi("sendMessage")))
 
 
-# ---- 5. Bot chuyên trách (nói với KHÁCH) không đổi: không tin trạng thái, không dòng vết ----
+# ---- 5. Bot chuyên trách ----
 
 async def _answer_khach(text, meta, progress):
     await progress("⚙ Đang gọi: pos_product")
@@ -171,6 +159,18 @@ check("chế độ người thật: không sửa tin nào", not c3.goi("editMess
       c3.goi("editMessageText"))
 check("chế độ người thật: có giữ chấm 'đang nhập'", len(c3.goi("sendChatAction")) >= 1,
       len(c3.goi("sendChatAction")))
+
+
+# ---- 6. Prompt kênh yêu cầu trả lời ngắn, không tường thuật tool ----
+cc = (ROOT / "server" / "channel_context.py").read_text(encoding="utf-8")
+check("prompt Telegram cấm tường thuật từng bước tool",
+      "CHỈ gửi câu trả lời CUỐI" in cc and "TUYỆT ĐỐI không tường thuật" in cc)
+check("prompt Zalo cũng cấm tường thuật tool",
+      cc.count("CHỈ gửi câu trả lời CUỐI") >= 2)
+check("prompt Telegram vẫn cho Bash curl send-file (không cấm tool)",
+      "Vẫn ĐƯỢC" in cc and "Bash curl" in cc and "chat_id" in cc)
+check("prompt Telegram cấm paste lệnh vào tin nhắn",
+      "không paste lệnh shell/curl" in cc)
 
 
 print()

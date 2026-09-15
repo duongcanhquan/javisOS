@@ -6,7 +6,7 @@ This page covers two things: changing Javis's logo/avatar to your own image, and
 
 ## What this feature is
 
-- **Avatar (logo):** replace the default JAVIS OS image with your own. The new image appears immediately in the top left corner, in the sidebar, on the sign-in screen, in the welcome window, and becomes the browser tab icon (favicon) too.
+- **Avatar (logo):** replace the default JAVIS OS image with your own. The new image appears immediately in the top left corner, in the sidebar, on the sign-in screen, in the welcome window, becomes the browser tab icon (favicon), and is also used for the **install / “Open as app”** PWA icons (192×512).
 - **Custom domain (HTTPS):** instead of opening Javis by IP and port (something like `http://12.34.56.78:7777`), you use a memorable domain with the HTTPS padlock. Javis obtains the HTTPS certificate itself (On-Demand TLS through Caddy), and there is an **Enable SSL** button to request the certificate on demand rather than waiting.
 
 One important note up front: the **Custom domain** section only works when you deploy Javis with Docker on a VPS with ports 80/443 open. If you run Javis on a personal machine, the logo change works normally but the domain section cannot reach HTTPS. Deploy details in [.env configuration](16-env-configuration.md) and the `DEPLOY.md` file in the project folder.
@@ -28,6 +28,8 @@ Every time you open Settings, Javis reloads the current values, checks DNS/HTTPS
 4. After picking, Javis shows the status line **Uploading…** then **Image updated ✓** when done. The new image replaces the old one everywhere immediately (top corner, sidebar, sign-in screen, preview box) with no page reload.
 
 The browser tab icon (favicon) is the one exception and lags a beat: Javis serves it with a 5-minute cache, and browsers hold onto icons stubbornly. To see it right away, reopen the tab or reload bypassing the cache.
+
+**“Open as app” / installed shortcut icon:** Javis serves it from the same avatar (`/brand-icon/192` and `/brand-icon/512`). Operating systems usually **keep the old icon** after the first install — to see the new image, remove the shortcut / home-screen app and install again (the **Open as app** button or the browser menu).
 
 ### Restoring the default image
 

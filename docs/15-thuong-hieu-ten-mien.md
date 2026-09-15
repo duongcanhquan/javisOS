@@ -6,7 +6,7 @@ Trang này hướng dẫn hai việc: đổi logo/avatar của Javis thành ản
 
 ## Tính năng này là gì
 
-- **Ảnh đại diện (logo/avatar):** thay ảnh JAVIS OS mặc định bằng ảnh của bạn. Ảnh mới hiện ngay ở góc trên bên trái, ở thanh bên, ở màn hình đăng nhập, ở cửa sổ chào mừng, và làm luôn icon tab trình duyệt (favicon).
+- **Ảnh đại diện (logo/avatar):** thay ảnh JAVIS OS mặc định bằng ảnh của bạn. Ảnh mới hiện ngay ở góc trên bên trái, ở thanh bên, ở màn hình đăng nhập, ở cửa sổ chào mừng, làm icon tab trình duyệt (favicon), và làm luôn **icon khi cài / “Mở như app”** (PWA 192×512).
 - **Tên miền riêng (HTTPS):** thay vì mở Javis bằng địa chỉ IP kèm cổng (kiểu `http://12.34.56.78:7777`), bạn dùng một tên miền dễ nhớ và có khóa an toàn HTTPS. Javis tự cấp chứng chỉ HTTPS (cơ chế On-Demand TLS qua Caddy), và có nút **Bật SSL** để chủ động xin chứng chỉ ngay thay vì ngồi đợi.
 
 Lưu ý quan trọng ngay từ đầu: phần **Tên miền riêng** chỉ hoạt động khi bạn deploy Javis bằng Docker trên VPS và đã mở cổng 80/443. Nếu bạn chạy Javis trên máy cá nhân, phần đổi logo vẫn dùng bình thường, còn phần tên miền sẽ không lên HTTPS được. Chi tiết deploy xem [Cấu hình .env](16-cau-hinh-env.md) và file `DEPLOY.md` trong thư mục dự án.
@@ -28,6 +28,8 @@ Mỗi lần mở Cài đặt, Javis tự nạp lại giá trị đang dùng, ki�
 4. Sau khi chọn, Javis hiện dòng trạng thái **Đang tải lên…** rồi **Đã cập nhật ảnh ✓** khi xong. Ảnh mới thay ngay ở tất cả vị trí (góc trên, thanh bên, màn đăng nhập, ô xem trước) mà không cần tải lại trang.
 
 Riêng icon tab trình duyệt (favicon) đổi chậm hơn một nhịp: Javis phục vụ nó với bộ nhớ đệm 5 phút, và trình duyệt còn giữ icon rất lì. Muốn thấy ngay thì mở lại tab hoặc tải lại trang bỏ qua cache.
+
+**Icon “Mở như app” / shortcut đã cài:** Javis lấy từ cùng ảnh đại diện (`/brand-icon/192` và `/brand-icon/512`). Hệ điều hành thường **giữ icon cũ** sau lần cài đầu — muốn thấy ảnh mới thì gỡ shortcut / app đã thêm vào màn hình chính rồi cài lại (nút **Mở như app** hoặc trình đơn trình duyệt).
 
 ### Khôi phục ảnh mặc định
 

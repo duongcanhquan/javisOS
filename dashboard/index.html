@@ -8,9 +8,9 @@
        chặn thêm bằng touch-action trong style.css làm lớp thứ hai. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Javis OS</title>
-  <!-- Favicon = logo hiện tại (/brand-logo): mặc định theo logo.png, và tự đổi theo ảnh user tải lên. -->
-  <link rel="icon" href="/brand-logo?v=5">
-  <link rel="apple-touch-icon" href="/brand-logo?v=5">
+  <!-- Favicon + apple-touch + PWA icons đều theo ảnh đại diện (/brand-logo, /brand-icon/…). -->
+  <link rel="icon" href="/brand-logo?v=6" id="brandFavicon">
+  <link rel="apple-touch-icon" href="/brand-logo?v=6" id="brandAppleTouch">
   <!-- Thêm vào màn hình chính iPhone = KHÔNG thanh địa chỉ: iOS chỉ mở app "standalone"
        (ẩn chrome Safari) khi có ĐỦ cụm apple-mobile-web-app-* này VÀ manifest.json bên dưới -
        thiếu một trong hai là một số bản iOS vẫn hiện thanh địa chỉ dù bản khác thì không.
@@ -25,7 +25,7 @@
        Chrome/Edge DESKTOP coi trang là cài được (icon "any" trên PNG bị coi là không hợp lệ
        nên trước đây chỉ mobile chạy dạng app, desktop không bao giờ có nút cài). Nút
        "Mở như app" trên thanh trạng thái + icon cài trong thanh địa chỉ ăn theo file này. -->
-  <link rel="manifest" href="/static/manifest.json?v=2">
+  <link rel="manifest" href="/static/manifest.json?v=3" id="brandManifest">
   <link rel="stylesheet" href="/static/vendor/fonts/montserrat.css?v=1">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
@@ -811,7 +811,7 @@
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=7"></script>
-  <script src="/static/branding.js?v=7"></script>
+  <script src="/static/branding.js?v=8"></script>
   <script src="/static/quick-settings.js?v=9"></script>
   <script src="/static/chat-zoom.js?v=6"></script>
   <script src="/static/brains-ui.js?v=8"></script>

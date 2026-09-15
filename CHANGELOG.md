@@ -1,5 +1,21 @@
 # Nhật ký cập nhật
 
+## [0.55.240] - 2026-09-15
+### Sửa
+- **QA kết nối / báo cáo:** prompt Telegram phân biệt rõ — được gọi Bash curl send-file với đúng `chat_id`, nhưng không paste lệnh vào tin nhắn (tránh model bỏ curl vì hiểu nhầm cấm). Typing Telegram throttle 2,5s; Zalo progress no-op (đã có `_giu_typing`). Reset logo trả `logo_v` để cache icon PWA bust đúng.
+
+## [0.55.239] - 2026-09-15
+### Cải thiện
+- **Trả lời đi thẳng kết quả.** CLAUDE.md + khối kênh + capsule: không tường thuật quy trình/tool; báo cáo/tổng hợp chỉ số liệu và kết luận; khuyến nghị chỉ khi được hỏi.
+
+## [0.55.238] - 2026-09-15
+### Sửa
+- **Telegram/Zalo hết lộ «Đang gọi / shell · 1m…».** Tin trạng thái chỉ còn chờ rồi «✓ Đã xong»; không đè tool giữa lượt, không ghép lệnh `/bin/sh` vào chat. Prompt kênh yêu cầu trả lời ngắn, không tường thuật từng bước tool.
+
+## [0.55.237] - 2026-09-15
+### Cải thiện
+- **Icon «Mở như app» theo ảnh đại diện.** PWA / shortcut dùng `/brand-icon/192` và `/brand-icon/512` vẽ từ logo đã tải ở Cài đặt; đổi logo xong gỡ app cũ rồi cài lại để hệ điều hành nhận icon mới.
+
 ## [0.55.236] - 2026-09-15
 ### Sửa
 - **Chip chờ chỉ còn 4 câu wait:** tool_call / tool_result / status khác không còn đè chip bằng trạng thái công cụ (Đang gọi… / Đang đọc file). Dải MCP vẫn cập nhật.

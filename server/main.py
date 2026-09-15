@@ -169,7 +169,7 @@ app.add_middleware(CORSMiddleware,
 _AUTH_PUBLIC_PREFIX = ("/static", "/health", "/drive-projects/rclone/pair/")
 # /brand-logo: hiện trên màn đăng nhập (trước session). /tls-check: Caddy gọi (không đăng nhập được).
 _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth/setup",
-                      "/brand-logo", "/tls-check",
+                      "/brand-logo", "/brand-icon/192", "/brand-icon/512", "/tls-check",
                       # /hub/mcp: Claude CLI/Codex gọi bằng Bearer hub_token riêng (không có cookie).
                       # /connect/oauth/callback: browser redirect từ provider OAuth về.
                       "/hub/mcp", "/connect/oauth/callback")
@@ -11593,6 +11593,60 @@ async def brand_logo():
     return FileResponse(str(p), headers={"Cache-Control": "public, max-age=60"})
 
 
+def _brand_icon_png_bytes(size: int) -> bytes:
+    """PNG vuông size×size từ ảnh đại diện hiện tại (PWA / 'Mở như app' đòi PNG có sizes rõ).
+
+    Cắt giữa ảnh rồi scale. Lỗi đọc/vẽ → fallback dashboard/icon-{size}.png (ảnh mặc định ship).
+    """
+    from io import BytesIO
+    from PIL import Image
+
+    if size not in (192, 512):
+        raise ValueError("size")
+    src = _current_logo_file() or _DEFAULT_LOGO
+    fallback = DASHBOARD_PATH / f"icon-{size}.png"
+    try:
+        if not src.exists():
+            raise FileNotFoundError(str(src))
+        im = Image.open(src)
+        # GIF/webp động: lấy khung đầu. Ép RGBA để giữ trong suốt khi có.
+        if getattr(im, "is_animated", False):
+            im.seek(0)
+        im = im.convert("RGBA")
+        w, h = im.size
+        side = min(w, h) or 1
+        left = max(0, (w - side) // 2)
+        top = max(0, (h - side) // 2)
+        im = im.crop((left, top, left + side, top + side))
+        im = im.resize((size, size), Image.Resampling.LANCZOS)
+        # Nền tối khớp theme_color PWA - icon trong suốt trên Android hay bị nền trắng xấu.
+        canvas = Image.new("RGBA", (size, size), (14, 14, 22, 255))
+        canvas.paste(im, (0, 0), im)
+        buf = BytesIO()
+        canvas.save(buf, format="PNG", optimize=True)
+        return buf.getvalue()
+    except Exception:
+        if fallback.is_file():
+            return fallback.read_bytes()
+        raise
+
+
+@app.get("/brand-icon/{size}")
+async def brand_icon(size: int):
+    """Icon PWA 192/512 = ảnh đại diện đang dùng (Cài đặt → Ảnh đại diện)."""
+    if size not in (192, 512):
+        return JSONResponse({"error": "size must be 192 or 512"}, status_code=400)
+    try:
+        data = _brand_icon_png_bytes(size)
+    except Exception as e:
+        return JSONResponse({"error": f"no icon: {e}"}, status_code=404)
+    # max-age ngắn + must-revalidate: đổi logo xong cài lại app sẽ lấy bản mới.
+    return Response(
+        content=data, media_type="image/png",
+        headers={"Cache-Control": "public, max-age=60, must-revalidate"},
+    )
+
+
 @app.get("/favicon.ico")
 async def favicon_ico():
     """Favicon = logo hiện tại. Trình duyệt LUÔN tự gọi /favicon.ico và cache rất lì;
@@ -11651,7 +11705,7 @@ async def branding_logo_reset():
     cfg["branding"]["logo_ext"] = ""
     cfg["branding"]["logo_v"] = int(cfg["branding"].get("logo_v", 0) or 0) + 1
     cfgmod.write_settings(cfg)
-    return {"ok": True}
+    return {"ok": True, "logo_v": cfg["branding"]["logo_v"]}
 
 
 # Tên miền riêng + HTTPS (Caddy On-Demand TLS) đã bóc sang routes/domain.py ở 0.9.243.

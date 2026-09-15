@@ -27,7 +27,7 @@ from pathlib import Path
 import httpx
 
 import stt
-from bot_gateway import HangLuot, dong_vet, ten_tool
+from bot_gateway import HangLuot, dong_vet
 
 
 def parse_chat_ids(raw):
@@ -405,9 +405,13 @@ class TelegramBot(HangLuot):
             print(f"[telegram status edit] {e}", file=sys.stderr)
 
     def _dong_vet(self, tools, giay):
-        """Chữ CUỐI CÙNG của tin trạng thái. Luật nằm ở `bot_gateway.dong_vet` (dùng chung
-        với kênh Zalo); giữ phương thức này làm cửa cho test và cho chỗ gọi đọc dễ."""
+        """Dòng vết CŨ (liệt kê tool) - giữ cho test/bot_gateway; bot chủ không còn dùng khi chốt."""
         return dong_vet(tools, giay)
+
+    def _dong_vet_gon(self, giay):
+        """Chốt tin trạng thái: chỉ thời gian, không tên shell/tool (0.55.238)."""
+        from bot_gateway import dong_vet_gon
+        return dong_vet_gon(giay)
 
     # ---- Meta kênh: engine cần biết tin đến từ đâu (DM/nhóm, ai gửi) ----
     def _build_meta(self, msg):
@@ -689,25 +693,18 @@ class TelegramBot(HangLuot):
             giu = asyncio.create_task(self._giu_typing(client, chat))
         else:
             status_mid = await self._send_status(client, chat, "Em đang thực hiện yêu cầu…")
-        _last = [0.0]
         t0 = time.monotonic()
-        tools = []          # tên công cụ đã gọi trong lượt, giữ thứ tự, không trùng
+        _last_typing = [0.0]
 
         async def progress(txt):
+            # 0.55.238+: không đè "Đang gọi / shell". Chỉ giữ typing, throttle để khỏi bão HTTP.
             if self.giau_trang_thai:
-                return              # đã có chấm "đang nhập…" chạy đều, không cần tin nào
-            # Gom tên công cụ TRƯỚC cửa throttle. Throttle sinh ra để đỡ spam Telegram, không
-            # phải để quên bớt việc đã làm: gom sau cửa thì mấy tool chạy nhanh (2 tool trong
-            # cùng một giây) rụng khỏi dòng vết, và dòng vết là thứ nằm lại vĩnh viễn.
-            ten = ten_tool(txt)
-            if ten and ten not in tools:
-                tools.append(ten)
-            now = time.monotonic()
-            if now - _last[0] < 2.5:      # throttle ~2.5s → không spam / dính rate-limit Telegram
                 return
-            _last[0] = now
+            now = time.monotonic()
+            if now - _last_typing[0] < 2.5:
+                return
+            _last_typing[0] = now
             await self._typing(client, chat)
-            await self._edit_status(client, chat, status_mid, "⏳ " + (txt or "Đang xử lý…"))
 
         try:
             try:
@@ -730,10 +727,10 @@ class TelegramBot(HangLuot):
                 # với người ngoài, vừa che mất lượt hỏng thật.
                 im_lang = bool(reply.get("im_lang"))
                 reply = reply.get("text") or ""
-            # Chốt tin trạng thái thành dòng vết rồi ĐỂ NGUYÊN ĐÓ. Câu trả lời đi sau, là một
-            # tin MỚI có chuông - nên thông báo trên điện thoại hiện đúng nội dung trả lời.
+            # Chốt tin trạng thái gọn (thời gian), KHÔNG liệt kê shell/tool - trước đây dòng
+            # "⚙ /bin/sh -lc … · 1m16s" nằm lại chat và trông như lỗi encoding.
             await self._edit_status(client, chat, status_mid,
-                                    self._dong_vet(tools, time.monotonic() - t0))
+                                    self._dong_vet_gon(time.monotonic() - t0))
             if im_lang and not str(reply or "").strip() and not files:
                 return
             # Nếu câu trả lời chỉ là ![](local-path) và file đã được tách để gửi riêng, không gửi

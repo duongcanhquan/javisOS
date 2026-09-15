@@ -156,7 +156,8 @@ gui = c.goi("sendMessage")
 check("cả lượt chỉ MỘT tin nhắn", len(gui) == 1, len(gui))
 noi_dung = (gui[0].get("text") or "") if gui else ""
 check("tin đó chứa câu trả lời", "12,4 triệu" in noi_dung, noi_dung)
-check("và chứa luôn dòng vết công cụ", "pos_statistics" in noi_dung and "Read" in noi_dung, noi_dung)
+check("KHÔNG ghép dòng vết tool/shell vào tin (0.55.238)",
+      "pos_statistics" not in noi_dung and "Read" not in noi_dung and "⚙" not in noi_dung, noi_dung)
 check("có giữ chấm 'đang nhập' (thứ DUY NHẤT báo được là đang làm)",
       len(c.goi("sendChatAction")) >= 1)
 

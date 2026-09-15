@@ -16,8 +16,8 @@ self.addEventListener("push", (event) => {
   const title = d.title || "Javis";
   const opts = {
     body: d.body || "",
-    icon: "/static/icon-192.png",
-    badge: "/static/icon-192.png",
+    icon: "/brand-icon/192",
+    badge: "/brand-icon/192",
     // tag: thông báo cùng tag thì cái mới ĐÈ cái cũ thay vì xếp chồng. Server đặt tag theo
     // id mẩu thư nên mỗi kết quả đúng một dòng, gửi lại không nhân đôi.
     tag: d.tag || "javis",

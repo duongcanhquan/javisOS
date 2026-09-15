@@ -46,7 +46,7 @@ from pathlib import Path
 import httpx
 
 import stt
-from bot_gateway import HangLuot, dong_vet, parse_chat_ids, ten_tool
+from bot_gateway import HangLuot, parse_chat_ids
 
 ZALO_API = "https://bot-api.zaloplatforms.com/bot{token}/{method}"
 
@@ -514,13 +514,10 @@ class ZaloBot(HangLuot):
         # nói được "đang làm" là chấm "đang nhập", và nó không mang được chữ. Dòng vết công cụ
         # vì vậy đi KÈM câu trả lời: một tin cho cả lượt, không có gì phải dọn.
         giu = asyncio.create_task(self._giu_typing(client, chat))
-        t0 = time.monotonic()
-        tools = []
 
         async def progress(txt):
-            ten = ten_tool(txt)
-            if ten and ten not in tools:
-                tools.append(ten)
+            # Typing đã có _giu_typing; không gọi thêm (tránh bão API khi nhiều tool).
+            return
 
         try:
             try:
@@ -539,11 +536,7 @@ class ZaloBot(HangLuot):
                 reply = reply.get("text") or ""
             if im_lang and not str(reply or "").strip() and not files:
                 return
-            # Dòng vết chỉ dành cho bot của CHỦ. Bot chuyên trách nói với khách thì tuyệt đối
-            # không lộ ra công cụ nào đã chạy.
-            if not self.giau_trang_thai:
-                vet = dong_vet(tools, time.monotonic() - t0)
-                reply = ((str(reply or "").rstrip() + "\n\n") if str(reply or "").strip() else "") + vet
+            # Không còn ghép dòng vết ⚙ tool/shell vào tin trả lời (0.55.238).
             if str(reply or "").strip() or not files:
                 await self._send(client, chat, reply)
             for f in files:

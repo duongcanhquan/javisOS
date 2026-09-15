@@ -30,12 +30,10 @@ def ten_tool(txt) -> str:
 
 
 def dong_vet(tools, giay) -> str:
-    """Dòng tổng kết một lượt, thứ sẽ NẰM LẠI trong chat vĩnh viễn.
+    """Dòng tổng kết CŨ (liệt kê tool) - giữ cho test / chỗ còn cần bằng chứng tool.
 
-    Vì nó ở lại nên nó phải nói được một điều thật, chứ không phải một dòng rác. Lượt có gọi
-    công cụ thì liệt kê tên: đó đúng là bằng chứng Javis chạm vào dữ liệu thật (POS, quảng
-    cáo, file) chứ không trả lời chay. Lượt không gọi gì thì nói thẳng là trả lời trực tiếp -
-    cũng là thông tin, và là thông tin người dùng cần để biết có nên tin con số vừa đọc không.
+    Từ 0.55.238 bot Telegram/Zalo của CHỦ chốt bằng `dong_vet_gon` (không liệt kê shell),
+    vì dòng kiểu `⚙ /bin/sh -lc "rg …"` nằm lại chat trông như lỗi.
     """
     giay = max(0.0, float(giay))
     s = f"{giay:.0f}s" if giay < 60 else f"{int(giay // 60)}m{int(giay % 60):02d}s"
@@ -44,6 +42,13 @@ def dong_vet(tools, giay) -> str:
     ten = list(tools)[:MAX_VET_TOOL]
     du = f" +{len(tools) - len(ten)}" if len(tools) > len(ten) else ""
     return "⚙ " + " · ".join(ten) + du + f" · {s}"
+
+
+def dong_vet_gon(giay) -> str:
+    """Chốt tin trạng thái gọn: chỉ báo xong + thời gian, không tên tool/shell."""
+    giay = max(0.0, float(giay))
+    s = f"{giay:.0f}s" if giay < 60 else f"{int(giay // 60)}m{int(giay % 60):02d}s"
+    return f"✓ Đã xong · {s}"
 
 
 # ---- Whitelist -----------------------------------------------------------------------

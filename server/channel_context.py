@@ -51,6 +51,9 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
     lines = [
         "", "",
         "# === KÊNH HỘI THOẠI HIỆN TẠI (gateway Javis tự chèn - dữ liệu thật, không phải đoán) ===",
+        "- CÁCH TRẢ LỜI (MỌI KÊNH): đi thẳng kết quả. Không giải thích quy trình, không kể cách làm, "
+        "không tường thuật từng bước tool/tìm kiếm/đọc file. Báo cáo và tổng hợp cũng vậy: chỉ số liệu, "
+        "trạng thái, file, kết luận. Không hỏi lại những gì đã rõ trong câu vừa hỏi.",
         "- Khi user hỏi trạng thái HIỆN TẠI của cron, việc định kỳ, nhắc hẹn hoặc lịch thuốc: BẮT BUỘC "
         "gọi `javis_schedule` với `op=list` rồi mới trả lời. Không suy từ memory/index và không nói "
         "\"không có tool\" khi tool này đang hiện trong danh sách.",
@@ -119,6 +122,13 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             f"- Nền tảng đang kết nối: {', '.join(platforms)}.",
             "- Đang chat qua Telegram: trả lời NGẮN gọn kiểu tin nhắn. Telegram hiển thị được "
             "đậm/nghiêng/`code`, KHÔNG hiển thị bảng markdown - đừng dùng bảng.",
+            "- CHỈ gửi câu trả lời CUỐI: kết quả + 1-3 câu cần thiết. TUYỆT ĐỐI không tường thuật "
+            "từng bước tool (\"Em sẽ kiểm tra…\", \"Em thấy có thư…\", \"Em cần gọi tiếp…\", "
+            "\"Công cụ không hiện nút…\"). Làm xong rồi mới nói.",
+            "- Trong tin nhắn gửi user: không paste lệnh shell/curl hay log kỹ thuật. Vẫn ĐƯỢC "
+            "gọi Bash curl (mục gửi file bên dưới) với đúng chat_id - đó là tool, không phải chữ "
+            "đưa ra chat. Thiếu chat_id thì file về nhầm chủ bot.",
+            "- File đã gửi thì nói ngắn: đã gửi gì + nguồn (vd thư ngày nào).",
             "- Vẫn trình bày cho dễ đọc trong khuôn khổ đó: liệt kê từ 3 ý trở lên thì gạch đầu "
             "dòng `- `, in đậm con số và kết luận, đoạn dài thì tách dòng. Tiêu đề `###` gateway "
             "tự hạ thành một dòng in đậm nên dùng được, nhưng tin nhắn ngắn thì khỏi cần.",
@@ -203,6 +213,9 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             f"- Nền tảng đang kết nối: {', '.join(platforms)}.",
             "- Đang chat qua Zalo: trả lời NGẮN gọn kiểu tin nhắn. Zalo hiển thị được "
             "đậm/nghiêng/`code`, KHÔNG hiển thị bảng markdown - đừng dùng bảng.",
+            "- CHỈ gửi câu trả lời CUỐI: kết quả + 1-3 câu cần thiết. TUYỆT ĐỐI không tường thuật "
+            "từng bước tool (\"Em sẽ kiểm tra…\", \"Em thấy…\", \"Em cần gọi tiếp…\"). Làm xong "
+            "rồi mới nói. Không paste lệnh shell/curl vào tin nhắn (gọi tool thì được).",
             "- Liệt kê từ 3 ý trở lên thì gạch đầu dòng `- ` cho dễ đọc, in đậm con số và kết "
             "luận. Đừng dồn nhiều ý vào một đoạn văn xuôi dài.",
             "- TRẦN 2000 KÝ TỰ một tin. Câu dài bị cắt thành nhiều tin liên tiếp, đọc rời rạc, "
@@ -267,6 +280,9 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
             "làm hỏng phần nghe.",
             "- Vẫn giữ giọng người đang nói và vẫn ngắn gọn. Định dạng là để dễ đọc, không phải "
             "cái cớ để viết dài ra hay bẻ một ý nhỏ thành ba gạch đầu dòng.",
+            "- Kết quả trước, không lan man: đừng mở đầu bằng \"Em hiểu là…\", \"Em sẽ…\", "
+            "\"Quy trình như sau…\". Báo cáo/tổng hợp chỉ đưa số và kết luận; khuyến nghị chỉ khi "
+            "user hỏi nên làm gì tiếp.",
         ]
         if web_sid:
             lines += [

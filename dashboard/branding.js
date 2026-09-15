@@ -54,10 +54,25 @@
     document.head.appendChild(s);
   }
 
-  // Đổi src mọi ảnh logo (header, thanh bên, màn đăng nhập, preview) để thấy ảnh mới ngay.
-  function bustLogos() {
-    var v = "/brand-logo?v=" + Date.now();
-    document.querySelectorAll('img[src^="/brand-logo"]').forEach(function (img) { img.src = v; });
+  // Đổi src mọi ảnh logo + favicon/apple-touch + bust manifest (PWA đọc icon từ /brand-icon).
+  function bustLogos(logoV) {
+    var v = String(logoV || Date.now());
+    var logoUrl = "/brand-logo?v=" + v;
+    document.querySelectorAll('img[src*="brand-logo"], img[src*="brand-icon"]').forEach(function (img) {
+      if (/brand-icon\/512/.test(img.getAttribute("src") || "")) {
+        img.src = "/brand-icon/512?v=" + v;
+      } else if (/brand-icon\/192/.test(img.getAttribute("src") || "")) {
+        img.src = "/brand-icon/192?v=" + v;
+      } else {
+        img.src = logoUrl;
+      }
+    });
+    var fav = document.getElementById("brandFavicon");
+    if (fav) fav.href = logoUrl;
+    var apple = document.getElementById("brandAppleTouch");
+    if (apple) apple.href = logoUrl;
+    var man = document.getElementById("brandManifest");
+    if (man) man.href = "/static/manifest.json?v=" + v;
   }
 
   // ---------- Logo / avatar ----------
@@ -70,7 +85,7 @@
       var r = await fetch("/branding/logo", { method: "POST", body: fd });
       var j = await r.json().catch(function () { return {}; });
       if (!r.ok || !j.ok) { setStatus("brandLogoStatus", j.error || "Tải lên thất bại", true); return; }
-      bustLogos();
+      bustLogos(j.logo_v);
       setStatus("brandLogoStatus", "Đã cập nhật ảnh", false);
     } catch (e) {
       setStatus("brandLogoStatus", "Lỗi mạng khi tải lên", true);
@@ -83,7 +98,7 @@
       var r = await fetch("/branding/logo/reset", { method: "POST" });
       var j = await r.json().catch(function () { return {}; });
       if (!r.ok || !j.ok) { setStatus("brandLogoStatus", (j && j.error) || "Không khôi phục được", true); return; }
-      bustLogos();
+      bustLogos(j.logo_v);
       setStatus("brandLogoStatus", "Đã về ảnh mặc định.", false);
     } catch (e) {
       setStatus("brandLogoStatus", "Lỗi mạng", true);
