@@ -3390,3 +3390,85 @@ body.ne-full-on .cview { z-index: 250; }
    danh sách sót, trong khi sự thật là file còn đó dưới một cái tên khác. */
 .pd-row.mat { opacity: .55; }
 .pd-row.mat .pd-row-name { text-decoration: line-through; }
+
+/* ---- Linh vật góc màn (page-mascot port) ---- */
+.javis-mascot {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 55;
+  pointer-events: none;
+}
+.javis-mascot-btn {
+  pointer-events: auto;
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.javis-mascot-squash {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 78%;
+}
+.javis-mascot-layer {
+  position: absolute;
+  inset: 0;
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+}
+.javis-mascot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.javis-mascot-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg3);
+  color: var(--text2);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.javis-mascot-pick:hover {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+.javis-mascot-pick.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-line);
+  color: var(--accent);
+}
+.javis-mascot-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background-size: 300% 300%;
+  background-position: 50% 50%;
+  background-repeat: no-repeat;
+}
+.javis-mascot-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 720px), (hover: none) and (pointer: coarse) {
+  .javis-mascot { display: none !important; }
+}
