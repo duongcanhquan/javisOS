@@ -75,6 +75,11 @@ check("CANARY: viết lại sang /asset/<phiên bản>/ (không chỉ ?v=; cache
       '"/asset/"' in _root or "/asset/" in _root)
 check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticFiles nuốt)",
       '@app.get("/asset/{ver}/{path:path}")' in MAIN)
+# CANARY: VPS public + mật khẩu → HTML `/` public nhưng CSS/JS đi /asset/…; nếu
+# /asset không nằm trong _AUTH_PUBLIC_PREFIX thì màn đăng nhập 401 hết style (UI vỡ).
+_pub = MAIN.split("_AUTH_PUBLIC_PREFIX = (", 1)[1].split(")", 1)[0]
+check("CANARY: /asset cùng mức public với /static (màn login cần CSS trước cookie)",
+      '"/asset"' in _pub or "'/asset'" in _pub, _pub[:120])
 check("index.html vẫn trả no-store (điểm tựa phải luôn mới)",
       "no-cache, no-store, must-revalidate" in _root)
 

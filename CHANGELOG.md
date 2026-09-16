@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.252] - 2026-09-16
+### Sửa
+- **Màn hình VPS hết vỡ layout khi chưa đăng nhập.** CSS/JS đi qua `/asset/<phiên bản>/…` bị chặn 401 cùng lúc HTML login vẫn mở được — trang hiện chữ/nút lệch. Nay `/asset` public giống `/static`.
+
 ## [0.55.251] - 2026-09-16
 ### Mới
 - **Check AI / humanize trong chat.** Nói «check AI» hoặc «bớt giọng ChatGPT» là Javis nạp skill Humanizer: điểm 0-100 + viết lại cho tự nhiên (EN/VI).
