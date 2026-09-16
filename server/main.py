@@ -12604,6 +12604,7 @@ async def _persist_turn(store, conv_sid, brain, user_message, final_text):
     Trả về text đã bóc khối (rỗng/None thì KHÔNG lưu gì - lượt lỗi hoặc bị huỷ).
     """
     clean = channel_context.strip_control_blocks(final_text or "")
+    clean = channel_context.gon_nhat_ky_lam_viec(clean)
     if not clean:
         return None
     store.append_message(conv_sid, "assistant", clean)
@@ -12999,6 +13000,7 @@ async def websocket_endpoint(ws: WebSocket):
                     # CLI phát id mạch trong dòng sự kiện; lưu lại để lượt sau `--resume`.
                     if kcli.session_id:
                         store.set_grok_session_id(conv_sid, kcli.session_id)
+                    final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "grok-cli",
                         "model": actual_model or "", "session_id": conv_sid,
@@ -13083,6 +13085,7 @@ async def websocket_endpoint(ws: WebSocket):
                         final_text = (_a_loi_cuoi or (
                             "Antigravity không trả lời được lượt này. Hãy gửi lại, mở hội thoại "
                             "mới, hoặc đổi model ở trang Models."))
+                    final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "antigravity-cli",
                         "model": actual_model or "", "session_id": conv_sid,
@@ -13133,6 +13136,7 @@ async def websocket_endpoint(ws: WebSocket):
                                 final_text = final_text or _noi
                             await ws.send_text(json.dumps({
                                 "type": "error", "content": _noi or ev.get("content", "")}))
+                    final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "copilot-cli",
                         "model": actual_model or "", "session_id": conv_sid,
@@ -13248,6 +13252,7 @@ async def websocket_endpoint(ws: WebSocket):
                             _codex_raw, _codex_current,
                             summary=_row0.get("compact_summary") or "")
                         await _consume_codex(_fallback)
+                    final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                     await ws.send_text(json.dumps({
                         "type": "response", "content": final_text, "engine": "codex",
                         "model": actual_model, "session_id": conv_sid,
@@ -13554,6 +13559,7 @@ async def websocket_endpoint(ws: WebSocket):
                             await ws.send_text(json.dumps({
                                 "type": "error", "content": final_text,
                             }))
+                        final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                         await ws.send_text(json.dumps({
                             "type": "response", "content": final_text, "engine": prov,
                             "model": actual_model, "session_id": conv_sid,
@@ -13656,6 +13662,7 @@ async def websocket_endpoint(ws: WebSocket):
                 # không nhận `response` nào cả và bong bóng chat treo mãi - trong khi phần chữ
                 # đã stream ra thì vẫn còn đó. Ba nhánh engine kia vốn đã gửi ngoài vòng lặp.
                 final_text = final_text or _streamed
+                final_text = channel_context.gon_nhat_ky_lam_viec(final_text)
                 await ws.send_text(json.dumps({
                     "type": "response", "content": final_text, "session_id": conv_sid,
                     "cli_session_id": _cli_sid, "cost_usd": _cost, "engine": "cli",
@@ -16069,6 +16076,8 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
             text, meta, progress, chat_id=chat_id, sess=sess, brain=brain, mcfg=mcfg,
             prov=prov, kind=kind, api_key=api_key, api_model=api_model,
             store=store, conv_sid=conv_sid, channel=channel, bot=bot)
+        if isinstance(out, dict) and (out.get("text") or "").strip():
+            out["text"] = channel_context.gon_nhat_ky_lam_viec(out["text"])
 
         # Cùng luật với dashboard: hứa "xong em báo" mà không có việc nền nào thì nói thẳng.
         # Ở kênh này tin nhắn CHƯA gửi đi nên nối luôn vào cuối, khỏi phải bắn thêm một tin.

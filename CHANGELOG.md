@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.249] - 2026-09-16
+### Sửa
+- **Chat hết nhật ký «Em sẽ…» thật sự.** Bản trước chỉ dặn trong prompt nên model vẫn kể từng bước. Giờ Javis gọt những đoạn đó trước khi hiện; việc UAV chỉ còn câu chốt + file.
+
 ## [0.55.248] - 2026-09-16
 ### Cải thiện
 - **Chat hết kể từng bước.** Làm slide hay việc dài không còn dãy «Em sẽ… / Em đã thấy… / bước tiếp theo». Xong thì chỉ còn vài câu + đường dẫn file.

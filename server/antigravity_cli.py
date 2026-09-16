@@ -1685,10 +1685,16 @@ def _chot_van(gom: str, toan_van: str) -> str:
     gom = _loc_thong_bao_he_thong(gom)
     toan_van = _loc_thong_bao_he_thong(toan_van)
     if not toan_van or not gom or gom == toan_van:
-        return gom
-    if gom.endswith(toan_van):
-        return toan_van
-    return gom
+        ket = gom
+    elif gom.endswith(toan_van):
+        ket = toan_van
+    else:
+        ket = gom
+    try:
+        from channel_context import gon_nhat_ky_lam_viec
+        return gon_nhat_ky_lam_viec(ket)
+    except Exception:
+        return ket
 
 
 def _la_loi_chua_dang_nhap(loi: str) -> bool:

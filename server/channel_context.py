@@ -594,6 +594,52 @@ def _ask_to_text(payload: str) -> str:
     return "\n".join(lines)
 
 
+# Nhật ký làm việc: model kể "Em sẽ… / đã thấy…" trước khi có kết quả. Prompt không đủ;
+# phải gọt ở cửa gửi ra user. Giữ đoạn mở bằng "Đã " (câu chốt), khối mã, khối JAVIS_*.
+_DAU_NHAT_KY = re.compile(
+    r"^\s*(?:"
+    r"(?:Em|Mình|Anh|Chị)\s+sẽ\b"
+    r"|(?:Em|Mình)\s+đã\s+(?:thấy|xác định|dựng xong khung)\b"
+    r"|[Bb]ước tiếp theo\b"
+    r"|(?:I(?:'ll| will)|Let me|I am going to|I'm going to)\b"
+    r")",
+    re.I,
+)
+_CO_EM_SE = re.compile(r"(?:^|[.\n!?…]\s*)(?:Em|Mình)\s+sẽ\b", re.I)
+
+
+def gon_nhat_ky_lam_viec(text: str) -> str:
+    """Bỏ đoạn nhật ký làm việc, giữ câu kết quả.
+
+    Ca 16/09: làm slide UAV ra mười đoạn "Em sẽ… / Em đã thấy…". Đó là chữ model tự viết
+    vào câu trả lời cuối, không phải log tool - prompt cấm rồi vẫn ra, nên gọt ở đây.
+    """
+    s = (text or "").strip()
+    if not s:
+        return s
+    phan = re.split(r"\n\s*\n", s)
+    giu = []
+    for p in phan:
+        t = p.strip()
+        if not t:
+            continue
+        if t.startswith("<!--") or t.startswith("```"):
+            giu.append(p)
+            continue
+        if t.startswith("Đã ") or t.startswith("**Đã "):
+            giu.append(p)
+            continue
+        dong1 = t.split("\n", 1)[0]
+        if _DAU_NHAT_KY.search(dong1) or _DAU_NHAT_KY.search(t):
+            continue
+        if _CO_EM_SE.search(t):
+            continue
+        giu.append(p)
+    if giu:
+        return re.sub(r"\n{3,}", "\n\n", "\n\n".join(giu)).strip()
+    return phan[-1].strip() if phan else s
+
+
 def strip_control_blocks(text: str) -> str:
     """Bóc mọi khối <!-- JAVIS_*: ... --> khỏi text.
 

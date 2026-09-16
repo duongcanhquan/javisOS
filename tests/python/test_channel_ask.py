@@ -65,6 +65,40 @@ check("không khối: giữ nguyên", strip("Chỉ là câu trả lời.") == "C
 check("text rỗng: không nổ", strip("") == "")
 check("None: không nổ", strip(None) == "")
 
+# ---- 7. Gọt nhật ký "Em sẽ…" (ca UAV 16/09: prompt cấm rồi model vẫn viết) ----
+gon = channel_context.gon_nhat_ky_lam_viec
+UAV = (
+    "Em sẽ dùng slide-wright để dựng lại deck UAV theo bản proposal có sẵn, bổ sung logo, "
+    "ảnh minh họa và biểu đồ trực quan rồi xuất PDF gửi anh Quân.\n\n"
+    "Em đã thấy bộ UAV hiện có trong projects/uav, có cả proposal, slide cũ, landing page "
+    "và ảnh minh họa. Em sẽ dựng bản mới trong exports/slides/ để không làm hỏng file cũ.\n\n"
+    "Em sẽ lấy nội dung từ đề án UAV hiện có, nhưng phần nhìn sẽ làm mới theo hướng "
+    "aero lab 16:9.\n\n"
+    "Em sẽ làm full deck luôn theo yêu cầu.\n\n"
+    "Em đã xác định môi trường không có Chrome hệ thống, nên em sẽ xuất PDF bằng bộ render "
+    "PDF sẵn có.\n\n"
+    "Em sẽ ghi deck HTML mới vào thư mục xuất riêng.\n\n"
+    "Em đã dựng xong khung HTML 10 slide, bước tiếp theo là xuất PDF.\n\n"
+    "PDF đầu tiên bị bung thành nhiều trang vì bộ xuất PDF quy đổi inch khác với canvas. "
+    "Em sẽ chỉnh CSS in sang đúng canvas pixel.\n\n"
+    "Bản PDF từ HTML bị tách trang không đúng. Em sẽ xuất lại PDF trực tiếp bằng canvas 16:9.\n\n"
+    "Bản PDF mới đã đúng 10 trang / 10 slide. Em sẽ gửi file PDF cho anh Quân ngay.\n\n"
+    "Đã thiết kế lại và gửi anh Quân slide proposal UAV bản mới."
+)
+ra = gon(UAV)
+check("CANARY: nhật ký UAV chỉ còn câu chốt Đã…",
+      ra == "Đã thiết kế lại và gửi anh Quân slide proposal UAV bản mới.")
+check("CANARY: không còn Em sẽ / Em đã thấy",
+      "Em sẽ" not in ra and "Em đã thấy" not in ra)
+check("câu kết quả thường không bị đụng",
+      gon("Doanh thu hôm nay 12 triệu, tăng 8% so với tuần trước.")
+      == "Doanh thu hôm nay 12 triệu, tăng 8% so với tuần trước.")
+check("rỗng không nổ", gon("") == "" and gon(None) == "")
+
+main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
+check("dashboard/Telegram gọt nhật ký trước khi gửi",
+      "gon_nhat_ky_lam_viec" in main_py)
+
 if _fails:
     print(f"\nFAIL - {len(_fails)} test: {_fails}")
     sys.exit(1)
