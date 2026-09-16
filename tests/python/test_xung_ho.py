@@ -53,6 +53,8 @@ MIEN_TRU = {
     "server/memory_index.py",
     "server/context_compiler.py",
     "server/chatbot_grounding.py",
+    # Mẫu CẤM nhật ký "Em sẽ…" / ví dụ xấu gửi user, không phải Javis tự xưng em với người dùng.
+    "server/channel_context.py",
     # `<em>` của HTML, không phải đại từ.
     "server/substack_mcp.py",
 }
