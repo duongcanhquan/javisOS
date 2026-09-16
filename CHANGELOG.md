@@ -1,5 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.55.251] - 2026-09-16
+### Mới
+- **Check AI / humanize trong chat.** Nói «check AI» hoặc «bớt giọng ChatGPT» là Javis nạp skill Humanizer: điểm 0-100 + viết lại cho tự nhiên (EN/VI).
+
+## [0.55.250] - 2026-09-16
+### Mới
+- **Linh vật góc màn.** Trong Cài đặt nhanh bật linh vật, chọn cáo/mèo/rái cá… - nó nhìn theo chuột, bấm để boop. Tắt được; ẩn trên điện thoại cảm ứng.
+
 ## [0.55.249] - 2026-09-16
 ### Sửa
 - **Chat hết nhật ký «Em sẽ…» thật sự.** Bản trước chỉ dặn trong prompt nên model vẫn kể từng bước. Giờ Javis gọt những đoạn đó trước khi hiện; việc UAV chỉ còn câu chốt + file.
