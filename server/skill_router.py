@@ -297,6 +297,16 @@ _INTENT_BOOSTS: tuple[tuple[tuple[str, ...], str], ...] = (
         ),
         "ke-hoach-marketing",
     ),
+    (
+        (
+            "humanize", "humaniser", "humanizer", "check ai", "check AI",
+            "dấu AI", "dau AI", "dấu viết AI", "dau viet AI", "giọng AI", "giong AI",
+            "bớt AI", "bot AI", "bớt giọng AI", "viết lại tự nhiên", "viet lai tu nhien",
+            "giống ChatGPT", "giong chatgpt", "AI-tell", "ai tell", "remove AI tells",
+            "make this sound human", "does this read like AI",
+        ),
+        "humanizer",
+    ),
 )
 
 _WORD_RE = re.compile(r"[^\W_]{2,}", re.UNICODE)
@@ -375,7 +385,9 @@ def intent_router_footer() -> str:
         "(và `slide-wright` nếu user muốn chiếu / pitch).\n"
         "- xuất gói PDF/PPTX từ research 01-09 → `xuat-goi-nghien-cuu` "
         "(+ `slide-wright` khi cần deck đẹp).\n"
-        "- nghiên cứu thị trường sâu → `nghien-cuu-thi-truong` / `deep-research`."
+        "- nghiên cứu thị trường sâu → `nghien-cuu-thi-truong` / `deep-research`.\n"
+        "- check AI / dấu viết AI / humanize / bớt giọng ChatGPT → NẠP `humanizer` "
+        "(detect điểm 0-100 hoặc rewrite; không gọi detector ngoài)."
     )
 
 

@@ -39,6 +39,12 @@ metas += [
         "enabled": True,
     },
     {
+        "slug": "humanizer",
+        "name": "Humanizer",
+        "description": "Chấm điểm dấu viết AI",
+        "enabled": True,
+    },
+    {
         "slug": "zzz-cuoi",
         "name": "Cuối",
         "description": "skill alphabet muộn",
@@ -62,9 +68,13 @@ check("hint slide → slide-wright đứng đầu hoặc gần đầu", slugs.in
 prop = skill_router.pick_for_router(metas, hint="Viết proposal chiến lược GTM")
 check("hint proposal → proposal-chien-luoc", "proposal-chien-luoc" in [s["slug"] for s in prop])
 
+hum = skill_router.pick_for_router(metas, hint="check AI giúp mình đoạn này")
+check("hint check AI → humanizer", "humanizer" in [s["slug"] for s in hum])
+
 foot = skill_router.intent_router_footer()
 check("footer nhắc slide-wright", "slide-wright" in foot)
 check("footer nhắc proposal", "proposal-chien-luoc" in foot)
+check("footer nhắc humanizer", "humanizer" in foot)
 check("footer không em dash", "\u2014" not in foot)
 
 # Agent wiring

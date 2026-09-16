@@ -315,7 +315,7 @@
       '<div class="qs-hint" data-i18n="qs.mascot_hint">' +
       t(
         "qs.mascot_hint",
-        "Nhìn theo chuột. Bấm vào linh vật để boop. Tắt trên điện thoại cảm ứng."
+        "Nhìn theo chuột. Bấm vào linh vật để boop. Ẩn trên điện thoại cảm ứng."
       ) +
       "</div>" +
       '<div class="javis-mascot-grid" hidden>' + cards + "</div>";
@@ -333,6 +333,9 @@
     });
     try {
       if (window.JavisIcons && JavisIcons.refresh) JavisIcons.refresh(host);
+    } catch (e) {}
+    try {
+      if (window.JavisI18n && JavisI18n.applyDom) JavisI18n.applyDom(host);
     } catch (e) {}
     syncPicker();
   }
