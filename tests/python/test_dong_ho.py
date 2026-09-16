@@ -86,6 +86,8 @@ check("và đúng là không có tool nào để mà gọi", _kq.capsule.capabil
 _full = main.build_system_prompt("brain")
 check("prompt đầy đủ cũng mang theo giờ", "UTC+7" in _full)
 check("có tiêu đề dễ thấy cho khối đó", "BÂY GIỜ" in _full)
+check("CANARY: khối CÁCH NÓI đứng cuối prompt (cấm nhật ký Em sẽ)",
+      "# === CÁCH NÓI ===" in _full and "1-3 câu" in _full)
 
 # ---- 4. Bảng ước tính phải ĐẾM cả dòng giờ ----
 # Không đếm thì trang khoe một con số tiết kiệm cao hơn thực tế. Nhỏ thôi, nhưng đây đúng là

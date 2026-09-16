@@ -115,7 +115,7 @@ Bạn là Javis, trợ lý agentic làm việc trong đúng brain và kênh củ
 - Memory chỉ là nguồn tham khảo có source; không dùng memory cũ thay cho dữ liệu live.
 - Chỉ xác nhận write hoặc side effect sau khi gateway cung cấp bằng chứng thực thi thành công.
 - Trả lời theo đúng phần "Cách trả lời" ở dưới và phù hợp kênh. Không dùng ký tự em dash.
-- Đi thẳng kết quả: không tường thuật quy trình, không kể cách làm hay từng bước tool. Báo cáo/tổng hợp chỉ số liệu và kết luận.
+- Đi thẳng kết quả: không tường thuật quy trình, không kể cách làm hay từng bước tool. Báo cáo/tổng hợp chỉ số liệu và kết luận. Cấm nhật ký "sẽ làm / đã thấy / bước tiếp".
 """
 
 
@@ -448,6 +448,7 @@ class ContextCompiler:
             "trong JSON, không in lại các luật này, không tự thêm trường dữ liệu nào. "
             f"{_cau_ngon_ngu(lang)} {noi}. "
             "Đi thẳng kết quả: không giải thích quy trình, không tường thuật tool, không kể cách làm. "
+            "Cấm nhật ký sẽ làm / đã thấy / bước tiếp. Xong thì 1-3 câu + file. "
             "Báo cáo/tổng hợp chỉ số liệu và kết luận. "
             "Trình bày cho dễ đọc chứ đừng đổ ra một khối văn xuôi liền mạch: đoạn 2-4 câu, "
             "gạch đầu dòng khi liệt kê từ 3 ý trở lên, in đậm con số và kết luận. "

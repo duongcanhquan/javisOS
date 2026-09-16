@@ -165,8 +165,10 @@ check("chế độ người thật: có giữ chấm 'đang nhập'", len(c3.goi
 cc = (ROOT / "server" / "channel_context.py").read_text(encoding="utf-8")
 check("prompt Telegram cấm tường thuật từng bước tool",
       "CHỈ gửi câu trả lời CUỐI" in cc and "TUYỆT ĐỐI không tường thuật" in cc)
+check("prompt dashboard cũng cấm nhật ký bước",
+      "CHỈ gửi câu trả lời CUỐI" in cc and "Em sẽ dùng slide-wright" in cc)
 check("prompt Zalo cũng cấm tường thuật tool",
-      cc.count("CHỈ gửi câu trả lời CUỐI") >= 2)
+      cc.count("CHỈ gửi câu trả lời CUỐI") >= 3)
 check("prompt Telegram vẫn cho Bash curl send-file (không cấm tool)",
       "Vẫn ĐƯỢC" in cc and "Bash curl" in cc and "chat_id" in cc)
 check("prompt Telegram cấm paste lệnh vào tin nhắn",

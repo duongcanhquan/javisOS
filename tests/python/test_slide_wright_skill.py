@@ -45,6 +45,8 @@ if m:
     check("description ≤150", len(m.group(1)) <= 150)
 check("có group Nội dung", "group: Nội dung" in raw or 'group: "Nội dung"' in raw)
 check("ghi upstream slide-wright", "arifszn/slide-wright" in raw)
+check("cấm nhật ký bước với user", "Làm thầm" in raw and "1-3 câu" in raw)
+check("handoff không kể quy trình", "No process" in raw or "không nhật ký" in raw.lower())
 
 # Cây references không dính em dash
 for p in (skill / "references").glob("*.md"):

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.248] - 2026-09-16
+### Cải thiện
+- **Chat hết kể từng bước.** Làm slide hay việc dài không còn dãy «Em sẽ… / Em đã thấy… / bước tiếp theo». Xong thì chỉ còn vài câu + đường dẫn file.
+
 ## [0.55.247] - 2026-09-16
 ### Cải thiện
 - **Chat tự ưu tiên Slide Wright** khi hỏi làm slide, pitch, PDF trình chiếu, proposal chiếu. Agent/workflow nghiên cứu & marketing (proposal, xuất gói, MKT, kế hoạch) đã gắn skill; deck đẹp vào `exports/slides/`.

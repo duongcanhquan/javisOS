@@ -29,6 +29,15 @@ Proposal nội dung (chữ) trước → `proposal-chien-luoc`, rồi mới skil
 Lớp học tương tác OpenMAIC → `bai-giang-lop-hoc`. Video → `lam-video` / `paperdesign`.
 Gói PDF/PPTX tóm tắt research → `xuat-goi-nghien-cuu` (PPTX đơn giản); deck đẹp vẫn là skill này.
 
+## Cách nói với user
+
+Làm thầm. Không kể skill, không kể folder đã thấy, không kể sẽ preview hay full, không kể
+lỗi PDF rồi sửa. User không cần nhật ký.
+
+- Preview: một câu duyệt theme + embed 2 slide. Hết.
+- Full xong: 1-3 câu + đường dẫn. Đúng: `Đã dựng 10 slide UAV + PDF. [mở deck](exports/slides/uav/index.html)`
+- Sai: dãy "Em sẽ dùng slide-wright… Em đã thấy bộ… Em sẽ xuất PDF…"
+
 ## Javis output path
 
 Ghi deck vào vault:
@@ -123,10 +132,11 @@ fonts loaded.
 
 ## Step 5 - Hand it off
 
-1. Say path, theme name, slide count.
-2. Controls: arrows / space / swipe; **F** fullscreen; **Esc** / **O** overview; **S** speaker;
-   **?** keys; `?print-pdf` then print for PDF (`references/export-pdf.md`).
-3. Offer revise / retheme / PDF / deploy (`references/deploy.md` - let user pick host).
+One to three sentences: path, slide count, embed. No process, no engine names, no print recipe
+unless the user asked how to export.
+
+Offer revise / retheme / PDF / deploy only if they ask what else is possible
+(`references/deploy.md` - let user pick host).
 
 ## Liên kết
 
@@ -140,3 +150,4 @@ fonts loaded.
 - Không em dash (U+2014) trong file hay chat.
 - Không kể tên engine/library với user.
 - Không ghi deck ra chỗ lung tung ngoài `exports/slides/<slug>/`.
+- Không nhật ký bước với user. Xong mới nói, 1-3 câu.

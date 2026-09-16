@@ -104,6 +104,10 @@ check("web: trấn an chuyện giọng đọc để khỏi tự siết lại",
       "bóc markdown" in _WEB)
 check("web: vẫn dặn ngắn gọn, không lấy định dạng làm cớ viết dài",
       "giọng người đang nói" in _WEB and "viết dài" in _WEB)
+check("CANARY: web cấm nhật ký bước (Em sẽ / bước tiếp theo)",
+      "CHỈ gửi câu trả lời CUỐI" in _WEB and "Em sẽ dùng slide-wright" in _WEB)
+check("mọi kênh cấm nhật ký Em sẽ / đã thấy",
+      "Em/mình sẽ" in _WEB and "Em/mình sẽ" in _TG)
 check("khối web không dính em dash", "—" not in _WEB)
 
 

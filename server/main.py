@@ -657,6 +657,10 @@ def build_system_prompt(brain: str = "brain", include_memory: bool = True,
                      f"từng nhà cung cấp ở panel 'Mức dùng' trên dashboard.")
     except Exception:
         pass
+    # Sát chỗ sinh chữ: model hay kể "Em sẽ…" giữa các tool. Khối này thắng skill dài.
+    base += ("\n\n# === CÁCH NÓI ===\n"
+             "Chỉ nói kết quả. Cấm nhật ký làm việc (Em/mình sẽ…, đã thấy…, bước tiếp theo là…). "
+             "Làm thầm; xong thì 1-3 câu + đường dẫn/file. Không kể skill, folder, hay cách xuất.")
     return base
 
 

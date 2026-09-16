@@ -24,5 +24,6 @@ Từ {{prev}} + {{input}}:
    rồi mới full → `exports/slides/<slug>/index.html`.
 3. Biểu đồ cần thiết → `diagram-design`; ảnh → `javis_generate_image` khi sẵn.
 
-Không tường chữ. Không em dash. Không dừng ở Markdown nếu brief yêu cầu chiếu / pitch / deck đẹp.
+Không tường chữ. Không nhật ký bước. Xong: 1-3 câu + đường dẫn. Không em dash.
+Không dừng ở Markdown nếu brief yêu cầu chiếu / pitch / deck đẹp.
 Nếu chạy nền không có người duyệt theme: ghi preview 2 slide + báo chờ duyệt, không tự bung full.
