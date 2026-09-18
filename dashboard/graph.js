@@ -14,6 +14,8 @@ const CAT_COLORS_DARK = ["#7ee0d8", "#3fdc9a", "#6b8cff", "#ff7a9c", "#4aa8ff", 
   "#f0c853", "#5ad1c4", "#e07ad1", "#7ed957", "#67e8f9", "#9fb0cf"];
 const CAT_COLORS_LIGHT = ["#0f766e", "#0f8f63", "#1d4ed8", "#c93b62", "#1668c4", "#3b6bff",
   "#96760a", "#0e8b81", "#a83c95", "#3e8f22", "#0e7490", "#5a688a"];
+const CAT_COLORS_NEON = ["#5ce1ff", "#ff2bd6", "#ff7a59", "#67e8f9", "#f472b6", "#22d3ee",
+  "#fb7185", "#a78bfa", "#fbbf24", "#34d399", "#38bdf8", "#e879f9"];
 
 // Bảng đang dùng + các màu phụ thuộc tông của lớp vẽ. Đổi tông thì hoán bảng rồi
 // vẽ lại; không rebuild đồ thị nên vị trí node và trạng thái hover giữ nguyên.
@@ -43,6 +45,17 @@ const INK_LIGHT = {
   labelText: "rgba(18,24,38,0.97)",
 };
 const INK_DARK = INK;
+const INK_NEON = {
+  hoverCore: "#ffffff",
+  fallback: "#5ce1ff",
+  glowCore: "rgba(255,255,255,0.95)",
+  glowStops: [[0.28, 0.95], [0.6, 0.38]],
+  linkIdle: "rgba(92,225,255,0.12)",
+  linkOn: "rgba(255,43,214,0.55)",
+  linkOff: "rgba(80,140,200,0.03)",
+  labelHalo: "rgba(4,9,26,0.88)",
+  labelText: "rgba(242,250,255,0.98)",
+};
 
 function _catOf(node) {
   const segs = (node.path || "").split("/");
@@ -102,30 +115,33 @@ function _glowSprite(color) {
 
 // Đổi tông: hoán bảng màu + bảng mực, gán lại màu cho node đang có, rồi vẽ lại.
 // Không nạp lại dữ liệu nên toạ độ node, cụm đang rọi sáng và node đang trỏ giữ nguyên.
-function _applyGraphTheme(light) {
-  CAT_COLORS = light ? CAT_COLORS_LIGHT : CAT_COLORS_DARK;
-  INK = light ? INK_LIGHT : INK_DARK;
+function _applyGraphTheme(theme) {
+  if (theme === true) theme = "light";
+  else if (theme === false) theme = "dark";
+  else if (theme !== "light" && theme !== "neon" && theme !== "dark") theme = _themeName();
+  CAT_COLORS = theme === "light" ? CAT_COLORS_LIGHT
+    : theme === "neon" ? CAT_COLORS_NEON
+    : CAT_COLORS_DARK;
+  INK = theme === "light" ? INK_LIGHT : theme === "neon" ? INK_NEON : INK_DARK;
   if (window.__javisCatIdx) window.__javisCatMap = _mapFromIdx(window.__javisCatIdx);
   const g = window.__javisGraph;
   if (g && g._recolor) g._recolor();
   try { window.dispatchEvent(new Event("javis-catcolors-change")); } catch (e) {}
 }
-// Đọc tông hiện tại từ thuộc tính trên <html>. Bọc typeof vì file này còn được nạp
-// trong Node (test JS ở tests/js/) với DOM giả lập tối thiểu, không có documentElement.
-function _themeIsLight() {
-  return typeof document !== "undefined" && document.documentElement
-    ? document.documentElement.getAttribute("data-theme") === "light"
-    : false;
+function _themeName() {
+  if (typeof document === "undefined" || !document.documentElement) return "dark";
+  const a = document.documentElement.getAttribute("data-theme");
+  if (a === "light" || a === "neon") return a;
+  return "dark";
 }
-// KHÔNG dùng window.javisTheme.on() ở đây: file này có lúc nạp trước theme.js, khi đó
-// window.javisTheme chưa tồn tại nên đăng ký hụt IM LẶNG và đồ thị kẹt ở bảng màu tối.
-// Nghe thẳng sự kiện + tự đọc thuộc tính thì đúng ở mọi thứ tự nạp.
+function _themeIsLight() { return _themeName() === "light"; }
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("javis-theme-change", function (e) {
-    _applyGraphTheme(!!(e && e.detail && e.detail.light));
+    const th = e && e.detail && e.detail.theme;
+    _applyGraphTheme(th || _themeName());
   });
 }
-_applyGraphTheme(_themeIsLight());
+_applyGraphTheme(_themeName());
 
 // Lực kéo mọi node về tâm (0,0) tỉ lệ khoảng cách → cả mạng co lại thành hình tròn ở giữa,
 // node bị kéo ra sẽ tự trôi về. (d3 custom force: hàm(alpha) + initialize(nodes)).

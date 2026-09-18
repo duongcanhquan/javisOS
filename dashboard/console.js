@@ -639,7 +639,7 @@
   function _injectUsageCss() {
     if (_uzCss) return; _uzCss = true;
     const css = `
-    .uz-wrap{max-width:840px}
+    .uz-wrap{max-width:1180px;margin:0 auto;width:100%}
     .uz-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px}
     .uz-card{flex:1 1 150px;background:var(--glass);border:1px solid var(--glass-brd);border-radius:12px;padding:14px 16px}
     .uz-card .uz-k{font-size:12px;color:var(--text3);letter-spacing:.3px}
@@ -722,7 +722,7 @@
   function _injectChangelogCss() {
     if (_clCss) return; _clCss = true;
     const css = `
-    .cl-wrap{max-width:820px;margin:0 auto}
+    .cl-wrap{max-width:1180px;margin:0 auto;width:100%}
     .upd-card{margin-bottom:24px;padding:18px;border:1px solid rgba(62,224,214,.28);border-radius:16px;background:linear-gradient(135deg,rgba(62,224,214,.08),rgba(107,140,255,.05))}
     .upd-card .gcard-btn{width:auto}
     .upd-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -1169,7 +1169,8 @@
     .fm-fix-row em{flex:none;font-style:normal;font-size:11.5px;opacity:.8}
     .fm-fix-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     @media(max-width:700px){.fm-fix-row em{display:none}}
-    .si-grid{display:flex;flex-direction:column;gap:14px;max-width:640px}
+    .si-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:none}
+    .si-span,.si-grid>#lpLoopFields,.si-grid>#lpRemFields{grid-column:1/-1}
     .si-field label{display:block;font-size:14px;color:var(--text3);margin-bottom:5px}
     .si-field select,.si-field input,.si-field textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--hairline);background:var(--field-bg);color:var(--text);font-size:15px;outline:none}
     .si-field textarea{min-height:80px;resize:vertical;font-family:inherit}
@@ -1207,7 +1208,7 @@
     .kn-drawer{position:fixed;z-index:10001;top:0;right:0;width:min(520px,94vw);height:100vh;height:100dvh;background:var(--bg2);border-left:1px solid rgba(127,176,255,.25);box-shadow:-20px 0 60px rgba(0,0,0,.45);transform:translateX(105%);transition:transform .2s;display:flex;flex-direction:column}
     .kn-drawer.open{transform:translateX(0)}.kn-drawer-head{position:sticky;top:0;z-index:2;padding:12px 12px 12px 17px;border-bottom:1px solid var(--hairline);background:var(--bg2);display:flex;align-items:center;gap:10px}.kn-drawer-head b{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kn-drawer-head button{width:36px;height:36px;display:grid;place-items:center;background:rgba(255,255,255,.035);border:1px solid var(--hairline);border-radius:8px;color:var(--text2);font-size:22px;line-height:1;cursor:pointer}.kn-drawer-head button:hover{border-color:var(--link-ink);color:var(--text-hi)}
     .kn-drawer-body{padding:16px 17px;overflow:auto;color:var(--text2);font-size:13px;line-height:1.5}.kn-detail-block{margin-top:16px}.kn-detail-block h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin:0 0 7px}.kn-event{padding:8px 0;border-bottom:1px solid var(--surface-2)}
-    @media(max-width:850px){.fm-search-tools{align-items:stretch}.fm-search{flex-basis:100%;max-width:none}.fm-search-meta{width:100%;min-width:0}.fm-search-kind{display:none}.kn-health{grid-template-columns:repeat(2,1fr)}.kn-list{max-height:none}}`;
+    @media(max-width:850px){.fm-search-tools{align-items:stretch}.fm-search{flex-basis:100%;max-width:none}.fm-search-meta{width:100%;min-width:0}.fm-search-kind{display:none}.kn-health{grid-template-columns:repeat(2,1fr)}.kn-list{max-height:none}.si-grid{grid-template-columns:1fr}}`;
     const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   }
 
@@ -1754,15 +1755,15 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       let d = { plugins: [] };
       try { d = await (await fetch(`/plugins?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
       if (myGen !== _renderGen) return;
-      const intro = `<p style="color:var(--text3);font-size:15px;max-width:720px;margin:0 0 12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Javis mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
+      const intro = `<p class="jx-page-lead" style="margin-bottom:12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Javis mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
       const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:var(--warn-ink);font-size:13px;line-height:1.55"><b>${WARN_ICON} Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại Javis. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
       const dirHint = `<p style="color:var(--text3);font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo Javis trong khung chat: "tạo plugin ...".</p>`;
       const plugins = (d.plugins || []).slice();
       const order = { bundled: 0, user: 1, vault: 2 };
       plugins.sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || (a.name || "").localeCompare(b.name || ""));
       const wrap = document.createElement("div");
-      wrap.className = "cview-section";
-      wrap.innerHTML = intro + gateBanner + dirHint + `<div id="plCards"></div>`;
+      wrap.className = "cview-page";
+      wrap.innerHTML = intro + gateBanner + dirHint + `<div id="plCards" class="wf-list"></div>`;
       const host = wrap.querySelector("#plCards");
       const conDung = plugins.filter(p => !p.removed);
       const daGo = plugins.filter(p => p.removed);
@@ -1816,8 +1817,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       return `còn ${Math.round(s / 86400)} ngày`;
     }
 
-    el.innerHTML = `<div class="cview-section">
-      <p style="color:var(--text3);font-size:15px;max-width:680px;margin:0 0 14px">Nhiều <b>loop</b> chạy ngầm: mỗi loop tự thức theo chu kỳ, làm <b>một việc</b> bạn mô tả, tự kiểm chứng rồi ghi log. Thực thi <b>tuần tự</b> (1 vòng/lúc). Loop <b>đọc được dữ liệu thật qua MCP</b> (POS, quảng cáo, lịch...) để làm việc, nhưng KHÔNG tự tạo đơn/tiêu tiền/đăng bài - chỉ ghi nháp để bạn duyệt.</p>
+    el.innerHTML = `<div class="cview-page">
+      <p class="jx-page-lead" style="margin-bottom:4px">Nhiều <b>loop</b> chạy ngầm: mỗi loop tự thức theo chu kỳ, làm <b>một việc</b> bạn mô tả, tự kiểm chứng rồi ghi log. Thực thi <b>tuần tự</b> (1 vòng/lúc). Loop <b>đọc được dữ liệu thật qua MCP</b> (POS, quảng cáo, lịch...) để làm việc, nhưng KHÔNG tự tạo đơn/tiêu tiền/đăng bài - chỉ ghi nháp để bạn duyệt.</p>
       <div class="si-actions" style="margin-bottom:14px">
         <button class="s-btn" id="lpNew">+ Thêm việc</button>
         <button class="s-btn-ghost" id="lpStop">■ Dừng vòng đang chạy</button>
@@ -1831,7 +1832,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             <button class="si-chip sel" data-kind="loop">${ic("repeat")} Việc lặp</button>
             <button class="si-chip" data-kind="reminder">${ic("alarm-clock")} Nhắc hẹn</button></div></div>
           <div class="si-field"><label>Tên</label><input id="lpName" placeholder="Ví dụ: Đọc email mỗi 2 tiếng"></div>
-          <div class="si-field"><label id="lpBodyLabel">Mô tả nhiệm vụ (mỗi vòng Javis làm đúng việc này)</label>
+          <div class="si-field si-span"><label id="lpBodyLabel">Mô tả nhiệm vụ (mỗi vòng Javis làm đúng việc này)</label>
             <textarea id="lpBody" placeholder="Ví dụ: Mỗi vòng đọc 1 source chưa xử lý trong 06 - Sources rồi đề xuất Wiki page nên tạo. Hoặc: đọc số đơn hôm nay qua MCP POS, nếu thấp thì soạn nháp 1 caption đẩy hàng vào 05 - Projects."></textarea></div>
           <div id="lpLoopFields">
             <div class="si-row" style="gap:14px;flex-wrap:wrap">
@@ -1859,11 +1860,11 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             </div>
           </div>
           <div class="si-field"><label>Brain (nơi lưu việc)</label><select id="lpBrain" class="loop-sel" style="min-width:180px"></select></div>
-          <div id="lpFullWarn" style="display:none;margin-top:4px;padding:10px 12px;border:1px solid rgba(224,102,74,.5);border-radius:8px;background:rgba(224,102,74,.08);color:var(--red);font-size:13px;line-height:1.5">
+          <div id="lpFullWarn" class="si-span" style="display:none;margin-top:4px;padding:10px 12px;border:1px solid rgba(224,102,74,.5);border-radius:8px;background:rgba(224,102,74,.08);color:var(--red);font-size:13px;line-height:1.5">
             <b>${WARN_ICON} CHẾ ĐỘ TOÀN QUYỀN - rủi ro cao.</b> Loop sẽ tự thao tác THẬT qua MCP không cần hỏi: có thể <b>tạo/sửa đơn hàng, chạy quảng cáo (tiêu tiền thật), gửi tin nhắn/email, đăng bài</b>. Nó chạy nền theo lịch, KHÔNG có người duyệt từng bước, và <b>hành động thật không hoàn tác được</b>. Chỉ bật khi bạn đã tin tưởng loop này và mô tả nhiệm vụ thật rõ ràng, giới hạn phạm vi. Nên chạy thử ở "Đề xuất" hoặc "Tự làm (an toàn)" trước.
           </div>
-          <div class="dim" id="lpLoopNote" style="font-size:12px;color:var(--text3);margin-top:2px">Đề xuất = chỉ đọc + gợi ý. Tự làm (an toàn) = ghi nháp file + đọc MCP, KHÔNG tiền/đơn/đăng bài. Toàn quyền = tự thao tác mọi thứ. · Tinh chỉnh nâng cao (giờ im lặng, trần vòng/ngày, thư mục code): sửa file <code>Javis/loops/&lt;tên&gt;.md</code>.</div>
-          <div class="si-actions"><button class="s-btn" id="lpSave">${SAVE_ICON} Lưu</button><button class="s-btn-ghost" id="lpCancel">Huỷ</button><span class="dim" id="lpFormMsg" style="font-size:13px;color:var(--warn-ink)"></span></div>
+          <div class="dim si-span" id="lpLoopNote" style="font-size:12px;color:var(--text3);margin-top:2px">Đề xuất = chỉ đọc + gợi ý. Tự làm (an toàn) = ghi nháp file + đọc MCP, KHÔNG tiền/đơn/đăng bài. Toàn quyền = tự thao tác mọi thứ. · Tinh chỉnh nâng cao (giờ im lặng, trần vòng/ngày, thư mục code): sửa file <code>Javis/loops/&lt;tên&gt;.md</code>.</div>
+          <div class="si-actions si-span"><button class="s-btn" id="lpSave">${SAVE_ICON} Lưu</button><button class="s-btn-ghost" id="lpCancel">Huỷ</button><span class="dim" id="lpFormMsg" style="font-size:13px;color:var(--warn-ink)"></span></div>
         </div>
       </div>
       <div class="lp-search-row" style="margin:6px 0 10px">
@@ -2415,20 +2416,20 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       .map(([k, l]) => `<button class="si-chip ${caps[k] ? "sel" : ""}" data-cap="${k}">${caps[k] ? "● " : "○ "}${l}</button>`).join("");
     const gitWarn = cfg.git_available ? "" : `<div class="dim" style="color:var(--text3);font-size:13px;margin-top:6px">ℹ Máy chưa có <code>git</code>: Tự học VẪN chạy bình thường, chỉ là chưa có hoàn tác 1-chạm/backup lên GitHub. Cài git để bật undo + sao lưu brain.</div>`;
 
-    el.innerHTML = `<div class="cview-section">
-      <p style="color:var(--text3);font-size:15px;max-width:660px;margin:0 0 14px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b>, <b>vai (agent)</b>, <b>chuỗi bước (workflow)</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
+    el.innerHTML = `<div class="cview-page">
+      <p class="jx-page-lead" style="margin-bottom:4px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b>, <b>vai (agent)</b>, <b>chuỗi bước (workflow)</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
       <div class="si-grid">
         <div class="si-field"><label>Bật tự học</label>
           <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="lnEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button>
           <div class="dim" id="lnEnableNote" style="font-size:13px;margin-top:6px;color:var(--text3)">Học chạy được ngay cả khi chưa có git. Có git thì thêm undo + sao lưu.</div></div>
         <div class="si-field"><label>Chế độ ghi</label><div class="si-row" id="lnModes">${modeChips}</div>
           <div class="dim" id="lnModeDesc" style="font-size:14px;margin-top:6px;color:var(--text3)">${esc(modeDesc)}</div>${gitWarn}</div>
-        <div class="si-field"><label>Học cái gì</label><div class="si-row" id="lnCaps">${capRow}</div>
+        <div class="si-field si-span"><label>Học cái gì</label><div class="si-row" id="lnCaps">${capRow}</div>
           <div class="dim" style="font-size:13px;margin-top:6px;color:var(--text3)">Wiki/Skill nên bật sau khi đã quen với Ký ức (lộ trình Phase 2/3). Vai (Agent) / Chuỗi bước (Workflow) = học từ hội thoại ra agent/workflow mới trong Studio - chỉ tạo MỚI không ghi đè, workflow tạo ở trạng thái tắt, và có vòng kiểm chứng riêng nên mặc định tắt. Việc = học xong đề xuất task nền vào bảng Việc (Kanban) - chỉ tạo thật ở chế độ Tự ghi, và task luôn chờ bạn duyệt.</div></div>
         <div class="si-field"><label>Curator (bảo trì định kỳ)</label>
           <button class="si-chip ${(cfg.curator||{}).enabled ? "sel" : ""}" id="lnCurator">${(cfg.curator||{}).enabled ? "● Bật" : "○ Tắt"}</button>
           <div class="dim" style="font-size:13px;margin-top:6px;color:var(--text3)">Dọn index, LINT Wiki (chỉ đề xuất), nén MEMORY.md. Không xoá.</div></div>
-        <div class="si-actions">
+        <div class="si-actions si-span">
           <button class="s-btn" id="lnSave">${SAVE_ICON} Lưu cấu hình</button>
           <button class="s-btn-ghost" id="lnRun">▶ Học ngay</button>
           <button class="s-btn-ghost" id="lnCuratorRun">${ic("brush-cleaning")} Curator ngay</button>
@@ -2440,13 +2441,13 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
 
       <div class="si-log" id="lnBackupBox">
         <h3 style="font-size:15px;color:var(--text)">⇅ Đồng bộ brain với GitHub (2 chiều)</h3>
-        <p style="color:var(--text3);font-size:14px;max-width:680px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) với 1 repo GitHub <b>riêng tư</b>: vừa đẩy thay đổi của máy này lên, vừa kéo thay đổi từ máy khác về (dùng chung cho máy nhà + VPS, các máy tự khớp nhau). Sửa trùng 1 file ở 2 nơi thì bản mới hơn thắng, bản kia được giữ thành file <code>.conflict-*</code> ngay cạnh. Máy mới cấu hình repo rồi bấm đồng bộ là khôi phục được toàn bộ. Hướng dẫn: <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:var(--link-ink)">docs/18-sao-luu-github.md</a>.</p>
-        <ol style="color:var(--text3);font-size:13.5px;line-height:1.7;max-width:680px;margin:0 0 12px;padding-left:20px">
+        <p style="color:var(--text3);font-size:14px;margin:2px 0 10px">Đồng bộ <b>TẤT CẢ brain trong thư mục brains</b> (mọi bộ não, ghi chú, Wiki, ký ức) với 1 repo GitHub <b>riêng tư</b>: vừa đẩy thay đổi của máy này lên, vừa kéo thay đổi từ máy khác về (dùng chung cho máy nhà + VPS, các máy tự khớp nhau). Sửa trùng 1 file ở 2 nơi thì bản mới hơn thắng, bản kia được giữ thành file <code>.conflict-*</code> ngay cạnh. Máy mới cấu hình repo rồi bấm đồng bộ là khôi phục được toàn bộ. Hướng dẫn: <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/18-sao-luu-github.md" target="_blank" style="color:var(--link-ink)">docs/18-sao-luu-github.md</a>.</p>
+        <ol style="color:var(--text3);font-size:13.5px;line-height:1.7;margin:0 0 12px;padding-left:20px">
           <li>Tạo repo GitHub <b>Private</b> (trống, KHÔNG thêm README) - vd <code>javis-brain-backup</code>.</li>
           <li>Tạo token: GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → chọn đúng repo đó → quyền <b>Contents: Read and write</b> → tạo và copy token (dạng <code>github_pat_...</code>).</li>
           <li>Dán URL repo + token vào đây, bấm <b>Kiểm tra</b>, rồi <b>Đồng bộ ngay</b>. Bật tự động để định kỳ tự khớp giữa các máy.</li>
         </ol>
-        <div style="max-width:680px;margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1);color:var(--text3);font-size:13.5px;line-height:1.7">
+        <div style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface-1);color:var(--text3);font-size:13.5px;line-height:1.7">
           <b style="color:var(--text)">Mặc định chỉ đồng bộ THÔNG TIN, không đồng bộ media.</b>
           Lên GitHub là ghi chú, Wiki, ký ức, skill, cấu hình việc định kỳ, script - tức là file chữ
           (<code>.md .txt .html .csv .json .canvas .py</code>…). <b>Ảnh, video, âm thanh, PDF và các file nhị phân khác KHÔNG lên</b>;
@@ -5699,18 +5700,20 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const s = await freshSettings();
     const auth = s.auth || {};
     el.innerHTML = `
-      <div class="cview-section">
+      <div class="cview-page ac-page">
+      <div class="cview-stack">
+      <section class="cview-section">
         <h3>Workspace</h3>
-        <div class="gcard" style="max-width:560px">
+        <div class="gcard">
           <label class="js-lbl">Tên workspace</label>
           <input class="js-input" id="acWs" value="${esc(s.workspace_name || "Javis OS")}">
-          <button class="gcard-btn" id="acWsSave">Lưu</button>
+          <div class="js-actions"><button class="gcard-btn" id="acWsSave">Lưu</button></div>
           <div class="gcard-meta" id="acWsStatus"></div>
         </div>
-      </div>
-      <div class="cview-section">
+      </section>
+      <section class="cview-section">
         <h3>Tài khoản đăng nhập</h3>
-        <div class="gcard" style="max-width:560px">
+        <div class="gcard">
           <div class="gcard-meta" id="acAuthMeta">${auth.has_password ? ic("lock") + " Đã đặt mật khẩu · tài khoản: <b>" + esc(auth.username || "admin") + "</b>" : "Chưa đặt mật khẩu - ai mở dashboard cũng dùng được. Đặt mật khẩu nếu đưa lên VPS."}</div>
           <label class="js-lbl">Tài khoản</label><input class="js-input" id="acUser" value="${esc(auth.username || "")}" placeholder="Ví dụ: admin">
           ${auth.has_password ? '<label class="js-lbl">Mật khẩu hiện tại</label><input class="js-input" id="acCur" type="password" placeholder="Mật khẩu đang dùng" autocomplete="current-password">' : ""}
@@ -5721,19 +5724,19 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           </div>
           <div class="gcard-meta" id="acStatus"></div>
         </div>
-      </div>
+      </section>
       ${auth.has_password ? `
-      <div class="cview-section">
+      <section class="cview-section">
         <h3>Xác thực 2 lớp <span style="opacity:.5">mã 6 số từ app Authenticator</span></h3>
-        <div class="gcard tfa-card" style="max-width:560px" id="tfaCard">
+        <div class="gcard tfa-card" id="tfaCard">
           <div class="gcard-meta" id="tfaHead">Đang kiểm tra...</div>
           <div id="tfaBody"></div>
           <div class="gcard-meta" id="tfaStatus"></div>
         </div>
-      </div>` : ""}
-      <div class="cview-section">
+      </section>` : ""}
+      <section class="cview-section${auth.has_password ? "" : " cview-span"}">
         <h3>Token API (cho CLI)</h3>
-        <div class="gcard" style="max-width:560px">
+        <div class="gcard">
           <div class="gcard-meta">Token để <b>Javis CLI</b> (hoặc script) gọi được Javis từ máy khác. Không có token nào sẵn - chưa tạo thì không đường nào vào ngoài trình duyệt.</div>
           <label class="js-lbl">Tên token</label>
           <input class="js-input" id="tkName" placeholder="Ví dụ: laptop của bạn">
@@ -5751,6 +5754,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/14-bao-mat-tai-khoan.md" target="_blank" rel="noopener">Bảo mật &amp; tài khoản ↗</a>
           </div>
         </div>
+      </section>
+      </div>
       </div>`;
     renderTokens();
     document.getElementById("tkCreate").onclick = async () => {
@@ -5930,10 +5935,11 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // khoá cũ hỏng (mất .secret_key) - hai cửa phải ra cùng một luồng, không chép đôi.
   function batLuong2Fa(body, r, bao, rootEl) {
     body.innerHTML = `
-      <div class="tfa-steps">
-        <div class="tfa-step"><b>1.</b> Mở app Authenticator (Google Authenticator, Microsoft
-          Authenticator, 1Password, Bitwarden... cái nào cũng được) rồi quét mã dưới đây.</div>
+      <div class="tfa-setup">
         <div class="tfa-qr">${r.qr_svg || '<div class="gcard-meta">Máy chủ chưa cài segno nên không vẽ được QR - nhập tay khoá bên dưới.</div>'}</div>
+        <div class="tfa-setup-copy">
+        <div class="tfa-step"><b>1.</b> Mở app Authenticator (Google Authenticator, Microsoft
+          Authenticator, 1Password, Bitwarden... cái nào cũng được) rồi quét mã QR.</div>
         <div class="tfa-step"><b>2.</b> Quét không được thì nhập tay khoá này:
           <code class="tfa-secret">${esc(r.secret)}</code></div>
         <div class="tfa-step"><b>3.</b> Nhập mã 6 số đang hiện trong app để xác nhận:</div>
@@ -5941,6 +5947,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         <div class="js-actions">
           <button class="gcard-btn" id="tfaConfirm">Xác nhận và bật</button>
           <button class="gcard-btn ghost" id="tfaCancel">Huỷ</button>
+        </div>
         </div>
       </div>`;
     const inp = document.getElementById("tfaVerify");
@@ -6096,6 +6103,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const telegram = s.telegram || {};
     const dashboard = s.dashboard || {};
     const graphOn = dashboard.graph_enabled !== false;
+    const curTheme = (window.javisTheme && window.javisTheme.current)
+      ? window.javisTheme.current()
+      : (document.documentElement.getAttribute("data-theme") === "light" ? "light"
+        : document.documentElement.getAttribute("data-theme") === "neon" ? "neon" : "dark");
     const stripC2pa = !!((s.image || {}).strip_c2pa);
     const mainProviderId = model.main?.provider || (model.engine === "openrouter" ? "openrouter" : "anthropic-cli");
     const mainProvider = (model.providers || []).find(p => p.id === mainProviderId);
@@ -6193,6 +6204,24 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       <details class="settings-group" open>
         <summary><span><b>${esc(t("settings.grp_ui"))}</b><small>${esc(t("settings.grp_ui_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body settings-two-col">
+          <div class="settings-card settings-span">
+            <div class="settings-card-head"><b>${esc(t("settings.theme"))}</b></div>
+            <p>${esc(t("settings.theme_desc"))}</p>
+            <div class="theme-picks" id="setThemePicks">
+              <button type="button" class="theme-pick ${curTheme === "dark" ? "on" : ""}" data-theme-set="dark">
+                <span class="theme-pick-preview preview-dark" aria-hidden="true"><span class="sw"></span><span class="sw"></span></span>
+                ${esc(t("settings.theme_dark"))}
+              </button>
+              <button type="button" class="theme-pick ${curTheme === "neon" ? "on" : ""}" data-theme-set="neon">
+                <span class="theme-pick-preview preview-neon" aria-hidden="true"><span class="sw"></span><span class="sw"></span></span>
+                ${esc(t("settings.theme_neon"))}
+              </button>
+              <button type="button" class="theme-pick ${curTheme === "light" ? "on" : ""}" data-theme-set="light">
+                <span class="theme-pick-preview preview-light" aria-hidden="true"><span class="sw"></span><span class="sw"></span></span>
+                ${esc(t("settings.theme_light"))}
+              </button>
+            </div>
+          </div>
           <div class="settings-card">
             <div class="settings-card-head"><b>${esc(t("settings.graph"))}</b><span class="gcard-tag">${esc(graphOn ? t("settings.tag_on") : t("settings.tag_off"))}</span></div>
             <p>${esc(t("settings.graph_desc"))}</p>
@@ -6325,6 +6354,15 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       await saveSetting("dashboard", { graph_enabled: next });
       graphEnabled = next; recomputeGraph(); refreshSettings();
     };
+    const themePicks = document.getElementById("setThemePicks");
+    if (themePicks && window.javisTheme) {
+      themePicks.querySelectorAll("[data-theme-set]").forEach(btn => {
+        const name = btn.getAttribute("data-theme-set");
+        if (name === "dark" || name === "neon" || name === "light") {
+          btn.onclick = () => window.javisTheme.set(name, true);
+        }
+      });
+    }
     // Gỡ dấu nguồn gốc AI: hỏi lại một lần khi BẬT (tắt thì cho về thẳng, vì về mặc định
     // an toàn thì không cần cản). Chỉ đổi ảnh tạo MỚI, ảnh cũ giữ nguyên.
     const setC2pa = async (strip) => {

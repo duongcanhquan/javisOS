@@ -116,15 +116,25 @@
   // Bảng màu theo tông của Javis. xterm vẽ bằng canvas nên KHÔNG đọc được biến CSS - phải
   // truyền màu vào tay, và đổi lại mỗi khi người dùng lật tông.
   function bangMau() {
+    var neon = !!(window.javisTheme && window.javisTheme.isNeon && window.javisTheme.isNeon());
     var sang = !!(window.javisTheme && window.javisTheme.isLight());
-    return sang
-      ? { background: "#ffffff", foreground: "#121826", cursor: "#0f766e", cursorAccent: "#ffffff",
+    if (sang) {
+      return { background: "#ffffff", foreground: "#121826", cursor: "#0f766e", cursorAccent: "#ffffff",
           selectionBackground: "rgba(13,148,136,0.22)",
           black: "#3b3b46", red: "#c62828", green: "#15803d", yellow: "#96590a", blue: "#1d4ed8",
           magenta: "#3b6bff", cyan: "#0e7490", white: "#55505f",
           brightBlack: "#6e6878", brightRed: "#d11f1f", brightGreen: "#16a34a", brightYellow: "#b45309",
-          brightBlue: "#2563eb", brightMagenta: "#4f7cff", brightCyan: "#0891b2", brightWhite: "#121826" }
-      : { background: "#070b14", foreground: "#eef2ff", cursor: "#3ee0d6", cursorAccent: "#070b14",
+          brightBlue: "#2563eb", brightMagenta: "#4f7cff", brightCyan: "#0891b2", brightWhite: "#121826" };
+    }
+    if (neon) {
+      return { background: "#030814", foreground: "#f3f7ff", cursor: "#5ce1ff", cursorAccent: "#041018",
+          selectionBackground: "rgba(92,225,255,0.28)",
+          black: "#0b1a36", red: "#ff4d6d", green: "#39ff88", yellow: "#ffd166", blue: "#38bdf8",
+          magenta: "#ff2bd6", cyan: "#5ce1ff", white: "#9bb4d0",
+          brightBlack: "#6d86a6", brightRed: "#ff7b90", brightGreen: "#6dffaa", brightYellow: "#ffe08a",
+          brightBlue: "#7ae7ff", brightMagenta: "#ff8ae8", brightCyan: "#8af0ff", brightWhite: "#ffffff" };
+    }
+    return { background: "#070b14", foreground: "#eef2ff", cursor: "#3ee0d6", cursorAccent: "#070b14",
           selectionBackground: "rgba(62,224,214,0.28)",
           black: "#1a2234", red: "#f4565a", green: "#34d36b", yellow: "#f0c020", blue: "#6b8cff",
           magenta: "#93b4ff", cyan: "#3ee0d6", white: "#a8b4d0",

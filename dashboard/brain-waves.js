@@ -12,6 +12,7 @@
   var lite = false;
   var reduced = false;
   var lightTheme = false;
+  var neonTheme = false;
   var w = 0;
   var h = 0;
   var t0 = 0;
@@ -28,12 +29,16 @@
     }
   }
 
-  function themeIsLight() {
+  function themeName() {
     try {
-      return document.documentElement.getAttribute("data-theme") === "light";
-    } catch (e) {
-      return false;
-    }
+      var a = document.documentElement.getAttribute("data-theme");
+      if (a === "light" || a === "neon") return a;
+    } catch (e) {}
+    return "dark";
+  }
+
+  function themeIsLight() {
+    return themeName() === "light";
   }
 
   function readMode() {
@@ -115,6 +120,11 @@
   }
 
   function col(cool, a) {
+    if (neonTheme) {
+      return cool
+        ? "rgba(92, 225, 255," + a + ")"
+        : "rgba(255, 43, 214," + a + ")";
+    }
     if (cool) {
       return lightTheme
         ? "rgba(8, 145, 178," + a + ")"
@@ -263,9 +273,15 @@
     }
   }
 
+  function syncThemeFlags() {
+    var th = themeName();
+    lightTheme = th === "light";
+    neonTheme = th === "neon";
+  }
+
   function applyGates() {
     reduced = prefersReduced();
-    lightTheme = themeIsLight();
+    syncThemeFlags();
     mode = readMode();
     seedScene(true);
     if (reduced || lite || paused || document.hidden) {
@@ -310,7 +326,7 @@
       applyGates();
     },
     refreshTheme: function () {
-      lightTheme = themeIsLight();
+      syncThemeFlags();
       applyGates();
     },
   };

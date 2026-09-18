@@ -1,5 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.55.253] - 2026-09-18
+### Mới
+- **Tông Neon cyberpunk.** Nút đổi tông giờ chọn Tối / Neon / Sáng. Neon dùng nền navy đậm, thẻ kính viền xanh lơ phát sáng, số liệu trắng to, tiêu đề cyan, biểu đồ hồng-cam. Áp cho mọi trang quản lý, không chỉ chat.
+
+### Cải thiện
+- **Trang quản lý đầy màn hình desktop.** Tài khoản, Cài đặt, Tự học, Kênh, Models hết dính một cột hẹp bên trái: căn giữa, hai cột khi màn rộng, một cột trên điện thoại. Ô nhập đủ lớn để không bị iOS phóng to; nút dễ bấm.
+
 ## [0.55.252] - 2026-09-16
 ### Sửa
 - **Màn hình VPS hết vỡ layout khi chưa đăng nhập.** CSS/JS đi qua `/asset/<phiên bản>/…` bị chặn 401 cùng lúc HTML login vẫn mở được — trang hiện chữ/nút lệch. Nay `/asset` public giống `/static`.

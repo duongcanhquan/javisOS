@@ -68,7 +68,7 @@
   function injectCss() {
     if (_css) return; _css = true;
     var css = ""
-      + ".tk-wrap{max-width:1000px}"
+      + ".tk-wrap{max-width:1180px;margin:0 auto;width:100%}"
       + ".tk-bar1{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}"
       + ".tk-chips{display:flex;gap:6px;flex-wrap:wrap}"
       + ".tk-chip{padding:6px 12px;border-radius:20px;border:1px solid var(--glass-brd);background:var(--glass);color:var(--text2);font-size:13px;cursor:pointer;transition:.12s;white-space:nowrap}"

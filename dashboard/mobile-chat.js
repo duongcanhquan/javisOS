@@ -86,7 +86,7 @@
       if (mq.matches) {
         if (!moved.length) {
           moveEl(document.querySelector(".navbar-brain"), false);
-          moveEl(document.getElementById("themeToggle"), true);
+          moveEl(document.getElementById("themeWrap") || document.getElementById("themeToggle"), true);
           // Nút loa header đã bỏ (0.48.3), nút loa thanh nhập cũng bỏ (02/09): giọng đi theo
           // mic, bấm mic là bật loa. Không còn nút loa nào để dời cả.
           moveEl(document.getElementById("sysBar"), false);
@@ -94,7 +94,7 @@
         // Nhãn không được đứng một mình. Mấy nút mượn nằm trong HUD, mà HUD bị vẽ lại ở vài
         // đường (đổi brain, đổi trang) - lúc đó chúng biến mất khỏi khung này và để lại đúng
         // cái nhãn trơ ra. Còn nút thì giữ, hết nút thì dọn.
-        if (sysHost && !sysHost.querySelector(".navbar-brain, #themeToggle, #sysBar")) {
+        if (sysHost && !sysHost.querySelector(".navbar-brain, #themeWrap, #themeToggle, #sysBar")) {
           moved = [];
           boSysHost();
         }

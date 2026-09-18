@@ -49,14 +49,14 @@ check("desktop mà moved rỗng vẫn dọn (ca để lại nhãn mồ côi)",
 check("màn hẹp mà khung không còn nút nào thì cũng dọn",
   /sysHost && !sysHost\.querySelector\(/.test(place), place);
 check("soi đúng ba thứ được mượn vào khung",
-  /querySelector\("\.navbar-brain, #themeToggle, #sysBar"\)/.test(place), place);
+  /querySelector\("\.navbar-brain, #themeWrap, #themeToggle, #sysBar"\)/.test(place), place);
 check("dọn xong thì reset moved để lần sau mượn lại được",
   /!sysHost\.querySelector\([\s\S]{0,80}moved = \[\];/.test(place), place);
 
 // ---- 4. Nhánh mobile vốn đúng thì giữ nguyên ----
 check("màn hẹp vẫn mượn đủ ba thứ",
   /moveEl\(document\.querySelector\("\.navbar-brain"\)/.test(place)
-  && /moveEl\(document\.getElementById\("themeToggle"\)/.test(place)
+  && /moveEl\(document\.getElementById\("themeWrap"\)/.test(place)
   && /moveEl\(document\.getElementById\("sysBar"\)/.test(place), place);
 check("và chỉ mượn khi chưa mượn (không mượn chồng)", /if \(!moved\.length\)/.test(place), place);
 

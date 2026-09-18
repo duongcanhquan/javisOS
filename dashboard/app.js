@@ -1737,6 +1737,18 @@ const SKY_LIGHT = {
   ring: [13, 148, 136], ringGain: 1.5,
 };
 
+const SKY_NEON = {
+  stars: ["#5ce1ff", "#ff2bd6", "#ff7a59", "#ffffff"],
+  starOp: "lighter",
+  starMax: 0.92,
+  haloIn: [92, 225, 255],
+  haloMid: [255, 43, 214],
+  haloOut: "rgba(4,9,26,0)",
+  haloBase: 0.12, haloGain: 0.14,
+  grid: [92, 225, 255], gridBase: 0.16, gridGain: 0.12,
+  ring: [255, 122, 89], ringGain: 1.1,
+};
+
 function initStarfield() {
   const cv = document.getElementById("starfield");
   if (!cv) return;
@@ -1780,9 +1792,20 @@ function initStarfield() {
   window.addEventListener("resize", resize);
   // Nghe thẳng sự kiện thay vì javisTheme.on(): hàm này có thể chạy trước khi theme.js
   // kịp dựng window.javisTheme, khi đó đăng ký sẽ hụt im lặng và nền kẹt ở bảng tối.
-  function syncSky(light) { sky = light ? SKY_LIGHT : SKY_DARK; paintStars(); }
-  window.addEventListener("javis-theme-change", e => syncSky(!!(e && e.detail && e.detail.light)));
-  syncSky(document.documentElement.getAttribute("data-theme") === "light");
+  function syncSky(theme) {
+    sky = theme === "light" ? SKY_LIGHT : theme === "neon" ? SKY_NEON : SKY_DARK;
+    paintStars();
+  }
+  function _skyTheme() {
+    var a = document.documentElement.getAttribute("data-theme");
+    if (a === "light" || a === "neon") return a;
+    return "dark";
+  }
+  window.addEventListener("javis-theme-change", e => {
+    var th = (e && e.detail && e.detail.theme) || _skyTheme();
+    syncSky(th);
+  });
+  syncSky(_skyTheme());
 
   function draw(now) {
     requestAnimationFrame(draw);

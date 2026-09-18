@@ -12,6 +12,7 @@
   var lite = false;
   var reduced = false;
   var lightTheme = false;
+  var neonTheme = false;
   var w = 0;
   var h = 0;
   var t0 = 0;
@@ -25,12 +26,16 @@
     }
   }
 
-  function themeIsLight() {
+  function themeName() {
     try {
-      return document.documentElement.getAttribute("data-theme") === "light";
-    } catch (e) {
-      return false;
-    }
+      var a = document.documentElement.getAttribute("data-theme");
+      if (a === "light" || a === "neon") return a;
+    } catch (e) {}
+    return "dark";
+  }
+
+  function themeIsLight() {
+    return themeName() === "light";
   }
 
   function resize() {
@@ -76,7 +81,11 @@
   function drawStatic() {
     if (!ctx || !w) return;
     ctx.clearRect(0, 0, w, h);
-    var fill = lightTheme ? "rgba(30, 60, 90," : "rgba(210, 235, 255,";
+    var fill = lightTheme
+      ? "rgba(30, 60, 90,"
+      : neonTheme
+        ? "rgba(92, 225, 255,"
+        : "rgba(210, 235, 255,";
     for (var i = 0; i < stars.length; i++) {
       var s = stars[i];
       ctx.beginPath();
@@ -111,10 +120,14 @@
       var col = s.cool
         ? lightTheme
           ? "rgba(20, 90, 120,"
-          : "rgba(170, 230, 255,"
+          : neonTheme
+            ? "rgba(92, 225, 255,"
+            : "rgba(170, 230, 255,"
         : lightTheme
           ? "rgba(40, 70, 110,"
-          : "rgba(230, 245, 255,";
+          : neonTheme
+            ? "rgba(255, 80, 200,"
+            : "rgba(230, 245, 255,";
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.r * (0.85 + 0.2 * tw), 0, Math.PI * 2);
       ctx.fillStyle = col + alpha + ")";
@@ -137,7 +150,9 @@
 
   function applyGates() {
     reduced = prefersReduced();
-    lightTheme = themeIsLight();
+    var th = themeName();
+    lightTheme = th === "light";
+    neonTheme = th === "neon";
     var host = document.querySelector(".hud-center");
     if (host) {
       host.classList.toggle("brain-galaxy-static", reduced || lite || paused);
@@ -181,7 +196,9 @@
       applyGates();
     },
     refreshTheme: function () {
-      lightTheme = themeIsLight();
+      var th = themeName();
+      lightTheme = th === "light";
+      neonTheme = th === "neon";
       applyGates();
     },
   };

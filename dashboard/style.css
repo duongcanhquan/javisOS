@@ -1,5 +1,6 @@
 /* ============================================================================
-   TÔNG MÀU - hai bộ token đầy đủ: TỐI (mặc định) và SÁNG (data-theme="light").
+   TÔNG MÀU - ba bộ token: TỐI (mặc định), NEON (data-theme="neon"),
+   SÁNG (data-theme="light").
    ----------------------------------------------------------------------------
    Luật: mọi màu phụ thuộc tông phải đi qua biến ở đây. Màu gõ thẳng trong thân
    file chỉ được phép khi nó KHÔNG đổi theo tông (vd màu logo, màu cú pháp code
@@ -208,6 +209,94 @@
   --brain-ink2: #5a7190;
   --brain-ink-hot: #0f766e;
 }
+
+/* ============================================================================
+   TÔNG NEON / CYBERPUNK - navy rất đậm, kính phát sáng, điểm nhấn cyan /
+   magenta / coral. Chữ số KPI trắng lớn; tiêu đề bảng cyan; nhãn nhỏ xám lạnh.
+   ========================================================================== */
+:root[data-theme="neon"] {
+  color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+  --bg: #04091a;
+  --bg2: #071226;
+  --bg3: #0b1a36;
+  --border: #163056;
+  --accent: #5ce1ff;
+  --accent2: #ff2bd6;
+  --accent3: #ff7a59;
+  --text: #f3f7ff;
+  --text2: #9bb4d0;
+  --text3: #6d86a6;
+  --green: #39ff88;
+  --red: #ff4d6d;
+  --yellow: #ffd166;
+
+  --text-hi: #ffffff;
+  --accent-ink: #8af0ff;
+  --accent2-ink: #ff8ae8;
+  --accent-solid: #5ce1ff;
+
+  --surface-1: rgba(80, 200, 255, 0.055);
+  --surface-2: rgba(80, 200, 255, 0.10);
+  --surface-3: rgba(80, 200, 255, 0.16);
+  --hairline: rgba(92, 225, 255, 0.22);
+  --sunken: rgba(0, 4, 16, 0.48);
+
+  --shadow-1: 0 4px 16px rgba(0, 8, 24, 0.45);
+  --shadow-2: 0 10px 36px rgba(0, 6, 20, 0.62);
+  --shadow-3: 0 24px 70px rgba(0, 4, 18, 0.78);
+  --shadow-veil: rgba(0, 4, 16, 0.68);
+
+  --accent-wash: rgba(92, 225, 255, 0.12);
+  --accent-wash-2: rgba(92, 225, 255, 0.22);
+  --accent-line: rgba(92, 225, 255, 0.48);
+  --accent-ring: 0 0 0 1px rgba(92, 225, 255, 0.35), 0 0 22px rgba(92, 225, 255, 0.28);
+  --accent2-wash: rgba(255, 43, 214, 0.12);
+  --accent2-wash-2: rgba(255, 43, 214, 0.22);
+  --accent2-line: rgba(255, 43, 214, 0.48);
+
+  --field-bg: rgba(6, 16, 36, 0.88);
+  --panel-bg: rgba(8, 22, 48, 0.72);
+  --panel-solid: rgba(5, 14, 32, 0.96);
+  --scrim: rgba(1, 4, 12, 0.86);
+
+  --info-ink: #8af0ff;
+  --info-wash: rgba(8, 32, 64, 0.88);
+  --info-line: rgba(92, 225, 255, 0.42);
+
+  --link-ink: #7ae7ff;
+  --on-accent: #041018;
+
+  --warn-ink: #ffb199;
+  --warn-wash: rgba(255, 122, 89, 0.16);
+  --warn-line: rgba(255, 122, 89, 0.5);
+  --danger-wash: rgba(255, 77, 109, 0.16);
+  --danger-line: rgba(255, 77, 109, 0.55);
+  --ok-wash: rgba(57, 255, 136, 0.12);
+  --ok-line: rgba(57, 255, 136, 0.45);
+
+  --code-bg: #030814;
+  --code-ink: #d4f4ff;
+  --tok-c: #6d86a6;
+  --tok-s: #39ff88;
+  --tok-n: #5ce1ff;
+  --tok-k: #ff2bd6;
+  --tok-t: #7ae7ff;
+  --tok-a: #ff7a59;
+
+  --brain-bg: radial-gradient(ellipse 58% 54% at 50% 43%,
+      rgba(92, 225, 255, 0.18) 0%, rgba(255, 43, 214, 0.08) 28%,
+      rgba(8, 24, 56, 0.08) 52%, #02040c 78%);
+  --brain-vignette: radial-gradient(ellipse 74% 74% at 50% 43%,
+    transparent 40%, rgba(1, 4, 12, 0.72) 100%);
+  --brain-glass: rgba(6, 18, 40, 0.58);
+  --brain-glass-brd: rgba(92, 225, 255, 0.38);
+  --brain-glass-shadow: 0 0 0 1px rgba(92, 225, 255, 0.18), 0 8px 28px rgba(0, 0, 0, 0.5);
+  --brain-halo: 0 0 10px rgba(4, 9, 26, 0.95), 0 0 18px rgba(92, 225, 255, 0.25);
+  --brain-ink: #8af0ff;
+  --brain-ink2: #6d86a6;
+  --brain-ink-hot: #ff8ae8;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html {
   /* Lớp chặn zoom thứ hai: viewport meta user-scalable=no đủ khi chạy dạng app màn hình
@@ -216,6 +305,12 @@ html {
      thường. "pan-x pan-y" (không có pinch-zoom) là cú pháp tắt zoom, khác "manipulation"
      (vẫn cho pinch-zoom). */
   touch-action: pan-x pan-y;
+}
+:root[data-theme="neon"] body {
+  background:
+    radial-gradient(ellipse 90% 60% at 50% -10%, #0a1c3c 0%, transparent 58%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, #050814 0%, transparent 52%),
+    var(--bg);
 }
 body {
   background: var(--bg);
@@ -451,11 +546,50 @@ body {
   .install-app-label { display: none; }
   .install-app-btn { width: 34px; padding: 0; justify-content: center; }
 }
-/* Nút đổi tông: trăng khi đang tối, mặt trời khi đang sáng - báo TÔNG HIỆN TẠI
-   (không phải tông sẽ chuyển sang), khớp với tooltip do theme.js đặt. */
-.theme-toggle .ic-sun { display: none; }
+/* Nút đổi tông: trăng = tối, tia = neon, mặt trời = sáng. Báo TÔNG HIỆN TẠI. */
+.theme-wrap { position: relative; display: inline-flex; align-items: center; }
+.theme-toggle .ic-sun,
+.theme-toggle .ic-zap { display: none; }
 :root[data-theme="light"] .theme-toggle .ic-moon { display: none; }
 :root[data-theme="light"] .theme-toggle .ic-sun { display: block; }
+:root[data-theme="neon"] .theme-toggle .ic-moon { display: none; }
+:root[data-theme="neon"] .theme-toggle .ic-zap { display: block; }
+.theme-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 90;
+  min-width: 196px; padding: 6px;
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2);
+}
+.theme-pop[hidden] { display: none; }
+.theme-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); cursor: pointer;
+  font: 600 13px var(--font); text-align: left;
+}
+.theme-opt:hover { background: var(--surface-2); color: var(--text-hi); }
+.theme-opt.on { background: var(--accent-wash); color: var(--accent-ink); }
+.theme-swatch {
+  width: 16px; height: 16px; border-radius: 4px; flex: none;
+  border: 1px solid var(--hairline);
+}
+.theme-swatch-dark { background: #0c101c; }
+.theme-swatch-neon {
+  background: linear-gradient(135deg, #041018 38%, #5ce1ff 68%, #ff2bd6 100%);
+  box-shadow: 0 0 8px rgba(92, 225, 255, 0.45);
+}
+.theme-swatch-light { background: #f4f6fb; border-color: #c5d0de; }
+/* Ngăn kéo mobile: rail có overflow-y, menu tuyệt đối bị cắt. Xổ ngay trong luồng. */
+.rail-sys .theme-wrap {
+  display: flex; flex-direction: column; align-items: stretch; width: 100%;
+}
+.rail-sys .theme-pop {
+  position: static; top: auto; bottom: auto; right: auto;
+  width: 100%; min-width: 0; margin-top: 6px;
+  box-shadow: none;
+}
 
 /* BODY 3 cols */
 .hud-body {
