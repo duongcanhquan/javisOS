@@ -1,0 +1,98 @@
+# Đóng gói FULL volume Javis trên VPS (data + brains + auth CLI) → artifact tải về.
+# Dùng khi đổi VPS: kéo artifact rồi khôi phục trên máy mới.
+name: Export Javis full from VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Pack Docker volumes on VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id_ed25519 "$USER@$HOST")
+
+          "${SSH[@]}" 'set -euo pipefail
+            CONTAINER=javis
+            if ! docker ps -a --format "{{.Names}}" | grep -qx "$CONTAINER"; then
+              CONTAINER=$(docker ps -a --format "{{.Names}}" | grep -E "javis" | head -1 || true)
+            fi
+            test -n "$CONTAINER"
+            echo "container=$CONTAINER"
+
+            # Map mount đích trong container → tên volume trên host
+            mapfile -t LINES < <(docker inspect -f "{{range .Mounts}}{{println .Destination .Name .Type}}{{end}}" "$CONTAINER")
+            DATA_VOL=""; BRAINS_VOL=""; CLAUDE_VOL=""; CODEX_VOL=""; HOME_VOL=""
+            for line in "${LINES[@]}"; do
+              set -- $line
+              dest="${1:-}"; name="${2:-}"; typ="${3:-}"
+              [ "$typ" = "volume" ] || continue
+              [ -n "$name" ] || continue
+              case "$dest" in
+                /data) DATA_VOL="$name" ;;
+                /brains) BRAINS_VOL="$name" ;;
+                /home/javis/.claude) CLAUDE_VOL="$name" ;;
+                /home/javis/.codex) CODEX_VOL="$name" ;;
+                /data/home|/home/javis) HOME_VOL="$name" ;;
+              esac
+            done
+            echo "data=$DATA_VOL brains=$BRAINS_VOL claude=$CLAUDE_VOL codex=$CODEX_VOL home=$HOME_VOL"
+            test -n "$DATA_VOL"
+            test -n "$BRAINS_VOL"
+
+            # Dừng ngắn để tar nhất quán (deploy xong sẽ up lại)
+            docker stop "$CONTAINER" || true
+
+            RMDIR=/tmp/javis-full-export
+            rm -rf "$RMDIR" && mkdir -p "$RMDIR"
+            MOUNTS=(-v "${DATA_VOL}:/from-data:ro" -v "${BRAINS_VOL}:/from-brains:ro")
+            [ -n "$CLAUDE_VOL" ] && MOUNTS+=(-v "${CLAUDE_VOL}:/from-claude:ro")
+            [ -n "$CODEX_VOL" ] && MOUNTS+=(-v "${CODEX_VOL}:/from-codex:ro")
+            [ -n "$HOME_VOL" ] && MOUNTS+=(-v "${HOME_VOL}:/from-home:ro")
+
+            docker run --rm "${MOUNTS[@]}" -v "$RMDIR:/backup" alpine sh -c "
+              set -e
+              mkdir -p /backup/pack
+              cp -a /from-data /backup/pack/data
+              cp -a /from-brains /backup/pack/brains
+              [ -d /from-claude ] && cp -a /from-claude /backup/pack/claude || mkdir -p /backup/pack/claude
+              [ -d /from-codex ] && cp -a /from-codex /backup/pack/codex || mkdir -p /backup/pack/codex
+              [ -d /from-home ] && cp -a /from-home /backup/pack/home || mkdir -p /backup/pack/home
+              printf \"%s\n\" \"exported_at=\$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \"container=$CONTAINER\" > /backup/pack/MANIFEST.txt
+              cd /backup/pack && tar -czf /backup/javis-full.tgz .
+              ls -lh /backup/javis-full.tgz
+            "
+
+            docker start "$CONTAINER" || true
+            cp -f /tmp/javis-full-export/javis-full.tgz /tmp/javis-full.tgz
+            ls -lh /tmp/javis-full.tgz
+            tar -tzf /tmp/javis-full.tgz | head -40 || true
+          '
+
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
+            "$USER@$HOST:/tmp/javis-full.tgz" ./javis-full.tgz
+          ls -lh ./javis-full.tgz
+          tar -tzf ./javis-full.tgz | head -50 || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: javis-full-from-vps
+          path: javis-full.tgz
+          if-no-files-found: error
+          retention-days: 3
