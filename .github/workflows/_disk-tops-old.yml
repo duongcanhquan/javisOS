@@ -1,0 +1,21 @@
+﻿name: Disk tops old VPS
+on: workflow_dispatch
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            C=javis
+            echo OLD_APC; docker exec $C sh -c 'du -sh /brains/APC.HN/* 2>/dev/null | sort -hr | head -12'
+            echo OLD_SOA; docker exec $C sh -c 'du -sh "/brains/School of Art"/* 2>/dev/null | sort -hr | head -12'
+            echo OLD_MISC; docker exec $C sh -c 'du -sh /brains/*/.pnpm-store /brains/*/attachments /brains/*/exports 2>/dev/null; echo nm=$(find /brains -type d -name node_modules 2>/dev/null | wc -l); echo media=$(find /brains -type f \( -name "*.mp4" -o -name "*.webm" -o -iname "*.png" -o -iname "*.jpg" \) 2>/dev/null | wc -l)'
+            echo DISK_OLD_DONE
