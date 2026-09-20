@@ -1,0 +1,148 @@
+# Migrate FULL volumes: VPS cũ (secrets) → VPS mới (secrets VPS_NEW_*).
+# Stream tar qua runner, không cần artifact lớn.
+name: Migrate Javis full to new VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Stream volumes old → new
+        env:
+          OLD_KEY: ${{ secrets.VPS_SSH_KEY }}
+          OLD_HOST: ${{ secrets.VPS_HOST }}
+          OLD_USER: ${{ secrets.VPS_USER }}
+          NEW_HOST: ${{ secrets.VPS_NEW_HOST }}
+          NEW_USER: ${{ secrets.VPS_NEW_USER }}
+          NEW_PASS: ${{ secrets.VPS_NEW_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$OLD_HOST" && test -n "$NEW_HOST" && test -n "$NEW_PASS"
+          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OLD_KEY" > ~/.ssh/id_old
+          chmod 600 ~/.ssh/id_old
+          ssh-keyscan -H "$OLD_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H "$NEW_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          OLD=(ssh -T -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ConnectTimeout=60 -i ~/.ssh/id_old "$OLD_USER@$OLD_HOST")
+          NEW=(sshpass -e ssh -T -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ConnectTimeout=60 "$NEW_USER@$NEW_HOST")
+          export SSHPASS="$NEW_PASS"
+
+          echo "== prepare new =="
+          "${NEW[@]}" 'set -euo pipefail
+            command -v docker
+            cd /root/javis
+            docker compose ps || true
+            docker compose stop || true
+          '
+
+          echo "== pack on old into scratch =="
+          "${OLD[@]}" bash -s <<'REMOTE'
+          set -euo pipefail
+          docker builder prune -af >/dev/null 2>&1 || true
+          docker image prune -af >/dev/null 2>&1 || true
+          CONTAINER=javis
+          if ! docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+            CONTAINER=$(docker ps -a --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+          fi
+          test -n "$CONTAINER"
+          DATA=""; BRAINS=""; CLAUDE=""; CODEX=""
+          while read -r dest name typ; do
+            [ "$typ" = "volume" ] || continue
+            case "$dest" in
+              /data) DATA="$name" ;;
+              /brains) BRAINS="$name" ;;
+              /home/javis/.claude) CLAUDE="$name" ;;
+              /home/javis/.codex) CODEX="$name" ;;
+            esac
+          done < <(docker inspect -f '{{range .Mounts}}{{println .Destination .Name .Type}}{{end}}' "$CONTAINER")
+          echo "old vols data=$DATA brains=$BRAINS claude=$CLAUDE codex=$CODEX"
+          test -n "$DATA" && test -n "$BRAINS"
+          docker volume rm javis_migrate_scratch 2>/dev/null || true
+          docker volume create javis_migrate_scratch >/dev/null
+          docker stop "$CONTAINER"
+          ARGS=(-v "$DATA:/pack/data:ro" -v "$BRAINS:/pack/brains:ro" -v javis_migrate_scratch:/out)
+          EXTRAS=""
+          if [ -n "$CLAUDE" ]; then ARGS+=(-v "$CLAUDE:/pack/claude:ro"); EXTRAS="$EXTRAS claude"; fi
+          if [ -n "$CODEX" ]; then ARGS+=(-v "$CODEX:/pack/codex:ro"); EXTRAS="$EXTRAS codex"; fi
+          docker run --rm "${ARGS[@]}" alpine sh -c "
+            set -e
+            tar -C /pack -czf /out/javis-full.tgz \
+              --exclude=node_modules --exclude=.pnpm-store --exclude=.git \
+              data brains $EXTRAS
+            ls -lh /out/javis-full.tgz
+          "
+          docker start "$CONTAINER" || true
+          REMOTE
+
+          echo "== stream old scratch → new scratch =="
+          "${NEW[@]}" 'docker volume rm javis_migrate_scratch 2>/dev/null || true; docker volume create javis_migrate_scratch >/dev/null'
+          "${OLD[@]}" 'docker run --rm -v javis_migrate_scratch:/out:ro alpine cat /out/javis-full.tgz' \
+            | "${NEW[@]}" 'docker run --rm -i -v javis_migrate_scratch:/out alpine sh -c "cat > /out/javis-full.tgz && ls -lh /out/javis-full.tgz"'
+
+          echo "== restore into new named volumes =="
+          "${NEW[@]}" bash -s <<'REMOTE'
+          set -euo pipefail
+          cd /root/javis
+          # bảo đảm volume project tồn tại
+          docker compose up -d --no-start 2>/dev/null || docker compose create 2>/dev/null || true
+          docker compose stop || true
+          CONTAINER=javis
+          if ! docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+            CONTAINER=$(docker ps -a --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+          fi
+          # tạo container nếu chưa có để biết tên volume
+          if [ -z "$CONTAINER" ] || ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
+            docker compose up -d
+            sleep 5
+            docker compose stop
+            CONTAINER=javis
+          fi
+          DATA=""; BRAINS=""; CLAUDE=""; CODEX=""
+          while read -r dest name typ; do
+            [ "$typ" = "volume" ] || continue
+            case "$dest" in
+              /data) DATA="$name" ;;
+              /brains) BRAINS="$name" ;;
+              /home/javis/.claude) CLAUDE="$name" ;;
+              /home/javis/.codex) CODEX="$name" ;;
+            esac
+          done < <(docker inspect -f '{{range .Mounts}}{{println .Destination .Name .Type}}{{end}}' "$CONTAINER")
+          echo "new vols data=$DATA brains=$BRAINS claude=$CLAUDE codex=$CODEX"
+          test -n "$DATA" && test -n "$BRAINS"
+          docker stop "$CONTAINER" || true
+          ARGS=(-v javis_migrate_scratch:/in:ro -v "$DATA:/to/data" -v "$BRAINS:/to/brains")
+          if [ -n "$CLAUDE" ]; then ARGS+=(-v "$CLAUDE:/to/claude"); fi
+          if [ -n "$CODEX" ]; then ARGS+=(-v "$CODEX:/to/codex"); fi
+          docker run --rm "${ARGS[@]}" alpine sh -c '
+            set -e
+            rm -rf /to/data/* /to/data/.[!.]* /to/data/..?* 2>/dev/null || true
+            rm -rf /to/brains/* /to/brains/.[!.]* /to/brains/..?* 2>/dev/null || true
+            [ -d /to/claude ] && rm -rf /to/claude/* /to/claude/.[!.]* /to/claude/..?* 2>/dev/null || true
+            [ -d /to/codex ] && rm -rf /to/codex/* /to/codex/.[!.]* /to/codex/..?* 2>/dev/null || true
+            tar -C /tmp -xzf /in/javis-full.tgz
+            cp -a /tmp/data/. /to/data/
+            cp -a /tmp/brains/. /to/brains/
+            [ -d /tmp/claude ] && [ -d /to/claude ] && cp -a /tmp/claude/. /to/claude/ || true
+            [ -d /tmp/codex ] && [ -d /to/codex ] && cp -a /tmp/codex/. /to/codex/ || true
+            echo restored_ok
+            ls /to/brains | head
+          '
+          docker start "$CONTAINER" || docker compose up -d
+          sleep 10
+          docker compose ps
+          curl -fsS -m 15 http://127.0.0.1:7777/health || true
+          docker volume rm javis_migrate_scratch 2>/dev/null || true
+          REMOTE
+
+          "${OLD[@]}" 'docker volume rm javis_migrate_scratch 2>/dev/null || true; docker start javis 2>/dev/null || true; echo old_cleanup_done'
+          echo MIGRATE_DONE
