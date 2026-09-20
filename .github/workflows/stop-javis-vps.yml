@@ -1,0 +1,46 @@
+# Tắt Javis trên VPS đang trỏ bởi secrets VPS_* (máy cũ sau migrate).
+name: Stop Javis on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: docker compose down + stop javis containers
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            echo "DIR=$DIR"
+            if [ -d "$DIR" ]; then
+              cd "$DIR"
+              docker compose down 2>/dev/null || true
+              docker compose -f docker-compose.yml down 2>/dev/null || true
+            fi
+            # Thư mục compose khác (nếu có)
+            for d in "$HOME/javis" /root/javis /opt/javis; do
+              if [ -d "$d" ] && [ -f "$d/docker-compose.yml" ]; then
+                echo "also $d"
+                (cd "$d" && docker compose down 2>/dev/null) || true
+              fi
+            done
+            docker ps -a --format '{{.Names}}' | grep -E 'javis' | while read -r n; do
+              echo "stop $n"
+              docker stop "$n" || true
+            done
+            echo "=== remaining javis ==="
+            docker ps -a --format '{{.Names}} {{.Status}}' | grep -E 'javis' || echo 'none running'
+            echo STOP_OLD_DONE
