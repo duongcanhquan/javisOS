@@ -1,0 +1,59 @@
+# Soát nhanh nội dung Javis trên VPS cũ (sau migrate) để đối chiếu với máy mới.
+name: Audit Javis volumes on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Audit brains + data on old/current deploy VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 12m
+          script: |
+            set -euo pipefail
+            CONTAINER=javis
+            if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+              CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+            fi
+            echo "CONTAINER=$CONTAINER"
+            docker ps --filter "name=$CONTAINER" --format '{{.Names}} {{.Status}} {{.Image}}'
+            curl -fsS -m 10 http://127.0.0.1:7777/health || true
+            echo "=== BRAINS ==="
+            docker exec "$CONTAINER" sh -c 'ls -1 /brains'
+            echo "=== COUNTS ==="
+            docker exec "$CONTAINER" sh -c '
+            for b in /brains/*; do
+              [ -d "$b" ] || continue
+              n=$(basename "$b")
+              a=$(find "$b/agents" -type f 2>/dev/null | wc -l)
+              w=$(find "$b/workflows" -type f 2>/dev/null | wc -l)
+              s=$(find "$b/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+              m=$(find "$b/memory" -type f 2>/dev/null | wc -l)
+              j=$(find "$b/Javis" -type f 2>/dev/null | wc -l)
+              echo "$n|agents=$a|workflows=$w|skills=$s|memory_files=$m|javis_files=$j"
+            done
+            '
+            echo "=== SIZES ==="
+            docker exec "$CONTAINER" sh -c 'du -sh /brains/* 2>/dev/null; du -sh /data 2>/dev/null; du -sh /home/javis/.claude /home/javis/.codex 2>/dev/null || true'
+            echo "=== AUTH/FLAGS ==="
+            docker exec "$CONTAINER" sh -c '
+            echo -n "settings.json "; test -f /data/state/settings.json && echo YES || echo NO
+            echo -n "agy "; ls /home/javis/.local/bin/agy /data/home/.local/bin/agy 2>/dev/null || echo NO_AGY
+            echo -n "connectors "; ls /data/state/connector-cred 2>/dev/null | wc -l
+            echo -n "chatbots "; find /data -name chatbots.json 2>/dev/null | head
+            echo -n "branding "; ls /data/state/branding 2>/dev/null | head
+            '
+            echo "=== VOLUMES ==="
+            docker volume ls | grep javis || true
+            echo AUDIT_OLD_DONE
