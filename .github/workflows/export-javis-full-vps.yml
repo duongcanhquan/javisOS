@@ -1,4 +1,5 @@
-# Đóng gói FULL volume Javis trên VPS → artifact (stream, không nhân đôi đĩa).
+# Đóng gói FULL volume Javis trên VPS → artifact.
+# Ghi tar vào Docker volume scratch (tránh /tmp đầy), rồi cat stream sạch sang runner.
 name: Export Javis full from VPS
 
 on:
@@ -11,9 +12,9 @@ concurrency:
 jobs:
   export:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
-      - name: Stream-pack volumes from VPS
+      - name: Pack to scratch volume then stream
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           HOST: ${{ secrets.VPS_HOST }}
@@ -24,54 +25,63 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=60 -i ~/.ssh/id_ed25519 "$USER@$HOST")
+          SSH=(ssh -T -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ConnectTimeout=60 -i ~/.ssh/id_ed25519 "$USER@$HOST")
 
-          "${SSH[@]}" 'set -euo pipefail
-            rm -rf /tmp/javis-full-export /tmp/javis-full.tgz || true
-            df -h / /var/lib/docker 2>/dev/null | head -20 || df -h | head -20
-            CONTAINER=javis
-            if ! docker ps -a --format "{{.Names}}" | grep -qx "$CONTAINER"; then
-              CONTAINER=$(docker ps -a --format "{{.Names}}" | grep -E "javis" | head -1 || true)
-            fi
-            test -n "$CONTAINER"
-            docker start "$CONTAINER" 2>/dev/null || true
-            echo "OK container=$CONTAINER"
-          '
+          "${SSH[@]}" bash -s <<'REMOTE'
+          set -euo pipefail
+          rm -rf /tmp/javis-full-export /tmp/javis-full.tgz || true
+          docker start javis 2>/dev/null || true
+          df -h / /var/lib/docker 2>/dev/null || df -h
+          # Giải phóng cache image (KHÔNG xoá volume dữ liệu)
+          docker builder prune -af >/dev/null 2>&1 || true
+          docker image prune -af >/dev/null 2>&1 || true
+          df -h / /var/lib/docker 2>/dev/null || df -h
 
-          # Stream: stop → docker tar stdout → file trên runner → start
-          "${SSH[@]}" 'set -euo pipefail
-            CONTAINER=javis
-            if ! docker ps -a --format "{{.Names}}" | grep -qx "$CONTAINER"; then
-              CONTAINER=$(docker ps -a --format "{{.Names}}" | grep -E "javis" | head -1 || true)
-            fi
-            DATA=""; BRAINS=""; CLAUDE=""; CODEX=""
-            while read -r dest name typ; do
-              [ "$typ" = "volume" ] || continue
-              case "$dest" in
-                /data) DATA="$name" ;;
-                /brains) BRAINS="$name" ;;
-                /home/javis/.claude) CLAUDE="$name" ;;
-                /home/javis/.codex) CODEX="$name" ;;
-              esac
-            done < <(docker inspect -f "{{range .Mounts}}{{println .Destination .Name .Type}}{{end}}" "$CONTAINER")
-            echo "data=$DATA brains=$BRAINS claude=$CLAUDE codex=$CODEX" >&2
-            test -n "$DATA" && test -n "$BRAINS"
-            docker stop "$CONTAINER"
-            ARGS=(-v "$DATA:/pack/data:ro" -v "$BRAINS:/pack/brains:ro")
-            EXTRAS=""
-            if [ -n "$CLAUDE" ]; then ARGS+=(-v "$CLAUDE:/pack/claude:ro"); EXTRAS="$EXTRAS claude"; fi
-            if [ -n "$CODEX" ]; then ARGS+=(-v "$CODEX:/pack/codex:ro"); EXTRAS="$EXTRAS codex"; fi
-            # stdout = tar stream (nén trên VPS nhưng KHÔNG ghi file tar lên đĩa VPS)
-            docker run --rm "${ARGS[@]}" alpine \
-              tar -C /pack -czf - \
-                --exclude=node_modules \
-                --exclude=.pnpm-store \
-                --exclude=.git \
-                data brains $EXTRAS
-            EC=$?
-            docker start "$CONTAINER" || true
-            exit $EC
-          ' > ./javis-full.tgz
+          CONTAINER=javis
+          if ! docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+            CONTAINER=$(docker ps -a --format '{{.Names}}' | grep -E 'javis' | head -1 || true)
+          fi
+          test -n "$CONTAINER"
+          DATA=""; BRAINS=""; CLAUDE=""; CODEX=""
+          while read -r dest name typ; do
+            [ "$typ" = "volume" ] || continue
+            case "$dest" in
+              /data) DATA="$name" ;;
+              /brains) BRAINS="$name" ;;
+              /home/javis/.claude) CLAUDE="$name" ;;
+              /home/javis/.codex) CODEX="$name" ;;
+            esac
+          done < <(docker inspect -f '{{range .Mounts}}{{println .Destination .Name .Type}}{{end}}' "$CONTAINER")
+          echo "vols data=$DATA brains=$BRAINS claude=$CLAUDE codex=$CODEX"
+          test -n "$DATA" && test -n "$BRAINS"
+
+          docker volume rm javis_migrate_scratch 2>/dev/null || true
+          docker volume create javis_migrate_scratch >/dev/null
+          docker stop "$CONTAINER"
+
+          ARGS=(-v "$DATA:/pack/data:ro" -v "$BRAINS:/pack/brains:ro" -v javis_migrate_scratch:/out)
+          EXTRAS=""
+          if [ -n "$CLAUDE" ]; then ARGS+=(-v "$CLAUDE:/pack/claude:ro"); EXTRAS="$EXTRAS claude"; fi
+          if [ -n "$CODEX" ]; then ARGS+=(-v "$CODEX:/pack/codex:ro"); EXTRAS="$EXTRAS codex"; fi
+
+          docker run --rm "${ARGS[@]}" alpine sh -c "
+            set -e
+            tar -C /pack -czf /out/javis-full.tgz \
+              --exclude=node_modules \
+              --exclude=.pnpm-store \
+              --exclude=.git \
+              data brains $EXTRAS
+            ls -lh /out/javis-full.tgz
+          "
+          EC=$?
+          docker start "$CONTAINER" || true
+          exit $EC
+          REMOTE
+
+          # Stream sạch (chỉ bytes file)
+          "${SSH[@]}" 'docker run --rm -v javis_migrate_scratch:/out:ro alpine cat /out/javis-full.tgz' > ./javis-full.tgz
+
+          "${SSH[@]}" 'docker volume rm javis_migrate_scratch 2>/dev/null || true; docker start javis 2>/dev/null || true; echo cleaned'
 
           ls -lh ./javis-full.tgz
           python3 - <<'PY'
@@ -81,14 +91,19 @@ jobs:
           print(f"bytes={n}")
           if n < 1_000_000:
               raise SystemExit("artifact too small")
-          with tarfile.open(p) as t:
+          # gzip magic
+          with open(p, "rb") as f:
+              magic = f.read(2)
+          if magic != b"\x1f\x8b":
+              raise SystemExit(f"not gzip, magic={magic!r}")
+          with tarfile.open(p, "r:gz") as t:
               names = t.getnames()
-              tops = sorted({x.split("/", 1)[0] for x in names if x and not x.startswith(".")})
+              tops = sorted({x.split("/", 1)[0] for x in names if x})
               print("tops:", tops)
               print("entries:", len(names))
-              print("sample:", names[:20])
               if "data" not in tops or "brains" not in tops:
-                  raise SystemExit("missing data/brains in archive")
+                  raise SystemExit("missing data/brains")
+          print("ARCHIVE_OK")
           PY
 
       - name: Upload artifact
