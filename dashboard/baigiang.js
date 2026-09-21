@@ -371,7 +371,7 @@
         '<p class="jw-sec">2. OpenMAIC (sau khi Chạy)</p>' +
         '<p class="jw-hint">Bước 1: Chạy workflow → có file lop-hoc.md. Bước 2: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả.</p>' +
         '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md</label>' +
-        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="exports/bai-giang/…/lop-hoc.md">' +
+        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="Ví dụ: exports/bai-giang/…/lop-hoc.md">' +
         '<p class="jw-hint">Để trống = tự lấy từ log sau khi Chạy.</p></div>' +
         '<details class="jw-more">' +
         "<summary>LLM &amp; debug OpenMAIC</summary>" +

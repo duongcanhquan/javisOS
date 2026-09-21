@@ -6198,7 +6198,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       document.getElementById("tkCopy").onclick = () => {
         const c = document.getElementById("tkCopy");
         try { navigator.clipboard.writeText(r.token || ""); c.textContent = "Đã copy"; }
-        catch (e) { c.textContent = "Copy tay giúp em"; }
+        catch (e) { c.textContent = "Copy tay giúp bạn"; }
       };
       document.getElementById("tkHide").onclick = () => { document.getElementById("tkNew").innerHTML = ""; };
       renderTokens();
