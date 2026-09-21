@@ -206,8 +206,9 @@
           data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}">
         <header>
           <div>
-            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">não gốc - không quản từ đây</span>' : ""}
+            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}
             <div class="dim">máy <code>javis-${esc(t.slug)}</code> · đăng nhập <code>${esc(t.login_user || "admin")}</code></div>
+            ${prot ? '<div class="dim">Đăng nhập, não, Kết nối, Models giữ nguyên như trước khi có Tổ chức. Không tắt/xóa từ đây.</div>' : ""}
           </div>
           <span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span>
         </header>
@@ -254,7 +255,7 @@
       return `<tr>
         <td><button type="button" class="org-link" data-org-goto="quan" data-org-q="${esc(t.slug)}">${esc(t.name || t.slug)}</button></td>
         <td><span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span></td>
-        <td>${t.protected ? "Não gốc" : (t.shared_api ? "API chung" : "Riêng")}</td>
+        <td>${t.protected ? "Riêng (bản cũ)" : (t.shared_api ? "API chung" : "Riêng")}</td>
         <td><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || ("javis-" + t.slug))}</a></td>
       </tr>`;
     }).join("");
@@ -297,7 +298,7 @@
               <h3>Sổ nhanh</h3>
               ${tenants.length
                 ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Người</th><th>Máy</th><th>API</th><th>Link</th></tr></thead><tbody>${snapRows}</tbody></table></div>`
-                : '<p class="dim">Chưa có bản nào ngoài não gốc.</p>'}
+                : '<p class="dim">Chưa có người mới, chỉ còn bản cũ của bạn.</p>'}
               <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button>
             </div>
           </div>
@@ -362,11 +363,11 @@
             <select id="orgKind" class="org-filter" aria-label="Loại máy">
               <option value="all"${orgKind === "all" ? " selected" : ""}>Mọi máy</option>
               <option value="people"${orgKind === "people" ? " selected" : ""}>Javis người</option>
-              <option value="root"${orgKind === "root" ? " selected" : ""}>Não gốc</option>
+              <option value="root"${orgKind === "root" ? " selected" : ""}>Bản cũ của bạn</option>
             </select>
             <span class="dim" id="orgCount"></span>
           </div>
-          <div class="org-grid">${cards || '<p class="dim">Chưa có bản nào ngoài não gốc.</p>'}</div>
+          <div class="org-grid">${cards || '<p class="dim">Chưa có người mới, chỉ còn bản cũ của bạn.</p>'}</div>
           <p class="dim" id="orgFilterEmpty" hidden>Không khớp bộ lọc. Xóa ô tìm hoặc chọn lại lọc.</p>
         </section>
       </div>

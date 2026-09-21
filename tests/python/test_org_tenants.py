@@ -162,6 +162,8 @@ park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "
 check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
 check("org.js có Sửa và Xóa người", ">Sửa</button>" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)
+check("quan không ghi Não gốc ở cột API", "Não gốc" not in org_js)
+check("quan ghi bản cũ + API riêng", "bản cũ của bạn" in org_js and "Riêng (bản cũ)" in org_js)
 dest = src.split("def destroy", 1)[-1].split("def people_running", 1)[0] if "def destroy" in src else ""
 check("xóa máy không gắn v=true (không xóa nhầm volume)", "?v=true" not in dest and "PROTECTED_VOLUMES" in dest)
 check("xóa không đụng javis-quan", "javis-quan" in dest)

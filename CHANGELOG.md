@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.269] - 2026-09-21
+### Sửa
+- **Javis Quan trên sổ Tổ chức ghi Riêng (bản cũ), không còn chữ Não gốc ở cột API.** Đó là máy bạn đang dùng: đăng nhập, não, Kết nối, Models như trước. Không phải kho API trường.
+
 ## [0.55.268] - 2026-09-21
 ### Mới
 - **Sửa và xóa người trên tab Quản lý.** Sửa tên, đăng nhập, hạn mức. Xóa phải gõ đúng tên máy; não mất hết. Không xóa được bản quan.
