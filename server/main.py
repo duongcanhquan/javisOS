@@ -969,6 +969,7 @@ async def root():
            + json.dumps({"version": ver, "assets": fps}, ensure_ascii=False)
            + "</script>\n</head>")
     html = html.replace("</head>", moc, 1)
+    html = cfgmod.stamp_html_brand(html)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
@@ -10658,6 +10659,10 @@ async def _start_scheduler():
     except Exception:
         pass
     cfgmod.apply_tool_env()   # secret Cài đặt (key ElevenLabs...) → env cho tool ngoài (video-use)
+    try:
+        cfgmod.ensure_personal_workspace()
+    except Exception as e:
+        print(f"[workspace brand] {e}", file=_sys.stderr)
     try:
         loop_feature.ensure_migrated()   # loop_config.json cũ → Javis/loops/vong-lap-goc.md (1 lần)
     except Exception as e:

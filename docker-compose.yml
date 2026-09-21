@@ -50,6 +50,7 @@ services:
       JAVIS_ORG_HOST_PREFIX: ${JAVIS_ORG_HOST_PREFIX:-javis}
       JAVIS_ORG_DOMAIN_SUFFIX: ${JAVIS_ORG_DOMAIN_SUFFIX:-vietmycollege.com}
       JAVIS_NAME: ${JAVIS_NAME:-javis}
+      WORKSPACE_NAME: ${WORKSPACE_NAME:-}
       DOMAIN_NAME: ${DOMAIN_NAME:-}
       # Plugin do bạn cài (global/brain): chạy Python thật trong server. Mặc định BẬT trên VPS;
       # tắt bằng JAVIS_ENABLE_USER_PLUGINS=false trong .env nếu cần.

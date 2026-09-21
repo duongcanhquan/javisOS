@@ -35,6 +35,7 @@ check("compose nhét prefix host vào container",
       "JAVIS_ORG_HOST_PREFIX: ${JAVIS_ORG_HOST_PREFIX:-javis}" in compose)
 check("compose nhét JAVIS_ORG_MANAGER vào container",
       "JAVIS_ORG_MANAGER: ${JAVIS_ORG_MANAGER:-false}" in compose)
+check("compose nhét WORKSPACE_NAME", "WORKSPACE_NAME: ${WORKSPACE_NAME:-}" in compose)
 check("env.manager: catalog brain", "org-catalog" in envm)
 check("tenant-limits: mem_limit", "mem_limit" in lim)
 check("tenant-limits: cpus", "cpus:" in lim)

@@ -266,6 +266,7 @@ def create_and_start(
             "JAVIS_ENABLE_PIXELLE=false",
             "JAVIS_ORG_MANAGER=false",
             "JAVIS_ORG_TENANT=true",
+            "WORKSPACE_NAME=VietMy OS",
             f"JAVIS_QUOTA_GB={int(quota_gb)}",
             f"JAVIS_ORG_POOL_URL=http://{mgr}:7777/org/pool",
             f"JAVIS_ORG_POOL_TOKEN={pool_token}",

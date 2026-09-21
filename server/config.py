@@ -540,6 +540,69 @@ def _transform_secret_fields(cfg, fn):
 # (x2 middleware = 10-16ms/request chỉ để check đăng nhập). File đổi (kể cả write_settings
 # ghi đè) thì mtime/size đổi -> tự đọc lại. Trả deep copy để caller sửa thoải mái không bẩn cache.
 _SETTINGS_CACHE = {"sig": None, "cfg": None}
+_FACTORY_WS = frozenset({"", "Javis OS", "JAVIS OS", "LYON", "LYON OS"})
+
+
+def _is_personal_portal() -> bool:
+    """Cổng cá nhân (quan / học viên): khác Javis gốc quản trị tổ chức."""
+    mgr = (os.getenv("JAVIS_ORG_MANAGER") or "").strip().lower()
+    if mgr in ("1", "true", "yes", "on"):
+        return False
+    name = (os.getenv("JAVIS_NAME") or "").strip().lower()
+    if name == "javis-manager":
+        return False
+    ten = (os.getenv("JAVIS_ORG_TENANT") or "").strip().lower()
+    if ten in ("1", "true", "yes", "on"):
+        return True
+    return name == "javis-quan"
+
+
+def _apply_workspace_default(cfg: dict) -> None:
+    cur = str(cfg.get("workspace_name") or "").strip()
+    if cur in ("LYON", "LYON OS"):
+        cur = "Javis OS"
+        cfg["workspace_name"] = cur
+    if cur not in _FACTORY_WS and cur:
+        return
+    env = (os.getenv("WORKSPACE_NAME") or "").strip()
+    if env:
+        cfg["workspace_name"] = env
+    elif _is_personal_portal():
+        cfg["workspace_name"] = "VietMy OS"
+    else:
+        cfg["workspace_name"] = "Javis OS"
+
+
+def stamp_html_brand(html: str) -> str:
+    """Đóng tên workspace vào title/thanh bar lúc trả HTML, khỏi nháy JAVIS OS rồi mới đổi."""
+    name = str(read_settings().get("workspace_name") or "Javis OS").strip() or "Javis OS"
+    if name in ("Javis OS", "JAVIS OS"):
+        return html
+    safe = (name.replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+    html = html.replace("<title>Javis OS</title>", f"<title>{safe}</title>", 1)
+    html = html.replace('content="Javis OS"', f'content="{safe}"', 1)
+    html = html.replace(">JAVIS OS</span>", f">{safe}</span>", 1)
+    html = html.replace("tin từ Javis OS", f"tin từ {safe}", 1)
+    html = html.replace('placeholder="Javis OS"', f'placeholder="{safe}"', 1)
+    return html
+
+
+def ensure_personal_workspace() -> None:
+    """Ghi VietMy OS xuống settings cổng cá nhân nếu vẫn còn tên máy móc Javis OS."""
+    if not _is_personal_portal():
+        return
+    cur = ""
+    try:
+        if SETTINGS_PATH.is_file():
+            cur = str((json.loads(SETTINGS_PATH.read_text(encoding="utf-8")) or {})
+                      .get("workspace_name") or "").strip()
+    except Exception:
+        cur = ""
+    if cur not in _FACTORY_WS:
+        return
+    cfg = read_settings()
+    write_settings(cfg)
 
 
 def _deep_merge(base: dict, patch: dict) -> dict:
@@ -762,7 +825,9 @@ def read_settings():
     except OSError:
         sig = None
     if sig is not None and sig == _SETTINGS_CACHE["sig"] and _SETTINGS_CACHE["cfg"] is not None:
-        return json.loads(_SETTINGS_CACHE["cfg"])
+        cfg = json.loads(_SETTINGS_CACHE["cfg"])
+        _apply_workspace_default(cfg)
+        return cfg
     cfg = json.loads(json.dumps(_DEFAULT))   # deep copy
     try:
         if SETTINGS_PATH.exists():
@@ -773,9 +838,6 @@ def read_settings():
     _nan_provider_da_go(cfg)
     _no_rong_pham_vi_bo_nao(cfg)
     _ap_muc_mac_dinh(cfg)
-    # Bản fork từng đổi tên hiển thị sang LYON rồi revert: trả về mặc định Javis OS.
-    if str(cfg.get("workspace_name") or "").strip() in ("LYON", "LYON OS"):
-        cfg["workspace_name"] = "Javis OS"
     try:
         import secrets_store   # lazy: secrets_store import config → tránh vòng lặp import
         _transform_secret_fields(cfg, secrets_store.decrypt)
@@ -784,7 +846,9 @@ def read_settings():
     if sig is not None:
         _SETTINGS_CACHE["sig"] = sig
         _SETTINGS_CACHE["cfg"] = json.dumps(cfg, ensure_ascii=False)
-    return cfg
+    out = json.loads(json.dumps(cfg))
+    _apply_workspace_default(out)
+    return out
 
 
 def write_settings(cfg):

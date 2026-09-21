@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.266] - 2026-09-21
+### Sửa
+- **Cổng cá nhân hiện VietMy OS trên thanh bar và tiêu đề tab**, không còn chữ JAVIS OS. Javis gốc (trang Tổ chức) giữ tên cũ. Trang Tổ chức mở nhanh hơn, không gắn lại tên miền mỗi lần bấm.
+
 ## [0.55.265] - 2026-09-21
 ### Mới
 - **Tự điều phối máy người trên RAM 10 GB:** trần mặc định 6 máy chạy, nghỉ 30 phút thì tắt. Não và ổ không xóa. Mở link là bật lại; hết chỗ thì đợi hoặc Javis tắt máy đang nghỉ. Chỉnh trên Tổ chức, tab Cài đặt chung.

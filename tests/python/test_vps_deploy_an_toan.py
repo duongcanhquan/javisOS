@@ -259,7 +259,8 @@ check(
 )
 check(
     "vps-deploy.sh: domain công khai vmos-quan",
-    "vmos-quan.vietmycollege.com" in script and "_mgr_set JAVIS_ORG_HOST_PREFIX vmos" in script,
+    "vmos-quan.vietmycollege.com" in script and "_mgr_set JAVIS_ORG_HOST_PREFIX vmos" in script
+    and "WORKSPACE_NAME=VietMy OS" in script,
 )
 check(
     "vps-deploy.sh: đợi health Javis gốc :7778",

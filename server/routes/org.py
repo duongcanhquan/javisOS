@@ -205,11 +205,6 @@ def _make_router() -> APIRouter:
             cname = str(t.get("container") or "")
             if cname and dk_ok:
                 rec["status"] = org_docker.container_status(cname)
-                if not t.get("protected"):
-                    try:
-                        org_docker.apply_public_hosts(str(t.get("slug") or ""))
-                    except Exception:
-                        pass
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
                 "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
