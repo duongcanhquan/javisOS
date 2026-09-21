@@ -167,10 +167,14 @@
     const running = tenants.filter((t) => t.status === "running").length;
     const stopped = tenants.filter((t) => t.status === "stopped" || t.status === "missing").length;
     const coord = d.coord || {};
-    const maxR = Number(coord.max_running || 6);
+    const maxHand = Number(coord.max_running || 6);
+    const maxR = Number(coord.effective_max || maxHand);
     const idleM = Number(coord.idle_minutes || 0);
     const runP = Number(coord.running != null ? coord.running : people.filter((t) => t.status === "running").length);
     const ramEst = Number(coord.ram_est_mb != null ? coord.ram_est_mb : runP * 768);
+    const ramHost = coord.host_ram_mb ? Math.round(Number(coord.host_ram_mb) / 1024 * 10) / 10 : 0;
+    const ramAvail = coord.host_avail_mb ? Math.round(Number(coord.host_avail_mb) / 1024 * 10) / 10 : 0;
+    const waitN = Number(coord.waiting || 0);
     const sharedN = people.filter((t) => t.shared_api).length;
     const prov = d.providers || {};
     const keysOn = POOL.filter(([id]) => (prov[id] || {}).set).length;
@@ -314,15 +318,18 @@
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
           <h3>Điều phối máy (RAM)</h3>
-          <p>Máy 10 GB nên để khoảng <b>6</b> Javis người chạy cùng lúc (mỗi máy tối đa 768 MB).
-          Hết chỗ thì người mới mở link phải đợi, hoặc Javis tắt máy đang nghỉ.
-          Não và ổ không xóa khi tắt. Bản quan và Javis gốc luôn bật, không tính vào trần này.</p>
+          <p>Máy 6 GB RAM: Javis tự chừa chỗ cho gốc + Quan, còn khoảng <b>3</b> máy người chạy cùng lúc.
+          RAM thấp thì tắt máy đang nghỉ trước (não không xóa), người mới xếp hàng rồi tự bật.
+          Trần tay bên dưới là trần tối đa; máy tự hạ nếu RAM không đủ.</p>
           <form id="orgCoord" class="org-form">
-            <label>Trần máy chạy<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxR))}"></label>
-            <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt"></label>
+            <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
+            <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
             <button class="btn primary" type="submit">Lưu điều phối</button>
           </form>
-          <p class="dim">${runP}/${maxR} đang chạy · ${idleM ? ("tự tắt sau " + idleM + " phút không dùng") : "không tự tắt"}.</p>
+          <p class="dim">Đang dùng <b>${runP}/${maxR}</b> chỗ
+            ${ramHost ? (" · máy " + ramHost + " GB, còn " + ramAvail + " GB") : ""}
+            ${idleM ? (" · vắng " + idleM + " phút thì nhả RAM") : " · không tự tắt khi vắng"}.
+            ${waitN ? (" Hàng đợi: " + waitN + " người.") : ""}</p>
           <p class="dim" id="orgCoordMsg"></p>
           <h3>Kho API trường (tùy chọn)</h3>
           <p>Mặc định <b>không dùng</b>: mỗi người tự gắn OpenRouter, Claude, Grok… trên máy họ, não và khóa ở lại volume của họ.

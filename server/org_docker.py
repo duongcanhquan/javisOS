@@ -578,21 +578,23 @@ def _started_unix(raw: str) -> int:
         return 0
 
 
-def _evict_grace_sec() -> int:
+def _evict_grace_sec(pressure: bool = False) -> int:
+    if pressure:
+        return oc.PRESSURE_IDLE_SEC
     idle = int(oc.coord().get("idle_minutes") or 0)
     if idle <= 0:
         return 15 * 60
     return max(5 * 60, idle * 60)
 
 
-def _pick_evict(except_slug: str) -> str:
+def _pick_evict(except_slug: str, grace_sec: int | None = None) -> str:
     now = int(time.time())
-    grace = _evict_grace_sec()
+    grace = int(grace_sec) if grace_sec is not None else _evict_grace_sec()
     best_slug = ""
     best_ts = now + 1
     for t in people_running():
         slug = str(t.get("slug") or "")
-        if not slug or slug == except_slug or t.get("protected"):
+        if not slug or slug == except_slug or t.get("protected") or t.get("paused"):
             continue
         cname = str(t.get("container") or "")
         ts = read_last_active(cname, t)
@@ -607,7 +609,7 @@ def _pick_evict(except_slug: str) -> str:
 
 
 def _acquire_slot(slug: str) -> None:
-    cap = int(oc.coord()["max_running"])
+    cap = int(oc.effective_max())
     running = people_running()
     if any(str(t.get("slug") or "") == slug for t in running):
         return
@@ -618,7 +620,7 @@ def _acquire_slot(slug: str) -> None:
         names = ", ".join(str(t.get("name") or t.get("slug")) for t in running) or "?"
         raise RuntimeError(
             f"Hết chỗ máy chạy ({len(running)}/{cap}). "
-            f"Đang dùng: {names}. Tắt một người trên Quản lý hoặc đợi máy nghỉ."
+            f"Đang dùng: {names}. Đợi người khác nghỉ hoặc nhờ quản trị tắt một máy."
         )
     stop(victim, park=False)
 
@@ -627,7 +629,7 @@ def _park_new_if_over_cap(slug: str) -> None:
     rec = ot.get(slug)
     if not rec or rec.get("protected"):
         return
-    cap = int(oc.coord()["max_running"])
+    cap = int(oc.effective_max())
     n = len(people_running())
     if n <= cap:
         return
@@ -656,6 +658,7 @@ def start_with_capacity(slug: str) -> dict:
     rec["last_active"] = int(time.time())
     rec["status"] = container_status(cname)
     rec = ot.upsert(rec)
+    oc.clear_wait(slug)
     try:
         sync_park()
     except Exception:
@@ -666,8 +669,28 @@ def start_with_capacity(slug: str) -> dict:
 def tick_coord() -> None:
     if not ot.manager_enabled() or not docker_available():
         return
-    idle = int(oc.coord().get("idle_minutes") or 0)
     now = int(time.time())
+    idle = int(oc.coord().get("idle_minutes") or 0)
+    _, avail = oc.host_mem_mb()
+    if avail and avail < oc.KEEP_FREE_MB + oc.RAM_MB and idle:
+        idle = min(idle, 10)
+    if avail and 0 < avail < oc.KEEP_FREE_MB:
+        victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
+        if victim:
+            try:
+                stop(victim, park=False)
+            except Exception as e:
+                print(f"[org coord] RAM thấp, tắt {victim}: {e}", flush=True)
+    cap = int(oc.effective_max())
+    while len(people_running()) > cap:
+        victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
+        if not victim:
+            break
+        try:
+            stop(victim, park=False)
+        except Exception as e:
+            print(f"[org coord] hạ trần tắt {victim}: {e}", flush=True)
+            break
     if idle > 0:
         limit = idle * 60
         for t in list(people_running()):
@@ -681,6 +704,17 @@ def tick_coord() -> None:
                     stop(slug, park=False)
                 except Exception as e:
                     print(f"[org coord] tắt {slug}: {e}", flush=True)
+    if len(people_running()) < cap:
+        w = oc.next_waiter()
+        if w:
+            rec = ot.get(w)
+            if rec and not rec.get("paused") and not rec.get("protected"):
+                try:
+                    start_with_capacity(w)
+                except Exception:
+                    oc.enqueue_wait(w)
+            elif w:
+                oc.enqueue_wait(w)
     try:
         sync_park()
     except Exception as e:
@@ -780,9 +814,11 @@ def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
     try:
         start_with_capacity(slug)
     except Exception as e:
+        pos = oc.enqueue_wait(slug)
+        why = str(e) or "Hết chỗ RAM."
         return oc.wake_html(
-            host, "Chưa bật được máy",
-            str(e) or "Không bật được. Thử lại sau hoặc nhờ quản trị tắt một máy khác.",
+            host, "Đang xếp chỗ RAM",
+            why + f" Bạn đứng hàng thứ {pos}. Não và file không xóa. Trang tự thử lại khi có chỗ.",
             8,
         ), 503
     return oc.wake_html(

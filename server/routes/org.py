@@ -271,7 +271,7 @@ def _make_router() -> APIRouter:
         if not started:
             cap = _coord_public()
             note = (
-                f"Máy đã tạo, đang tắt vì đủ trần {cap.get('max_running')} máy chạy. "
+                f"Máy đã tạo, đang tắt vì đủ trần {cap.get('effective_max') or cap.get('max_running')} máy chạy. "
                 "Não còn. Họ mở link là tự bật, hoặc bấm Bật máy khi có chỗ."
             )
         return {"ok": True, "tenant": op.public_tenant(rec), "started": started, "note": note}

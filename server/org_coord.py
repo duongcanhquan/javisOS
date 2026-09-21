@@ -1,6 +1,7 @@
-"""Điều phối RAM: trần số máy chạy, idle, bóc slug từ hostname. Không đụng volume."""
+"""Điều phối RAM: trần chỗ theo RAM máy, idle, hàng đợi. Không đụng volume."""
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 
@@ -10,9 +11,49 @@ RAM_MB = 768
 MAX_RUNNING_DEFAULT = 6
 IDLE_MINUTES_DEFAULT = 30
 PARK_NAME = "javis-park"
+# Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~3 Javis người.
+RESERVE_MB = 2800
+KEEP_FREE_MB = 400
+AUTO_CAP = 8
+PRESSURE_IDLE_SEC = 90
+
+_WAIT: dict[str, float] = {}
+_WLOCK = threading.Lock()
 
 
-def coord(data: dict | None = None) -> dict:
+def _meminfo_mb() -> tuple[int, int]:
+    total = 0
+    avail = 0
+    try:
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemTotal:"):
+                total = int(line.split()[1]) // 1024
+            elif line.startswith("MemAvailable:"):
+                avail = int(line.split()[1]) // 1024
+            if total and avail:
+                break
+    except Exception:
+        return 0, 0
+    return max(0, total), max(0, avail)
+
+
+def host_mem_mb() -> tuple[int, int]:
+    """(tổng MB, còn trống MB). 0,0 nếu không đọc được."""
+    return _meminfo_mb()
+
+
+def suggest_slots(total_mb: int) -> int:
+    """Số chỗ Javis người an toàn từ RAM máy. Không đếm gốc và Quan."""
+    try:
+        t = int(total_mb or 0)
+    except (TypeError, ValueError):
+        t = 0
+    room = t - RESERVE_MB - KEEP_FREE_MB
+    n = room // RAM_MB
+    return max(1, min(AUTO_CAP, n))
+
+
+def _stored(data: dict | None = None) -> dict:
     raw = data if isinstance(data, dict) else ot.load()
     c = raw.get("coord") if isinstance(raw.get("coord"), dict) else {}
     try:
@@ -23,14 +64,37 @@ def coord(data: dict | None = None) -> dict:
         idle = int(c.get("idle_minutes") if c.get("idle_minutes") is not None else IDLE_MINUTES_DEFAULT)
     except (TypeError, ValueError):
         idle = IDLE_MINUTES_DEFAULT
-    max_r = max(1, min(20, max_r))
-    idle = max(0, min(24 * 60, idle))
-    return {"max_running": max_r, "idle_minutes": idle, "ram_mb": RAM_MB}
+    return {"max_running": max(1, min(20, max_r)), "idle_minutes": max(0, min(24 * 60, idle))}
+
+
+def effective_max(data: dict | None = None, total_mb: int | None = None) -> int:
+    """Trần đang dùng: min(trần tay, chỗ RAM thật)."""
+    hand = int(_stored(data)["max_running"])
+    tot = int(total_mb) if total_mb is not None else host_mem_mb()[0]
+    if tot < 512:
+        return hand
+    return max(1, min(hand, suggest_slots(tot)))
+
+
+def coord(data: dict | None = None) -> dict:
+    raw = data if isinstance(data, dict) else None
+    s = _stored(raw)
+    tot, avail = host_mem_mb()
+    mx = effective_max(raw, tot if tot else None)
+    return {
+        "max_running": s["max_running"],
+        "idle_minutes": s["idle_minutes"],
+        "ram_mb": RAM_MB,
+        "effective_max": mx,
+        "host_ram_mb": tot,
+        "host_avail_mb": avail,
+        "suggest": suggest_slots(tot) if tot else s["max_running"],
+    }
 
 
 def put_coord(max_running: int | None = None, idle_minutes: int | None = None) -> dict:
     data = ot.load()
-    cur = coord(data)
+    cur = _stored(data)
     if max_running is not None:
         cur["max_running"] = max(1, min(20, int(max_running)))
     if idle_minutes is not None:
@@ -38,6 +102,37 @@ def put_coord(max_running: int | None = None, idle_minutes: int | None = None) -
     data["coord"] = {"max_running": cur["max_running"], "idle_minutes": cur["idle_minutes"]}
     ot.save(data)
     return coord(data)
+
+
+def enqueue_wait(slug: str) -> int:
+    s = (slug or "").strip().lower()
+    if not s:
+        return 0
+    with _WLOCK:
+        _WAIT.setdefault(s, time.time())
+        order = sorted(_WAIT, key=lambda k: _WAIT[k])
+        return order.index(s) + 1
+
+
+def clear_wait(slug: str) -> None:
+    s = (slug or "").strip().lower()
+    with _WLOCK:
+        _WAIT.pop(s, None)
+
+
+def next_waiter() -> str:
+    with _WLOCK:
+        if not _WAIT:
+            return ""
+        order = sorted(_WAIT, key=lambda k: _WAIT[k])
+        s = order[0]
+        _WAIT.pop(s, None)
+        return s
+
+
+def wait_len() -> int:
+    with _WLOCK:
+        return len(_WAIT)
 
 
 def slug_from_host(host: str) -> str:
@@ -70,16 +165,26 @@ def touch_last_active() -> None:
 
 def snapshot(running: int, max_running: int | None = None, idle_minutes: int | None = None) -> dict:
     c = coord()
-    mx = int(max_running if max_running is not None else c["max_running"])
-    idle = int(idle_minutes if idle_minutes is not None else c["idle_minutes"])
     n = max(0, int(running))
+    idle = int(idle_minutes if idle_minutes is not None else c["idle_minutes"])
+    hand = int(max_running if max_running is not None else c["max_running"])
+    tot = int(c.get("host_ram_mb") or 0)
+    if tot >= 512:
+        eff = max(1, min(hand, suggest_slots(tot)))
+    else:
+        eff = hand
     return {
-        "max_running": mx,
+        "max_running": hand,
+        "effective_max": eff,
         "idle_minutes": idle,
         "running": n,
+        "waiting": wait_len(),
         "ram_mb": RAM_MB,
         "ram_est_mb": n * RAM_MB,
-        "slots_left": max(0, mx - n),
+        "slots_left": max(0, eff - n),
+        "host_ram_mb": tot,
+        "host_avail_mb": int(c.get("host_avail_mb") or 0),
+        "suggest": int(c.get("suggest") or hand),
     }
 
 

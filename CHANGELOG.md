@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.272] - 2026-09-21
+### Mới
+- **Điều phối RAM theo máy thật.** 6 GB thì khoảng 3 người chạy cùng lúc (gốc và Quan luôn bật). RAM thấp thì tắt máy đang nghỉ, người mới xếp hàng rồi tự vào. Não không xóa.
+
 ## [0.55.271] - 2026-09-21
 ### Mới
 - **Tạm dừng tài khoản trên Quản lý:** máy tắt, mở link không tự vào được, não còn. Bấm Chạy lại mới hoạt động. Bản quan không tạm dừng từ đây.
