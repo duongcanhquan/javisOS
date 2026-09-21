@@ -76,6 +76,15 @@ COMPOSE_UP=("${COMPOSE_BASE[@]}")
 if docker ps --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-tunnel"; then
   COMPOSE_UP+=(--profile tunnel)
 fi
+# Caddy HTTPS: lần deploy trước dùng --remove-orphans trên mỗi docker-compose.yml
+# nên gỡ nhầm javis-caddy. Giữ file https nếu container hoặc volume Caddy còn.
+if [ -f "$ROOT/docker-compose.https.yml" ]; then
+  if docker ps -a --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-caddy" \
+    || docker volume ls -q | grep -qE 'caddy-data|caddy_data'; then
+    COMPOSE_UP+=(-f docker-compose.https.yml)
+    echo "==> giữ Caddy HTTPS (docker-compose.https.yml)"
+  fi
+fi
 
 if [ -n "${GHCR_TOKEN:-}" ]; then
   echo "==> docker login ghcr.io"
@@ -104,10 +113,14 @@ if [ "$ok_pull" != 1 ]; then
 fi
 
 echo "==> up (image mới, không --build)"
-if ! docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans javis; then
+UP_SERVICES=(javis)
+if printf '%s ' "${COMPOSE_UP[@]}" | grep -q 'docker-compose.https.yml'; then
+  UP_SERVICES+=(caddy)
+fi
+if ! docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans "${UP_SERVICES[@]}"; then
   echo "WARN: up lỗi - gỡ container kẹt rồi up lại"
   docker rm -f "${JAVIS_NAME:-javis}" 2>/dev/null || true
-  docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans javis
+  docker compose "${COMPOSE_UP[@]}" up -d --no-build --remove-orphans "${UP_SERVICES[@]}"
 fi
 # Giữ tunnel nếu trước đó đang chạy.
 if docker ps -a --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-tunnel"; then

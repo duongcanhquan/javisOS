@@ -167,6 +167,10 @@ check(
     "ENABLE_PIXELLE=true" not in code,
 )
 check("vps-deploy.sh: dùng biến JAVIS_IMAGE", "JAVIS_IMAGE" in code)
+check(
+    "vps-deploy.sh: giữ Caddy HTTPS nếu volume/container còn (không --remove-orphans mất 443)",
+    "docker-compose.https.yml" in code and "caddy-data" in code,
+)
 
 # Ép false phải đứng trước lệnh up. Không được chỉ dựa vào optimize-vps.sh.
 idx_false = script.find("JAVIS_ENABLE_PIXELLE=false")
