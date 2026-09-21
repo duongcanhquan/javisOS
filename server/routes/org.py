@@ -41,6 +41,15 @@ def _int(v, default=0, lo=0, hi=10_000_000):
     return max(lo, min(hi, n))
 
 
+def _coord_public():
+    import org_coord as oc
+    try:
+        n = len(org_docker.people_running()) if org_docker.docker_available() else 0
+    except Exception:
+        n = 0
+    return oc.snapshot(n)
+
+
 async def _proxy_upstream(provider: str, request: Request, rec: dict):
     key = op.pool_key(provider)
     if not key:
@@ -131,9 +140,11 @@ def _make_router() -> APIRouter:
 
     @router.get("/org/status")
     def org_status():
+        import org_coord as oc
         return {"ok": True, "manager": ot.manager_enabled(), "tenant": op.tenant_side(),
                 "docker": org_docker.docker_available(),
-                "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix()}
+                "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
+                "coord": oc.coord()}
 
     @router.get("/org/settings/pool")
     def org_pool_get(request: Request):
@@ -152,6 +163,35 @@ def _make_router() -> APIRouter:
         if not isinstance(body, dict):
             body = {}
         return {"ok": True, **op.put_pool_keys(body)}
+
+    @router.get("/org/settings/coord")
+    def org_coord_get(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        return {"ok": True, "coord": _coord_public()}
+
+    @router.put("/org/settings/coord")
+    async def org_coord_put(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        import org_coord as oc
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        mx = body.get("max_running")
+        idle = body.get("idle_minutes")
+        oc.put_coord(
+            max_running=None if mx is None else _int(mx, 6, 1, 20),
+            idle_minutes=None if idle is None else _int(idle, 30, 0, 24 * 60),
+        )
+        try:
+            org_docker.tick_coord()
+        except Exception:
+            pass
+        return {"ok": True, "coord": _coord_public()}
 
     @router.get("/org/tenants")
     def org_list(request: Request):
@@ -173,6 +213,7 @@ def _make_router() -> APIRouter:
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
                 "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
+                "coord": _coord_public(),
                 **op.pool_public()}
 
     @router.post("/org/tenants")
@@ -228,7 +269,15 @@ def _make_router() -> APIRouter:
             )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-        return {"ok": True, "tenant": op.public_tenant(rec)}
+        started = str(rec.get("status") or "") == "running"
+        note = ""
+        if not started:
+            cap = _coord_public()
+            note = (
+                f"Máy đã tạo, đang tắt vì đủ trần {cap.get('max_running')} máy chạy. "
+                "Não còn. Họ mở link là tự bật, hoặc bấm Bật máy khi có chỗ."
+            )
+        return {"ok": True, "tenant": op.public_tenant(rec), "started": started, "note": note}
 
     @router.patch("/org/tenants/{slug}")
     async def org_patch(slug: str, request: Request):
@@ -327,10 +376,10 @@ def _make_router() -> APIRouter:
         if (deny := _need_manager(request)) is not None:
             return deny
         try:
-            org_docker.start(slug)
+            org_docker.start_with_capacity(slug)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-        return {"ok": True}
+        return {"ok": True, "coord": _coord_public()}
 
     @router.post("/org/tenants/{slug}/stop")
     def org_stop(slug: str, request: Request):

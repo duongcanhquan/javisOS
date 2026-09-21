@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.265] - 2026-09-21
+### Mới
+- **Tự điều phối máy người trên RAM 10 GB:** trần mặc định 6 máy chạy, nghỉ 30 phút thì tắt. Não và ổ không xóa. Mở link là bật lại; hết chỗ thì đợi hoặc Javis tắt máy đang nghỉ. Chỉnh trên Tổ chức, tab Cài đặt chung.
+
 ## [0.55.264] - 2026-09-21
 ### Sửa
 - **Người mới mặc định tự gắn API trên máy mình, não riêng.** Kho khóa của trường chỉ dùng khi admin bật cho từng người. Gốc không đọc được chat hay khóa của họ.

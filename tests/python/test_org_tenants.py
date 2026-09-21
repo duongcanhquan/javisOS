@@ -14,6 +14,7 @@ os.environ.pop("DOMAIN_NAME", None)
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+import org_coord as oc  # noqa: E402
 import org_policy as op  # noqa: E402
 import org_quota  # noqa: E402
 import org_tenants as ot  # noqa: E402
@@ -36,7 +37,15 @@ check("domain mặc định javis-lan", ot.tenant_domain("lan") == "javis-lan.vi
 os.environ["JAVIS_ORG_HOST_PREFIX"] = "vmos"
 check("domain prefix vmos", ot.tenant_domain("lan") == "vmos-lan.vietmycollege.com")
 check("vmos vẫn giữ alias javis-", "javis-lan.vietmycollege.com" in ot.public_hosts("lan"))
+check("bóc slug vmos-lan", oc.slug_from_host("vmos-lan.vietmycollege.com") == "lan")
+check("không bóc javis gốc", oc.slug_from_host("javis.vietmycollege.com") == "")
 os.environ.pop("JAVIS_ORG_HOST_PREFIX", None)
+check("trần máy mặc định 6", oc.coord()["max_running"] == 6)
+check("idle mặc định 30", oc.coord()["idle_minutes"] == 30)
+cset = oc.put_coord(max_running=99, idle_minutes=-1)
+check("kẹp trần 20", cset["max_running"] == 20)
+check("kẹp idle 0", cset["idle_minutes"] == 0)
+oc.put_coord(max_running=6, idle_minutes=30)
 
 check("username rỗng", op.validate_username("") is not None)
 check("username lan ok", op.validate_username("lan") is None)
@@ -69,6 +78,8 @@ app2 = FastAPI()
 org_routes.register(app2)
 c2 = TestClient(app2)
 check("status manager", c2.get("/org/status").json().get("manager") is True)
+coord = c2.put("/org/settings/coord", json={"max_running": 6, "idle_minutes": 30}).json()
+check("API điều phối 200", coord.get("ok") is True and (coord.get("coord") or {}).get("max_running") == 6)
 lst = c2.get("/org/tenants")
 check("list 200 khi manager", lst.status_code == 200)
 body = lst.json()
@@ -135,6 +146,16 @@ check("gắn lại tên miền không xóa volume",
       "def apply_public_hosts" in src and "force=true" in src and "down -v" not in src)
 check("Caddy một hostname, không ghép phẩy", '"caddy": domain' in src)
 check("gắn lại khi nhãn cũ khác đúng một tên", "old == wanted" in src)
+check("điều phối trần + idle + park",
+      "def start_with_capacity" in src and "def tick_coord" in src
+      and "def sync_park" in src
+      and "javis-park" in (ROOT / "server" / "org_coord.py").read_text(encoding="utf-8"))
+park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "def sync_park" in src else ""
+check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
+check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
+main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
+check("tenant ghi last-active", "touch_last_active" in main_py)
+check("gốc tự bật khi mở link", "wake_or_wait" in main_py and "tick_coord" in main_py)
 check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _health_inside" in src)
 check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
 moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")

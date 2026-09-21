@@ -163,6 +163,11 @@
     const people = tenants.filter((t) => !t.protected);
     const running = tenants.filter((t) => t.status === "running").length;
     const stopped = tenants.filter((t) => t.status === "stopped" || t.status === "missing").length;
+    const coord = d.coord || {};
+    const maxR = Number(coord.max_running || 6);
+    const idleM = Number(coord.idle_minutes || 0);
+    const runP = Number(coord.running != null ? coord.running : people.filter((t) => t.status === "running").length);
+    const ramEst = Number(coord.ram_est_mb != null ? coord.ram_est_mb : runP * 768);
     const sharedN = people.filter((t) => t.shared_api).length;
     const prov = d.providers || {};
     const keysOn = POOL.filter(([id]) => (prov[id] || {}).set).length;
@@ -267,7 +272,8 @@
           <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
           <div class="org-stats">
             <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
-            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${running}</b><span>Đang chạy</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy người đang chạy</span></button>
+            <button type="button" data-org-goto="cai"><b>${ramEst} MB</b><span>Ước RAM Javis con</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="stopped"><b>${stopped}</b><span>Tắt / chưa có</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
           </div>
@@ -290,6 +296,17 @@
         </section>
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
+          <h3>Điều phối máy (RAM)</h3>
+          <p>Máy 10 GB nên để khoảng <b>6</b> Javis người chạy cùng lúc (mỗi máy tối đa 768 MB).
+          Hết chỗ thì người mới mở link phải đợi, hoặc Javis tắt máy đang nghỉ.
+          Não và ổ không xóa khi tắt. Bản quan và Javis gốc luôn bật, không tính vào trần này.</p>
+          <form id="orgCoord" class="org-form">
+            <label>Trần máy chạy<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxR))}"></label>
+            <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt"></label>
+            <button class="btn primary" type="submit">Lưu điều phối</button>
+          </form>
+          <p class="dim">${runP}/${maxR} đang chạy · ${idleM ? ("tự tắt sau " + idleM + " phút không dùng") : "không tự tắt"}.</p>
+          <p class="dim" id="orgCoordMsg"></p>
           <h3>Kho API trường (tùy chọn)</h3>
           <p>Mặc định <b>không dùng</b>: mỗi người tự gắn OpenRouter, Claude, Grok… trên máy họ, não và khóa ở lại volume của họ.
           Chỉ dán khóa vào đây nếu sau này muốn một người dùng chung kho trường (bật từng người trên Quản lý).
@@ -395,8 +412,10 @@
 
     const msg = el.querySelector("#orgMsg");
     const poolMsg = el.querySelector("#orgPoolMsg");
+    const coordMsg = el.querySelector("#orgCoordMsg");
     const form = el.querySelector("#orgCreate");
     const poolForm = el.querySelector("#orgPool");
+    const coordForm = el.querySelector("#orgCoord");
     const gen = el.querySelector("#orgGenPw");
 
     bindTabs(el);
@@ -429,6 +448,26 @@
       form.password2.value = pw;
       msg.textContent = "Đã điền mật khẩu mạnh. Gửi cho người đó một lần, Javis không lưu lại.";
     });
+    if (coordForm) coordForm.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(coordForm);
+      if (coordMsg) coordMsg.textContent = "Đang lưu…";
+      try {
+        await api("/org/settings/coord", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            max_running: Number(fd.get("max_running") || 6),
+            idle_minutes: Number(fd.get("idle_minutes") || 0),
+          }),
+        });
+        orgFlash = "Đã lưu điều phối. Máy nghỉ sẽ tự tắt; mở link là bật lại.";
+        orgTab = "cai";
+        render(el);
+      } catch (e) {
+        if (coordMsg) coordMsg.textContent = e.message || "Không lưu được.";
+      }
+    });
     if (poolForm) poolForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const body = {};
@@ -460,7 +499,7 @@
       }
       msg.textContent = "Đang tạo máy. Chờ khoảng 1 phút…";
       try {
-        await api("/org/tenants", {
+        const created = await api("/org/tenants", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -475,7 +514,7 @@
         });
         orgQ = String(fd.get("slug") || "");
         orgTab = "quan";
-        orgFlash = "Đã tạo. Mở link sau khoảng 1 phút (Caddy xin HTTPS). Gửi tên đăng nhập và mật khẩu cho người đó.";
+        orgFlash = created.note || "Đã tạo. Gửi tên đăng nhập và mật khẩu. Họ mở link là vào máy mình.";
         render(el);
       } catch (e) {
         msg.textContent = e.message || "Không tạo được.";

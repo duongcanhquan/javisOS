@@ -207,6 +207,33 @@ async def _csrf_guard(request: Request, call_next):
 
 
 @app.middleware("http")
+async def _org_coord_http(request: Request, call_next):
+    """Tenant: ghi last-active. Javis gốc: Host máy con đang tắt thì tự bật (trần RAM)."""
+    try:
+        import org_policy as _opx
+        if _opx.tenant_side():
+            import org_coord as _ocx
+            _ocx.touch_last_active()
+            return await call_next(request)
+        import org_tenants as _otx
+        if not _otx.manager_enabled():
+            return await call_next(request)
+        import org_coord as _ocx
+        host = (request.headers.get("host") or "").split(":")[0].strip().lower()
+        slug = _ocx.slug_from_host(host)
+        if not slug:
+            return await call_next(request)
+        import org_docker as _odx
+        from fastapi.responses import HTMLResponse
+        html, code = _odx.wake_or_wait(slug, host)
+        if html:
+            return HTMLResponse(html, status_code=code)
+    except Exception:
+        pass
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def _auth_guard(request: Request, call_next):
     """Chặn endpoint khi CẦN đăng nhập (đã đặt mật khẩu HOẶC chạy public) mà chưa có session.
     Khi chạy public (0.0.0.0) lần đầu chưa có mật khẩu → vẫn chặn để ÉP tạo tài khoản trước
@@ -10677,6 +10704,7 @@ async def _start_scheduler():
                             _od.apply_public_hosts(slug)
                         except Exception as _oe:
                             print(f"[org host] {slug}: {_oe}", file=_sys.stderr)
+                    _od.tick_coord()
                 except Exception as _e:
                     print(f"[org host] {_e}", file=_sys.stderr)
 
@@ -10709,6 +10737,13 @@ async def _start_scheduler():
                     await reminders_feature.tick()
                 except Exception as rte:
                     print(f"[reminders tick] {type(rte).__name__}: {rte}", file=__import__('sys').stderr)
+                try:
+                    import org_tenants as _otc
+                    if _otc.manager_enabled():
+                        import org_docker as _odc
+                        _odc.tick_coord()
+                except Exception as oce:
+                    print(f"[org coord tick] {type(oce).__name__}: {oce}", file=__import__('sys').stderr)
                 # 3c) Ngân sách token + báo cáo tuần. Nhịp RIÊNG 10 phút chứ không theo 30s:
                 #     mỗi lượt kiểm là một truy vấn sqlite cả tháng, chạy 30 giây một lần thì
                 #     chính cái đồng hồ đo tiền lại thành thứ tốn tài nguyên nhất.

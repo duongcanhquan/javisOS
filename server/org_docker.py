@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+import org_coord as oc
 import org_policy as op
 import org_tenants as ot
 
 _MEM = 768 * 1024 * 1024
 _NANO_CPUS = 750_000_000
 _PIDS = 256
+_LOCK = threading.Lock()
+_WAKE_TS: dict[str, float] = {}
 
 
 def _docker_api(method: str, path: str, json_body: Any = None, timeout: float = 60.0):
@@ -333,6 +338,18 @@ def create_and_start(
             set_admin(cname, login, password)
         write_quota(cname, int(quota_gb))
         rec["status"] = "running"
+        rec["last_active"] = int(time.time())
+        rec = ot.upsert(rec)
+        try:
+            _park_new_if_over_cap(slug)
+        except Exception:
+            pass
+        try:
+            sync_park()
+        except Exception:
+            pass
+        rec = ot.get(slug) or rec
+        rec["status"] = container_status(cname)
         return ot.upsert(rec)
     except Exception:
         rec["status"] = container_status(cname)
@@ -418,11 +435,285 @@ def start(slug: str) -> None:
         pass
 
 
-def stop(slug: str) -> None:
+def stop(slug: str, park: bool = True) -> None:
     rec = ot.get(slug)
     if not rec:
         raise RuntimeError("Không có bản này.")
     cname = str(rec.get("container") or f"javis-{slug}")
+    try:
+        rec["last_active"] = read_last_active(cname, rec)
+        ot.upsert(rec)
+    except Exception:
+        pass
     r = _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
     if r.status_code not in (204, 200, 304):
         raise RuntimeError(f"stop HTTP {r.status_code}: {(r.text or '')[:300]}")
+    rec["status"] = "stopped"
+    ot.upsert(rec)
+    if park:
+        try:
+            sync_park()
+        except Exception:
+            pass
+
+
+def people_running() -> list[dict]:
+    out = []
+    if not docker_available():
+        return out
+    for t in ot.load().get("tenants") or []:
+        if t.get("protected"):
+            continue
+        cname = str(t.get("container") or "")
+        if cname and container_status(cname) == "running":
+            out.append(t)
+    return out
+
+
+def read_last_active(cname: str, rec: dict | None = None) -> int:
+    if cname and docker_available() and container_status(cname) == "running":
+        try:
+            out = _exec(cname, ["python", "-c",
+                                "from pathlib import Path; p=Path('/data/state/org-last-active'); "
+                                "print(p.read_text(encoding='utf-8').strip() if p.is_file() else '')"])
+            for line in reversed((out or "").splitlines()):
+                line = line.strip()
+                if line.isdigit():
+                    return int(line)
+        except Exception:
+            pass
+        data = inspect_name(cname)
+        started = str(((data.get("State") or {}) if isinstance(data.get("State"), dict) else {}).get("StartedAt") or "")
+        ts = _started_unix(started)
+        if ts:
+            return ts
+    try:
+        return int((rec or {}).get("last_active") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _started_unix(raw: str) -> int:
+    s = (raw or "").strip()
+    if not s or s.startswith("0001"):
+        return 0
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        from datetime import datetime
+        if "." in s:
+            i = s.find(".")
+            j = i + 1
+            while j < len(s) and s[j].isdigit():
+                j += 1
+            digits = s[i + 1:j][:6].ljust(6, "0")
+            s = s[:i] + "." + digits + s[j:]
+        return int(datetime.fromisoformat(s).timestamp())
+    except Exception:
+        return 0
+
+
+def _evict_grace_sec() -> int:
+    idle = int(oc.coord().get("idle_minutes") or 0)
+    if idle <= 0:
+        return 15 * 60
+    return max(5 * 60, idle * 60)
+
+
+def _pick_evict(except_slug: str) -> str:
+    now = int(time.time())
+    grace = _evict_grace_sec()
+    best_slug = ""
+    best_ts = now + 1
+    for t in people_running():
+        slug = str(t.get("slug") or "")
+        if not slug or slug == except_slug or t.get("protected"):
+            continue
+        cname = str(t.get("container") or "")
+        ts = read_last_active(cname, t)
+        if ts <= 0:
+            ts = 1
+        if now - ts < grace:
+            continue
+        if ts < best_ts:
+            best_ts = ts
+            best_slug = slug
+    return best_slug
+
+
+def _acquire_slot(slug: str) -> None:
+    cap = int(oc.coord()["max_running"])
+    running = people_running()
+    if any(str(t.get("slug") or "") == slug for t in running):
+        return
+    if len(running) < cap:
+        return
+    victim = _pick_evict(slug)
+    if not victim:
+        names = ", ".join(str(t.get("name") or t.get("slug")) for t in running) or "?"
+        raise RuntimeError(
+            f"Hết chỗ máy chạy ({len(running)}/{cap}). "
+            f"Đang dùng: {names}. Tắt một người trên Quản lý hoặc đợi máy nghỉ."
+        )
+    stop(victim, park=False)
+
+
+def _park_new_if_over_cap(slug: str) -> None:
+    rec = ot.get(slug)
+    if not rec or rec.get("protected"):
+        return
+    cap = int(oc.coord()["max_running"])
+    n = len(people_running())
+    if n <= cap:
+        return
+    stop(slug, park=False)
+
+
+def start_with_capacity(slug: str) -> dict:
+    rec = ot.get(slug)
+    if not rec:
+        raise RuntimeError("Không có bản này.")
+    cname = str(rec.get("container") or f"javis-{slug}")
+    if rec.get("protected"):
+        start(slug)
+        rec["status"] = container_status(cname)
+        return ot.upsert(rec)
+    with _LOCK:
+        if container_status(cname) == "running":
+            rec["last_active"] = int(time.time())
+            rec["status"] = "running"
+            return ot.upsert(rec)
+        _acquire_slot(slug)
+    start(slug)
+    rec = ot.get(slug) or rec
+    rec["last_active"] = int(time.time())
+    rec["status"] = container_status(cname)
+    rec = ot.upsert(rec)
+    try:
+        sync_park()
+    except Exception:
+        pass
+    return rec
+
+
+def tick_coord() -> None:
+    if not ot.manager_enabled() or not docker_available():
+        return
+    idle = int(oc.coord().get("idle_minutes") or 0)
+    now = int(time.time())
+    if idle > 0:
+        limit = idle * 60
+        for t in list(people_running()):
+            slug = str(t.get("slug") or "")
+            if not slug:
+                continue
+            cname = str(t.get("container") or "")
+            ts = read_last_active(cname, t)
+            if ts and now - ts >= limit:
+                try:
+                    stop(slug, park=False)
+                except Exception as e:
+                    print(f"[org coord] tắt {slug}: {e}", flush=True)
+    try:
+        sync_park()
+    except Exception as e:
+        print(f"[org park] {e}", flush=True)
+
+
+def sync_park() -> None:
+    """Nhãn Caddy cho máy ĐÃ TẮT: mở link vẫn vào Javis gốc để tự bật. Không volume."""
+    if not docker_available():
+        return
+    hosts = []
+    for t in ot.load().get("tenants") or []:
+        if t.get("protected"):
+            continue
+        slug = str(t.get("slug") or "")
+        cname = str(t.get("container") or "")
+        if not slug or not cname:
+            continue
+        if container_status(cname) == "running":
+            continue
+        hosts.append(ot.tenant_domain(slug))
+    wanted = "|".join(hosts)
+    data = inspect_name(oc.PARK_NAME)
+    labels = {}
+    if data:
+        cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
+        labels = dict(cfg.get("Labels") or {})
+    old = (labels.get("javis.org.park.hosts") or "").strip()
+    if old == wanted and data and ((data.get("State") or {}).get("Running") if isinstance(data.get("State"), dict) else False):
+        return
+    if data:
+        _docker_api("POST", f"/containers/{quote(oc.PARK_NAME)}/stop", timeout=30.0)
+        rm = _docker_api("DELETE", f"/containers/{quote(oc.PARK_NAME)}?force=true", timeout=30.0)
+        if rm.status_code not in (204, 200, 404):
+            raise RuntimeError(f"gỡ park HTTP {rm.status_code}")
+    if not hosts:
+        return
+    mgr = (os.getenv("JAVIS_NAME") or "").strip() or "javis-manager"
+    plabels = {
+        "javis.org.park": "1",
+        "javis.org.park.hosts": wanted,
+    }
+    for i, h in enumerate(hosts):
+        plabels[f"caddy_{i}"] = h
+        plabels[f"caddy_{i}.reverse_proxy"] = f"{mgr}:7777"
+    body = {
+        "Image": _self_image(),
+        "Hostname": oc.PARK_NAME,
+        "Cmd": ["python", "-c", "import time; time.sleep(10**9)"],
+        "Labels": plabels,
+        "HostConfig": {
+            "Memory": 32 * 1024 * 1024,
+            "MemorySwap": 32 * 1024 * 1024,
+            "PidsLimit": 32,
+            "RestartPolicy": {"Name": "unless-stopped"},
+            "NetworkMode": "javis-web",
+        },
+        "User": "javis",
+    }
+    cr = _docker_api("POST", f"/containers/create?name={quote(oc.PARK_NAME)}", json_body=body, timeout=60.0)
+    if cr.status_code not in (200, 201):
+        raise RuntimeError(f"tạo park HTTP {cr.status_code}: {(cr.text or '')[:300]}")
+    cid = (cr.json() or {}).get("Id") or oc.PARK_NAME
+    st = _docker_api("POST", f"/containers/{quote(cid)}/start", timeout=30.0)
+    if st.status_code not in (204, 200):
+        raise RuntimeError(f"bật park HTTP {st.status_code}: {(st.text or '')[:200]}")
+
+
+def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
+    rec = ot.get(slug)
+    if not rec or rec.get("protected"):
+        title = "Không có Javis này"
+        body = "Tên máy không có trên tổ chức. Hỏi quản trị tạo lại trên Javis gốc."
+        return oc.wake_html(host, title, body, 8), 404
+    cname = str(rec.get("container") or f"javis-{slug}")
+    if docker_available() and container_status(cname) == "running":
+        return oc.wake_html(
+            host, "Đang nối vào máy của bạn",
+            "Máy đã bật. Não và API ở đây, không chung người khác.",
+            3,
+        ), 200
+    now = time.time()
+    last = float(_WAKE_TS.get(slug) or 0)
+    if now - last < 20 and docker_available() and container_status(cname) != "running":
+        return oc.wake_html(
+            host, "Đang bật máy",
+            "Javis đang mở máy của bạn. Não và ổ giữ nguyên, không xóa.",
+            4,
+        ), 200
+    _WAKE_TS[slug] = now
+    try:
+        start_with_capacity(slug)
+    except Exception as e:
+        return oc.wake_html(
+            host, "Chưa bật được máy",
+            str(e) or "Không bật được. Thử lại sau hoặc nhờ quản trị tắt một máy khác.",
+            8,
+        ), 503
+    return oc.wake_html(
+        host, "Đang bật máy",
+        "Javis đang mở máy của bạn. Não, mật khẩu và API riêng giữ nguyên.",
+        4,
+    ), 200
