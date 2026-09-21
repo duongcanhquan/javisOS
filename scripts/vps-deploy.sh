@@ -224,6 +224,7 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   echo "==> cập nhật Javis gốc ($MGR_DIR), không đụng volume javis_javis-*"
   (
     cd "$MGR_DIR"
+    unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME
     export COMPOSE_PROJECT_NAME=javis-manager
     export JAVIS_IMAGE
     MGR_FILES=(-f docker-compose.yml)

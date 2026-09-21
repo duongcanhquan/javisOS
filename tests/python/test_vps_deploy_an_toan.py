@@ -237,6 +237,10 @@ check(
     "javis-manager" in script and "JAVIS_MANAGER_DIR" in script,
 )
 check(
+    "vps-deploy.sh: cập nhật gốc không mượn tên máy javis-quan",
+    "unset JAVIS_NAME" in script,
+)
+check(
     "vps-deploy.sh: Javis gốc không --remove-orphans",
     "up -d --no-build javis" in script,
 )
