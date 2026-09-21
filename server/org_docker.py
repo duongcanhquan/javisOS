@@ -374,15 +374,20 @@ def apply_public_hosts(slug: str) -> None:
     cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
     labels = dict(cfg.get("Labels") or {})
     old = (labels.get("caddy") or "").strip()
-    if old == wanted:
+    have_id = str(data.get("Image") or "")
+    want_id = str(_self_inspect().get("Image") or "")
+    img = _self_image()
+    if old == wanted and have_id and want_id and have_id == want_id:
         return
     hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
-    env = [e for e in (cfg.get("Env") or []) if not str(e).startswith("DOMAIN_NAME=")]
+    env = [e for e in (cfg.get("Env") or [])
+           if not str(e).startswith("DOMAIN_NAME=") and not str(e).startswith("WORKSPACE_NAME=")]
     env.append("DOMAIN_NAME=" + wanted)
+    env.append("WORKSPACE_NAME=VietMy OS")
     labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
     body = {
-        "Image": cfg.get("Image"),
+        "Image": img,
         "Hostname": cfg.get("Hostname") or cname,
         "Env": env,
         "Labels": labels,

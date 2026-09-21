@@ -146,6 +146,7 @@ check("gắn lại tên miền không xóa volume",
       "def apply_public_hosts" in src and "force=true" in src and "down -v" not in src)
 check("Caddy một hostname, không ghép phẩy", '"caddy": domain' in src)
 check("gắn lại khi nhãn cũ khác đúng một tên", "old == wanted" in src)
+check("làm mới image máy con theo Javis gốc", "want_id" in src and "WORKSPACE_NAME=VietMy OS" in src)
 check("điều phối trần + idle + park",
       "def start_with_capacity" in src and "def tick_coord" in src
       and "def sync_park" in src

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.267] - 2026-09-21
+### Sửa
+- **Máy từng người lên đúng bản mới** (VietMy OS trên thanh bar) khi Javis gốc cập nhật. Não và ổ không xóa; chỉ đổi vỏ chương trình.
+
 ## [0.55.266] - 2026-09-21
 ### Sửa
 - **Cổng cá nhân hiện VietMy OS trên thanh bar và tiêu đề tab**, không còn chữ JAVIS OS. Javis gốc (trang Tổ chức) giữ tên cũ. Trang Tổ chức mở nhanh hơn, không gắn lại tên miền mỗi lần bấm.
