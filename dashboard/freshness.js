@@ -34,6 +34,10 @@
     try { return JSON.parse(el.textContent || "{}"); } catch (e) { return null; }
   }
 
+  function assetVer(m) {
+    return encodeURIComponent((m && (m.asset_ver || m.version)) || "0");
+  }
+
   /* crc32 khớp từng bit với zlib.crc32 bên Python (server dùng chính hàm đó).
    * Không dùng crypto.subtle: nó chỉ có trong ngữ cảnh bảo mật, mà VMOS rất hay chạy
    * trên http:// theo IP của VPS - dùng nó là người gác cổng chết lặng đúng lúc cần nhất. */
@@ -61,28 +65,58 @@
   /* Tải một file tĩnh ĐÚNG như trình duyệt đã tải nó lúc dựng trang: KHÔNG ép làm mới, để
    * nó trả về đúng bản đang nằm trong cache (của trình duyệt hay của proxy). Đây mới là
    * thứ cần đo - ép làm mới là đo file trên máy chủ, tức là đo nhầm đầu. */
-  function taiNhuTrang(url) {
-    return fetch(url, { credentials: "same-origin" })
+  function taiNhuTrang(url, epLamMoi) {
+    var opt = { credentials: "same-origin" };
+    if (epLamMoi) opt.cache = "reload";
+    return fetch(url, opt)
       .then(function (r) { return r.ok ? r.arrayBuffer() : null; })
       .catch(function () { return null; });
   }
 
   /* Trả về danh sách file mà NỘI DUNG đang chạy khác nội dung máy chủ. */
-  function doLech(m) {
+  function doLech(m, epLamMoi) {
     var ds = Object.keys(m.assets || {});
     if (!ds.length) return Promise.resolve([]);
-    var ver = encodeURIComponent(m.version || "0");
+    var ver = assetVer(m);
     return Promise.all(ds.map(function (rel) {
-      return taiNhuTrang("/asset/" + ver + "/" + rel).then(function (buf) {
-        if (!buf) return null;                       // không đọc được thì im, đừng báo oan
+      var url = "/asset/" + ver + "/" + rel;
+      // Ép làm mới: thêm ?r= để CDN (Cloudflare) coi là cache key khác.
+      if (epLamMoi) url += (url.indexOf("?") >= 0 ? "&" : "?") + "r=" + Date.now();
+      return taiNhuTrang(url, epLamMoi).then(function (buf) {
+        if (!buf) return null;
         return crc32(new Uint8Array(buf)) === m.assets[rel] ? null : rel;
       });
     })).then(function (kq) { return kq.filter(Boolean); });
   }
 
+  function xoaCacheRoiTaiLai() {
+    var viec = [];
+    try {
+      if (window.caches && caches.keys) {
+        viec.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+    } catch (e) { /* noop */ }
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        viec.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      }
+    } catch (e2) { /* noop */ }
+    try { sessionStorage.removeItem(KHOA_DA_TAI); } catch (e3) { /* noop */ }
+    Promise.all(viec).catch(function () { /* noop */ }).then(function () {
+      var u = new URL(location.href);
+      u.searchParams.set("_fresh", String(Date.now()));
+      location.replace(u.toString());
+    });
+  }
+
   // ── Dải báo ───────────────────────────────────────────────────────────────────
   function veDai(tieuDe, chiTiet, nhanNut, khiBam) {
-    if (document.getElementById("javis-fresh-bar")) return;
+    var cu = document.getElementById("javis-fresh-bar");
+    if (cu) cu.remove();
     var css = document.createElement("style");
     css.textContent =
       "#javis-fresh-bar{position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:99999;" +
@@ -138,39 +172,43 @@
             });
       return;
     }
-    // Tải lại rồi mà vẫn lệch: cache nằm ngoài tầm với của trang (proxy, CDN). Nói THẲNG
-    // phải làm gì, đừng để người dùng bấm Tải lại mãi mà không hiểu vì sao không đổi.
+    // Tải lại rồi mà vẫn lệch: thường là CDN/Cloudflare giữ file theo URL cũ.
+    // Nút dưới xóa Cache Storage + SW rồi mở lại với ?_fresh=… (CDN coi là URL mới).
     veDai("Vẫn đang chạy bản cũ dù đã tải lại.",
-          "Bấm Ctrl+Shift+R (máy Mac: Cmd+Shift+R). Vẫn vậy thì có một tầng cache giữa "
-          + "máy bạn và VMOS đang giữ file cũ: " + ten,
-          "Thử lại", function () { location.reload(true); });
+          "Ctrl+Shift+R không phá được cache CDN. Bấm nút để xóa cache trang rồi tải lại. "
+          + "Vẫn vậy: mở tab ẩn danh, hoặc Cloudflare → Caching → Purge Everything. (" + ten + ")",
+          "Xóa cache & tải lại", xoaCacheRoiTaiLai);
   }
 
   // ── Chạy ──────────────────────────────────────────────────────────────────────
   var m = moc();
-  if (!m) return;              // server chưa nhúng khối này (bản cũ) - im lặng, đừng phá gì
+  if (!m) return;
 
   var daThu = false;
   try { daThu = sessionStorage.getItem(KHOA_DA_TAI) === "1"; } catch (e) { /* noop */ }
 
   function kiemNoiDung() {
-    doLech(m).then(function (ds) {
+    doLech(m, false).then(function (ds) {
       if (!ds.length) {
         try { sessionStorage.removeItem(KHOA_DA_TAI); } catch (e) { /* noop */ }
         return;
       }
-      console.warn("[javis fresh] đang chạy bản cũ của:", ds.join(", "));
-      baoChayBanCu(ds, daThu);
+      // Có thể chỉ cache local/CDN bẩn: đo lại ép mạng. Khớp → tự xóa cache & tải lại một lần.
+      return doLech(m, true).then(function (ds2) {
+        if (!ds2.length) {
+          console.warn("[javis fresh] cache ban, origin da dung - xoa cache & tai lai");
+          xoaCacheRoiTaiLai();
+          return;
+        }
+        console.warn("[javis fresh] đang chạy bản cũ của:", ds2.join(", "));
+        baoChayBanCu(ds2, daThu);
+      });
     });
   }
 
-  // Đo SAU khi trang dựng xong: đây là lưới an toàn, không được làm chậm lúc mở app.
   if (document.readyState === "complete") setTimeout(kiemNoiDung, 1200);
   else window.addEventListener("load", function () { setTimeout(kiemNoiDung, 1200); });
 
-  /* Máy chủ được cập nhật trong lúc tab đang mở: số phiên bản đổi, còn trang thì vẫn là
-   * trang cũ. Hỏi lại theo nhịp, và hỏi luôn khi người dùng quay lại tab (rất hay là lúc
-   * họ vừa bấm cập nhật ở tab khác). */
   var daBao = false;
   function kiemPhienBan() {
     if (daBao || document.hidden) return;

@@ -73,6 +73,8 @@ check("CANARY: vân tay tính TRƯỚC khi viết lại URL tĩnh (tính sau là
       _prep.index("_asset_fps(html)") < _prep.index("re.sub("), _prep[:200])
 check("CANARY: viết lại sang /asset/<phiên bản>/ (không chỉ ?v=; cache hay bỏ query)",
       '"/asset/"' in _prep or "/asset/" in _prep)
+check("CANARY: segment URL gồm VERSION + vân tay nội dung (CDN miss khi file đổi)",
+      "asset_ver" in _prep and "fp_sig" in _prep)
 check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticFiles nuốt)",
       '@app.get("/asset/{ver}/{path:path}")' in MAIN)
 # CANARY: VPS public + mật khẩu → HTML `/` public nhưng CSS/JS đi /asset/…; nếu
@@ -134,19 +136,22 @@ check("và khớp cả trên chuỗi UTF-8 có dấu (băm theo byte, không the
 # ============================================================
 # 4. Hành vi: đo đúng thứ cần đo, và không tự ý cướp trang của người dùng
 # ============================================================
-# Ép làm mới là đo file trên MÁY CHỦ, tức đo nhầm đầu: cần đo đúng bản trình duyệt đang
-# chạy, nghĩa là để nguyên chế độ cache mặc định.
-check("CANARY: tải file KHÔNG ép làm mới (phải đo đúng bản đang chạy)",
-      'cache: "reload"' not in FRESH and 'cache: "no-cache"' not in FRESH)
+# Ép làm mới là đo file trên MÁY CHỦ (hoặc CDN miss); lần đo ĐẦU phải để nguyên cache
+# mặc định để biết đúng bản trình duyệt đang chạy.
+check("CANARY: lần đo đầu KHÔNG ép làm mới (doLech(m, false))",
+      "doLech(m, false)" in FRESH)
 check("CANARY: freshness đo /asset/<ver>/file chứ không /static/file?v=",
-      '"/asset/"' in FRESH and "?v=" not in FRESH.split("function doLech", 1)[-1].split("function veDai", 1)[0])
+      '"/asset/"' in FRESH and "/static/" not in FRESH.split("function doLech", 1)[-1].split("function veDai", 1)[0])
 check("nhưng /app-version thì hỏi thẳng máy chủ", 'cache: "no-store"' in FRESH)
 # Tự tải lại là cướp mất câu người dùng đang gõ dở - tệ hơn hẳn cái nó chữa.
-check("CANARY: KHÔNG tự động tải lại trang, chỉ mời",
-      "location.reload()" in FRESH and "KHÔNG tự tải lại trang" in FRESH)
+# (xoaCacheRoiTaiLai chỉ chạy khi người bấm nút, hoặc khi đã chứng minh origin đúng/cache bẩn.)
+check("CANARY: KHÔNG tự động tải lại trang lúc mở, chỉ mời",
+      "KHÔNG tự tải lại trang" in FRESH and "xoaCacheRoiTaiLai" in FRESH)
 check("có chống vòng lặp tải lại vô tận", "javis-fresh-reloaded" in FRESH)
-check("tải lại rồi vẫn cũ thì đổi sang câu chỉ thẳng cách làm",
-      "Ctrl+Shift+R" in FRESH)
+check("tải lại rồi vẫn cũ thì có nút xóa cache (CDN/Cloudflare)",
+      "Xóa cache" in FRESH and "Purge" in FRESH)
+check("URL asset mang asset_ver (VERSION + vân tay) để CDN miss khi file đổi",
+      "asset_ver" in FRESH and "assetVer" in FRESH)
 check("gọi ĐÚNG TÊN file đang cũ (để còn lần ra tầng cache nào giữ)",
       "ds.slice(0, 3).join" in FRESH)
 check("đo SAU khi trang dựng xong, không làm chậm lúc mở app",

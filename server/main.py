@@ -1008,7 +1008,7 @@ def _asset_fps(html: str) -> dict:
 # Cache HTML dashboard + vân tay asset: / và /app-version bị freshness.js + mọi tab hỏi
 # lặp lại. Đọc+CRC index mỗi lần là tốn I/O vô ích khi VERSION/file không đổi.
 _DASH_CACHE: dict = {"sig": None, "html_pre": None, "fps": None, "ver": None,
-                     "app_version_payload": None}
+                     "asset_ver": None, "app_version_payload": None}
 
 # File lazy: đưa mtime vào chữ ký cache để đổi meetings.js vẫn làm mới /app-version.
 _PAGE_LAZY_ASSETS = (
@@ -1046,16 +1046,26 @@ def _dash_prepare():
         html = ""
     ver = _app_version() or "0"
     fps = _asset_fps(html)
+    # Path /asset/<ver>/ được CDN (Cloudflare…) cache immutable 1 năm. Chỉ dùng VERSION thì
+    # lần deploy đổi file JS mà CDN đã nuốt bản hỏng/cũ của đúng URL đó là kẹt vĩnh viễn -
+    # Ctrl+Shift+R cũng không phá được tầng giữa. Ghép vân tay nội dung vào segment URL để
+    # mỗi lần file đổi là một path mới → CDN miss bắt buộc.
+    import zlib
+    fp_blob = "|".join(f"{k}:{v}" for k, v in sorted(fps.items())).encode("utf-8")
+    fp_sig = format(zlib.crc32(fp_blob) & 0xFFFFFFFF, "08x")
+    asset_ver = f"{ver}-{fp_sig}"
     html = re.sub(
         r'/static/([\w./-]+\.(?:js|css))\?v=[\w.]+',
-        rf'/asset/{ver}/\1',
+        rf'/asset/{asset_ver}/\1',
         html,
     )
     moc = ('<script id="javis-fresh" type="application/json">'
-           + json.dumps({"version": ver, "assets": fps}, ensure_ascii=False)
+           + json.dumps({"version": ver, "asset_ver": asset_ver, "assets": fps},
+                        ensure_ascii=False)
            + "</script>\n</head>")
     html = html.replace("</head>", moc, 1)
-    _DASH_CACHE.update(sig=sig, html_pre=html, fps=fps, ver=ver, app_version_payload=None)
+    _DASH_CACHE.update(sig=sig, html_pre=html, fps=fps, ver=ver,
+                       asset_ver=asset_ver, app_version_payload=None)
     return ver, html, fps
 
 
@@ -1070,6 +1080,7 @@ async def app_version():
     ver, _html, fps = _dash_prepare()
     payload = {
         "version": ver,
+        "asset_ver": _DASH_CACHE.get("asset_ver") or ver,
         "assets": fps,
         "role": "manager" if manager_template_sync.is_manager_role() else "tenant",
         "template_source": manager_template_sync.is_manager_role(),

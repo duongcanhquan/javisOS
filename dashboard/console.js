@@ -500,6 +500,8 @@
       const el = document.getElementById("javis-fresh");
       if (el) {
         const j = JSON.parse(el.textContent || "{}");
+        // asset_ver = VERSION + vân tay nội dung (CDN miss khi file đổi). Fallback version.
+        if (j && j.asset_ver) return String(j.asset_ver);
         if (j && j.version) return String(j.version);
       }
     } catch (e) {}

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.4] - 2026-09-21
+### Sửa
+- **Cache CDN/Cloudflare giữ JS cũ:** URL `/asset/` mang `VERSION` + vân tay nội dung; banner freshness có nút **Xóa cache & tải lại** (Ctrl+Shift+R không phá được tầng CDN).
+
 ## [0.56.3] - 2026-09-21
 ### Sửa
 - **Chat Antigravity:** khôi phục `set_agy_conversation_id` / `clear_agy_conversation_id`, cột `agy_conversation_id` và `_brains_loosely_equal` trên SessionStore (lỗi AttributeError lặp lại khi chat).
