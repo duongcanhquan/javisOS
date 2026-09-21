@@ -1,0 +1,106 @@
+# 1) Gắn SSH key deploy vào VPS mới (VPS_NEW_*).
+# 2) Xoá dữ liệu Javis trên VPS CŨ (secret VPS_OLD_HOST) - không dùng VPS_HOST.
+# Chạy tay. Confirm bắt buộc. Từ chối wipe nếu IP máy = VPS_NEW_HOST.
+name: Cutover Javis to new VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Gõ XOA_JAVIS_MAY_CU để xoá dữ liệu trên máy cũ"
+        required: true
+        type: string
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  bootstrap_new:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install deploy SSH key on new VPS
+        env:
+          OLD_KEY: ${{ secrets.VPS_SSH_KEY }}
+          NEW_HOST: ${{ secrets.VPS_NEW_HOST }}
+          NEW_USER: ${{ secrets.VPS_NEW_USER }}
+          NEW_PASS: ${{ secrets.VPS_NEW_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$OLD_KEY" && test -n "$NEW_HOST" && test -n "$NEW_USER" && test -n "$NEW_PASS"
+          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass openssh-client
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OLD_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          PUB=$(ssh-keygen -y -f ~/.ssh/id_deploy)
+          ssh-keyscan -H "$NEW_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          export SSHPASS="$NEW_PASS"
+          NEW=(sshpass -e ssh -T -o LogLevel=ERROR -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30)
+          ok=0
+          for i in 1 2 3 4 5; do
+            if "${NEW[@]}" "$NEW_USER@$NEW_HOST" "echo NEW_SSH_OK; hostname; pwd"; then
+              ok=1
+              break
+            fi
+            echo "new ssh retry $i"
+            sleep 8
+          done
+          test "$ok" = 1
+          printf '%s\n' "$PUB" | "${NEW[@]}" "$NEW_USER@$NEW_HOST" 'umask 077
+            mkdir -p ~/.ssh
+            touch ~/.ssh/authorized_keys
+            chmod 700 ~/.ssh
+            chmod 600 ~/.ssh/authorized_keys
+            key=$(cat)
+            grep -qxF "$key" ~/.ssh/authorized_keys || echo "$key" >> ~/.ssh/authorized_keys
+            if [ "$(id -u)" -ne 0 ]; then
+              sudo mkdir -p /root/.ssh 2>/dev/null || true
+              sudo touch /root/.ssh/authorized_keys 2>/dev/null || true
+              echo "$key" | sudo tee -a /root/.ssh/authorized_keys >/dev/null 2>&1 || true
+            fi
+            echo KEY_INSTALLED
+            hostname
+            docker ps --format "{{.Names}} {{.Status}}" | grep -E javis || true
+            test -d /root/javis && echo DIR=/root/javis || true
+          '
+          ssh -T -o BatchMode=yes -o ConnectTimeout=20 -i ~/.ssh/id_deploy \
+            "$NEW_USER@$NEW_HOST" 'echo KEY_LOGIN_OK; hostname'
+          echo BOOTSTRAP_NEW_DONE
+
+  wipe_old:
+    if: ${{ github.event.inputs.confirm == 'XOA_JAVIS_MAY_CU' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wipe Javis data on OLD VPS only
+        env:
+          OLD_KEY: ${{ secrets.VPS_SSH_KEY }}
+          OLD_HOST: ${{ secrets.VPS_OLD_HOST }}
+          OLD_USER: ${{ secrets.VPS_USER }}
+          REFUSE_IP: ${{ secrets.VPS_NEW_HOST }}
+        run: |
+          set -euo pipefail
+          test -n "$OLD_KEY" && test -n "$OLD_HOST" && test -n "$OLD_USER"
+          test -n "$REFUSE_IP"
+          test "$OLD_HOST" != "$REFUSE_IP"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$OLD_KEY" > ~/.ssh/id_old
+          chmod 600 ~/.ssh/id_old
+          ssh-keyscan -H "$OLD_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          chmod +x scripts/wipe-javis-data.sh
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            if scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id_old \
+              scripts/wipe-javis-data.sh "$OLD_USER@$OLD_HOST:/tmp/wipe-javis-data.sh"; then
+              ok=1
+              break
+            fi
+            echo "old scp retry $i"
+            sleep 10
+          done
+          test "$ok" = 1
+          ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id_old \
+            "$OLD_USER@$OLD_HOST" "WIPE_REFUSE_IP='$REFUSE_IP' bash /tmp/wipe-javis-data.sh; rm -f /tmp/wipe-javis-data.sh"
+          echo WIPE_OLD_JOB_DONE

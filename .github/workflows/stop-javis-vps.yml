@@ -1,4 +1,4 @@
-# Tắt Javis trên VPS đang trỏ bởi secrets VPS_* (máy cũ sau migrate).
+# Tắt Javis trên VPS đang trỏ bởi secrets VPS_* (máy hiện tại, sau cutover = VPS mới).
 name: Stop Javis on VPS
 
 on:

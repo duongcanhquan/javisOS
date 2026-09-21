@@ -1,6 +1,6 @@
 # Deploy lên VPS SAU khi image GHCR đã đẩy xong (không đua với publish, không --build trên VPS).
 # Cần Secrets trên repo:
-#   VPS_HOST          ví dụ 165.101.46.238
+#   VPS_HOST          IP VPS đang chạy Javis (máy mới sau cutover)
 #   VPS_USER          root
 #   VPS_SSH_KEY       private key (nội dung file id_ed25519 deploy)
 #   VPS_DIR           ~/javis-os  (tuỳ chọn)

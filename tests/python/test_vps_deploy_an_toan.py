@@ -229,6 +229,39 @@ check(
     "uninstall-ollama" not in cleanup_code,
 )
 
+cutover_txt = wf("cutover-javis-new-vps.yml")
+cutover = wf_data("cutover-javis-new-vps.yml")
+cutover_on = triggers(cutover)
+check(
+    "cutover-javis-new-vps: chỉ bấm tay (không push/deploy)",
+    isinstance(cutover_on, dict)
+    and "workflow_dispatch" in cutover_on
+    and "push" not in cutover_on
+    and "workflow_run" not in cutover_on,
+)
+check(
+    "cutover-javis-new-vps: wipe dùng VPS_OLD_HOST, không SSH VPS_HOST",
+    "secrets.VPS_OLD_HOST" in cutover_txt
+    and "host: ${{ secrets.VPS_HOST }}" not in cutover_txt,
+)
+check(
+    "cutover-javis-new-vps: từ chối wipe nếu IP = VPS mới",
+    "VPS_NEW_HOST" in cutover_txt and "WIPE_REFUSE_IP" in cutover_txt,
+)
+check(
+    "cutover-javis-new-vps: confirm XOA_JAVIS_MAY_CU",
+    "XOA_JAVIS_MAY_CU" in cutover_txt,
+)
+wipe_sh = (ROOT / "scripts" / "wipe-javis-data.sh").read_text(encoding="utf-8")
+check(
+    "wipe-javis-data.sh: từ chối khi trùng WIPE_REFUSE_IP",
+    "WIPE_REFUSE_IP" in wipe_sh and "REFUSE" in wipe_sh,
+)
+check(
+    "wipe-javis-data.sh: không docker system prune -a",
+    "system prune" not in wipe_sh,
+)
+
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))
     sys.exit(1)
