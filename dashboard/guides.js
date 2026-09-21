@@ -126,22 +126,38 @@
   function pageWhat() {
     return `<div class="jv-g">
       ${hero("sparkles", "VMOS làm được gì?",
-        "VMOS là trợ lý AI gắn với bộ nhớ và công cụ của bạn. Nó chat được, nhớ việc, chạy quy trình, và nối được dịch vụ ngoài (email, Ads, Telegram…).")}
+        "VMOS là trợ lý AI gắn với bộ nhớ và công cụ của bạn. Nó chat được, nhớ việc, chạy cộng sự (agent/quy trình), và nối được dịch vụ ngoài (email, Ads, Telegram…).")}
       ${toc("guide_what")}
 
       <div class="jv-g-sec">
-        <h3>${ic("lightbulb")} Bản đồ nhanh — 4 tầng</h3>
-        <p>Nhìn sơ đồ dưới đây để biết mỗi phần nằm ở đâu trong menu bên trái.</p>
+        <h3>${ic("lightbulb")} Bản đồ nhanh — theo menu trái</h3>
+        <p>Mỗi nhóm trên rail có một nhiệm vụ. Nhớ thứ tự: <b>Models → Chat → Cộng sự / Skills → Kết nối</b>.</p>
         <div class="jv-g-flow">
-          <div class="n hi">1. Chat<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Hỏi · trả lời</span></div>
+          <div class="n hi">1. Kết nối<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Models · MCP</span></div>
           <div class="ar">→</div>
-          <div class="n">2. Bộ não<br><span style="font-weight:400;font-size:12px;color:var(--text3)">File · Wiki · học</span></div>
+          <div class="n">2. Trợ lý<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Chat</span></div>
           <div class="ar">→</div>
-          <div class="n">3. Năng lực<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Skill · Agent</span></div>
+          <div class="n">3. Năng lực<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Cộng sự · Skill</span></div>
           <div class="ar">→</div>
-          <div class="n">4. Kết nối<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Model · MCP</span></div>
+          <div class="n">4. Việc / Bộ não<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Kanban · File</span></div>
         </div>
-        <div class="jv-g-note">Mẹo: làm xong <b>Kết nối Models</b> trước, rồi mới chat. Không có bộ não (model) thì VMOS không trả lời được.</div>
+        <div class="jv-g-note">Mẹo: làm xong <b>Kết nối → Models</b> trước, rồi mới chat. Không có bộ não (model) thì VMOS không trả lời được.</div>
+      </div>
+
+      <div class="jv-g-sec">
+        <h3>${ic("lightbulb")} Nhiệm vụ từng nhóm menu</h3>
+        <table class="jv-g-table">
+          <thead><tr><th>Nhóm</th><th>Nhiệm vụ</th><th>Trang chính</th></tr></thead>
+          <tbody>
+            <tr><td><b>Trợ lý</b></td><td>Nói chuyện với AI trên web</td><td>Home · Chat</td></tr>
+            <tr><td><b>Bộ não</b></td><td>File, Drive, tự học theo brain</td><td>Files · Drive · Tự học</td></tr>
+            <tr><td><b>Code</b></td><td>Dòng lệnh thật trên máy chạy VMOS</td><td>Terminal</td></tr>
+            <tr><td><b>Năng lực</b></td><td>Đội AI + hộp thư khách + skill</td><td><b>Cộng sự</b> · Hội thoại khách · Skills · Plugins</td></tr>
+            <tr><td><b>Việc</b></td><td>Họp, bài giảng, Kanban…</td><td>Kanban · Họp · …</td></tr>
+            <tr><td><b>Kết nối</b></td><td>Não AI + dịch vụ ngoài + kênh ĐT</td><td>Models · Kết nối · Kênh</td></tr>
+            <tr><td><b>Hệ thống</b></td><td>Cài đặt, mức dùng, link public</td><td>Cài đặt · <b>Chia sẻ</b></td></tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="jv-g-sec">
@@ -150,12 +166,12 @@
           <div class="m" data-ggo="chat"><div class="t">${ic("message-circle")} Trò chuyện</div><div class="d">Hỏi việc, viết email, tóm tắt tài liệu, nhờ gợi ý.</div></div>
           <div class="m" data-ggo="kanban"><div class="t">${ic("square-kanban")} Giao việc nền</div><div class="d">Nói một goal — VMOS tự chạy task trên bảng Việc.</div></div>
           <div class="m" data-ggo="skills"><div class="t">${ic("puzzle")} Kỹ năng sẵn</div><div class="d">SEO, kế toán, slide, nghiên cứu… bật skill rồi gọi.</div></div>
-          <div class="m" data-ggo="workflows"><div class="t">${ic("workflow")} Quy trình nhiều bước</div><div class="d">Nghiên cứu → viết → kiểm chứng chạy một mạch.</div></div>
+          <div class="m" data-ggo="workspace"><div class="t">${ic("bot")} Cộng sự</div><div class="d">Trợ Lý (Agent) và Quy Trình (Workflows) trong một trang.</div></div>
+          <div class="m" data-ggo="conversations"><div class="t">${ic("messages-square")} Hội thoại khách</div><div class="d">Hộp thư + bot CSKH Telegram/Zalo.</div></div>
           <div class="m" data-ggo="meetings"><div class="t">${ic("mic")} Cuộc họp</div><div class="d">Ghi lời nói thành chữ, tóm tắt quyết định.</div></div>
           <div class="m" data-ggo="mcp"><div class="t">${ic("plug")} Dữ liệu thật</div><div class="d">Gmail, Ads, POS… qua trang Kết nối.</div></div>
           <div class="m" data-ggo="learn"><div class="t">${ic("brain")} Tự học</div><div class="d">Sau chat, VMOS rút ký ức / Wiki (có thể hoàn tác).</div></div>
-          <div class="m" data-ggo="files"><div class="t">${ic("folder-tree")} Quản lý tệp</div><div class="d">Đọc · sửa file trong bộ não (brain).</div></div>
-          <div class="m" data-ggo="channels"><div class="t">${ic("send")} Telegram / Zalo</div><div class="d">Hỏi VMOS từ điện thoại.</div></div>
+          <div class="m" data-ggo="share"><div class="t">${ic("link")} Chia sẻ</div><div class="d">Xem / thu hồi mọi link công khai đang sống.</div></div>
         </div>
       </div>
 
@@ -165,12 +181,13 @@
           <li><span class="box"></span><span><b>Đăng nhập</b> và chọn đúng <b>bộ não (brain)</b> đang dùng.</span></li>
           <li><span class="box"></span><span>Vào <b>Models</b> — kết nối ít nhất một nhà (Claude, ChatGPT, Gemini, Antigravity…).</span></li>
           <li><span class="box"></span><span>Về <b>Chat</b> — hỏi thử một câu đơn giản để chắc model chạy.</span></li>
-          <li><span class="box"></span><span>(Tuỳ chọn) Mở <b>Kết nối</b> nếu cần Gmail / Ads / Telegram.</span></li>
-          <li><span class="box"></span><span>Đọc tiếp 3 mục hướng dẫn bên cạnh: Kết nối · Skill/Agent · Công việc.</span></li>
+          <li><span class="box"></span><span>Mở <b>Cộng sự</b> — xem Trợ Lý / Quy Trình chuẩn đã sync.</span></li>
+          <li><span class="box"></span><span>(Tuỳ chọn) <b>Kết nối</b> MCP / Kênh nếu cần Gmail · Ads · Telegram.</span></li>
         </ul>
         <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
           <button type="button" class="jv-g-go" data-ggo="models">${ic("cpu")} Mở Models</button>
           <button type="button" class="jv-g-go" data-ggo="guide_connect">${ic("link")} Hướng dẫn kết nối</button>
+          <button type="button" class="jv-g-go" data-ggo="workspace">${ic("bot")} Mở Cộng sự</button>
           <button type="button" class="jv-g-go" data-ggo="chat">${ic("message-circle")} Vào Chat</button>
         </div>
       </div>
@@ -180,7 +197,7 @@
         <table class="jv-g-table">
           <thead><tr><th>Chatbot thường</th><th>VMOS</th></tr></thead>
           <tbody>
-            <tr><td>Chỉ trả lời trong cửa sổ chat</td><td>Có bộ nhớ, file, skill, quy trình, kênh ngoài</td></tr>
+            <tr><td>Chỉ trả lời trong cửa sổ chat</td><td>Có bộ nhớ, file, skill, cộng sự, kênh ngoài</td></tr>
             <tr><td>Mỗi lần hỏi gần như bắt đầu lại</td><td>Wiki / ký ức / dự án gắn theo brain của bạn</td></tr>
             <tr><td>Khó nối Gmail, Ads…</td><td>Trang Kết nối (MCP) + kênh Telegram/Zalo</td></tr>
             <tr><td>Một model cố định</td><td>Đổi nhà cung cấp ở Models mà vẫn giữ skill</td></tr>
@@ -262,8 +279,9 @@
       <div class="jv-g-sec">
         <h3>${ic("send")} 3) Kênh Telegram / Zalo</h3>
         <p>Menu <b>Kết nối → Kênh</b>. Sau khi có bot token (Telegram) hoặc ghép Zalo Bot, bạn nhắn từ điện thoại như nhắn chat trên web.</p>
-        <div class="jv-g-note">Bot chuyên trách (trang Chatbots) khác kênh chính: bot đó mang đúng một Agent ra nói chuyện với khách.</div>
+        <div class="jv-g-note">Bot chuyên trách nằm ở <b>Năng lực → Hội thoại khách</b> (tab Chatbot): mang đúng một Agent ra nói với khách. Khác kênh chính (bạn hỏi Javis từ điện thoại).</div>
         <button type="button" class="jv-g-go" data-ggo="channels" style="margin-top:10px">${ic("send")} Mở trang Kênh</button>
+        <button type="button" class="jv-g-go" data-ggo="conversations" style="margin-top:10px;margin-left:8px">${ic("messages-square")} Hội thoại khách</button>
       </div>
 
       <div class="jv-g-sec">
@@ -297,7 +315,7 @@
   function pageStudio() {
     return `<div class="jv-g">
       ${hero("puzzle", "Skill · Agent · Workflow",
-        "Ba lớp năng lực. Hiểu đúng từng lớp rồi mới tạo — đỡ trùng và đỡ rối.")}
+        "Ba lớp năng lực. Tạo Agent/Workflow ở trang Cộng sự (Năng lực). Hiểu đúng từng lớp rồi mới tạo — đỡ trùng và đỡ rối.")}
       ${toc("guide_studio")}
 
       <div class="jv-g-sec">
@@ -310,11 +328,11 @@
           <div class="box"><b>Workflow</b><span>Dây chuyền<br>nhiều agent</span></div>
         </div>
         <table class="jv-g-table">
-          <thead><tr><th></th><th>Là gì?</th><th>Khi nào dùng?</th></tr></thead>
+          <thead><tr><th></th><th>Là gì?</th><th>Khi nào dùng?</th><th>Mở ở đâu?</th></tr></thead>
           <tbody>
-            <tr><td><b>Skill</b></td><td>File hướng dẫn (SKILL.md). VMOS tự nạp khi câu bạn khớp mô tả.</td><td>Một việc lặp lại: viết SEO, đọc hóa đơn, làm slide…</td></tr>
-            <tr><td><b>Agent</b></td><td>Trợ lý có vai trò, prompt, danh sách skill, model riêng.</td><td>Muốn «người» chuyên một mảng (nghiên cứu, kế toán…).</td></tr>
-            <tr><td><b>Workflow</b></td><td>Chuỗi bước: agent A xong → agent B… có thể có bước kiểm chứng.</td><td>Việc nhiều giai đoạn, cần bàn giao giữa các vai.</td></tr>
+            <tr><td><b>Skill</b></td><td>File hướng dẫn (SKILL.md). VMOS tự nạp khi câu bạn khớp mô tả.</td><td>Một việc lặp lại: viết SEO, đọc hóa đơn…</td><td>Năng lực → Skills</td></tr>
+            <tr><td><b>Agent</b></td><td>Trợ lý có vai trò, prompt, skill, model, tài liệu trợ lý.</td><td>Muốn «người» chuyên một mảng.</td><td>Năng lực → <b>Cộng sự</b> → tab Trợ Lý</td></tr>
+            <tr><td><b>Workflow</b></td><td>Chuỗi bước: agent A xong → agent B… có thể kiểm chứng.</td><td>Việc nhiều giai đoạn.</td><td>Cộng sự → tab Quy Trình</td></tr>
           </tbody>
         </table>
       </div>
@@ -328,17 +346,17 @@
           <li><b>Xuất/nhập</b>: tải gói để mang sang máy/brain khác.</li>
         </ol>
         <div class="jv-g-note">Mô tả tốt: «Tóm tắt biên bản họp thành việc cần làm. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.» — không mở đầu bằng «Kích hoạt khi…».</div>
-        <div class="jv-g-note">Khi tạo skill/agent/workflow, chọn đúng <b>nhóm</b> để dễ lọc: Marketing · Nghiên cứu · Nội dung · Giáo dục · Thiết kế & Web · Video & Motion · Tài chính · Vận hành · Pháp chế · AI & Hệ thống · Năng suất.</div>
         <button type="button" class="jv-g-go" data-ggo="skills" style="margin-top:10px">${ic("puzzle")} Mở Skills</button>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("bot")} Agent — tạo trợ lý</h3>
+        <h3>${ic("bot")} Agent — tạo trợ lý (Cộng sự)</h3>
         <ol class="jv-g-steps">
-          <li><b>Mở Agents → + Agent</b>.</li>
+          <li><b>Năng lực → Cộng sự → tab Trợ Lý (Agent) → + Agent</b>.</li>
           <li>Điền <b>vai trò</b> rõ (2–3 dòng tiếng Việt): làm gì, khi nào, cần dữ liệu gì.</li>
           <li>Tick <b>skills</b> được phép dùng; chọn <b>model</b> (hoặc để mặc định).</li>
           <li>Viết <b>system prompt</b> chi tiết hơn (cách làm, định dạng đầu ra, điều cấm).</li>
+          <li>Tuỳ chọn: thêm file vào <b>Tài liệu trợ lý</b> (SOP / mẫu gắn đúng agent, khác tủ tài liệu phiên chat).</li>
         </ol>
         <div class="jv-g-grid">
           <div class="jv-g-card">
@@ -347,14 +365,14 @@
           </div>
           <div class="jv-g-card">
             <h4>Chạy agent ở đâu?</h4>
-            <p>Trong Workflow, Chatbot, hoặc khi bạn nhờ VMOS dùng agent đó. Agent có bộ nhớ riêng trong vault.</p>
+            <p>Trong Quy Trình, Hội thoại khách (chatbot), hoặc khi bạn nhờ VMOS dùng agent đó. Agent có bộ nhớ / tài liệu riêng trong vault.</p>
           </div>
         </div>
-        <button type="button" class="jv-g-go" data-ggo="agents" style="margin-top:10px">${ic("bot")} Mở Agents</button>
+        <button type="button" class="jv-g-go" data-ggo="workspace" style="margin-top:10px">${ic("bot")} Mở Cộng sự</button>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("workflow")} Workflow — dây chuyền</h3>
+        <h3>${ic("workflow")} Workflow — dây chuyền (Cộng sự)</h3>
         <div class="jv-g-flow">
           <div class="n">Bước 1<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Agent nghiên cứu</span></div>
           <div class="ar">→</div>
@@ -365,11 +383,27 @@
           <div class="n">Kết quả<br><span style="font-weight:400;font-size:12px;color:var(--text3)">File / chat</span></div>
         </div>
         <ol class="jv-g-steps">
-          <li>Mở <b>Workflows</b>. Nếu mới: bấm <b>Tạo mẫu</b> để có ví dụ chạy được.</li>
+          <li>Mở <b>Cộng sự → Quy Trình (Workflows)</b>. Nếu mới: bấm <b>Tạo mẫu</b> để có ví dụ chạy được.</li>
           <li>Mỗi bước chọn agent + mô tả nhiệm vụ. Dùng <code>{{input}}</code> cho đầu vào user, <code>{{prev}}</code> cho kết quả bước trước.</li>
-          <li>Bật workflow → bấm <b>▶ Chạy</b> (hoặc gọi từ Telegram/Kanban tùy cấu hình).</li>
+          <li>Bật quy trình → bấm <b>▶ Chạy</b> (hoặc gọi từ Telegram/Kanban tùy cấu hình).</li>
         </ol>
-        <button type="button" class="jv-g-go" data-ggo="workflows" style="margin-top:10px">${ic("workflow")} Mở Workflows</button>
+        <button type="button" class="jv-g-go" data-ggo="workspace" style="margin-top:10px">${ic("workflow")} Mở Cộng sự</button>
+      </div>
+
+      <div class="jv-g-sec">
+        <h3>${ic("messages-square")} Hội thoại khách & Chia sẻ</h3>
+        <div class="jv-g-twin">
+          <div class="jv-g-card">
+            <h4>Hội thoại khách</h4>
+            <p>Năng lực → Hội thoại khách: hộp thư + kênh + chatbot mang đúng một Agent ra CSKH.</p>
+            <button type="button" class="jv-g-go" data-ggo="conversations">Mở Hội thoại khách</button>
+          </div>
+          <div class="jv-g-card">
+            <h4>Chia sẻ</h4>
+            <p>Hệ thống → Chia sẻ: xem / thu hồi link công khai. Tạo agent vẫn ở Cộng sự.</p>
+            <button type="button" class="jv-g-go" data-ggo="share">Mở Chia sẻ</button>
+          </div>
+        </div>
       </div>
 
       <div class="jv-g-sec">
@@ -432,14 +466,14 @@
         <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
           <button type="button" class="jv-g-go" data-ggo="mcp">${ic("plug")} Mở Kết nối</button>
           <button type="button" class="jv-g-go" data-ggo="plugins">${ic("toolbox")} Mở Plugins</button>
-          <button type="button" class="jv-g-go" data-ggo="chatbots">${ic("headset")} Chatbots</button>
+          <button type="button" class="jv-g-go" data-ggo="conversations">${ic("messages-square")} Hội thoại khách</button>
         </div>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("headset")} Chatbot</h3>
-        <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách — khác kênh chat cá nhân của bạn.</p>
-        <button type="button" class="jv-g-go" data-ggo="chatbots" style="margin-top:10px">${ic("headset")} Mở Chatbots</button>
+        <h3>${ic("messages-square")} Chatbot (trong Hội thoại khách)</h3>
+        <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách — khác kênh chat cá nhân của bạn. Mở <b>Năng lực → Hội thoại khách → tab Chatbot</b>.</p>
+        <button type="button" class="jv-g-go" data-ggo="conversations" style="margin-top:10px">${ic("messages-square")} Mở Hội thoại khách</button>
       </div>
     </div>`;
   }

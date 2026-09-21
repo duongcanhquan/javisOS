@@ -1,15 +1,15 @@
-> **0.56:** Trên thanh bên, Trợ lý và Quy trình đã gộp thành trang **Cộng sự**. Tài liệu dưới đây vẫn đúng về cách viết agent/workflow.
+> **0.56:** Agents và Workflows trên rail đã gộp thành **Năng lực → Cộng sự** (tab **Trợ Lý (Agent)** và **Quy Trình (Workflows)**). Cách viết agent/workflow bên dưới vẫn đúng; chỉ đổi chỗ mở trong app.
 
-# Agents & Workflows
+# Cộng sự · Agents & Workflows
 
 ***Tiếng Việt** · [English](en/07-agents-and-workflows.md)*
 
-Đây là nơi bạn tạo ra các trợ lý AI chuyên biệt (Agent) và ghép chúng thành dây chuyền làm việc tự động (Workflow). Ví dụ: một agent chuyên nghiên cứu, một agent chuyên viết bài, một agent chuyên kiểm tra lại, nối thành chuỗi "nghiên cứu > viết > kiểm chứng" chạy một phát ra kết quả.
+Đây là nơi bạn tạo trợ lý AI chuyên biệt (**Agent** / Trợ Lý) và ghép chúng thành dây chuyền (**Workflow** / Quy Trình). Ví dụ: agent nghiên cứu + agent viết + agent kiểm chứng → chuỗi «nghiên cứu > viết > kiểm chứng» chạy một phát.
 
 ## Tính năng này là gì
 
 - **Agent** là một "nhân viên AI" có vai trò cố định. Mỗi agent gồm: một cái tên, một mô tả vai trò, một hướng dẫn làm việc chi tiết (system prompt), danh sách kỹ năng (skill) được phép dùng, một **model chạy**, và một **bộ nhớ riêng** tích luỹ theo thời gian. Model chọn được từ **mọi nhà cung cấp bạn đã kết nối** ở trang Models: Claude (Claude Code), ChatGPT (Codex), Grok Build CLI, Antigravity CLI, OpenRouter, Anthropic API, OpenAI, Google Gemini, Groq. Danh sách trong ô chọn lấy thẳng từ các nhà đã kết nối, nên kết nối thêm là có thêm lựa chọn. Nhà nào cũng đọc/ghi được file trong vault và dùng được MCP; riêng Claude Code và Codex có thêm lệnh máy cùng khả năng tự mở web. Nhà đã chọn trục trặc lúc chạy thì Javis tự lùi sang bộ não khác thay vì để agent chết lặng. (Ollama chưa chạy được agent nên không xuất hiện ở đây.) Model của agent được áp THẬT khi workflow chạy.
-  - Lưu ý an toàn: khi workflow chạy **nền tự động qua Kanban** ở chế độ giới hạn công cụ file, agent vẫn dùng Claude Code để giữ rào an toàn. Còn `/run` trên Telegram·Zalo và nút **▶ Chạy** trên Studio thì theo model agent (hoặc Model việc nền nếu để mặc định) - gồm Gemini API / Antigravity.
+  - Lưu ý an toàn: khi workflow chạy **nền tự động qua Kanban** ở chế độ giới hạn công cụ file, agent vẫn dùng Claude Code để giữ rào an toàn. Còn `/run` trên Telegram·Zalo và nút **▶ Chạy** trên Cộng sự thì theo model agent (hoặc Model việc nền nếu để mặc định) - gồm Gemini API / Antigravity.
 - **Workflow** là một chuỗi nhiều bước, mỗi bước giao cho một agent làm một nhiệm vụ. Kết quả bước trước có thể chảy sang bước sau. Bạn có thể gắn thêm một **bước kiểm chứng**: một agent khác đóng vai người soi lỗi, mặc định giả định kết quả đang sai và phải tự chứng minh; nếu chưa đạt, workflow tự sửa lại vài lần.
 - Mọi agent và workflow được lưu thành **file .md trong vault** (bộ não đang chọn), nên bạn xem được, sửa tay được, và Javis cũng tạo được bằng lời qua chat.
 
@@ -17,18 +17,20 @@ Liên quan: chọn model cho agent xem [Models & engine](10-models-va-engine.md)
 
 ## Mở ở đâu trong Javis
 
-Trên thanh điều hướng bên trái của dashboard (mặc định tại cổng 7777), mở nhóm **Năng lực**. Nhóm này có 4 mục, trong đó hai mục dùng ở trang này:
+Thanh bên → nhóm **Năng lực** → **Cộng sự**. Trong trang có hai tab:
 
-- **Agents**: quản lý các trợ lý AI.
-- **Workflows**: quản lý các dây chuyền.
+| Tab | Việc chính |
+|---|---|
+| **Trợ Lý (Agent)** | Tạo / sửa / chat thử / xuất agent; khu **Tài liệu trợ lý** gắn đúng agent |
+| **Quy Trình (Workflows)** | Tạo / sửa / chạy workflow; nút **Tạo mẫu**, Bộ Video, Bộ Pháp chế… |
 
-(Hai mục còn lại của nhóm là Skills và Plugins.) Bấm vào là mở đúng trang tương ứng. Toàn bộ nội dung của hai trang này thuộc về một bộ não (brain) đang được chọn: nếu bạn đổi brain, danh sách agent và workflow cũng đổi theo.
+Cùng nhóm Năng lực còn: **Hội thoại khách**, **Skills**, **Plugins**. Đổi brain → danh sách agent/workflow đổi theo. URL cũ Agents / Workflows vẫn mở Cộng sự đúng tab.
 
 ## Trước tiên: bấm "Tạo mẫu" để có ví dụ chạy được ngay
 
 Nếu bạn mới bắt đầu và chưa có gì, cách nhanh nhất là dùng bộ mẫu có sẵn.
 
-1. Mở trang **Workflows**.
+1. Mở **Cộng sự** → tab **Quy Trình (Workflows)**.
 2. Ở góc trên bên phải, bấm nút **Tạo mẫu**.
 3. Javis sẽ tạo sẵn 3 agent và 1 workflow mẫu (cả 3 agent đều được đặt sẵn model **Sonnet**):
    - Agent **Researcher**: chuyên nghiên cứu, tìm tư liệu, tổng hợp nguồn (được gán sẵn skill deep-research).
@@ -40,7 +42,7 @@ Sau khi có mẫu, bạn có thể chạy thử ngay (xem mục "Chạy một wo
 
 ### Bộ Video (đa pipeline)
 
-Trên trang **Workflows**, bấm **Bộ Video** để tạo sẵn:
+Trên **Cộng sự → Quy Trình**, bấm **Bộ Video** để tạo sẵn:
 
 - Agent **Nghiên cứu chủ đề video**, **Biên kịch video**, **Đạo diễn video**, **Kiểm chứng video**
 - Workflow **Bộ Video (đa pipeline)**: nghiên cứu → kịch bản → đạo diễn chọn pipeline (paperdesign / Remotion / OmmiStudio html-video) → kiểm chứng
@@ -51,11 +53,11 @@ Ghi chú: hai skill mà agent mẫu tham chiếu (deep-research, salepage-16-buo
 
 ### Bộ Pháp chế
 
-Trên trang **Workflows**, bấm **Bộ Pháp chế** (hoặc `POST /studio/seed-phap-che`) để tạo agent **Pháp chế** (nhóm Pháp chế) gắn skills `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`, `query-wiki`, `ingest-source`, đồng thời scaffold `sources/phap-che/README.md` nếu chưa có. Chi tiết kho Drive + wiki + RAG: [Pháp chế cá nhân](28-phap-che-ca-nhan.md).
+Trên **Cộng sự → Quy Trình**, bấm **Bộ Pháp chế** (hoặc `POST /studio/seed-phap-che`) để tạo agent **Pháp chế** (nhóm Pháp chế) gắn skills `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`, `query-wiki`, `ingest-source`, đồng thời scaffold `sources/phap-che/README.md` nếu chưa có. Chi tiết kho Drive + wiki + RAG: [Pháp chế cá nhân](28-phap-che-ca-nhan.md).
 
 ## Tìm nhanh khi đã có nhiều: cột nhóm và ô tìm
 
-Cả hai trang Agents và Workflows đều có một cột **Nhóm** bên trái, kèm số đếm từng nhóm, và một ô tìm ở trên danh sách. Cách dùng giống hệt trang [Skills](06-skills.md):
+Cả hai tab Trợ Lý và Quy Trình đều có cột **Nhóm** bên trái, kèm số đếm, và ô tìm trên danh sách. Cách dùng giống [Skills](06-skills.md):
 
 - Bấm một nhóm để chỉ xem agent (hoặc workflow) thuộc nhóm đó; bấm **Tất cả** để xem lại toàn bộ.
 - Ô tìm lọc theo tên, slug và vai trò (với workflow là tên, slug và mô tả). Gõ không dấu vẫn ra kết quả có dấu: gõ "viet email" tìm được "Viết email".
@@ -67,8 +69,8 @@ Agent và workflow tạo từ trước bản 0.55.38 chưa có nhóm sẽ nằm 
 
 ## Tạo một Agent (từng bước, qua form)
 
-1. Mở trang **Agents**.
-2. Bấm nút **+ Agent** ở góc trên bên phải. Một khung soạn thảo mở ra bên phải màn hình.
+1. Mở **Cộng sự** → tab **Trợ Lý (Agent)**.
+2. Bấm nút **+ Agent**. Khung soạn thảo mở bên phải (hoặc modal Studio).
 3. Điền các ô sau:
 
 | Ô | Ý nghĩa | Gợi ý điền |
@@ -109,7 +111,7 @@ Ngoài file `.md`, mỗi agent còn có hai thứ nằm trong thư mục `memory
 - **`MEMORY.md` - bộ nhớ riêng.** Mỗi lần agent chạy, Javis đọc file này và chèn thẳng vào system prompt của agent dưới tiêu đề `# Bộ nhớ của bạn:`. Đây là chỗ để tích luỹ những gì agent cần nhớ lâu dài: quy ước riêng, danh sách khách, những lỗi đã bị nhắc. File này có **hai nguồn ghi**: bạn viết tay, và chính agent **tự bồi đắp lúc chạy** - cuối một nhiệm vụ, nếu rút ra được bài học tái dùng, agent đề xuất và Javis ghi hộ vào mục `## Bài học (tự học)` của file. Javis (chứ không phải model) cầm bút nên có rào cứng: tự loại bài học trùng, chỉ giữ 15 dòng mới nhất để bộ nhớ đặc dần thay vì dài dần, và phần bạn viết tay ngoài mục đó không bao giờ bị chạm. Nghĩa là agent thông minh dần lên theo mỗi lần dùng, không có job nền nào quét hàng loạt.
 - **`runs/` - nhật ký chạy.** Mỗi bước workflow chạy xong (kể cả bước kiểm chứng), Javis ghi thêm một mục vào `runs/<YYYY-MM-DD>.md` gồm giờ chạy, nhiệm vụ đã giao, và kết quả (cắt gọn). Đây là chỗ để soi lại "hôm qua agent này đã làm gì" mà không cần mở lại bảng theo dõi. Nhật ký thô này không đi vào git của brain.
 
-Cả hai đều là file văn bản thường: mở, đọc và sửa tay được qua [Quản lý tệp tin](05-quan-ly-tep-tin.md). Muốn dạy một agent nhớ điều gì, cứ viết thẳng vào `memory/agents/<slug>/MEMORY.md` là lần chạy sau nó đã biết. Đây là lý do trang Agents khi còn trống ghi "Chưa có agent. Bấm + Agent để tạo (vai trò + skills + bộ nhớ riêng)."
+Cả hai đều là file văn bản thường: mở, đọc và sửa tay được qua [Quản lý tệp tin](05-quan-ly-tep-tin.md). Muốn dạy một agent nhớ điều gì, cứ viết thẳng vào `memory/agents/<slug>/MEMORY.md` là lần chạy sau nó đã biết. Đây là lý do tab Trợ Lý trên Cộng sự khi còn trống ghi cần bấm **+ Agent** để tạo (vai trò + skills + bộ nhớ riêng).
 
 Phân biệt: bộ nhớ này là của **riêng một agent**; bộ nhớ chung của Javis về bạn và doanh nghiệp nằm ở `memory/MEMORY.md` và `memory/facts/`, xem [Second Brain: bộ nhớ, Wiki, INGEST](13-second-brain-bo-nho-wiki.md).
 
@@ -123,7 +125,7 @@ Phân biệt: bộ nhớ này là của **riêng một agent**; bộ nhớ chung
 
 Cần có ít nhất một agent trước khi tạo workflow. Nếu chưa có agent nào, khi bấm tạo workflow Javis sẽ báo "Chưa có agent nào. Hãy tạo Agent trước (tab Agents) hoặc bấm Tạo mẫu."
 
-1. Mở trang **Workflows**.
+1. Mở **Cộng sự → Quy Trình (Workflows)**.
 2. Bấm **+ Workflow** ở góc trên bên phải.
 3. Điền:
    - **Tên**: tên workflow. Bắt buộc.
@@ -202,7 +204,7 @@ Bạn không bắt buộc phải dùng form. Trong khung trò chuyện với Jav
 - "Tạo workflow nghiên cứu rồi viết bài."
 - "Thêm bước biên tập vào workflow X."
 
-Khi đó Javis tự ghi file .md tương ứng vào vault, tự đặt slug không dấu, tự xếp nhóm (đọc nhóm đang dùng trong brain rồi lấy nhóm sát nhất), tự gán skill hợp lý từ skill có sẵn, và nếu workflow nhắc tới một agent chưa tồn tại thì tạo agent đó trước. Sau khi làm xong, Javis báo ngắn gọn đã tạo/sửa file nào. Bạn quay lại trang Agents hoặc Workflows là thấy ngay, không cần thao tác thêm.
+Khi đó Javis tự ghi file .md tương ứng vào vault, tự đặt slug không dấu, tự xếp nhóm (đọc nhóm đang dùng trong brain rồi lấy nhóm sát nhất), tự gán skill hợp lý từ skill có sẵn, và nếu workflow nhắc tới một agent chưa tồn tại thì tạo agent đó trước. Sau khi làm xong, Javis báo ngắn gọn đã tạo/sửa file nào. Bạn quay lại **Cộng sự** là thấy ngay, không cần thao tác thêm.
 
 Cách này tiện khi bạn mô tả được ý định bằng lời nhưng ngại điền form, hoặc muốn chỉnh nhiều bước cùng lúc.
 
@@ -219,7 +221,7 @@ Vì là file văn bản, bạn có thể mở qua [Quản lý tệp tin](05-quan
 
 Trường `group` dùng chung một cách viết cho cả agent, workflow và skill, nên sửa tay trong file cũng được: ghi `group: Marketing` là lần tải lại trang sẽ thấy nó nằm đúng nhóm. Thiếu trường này thì nó vào nhóm "Chung".
 
-Sửa file rồi lưu thì trang Agents / Workflows tự nhận nội dung mới ở lần tải lại.
+Sửa file rồi lưu thì Cộng sự tự nhận nội dung mới ở lần tải lại.
 
 ## Mẹo
 
@@ -247,7 +249,7 @@ Lưu ý: gói xuất chỉ chứa file định nghĩa. **Bộ nhớ riêng và n
 | Bạn thấy | Ý nghĩa / thao tác |
 |---|---|
 | **+ Agent** / **+ Workflow** | Mở khung soạn thảo tạo mới |
-| **Tạo mẫu** (trang Workflows) | Sinh 3 agent + 1 workflow ví dụ chạy được ngay |
+| **Tạo mẫu** (Cộng sự → Quy Trình) | Sinh 3 agent + 1 workflow ví dụ chạy được ngay |
 | **⤒ Nhập** | Đưa gói `.zip` / `.md` / `.skill` vào brain đang chọn |
 | **⤓ Xuất** | Tải về gói `.zip` kèm phụ thuộc để chia sẻ |
 | **● Sẵn sàng** | Workflow đang bật, chạy được |
@@ -265,7 +267,7 @@ Lưu ý: gói xuất chỉ chứa file định nghĩa. **Bộ nhớ riêng và n
 
 ## Sự cố thường gặp
 
-- **Bấm + Workflow báo "Chưa có agent nào".** Bạn chưa tạo agent. Sang trang Agents tạo ít nhất một agent, hoặc bấm Tạo mẫu ở trang Workflows để có sẵn bộ ví dụ.
+- **Bấm + Workflow báo "Chưa có agent nào".** Bạn chưa tạo agent. Sang tab **Trợ Lý** tạo ít nhất một agent, hoặc bấm **Tạo mẫu** ở tab Quy Trình để có sẵn bộ ví dụ.
 - **Nút ▶ Chạy bị mờ, không bấm được.** Workflow đang ở trạng thái Lưu trữ. Bấm **Kích hoạt** để đổi về ● Sẵn sàng rồi chạy lại.
 - **Danh sách rỗng, ghi "Chưa có workflow" hoặc "Chưa có agent".** Đây là trạng thái ban đầu. Bấm **Tạo mẫu** (ở Workflows) hoặc **+ Agent** / **+ Workflow** để bắt đầu. Nếu vừa đổi brain mà thấy trống, kiểm tra bạn đang ở đúng brain.
 - **Mở Sửa workflow thấy các bước gập hết, tưởng mất nội dung.** Không mất. Workflow đang sửa mặc định gập để thấy toàn cảnh; bấm vào hàng tiêu đề bước là mở ra.

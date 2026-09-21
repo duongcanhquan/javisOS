@@ -6,16 +6,16 @@ Hướng dẫn sử dụng chi tiết từng chức năng của Javis OS. Mỗi 
 
 > Mới bắt đầu? Đọc **[Hướng dẫn cài đặt & sử dụng sau đóng gói](../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md)** (máy cá nhân + VPS Linux/Windows + map domain + Kết nối tự gắn), hoặc [Cài đặt trong README](../README.md#-cài-đặt), rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
 
-Thanh điều hướng của dashboard gom các trang thành nhóm: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · **Hướng dẫn** · Hệ thống.
+Thanh điều hướng của dashboard gom các trang thành nhóm: Trợ lý · Bộ não · Code · **Năng lực** (Cộng sự · Hội thoại khách · Skills · Plugins) · Việc · Kết nối · **Hướng dẫn** · Hệ thống (có **Chia sẻ**).
 
 ### Hướng dẫn trong app (menu Hướng dẫn)
 Bốn trang đọc ngay trong dashboard (chữ đơn giản + sơ đồ):
-1. **Javis làm được gì** — bản đồ chức năng, checklist 15 phút đầu.
+1. **VMOS làm được gì** — bản đồ chức năng, checklist 15 phút đầu.
 2. **Hướng dẫn kết nối** — Models → MCP → Kênh → API công cụ.
-3. **Skill · Agent · Workflow** — khác nhau thế nào, cách tạo và chạy.
+3. **Skill · Agent · Workflow** — khác nhau thế nào; mở **Cộng sự** để tạo.
 4. **Công việc & chức năng** — Kanban, họp, tự học, chat, hệ thống.
 
-Thanh điều hướng của dashboard gom **19 trang** thành **8 nhóm**: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · Hệ thống · Tổ chức. Mục lục dưới đây xếp theo cùng logic đó.
+Thanh điều hướng xếp theo logic nhóm ở trên. Mục lục dưới đây theo cùng logic.
 
 ## Mục lục
 
@@ -34,9 +34,10 @@ Thanh điều hướng của dashboard gom **19 trang** thành **8 nhóm**: Tr�
 
 ### Mở rộng năng lực (nhóm Năng lực)
 - [06 - Skills](06-skills.md) - gom nhóm, tìm kiếm, bật/tắt, thêm/sửa/xoá, nhập/xuất skill.
-- [07 - Agents & Workflows](07-agents-va-workflows.md) - tạo trợ lý chuyên biệt + chuỗi tự động nhiều bước.
+- [07 - Cộng sự (Agents & Workflows)](07-agents-va-workflows.md) - trang **Cộng sự**: tab Trợ Lý (Agent) + Quy Trình (Workflows).
 - [20 - Plugins](20-plugins.md) - thêm tool/hook native cho mọi engine bằng một thư mục Python.
-- [25 - Chatbot (Bot chuyên trách)](25-chatbot.md) - đem Agent ra trả lời khách qua bot Telegram hoặc Zalo riêng, brain riêng, chuyển nhân viên khi bí.
+- [28 - Hội thoại khách](28-hoi-thoai-khach.md) - hộp thư Telegram/Zalo, kênh, chatbot chuyên trách (gộp Chatbot).
+- [25 - Chatbot (Bot chuyên trách)](25-chatbot.md) - chi tiết tạo bot mang Agent ra trả khách (tab trong Hội thoại khách).
 
 ### Việc chạy nền (nhóm Việc & Bộ não)
 - [08 - Việc định kỳ & Nhắc hẹn](08-viec-dinh-ky.md) - nhiều vòng lặp chạy nền + nhắc hẹn theo giờ hoặc cron.

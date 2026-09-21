@@ -8,13 +8,15 @@ Từ bản 0.61.0 trang này gộp luôn phần Chatbot: **một mục trên tha
 
 ## Mở ở đâu trong Javis
 
-Thanh điều hướng bên trái, nhóm **Năng lực**, mục **Hội thoại**. Trong trang có ba tab:
+Thanh điều hướng bên trái, nhóm **Năng lực**, mục **Hội thoại khách**. Trong trang có ba tab:
 
 - **Hộp thư**: mọi tin khách, đọc lại, tiếp quản, trả lời.
 - **Kênh**: mọi tài khoản khách nhắn tới (bot Telegram, bot Zalo, Zalo cá nhân...), thêm tài khoản, bật ghi.
 - **Chatbot**: nhân viên AI đứng trực các tài khoản đó. Xem [Chatbot](25-chatbot.md).
 
 Nói bằng lời cũng được: "mở hộp thư khách", "xem tin nhắn khách", và "mở chatbot" vẫn tới đúng tab Chatbot. Nói "hội thoại" trần vẫn ra trang Trò chuyện như trước.
+
+> Trước đây mục này từng nằm dưới nhãn khác trên rail; từ 0.56 tên chuẩn là **Hội thoại khách** trong nhóm **Năng lực** (cùng Cộng sự / Skills / Plugins).
 
 ## Mô hình
 

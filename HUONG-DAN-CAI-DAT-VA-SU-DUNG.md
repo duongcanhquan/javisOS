@@ -1,18 +1,19 @@
-# Hướng dẫn cài đặt & sử dụng Javis OS (sau đóng gói)
+# Hướng dẫn cài đặt & sử dụng VMOS / Javis OS (sau đóng gói)
 
 ***Tiếng Việt** · Bản này dành cho người nhận **bản đóng gói** (ZIP máy cá nhân hoặc image Docker trên VPS).*
 
-Tài liệu này dẫn từ lúc **cài lần đầu** tới lúc **dùng được chat, Studio, Kết nối**.  
-**Trong app:** menu bên trái nhóm **Hướng dẫn** (ngay dưới Kết nối) — 4 trang: Javis làm được gì · Kết nối · Skill/Agent/Workflow · Công việc & chức năng.  
-**PDF tải về (có hình / sơ đồ):** [Cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [Sử dụng ban đầu](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf) - mục lục đầy đủ trong [docs/huong-dan/README.md](docs/huong-dan/README.md).  
-Chi tiết từng trang trong app: [docs/README.md](docs/README.md).  
-Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
-**VPS (SSH/RDP từng nút, Hostinger, DuckDNS miễn phí, lần đầu Models):** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
-**Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
-**Cách cài đơn giản nhất:** [CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md).  
-**Cài sẵn trên máy trước Javis (Win / Mac / VPS):** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
-Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).  
-**Nhiều người / nhiều subdomain trên một VPS** (đấu Antigravity·Claude·Codex, nút Đồng bộ manager): [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
+Tài liệu dẫn từ lúc **cài lần đầu** tới lúc **dùng được chat, Cộng sự, Kết nối, Hội thoại khách**.  
+**Trong app:** menu trái nhóm **Hướng dẫn** (dưới Kết nối) - 4 trang: VMOS làm được gì · Kết nối · Skill/Agent/Workflow · Công việc & chức năng.  
+**PDF:** [Cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [Sử dụng](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf) - mục lục [docs/huong-dan/README.md](docs/huong-dan/README.md).  
+Chi tiết từng chức năng: [docs/README.md](docs/README.md).  
+Cài nhanh trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
+**VPS:** [HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md](HUONG-DAN-CAI-VPS-KHONG-TEN-MIEN.md).  
+**Máy local:** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md) · [CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md).  
+**Chuẩn bị trước khi cài:** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
+Kỹ thuật VPS: [DEPLOY.md](DEPLOY.md).  
+**Nhiều người / subdomain:** [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
+
+> **Đổi tên quan trọng (từ 0.56):** trang **Agents** và **Workflows** cũ đã gộp thành **Năng lực → Cộng sự** (hai tab **Trợ Lý (Agent)** và **Quy Trình (Workflows)**). Chatbot khách nằm trong **Hội thoại khách**. Link công khai quản ở **Hệ thống → Chia sẻ**.
 
 ---
 
@@ -24,7 +25,7 @@ Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).
 |---|---|
 | **Phần mềm** | Dashboard + server + cập nhật theo phiên bản |
 | **Skills hệ thống** | Toàn bộ skill trong `.claude/skills/` (đồng bộ vào mỗi brain mới) |
-| **Agents / Workflows chuẩn** | Tự đồng bộ từ `system/agents/` + `system/workflows/` vào mỗi brain (không cần bấm Studio). Studio chỉ để làm mới / bổ sung |
+| **Agents / Workflows chuẩn** | Tự đồng bộ từ `system/agents/` + `system/workflows/` vào mỗi brain. Xem / sửa tại **Năng lực → Cộng sự** |
 | **Plugins hệ thống** | Tool native đi kèm app (lịch VN, schedule, task, ảnh ChatGPT, Zalo image…) |
 
 Skills / agent / workflow **dùng chung** trên cùng một bản Javis: mọi brain đều nhận được bộ năng lực chuẩn.  
@@ -377,20 +378,18 @@ Mở URL `https://….trycloudflare.com`. Muốn URL cố định: DuckDNS (trê
 
 ## 8. Thiết lập lần đầu trong app (mọi đường)
 
-Làm **ít nhất** 2 việc rồi dừng: **admin** + **Models** + chat một câu. Gmail / Zalo / Ads để lần sau.
-
-Làm theo thứ tự:
+Làm **ít nhất** 3 việc rồi dừng: **admin** + **Models** + chat một câu. Gmail / Zalo / Ads / Hội thoại khách để lần sau.
 
 ### Bước A - Tài khoản admin
 
 - Máy cá nhân: wizard chào mừng → Workspace + (tuỳ chọn) mật khẩu.
-- VPS công khai: **bắt buộc** mật khẩu ≥8 ký tự. Nếu chưa set sẵn trong compose → nhập **MÃ THIẾT LẬP** (lấy từ log / file `.setup_token`).
+- VPS công khai: **bắt buộc** mật khẩu ≥8 ký tự. Nếu chưa set sẵn trong compose → nhập **MÃ THIẾT LẬP** (log / file `.setup_token`).
 
 Chi tiết: [docs/01-bat-dau-thiet-lap.md](docs/01-bat-dau-thiet-lap.md).
 
 ### Bước B - Chọn bộ não (Models)
 
-Nhóm **Kết nối → Models**. Chọn **một** trong các đường phổ biến:
+Nhóm **Kết nối → Models**. Chọn **một** đường phổ biến:
 
 | Đường | Cần gì | Ghi chú |
 |---|---|---|
@@ -400,115 +399,224 @@ Nhóm **Kết nối → Models**. Chọn **một** trong các đường phổ bi
 | **Antigravity CLI** | Cài `agy`, đăng nhập một lần | Lineup model Google plan; VPS: in link trong terminal |
 | **OpenRouter / OpenAI / Gemini / Anthropic / Groq / DeepSeek / Ollama** | API key | Không cần CLI; không chạy lệnh máy |
 
-**Nhiều bản trên một VPS:** mỗi subdomain tự đấu não một lần (`agy` / Claude / Codex không dùng chung). Chi tiết thao tác + PATH + nút Đồng bộ manager: [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
+**Nhiều bản trên một VPS:** mỗi subdomain tự đấu não một lần. Chi tiết: [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
 
-Sau khi kết nối: chọn **Main Model** + (tuỳ chọn) **Model việc nền** rẻ hơn.
-
-Chi tiết: [docs/10-models-va-engine.md](docs/10-models-va-engine.md).
+Sau khi kết nối: chọn **Main Model** + (tuỳ chọn) **Model việc nền** rẻ hơn. Chi tiết: [docs/10-models-va-engine.md](docs/10-models-va-engine.md).
 
 ### Bước C - Năng lực chuẩn (tự có sẵn)
 
-Image / bản đóng gói **tự đồng bộ** skill + agent + workflow hệ thống vào mỗi brain mới (qua `system_sync`). Không bắt buộc bấm Studio.
+Image / bản đóng gói **tự đồng bộ** skill + agent + workflow hệ thống vào mỗi brain mới. Không bắt buộc seed tay.
 
-Vào **Studio** (nhóm Năng lực) chỉ khi muốn **làm mới / bổ sung** bộ seed biến thể:
+Sau khi Models + chat thử được: mở **Năng lực → Cộng sự** để thấy danh sách Trợ Lý / Quy Trình chuẩn. Muốn làm mới bộ theo ngành (Trường, Bài giảng, Marketing, Video, Pháp chế…): dùng các nút seed trên trang Cộng sự / form Studio (modal), không còn mục «Studio» riêng trên rail.
 
-| Nút Studio | Khi nào cần |
-|---|---|
-| **Bộ Trường** / **Bộ Bài giảng** / **Bộ Marketing** / … | Làm mới nội dung seed hoặc brain cũ trước khi có sync agent |
+Agents / workflows chuẩn nằm trong `system/agents/` và `system/workflows/`. Agent nội bộ tổ chức **không** đi kèm image công khai.
 
-Agents / workflows chuẩn nằm trong `system/agents/` và `system/workflows/` của app. Agent HTĐT / dự án APC nội bộ **không** đi kèm image.
 ### Bước D - Brain & Project
 
-1. Tạo / chọn **brain** theo ngữ cảnh (vd công việc vs học tập). Mỗi brain có memory / wiki / sources riêng.
-2. **Project** chỉ thuộc brain đang chọn. Không kỳ vọng thấy dự án của não khác.
-3. Agent / workflow / skill **chuẩn** dùng chung trên instance; nội dung vault vẫn riêng từng não.
+1. Tạo / chọn **brain** theo ngữ cảnh (công việc vs học tập). Mỗi brain có memory / wiki / sources riêng.
+2. **Project** chỉ thuộc brain đang chọn.
+3. Skill / agent / workflow **chuẩn** dùng chung trên instance; nội dung vault vẫn riêng từng não.
 
 ---
 
-## 9. Danh mục năng lực đóng gói (tham chiếu)
+## 9. Bản đồ menu trái (nhiệm vụ từng nhóm)
+
+Menu trái (rail) gom trang thành nhóm. Hiểu **nhiệm vụ từng nhóm** rồi mới đi sâu chức năng.
+
+| Nhóm rail | Nhiệm vụ chính | Trang trên menu |
+|---|---|---|
+| **Trợ lý** | Trang chủ + nói chuyện với AI trên web | Home · Chat |
+| **Bộ não** | File / Drive / học từ tri thức gắn brain | Files · Kho Drive · Tự học |
+| **Code** | Dòng lệnh thật trên máy/container đang chạy Javis | Terminal |
+| **Năng lực** | Đội AI + hộp thư khách + skill + plugin | **Cộng sự** · **Hội thoại khách** · Skills · Plugins |
+| **Việc** | Họp, bài giảng, video, marketing, Kanban, tự cải thiện | Họp · Bài giảng · Video · Marketing · Kanban · … |
+| **Kết nối** | Não AI + MCP + kênh điện thoại + gói + API công cụ | Models · Kết nối · Kênh · Gói · API công cụ |
+| **Hướng dẫn** | Đọc hướng dẫn ngay trong app (4 trang) | VMOS làm được gì · Kết nối · Skill/Agent · Công việc |
+| **Hệ thống** (đáy) | Mức dùng, cài đặt, **chia sẻ link**, log, tài khoản | Mức dùng · Cài đặt · **Chia sẻ** · Log · Tài khoản |
+| **Tổ chức** (đáy, nếu có) | Quản trị multi-tenant / org | Tổ chức |
+
+**Luồng nên nhớ:** Models (não) → Chat thử → **Cộng sự** / Skills → Kết nối MCP / Kênh → (tuỳ) **Hội thoại khách** & **Chia sẻ**.
+
+---
+
+## 10. Chức năng mới & cách dùng chi tiết
+
+### 10.1 Cộng sự (Agent + Workflow trong một trang)
+
+**Mở ở đâu:** rail **Năng lực → Cộng sự**.
+
+**Nhiệm vụ trang:** một chỗ quản lý «đội AI» của bạn. Hai tab phía trên:
+
+| Tab | Tên hiển thị | Là gì | Khi nào dùng |
+|---|---|---|---|
+| Agent | **Trợ Lý (Agent)** | Một trợ lý có vai trò, prompt, skill, model | Muốn «nhân viên» chuyên một mảng |
+| Workflow | **Quy Trình (Workflows)** | Chuỗi nhiều bước / nhiều agent | Việc nhiều giai đoạn, bàn giao giữa các vai |
+
+(Tên cũ «Agents» / «Workflows» trên rail đã bỏ - URL cũ `/agents`, `/workflows` vẫn chuyển vào Cộng sự.)
+
+#### Tab Trợ Lý (Agent)
+
+1. Bấm **+ Agent** (hoặc mở thẻ agent sẵn có).
+2. Điền **vai trò** 2–3 dòng tiếng Việt: làm gì, khi nào, cần dữ liệu gì.
+3. Tick **skills** được phép dùng; chọn **model** (hoặc mặc định).
+4. Viết **system prompt** chi tiết (cách làm, định dạng đầu ra, điều cấm).
+5. **Tài liệu trợ lý:** mỗi agent có tủ tài liệu riêng (file hướng dẫn / mẫu). Khác **Tủ tài liệu phiên** trong chat (chỉ gắn phiên hiện tại).
+
+**Chạy agent ở đâu?** Trong Quy trình, Hội thoại khách, hoặc khi bạn nhờ VMOS dùng agent đó trong chat.
+
+Chi tiết sâu: [docs/07-agents-va-workflows.md](docs/07-agents-va-workflows.md).
+
+#### Tab Quy Trình (Workflows)
+
+1. Chuyển tab **Quy Trình (Workflows)**. Brain mới có thể bấm tạo mẫu để có ví dụ chạy được.
+2. Mỗi bước chọn agent + mô tả nhiệm vụ. Dùng `{{input}}` cho đầu vào user, `{{prev}}` cho kết quả bước trước.
+3. Bật quy trình → **▶ Chạy** (hoặc gọi từ Telegram / Kanban tùy cấu hình).
+
+**Sơ đồ nhanh:**
+
+```
+Skill (công thức)  →  Agent / Trợ lý (nhân viên)  →  Workflow / Quy trình (dây chuyền)
+```
+
+| Lớp | File / chỗ | Ví dụ |
+|---|---|---|
+| **Skill** | Năng lực → Skills | Viết SEO, đọc hóa đơn |
+| **Agent** | Cộng sự → Trợ Lý | «Nghiên cứu thị trường» |
+| **Workflow** | Cộng sự → Quy Trình | Nghiên cứu → viết → kiểm chứng |
+
+### 10.2 Skills (vẫn trong Năng lực)
+
+**Skills:** rail **Năng lực → Skills** - bật/tắt thẻ skill; tạo mới với mô tả tiếng Việt rõ; trong Chat gõ `/` để gọi tay.
+
+Seed bộ năng lực theo ngành (Trường, Marketing, Video…) nằm trên **Cộng sự** / modal Studio khi tạo mẫu - xem [docs/07-agents-va-workflows.md](docs/07-agents-va-workflows.md).
+
+### 10.3 Hội thoại khách (bot chuyên trách + hộp thư)
+
+**Mở ở đâu:** rail **Năng lực → Hội thoại khách**.
+
+**Nhiệm vụ:** một trang gom **hộp thư khách**, **kênh** (Telegram / Zalo…) và **chatbot chuyên trách**. Đem Agent ra nói chuyện với khách bên ngoài, đọc lại tin, tiếp quản khi bot bí.
+
+Trong trang thường có các tab (Hộp thư · Kênh · Chatbot) - xem chi tiết [docs/28-hoi-thoai-khach.md](docs/28-hoi-thoai-khach.md).
+
+**Không nhầm với:**
+
+| | Hội thoại khách | Kênh (Kết nối → Kênh) | Chat (Trợ lý) |
+|---|---|---|---|
+| Ai nói chuyện | Khách ↔ bot / bạn tiếp quản | Bạn cấu hình bot token để **Javis của mình** nhận tin | Bạn ↔ Javis trên web |
+| Brain | Brain gắn chatbot | Theo cấu hình kênh chính | Brain bạn đang chọn |
+| Mục đích | CSKH / tư vấn có kiểm soát | Điều khiển Javis từ điện thoại | Làm việc hàng ngày trên dashboard |
+
+**Các bước điển hình:**
+
+1. Trong **Cộng sự → Trợ Lý** tạo / chọn Agent đủ giỏi cho chủ đề.
+2. Mở **Hội thoại khách** → tab Chatbot → tạo bot → chọn Agent + gắn tài khoản kênh.
+3. Gắn brain riêng cho bot (tránh lẫn memory cá nhân).
+4. Kiểm tra: nhắn từ số khách thử → xem **Hộp thư** trên cùng trang.
+
+Chi tiết: [docs/28-hoi-thoai-khach.md](docs/28-hoi-thoai-khach.md) · [docs/25-chatbot.md](docs/25-chatbot.md).
+
+### 10.4 Chia sẻ (link công khai)
+
+**Mở ở đâu:** rail **Hệ thống → Chia sẻ**.
+
+**Nhiệm vụ:** quản lý **link / tài nguyên công khai** bạn đã tạo (agent/workflow được share, trang public…). Đây là chỗ **theo dõi và thu hồi**, không phải chỗ tạo Agent.
+
+| Việc | Làm ở đâu |
+|---|---|
+| Tạo Agent / Workflow | **Năng lực → Cộng sự** |
+| Bật chia sẻ / lấy link | Trong thẻ Cộng sự (nút chia sẻ trên item) hoặc luồng share của trang đó |
+| Xem danh sách link đang mở, tắt chia sẻ | **Hệ thống → Chia sẻ** |
+
+### 10.5 Kết nối dịch vụ ngoài (người dùng tự làm)
+
+Bản đóng gói **không** sẵn Gmail/Ads/Zalo của người phát hành. Mỗi người tự gắn.
+
+#### Luồng chung MCP
+
+1. Rail **Kết nối → Kết nối**.
+2. Nhiều dịch vụ nằm trong tab **VMOS Store**: tìm → **Cài đặt** → quay lại **Kết nối sẵn có**.
+3. Bấm **Kết nối** trên thẻ → dán key / OAuth / quét QR.
+4. Chọn **mức quyền** trên chip tài khoản: Chỉ đọc / Ghi nháp / Toàn quyền.
+5. Kiểm tra bằng chat: «kiểm tra kết nối …» hoặc hỏi số liệu thật.
+
+Chi tiết từng dịch vụ: [docs/09-mcp-va-so-lieu.md](docs/09-mcp-va-so-lieu.md).
+
+#### Bảng lối tắt
+
+| Muốn… | Làm gì | Tài liệu |
+|---|---|---|
+| Đổi / thêm bộ não AI | Models | [docs/10-models-va-engine.md](docs/10-models-va-engine.md) |
+| Hỏi Javis trên điện thoại | Kết nối → Kênh → Telegram | [docs/11-telegram.md](docs/11-telegram.md) |
+| Zalo Bot chính thức | Kênh Zalo Bot | [docs/26-kenh-zalo-bot.md](docs/26-kenh-zalo-bot.md) |
+| Đọc/gửi Zalo cá nhân (MCP) | Zalo Agent - quét QR | [docs/12-zalo.md](docs/12-zalo.md) |
+| Bot CSKH mang đúng một Agent | **Năng lực → Hội thoại khách** | [docs/28-hoi-thoai-khach.md](docs/28-hoi-thoai-khach.md) |
+| Gmail / Lịch / Drive / Sheets | Thẻ Google trên Kết nối | [docs/09-mcp-va-so-lieu.md](docs/09-mcp-va-so-lieu.md) |
+| Meta Ads / Facebook Page | Store rồi OAuth / token | [docs/09](docs/09-mcp-va-so-lieu.md) |
+| Kho Drive → Second Brain | Bộ não → Kho Drive | [docs/29-kho-drive.md](docs/29-kho-drive.md) |
+| Sao lưu brain lên GitHub | Hệ thống / Sao lưu | [docs/18-sao-luu-github.md](docs/18-sao-luu-github.md) |
+| Logo + domain | Cài đặt → Thương hiệu & tên miền | [docs/15-thuong-hieu-ten-mien.md](docs/15-thuong-hieu-ten-mien.md) |
+| Xem / tắt link public | **Hệ thống → Chia sẻ** | (trang trong app) |
+
+#### An toàn khi kết nối
+
+- Không dán API key vào chat công khai; chỉ vào ô Kết nối.
+- Zalo Agent MCP **không chính thức** - nên dùng số phụ.
+- Mức **Toàn quyền** cho phép gửi tin / đăng bài / thao tác tiền - chỉ bật khi cần.
+- Không chia sẻ một subscription Claude Pro cho nhiều người chạy nền 24/7 trên VPS.
+
+### 10.6 Tủ tài liệu: Agent vs phiên chat
+
+| Loại | Ở đâu | Phạm vi | Dùng khi |
+|---|---|---|---|
+| **Tài liệu trợ lý** | Cộng sự → mở Agent → khu tài liệu | Gắn **đúng agent đó**, mọi lần chạy agent | SOP, mẫu trả lời, tài liệu chuẩn của vai trò |
+| **Tủ tài liệu phiên** | Trong Chat (phiên đang mở) | Chỉ **phiên hội thoại hiện tại** | File / ghi chú phục vụ cuộc nói chuyện này |
+
+Không nhầm hai tủ: xóa phiên chat **không** xóa tài liệu trợ lý; sửa agent **không** tự gắn file vào mọi phiên cũ.
+
+### 10.7 Chat, Việc, Bộ não (nhắc nhanh)
+
+- **Chat (Trợ lý):** hỏi việc hàng ngày; lệnh `/`; đính kèm file phiên; giọng nói cần HTTPS (§7).
+- **Kanban / Việc định kỳ (Việc):** giao goal bằng lời; AI chạy task nền.
+- **Wiki / Memory / Files / Tự học (Bộ não):** tri thức lâu dài theo brain; Tự học có thể hoàn tác.
+- **Terminal (Code):** lệnh thật trên host/container - cẩn thận trên VPS production.
+
+---
+
+## 11. Danh mục năng lực đóng gói (tham chiếu)
 
 ### Skills hệ thống (ví dụ nhóm chính)
 
 Đi kèm image / ZIP (đồng bộ qua `system_sync`):
 
-- **Lõi Javis:** `javis-builder`, `ingest-source`, `query-wiki`, `lint-wiki`, `notes`, `html-to-webcake`
-- **Nghiên cứu & KD/MKT:** `nghien-cuu-thi-truong`, `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `phan-tich-tai-chinh-mkt`, `proposal-chien-luoc`, `quy-trinh-van-hanh-kd-mkt`, `writing-plans`, `brainstorming`
-- **Marketing / SEO:** `marketing-hub`, `kiem-tra-seo`, `seo-gpt`, `viet-bai-seo`, `bao-cao-facebook-ads`, `tong-ket-facebook`
-- **Bài giảng / nội dung:** `tao-bai-giang`, `bai-giang-lop-hoc`, `bai-giang-slide`, `bai-giang-van-ban`, `openmaic`
-- **Video:** `lam-video`, `paperdesign`, `pixcelvideo`, `remotion-best-practices`
-- **Pháp chế:** `phap-che`, `so-sanh-van-ban-phap-ly`, `snapshot-van-ban-web`
-- **Vận hành ngày:** `tong-ket-sang`, `tong-hop-bao-chi`, `bao-cao-github-trending`, `phan-tich-cuoc-hop`, `tong-ket-chat-ngay`, `deep-research`
-- **Giọng / review / skill ngoài:** `voicestudio` (TTS/lồng tiếng/chép lời local), `open-code-review` (diff + ruleset), `cherry-pick-agent-skills` (lấy từng SKILL.md, không cả kho), `agent-reach` (kênh MXH/video/RSS)
-- **Kế toán:** `doc-hoa-don`, `so-ke-toan-kep`, `doc-bao-cao-tai-chinh`, `ke-hoach-ke-toan`, `tro-ly-thi-truong-chung-khoan` (giá/tin, không phải sổ). Workflow Studio: **Kế toán chuẩn**.
-- **UI / web:** `frontend-design`, `improve-ui`, `baseline-ui`, `create-design-md`, …
-
-Danh sách đầy đủ: thư mục `.claude/skills/` trong bản đóng gói.
+- **Lõi:** `javis-builder`, `ingest-source`, `query-wiki`, `lint-wiki`, `notes`, `html-to-webcake`
+- **Nghiên cứu & KD/MKT:** `nghien-cuu-thi-truong`, `ke-hoach-kinh-doanh`, `ke-hoach-marketing`, `phan-tich-tai-chinh-mkt`, `proposal-chien-luoc`, `writing-plans`, `brainstorming`
+- **Marketing / SEO:** `marketing-hub`, `kiem-tra-seo`, `seo-gpt`, `viet-bai-seo`, `bao-cao-facebook-ads`
+- **Bài giảng / nội dung:** `tao-bai-giang`, `bai-giang-lop-hoc`, `bai-giang-slide`, `openmaic`
+- **Video / Pháp chế / Vận hành / Kế toán / UI:** xem thư mục `.claude/skills/` trong bản đóng gói
 
 ### Agents / Workflows không đưa vào bản công khai
 
-Ví dụ kiến thức / vai trò **riêng tổ chức** (giữ trên brain admin, không seed cho người lạ) - danh sách đủ: [`system/EXCLUDE-AGENTS.md`](system/EXCLUDE-AGENTS.md):
-
-- Agent HTĐT nội bộ: thực tập DN, hợp tác quốc tế HTĐT, tư vấn BGH, đánh giá đối tác HTĐT, đổi mới công nghệ nhà trường…
-- Agent dự án APC: `du-an-uav`, `du-an-dien-tu-fdi`
-- Memory, Drive corpus, sources pháp chế đã ingest, hội thoại, Project cá nhân
-
-Người nhận tự xây agent riêng trong brain của họ khi cần. Caps dùng chung: [`system/README-CAPS.md`](system/README-CAPS.md).
+Vai trò **riêng tổ chức** (không seed cho người lạ): xem [`system/EXCLUDE-AGENTS.md`](system/EXCLUDE-AGENTS.md).  
+Người nhận tự xây agent trong **Cộng sự** của brain họ. Caps dùng chung: [`system/README-CAPS.md`](system/README-CAPS.md).
 
 ---
 
-## 10. Kết nối dịch vụ ngoài (người dùng tự làm)
-
-Bản đóng gói **không** sẵn Gmail/Ads/Zalo của người phát hành. Mỗi người vào **Kết nối** và tự gắn.
-
-### 10.1 Luồng chung
-
-1. Rail trái → nhóm **Kết nối** → **Kết nối**.
-2. Nhiều dịch vụ nằm trong tab **VMOS Store**: tìm → **Cài đặt** → quay lại **Kết nối sẵn có**.
-3. Bấm **Kết nối** trên thẻ dịch vụ → dán key / OAuth / quét QR theo hướng dẫn trong hộp thoại.
-4. Chọn **mức quyền** trên chip tài khoản: Chỉ đọc / Ghi nháp / Toàn quyền.
-5. Kiểm tra bằng chat: “kiểm tra kết nối …” hoặc hỏi số liệu thật.
-
-Chi tiết đầy đủ từng dịch vụ: [docs/09-mcp-va-so-lieu.md](docs/09-mcp-va-so-lieu.md).
-
-### 10.2 Bảng lối tắt theo kênh
-
-| Muốn… | Làm gì | Tài liệu |
-|---|---|---|
-| Đổi / thêm bộ não AI | Models | [docs/10-models-va-engine.md](docs/10-models-va-engine.md) |
-| Hỏi Javis trên điện thoại | Kết nối Telegram bot | [docs/11-telegram.md](docs/11-telegram.md) |
-| Zalo Bot chính thức | Kênh Zalo Bot | [docs/26-kenh-zalo-bot.md](docs/26-kenh-zalo-bot.md) |
-| Đọc/gửi Zalo cá nhân (MCP) | Zalo Agent - quét QR | [docs/12-zalo.md](docs/12-zalo.md) |
-| Gmail / Lịch / Drive / Sheets | Thẻ Google trên Kết nối | [docs/09-mcp-va-so-lieu.md](docs/09-mcp-va-so-lieu.md) |
-| Meta Ads / Facebook Page | Cài từ Store rồi OAuth / token | [docs/09](docs/09-mcp-va-so-lieu.md) + skill báo cáo Ads |
-| Kho Drive → Second Brain | Bộ não → Kho Drive (rclone) | [docs/29-kho-drive.md](docs/29-kho-drive.md) |
-| Sao lưu brain lên GitHub | Cài đặt / Sao lưu | [docs/18-sao-luu-github.md](docs/18-sao-luu-github.md) |
-| Logo + domain trong UI | Cài đặt → Thương hiệu & tên miền | [docs/15-thuong-hieu-ten-mien.md](docs/15-thuong-hieu-ten-mien.md) |
-
-### 10.3 Lưu ý an toàn khi kết nối
-
-- Không dán API key vào chat công khai; chỉ vào ô Kết nối (key được mã hoá trong state).
-- Zalo Agent MCP **không chính thức** - nên dùng số phụ; đọc cảnh báo trong UI.
-- Mức **Toàn quyền** cho phép thao tác tiền / gửi tin / đăng bài - chỉ bật khi thật sự cần.
-- Không chia sẻ một subscription Claude Pro cho nhiều người chạy nền 24/7 trên VPS (rủi ro khoá tài khoản).
-
----
-
-## 11. Checklist người phát hành (trước khi gửi bản đóng gói)
+## 12. Checklist người phát hành (trước khi gửi bản đóng gói)
 
 Dùng khi bạn **đóng gói để người khác cài**:
 
 1. [ ] Image GHCR / ZIP build từ `main` đã xanh CI.
 2. [ ] README / compose trỏ đúng registry fork (`ghcr.io/duongcanhquan/javisos`).
 3. [ ] Skills hệ thống nằm trong `.claude/skills/` (đủ bộ bạn muốn ship).
-4. [ ] Agents / workflows chuẩn có đường nạp: Studio seed và/hoặc `deploy/caps-bundles/*.zip` + script seed.
+4. [ ] Agents / workflows chuẩn có đường nạp: sync hệ thống và/hoặc Studio seed / `deploy/caps-bundles/*.zip`.
 5. [ ] **Không** đóng gói `brains/*/memory`, sources cá nhân, `.env` có secret, volume state cũ.
 6. [ ] Kèm file này + [docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf](docs/huong-dan/) (nếu có).
-7. [ ] Thử sạch trên máy trống / VPS trống: cài → Models → chat một câu (đã thấy agent/workflow chuẩn) → Kết nối một dịch vụ thử.
+7. [ ] Thử sạch: cài → Models → chat → mở **Cộng sự** thấy agent/workflow chuẩn → Kết nối một dịch vụ thử.
 8. [ ] Viết rõ cho người nhận: họ **tự** Models + Kết nối; không kỳ vọng sẵn Gmail/Ads của bạn.
 
 ---
 
-## 12. Lỗi thường gặp
+## 13. Lỗi thường gặp
 
 | Hiện tượng | Cách xử lý |
 |---|---|
@@ -518,10 +626,13 @@ Dùng khi bạn **đóng gói để người khác cài**:
 | Pull image fail | GHCR chưa Public / sai tên image / hết disk |
 | Mở app hỏi MÃ THIẾT LẬP | `docker compose logs` hoặc `cat /data/state/.setup_token`; hoặc điền sẵn admin trong `.env` |
 | Chat báo chưa có bộ não | Models chưa đăng nhập / thiếu API key |
-| Studio trống năng lực | Bấm seed **Bộ …** tương ứng; đợi sync skill hệ thống |
+| Không thấy menu Agents / Workflows | Đã gộp thành **Năng lực → Cộng sự** (tab Trợ Lý / Quy Trình) |
+| Cộng sự / Studio trống năng lực | Đợi sync hệ thống; hoặc Studio seed **Bộ …** tương ứng |
+| Không tìm Chatbots | Đã gộp vào **Năng lực → Hội thoại khách** (tab Chatbot) |
 | Mic không bật trên VPS | Chưa HTTPS - làm §7 |
 | Hostinger không HTTPS | Sai / thiếu `DOMAIN_NAME` |
-| Thấy Project não khác | Sai brain đang chọn, hoặc project gắn nhầm tag brain - chọn đúng não / sửa/xoá project lệch |
+| Thấy Project não khác | Sai brain đang chọn - chọn đúng não / sửa project lệch |
+| Banner «bản cũ» dù Ctrl+Shift+R | CDN cache path cũ; bấm **Xóa cache** trên banner hoặc đợi deploy asset mới |
 | Firewall Windows chặn | Mở inbound TCP 7777 (và 80/443 nếu proxy) |
 | Docker Desktop chưa sẵn sàng | Mở Docker Desktop, đợi xanh, `docker compose up -d` lại |
 
@@ -529,7 +640,7 @@ Thêm FAQ: [docs/17-khac-phuc-su-co.md](docs/17-khac-phuc-su-co.md).
 
 ---
 
-## 13. Bản đồ tài liệu liên quan
+## 14. Bản đồ tài liệu liên quan
 
 | File | Khi nào mở |
 |---|---|
@@ -538,10 +649,12 @@ Thêm FAQ: [docs/17-khac-phuc-su-co.md](docs/17-khac-phuc-su-co.md).
 | [DEPLOY.md](DEPLOY.md) | VPS, HTTPS, nhiều bản trên một máy |
 | [QUICKSTART.md](QUICKSTART.md) | Chạy dev từ source |
 | [docs/01-bat-dau-thiet-lap.md](docs/01-bat-dau-thiet-lap.md) | Wizard lần đầu |
+| [docs/07-agents-va-workflows.md](docs/07-agents-va-workflows.md) | Cộng sự: Agent + Workflow |
+| [docs/28-hoi-thoai-khach.md](docs/28-hoi-thoai-khach.md) | Hội thoại khách |
 | [docs/09-mcp-va-so-lieu.md](docs/09-mcp-va-so-lieu.md) | Kết nối từng dịch vụ |
 | [docs/15-thuong-hieu-ten-mien.md](docs/15-thuong-hieu-ten-mien.md) | Domain trong UI |
 | [docs/README.md](docs/README.md) | Mục lục toàn bộ chức năng |
 
 ---
 
-*Cập nhật theo phiên bản app trong file `VERSION`. Khi sửa hướng dẫn này, giữ nguyên quy ước: không dùng em dash; Project theo brain; skill/agent/workflow chuẩn dùng chung instance; kết nối do người dùng tự gắn.*
+*Cập nhật theo phiên bản app trong file `VERSION`. Quy ước: không dùng em dash; Project theo brain; skill/agent/workflow chuẩn dùng chung instance; kết nối do người dùng tự gắn; Agents/Workflows = Cộng sự; Chatbots = Hội thoại khách.*
