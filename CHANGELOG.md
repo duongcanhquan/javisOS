@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.262] - 2026-09-21
+### Sửa
+- **Mở `vmos-quan.vietmycollege.com`.** Bản trước gắn hai tên dính nhau nên HTTPS gãy; giờ mỗi máy một tên rõ.
+
 ## [0.55.261] - 2026-09-21
 ### Mới
 - **Link từng người dạng `vmos-tên`.** Ví dụ `vmos-quan.vietmycollege.com`. Không cần bản ghi DNS mới. Link cũ `javis-quan` vẫn vào được.

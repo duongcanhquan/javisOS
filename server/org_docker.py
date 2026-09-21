@@ -272,7 +272,7 @@ def create_and_start(
             "Hostname": cname,
             "Env": env,
             "Labels": {
-                "caddy": ",".join(hosts),
+                "caddy": ", ".join(hosts),
                 "caddy.reverse_proxy": "{{upstreams 7777}}",
                 "javis.org.tenant": slug,
             },
@@ -350,7 +350,7 @@ def apply_public_hosts(slug: str) -> None:
     hosts = [h.strip() for h in ot.public_hosts(slug) if h.strip()]
     if not hosts:
         return
-    joined = ",".join(hosts)
+    joined = ", ".join(hosts)
     data = inspect_name(cname)
     if not data:
         return

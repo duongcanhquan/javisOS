@@ -27,8 +27,8 @@ if ! grep -qE '^JAVIS_ORG_MANAGER=(true|1|yes|on)$' "$ENV_FILE" 2>/dev/null; the
   else
     echo 'JAVIS_ORG_HOST_PREFIX=vmos' >> "$ENV_FILE"
   fi
-  _want_dom='vmos-quan.vietmycollege.com,javis-quan.vietmycollege.com'
-  if grep -qE '^DOMAIN_NAME=(javis-quan|vmos-quan)\.vietmycollege\.com' "$ENV_FILE" 2>/dev/null; then
+  _want_dom='vmos-quan.vietmycollege.com'
+  if grep -qE '^DOMAIN_NAME=.*(javis-quan|vmos-quan)\.vietmycollege\.com' "$ENV_FILE" 2>/dev/null; then
     if ! grep -qE "^DOMAIN_NAME=${_want_dom}$" "$ENV_FILE"; then
       echo "==> domain công khai bản cá nhân → vmos-quan.vietmycollege.com"
       sed -i "s|^DOMAIN_NAME=.*|DOMAIN_NAME=${_want_dom}|" "$ENV_FILE"

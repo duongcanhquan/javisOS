@@ -46,7 +46,7 @@ services:
       - javis-web
     labels:
       # Proxy dùng chung đọc đúng hai nhãn này rồi tự dựng site + xin chứng chỉ.
-      caddy: ${DOMAIN_NAME:?DOMAIN_NAME chưa đặt - thêm DOMAIN_NAME=ten-mien-cua-ban vào .env}
+      caddy: "${DOMAIN_NAME:?DOMAIN_NAME chưa đặt - thêm DOMAIN_NAME=ten-mien-cua-ban vào .env}"
       caddy.reverse_proxy: "{{upstreams 7777}}"
 
 networks:
