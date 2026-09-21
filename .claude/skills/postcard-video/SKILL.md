@@ -1,6 +1,6 @@
 ---
 name: Postcard video
-description: "Postcard video (shotcraft): promo Remotion từ recipe card, SFX/BGM, 15-45s."
+description: "Video postcard Remotion (shotcraft) từ recipe card: SFX/BGM, 15–45s; cần recipe/brief."
 description_en: "Postcard video (shotcraft): Remotion promo from shot cards, SFX/BGM, 15-45s."
 group: Nội dung
 ---

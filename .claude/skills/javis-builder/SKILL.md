@@ -46,7 +46,7 @@ vault (brain đang chọn). Studio / trang tương ứng tự nhận file mới.
 type: agent
 name: <Tên tiếng Việt>
 slug: <ascii>
-role: <vai trò 1 câu>
+role: <tiếng Việt, 2–3 dòng: làm gì + khi nào dùng + cần dữ liệu/repo gì + lưu ý>
 group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|Cá nhân>
 skills: [slug-skill]      # [] nếu chưa gán; chỉ gán skill đã có trong skills/
 model: ""                 # "" = theo Research (workflow) / Main; có model thì BẮT BUỘC model_provider
@@ -70,7 +70,7 @@ Prompt tốt thường 10-25 dòng. Viết xong tự đọc lại bằng mắt m
 ```
 ---
 name: <Tên skill>
-description: <nêu THẲNG năng lực, TỐI ĐA 150 ký tự - vd "Tóm tắt biên bản họp thành danh sách việc cần làm.">
+description: <nêu THẲNG bằng tiếng Việt (~2–3 dòng, TỐI ĐA 150 ký tự): làm gì + khi nào/cần repo gì + lưu ý. VD: "Tóm tắt biên bản họp thành danh sách việc. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.">
 group: <Marketing|Bán hàng|Nội dung|Vận hành|Tài chính|AI|Năng suất|Cá nhân>
 ---
 <hướng dẫn chi tiết cho AI khi skill kích hoạt>

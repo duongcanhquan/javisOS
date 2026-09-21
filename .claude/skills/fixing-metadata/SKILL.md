@@ -1,6 +1,6 @@
 ---
 name: fixing-metadata
-description: "Audit and fix HTML metadata: title, description, canonical, Open Graph, favicons."
+description: "Audit/sửa metadata HTML: title, description, canonical, Open Graph, favicon."
 description_en: "Fix page title, meta description, canonical, Open Graph, Twitter cards, and favicons."
 version: 1.0.1
 license: MIT

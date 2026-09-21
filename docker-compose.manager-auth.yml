@@ -1,0 +1,21 @@
+# ============================================================================
+# Manager dùng chung Claude/Codex auth với bản quan (cùng người vận hành).
+# Chỉ gắn trên javis-manager — KHÔNG gắn lên tenant thường.
+#
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.multi.yml \
+#     -f docker-compose.manager.yml \
+#     -f docker-compose.manager-auth.yml \
+#     up -d
+#
+# Volume ngoài phải đã tồn tại (thường do project javis-quan tạo):
+#   javis_claude-auth , javis_codex-auth
+# ============================================================================
+volumes:
+  claude-auth:
+    external: true
+    name: javis_claude-auth
+  codex-auth:
+    external: true
+    name: javis_codex-auth

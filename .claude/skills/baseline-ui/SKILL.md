@@ -1,6 +1,6 @@
 ---
 name: baseline-ui
-description: Quickly deslop UI code by fixing spacing, hierarchy, typography, and small layout issues. Use when the interface needs a fast cleanup or polish pass.
+description: "Dọn UI nhanh: spacing, hierarchy, typography, layout nhỏ. Dùng khi cần polish/cleanup."
 description_en: "Quickly deslop UI code by fixing spacing, hierarchy, typography, and small layout issues."
 group: Marketing
 ---

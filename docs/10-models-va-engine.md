@@ -6,6 +6,8 @@ Trang **Models** là nơi bạn chọn "bộ não" cho Javis: dùng engine nào,
 
 Nếu bạn mới bắt đầu, xem trước [Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md). Khi cần gắn thêm công cụ ngoài cho Javis, xem [Kết nối & số liệu kinh doanh](09-mcp-va-so-lieu.md).
 
+**Đang dùng nhiều subdomain trên một VPS?** Mỗi bản tự cài/đăng nhập bộ não; manager đẩy skill chuẩn bằng nút Đồng bộ - xem [30 - Nhiều bản & đấu nối bộ não](30-nhieu-ban-va-dau-nao.md).
+
 ## Tính năng này là gì
 
 Javis có thể chạy trên nhiều "engine" (nhà cung cấp AI) khác nhau. Bạn chọn 1 cái làm **Main Model** (model chính cho hội thoại), và tùy chọn thêm:

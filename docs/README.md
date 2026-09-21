@@ -6,6 +6,15 @@ Hướng dẫn sử dụng chi tiết từng chức năng của Javis OS. Mỗi 
 
 > Mới bắt đầu? Đọc **[Hướng dẫn cài đặt & sử dụng sau đóng gói](../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md)** (máy cá nhân + VPS Linux/Windows + map domain + Kết nối tự gắn), hoặc [Cài đặt trong README](../README.md#-cài-đặt), rồi qua [01 - Bắt đầu & thiết lập lần đầu](01-bat-dau-thiet-lap.md).
 
+Thanh điều hướng của dashboard gom các trang thành nhóm: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · **Hướng dẫn** · Hệ thống.
+
+### Hướng dẫn trong app (menu Hướng dẫn)
+Bốn trang đọc ngay trong dashboard (chữ đơn giản + sơ đồ):
+1. **Javis làm được gì** — bản đồ chức năng, checklist 15 phút đầu.
+2. **Hướng dẫn kết nối** — Models → MCP → Kênh → API công cụ.
+3. **Skill · Agent · Workflow** — khác nhau thế nào, cách tạo và chạy.
+4. **Công việc & chức năng** — Kanban, họp, tự học, chat, hệ thống.
+
 Thanh điều hướng của dashboard gom **19 trang** thành **8 nhóm**: Trợ lý · Bộ não · Code · Năng lực · Việc · Kết nối · Hệ thống · Tổ chức. Mục lục dưới đây xếp theo cùng logic đó.
 
 ## Mục lục
@@ -37,6 +46,7 @@ Thanh điều hướng của dashboard gom **19 trang** thành **8 nhóm**: Tr�
 ### Kết nối & kênh (nhóm Kết nối)
 - [09 - Kết nối & số liệu kinh doanh](09-mcp-va-so-lieu.md) - kho dịch vụ ngoài đa tài khoản, phân quyền, báo cáo số thật.
 - [10 - Models & engine](10-models-va-engine.md) - đổi bộ não giữa Claude Code, ChatGPT/Codex, Antigravity CLI, OpenRouter, OpenAI, Gemini, Anthropic, Groq, DeepSeek, Ollama mà không mất chức năng; mức suy nghĩ, model việc nền.
+- [30 - Nhiều bản trên một VPS & đấu nối bộ não](30-nhieu-ban-va-dau-nao.md) - tenant vs manager, cài `agy` / Claude / Codex từng bản, nút Đồng bộ template, checklist khi não không chạy.
 - [11 - Kênh Telegram](11-telegram.md) - hỏi Javis qua điện thoại, gửi và nhận file.
 - [26 - Kênh Zalo Bot](26-kenh-zalo-bot.md) - hỏi Javis trên Zalo bằng API chính thức, ghép nối bằng một cú bấm.
 - [12 - Zalo Agent MCP](12-zalo.md) - đăng nhập QR, đọc/tìm lịch sử và gửi tin qua MCP chuẩn.

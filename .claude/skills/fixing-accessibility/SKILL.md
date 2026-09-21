@@ -1,6 +1,6 @@
 ---
 name: fixing-accessibility
-description: "Audit and fix HTML accessibility: ARIA, keyboard, focus, contrast, and forms."
+description: "Audit/sửa HTML a11y: ARIA, bàn phím, focus, contrast, form."
 description_en: "Audit and fix HTML accessibility: ARIA, keyboard, focus, color contrast, and form errors."
 group: Marketing
 ---

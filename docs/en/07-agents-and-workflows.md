@@ -59,7 +59,7 @@ Agents and workflows created before version 0.55.38 have no group and sit in the
 | Field | Meaning | Suggestion |
 |---|---|---|
 | **Name** | The agent name shown on the card. Required. | e.g. "Email specialist" |
-| **Role (short description)** | One sentence about what the agent does. | e.g. "Writes sales emails in a friendly voice" |
+| **Role / blurb (2–3 lines)** | What the agent does, when to use it, what data/repo it needs, and any caveats. Readers should understand the card without opening the form. | e.g. "Writes sales emails in a friendly voice. Needs a product brief in the brain. Do not send real mail without a list." |
 | **Group** | A group name so the dashboard files the agent in the left column. Type a new one or pick an existing one (the field suggests). Leave it empty and the agent falls into "Chung". | e.g. Marketing, Sales, Content |
 | **System prompt (detailed working instructions)** | The long, detailed instruction: how the agent works, its principles, the output you expect. | e.g. writing rules, banned words, output format |
 | **Skills** | The skills available in the vault; tick the ones the agent may use. | Pick skills matching the role |

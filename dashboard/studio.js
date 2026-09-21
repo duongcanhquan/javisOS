@@ -1127,7 +1127,11 @@
     cards.innerHTML = "";
     list.forEach(a => {
       const div = document.createElement("div"); div.className = "ag-card";
-      div.innerHTML = `<div class="ag-name"><input type="checkbox" class="ag-sel" data-slug="${esc(a.slug)}" title="${esc(t("studio.sel_one"))}"> ${ic("bot")} ${esc(a.name)} <span class="ag-model">${esc(a.model_provider ? a.model_provider + "/" : "")}${esc(a.model || "")}</span></div><div class="ag-role">${esc(a.role)}</div><div class="ag-skills">${(a.skills || []).map(s => `<span class="chip-skill">${esc(s)}</span>`).join("") || `<span class="dim">${esc(t("studio.no_skills"))}</span>`}</div><div class="ag-group">${ic("folder-open")} ${esc(nhomCua(a))}</div><div class="wf-actions"><button class="s-btn-ghost edit">${esc(t("common.edit"))}</button><button class="s-btn-ghost exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="s-btn-ghost del">${esc(t("common.delete"))}</button></div>`;
+      const roleTxt = (a.role || "").trim();
+      const roleHtml = roleTxt
+        ? `<div class="ag-role" title="${esc(roleTxt)}">${esc(roleTxt)}</div>`
+        : `<div class="ag-role thieu">${esc(t("studio.ag_role_missing"))}</div>`;
+      div.innerHTML = `<div class="ag-name"><input type="checkbox" class="ag-sel" data-slug="${esc(a.slug)}" title="${esc(t("studio.sel_one"))}"> ${ic("bot")} ${esc(a.name)} <span class="ag-model">${esc(a.model_provider ? a.model_provider + "/" : "")}${esc(a.model || "")}</span></div>${roleHtml}<div class="ag-skills">${(a.skills || []).map(s => `<span class="chip-skill">${esc(s)}</span>`).join("") || `<span class="dim">${esc(t("studio.no_skills"))}</span>`}</div><div class="ag-group">${ic("folder-open")} ${esc(nhomCua(a))}</div><div class="wf-actions"><button class="s-btn-ghost edit">${esc(t("common.edit"))}</button><button class="s-btn-ghost exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="s-btn-ghost del">${esc(t("common.delete"))}</button></div>`;
       noiSel("agent", "agDl", div.querySelector(".ag-sel"), a.slug);
       div.querySelector(".exp").onclick = () => exportItem("agent", a.slug);
       div.querySelector(".edit").onclick = () => editAgent(a);
@@ -1172,7 +1176,9 @@
     const box = document.getElementById("editorBox");
     box.innerHTML = `<h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
-      <label>${esc(t("studio.role"))}</label><input id="agRole" value="${esc(a ? a.role : "")}">
+      <label>${esc(t("studio.role"))}</label>
+      <textarea id="agRole" rows="3" class="js-input" placeholder="${esc(t("studio.ag_role_ph"))}">${esc(a ? a.role : "")}</textarea>
+      <div class="dim" style="font-size:12px;margin:-4px 0 8px">${esc(t("studio.ag_role_hint"))}</div>
       <label>${esc(t("studio.groups"))}</label>
       <input id="agGroup" list="agGroupList" value="${esc(a ? nhomCua(a) : NHOM_MD)}" placeholder="${esc(t("studio.group_ph"))}">
       ${nhomDatalist(_agState.agents, "agGroupList")}
@@ -1314,16 +1320,26 @@
     .ag-group{color:var(--text3);font-size:13px;margin-top:7px;display:flex;align-items:center;gap:5px}
     .wf-group{color:var(--text3);font-size:13px;display:inline-flex;align-items:center;gap:4px;flex:none}
     .sk2-selwrap{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text3);cursor:pointer;white-space:nowrap}
-    .sk2-list{display:flex;flex-direction:column;gap:8px}
-    .sk2-card{display:flex;gap:12px;align-items:flex-start;padding:11px 13px;border:1px solid var(--hairline);border-radius:10px}
+    /* Desktop: 2 cột để danh sách skill/agent đỡ dài; mobile vẫn 1 cột */
+    .sk2-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .sk2-card{display:flex;gap:12px;align-items:flex-start;padding:11px 13px;border:1px solid var(--hairline);border-radius:10px;min-width:0}
     .sk2-card:hover{border-color:var(--info-line);background:var(--info-wash)}
     .sk2-card.off{opacity:.5} .sk2-tog{flex:none;margin-top:3px;width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
     .sk2-info{flex:1;min-width:0} .sk2-info .nm{color:var(--text);font-size:15px;font-weight:600}
-    .sk2-info .ds{color:var(--text3);font-size:14px;margin-top:3px;line-height:1.45}
+    .sk2-info .ds{color:var(--text2);font-size:13.5px;margin-top:4px;line-height:1.45;
+      display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-line}
+    .sk2-info .ds.thieu{color:var(--warn-ink,var(--orange,#c9842a));font-style:italic}
     .sk2-info .gp{color:var(--text3);font-size:13px;margin-top:4px}
     .sk2-act{display:flex;gap:5px;opacity:0;transition:.15s;flex:none} .sk2-card:hover .sk2-act{opacity:1}
     .sk2-act button{background:var(--surface-2);border:1px solid var(--hairline);color:var(--text2);border-radius:6px;cursor:pointer;font-size:13px;padding:3px 9px} .sk2-act button:hover{color:var(--text-hi);border-color:rgba(120,180,255,.5)}
     .sk2-act button.danger:hover{color:var(--red);border-color:rgba(255,120,120,.5)}
+    /* Agents: ép lưới 2 cột rõ trên màn rộng (cards mặc định auto-fill) */
+    #agCards.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .ag-card .ag-role{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;white-space:pre-line}
+    .ag-card .ag-role.thieu{color:var(--warn-ink,var(--orange,#c9842a));font-style:italic}
+    @media (max-width:900px){
+      .sk2-list,#agCards.cards{grid-template-columns:1fr}
+    }
     .wf-run-modal{position:fixed;inset:0;z-index:3200;display:none;align-items:center;justify-content:center;
       background:rgba(8,12,18,.58);backdrop-filter:blur(4px);padding:20px;box-sizing:border-box}
     .wf-run-modal.open{display:flex}
@@ -1433,8 +1449,12 @@
       } else if (s.stale) {
         usageHtml = ` · <span class="sk-usage sk-stale" title="${esc(t("studio.unused_title"))}">${esc(t("studio.unused"))}</span>`;
       }
+      const desc = (s.description || "").trim();
+      const descHtml = desc
+        ? `<div class="ds" title="${esc(desc)}">${esc(desc)}</div>`
+        : `<div class="ds thieu">${esc(t("studio.sk_desc_missing"))}</div>`;
       div.innerHTML = `<input type="checkbox" class="sk2-tog" ${on ? "checked" : ""} title="${esc(on ? t("studio.tog_on") : t("studio.tog_off"))}">
-        <div class="sk2-info"><div class="nm">${ic("puzzle")} ${esc(s.name)}${sysBadge}</div><div class="ds">${esc(s.description || "")}</div><div class="gp">${ic("folder-open")} ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}${usageHtml}</div></div>
+        <div class="sk2-info"><div class="nm">${ic("puzzle")} ${esc(s.name)}${sysBadge}</div>${descHtml}<div class="gp">${ic("folder-open")} ${esc(s.group || "Chung")} · ${esc(s.slug)}${s.source === ".agents" ? " · .agents" : ""}${usageHtml}</div></div>
         <div class="sk2-act">${s.system ? "" : `<label class="sk2-selwrap" title="${esc(t("studio.sel_one"))}"><input type="checkbox" class="sk2-sel" data-slug="${esc(s.slug)}"> ${esc(t("studio.pick"))}</label>`}<button class="edit">${esc(t("common.edit"))}</button>${s.system ? "" : `<button class="exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="del danger">${esc(t("common.delete"))}</button>`}</div>`;
       div.querySelector(".sk2-tog").onchange = (e) => toggleSkill(s, e.target.checked);
       const selBox = div.querySelector(".sk2-sel");
@@ -1465,7 +1485,10 @@
         <div><label>${esc(t("studio.sk_name"))}</label><input id="skName" class="js-input" value="${esc(sk.name)}" placeholder="${esc(t("studio.sk_name_ph"))}"></div>
         <div><label>${esc(t("studio.groups"))}</label><input id="skGroup" class="js-input" list="skGroupList" value="${esc(sk.group || "Chung")}" placeholder="${esc(t("studio.sk_group_ph"))}">
           <datalist id="skGroupList">${groupOpts}</datalist></div>
-        <div><label>${esc(t("studio.sk_desc"))}</label><textarea id="skDesc" class="js-input" style="min-height:60px">${esc(sk.description || "")}</textarea></div>
+        <div><label>${esc(t("studio.sk_desc"))}</label>
+          <textarea id="skDesc" class="js-input" style="min-height:88px" placeholder="${esc(t("studio.sk_desc_ph"))}">${esc(sk.description || "")}</textarea>
+          <div class="dim" style="font-size:12px;margin-top:4px">${esc(t("studio.sk_desc_hint"))}</div>
+        </div>
         <div><label>${esc(t("studio.sk_body"))}</label><textarea id="skBody" class="js-input" style="min-height:200px;font-family:ui-monospace,monospace">${esc(sk.body || "")}</textarea></div>
         <div style="display:flex;gap:10px"><button class="s-btn" id="skSave">${ic("save")} ${esc(t("common.save"))}</button><button class="s-btn-ghost" id="skCancel">${esc(t("common.cancel"))}</button></div>
       </div>`;

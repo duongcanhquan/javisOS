@@ -191,6 +191,63 @@ phát hiện bản mới qua nhãn Docker**, không phải sửa gì ở proxy, 
 > `JAVIS_BIND=127.0.0.1` thu cổng về loopback vì đã có proxy lo HTTPS. Vẫn vào gỡ rối được bằng
 > `ssh -L 7777:localhost:7777 user@<ip-vps>` khi DNS chưa lan tới.
 
+### Manager = gốc chuẩn (đồng bộ template xuống tenant)
+
+Một bản đặt tên `javis-manager` (thường gắn domain gốc, vd `javis.vietmycollege.com`) đóng vai
+**thư mục gốc chuẩn**: bạn thêm/sửa agents, workflows, skills trên **Brain Default** của manager,
+rồi đồng bộ xuống Brain Default của mọi tenant. Tenant tự chỉnh sau đó — sync lần sau **không đè**
+file họ đã sửa (manifest `.javis/manager-manifest.json`).
+
+Không sync: memory, wiki, sources, sessions, admin, Claude/Codex auth. Brain riêng của tenant
+(vd `APC.HN`) không bị đụng.
+
+**Bật vai trò manager** (thư mục `~/javis-manager`):
+
+```bash
+# trong .env
+JAVIS_NAME=javis-manager
+JAVIS_ROLE=manager
+DOMAIN_NAME=javis.tencuaban.com
+# ... các biến multi khác
+
+CF="-f docker-compose.yml -f docker-compose.multi.yml -f docker-compose.manager.yml"
+docker compose $CF up -d
+```
+
+`docker-compose.manager.yml` gắn `docker.sock` (+ docker CLI host) để nút **Đồng bộ template**
+trong Cài đặt gọi `POST /ops/sync-template`. **Không** gắn socket này lên tenant thường.
+
+**Đấu nối não giống quan (khuyến nghị cho manager của bạn):** manager dùng chung volume
+Claude/Codex với `javis-quan`, và copy block `model` + MCP/connector từ quan (một lần):
+
+```bash
+# trên VPS, thư mục javis-manager
+cp docker-compose.manager-auth.yml .   # hoặc lấy từ repo
+# volumes ngoài: javis_claude-auth , javis_codex-auth (đã có từ quan)
+docker compose -f docker-compose.yml -f docker-compose.multi.yml \
+  -f docker-compose.manager.yml -f docker-compose.manager-auth.yml up -d
+```
+
+Sau đó đồng bộ settings model/MCP từ quan (giữ nguyên tài khoản admin của manager) — hoặc mở
+Models trên manager và chọn cùng engine. Hai bản cùng đốt một hạn mức Claude/Codex vì chung auth.
+
+**Ops trên VPS (khuyến nghị lần đầu / cron):**
+
+```bash
+# Một lần: đưa chuẩn từ bản đang có dữ liệu (vd quan) vào manager
+python3 scripts/sync_manager_template.py --promote-from javis-quan
+
+# Đồng bộ manager → mọi tenant (dry-run trước nếu muốn)
+python3 scripts/sync_manager_template.py --sync --dry-run
+python3 scripts/sync_manager_template.py --sync
+```
+
+**Tenant mới:** sau `compose up`, chạy `--sync` một lần (hoặc bấm Đồng bộ trên manager) để nhận
+Brain Default chuẩn.
+
+**Hướng dẫn người dùng** (cài `agy`, PATH, Claude/Codex, checklist):  
+[docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
+
 **Cập nhật** vẫn là `./update.sh` trong từng thư mục - script đọc `.env` của thư mục đang đứng
 nên chỉ đụng đúng bản đó. Bản đầu tiên đang chạy `docker-compose.https.yml` (Caddy nằm trong
 project) thì chuyển nó sang `docker-compose.multi.yml` trước khi dựng bản thứ hai, không thì hai
@@ -209,11 +266,14 @@ Dịch vụ systemd sẽ là `javis-shop.service` (`journalctl -u javis-shop -f`
 
 ### Cái gì dùng chung, cái gì riêng
 
-**Riêng từng bản:** brain, ghi chú, cài đặt, tài khoản admin, kết nối MCP, việc nền, và **token
-đăng nhập Claude/ChatGPT** (mỗi bản phải `claude auth login` một lần).
+**Riêng từng bản:** brain (kể cả chỉnh sửa sau sync), ghi chú, cài đặt, tài khoản admin, kết nối
+MCP, việc nền, và **token đăng nhập Claude/ChatGPT** (mỗi bản phải `claude auth login` một lần).
 
-**Dùng chung:** không có gì. Muốn hai bản xài chung một lần đăng nhập Claude thì trỏ chung
-volume `claude-auth` - làm được nhưng tự chịu trách nhiệm, vì hai bản sẽ cùng đốt một hạn mức.
+**Dùng chung (infra):** mạng `javis-web`, `javis-proxy` (HTTPS), image Docker.
+
+**Gốc chuẩn (manager):** agents / workflows / skills trên Brain Default của `javis-manager` được
+**đồng bộ một chiều** xuống Brain Default các tenant (seed + cập nhật bản chưa sửa). Không phải
+volume dùng chung — mỗi tenant vẫn có bản copy riêng.
 
 ---
 
@@ -266,6 +326,8 @@ VPS Windows không Docker: trong `.env` đặt `JAVIS_HOST=0.0.0.0` + `JAVIS_ADM
 |---|---|---|
 | `JAVIS_HOST` | Địa chỉ nghe. `127.0.0.1` = chỉ máy này; `0.0.0.0` = mọi nơi (Docker tự đặt) | `127.0.0.1` |
 | `JAVIS_PORT` | Cổng | `7777` |
+| `JAVIS_ROLE` | `manager` = bản gốc chuẩn (nút đồng bộ template + `/ops/sync-template`) | (trống = tenant) |
+| `JAVIS_TEMPLATE_BRAIN` | Tên brain dùng làm template khi sync | `Brain Default` |
 | `JAVIS_STATE_DIR` | Nơi Javis ghi state (settings, sessions, loop config) | `server/` (Docker: `/data/state`) |
 | `OBSIDIAN_VAULT_PATH` | Vault Second Brain chính | `vault/` trong repo (Docker: `/data/vault`) |
 | `BRAIN_PATH` | Thư mục brain | `brain/` trong repo (Docker: `/data/brain`) |

@@ -22,11 +22,21 @@ The canonical copy lives at `skills/<slug>/SKILL.md`, which is exactly what the 
 
 This is where people get stuck without knowing why. When you click **💾 Save**, the server checks `description` and **refuses to save** if it breaks either rule:
 
-**1. At most 150 characters.** This is not cosmetic. Javis truncates the description at exactly 150 characters when injecting it into the system prompt and into the `javis_use_skill` tool description, so the excess is lost silently and the skill cannot be routed. The rejection message says exactly that, and tells you to move trigger examples into a `## When to use` section in the body.
+**1. At most 150 characters (~2–3 short lines).** This is not cosmetic. Javis truncates the description at exactly 150 characters when injecting it into the system prompt and into the `javis_use_skill` tool description, so the excess is lost silently and the skill cannot be routed.
 
-**2. No hollow opening phrases.** Blocked openings include "Activate when...", "Use this skill when...", "This skill is used for..." and their Vietnamese equivalents. Every skill opens the same way, so that phrase burns character budget without distinguishing anything. The rejection message suggests the right shape: state the capability directly, for example "Summarise meeting minutes into a task list."
+Write clearly so someone opening the Skills page understands immediately:
 
-The right way: one sentence stating what the skill **can do**, under 150 characters. Long trigger examples, keyword lists and detailed situations belong in a `## When to use` section in the **body** of `SKILL.md`, where nothing is truncated and which is only read once the skill is loaded. Put briefly: the description is for FINDING, the body is for DOING.
+1. What the skill **does**.
+2. **When to use it** (or what repo/data it needs).
+3. A short **caveat** (when not to use it, API/key requirements…).
+
+Example: `Summarise meeting minutes into a task list. Needs a .md in the brain. Skip if there are no notes yet.`
+
+**2. No hollow opening phrases.** Blocked openings include "Activate when...", "Use this skill when...", "This skill is used for..." and their Vietnamese equivalents. Every skill opens the same way, so that phrase burns character budget without distinguishing anything. The rejection message suggests the right shape: state the capability directly.
+
+The right way: one or two sentences stating what the skill **can do**, under 150 characters. Long trigger examples, keyword lists and detailed situations belong in a `## When to use` section in the **body** of `SKILL.md`, where nothing is truncated and which is only read once the skill is loaded. Put briefly: the description is for FINDING and READING ON THE UI, the body is for DOING.
+
+On the dashboard, the Skills / Agents lists use a **two-column** layout on wide screens and show up to ~3 lines of description; missing descriptions show a fix reminder.
 
 These rules apply both to the dashboard form and to skills proposed by the **Self-learning** page (a violating skill is blocked and listed as skipped).
 

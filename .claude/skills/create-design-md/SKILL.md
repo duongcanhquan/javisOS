@@ -1,6 +1,6 @@
 ---
 name: create-design-md
-description: "Create or update a DESIGN.md from an existing product repo or public website."
+description: "Tạo/cập nhật DESIGN.md từ repo sản phẩm hoặc website công khai."
 description_en: "Create or update a DESIGN.md from an existing product repository or public website."
 group: Marketing
 ---

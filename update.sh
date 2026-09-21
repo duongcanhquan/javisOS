@@ -38,6 +38,14 @@ if [ "$MODE" = "docker" ] || { [ "$MODE" = "auto" ] && is_docker; }; then
   if [ -f docker-compose.multi.yml ] && docker network inspect javis-web >/dev/null 2>&1; then
     HTTPS_ARGS="-f docker-compose.yml -f docker-compose.multi.yml"
     echo "==> Phát hiện proxy dùng chung (javis-web) → giữ nguyên cấu hình nhiều bản."
+    if [ -f docker-compose.manager.yml ]; then
+      HTTPS_ARGS="$HTTPS_ARGS -f docker-compose.manager.yml"
+      echo "==> Giữ override manager (JAVIS_ROLE / docker.sock)."
+    fi
+    if [ -f docker-compose.manager-auth.yml ]; then
+      HTTPS_ARGS="$HTTPS_ARGS -f docker-compose.manager-auth.yml"
+      echo "==> Giữ override manager-auth (Claude/Codex dùng chung với quan)."
+    fi
   fi
   docker compose $HTTPS_ARGS pull
   docker compose $HTTPS_ARGS up -d

@@ -22,11 +22,21 @@ Bản chuẩn (canonical) của skill nằm ở `skills/<slug>/SKILL.md` - đún
 
 Đây là chỗ hay làm người dùng tắc mà không hiểu vì sao. Khi bạn bấm **💾 Lưu**, server kiểm tra `description` và **từ chối lưu** nếu vi phạm một trong hai luật:
 
-**1. Tối đa 150 ký tự.** Đây không phải chuyện thẩm mỹ. Javis cắt mô tả đúng ở 150 ký tự khi bơm vào system prompt và vào mô tả tool `javis_use_skill`, nên phần dư mất im lặng và skill không route được. Lý do từ chối hiện đúng chữ: "description dài N ký tự, vượt trần 150. Router cắt đúng ở 150 nên phần dư MẤT IM LẶNG và skill không route được. Đưa ví dụ trigger xuống mục '## Khi nào dùng' trong thân file."
+**1. Tối đa 150 ký tự (~2–3 dòng ngắn).** Đây không phải chuyện thẩm mỹ. Javis cắt mô tả đúng ở 150 ký tự khi bơm vào system prompt và vào mô tả tool `javis_use_skill`, nên phần dư mất im lặng và skill không route được.
 
-**2. Không mở đầu bằng cụm sáo rỗng.** Các cụm bị chặn: "Kích hoạt khi...", "Sử dụng skill này khi...", "Dùng skill này khi...", "Skill này dùng / Skill này được dùng...", "Use this skill when...", "Activate when...". Mọi skill đều mở y hệt nhau nên cụm đó đốt ngân sách ký tự mà không phân biệt được skill nào với skill nào. Lý do từ chối gợi ý luôn cách viết đúng: nêu thẳng năng lực, ví dụ "Tóm tắt biên bản họp thành danh sách việc cần làm."
+**Viết bằng tiếng Việt, rõ ràng**, đủ để người mở trang Skills hiểu ngay:
 
-Cách viết đúng: một câu nêu thẳng skill **làm được gì**, dưới 150 ký tự. Ví dụ trigger dài, danh sách từ khoá, các tình huống chi tiết thì đưa xuống mục `## Khi nào dùng` trong **thân** file `SKILL.md` - chỗ đó không bị cắt và chỉ được đọc khi skill đã nạp. Nói gọn: phần mô tả để TÌM, thân file để LÀM.
+1. Skill **làm gì** / chức năng chính.
+2. **Khi nào dùng** (hoặc repo / dữ liệu cần có).
+3. **Lưu ý** ngắn (không dùng khi nào, cần API/key…).
+
+Ví dụ đạt: `Tóm tắt biên bản họp thành danh sách việc. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.`
+
+**2. Không mở đầu bằng cụm sáo rỗng.** Các cụm bị chặn: "Kích hoạt khi...", "Sử dụng skill này khi...", "Dùng skill này khi...", "Skill này dùng / Skill này được dùng...", "Use this skill when...", "Activate when...". Mọi skill đều mở y hệt nhau nên cụm đó đốt ngân sách ký tự mà không phân biệt được skill nào với skill nào. Lý do từ chối gợi ý luôn cách viết đúng: nêu thẳng năng lực.
+
+Cách viết đúng: một–hai câu nêu thẳng skill **làm được gì**, dưới 150 ký tự. Ví dụ trigger dài, danh sách từ khoá, các tình huống chi tiết thì đưa xuống mục `## Khi nào dùng` trong **thân** file `SKILL.md` - chỗ đó không bị cắt và chỉ được đọc khi skill đã nạp. Nói gọn: phần mô tả để TÌM và ĐỌC TRÊN UI, thân file để LÀM.
+
+Trên dashboard, danh sách Skills / Agents hiện **hai cột** (màn rộng) và hiện tối đa ~3 dòng mô tả; thiếu mô tả sẽ báo nhắc sửa.
 
 Luật này áp cho cả biểu mẫu trên dashboard lẫn skill do trang **Tự học** đề xuất (skill vi phạm bị chặn, ghi vào danh sách bỏ qua).
 

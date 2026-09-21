@@ -1,6 +1,6 @@
 ---
 name: fixing-motion-performance
-description: "Audit and fix animation performance: layout thrash, compositor props, scroll motion."
+description: "Audit/sửa hiệu năng animation: layout thrash, compositor, scroll motion."
 description_en: "Fix janky UI animation: layout thrash, compositor-only props, and scroll-linked motion."
 group: Marketing
 ---

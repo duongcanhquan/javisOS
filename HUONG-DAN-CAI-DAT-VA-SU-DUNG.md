@@ -3,6 +3,7 @@
 ***Tiếng Việt** · Bản này dành cho người nhận **bản đóng gói** (ZIP máy cá nhân hoặc image Docker trên VPS).*
 
 Tài liệu này dẫn từ lúc **cài lần đầu** tới lúc **dùng được chat, Studio, Kết nối**.  
+**Trong app:** menu bên trái nhóm **Hướng dẫn** (ngay dưới Kết nối) — 4 trang: Javis làm được gì · Kết nối · Skill/Agent/Workflow · Công việc & chức năng.  
 **PDF tải về (có hình / sơ đồ):** [Cài đặt](docs/huong-dan/HUONG-DAN-CAI-DAT-Javis-OS.pdf) · [Sử dụng ban đầu](docs/huong-dan/HUONG-DAN-SU-DUNG-Javis-OS.pdf) - mục lục đầy đủ trong [docs/huong-dan/README.md](docs/huong-dan/README.md).  
 Chi tiết từng trang trong app: [docs/README.md](docs/README.md).  
 Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md).  
@@ -10,7 +11,8 @@ Cài nhanh theo đối tượng trường: [CAI-DAT-TRUONG.md](CAI-DAT-TRUONG.md
 **Máy local Windows / Mac (+ Ollama tùy chọn):** [HUONG-DAN-CAI-MAY-LOCAL.md](HUONG-DAN-CAI-MAY-LOCAL.md).  
 **Cách cài đơn giản nhất:** [CAI-DAT-DON-GIAN.md](CAI-DAT-DON-GIAN.md).  
 **Cài sẵn trên máy trước Javis (Win / Mac / VPS):** [docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md](docs/huong-dan/CHUAN-BI-TRUOC-KHI-CAI.md).  
-Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).
+Kỹ thuật VPS sâu: [DEPLOY.md](DEPLOY.md).  
+**Nhiều người / nhiều subdomain trên một VPS** (đấu Antigravity·Claude·Codex, nút Đồng bộ manager): [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
 
 ---
 
@@ -397,6 +399,8 @@ Nhóm **Kết nối → Models**. Chọn **một** trong các đường phổ bi
 | **Grok Build** | Đăng nhập SuperGrok / X Premium+ | CLI `grok`, gắn plan không cần API key |
 | **Antigravity CLI** | Cài `agy`, đăng nhập một lần | Lineup model Google plan; VPS: in link trong terminal |
 | **OpenRouter / OpenAI / Gemini / Anthropic / Groq / DeepSeek / Ollama** | API key | Không cần CLI; không chạy lệnh máy |
+
+**Nhiều bản trên một VPS:** mỗi subdomain tự đấu não một lần (`agy` / Claude / Codex không dùng chung). Chi tiết thao tác + PATH + nút Đồng bộ manager: [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md).
 
 Sau khi kết nối: chọn **Main Model** + (tuỳ chọn) **Model việc nền** rẻ hơn.
 

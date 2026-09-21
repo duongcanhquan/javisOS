@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.274] - 2026-09-21
+### Mới
+- **Nhóm menu Hướng dẫn** (ngay dưới Kết nối): 4 trang — Javis làm được gì · Kết nối · Skill/Agent/Workflow · Công việc & chức năng. Chữ đơn giản, sơ đồ luồng, nút nhảy thẳng vào trang thật (guides.js).
+- **Manager template sync** lên repo: JAVIS_ROLE=manager, server/manager_template_sync.py, scripts/sync_manager_template.py, API /ops/sync-template, compose override, Studio mô tả Việt, docs/30.
+
 ## [0.55.273] - 2026-09-21
 ### Sửa
 - **Chỗ RAM không bị hai người bật cùng lúc.** Link cũ `javis-tên` vẫn bật đúng máy. Gắn lại tên miền luôn giữ ổ não, không gắn máy trống.
@@ -71,17 +76,18 @@
 - **Nhóm Tổ chức hiện trên Javis gốc.** Cờ quản trị trước đây chỉ nằm file máy chủ, không vào container nên rail giấu mục. Mở `javis.vietmycollege.com`, đáy thanh trái. Não cá nhân vẫn ở `javis-quan`.
 
 ## [0.55.256] - 2026-09-21
-### Mới
-- **Tổ chức hiện thành nhóm riêng trên Javis gốc** (`javis.vietmycollege.com`), bấm là vào. Chỉ admin gốc thấy; Javis từng người không có mục này.
-- **Sổ người đủ hạn mức:** ổ đang dùng, token tháng, bật/tắt API chung, sửa trần, đặt lại mật khẩu ngay trên thẻ. Khóa API dán một lần trên Javis gốc.
+### Cải thiện
+- **Skills / Agents Studio:** danh sách 2 cột trên màn rộng; mô tả hiện ~3 dòng; form bắt Việt-hóa mô tả (làm gì · cần gì · lưu ý). i18n + docs 06/07.
+- **Mô tả skill tiếng Việt** cho các skill còn tiếng Anh trong Brain Default / `.claude` (find-skills, Remotion, UI a11y…).
 
 ## [0.55.255] - 2026-09-21
-### Mới
-- **Tổ chức: tạo người với tên + mật khẩu mạnh**, hạn mức ổ và token, bật/tắt API chung. Khóa API dán trên Javis gốc, không chép xuống máy từng người. Họ tự đổi mật khẩu trong Tài khoản.
+### Cải thiện
+- **Nút Đồng bộ template trên Tổng quan + đầu trang Cài đặt** (bản manager). Xem trước / Đồng bộ ngay đẩy skill·agent·workflow xuống mọi tenant.
+- **Hướng dẫn nhiều bản & đấu nối bộ não:** [docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md) (cài `agy`, PATH, Claude/Codex, sync manager, checklist).
 
 ## [0.55.254] - 2026-09-21
 ### Mới
-- **Javis gốc có mục Tổ chức.** Tạo Javis cho từng người (link `javis-[tên]`), bật/tắt máy. Đăng nhập mặc định admin/admin, rồi đổi mật khẩu trong Tài khoản. Bản quan không tắt từ đây.
+- **Manager = gốc chuẩn multi-tenant.** Bản `JAVIS_ROLE=manager` đẩy agents/workflows/skills từ Brain Default xuống mọi tenant (không đè bản tenant đã sửa). Script `scripts/sync_manager_template.py`, override `docker-compose.manager.yml`, nút Đồng bộ trong Cài đặt, API `/ops/sync-template`.
 
 ## [0.55.253] - 2026-09-18
 ### Mới
@@ -434,6 +440,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.55.174] - 2026-09-09
 ### Cải tiến
 - **Cuộc họp nghe phòng xa hơn:** AGC phần mềm + VAD 0,38 (trước 0,6) + cửa RMS 0,0035 (trước 0,012); tắt khử ồn Chrome (vẫn chống vọng); nhấn dải giọng. Lọc câu bịa (subscribe / im lặng số) giữ. Không giả beamforming trên 1 mic laptop.
+
 ## [0.55.173] - 2026-09-09
 ### Cải tiến
 - **Tạo video tận dụng đủ pipeline:** thêm tab HTML kinetic (Ommi); Promo dùng đủ mode/shot card/beat-sync/Jianying; Collage có theme+arc+TTS; Remotion data/maps/caption; chip năng lực + CTA/brand trên form.
@@ -616,27 +623,34 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.55.130] - 2026-09-07
 ### Sửa lỗi
 - **Giọng nói:** gỡ helper không ai gọi (`status`/`want_stream`) và lớp bọc stream thừa khi `/tts` đã có đủ file MP3. Chốt câu nhanh và stream khung đầu không đổi.
+
 ## [0.55.129] - 2026-09-07
 ### Cải tiến
 - **Giọng nói nhanh hơn (kiểu Pipecat, không nhúng gói):** chốt câu đã rõ sau 0,4s / câu thường 0,9s thay vì chờ 1,9s; TTS Edge phát từng khung (`/tts?stream=1`) thay vì đợi cả file MP3. Engine, MCP, skill, Telegram, Zalo, cuộc họp không đổi. Tắt **Chốt câu nhanh khi nói** trong Cài đặt là về hành vi cũ. Không cài `pipecat-ai` vào venv (đòi fastapi>=0.115.6, phá pin Agent SDK).
 ### Sửa lỗi
 - **TTS stream:** không trả HTTP 200 rỗng khi Edge chưa có khung đầu (loa không còn treo chờ); lần thử lại tải cả file MP3, timeout 8s.
+
 ## [0.55.128] - 2026-09-07
 ### Sửa lỗi
 - **Antigravity:** không gửi `--effort` khi model đã có hậu tố `-low|-medium|-high` (hết lỗi conflicts với `gemini-3.8-flash-medium`).
+
 ## [0.55.127] - 2026-09-07
 ### Cải tiến
 - **Bài giảng → OpenMAIC trong Javis:** `POST /openmaic/generate` + poll job; nút Tạo lớp + iframe classroom; language=en-US + nội dung VI + TTS Edge; ACCESS_CODE mặc định tắt.
+
 ## [0.55.126] - 2026-09-07
 ### Cải tiến
 - **Bài giảng → OpenMAIC:** khóa `language=vi` + TTS Edge (cấm Live Demo / Browser Native / zh); nút Copy lệnh OpenMAIC; cập nhật skill + agent seed.
+
 ## [0.55.125] - 2026-09-07
 ### Cải tiến
 - **Bài giảng → OpenMAIC:** tab Lớp học lưu URL + mã site 1 lần; Copy brief / Mở OpenMAIC; ô dán giáo án cho mọi tab (kể cả Video).
 - **Deploy OpenMAIC:** `ACCESS_CODE` cố định (`vietmy-openmaic`), nginx upload 512MB.
+
 ## [0.55.124] - 2026-09-07
 ### Cải tiến
 - **OpenMAIC giọng Việt chuẩn:** proxy `POST /v1/audio/speech` (Edge-TTS Hoài My / Nam Minh); deploy OpenMAIC trỏ `TTS_OPENAI` vào Javis, tắt Browser Native mặc định.
+
 ## [0.55.123] - 2026-09-07
 ### Cải tiến
 - **Bài giảng & Marketing:** bấm Chạy sẽ khóa nút (hiện «Đang chạy…»), kiểm tra đủ đầu vào trước khi chạy, không đổi tab giữa chừng; Chuẩn bị lần đầu cũng khóa tạm.
@@ -698,95 +712,125 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.55.110] - 2026-09-06
 ### Cải tiến
 - **Moonshine cache chắc hơn:** lưu Cache API sau khi tải xong, dùng lại cache legacy, preload khi mở tab họp; status tách rõ tải VPS / đọc máy / khởi tạo; watchdog Moonshine 45s.
+
 ## [0.55.109] - 2026-09-06
 ### Cải tiến
 - **Moonshine không tải lại mỗi lần:** Cache API trên máy + giữ Transcriber trong phiên; HTTP cache dài cho model trên VPS; mobile vẫn dùng Cloud STT (Gemini).
+
 ## [0.55.108] - 2026-09-06
 ### Sửa lỗi
 - **Moonshine không còn đếm giây mãi:** giới hạn pthread pool WASM còn 2 worker (trước = số CPU → treo `loadWasmModuleToAllWorkers`); tải model có % thật; fail-fast engine 20s.
+
 ## [0.55.107] - 2026-09-06
 ### Sửa lỗi
 - **Moonshine họp lại đúng:** ưu tiên Moonshine desktop VI; `modelsFrom` map file local (không catalog CDN); timeout nạp lần đầu dài hơn; deploy bắt buộc copy model từ persist vào container (thiếu VI → fail).
+
 ## [0.55.106] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp không còn kẹt Nạp Moonshine:** mặc định ghi bằng Gemini Cloud STT / Web Speech; Moonshine chỉ khi bật tay (localStorage), timeout 12s rồi failover.
+
 ## [0.55.105] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp chắc chắn hơn:** không cần Groq; VI thiếu Moonshine → Cloud STT Gemini trước Web Speech; failover Moonshine→Gemini→Web Speech; tổng kết nhận Antigravity hoặc Gemini API.
+
 ## [0.55.104] - 2026-09-06
 ### Cải tiến
 - **STT không bắt buộc Groq:** Cloud STT ưu tiên Gemini (rồi OpenAI); cuộc họp = Moonshine → Web Speech → cloud; mic chat mặc định Web Speech.
+
 ## [0.55.103] - 2026-09-06
 ### Cải tiến
 - **Pháp chế cá nhân:** `sources/phap-che` scaffold, skills phap-che / so sánh / snapshot web, plugin + API search hybrid (wiki + RAG sidecar), sync rclone, seed agent **Bộ Pháp chế**.
+
 ## [0.55.102] - 2026-09-06
 ### Cải tiến
 - **Khoang não ngân hà:** nền starfield + tinh vân chảy; đồ thị xoáy chậm + shimmer dây nối; tắt khi lite/mobile/reduced-motion.
+
 ## [0.55.101] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp / Moonshine:** gửi COOP/COEP (credentialless) + MIME `.ort`/`.wasm` để WASM threads chạy; bỏ qua Moonshine khi thiếu `crossOriginIsolated`.
+
 ## [0.55.100] - 2026-09-06
 ### Cải tiến
 - **Popup Kết nối:** hộp chi tiết / test kết nối rộng ~2× (1040px), vùng thông báo riêng không cắt chữ.
+
 ## [0.55.99] - 2026-09-06
 ### Cải tiến
 - **Đổi tên brain mặc định:** `POST /brains/rename` (kể cả Brain Default → ví dụ APC.HN); tên mới lưu state, alias `brain` vẫn đúng.
+
 ## [0.55.98] - 2026-09-06
 ### Sửa lỗi
 - **Deploy VPS:** chờ health lâu hơn (~2 phút) để tránh HEALTH_FAIL khi system sync khởi động chậm; vẫn restore Moonshine/vendor sau up.
+
 ## [0.55.97] - 2026-09-06
 ### Sửa lỗi
 - **i18n CI:** bỏ em dash trong chuỗi workflow mới; gắn data-i18n cho panel chạy; bổ sung `bar.tts` / `run.min_*` / `run.close_*`.
+
 ## [0.55.96] - 2026-09-06
 ### Sửa lỗi
 - **Rà soát trước ship:** chip workflow chỉ nhắc khi cần; HTML báo cáo placeholder ổn định; turndown local không reject ảo; gom Moonshine đa ngôn ngữ + vendor CDN + panel chạy rộng/export.
+
 ## [0.55.95] - 2026-09-06
 ### Cải tiến
 - **Workflow chạy: panel rộng hơn**, đóng/thu nhỏ không dừng chạy (chip nổi mở lại); tổng kết có link; nút tải Markdown/HTML, In→PDF, lưu vault; version dưới Quan.Duong.
+
 ## [0.55.94] - 2026-09-06
 ### Cải tiến
 - **Nạp sẵn Moonshine đa ngôn ngữ trên VPS** (vi/zh/ja/ar/uk/es/ko/en) + mermaid/turndown/Montserrat cùng origin; deploy tự copy-only từ `/root/javis-data`.
+
 ## [0.55.93] - 2026-09-06
 ### Cải tiến
 - **Workflow ▶ Chạy: giữ bản nháp trong phiên:** gõ mục tiêu/phạm vi rồi bấm ra ngoài popup vẫn còn khi mở lại (sessionStorage theo từng workflow); chạy xong mới xóa nháp.
+
 ## [0.55.92] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp VI: host model Moonshine trên VPS** (~140MB Base) — browser tải cùng origin, không còn treo CDN/HuggingFace ngoài; fallback cleanup micro rồi Whisper → Web Speech.
+
 ## [0.55.91] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp VI hết kẹt "Nạp model Moonshine…":** dùng `MicTranscriber` (có % + đếm giây), timeout 35s rồi tự Web Speech; bỏ preload model nền (hay treo promise); hủy cache khi tải lỗi.
+
 ## [0.55.90] - 2026-09-06
 ### Cải tiến
 - **Rail:** cạnh `Quan.Duong` hiện bản deploy (`v…` từ `/app-version`).
 - **Cuộc họp · Ghi mới:** sửa lưới 2 cột thật (trái form : phải transcript = **1 : 3**); trước đó `display:flex` đè mất grid nên xếp dọc.
+
 ## [0.55.89] - 2026-09-06
 ### Cải tiến
 - **Workflow full màn hình:** bỏ trần 1100px; lưới 4→3→2→1 cột theo độ rộng — theo dõi nhiều quy trình trên một dòng.
 - **Store gọn hơn:** thẻ nhỏ hơn, `auto-fill` ~200px → nhiều gói trên một hàng (Kết nối vẫn 3 cột).
+
 ## [0.55.88] - 2026-09-06
 ### Cải tiến
 - **Cuộc họp tab rõ hơn:** bỏ tiêu đề/icon trùng dưới trang; Ghi mới / Lưu trữ dạng segmented; Lưu trữ chỉ hiện panel riêng (không còn chồng danh sách dưới form ghi — sửa CSS `display` đè `[hidden]`).
+
 ## [0.55.87] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp tiếng Việt lại dùng Moonshine:** desktop chọn VI → Moonshine local trước (không ép Web Speech Google); Web Speech lỗi network/`language-not-supported` hoặc 12s im thì chuyển Moonshine; English vẫn Web Speech trước.
+
 ## [0.55.86] - 2026-09-06
 ### Cải tiến
 - **Giọng đọc theo stream:** chữ ra đến đâu đọc đến đó (cụm ngắn hơn, prefetch sớm); bỏ TTS câu chờ filler để khỏi cắt rồi mới nói — hội thoại nhanh/tự nhiên hơn.
+
 ## [0.55.85] - 2026-09-06
 ### Sửa lỗi
 - **Brief báo chí Telegram/Zalo có link bấm được:** tin mới dùng `[tiêu đề](url)` + dòng Đọc chi tiết; Zalo không còn cắt mất phần sau 1900 ký tự (chia nhiều tin); Telegram nhắc hẹn gửi MarkdownV2 + chia đoạn.
+
 ## [0.55.84] - 2026-09-06
 ### Sửa lỗi
 - **console.css:** gỡ chuỗi rác `pstream/main` cuối file (làm hỏng CSS).
+
 ## [0.55.83] - 2026-09-06
 ### Cải tiến
 - **Menu rail gọn khi hover:** không xổ hết nhóm nữa — bấm nhóm mới mở mục con. Khung hội thoại rộng hơn (400→560px khi thu Vault).
+
 ## [0.55.82] - 2026-09-06
 ### Cải tiến
 - **Cuộc họp desktop 2 cột:** trái gọn (thông tin + tổng kết/kiến thức), phải transcript full chiều cao — một màn hình, ít kéo dọc.
+
 ## [0.55.81] - 2026-09-06
 ### Sửa lỗi
 - **Cuộc họp English hết báo Moonshine tải quá lâu:** failover 12s không còn kéo model Moonshine EN; chỉ thử Moonshine với tiếng Việt; Web Speech im thì bật lại Chrome/Edge hoặc File → chữ.
+
 ## [0.55.80] - 2026-09-06
 ### Sửa lỗi
 - **Workflow không còn tự "tắt" sau seed/chạy:** `status: on` (YAML True) được coi là bật; seed ghi đè giữ nguyên trạng thái bạn đã chọn; file caps dùng `status: active`.
@@ -874,6 +918,7 @@ Lịch sử phiên bản Javis OS. Bản mới nhất ở trên cùng. Xem ngay 
 ## [0.55.61] - 2026-09-06
 ### Cải tiến
 - **Trạng thái chờ chat:** `Javis đang suy nghĩ...` → `Cho em chút thời gian....`
+
 ## [0.55.60] - 2026-09-06
 ### Sửa
 - **Bust cache asset:** tăng VERSION để trình duyệt bỏ `meetings.js` (và JS khác) bị kẹt immutable sau chuỗi deploy nhanh.
@@ -1618,13 +1663,11 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 - **GitHub Copilot CLI đúng hai lối như các thẻ khác:** cài gói rồi `copilot login` (giống Antigravity), hoặc dán fine-grained PAT (Copilot Requests) ngay trên thẻ Models rồi bấm Kết nối.
 - **Menu icon:** rê chuột vào thì bung rộng thật và hiện chữ tiêu đề (sửa lỗi hover vẫn kẹt 60px).
 
-
 ## [0.35.88] - 2026-09-05
 ### Cải tiến
 - **Menu trái:** thu còn icon theo nhóm; rê chuột vào thì bung rộng hiện chữ (giữ accordion).
 - **Vault mặc định thu**; khung chat kéo dài hết chiều cao, chữ nhỏ hơn để hiện nhiều hơn.
 - **Copilot:** vào **Models** (nhóm Kết nối), tab Chưa kết nối; từ Cài đặt bấm lối tắt Models.
-
 
 ## [0.35.87] - 2026-09-05
 ### Cải tiến
@@ -1632,32 +1675,26 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 - **Kết nối / Models / Kênh gọn hơn:** tab Đã / Chưa kết nối, lưới 2 cột; Telegram và Zalo cạnh nhau.
 - **Menu trái mặc định chỉ icon**; cột Vault thu/mở được để khung hội thoại rộng hơn.
 
-
 ## [0.35.86] - 2026-09-05
 ### Cải tiến
 - **Menu bên trái mặc định chỉ icon** (rê chuột hiện tên) để màn rộng hơn; cột Vault thu/mở được, hội thoại bên phải rộng thêm khi thu.
-
 
 ## [0.35.85] - 2026-09-05
 ### Cải tiến
 - **Models & Kênh gọn như trang Kết nối.** Models tách tab Đã / Chưa kết nối, chia 2 cột; Kênh đặt Telegram và Zalo cạnh nhau trên một hàng.
 
-
 ## [0.35.84] - 2026-09-05
 ### Cải tiến
 - **Trang Kết nối gọn hơn, 2 tab rõ việc.** Tách **Đã kết nối** và **Dịch vụ kết nối**; danh sách chia 2 cột, card nhỏ hơn, thao tác Test/thêm dịch vụ dễ thấy hơn.
-
 
 ## [0.35.83] - 2026-09-05
 ### Sửa lỗi
 - **Google Chat: thông báo đúng khi thiếu Chat app.** OAuth JSON đúng mà Test báo lỗi thì hướng dẫn cấu hình Chat app trong Cloud Console (bước bắt buộc), không còn đổ oan key.
 
-
 ## [0.35.82] - 2026-09-05
 ### Sửa lỗi
 - **CI: test xóa cuộc họp nạp đúng module `meetings`.** Trước đó `python test_meetings_delete.py` không thấy `server/` nên cả bước Python đỏ dù JS đã xanh.
 - **Kết nối Google Chat hết báo “Key chưa đúng” vì field `query`.** Bước kiểm tra dùng đúng schema (`pageSize`), khớp MCP Chat của Google (`spaceNameQuery`).
-
 
 ## [0.35.81] - 2026-09-05
 ### Sửa lỗi
@@ -1667,21 +1704,17 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 ### Sửa lỗi
 - **CI và Ollama local khớp bản đang chạy.** Test Gemini CLI chuyển sang Antigravity; Ollama local có retry tool; bỏ em dash trong placeholder họp.
 
-
 ## [0.35.79] - 2026-09-05
 ### Sửa lỗi
 - **Khôi phục hồ sơ Memory HTĐT và sửa link mở hụt.** File `memory/facts/…` bị mất trên VPS đã seed lại; link trong `MEMORY.md` trỏ đúng `memory/facts/…`, và bấm link tương đối trong note cũng ghép đúng thư mục đang mở.
-
 
 ## [0.35.78] - 2026-09-05
 ### Cải thiện
 - **Telegram báo chờ thân thiện hơn.** Tin trạng thái đổi từ "Javis đang xử lý…" sang "Em đang thực hiện yêu cầu…".
 
-
 ## [0.35.77] - 2026-09-05
 ### Sửa lỗi
 - **Gemini API hết báo 404 model 2.5-flash.** Google đã ngừng bán `gemini-2.5-flash` cho tài khoản mới; Javis tự đổi sang `gemini-3.6-flash` (và cập nhật danh sách mặc định trên Telegram/Models).
-
 
 ## [0.35.76] - 2026-09-05
 ### Cải thiện
@@ -1696,62 +1729,50 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 ### Sửa lỗi
 - **Deploy VPS hết đua nhau và hết build Docker trên máy.** Mỗi lần đẩy code: GitHub dựng image xong mới kéo xuống VPS (không `--build` tại chỗ); Seed / Recover / Routing xếp hàng cùng một cửa SSH; Pixelle tắt trước khi lên container. Hết Conflict tên `javis` và SSH timeout vì nhiều job cùng lúc.
 
-
 ## [0.35.73] - 2026-09-05
 ### Cải thiện
 - **Dashboard và VPS nhẹ hơn.** Tắt Pixelle mặc định trên VPS (nhường RAM), giảm poll Việc/Bot, sửa MCP không đóng hết phiên mỗi lần đổi nhãn, và `/mcp/ambient` không còn chặn cả app khi hỏi `claude mcp list`.
-
 
 ## [0.35.72] - 2026-09-05
 ### Cải thiện
 - **Telegram/Zalo về Antigravity, bỏ ghim Groq.** Chat nhắn tin dùng chung gói Google ổn định; mic dashboard ưu tiên nhận giọng trình duyệt, không bắt dán key Groq.
 
-
 ## [0.35.71] - 2026-09-05
 ### Sửa lỗi
 - **Groq hết hạn mức phút (429 TPM) ít làm đứng chat hơn.** Zalo/Telegram chuyển sang model nhẹ `gpt-oss-20b`; hết quota thì tự chờ vài giây rồi thử lại thay vì báo lỗi ngay.
-
 
 ## [0.35.70] - 2026-09-05
 ### Sửa lỗi
 - **Zalo/Telegram lại đọc được Gmail/Lịch.** Lỗi kỹ thuật làm engine API (Groq…) chạy chat không có tool dù kết nối vẫn xanh; đã sửa và tự nạp tool email/lịch theo câu hỏi.
 
-
 ## [0.35.69] - 2026-09-05
 ### Sửa lỗi
 - **Groq gpt-oss không còn trả lời rỗng.** Model suy nghĩ hết token vẫn hiện chữ (lấy từ reasoning) và Javis gửi đủ ngân sách token cho chat Zalo/Telegram.
-
 
 ## [0.35.68] - 2026-09-05
 ### Cải thiện
 - **Dọn VPS một lệnh:** scrub Llama/Ollama local, prune Docker (giữ volume), kiểm tra hàm xoá kết nối / remap Groq còn sống - deploy tự chạy qua optimize.
 
-
 ## [0.35.67] - 2026-09-05
 ### Sửa lỗi
 - **Gỡ sạch Llama khỏi Groq.** Ghim/catalog cũ còn `llama-*` tự đổi sang `openai/gpt-oss-120b`; picker không còn hiện dòng Llama (Groq đã shutdown, gọi là 404).
 
-
 ## [0.35.66] - 2026-09-05
 ### Sửa lỗi
 - **Groq không còn gọi model đã gỡ.** `llama-3.3-70b-versatile` (và vài id Llama/Qwen cũ) tự đổi sang `openai/gpt-oss-120b` - hết lỗi 404 model_not_found.
-
 
 ## [0.35.65] - 2026-09-05
 ### Sửa lỗi
 - **Xoá kết nối Google Chat (và kết nối khác) không còn lỗi JSON / Internal Server Error.** Nút Xoá trên trang Kết nối chạy được để cài lại từ đầu.
 - **Nhắc hẹn / việc nền báo đúng engine.** Máy dùng Antigravity mà phụ lỗi sẽ không còn hiện nhầm "Claude CLI chưa cài" - Zalo/Telegram báo đúng lý do (chưa cài `agy`, chưa đăng nhập Google…).
 
-
 ## [0.35.64] - 2026-09-05
 ### Cải thiện
 - **Chat Zalo/Telegram tách tầng tốc độ.** VPS tự ghim kênh nhắn tin sang API flash (Groq/Gemini/DeepSeek…) nếu đã có key - phản hồi nhanh, vẫn gọi MCP; Antigravity giữ cho dashboard và việc nền.
 
-
 ## [0.35.63] - 2026-09-05
 ### Cải thiện
 - **Chat Telegram/Zalo nhanh hơn.** Zalo cũng đi được chế độ Siêu tiết kiệm (trước bị sót); ghim model trên Telegram áp luôn cho Zalo; VPS ép lazy MCP để bớt schema tool mỗi lượt.
-
 
 ## [0.35.62] - 2026-09-05
 ### Sửa lỗi
@@ -1759,51 +1780,41 @@ Bản này gộp 6 đóng góp từ cộng đồng - cảm ơn @japanvip115 và 
 - **Kết quả việc nền luôn vào hòm thư** kể cả khi Telegram/Zalo chưa đấu, không còn báo failed oan.
 - **Xoá kết nối Google Chat (và OAuth Google) báo đúng kết quả:** nếu xoá thất bại sẽ hiện lỗi thay vì báo xong mà card vẫn còn. Nút "Đăng nhập lại Google" có cho Chat/Gmail/Lịch; bấm "Kết nối lại" sẽ xoá token cũ trước khi mở trang Google.
 
-
 ## [0.35.61] - 2026-09-05
 ### Sửa lỗi
 - **Deploy VPS không còn kẹt khi gỡ Ollama.** Script gỡ xóa thư mục model trực tiếp (không gọi `ollama rm` dễ treo), chạy trước build Docker.
-
 
 ## [0.35.60] - 2026-09-05
 ### Cải thiện
 - **VPS bỏ Ollama local, chuyển sang cloud.** Tổng kết cuộc họp, nhắc hẹn và việc nền dùng Antigravity (nhanh hơn CPU). Deploy tự gỡ Ollama và xóa model trên VPS để giải phóng RAM/đĩa.
 
-
 ## [0.35.59] - 2026-09-05
 ### Cải thiện
 - **VPS 12GB tự tối ưu sau deploy:** script kiểm tra Ollama, `javis-qwen3-8b`, ctx 8192, giữ model nóng 30 phút, 6 vòng tool.
-
 
 ## [0.35.58] - 2026-09-05
 ### Sửa lỗi
 - **Tổng kết cuộc họp không còn báo Ollama trả về rỗng.** Model Qwen3 trước đó bị giới hạn 256 token output và chỉ suy nghĩ; giờ tắt thinking và cho phép viết báo cáo dài.
 
-
 ## [0.35.57] - 2026-09-05
 ### Sửa lỗi
 - **Deploy không còn tự gửi tin Zalo lỗi kỹ thuật.** Bỏ ép "Tổng kết sáng" mỗi lần deploy; nhắc 8h vẫn giữ, chỉ chạy ngay khi bạn bật tay.
-
 
 ## [0.35.56] - 2026-09-05
 ### Sửa lỗi
 - **Ghi cuộc họp không còn kẹt "Nạp model" im lặng.** Bật micro ngay khi bấm Bắt đầu (Web Speech hoặc Moonshine đã tải), tạo file server sau; không tranh micro với Web Speech trên Chrome.
 
-
 ## [0.35.55] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi hết giờ (ReadTimeout) trên CPU.** Tăng timeout HTTP 3 phút → 15 phút, giảm vòng tool và độ dài câu trả lời, báo rõ model đang chạy chậm thay vì stack trace.
-
 
 ## [0.35.54] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi 500 unexpected EOF trên VPS 6GB.** Hạ `num_ctx` mặc định 8k→4k, tạo swap 2G khi cài, tự thử lại với ctx nhỏ hơn khi runner bị OOM, và thông báo rõ hết RAM thay vì JSON thô.
 
-
 ## [0.35.53] - 2026-09-05
 ### Sửa lỗi
 - **Nhắc hẹn Ollama Local hết lỗi 400 thiếu `}`.** Khi gọi tool nhiều vòng, gửi lại `arguments` dạng object (Ollama native) thay vì JSON string kiểu OpenAI.
-
 
 ## [0.35.52] - 2026-09-05
 ### Sửa lỗi
@@ -6066,3 +6077,4 @@ Bản 0.9.70 ship tool `javis_schedule` ra ngoài trong tình trạng KHÔNG dù
 ### Thêm mới
 - Bản đầu tiên: trợ lý AI cá nhân chạy bằng Claude Code, giọng nói, đồ thị tri thức 3D, Second Brain.
 - README chi tiết: giới thiệu, cài đặt mọi cách, hướng dẫn dùng, bảo mật, khắc phục sự cố.
+

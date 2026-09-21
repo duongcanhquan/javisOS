@@ -89,6 +89,7 @@ import nhan_tool      # chip «Đang gọi» → câu tiếng Việt, ẩn tên 
 import zalo_login
 import oauth_mcp
 import system_sync   # tầng năng lực HỆ THỐNG (skill/loop mặc định) - update theo phiên bản app
+import manager_template_sync  # manager = gốc chuẩn → sync agents/workflows/skills xuống tenant
 import skill_router   # nguồn chân lý khám phá skill (canonical <brain>/skills) dùng chung mọi engine
 import skill_usage     # telemetry: đếm skill nào THẬT SỰ được dùng qua javis_use_skill (tín hiệu DƯƠNG một chiều)
 import share_bundle   # xuất/nhập gói agent/skill/workflow (.zip) để chia sẻ giữa brain/người dùng
@@ -910,11 +911,103 @@ async def app_version():
         html = (DASHBOARD_PATH / "index.html").read_text(encoding="utf-8")
     except OSError:
         html = ""
-    return {"version": _app_version() or "0", "assets": _asset_fps(html)}
+    return {
+        "version": _app_version() or "0",
+        "assets": _asset_fps(html),
+        "role": "manager" if manager_template_sync.is_manager_role() else "tenant",
+        "template_source": manager_template_sync.is_manager_role(),
+    }
 
 
 _ASSET_VER_RE = re.compile(r"^[\w.+-]+$")
 
+
+
+@app.get("/ops/template-status")
+async def ops_template_status():
+    """Trạng thái vai trò manager + docker (chỉ hữu ích trên bản gốc chuẩn)."""
+    if not manager_template_sync.is_manager_role():
+        return JSONResponse({"ok": False, "error": "Chỉ bản manager (JAVIS_ROLE=manager)."}, status_code=403)
+    docker = manager_template_sync.docker_ok()
+    tenants = []
+    if docker:
+        try:
+            tenants = [
+                n for n in manager_template_sync.list_javis_containers(
+                    exclude={"javis-manager", "javis-proxy"}
+                )
+                if n != (os.environ.get("JAVIS_MANAGER_NAME") or "javis-manager")
+            ]
+        except Exception as e:
+            return {"ok": True, "role": "manager", "docker": False, "error": str(e), "tenants": []}
+    return {
+        "ok": True,
+        "role": "manager",
+        "docker": docker,
+        "manager": os.environ.get("JAVIS_MANAGER_NAME") or "javis-manager",
+        "brain": manager_template_sync.BRAIN_NAME,
+        "tenants": tenants,
+    }
+
+
+@app.post("/ops/sync-template")
+async def ops_sync_template(dry_run: str = Form("0")):
+    """Đồng bộ agents/workflows/skills từ Brain Default của manager → mọi tenant.
+
+    Cần JAVIS_ROLE=manager và docker.sock (+ docker CLI) trên container manager.
+    Không đè file tenant đã sửa (manifest `.javis/manager-manifest.json`).
+    """
+    if not manager_template_sync.is_manager_role():
+        return JSONResponse({"ok": False, "error": "Chỉ bản manager (JAVIS_ROLE=manager)."}, status_code=403)
+    if not manager_template_sync.docker_ok():
+        return JSONResponse({
+            "ok": False,
+            "error": "Docker không dùng được trong container này. "
+                     "Gắn docker.sock + docker CLI (xem docker-compose.manager.yml), "
+                     "hoặc chạy trên VPS: python scripts/sync_manager_template.py --sync",
+        }, status_code=503)
+    want_dry = str(dry_run or "").strip().lower() in ("1", "true", "yes", "on")
+    manager_name = os.environ.get("JAVIS_MANAGER_NAME") or os.environ.get("JAVIS_NAME") or "javis-manager"
+    report = await asyncio.to_thread(
+        manager_template_sync.sync_via_docker,
+        manager=manager_name,
+        dry_run=want_dry,
+    )
+    code = 200 if report.get("ok") else 500
+    return JSONResponse(report, status_code=code)
+
+
+_ASSET_VER_RE = re.compile(r"^[\w.+-]+$")
+
+
+@app.get("/asset/{ver}/{path:path}")
+async def versioned_dashboard_asset(ver: str, path: str):
+    """JS/CSS mang phiên bản trên PATH, không chỉ query `?v=`.
+
+    Cloudflare/nginx hay cache `/static/meetings.js` và bỏ qua `?v=`. HTML thì no-store
+    nên freshness.js kêu đúng tên file cũ dù Ctrl+Shift+R. Mount `/static` nuốt mọi
+    `/static/...` nên prefix này phải nằm ngoài `/static`.
+    """
+    if not _ASSET_VER_RE.fullmatch(ver or ""):
+        return Response("Not Found", status_code=404)
+    rel = Path(path)
+    if rel.is_absolute() or ".." in rel.parts:
+        return Response("Not Found", status_code=404)
+    base = DASHBOARD_PATH.resolve()
+    f = (DASHBOARD_PATH / path).resolve()
+    try:
+        f.relative_to(base)
+    except ValueError:
+        return Response("Not Found", status_code=404)
+    if not f.is_file() or f.suffix.lower() not in (".js", ".css"):
+        return Response("Not Found", status_code=404)
+    return FileResponse(
+        str(f),
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Cross-Origin-Resource-Policy": "same-origin",
+        },
+    )
 
 @app.get("/asset/{ver}/{path:path}")
 async def versioned_dashboard_asset(ver: str, path: str):

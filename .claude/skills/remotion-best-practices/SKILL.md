@@ -1,6 +1,6 @@
 ---
 name: Tạo video ngắn Skill
-description: "Remotion best practices for short videos: composition, animation, captions, and correct rendering."
+description: "Thực hành Remotion video ngắn: composition, animation, caption, render đúng."
 description_en: "Remotion best practices for short videos: composition, animation, captions, and correct rendering. (EN)"
 group: Nội dung
 version: 4.0.513

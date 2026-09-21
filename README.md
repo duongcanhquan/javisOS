@@ -152,7 +152,8 @@ Chỉ cần ba giá trị khác nhau giữa các bản: `JAVIS_NAME`, `JAVIS_HOS
   tự xin SSL - thêm bản không phải sửa gì ở proxy.
 - **Native:** `JAVIS_NAME=javis-shop JAVIS_PORT=7778 ./install.sh`.
 
-Bỏ trống các biến = y hệt cách cài cũ. Từng bước một: **[DEPLOY.md](DEPLOY.md)**.
+Bỏ trống các biến = y hệt cách cài cũ. Từng bước một: **[DEPLOY.md](DEPLOY.md)**.  
+Hướng dẫn người dùng (đấu `agy` / Claude / Codex, đồng bộ manager): **[docs/30-nhieu-ban-va-dau-nao.md](docs/30-nhieu-ban-va-dau-nao.md)**.
 
 📄 Chi tiết hơn (named tunnel URL cố định, build từ source…) xem **[DEPLOY.md](DEPLOY.md)**.
 

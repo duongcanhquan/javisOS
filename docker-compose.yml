@@ -52,6 +52,10 @@ services:
       JAVIS_NAME: ${JAVIS_NAME:-javis}
       WORKSPACE_NAME: ${WORKSPACE_NAME:-}
       DOMAIN_NAME: ${DOMAIN_NAME:-}
+      # manager = gốc chuẩn (sync template). Tenant để trống.
+      JAVIS_ROLE: ${JAVIS_ROLE:-}
+      JAVIS_TEMPLATE_BRAIN: ${JAVIS_TEMPLATE_BRAIN:-Brain Default}
+      JAVIS_MANAGER_NAME: ${JAVIS_MANAGER_NAME:-}
       # Plugin do bạn cài (global/brain): chạy Python thật trong server. Mặc định BẬT trên VPS;
       # tắt bằng JAVIS_ENABLE_USER_PLUGINS=false trong .env nếu cần.
       JAVIS_ENABLE_USER_PLUGINS: ${JAVIS_ENABLE_USER_PLUGINS:-true}

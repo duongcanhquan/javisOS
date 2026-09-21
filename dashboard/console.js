@@ -50,6 +50,10 @@
     account: "circle-user",
     usage: "chart-column",
     org: "building-2",
+    guide_what: "sparkles",
+    guide_connect: "link",
+    guide_studio: "puzzle",
+    guide_work: "clipboard-check",
   };
   // Cỡ icon rail do CSS lo (.rail-ico svg { width: 19px }), độ ưu tiên chọn tử
   // cao hơn .ic nên không cần truyền cỡ ở đây.
@@ -65,6 +69,7 @@
     "Năng lực": ic("lightbulb"),
     "Việc": ic("clipboard-check"),
     "Kết nối": ic("link"),
+    "Hướng dẫn": ic("circle-help"),
     "Hệ thống": ic("sliders-horizontal"),
   };
   // Icon nút thu/mở sidebar: kiểu "panel sidebar". Tĩnh, không xoay.
@@ -89,6 +94,7 @@
     "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
     "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins",
     "packs", "logs", "account", "usage", "org",
+    "guide_what", "guide_connect", "guide_studio", "guide_work",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
   // ---- Gom rail thành nhóm theo chức năng (dễ tìm hơn danh sách phẳng 18 mục) ----
@@ -106,6 +112,7 @@
     { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
     { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
     { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
+    { get label() { return t("nav.group.huong_dan"); },   icon: GICON["Hướng dẫn"], ids: ["guide_what", "guide_connect", "guide_studio", "guide_work"] },
     { get label() { return t("nav.group.quan_tri"); },    icon: ic("building-2"), ids: ["org"], foot: true },
     { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
   ];
@@ -205,7 +212,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "org"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "org", "guide_what", "guide_connect", "guide_studio", "guide_work"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -492,6 +499,11 @@
     if (id === "packs") {
       if (window.JavisPacks) return window.JavisPacks.render(el);
       el.innerHTML = placeholder("packs", "packs.js chưa sẵn sàng.");
+      return;
+    }
+    if (id === "guide_what" || id === "guide_connect" || id === "guide_studio" || id === "guide_work") {
+      if (window.JavisGuides) return window.JavisGuides.render(el, id);
+      el.innerHTML = placeholder(id, "guides.js chưa sẵn sàng.");
       return;
     }
     if (id === "channels") return renderChannels(el);
@@ -2986,6 +2998,20 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         </div>
       </div>`;
     el.innerHTML = _verSec + `
+      <div class="cview-section" id="ovMgrSyncSec" style="display:none">
+        <h3>Manager — đồng bộ tenant</h3>
+        <div class="cgrid">
+          <div class="gcard" style="max-width:720px">
+            <div class="gcard-top"><span class="gcard-name">Đẩy template xuống mọi tenant</span><span class="gcard-tag">Manager</span></div>
+            <div class="gcard-meta">Sau khi thêm/sửa <b>skill / agent / workflow</b> trên Brain Default, bấm đồng bộ để các tenant (hanh, quan, …) nhận bản chuẩn. Không đè file họ đã sửa. Hướng dẫn: <code>docs/30-nhieu-ban-va-dau-nao.md</code></div>
+            <div class="js-actions">
+              <button class="gcard-btn ghost" id="ovMgrSyncDry">Xem trước</button>
+              <button class="gcard-btn" id="ovMgrSyncGo">Đồng bộ ngay</button>
+            </div>
+            <div class="gcard-meta" id="ovMgrSyncResult" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
       <div class="cview-section">
         <h3>Hệ thống</h3>
         <div class="cgrid">
@@ -3237,6 +3263,75 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       else res.innerHTML = WARN_ICON + " Lỗi: " + esc(r.error || "không rõ");
       mig.disabled = false; mig.textContent = "Chuẩn hóa brain đang chọn";
     };
+
+    // Nút đồng bộ template (chỉ hiện trên javis-manager)
+    bindManagerSyncUI({
+      sectionId: "ovMgrSyncSec",
+      resultId: "ovMgrSyncResult",
+      dryId: "ovMgrSyncDry",
+      goId: "ovMgrSyncGo",
+      showSection: true,
+    });
+  }
+
+  /** Gắn nút Đồng bộ template manager → tenant (Tổng quan / Cài đặt). */
+  function bindManagerSyncUI({ sectionId, cardId, resultId, dryId, goId, showSection }) {
+    const fmtReport = (r) => {
+      if (!r || r.error) return WARN_ICON + " " + esc((r && r.error) || "Lỗi đồng bộ");
+      const lines = [];
+      const tenants = r.tenants || {};
+      Object.keys(tenants).sort().forEach((name) => {
+        const s = tenants[name] || {};
+        if (s.errors && s.errors.length) {
+          lines.push(`${esc(name)}: lỗi ${esc(s.errors[0])}`);
+          return;
+        }
+        lines.push(
+          `${esc(name)}: +${s.installed || 0} mới, ~${s.updated || 0} cập nhật, `
+          + `giữ ${s.skipped_user || 0} (đã sửa), bỏ ${s.skipped_disabled || 0} (tắt), `
+          + `khớp ${s.skipped_same || 0}`
+        );
+      });
+      const head = r.dry_run ? "Xem trước (chưa ghi):" : (r.ok ? OK_ICON + " Đã đồng bộ:" : WARN_ICON + " Có lỗi:");
+      return head + "<br>" + (lines.length ? lines.join("<br>") : "(không có tenant)");
+    };
+    (async () => {
+      let st = null;
+      try { st = await (await fetch("/ops/template-status", { cache: "no-store" })).json(); }
+      catch (e) { return; }
+      if (!(st && st.ok && st.role === "manager")) return;
+      const sec = sectionId ? document.getElementById(sectionId) : null;
+      const card = cardId ? document.getElementById(cardId) : null;
+      if (sec && showSection) sec.style.display = "";
+      if (card) card.hidden = false;
+      const meta0 = document.getElementById(resultId);
+      if (meta0 && !(meta0.dataset.filled)) {
+        const n = (st.tenants || []).length;
+        meta0.textContent = st.docker
+          ? `Docker OK · ${n} tenant: ${(st.tenants || []).join(", ") || "(không)"}`
+          : "Docker chưa gắn — kiểm tra docker-compose.manager.yml.";
+      }
+      const runSync = async (dry) => {
+        const go = document.getElementById(goId);
+        const dryBtn = document.getElementById(dryId);
+        const result = document.getElementById(resultId);
+        if (!dry && !confirm("Đồng bộ template manager → mọi tenant?\nKhông đè file tenant đã sửa.")) return;
+        if (go) go.disabled = true;
+        if (dryBtn) dryBtn.disabled = true;
+        if (result) { result.dataset.filled = "1"; result.textContent = dry ? "Đang xem trước…" : "Đang đồng bộ…"; }
+        const fd = new FormData(); fd.append("dry_run", dry ? "1" : "0");
+        let r = {};
+        try { r = await (await fetch("/ops/sync-template", { method: "POST", body: fd })).json(); }
+        catch (e) { r = { ok: false, error: e.message }; }
+        if (result) result.innerHTML = fmtReport(r);
+        if (go) go.disabled = false;
+        if (dryBtn) dryBtn.disabled = false;
+      };
+      const dryBtn = document.getElementById(dryId);
+      const goBtn = document.getElementById(goId);
+      if (dryBtn) dryBtn.onclick = () => runSync(true);
+      if (goBtn) goBtn.onclick = () => runSync(false);
+    })();
   }
 
   // ---- Trang Models: (A) Main Model + (B) Providers ----
@@ -6215,6 +6310,23 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         <div class="gcard-meta" id="vpStatus">${esc(t("settings.tts_using"))} <b>${esc(prov)}</b>. ${esc(t("settings.tts_note"))}</div>
       </div>`;
     el.innerHTML = `<div class="settings-page">
+      <details class="settings-group" open id="setMgrSyncGroup" hidden>
+        <summary><span><b>Đồng bộ xuống tenant</b><small>Manager — đẩy skill / agent / workflow chuẩn</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
+        <div class="settings-group-body">
+          <div class="settings-card" id="setMgrSyncCard">
+            <div class="settings-card-head"><b>Đồng bộ template</b><span class="gcard-tag">Manager</span></div>
+            <p>Đẩy agents / workflows / skills từ <b>Brain Default</b> của bản manager xuống mọi tenant.
+              Tenant đã sửa file thì giữ nguyên; chỉ cập nhật bản chưa đụng và file mới.
+              Chi tiết: <code>docs/30-nhieu-ban-va-dau-nao.md</code></p>
+            <div class="js-actions">
+              <button class="gcard-btn ghost" id="setMgrSyncDry">Xem trước</button>
+              <button class="gcard-btn" id="setMgrSyncGo">Đồng bộ ngay</button>
+            </div>
+            <div class="gcard-meta" id="setMgrSyncResult"></div>
+          </div>
+        </div>
+      </details>
+
       <details class="settings-group" open>
         <summary><span><b>${esc(t("settings.grp_system"))}</b><small>${esc(t("settings.grp_system_sub"))}</small></span><span class="settings-caret">${ic("chevron-down")}</span></summary>
         <div class="settings-group-body">
@@ -6424,6 +6536,21 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         : WARN_ICON + " " + esc(r.error || "Không chuẩn hóa được.");
       migrate.disabled = false; migrate.textContent = "Chuẩn hóa brain đang chọn";
     };
+
+    // Manager = gốc chuẩn: hiện nhóm Đồng bộ ở đầu trang Cài đặt
+    const mgrGroup = document.getElementById("setMgrSyncGroup");
+    bindManagerSyncUI({
+      cardId: "setMgrSyncCard",
+      resultId: "setMgrSyncResult",
+      dryId: "setMgrSyncDry",
+      goId: "setMgrSyncGo",
+    });
+    (async () => {
+      try {
+        const st = await (await fetch("/ops/template-status", { cache: "no-store" })).json();
+        if (mgrGroup && st && st.ok && st.role === "manager") mgrGroup.hidden = false;
+      } catch (e) { /* tenant */ }
+    })();
 
     const loadAutostart = async () => {
       const section = document.getElementById("setAutostartSec"); if (!section) return;

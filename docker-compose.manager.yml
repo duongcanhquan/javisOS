@@ -1,0 +1,20 @@
+# ============================================================================
+# Override CHO BẢN MANAGER (gốc chuẩn) — dùng kèm docker-compose.yml + docker-compose.multi.yml.
+#
+#   cd ~/javis-manager
+#   # .env có: JAVIS_NAME=javis-manager  DOMAIN_NAME=javis.tencuaban.com  JAVIS_ROLE=manager
+#   docker compose -f docker-compose.yml -f docker-compose.multi.yml -f docker-compose.manager.yml up -d
+#
+# Gắn docker.sock để nút «Đồng bộ xuống tenant» trong Cài đặt gọi được
+# POST /ops/sync-template. Socket chỉ nên mount trên manager, KHÔNG mount lên tenant thường.
+# ============================================================================
+services:
+  javis:
+    environment:
+      JAVIS_ROLE: ${JAVIS_ROLE:-manager}
+      JAVIS_MANAGER_NAME: ${JAVIS_NAME:-javis-manager}
+      JAVIS_TEMPLATE_BRAIN: ${JAVIS_TEMPLATE_BRAIN:-Brain Default}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # CLI trên host (Ubuntu/Debian). Nếu đường dẫn khác, sửa hoặc bỏ và chỉ sync bằng script host.
+      - /usr/bin/docker:/usr/bin/docker:ro
