@@ -42,7 +42,8 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/id
           chmod 600 ~/.ssh/id
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          SSH=(ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id "$USER@$HOST")
+          SSH=(ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -i ~/.ssh/id "$USER@$HOST")
           for f in scripts/org_cutover_preflight.sh scripts/org_backup_volumes.sh \
                    scripts/org_cutover_to_proxy.sh scripts/org_cutover_split_domains.sh \
                    deploy/org/docker-compose.tenant-external.yml \
@@ -69,7 +70,18 @@ jobs:
               "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh'"
               ;;
             backup)
-              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh' && bash '$DIR/scripts/org_backup_volumes.sh'"
+              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh'"
+              "${SSH[@]}" "nohup bash '$DIR/scripts/org_backup_volumes.sh' > /tmp/javis-org-backup.log 2>&1 & echo BACKUP_PID=\$!"
+              ok=0
+              for i in $(seq 1 90); do
+                sleep 20
+                line=$("${SSH[@]}" 'tail -n 8 /tmp/javis-org-backup.log 2>/dev/null || true')
+                echo "--- backup poll $i ---"
+                echo "$line"
+                echo "$line" | grep -q BACKUP_OK && ok=1 && break
+                echo "$line" | grep -q BACKUP_FAIL && exit 1
+              done
+              test "$ok" = 1
               ;;
             proxy)
               "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_to_proxy.sh'"
