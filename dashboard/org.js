@@ -264,7 +264,7 @@
         <p class="dim" id="orgMsg">${esc(flash)}</p>
 
         <section class="org-pane" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
-          <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Não từng người không đọc được từ đây.</p>
+          <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
           <div class="org-stats">
             <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${running}</b><span>Đang chạy</span></button>
@@ -273,10 +273,11 @@
           </div>
           <div class="org-snap">
             <div>
-              <h3>API chung</h3>
+              <h3>API</h3>
               <ul class="org-read">${poolRead}</ul>
-              <p>${sharedN}/${people.length || 0} Javis người được bật API chung.</p>
-              <button type="button" class="btn" data-org-goto="cai">Sửa khóa API</button>
+              <p>Mặc định mỗi người tự dán khóa / đăng nhập trên trang Models của máy họ.
+              Kho trường: ${sharedN}/${people.length || 0} người đang bật (không bắt buộc).</p>
+              <button type="button" class="btn" data-org-goto="cai">Kho API trường (tùy chọn)</button>
             </div>
             <div>
               <h3>Sổ nhanh</h3>
@@ -289,10 +290,10 @@
         </section>
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
-          <h3>API chung của trường</h3>
-          <p>Dán khóa vào đây một lần. Khóa ở lại Javis gốc, không chép xuống máy từng người.
-          Người được bật «API chung» gọi qua cổng này; hết hạn mức token thì bị chặn đến tháng sau.
-          Ô trống khi lưu thì giữ khóa cũ.</p>
+          <h3>Kho API trường (tùy chọn)</h3>
+          <p>Mặc định <b>không dùng</b>: mỗi người tự gắn OpenRouter, Claude, Grok… trên máy họ, não và khóa ở lại volume của họ.
+          Chỉ dán khóa vào đây nếu sau này muốn một người dùng chung kho trường (bật từng người trên Quản lý).
+          Khóa ở lại Javis gốc, không chép xuống máy con. Ô trống khi lưu thì giữ khóa cũ.</p>
           <form id="orgPool" class="org-keys">${poolRows}
             <button class="btn primary" type="submit">Lưu khóa API</button>
           </form>
@@ -301,9 +302,9 @@
 
         <section class="org-pane" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
           <h3>Tạo người mới</h3>
-          <p>Mỗi người một Javis tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>.
-          Mật khẩu tối thiểu 10 ký tự, có chữ và số. Họ tự đổi sau trong Tài khoản của máy họ.
-          Javis gốc không lưu mật khẩu dạng đọc được.</p>
+          <p>Mỗi người một Javis tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>, <b>não riêng</b>.
+          Họ tự vào trang Models trên máy đó để dán API hoặc đăng nhập Claude / Grok của chính họ.
+          Mật khẩu tối thiểu 10 ký tự, có chữ và số. Gốc không lưu mật khẩu dạng đọc được, không đọc được não họ.</p>
           <form id="orgCreate" class="org-form">
             <label>Tên máy (slug)<input name="slug" required placeholder="Ví dụ: lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
             <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
@@ -311,8 +312,8 @@
             <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
-            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="0 = không trần"></label>
-            <label class="org-check"><input name="shared_api" type="checkbox"> Cho dùng API chung</label>
+            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="Chỉ khi bật API chung. 0 = không trần"></label>
+            <label class="org-check"><input name="shared_api" type="checkbox"> Dùng kho API trường (để trống = tự gắn API riêng)</label>
             <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
             <button class="btn primary" type="submit">Tạo Javis</button>
           </form>
@@ -320,7 +321,7 @@
 
         <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <h3>Quản lý người</h3>
-          <p class="dim">Bật/tắt máy, sửa hạn mức ổ và token, bật API chung, đặt lại mật khẩu khi họ bị khóa. Không mở được não hay chat của họ.</p>
+          <p class="dim">Bật/tắt máy, hạn mức ổ, đặt lại mật khẩu. Não và API của họ ở máy họ. «Bật API chung» chỉ khi muốn một người dùng kho trường.</p>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">

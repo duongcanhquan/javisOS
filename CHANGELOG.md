@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.264] - 2026-09-21
+### Sửa
+- **Người mới mặc định tự gắn API trên máy mình, não riêng.** Kho khóa của trường chỉ dùng khi admin bật cho từng người. Gốc không đọc được chat hay khóa của họ.
+
 ## [0.55.263] - 2026-09-21
 ### Sửa
 - **Người mới mở `vmos-tên`, ví dụ `vmos-maihuong.vietmycollege.com`.** Bản trước gắn hai tên một lúc nên HTTPS gãy; giờ mỗi máy một tên như bản quan.
