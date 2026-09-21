@@ -22,6 +22,18 @@ if ! grep -qE '^JAVIS_ORG_MANAGER=(true|1|yes|on)$' "$ENV_FILE" 2>/dev/null; the
     echo "==> tách domain bản cá nhân → javis-quan.vietmycollege.com (không đụng volume)"
     sed -i.bak 's/^DOMAIN_NAME=.*/DOMAIN_NAME=javis-quan.vietmycollege.com/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
   fi
+  if grep -qE '^JAVIS_ORG_HOST_PREFIX=' "$ENV_FILE"; then
+    sed -i 's/^JAVIS_ORG_HOST_PREFIX=.*/JAVIS_ORG_HOST_PREFIX=vmos/' "$ENV_FILE"
+  else
+    echo 'JAVIS_ORG_HOST_PREFIX=vmos' >> "$ENV_FILE"
+  fi
+  _want_dom='vmos-quan.vietmycollege.com,javis-quan.vietmycollege.com'
+  if grep -qE '^DOMAIN_NAME=(javis-quan|vmos-quan)\.vietmycollege\.com' "$ENV_FILE" 2>/dev/null; then
+    if ! grep -qE "^DOMAIN_NAME=${_want_dom}$" "$ENV_FILE"; then
+      echo "==> domain công khai bản cá nhân → vmos-quan.vietmycollege.com"
+      sed -i "s|^DOMAIN_NAME=.*|DOMAIN_NAME=${_want_dom}|" "$ENV_FILE"
+    fi
+  fi
 fi
 if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
   sed -i.bak 's/^JAVIS_ENABLE_USER_PLUGINS=.*/JAVIS_ENABLE_USER_PLUGINS=true/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
@@ -264,12 +276,13 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   _mgr_set DOMAIN_NAME javis.vietmycollege.com
   _mgr_set JAVIS_HOST_PORT 7778
   _mgr_set JAVIS_BIND 127.0.0.1
+  _mgr_set JAVIS_ORG_HOST_PREFIX vmos
   if [ -n "${DOCKER_GID:-}" ]; then
     _mgr_set DOCKER_GID "$DOCKER_GID"
   fi
   (
     cd "$MGR_DIR"
-    unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT
+    unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT JAVIS_ORG_HOST_PREFIX
     export COMPOSE_PROJECT_NAME=javis-manager
     export JAVIS_IMAGE
     MGR_FILES=(-f docker-compose.yml)

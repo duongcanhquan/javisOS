@@ -29,7 +29,10 @@ check("env.quan: JAVIS_NAME=javis-quan", "JAVIS_NAME=javis-quan" in envq)
 check("env.quan: domain quan", "javis-quan.vietmycollege.com" in envq)
 check("env.manager: không trỏ volume quan", "javis_javis-data" not in envm)
 check("env.manager: JAVIS_ORG_MANAGER", "JAVIS_ORG_MANAGER=true" in envm)
+check("env.manager: prefix vmos", "JAVIS_ORG_HOST_PREFIX=vmos" in envm)
 compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+check("compose nhét prefix host vào container",
+      "JAVIS_ORG_HOST_PREFIX: ${JAVIS_ORG_HOST_PREFIX:-javis}" in compose)
 check("compose nhét JAVIS_ORG_MANAGER vào container",
       "JAVIS_ORG_MANAGER: ${JAVIS_ORG_MANAGER:-false}" in compose)
 check("env.manager: catalog brain", "org-catalog" in envm)

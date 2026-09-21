@@ -132,7 +132,8 @@ def _make_router() -> APIRouter:
     @router.get("/org/status")
     def org_status():
         return {"ok": True, "manager": ot.manager_enabled(), "tenant": op.tenant_side(),
-                "docker": org_docker.docker_available()}
+                "docker": org_docker.docker_available(),
+                "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix()}
 
     @router.get("/org/settings/pool")
     def org_pool_get(request: Request):
@@ -164,8 +165,14 @@ def _make_router() -> APIRouter:
             cname = str(t.get("container") or "")
             if cname and dk_ok:
                 rec["status"] = org_docker.container_status(cname)
+                if not t.get("protected"):
+                    try:
+                        org_docker.apply_public_hosts(str(t.get("slug") or ""))
+                    except Exception:
+                        pass
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
+                "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
                 **op.pool_public()}
 
     @router.post("/org/tenants")

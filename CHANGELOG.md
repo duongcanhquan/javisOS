@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.261] - 2026-09-21
+### Mới
+- **Link từng người dạng `vmos-tên`.** Ví dụ `vmos-quan.vietmycollege.com`. Không cần bản ghi DNS mới. Link cũ `javis-quan` vẫn vào được.
+
 ## [0.55.260] - 2026-09-21
 ### Sửa
 - **Tạo người mới không kẹt chờ máy.** Lần tạo dở hiện lại trên Quản lý để đặt mật khẩu, không thành máy ma.

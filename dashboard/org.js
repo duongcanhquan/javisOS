@@ -68,7 +68,7 @@
   }
 
   function haystack(t) {
-    return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug]
+    return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug, "vmos-" + t.slug]
       .join(" ").toLowerCase();
   }
 
@@ -157,6 +157,9 @@
       return;
     }
     const tenants = d.tenants || [];
+    const prefix = d.host_prefix || "javis";
+    const suffix = d.domain_suffix || "vietmycollege.com";
+    const hostOf = (t) => t.domain || (prefix + "-" + t.slug + "." + suffix);
     const people = tenants.filter((t) => !t.protected);
     const running = tenants.filter((t) => t.status === "running").length;
     const stopped = tenants.filter((t) => t.status === "stopped" || t.status === "missing").length;
@@ -186,7 +189,7 @@
     }).join("");
 
     const cards = tenants.map((t) => {
-      const href = "https://" + (t.domain || ("javis-" + t.slug + ".vietmycollege.com"));
+      const href = "https://" + hostOf(t);
       const prot = t.protected;
       const stopBtn = prot ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
       const pwBtn = prot ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
@@ -234,7 +237,7 @@
     }).join("");
 
     const snapRows = tenants.map((t) => {
-      const href = "https://" + (t.domain || ("javis-" + t.slug + ".vietmycollege.com"));
+      const href = "https://" + hostOf(t);
       return `<tr>
         <td><button type="button" class="org-link" data-org-goto="quan" data-org-q="${esc(t.slug)}">${esc(t.name || t.slug)}</button></td>
         <td><span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span></td>
@@ -298,7 +301,7 @@
 
         <section class="org-pane" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
           <h3>Tạo người mới</h3>
-          <p>Mỗi người một Javis tại <code>javis-[tên].vietmycollege.com</code>.
+          <p>Mỗi người một Javis tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>.
           Mật khẩu tối thiểu 10 ký tự, có chữ và số. Họ tự đổi sau trong Tài khoản của máy họ.
           Javis gốc không lưu mật khẩu dạng đọc được.</p>
           <form id="orgCreate" class="org-form">

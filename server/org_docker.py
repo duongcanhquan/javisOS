@@ -266,12 +266,13 @@ def create_and_start(
             f"JAVIS_ORG_POOL_TOKEN={pool_token}",
             "WATCHTOWER_TOKEN=",
         ]
+        hosts = ot.public_hosts(slug)
         body = {
             "Image": img,
             "Hostname": cname,
             "Env": env,
             "Labels": {
-                "caddy": domain,
+                "caddy": ",".join(hosts),
                 "caddy.reverse_proxy": "{{upstreams 7777}}",
                 "javis.org.tenant": slug,
             },
@@ -338,6 +339,63 @@ def create_and_start(
         rec["status"] = container_status(cname)
         ot.upsert(rec)
         raise
+
+
+def apply_public_hosts(slug: str) -> None:
+    """Cập nhật nhãn Caddy sang prefix mới (vd vmos-), không đụng volume. Không đụng bản quan."""
+    rec = ot.get(slug)
+    if not rec or rec.get("protected"):
+        return
+    cname = str(rec.get("container") or f"javis-{slug}")
+    hosts = [h.strip() for h in ot.public_hosts(slug) if h.strip()]
+    if not hosts:
+        return
+    joined = ",".join(hosts)
+    data = inspect_name(cname)
+    if not data:
+        return
+    was_running = container_status(cname) == "running"
+    cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
+    labels = dict(cfg.get("Labels") or {})
+    old = (labels.get("caddy") or "").replace(" ", "")
+    if old == joined.replace(" ", ""):
+        return
+    hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
+    env = [e for e in (cfg.get("Env") or []) if not str(e).startswith("DOMAIN_NAME=")]
+    env.append("DOMAIN_NAME=" + hosts[0])
+    labels["caddy"] = joined
+    labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
+    body = {
+        "Image": cfg.get("Image"),
+        "Hostname": cfg.get("Hostname") or cname,
+        "Env": env,
+        "Labels": labels,
+        "HostConfig": {
+            "Memory": hc.get("Memory") or _MEM,
+            "MemorySwap": hc.get("MemorySwap") or _MEM,
+            "NanoCpus": hc.get("NanoCpus") or _NANO_CPUS,
+            "PidsLimit": hc.get("PidsLimit") or _PIDS,
+            "RestartPolicy": hc.get("RestartPolicy") or {"Name": "unless-stopped"},
+            "Binds": hc.get("Binds") or [],
+            "NetworkMode": hc.get("NetworkMode") or "javis-web",
+        },
+    }
+    user = cfg.get("User")
+    if isinstance(user, str) and user.strip():
+        body["User"] = user.strip()
+    # Xóa container, GIỮ volume (không gắn cờ xóa volume).
+    _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
+    rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true", timeout=30.0)
+    if rm.status_code not in (204, 200, 404):
+        raise RuntimeError(f"gỡ máy cũ HTTP {rm.status_code}: {(rm.text or '')[:200]}")
+    cr = _docker_api("POST", f"/containers/create?name={quote(cname)}", json_body=body, timeout=120.0)
+    if cr.status_code not in (200, 201):
+        raise RuntimeError(f"gắn tên miền mới HTTP {cr.status_code}: {(cr.text or '')[:400]}")
+    cid = (cr.json() or {}).get("Id") or cname
+    if was_running:
+        st = _docker_api("POST", f"/containers/{quote(cid)}/start", timeout=60.0)
+        if st.status_code not in (204, 200):
+            raise RuntimeError(f"bật lại HTTP {st.status_code}: {(st.text or '')[:300]}")
 
 
 def write_quota(cname: str, quota_gb: int) -> None:

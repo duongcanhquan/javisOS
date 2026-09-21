@@ -258,6 +258,10 @@ check(
     or "export JAVIS_CONTAINER=" in script,
 )
 check(
+    "vps-deploy.sh: domain công khai vmos-quan",
+    "vmos-quan.vietmycollege.com" in script and "_mgr_set JAVIS_ORG_HOST_PREFIX vmos" in script,
+)
+check(
     "vps-deploy.sh: đợi health Javis gốc :7778",
     "127.0.0.1:7778/health" in script,
 )

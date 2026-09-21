@@ -16,6 +16,7 @@ PROTECTED_VOLUMES = frozenset({
     "javis_javis-data", "javis_javis-brains", "javis_claude-auth", "javis_codex-auth",
 })
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_PREFIX_RE = re.compile(r"^[a-z][a-z0-9]{0,15}$")
 
 
 def manager_enabled() -> bool:
@@ -39,8 +40,27 @@ def domain_suffix() -> str:
     return (os.getenv("JAVIS_ORG_DOMAIN_SUFFIX") or "vietmycollege.com").strip().lower()
 
 
+def host_prefix() -> str:
+    v = (os.getenv("JAVIS_ORG_HOST_PREFIX") or "javis").strip().lower()
+    if not _PREFIX_RE.match(v):
+        return "javis"
+    return v
+
+
 def tenant_domain(slug: str) -> str:
-    return f"javis-{slug}.{domain_suffix()}"
+    s = (slug or "").strip().lower()
+    return f"{host_prefix()}-{s}.{domain_suffix()}"
+
+
+def public_hosts(slug: str) -> list[str]:
+    """Tên mở trên trình duyệt. Prefix mới (vd vmos) vẫn giữ alias javis- để link cũ vào được."""
+    s = (slug or "").strip().lower()
+    primary = tenant_domain(s)
+    out = [primary]
+    alt = f"javis-{s}.{domain_suffix()}"
+    if alt not in out:
+        out.append(alt)
+    return out
 
 
 def validate_slug(slug: str) -> str | None:
@@ -86,7 +106,10 @@ def load() -> dict:
     if not isinstance(data, dict):
         data = _empty()
     data.setdefault("tenants", [])
-    if ensure_quan(data):
+    changed = ensure_quan(data)
+    if _sync_domains(data):
+        changed = True
+    if changed:
         save(data)
     return data
 
@@ -97,6 +120,19 @@ def save(data: dict) -> None:
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(p)
+
+
+def _sync_domains(data: dict) -> bool:
+    changed = False
+    for t in data.get("tenants") or []:
+        slug = str(t.get("slug") or "")
+        if not slug:
+            continue
+        want = tenant_domain(slug)
+        if str(t.get("domain") or "") != want:
+            t["domain"] = want
+            changed = True
+    return changed
 
 
 def ensure_quan(data: dict) -> bool:

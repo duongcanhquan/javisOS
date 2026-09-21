@@ -47,6 +47,8 @@ services:
       # Tổ chức: phải vào ĐÚNG container, không chỉ file .env trên host (Compose không tự nhét).
       JAVIS_ORG_MANAGER: ${JAVIS_ORG_MANAGER:-false}
       JAVIS_ORG_TENANT: ${JAVIS_ORG_TENANT:-false}
+      JAVIS_ORG_HOST_PREFIX: ${JAVIS_ORG_HOST_PREFIX:-javis}
+      JAVIS_ORG_DOMAIN_SUFFIX: ${JAVIS_ORG_DOMAIN_SUFFIX:-vietmycollege.com}
       JAVIS_NAME: ${JAVIS_NAME:-javis}
       DOMAIN_NAME: ${DOMAIN_NAME:-}
       # Plugin do bạn cài (global/brain): chạy Python thật trong server. Mặc định BẬT trên VPS;

@@ -32,6 +32,11 @@ check("slug rỗng", ot.validate_slug("") is not None)
 check("slug quan bị cấm", "hệ thống" in (ot.validate_slug("quan") or ""))
 check("slug manager bị cấm", ot.validate_slug("manager") is not None)
 check("slug lan ok", ot.validate_slug("lan") is None)
+check("domain mặc định javis-lan", ot.tenant_domain("lan") == "javis-lan.vietmycollege.com")
+os.environ["JAVIS_ORG_HOST_PREFIX"] = "vmos"
+check("domain prefix vmos", ot.tenant_domain("lan") == "vmos-lan.vietmycollege.com")
+check("vmos vẫn giữ alias javis-", "javis-lan.vietmycollege.com" in ot.public_hosts("lan"))
+os.environ.pop("JAVIS_ORG_HOST_PREFIX", None)
 
 check("username rỗng", op.validate_username("") is not None)
 check("username lan ok", op.validate_username("lan") is None)
@@ -124,6 +129,9 @@ check("org.js chia tab tổng hợp/cài/tạo/quản",
       and 'data-org-tab="tao"' in org_js and 'data-org-tab="quan"' in org_js)
 check("org.js tìm và lọc người", "orgSearch" in org_js and "orgSt" in org_js and "orgApi" in org_js)
 check("org.js placeholder Ví dụ", "Ví dụ: lan" in org_js)
+check("org.js dùng host_prefix từ API", "host_prefix" in org_js and "hostOf" in org_js)
+check("gắn lại tên miền không xóa volume",
+      "def apply_public_hosts" in src and "force=true" in src and "down -v" not in src)
 check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _health_inside" in src)
 check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
 moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")
