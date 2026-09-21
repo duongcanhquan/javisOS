@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.259] - 2026-09-21
+### Mới
+- **Tổ chức chia 4 tab:** Tổng hợp, Cài đặt chung, Tạo mới, Quản lý. Trên Quản lý có ô tìm tên và lọc máy đang chạy / API chung.
+
 ## [0.55.258] - 2026-09-21
 ### Sửa
 - **Tạo người trên Javis gốc hết báo thiếu Docker.** Deploy gắn đúng quyền `docker.sock` (DOCKER_GID). Thử tạo lại trên Tổ chức.

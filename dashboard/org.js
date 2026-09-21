@@ -1,4 +1,4 @@
-// Trang Tổ chức: chỉ admin Javis gốc. Tạo/sửa người, hạn mức ổ+token, API chung.
+// Trang Tổ chức: tab Tổng hợp / Cài đặt / Tạo mới / Quản lý. Chỉ admin Javis gốc.
 (function () {
   "use strict";
 
@@ -14,6 +14,13 @@
     ["groq", "Groq"],
     ["deepseek", "DeepSeek"],
   ];
+
+  let orgTab = "tong";
+  let orgQ = "";
+  let orgSt = "all";
+  let orgApi = "all";
+  let orgKind = "all";
+  let orgFlash = "";
 
   async function api(path, opt) {
     const r = await fetch(path, Object.assign({ cache: "no-store" }, opt || {}));
@@ -60,6 +67,78 @@
     </div>`;
   }
 
+  function haystack(t) {
+    return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug]
+      .join(" ").toLowerCase();
+  }
+
+  function showTab(root, id) {
+    orgTab = id;
+    root.querySelectorAll("[data-org-tab]").forEach((b) => {
+      const on = b.getAttribute("data-org-tab") === id;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    root.querySelectorAll("[data-org-pane]").forEach((p) => {
+      p.hidden = p.getAttribute("data-org-pane") !== id;
+    });
+  }
+
+  function applyFilter(root) {
+    const q = String(root.querySelector("#orgSearch")?.value || "").trim().toLowerCase();
+    const st = String(root.querySelector("#orgSt")?.value || "all");
+    const apiF = String(root.querySelector("#orgApi")?.value || "all");
+    const kind = String(root.querySelector("#orgKind")?.value || "all");
+    orgQ = q; orgSt = st; orgApi = apiF; orgKind = kind;
+    let n = 0;
+    root.querySelectorAll(".org-card").forEach((card) => {
+      const hay = card.getAttribute("data-hay") || "";
+      const status = card.getAttribute("data-status") || "";
+      const shared = card.getAttribute("data-shared") || "";
+      const prot = card.getAttribute("data-prot") === "1";
+      const okQ = !q || hay.includes(q);
+      const okSt = st === "all"
+        || (st === "stopped" ? (status === "stopped" || status === "missing") : status === st);
+      const okApi = apiF === "all" || shared === apiF;
+      const okKind = kind === "all" || (kind === "root" ? prot : !prot);
+      const show = okQ && okSt && okApi && okKind;
+      card.hidden = !show;
+      if (show) n++;
+    });
+    const count = root.querySelector("#orgCount");
+    if (count) count.textContent = n + " người";
+    const empty = root.querySelector("#orgFilterEmpty");
+    if (empty) empty.hidden = n > 0;
+  }
+
+  function bindTabs(root) {
+    root.querySelectorAll("[data-org-tab]").forEach((b) => {
+      b.addEventListener("click", () => showTab(root, b.getAttribute("data-org-tab")));
+    });
+    root.querySelectorAll("[data-org-goto]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const tab = b.getAttribute("data-org-goto");
+        const q = b.getAttribute("data-org-q");
+        if (q) {
+          orgQ = q;
+          const inp = root.querySelector("#orgSearch");
+          if (inp) inp.value = q;
+        }
+        showTab(root, tab);
+        applyFilter(root);
+      });
+    });
+  }
+
+  function bindFilter(root) {
+    ["#orgSearch", "#orgSt", "#orgApi", "#orgKind"].forEach((sel) => {
+      const n = root.querySelector(sel);
+      if (!n) return;
+      n.addEventListener(sel === "#orgSearch" ? "input" : "change", () => applyFilter(root));
+    });
+    applyFilter(root);
+  }
+
   async function render(el) {
     el.innerHTML = '<p class="dim">Đang tải sổ tổ chức…</p>';
     let d;
@@ -71,10 +150,15 @@
       return;
     }
     const tenants = d.tenants || [];
+    const people = tenants.filter((t) => !t.protected);
     const running = tenants.filter((t) => t.status === "running").length;
     const stopped = tenants.filter((t) => t.status === "stopped" || t.status === "missing").length;
+    const sharedN = people.filter((t) => t.shared_api).length;
     const prov = d.providers || {};
     const keysOn = POOL.filter(([id]) => (prov[id] || {}).set).length;
+    const flash = orgFlash;
+    orgFlash = "";
+
     const poolRows = POOL.map(([id, label]) => {
       const rec = prov[id] || {};
       const st = rec.set
@@ -87,6 +171,13 @@
       </div>`;
     }).join("");
 
+    const poolRead = POOL.map(([id, label]) => {
+      const rec = prov[id] || {};
+      return `<li><b>${esc(label)}</b> ${rec.set
+        ? `<span class="org-pill on">Đã lưu ${esc(rec.mask || "••••")}</span>`
+        : `<span class="org-pill">Chưa dán</span>`}</li>`;
+    }).join("");
+
     const cards = tenants.map((t) => {
       const href = "https://" + (t.domain || ("javis-" + t.slug + ".vietmycollege.com"));
       const prot = t.protected;
@@ -94,7 +185,9 @@
       const pwBtn = prot ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
       const editBtn = `<button class="btn" data-org-edit-open="${esc(t.slug)}">Sửa hạn mức</button>`;
       const apiBtn = prot ? "" : `<button class="btn" data-org-api="${esc(t.slug)}" data-on="${t.shared_api ? "1" : "0"}">${t.shared_api ? "Tắt API chung" : "Bật API chung"}</button>`;
-      return `<article class="org-card" data-slug="${esc(t.slug)}">
+      return `<article class="org-card" data-slug="${esc(t.slug)}"
+          data-hay="${esc(haystack(t))}" data-status="${esc(t.status || "")}"
+          data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}">
         <header>
           <div>
             <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">não gốc - không quản từ đây</span>' : ""}
@@ -133,55 +226,134 @@
       </article>`;
     }).join("");
 
+    const snapRows = tenants.map((t) => {
+      const href = "https://" + (t.domain || ("javis-" + t.slug + ".vietmycollege.com"));
+      return `<tr>
+        <td><button type="button" class="org-link" data-org-goto="quan" data-org-q="${esc(t.slug)}">${esc(t.name || t.slug)}</button></td>
+        <td><span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span></td>
+        <td>${t.protected ? "Não gốc" : (t.shared_api ? "API chung" : "Riêng")}</td>
+        <td><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || ("javis-" + t.slug))}</a></td>
+      </tr>`;
+    }).join("");
+
     el.innerHTML = `
       <div class="org-page">
-        <p class="org-lead">Chỉ tài khoản admin trên Javis gốc thấy trang này. Javis của từng người không có mục Tổ chức, không đọc được não người khác.</p>
-        ${d.docker === false ? '<p class="org-warn">Chưa gọi được Docker trên máy chủ. Tạo người mới sẽ lỗi cho đến khi deploy gắn DOCKER_GID.</p>' : ''}
-        <div class="org-stats">
-          <div><b>${tenants.length}</b><span>Người / máy</span></div>
-          <div><b>${running}</b><span>Đang chạy</span></div>
-          <div><b>${stopped}</b><span>Tắt / chưa có</span></div>
-          <div><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></div>
-        </div>
+        ${d.docker === false ? '<p class="org-warn">Chưa gọi được Docker trên máy chủ. Tạo người mới sẽ lỗi cho đến khi deploy gắn DOCKER_GID.</p>' : ""}
+        <nav class="jx-tabs org-tabs" role="tablist" aria-label="Tổ chức">
+          <button type="button" class="jx-tab${orgTab === "tong" ? " on" : ""}" role="tab"
+            data-org-tab="tong" aria-selected="${orgTab === "tong"}">Tổng hợp</button>
+          <button type="button" class="jx-tab${orgTab === "cai" ? " on" : ""}" role="tab"
+            data-org-tab="cai" aria-selected="${orgTab === "cai"}">Cài đặt chung
+            <span class="jx-tab-n">${keysOn}/${POOL.length}</span></button>
+          <button type="button" class="jx-tab${orgTab === "tao" ? " on" : ""}" role="tab"
+            data-org-tab="tao" aria-selected="${orgTab === "tao"}">Tạo mới</button>
+          <button type="button" class="jx-tab${orgTab === "quan" ? " on" : ""}" role="tab"
+            data-org-tab="quan" aria-selected="${orgTab === "quan"}">Quản lý
+            <span class="jx-tab-n">${tenants.length}</span></button>
+        </nav>
+        <p class="dim" id="orgMsg">${esc(flash)}</p>
 
-        <h3>API chung của trường</h3>
-        <p>Dán khóa vào đây một lần. Khóa ở lại Javis gốc, không chép xuống máy từng người.
-        Người được bật «API chung» gọi qua cổng này; hết hạn mức token thì bị chặn đến tháng sau.
-        Ô trống khi lưu thì giữ khóa cũ.</p>
-        <form id="orgPool" class="org-keys">${poolRows}
-          <button class="btn primary" type="submit">Lưu khóa API</button>
-        </form>
-        <p class="dim" id="orgPoolMsg"></p>
+        <section class="org-pane" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
+          <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Não từng người không đọc được từ đây.</p>
+          <div class="org-stats">
+            <button type="button" data-org-goto="quan"><b>${tenants.length}</b><span>Người / máy</span></button>
+            <button type="button" data-org-goto="quan"><b>${running}</b><span>Đang chạy</span></button>
+            <button type="button" data-org-goto="quan"><b>${stopped}</b><span>Tắt / chưa có</span></button>
+            <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
+          </div>
+          <div class="org-snap">
+            <div>
+              <h3>API chung</h3>
+              <ul class="org-read">${poolRead}</ul>
+              <p>${sharedN}/${people.length || 0} Javis người được bật API chung.</p>
+              <button type="button" class="btn" data-org-goto="cai">Sửa khóa API</button>
+            </div>
+            <div>
+              <h3>Sổ nhanh</h3>
+              ${tenants.length
+                ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Người</th><th>Máy</th><th>API</th><th>Link</th></tr></thead><tbody>${snapRows}</tbody></table></div>`
+                : '<p class="dim">Chưa có bản nào ngoài não gốc.</p>'}
+              <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button>
+            </div>
+          </div>
+        </section>
 
-        <h3>Tạo người mới</h3>
-        <p>Mỗi người một Javis tại <code>javis-[tên].vietmycollege.com</code>.
-        Mật khẩu tối thiểu 10 ký tự, có chữ và số. Họ tự đổi sau trong Tài khoản của máy họ.
-        Javis gốc không lưu mật khẩu dạng đọc được.</p>
-        <form id="orgCreate" class="org-form">
-          <label>Tên máy (slug)<input name="slug" required placeholder="vd lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
-          <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
-          <label>Tên đăng nhập<input name="login_user" required placeholder="lan" maxlength="32"></label>
-          <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
-          <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
-          <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
-          <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="0 = không trần"></label>
-          <label class="org-check"><input name="shared_api" type="checkbox"> Cho dùng API chung</label>
-          <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
-          <button class="btn primary" type="submit">Tạo Javis</button>
-        </form>
-        <p class="dim" id="orgMsg"></p>
+        <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
+          <h3>API chung của trường</h3>
+          <p>Dán khóa vào đây một lần. Khóa ở lại Javis gốc, không chép xuống máy từng người.
+          Người được bật «API chung» gọi qua cổng này; hết hạn mức token thì bị chặn đến tháng sau.
+          Ô trống khi lưu thì giữ khóa cũ.</p>
+          <form id="orgPool" class="org-keys">${poolRows}
+            <button class="btn primary" type="submit">Lưu khóa API</button>
+          </form>
+          <p class="dim" id="orgPoolMsg"></p>
+        </section>
 
-        <h3>Danh sách người</h3>
-        <p class="dim">Bật/tắt máy, sửa hạn mức ổ và token, bật API chung, đặt lại mật khẩu khi họ bị khóa. Không mở được não hay chat của họ.</p>
-        <div class="org-grid">${cards || '<p class="dim">Chưa có bản nào ngoài não gốc.</p>'}</div>
+        <section class="org-pane" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
+          <h3>Tạo người mới</h3>
+          <p>Mỗi người một Javis tại <code>javis-[tên].vietmycollege.com</code>.
+          Mật khẩu tối thiểu 10 ký tự, có chữ và số. Họ tự đổi sau trong Tài khoản của máy họ.
+          Javis gốc không lưu mật khẩu dạng đọc được.</p>
+          <form id="orgCreate" class="org-form">
+            <label>Tên máy (slug)<input name="slug" required placeholder="vd lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
+            <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
+            <label>Tên đăng nhập<input name="login_user" required placeholder="lan" maxlength="32"></label>
+            <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
+            <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
+            <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
+            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="0 = không trần"></label>
+            <label class="org-check"><input name="shared_api" type="checkbox"> Cho dùng API chung</label>
+            <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
+            <button class="btn primary" type="submit">Tạo Javis</button>
+          </form>
+        </section>
+
+        <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
+          <h3>Quản lý người</h3>
+          <p class="dim">Bật/tắt máy, sửa hạn mức ổ và token, bật API chung, đặt lại mật khẩu khi họ bị khóa. Không mở được não hay chat của họ.</p>
+          <div class="org-toolbar">
+            <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
+            <select id="orgSt" class="org-filter" aria-label="Lọc máy">
+              <option value="all"${orgSt === "all" ? " selected" : ""}>Mọi trạng thái</option>
+              <option value="running"${orgSt === "running" ? " selected" : ""}>Đang chạy</option>
+              <option value="stopped"${orgSt === "stopped" ? " selected" : ""}>Tắt / chưa có</option>
+            </select>
+            <select id="orgApi" class="org-filter" aria-label="Lọc API">
+              <option value="all"${orgApi === "all" ? " selected" : ""}>Mọi API</option>
+              <option value="on"${orgApi === "on" ? " selected" : ""}>Có API chung</option>
+              <option value="off"${orgApi === "off" ? " selected" : ""}>Không dùng API chung</option>
+            </select>
+            <select id="orgKind" class="org-filter" aria-label="Loại máy">
+              <option value="all"${orgKind === "all" ? " selected" : ""}>Mọi máy</option>
+              <option value="people"${orgKind === "people" ? " selected" : ""}>Javis người</option>
+              <option value="root"${orgKind === "root" ? " selected" : ""}>Não gốc</option>
+            </select>
+            <span class="dim" id="orgCount"></span>
+          </div>
+          <div class="org-grid">${cards || '<p class="dim">Chưa có bản nào ngoài não gốc.</p>'}</div>
+          <p class="dim" id="orgFilterEmpty" hidden>Không khớp bộ lọc. Xóa ô tìm hoặc chọn lại lọc.</p>
+        </section>
       </div>
       <style>
+        .org-tabs.jx-tabs{max-width:760px;width:100%;flex-wrap:wrap}
+        .org-pane[hidden]{display:none!important}
         .org-lead{margin:0 0 16px}
         .org-warn{padding:10px 12px;border-radius:10px;border:1px solid #e03131;color:#e03131;margin:0 0 16px}
         .org-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:0 0 22px}
-        .org-stats div{padding:12px 14px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2))}
+        .org-stats button{display:block;width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit;cursor:pointer;font:inherit}
+        .org-stats button:hover{border-color:var(--accent,var(--border))}
         .org-stats b{display:block;font-size:22px;line-height:1.2}
         .org-stats span{font-size:12px;opacity:.75}
+        .org-snap{display:grid;grid-template-columns:minmax(220px,280px) 1fr;gap:22px;align-items:start}
+        .org-read{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
+        .org-read li{display:flex;justify-content:space-between;gap:8px;align-items:center}
+        .org-table-wrap{overflow:auto;margin:0 0 12px}
+        .org-table{width:100%;border-collapse:collapse;font-size:13px}
+        .org-table th,.org-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--glass-brd,var(--border));vertical-align:middle}
+        .org-link{background:none;border:0;padding:0;color:var(--accent,inherit);cursor:pointer;font:inherit;font-weight:600;text-align:left}
+        .org-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+        .org-search{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
+        .org-filter{padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
         .org-form,.org-inline,.org-keys{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0 16px}
         .org-form label,.org-inline label,.org-key{display:flex;flex-direction:column;gap:4px;font-size:13px}
         .org-form input,.org-inline input,.org-key input{min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
@@ -195,7 +367,7 @@
         .org-grid{display:grid;gap:14px}
         .org-card{padding:14px 16px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2))}
         .org-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-        .org-st{font-size:12px;padding:4px 8px;border-radius:8px;border:1px solid var(--glass-brd,var(--border))}
+        .org-st{font-size:12px;padding:4px 8px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));white-space:nowrap}
         .org-st.running{border-color:#2f9e44;color:#2f9e44}
         .org-st.stopped,.org-st.missing{opacity:.7}
         .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
@@ -205,7 +377,9 @@
         .org-bar i{display:block;height:100%;background:#2f9e44}
         .org-bar.warn i{background:#f59f00}
         .org-bar.hot i{background:#e03131}
-        .org-page h3{margin:22px 0 8px}
+        .org-page h3{margin:8px 0 8px}
+        #orgMsg{min-height:1.2em;margin:0 0 12px}
+        @media (max-width:720px){.org-snap{grid-template-columns:1fr}}
       </style>`;
 
     const msg = el.querySelector("#orgMsg");
@@ -213,6 +387,10 @@
     const form = el.querySelector("#orgCreate");
     const poolForm = el.querySelector("#orgPool");
     const gen = el.querySelector("#orgGenPw");
+
+    bindTabs(el);
+    bindFilter(el);
+    showTab(el, orgTab);
 
     el.querySelectorAll("[data-org-usage]").forEach(async (box) => {
       const slug = box.getAttribute("data-org-usage");
@@ -254,7 +432,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        poolMsg.textContent = "Đã lưu khóa. Ô trống giữ khóa cũ.";
+        orgFlash = "Đã lưu khóa. Ô trống giữ khóa cũ.";
+        orgTab = "cai";
         poolForm.reset();
         render(el);
       } catch (e) {
@@ -283,7 +462,9 @@
             shared_api: form.shared_api.checked,
           }),
         });
-        msg.textContent = "Đã tạo. Mở link sau khoảng 1 phút (Caddy xin HTTPS). Gửi tên đăng nhập và mật khẩu cho người đó.";
+        orgQ = String(fd.get("slug") || "");
+        orgTab = "quan";
+        orgFlash = "Đã tạo. Mở link sau khoảng 1 phút (Caddy xin HTTPS). Gửi tên đăng nhập và mật khẩu cho người đó.";
         render(el);
       } catch (e) {
         msg.textContent = e.message || "Không tạo được.";
@@ -294,6 +475,7 @@
         msg.textContent = "Đang bật…";
         try {
           await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-start")) + "/start", { method: "POST" });
+          orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
       });
@@ -303,6 +485,7 @@
         if (!confirm("Tắt Javis này? Não và file không xóa.")) return;
         try {
           await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-stop")) + "/stop", { method: "POST" });
+          orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
       });
@@ -317,6 +500,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ shared_api: on }),
           });
+          orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
       });
@@ -357,6 +541,7 @@
               name: String(f.name.value || ""),
             }),
           });
+          orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
       });

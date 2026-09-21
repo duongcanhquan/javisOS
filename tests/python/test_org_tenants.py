@@ -119,6 +119,10 @@ check("engine có cổng pool", "_u(" in (ROOT / "server" / "engine.py").read_te
 org_js = (ROOT / "dashboard" / "org.js").read_text(encoding="utf-8")
 check("org.js có mật khẩu + API chung", "password" in org_js and "shared_api" in org_js and "orgPool" in org_js)
 check("org.js thẻ người + hạn mức", "org-card" in org_js and "data-org-usage" in org_js)
+check("org.js chia tab tổng hợp/cài/tạo/quản",
+      'data-org-tab="tong"' in org_js and 'data-org-tab="cai"' in org_js
+      and 'data-org-tab="tao"' in org_js and 'data-org-tab="quan"' in org_js)
+check("org.js tìm và lọc người", "orgSearch" in org_js and "orgSt" in org_js and "orgApi" in org_js)
 check("không em dash org.js", "\u2014" not in org_js)
 con = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 check("rail có nhóm Tổ chức riêng", 'nav.group.quan_tri' in con and 'ids: ["org"]' in con)
