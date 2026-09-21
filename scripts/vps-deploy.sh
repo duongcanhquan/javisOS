@@ -16,6 +16,13 @@ if [ -z "${JAVIS_NAME:-}" ]; then
   _jn=$(grep -E '^JAVIS_NAME=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d ' "')
   if [ -n "$_jn" ]; then export JAVIS_NAME="$_jn"; fi
 fi
+# Bản cá nhân không được giữ domain gốc - Caddy sẽ lái javis.vietmycollege.com vào não quan.
+if ! grep -qE '^JAVIS_ORG_MANAGER=(true|1|yes|on)$' "$ENV_FILE" 2>/dev/null; then
+  if grep -qE '^DOMAIN_NAME=javis\.vietmycollege\.com$' "$ENV_FILE" 2>/dev/null; then
+    echo "==> tách domain bản cá nhân → javis-quan.vietmycollege.com (không đụng volume)"
+    sed -i.bak 's/^DOMAIN_NAME=.*/DOMAIN_NAME=javis-quan.vietmycollege.com/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  fi
+fi
 if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
   sed -i.bak 's/^JAVIS_ENABLE_USER_PLUGINS=.*/JAVIS_ENABLE_USER_PLUGINS=true/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
 else
@@ -222,9 +229,30 @@ if [ -f "$ENV_FILE" ] && grep -qE '^JAVIS_ORG_MANAGER=(true|1|yes|on)$' "$ENV_FI
   echo "==> đang deploy ngay Javis gốc - không lặp $MGR_DIR"
 elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   echo "==> cập nhật Javis gốc ($MGR_DIR), không đụng volume javis_javis-*"
+  mkdir -p "$MGR_DIR"
+  cp -f "$ROOT/docker-compose.yml" "$MGR_DIR/"
+  if [ -f "$ROOT/docker-compose.multi.yml" ]; then
+    cp -f "$ROOT/docker-compose.multi.yml" "$MGR_DIR/"
+  fi
+  touch "$MGR_DIR/.env"
+  chmod 600 "$MGR_DIR/.env"
+  _mgr_set() {
+    local k=$1 v=$2
+    if grep -qE "^${k}=" "$MGR_DIR/.env"; then
+      sed -i "s|^${k}=.*|${k}=${v}|" "$MGR_DIR/.env"
+    else
+      printf '%s=%s\n' "$k" "$v" >> "$MGR_DIR/.env"
+    fi
+  }
+  _mgr_set JAVIS_ORG_MANAGER true
+  _mgr_set JAVIS_ORG_TENANT false
+  _mgr_set JAVIS_NAME javis-manager
+  _mgr_set DOMAIN_NAME javis.vietmycollege.com
+  _mgr_set JAVIS_HOST_PORT 7778
+  _mgr_set JAVIS_BIND 127.0.0.1
   (
     cd "$MGR_DIR"
-    unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME
+    unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT
     export COMPOSE_PROJECT_NAME=javis-manager
     export JAVIS_IMAGE
     MGR_FILES=(-f docker-compose.yml)

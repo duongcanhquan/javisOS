@@ -241,6 +241,14 @@ check(
     "unset JAVIS_NAME" in script,
 )
 check(
+    "vps-deploy.sh: copy compose mới sang Javis gốc",
+    'cp -f "$ROOT/docker-compose.yml" "$MGR_DIR/"' in script,
+)
+check(
+    "vps-deploy.sh: ép JAVIS_ORG_MANAGER=true trên gốc",
+    "_mgr_set JAVIS_ORG_MANAGER true" in script,
+)
+check(
     "vps-deploy.sh: Javis gốc không --remove-orphans",
     "up -d --no-build javis" in script,
 )

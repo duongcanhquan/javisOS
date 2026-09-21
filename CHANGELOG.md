@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.257] - 2026-09-21
+### Sửa
+- **Nhóm Tổ chức hiện trên Javis gốc.** Cờ quản trị trước đây chỉ nằm file máy chủ, không vào container nên rail giấu mục. Mở `javis.vietmycollege.com`, đáy thanh trái. Não cá nhân vẫn ở `javis-quan`.
+
 ## [0.55.256] - 2026-09-21
 ### Mới
 - **Tổ chức hiện thành nhóm riêng trên Javis gốc** (`javis.vietmycollege.com`), bấm là vào. Chỉ admin gốc thấy; Javis từng người không có mục này.
