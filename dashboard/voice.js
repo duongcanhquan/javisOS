@@ -78,7 +78,9 @@ class JavisVoice {
     // voice.js chỉ lo TAI và MIỆNG; luật "chờ bao lâu rồi gửi, có được ngắt không" nằm ở đạo
     // diễn, app.js gắn các móc này. Không gắn thì hành vi cũ giữ nguyên (silenceMs cố định,
     // chen ngang giết ngay).
-    this.endpointDelay = opts.endpointDelay || null;   // (text) -> ms im lặng trước khi gửi
+    this.fastTurn = opts.fastTurn !== false;           // khớp server/pipecat_voice.py + qsFastTurn
+    this.endpointDelay = opts.endpointDelay || ((display) =>
+      JavisVoice.silenceMsForTurn(display, !!(this._duoiTam), this.fastTurn));
     this.onBargeStart = opts.onBargeStart || null;     // NGHI có người chen ngang (đường cũ: tạm dừng chờ chữ)
     this.onBargeConfirm = opts.onBargeConfirm || null; // ĐÃ CHẮC là người thật (nhá tiếng xong): dừng hẳn
     this.onSpeakStart = opts.onSpeakStart || null;     // bắt đầu phát tiếng
@@ -430,6 +432,27 @@ class JavisVoice {
     if (a === b || a.endsWith(b) || b.startsWith(a)) return b.startsWith(a) && b.length > a.length ? moi : cu;
     return (cu + " " + moi).trim();
   }
+
+  // Ms chờ im lặng trước khi chốt câu — bản JS khớp server/pipecat_voice.py (test_voice_fast_turn).
+  static silenceMsForTurn(text, hasInterim, fastTurn) {
+    const SILENCE_CU = 1900, SILENCE_DO = 1400, SILENCE_THUONG = 900, SILENCE_XONG = 400;
+    const CUM_DO = new Set([
+      "và", "thì", "là", "mà", "nhưng", "hoặc", "với", "của", "để", "nếu", "vì", "nên",
+      "khi", "trong", "từ", "tới", "đến", "về", "tại", "như", "cũng",
+      "and", "or", "but", "the", "a", "an", "to", "of", "in", "with", "for", "if", "when",
+    ]);
+    if (!fastTurn) return SILENCE_CU;
+    if (hasInterim) return SILENCE_CU;
+    const t = String(text || "").trim();
+    if (!t) return SILENCE_CU;
+    const cuoi = t.split(/\s+/).pop().replace(/[.,!?;:"'()[\]{}]+$/g, "").toLowerCase();
+    if (CUM_DO.has(cuoi)) return SILENCE_DO;
+    const het = /[.!?…。？！]$/.test(t) || (t.length >= 2 && /["']$/.test(t) && /[.!?…。？！]$/.test(t.slice(0, -1)));
+    if (het) return SILENCE_XONG;
+    return SILENCE_THUONG;
+  }
+
+  setFastTurn(on) { this.fastTurn = !!on; }
 
   // Mic đang hỏng hẳn không? Nơi gọi dùng nó để TẮT chế độ rảnh tay thay vì cứ thử mãi.
   micHong() { return this._micHong; }

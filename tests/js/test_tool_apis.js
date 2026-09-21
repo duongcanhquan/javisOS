@@ -59,9 +59,9 @@ check("không em dash", html.indexOf("\u2014") === -1);
 const indexHtml = fs.readFileSync(path.join(root, "dashboard/index.html"), "utf8");
 const consoleJs = fs.readFileSync(path.join(root, "dashboard/console.js"), "utf8");
 const videoJs = fs.readFileSync(path.join(root, "dashboard/video.js"), "utf8");
-check("index nạp tool-apis.js trước console.js",
-  indexHtml.indexOf('src="/static/tool-apis.js') !== -1
-  && indexHtml.indexOf('src="/static/tool-apis.js') < indexHtml.indexOf('src="/static/console.js'));
+check("tool-apis.js lazy trong PAGE_LAZY",
+  /file:\s*"tool-apis\.js"/.test(consoleJs) && /PAGE_LAZY/.test(consoleJs));
+check("index không nạp tool-apis.js eager", !/\/static\/tool-apis\.js/.test(indexHtml));
 check("console rail có tool_apis", /"tool_apis"/.test(consoleJs) && /tool_apis:\s*"key"/.test(consoleJs));
 check("trang Tạo video trỏ Khóa API", /vidGotoKeys/.test(videoJs) && /tool_apis/.test(videoJs));
 

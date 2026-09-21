@@ -785,49 +785,117 @@
     };
   }
 
-  function renderSharePage(el) {
-    el.innerHTML = `
-      <div class="cview-section">
-        <h3>${esc(t("page.share.title") || "Link đang chia sẻ")}</h3>
-        <p class="dim">${esc(t("page.share.sub") || "Mọi đường link công khai · thu hồi bất cứ lúc nào")}</p>
-        <div id="orgShareList" class="dim">Đang tải…</div>
-      </div>`;
-    const box = el.querySelector("#orgShareList");
-    (async () => {
-      try {
-        const d = await (await fetch("/share/list", { cache: "no-store" })).json();
-        const rows = d.items || d.shares || d.links || [];
-        if (!rows.length) {
-          box.innerHTML = '<p class="dim">Chưa có link công khai. Mở một file trong Tệp tin rồi bấm Chia sẻ.</p>';
-          return;
-        }
-        box.innerHTML = `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>File</th><th>Link</th><th></th></tr></thead><tbody>`
-          + rows.map((r) => {
-            const tok = r.token || r.id || "";
-            const path = r.path || r.file || r.name || "";
-            const url = r.url || (tok ? ("/s/" + tok) : "");
-            return `<tr><td>${esc(path)}</td><td><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></td>`
-              + `<td><button type="button" class="btn" data-share-revoke="${esc(tok)}">Thu hồi</button></td></tr>`;
-          }).join("")
-          + `</tbody></table></div>`;
-        box.querySelectorAll("[data-share-revoke]").forEach((b) => {
-          b.addEventListener("click", async () => {
-            const tok = b.getAttribute("data-share-revoke");
-            if (!tok || !confirm("Thu hồi link này?")) return;
-            try {
-              await fetch("/share/revoke", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: tok }),
-              });
-              renderSharePage(el);
-            } catch (e) { alert(e.message || "Không thu hồi được"); }
+  const SHARE_MOI_TRANG = 20;
+  const SHARE_NGUONG_TIM = 1;
+
+  async function renderSharePage(el) {
+    function shareKhongDau(s) {
+      return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+    }
+    var allItems = [];
+    var shellHtml = function (total, extra) {
+      var tim = total > SHARE_NGUONG_TIM
+        ? '<input type="search" id="shareSearch" placeholder="' + esc(t("share.search_ph")) + '">'
+        : "";
+      var dem = total > SHARE_NGUONG_TIM ? '<div id="shareCount" class="dim"></div>' : "";
+      return '<div class="share-page">' +
+        '<h3>' + esc(t("share.heading")) + '</h3>' +
+        '<p class="dim">' + esc(t("share.warn")) + '</p>' +
+        (total ? '<p class="share-total">' + total + '</p>' : "") +
+        tim + dem + (extra || "") +
+        '<div class="share-list" id="shareList"></div></div>';
+    };
+    el.innerHTML = shellHtml(0, '<p class="dim">' + ic("loader", { cls: "ic-spin" }) + '</p>');
+    try {
+      var d = await (await fetch("/share/list", { cache: "no-store" })).json();
+      allItems = d.items || d.shares || d.links || [];
+    } catch (e) {
+      el.innerHTML = shellHtml(0, '<p class="dim">' + esc(t("app.err_net")) + '</p>');
+      return;
+    }
+    if (!allItems.length) {
+      el.innerHTML = shellHtml(0, '<p class="dim">' + esc(t("share.empty")) + '</p>');
+      return;
+    }
+    el.innerHTML = shellHtml(allItems.length, "");
+    var list = el.querySelector("#shareList");
+    var oTim = el.querySelector("#shareSearch");
+    var oDem = el.querySelector("#shareCount");
+
+    function veHang(r) {
+      var tok = r.token || r.id || "";
+      var path = r.path || r.file || r.name || "";
+      var url = r.url || (tok ? "/s/" + tok : "");
+      var full = (location.origin || "") + url;
+      return '<div class="share-row" data-token="' + esc(tok) + '">' +
+        '<div class="share-name"><strong>' + esc(path.split("/").pop() || path) + '</strong>' +
+        '<small>' + esc(path) + '</small></div>' +
+        '<div class="share-url">' + esc(full) + '</div>' +
+        '<button type="button" data-share-copy="' + esc(tok) + '">' + esc(t("common.copy")) + '</button>' +
+        '<button type="button" data-share-revoke="' + esc(tok) + '">' + esc(t("share.revoke")) + '</button></div>';
+    }
+
+    function locItems() {
+      var q = oTim ? String(oTim.value || "") : "";
+      if (!q.trim()) return allItems.slice();
+      var parts = shareKhongDau(q).split(/\s+/).filter(Boolean);
+      return allItems.filter(function (r) {
+        var hay = shareKhongDau((r.path || r.file || r.name || "") + " " + (r.url || ""));
+        return parts.every(function (p) { return hay.indexOf(p) >= 0; });
+      });
+    }
+
+    function ganNut(box) {
+      box.querySelectorAll("[data-share-revoke]").forEach(function (b) {
+        b.onclick = async function () {
+          var tok = b.dataset.shareRevoke || b.getAttribute("data-share-revoke");
+          if (!tok) return;
+          if (typeof confirm === "function" && !confirm(t("share.revoke") + "?")) return;
+          await fetch("/share/revoke", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: tok }),
           });
-        });
-      } catch (e) {
-        box.textContent = e.message || "Không tải được danh sách chia sẻ.";
+          allItems = allItems.filter(function (x) { return (x.token || x.id) !== tok; });
+          veDanhSach();
+        };
+      });
+      box.querySelectorAll("[data-share-copy]").forEach(function (b) {
+        b.onclick = function () {
+          var tok = b.dataset.shareCopy || b.getAttribute("data-share-copy");
+          var row = allItems.find(function (x) { return (x.token || x.id) === tok; });
+          var url = row && (row.url || (tok ? "/s/" + tok : ""));
+          if (url && navigator.clipboard) navigator.clipboard.writeText((location.origin || "") + url);
+        };
+      });
+    }
+
+    function veDanhSach() {
+      var filtered = locItems();
+      if (oDem) {
+        oDem.textContent = (oTim && oTim.value.trim())
+          ? t("share.count", { so: filtered.length, tong: allItems.length }) : "";
       }
-    })();
+      if (!filtered.length && oTim && oTim.value.trim()) {
+        list.innerHTML = '<p class="dim">' + esc(t("share.no_match")) + '</p>';
+        return;
+      }
+      var drawPage = function (page) {
+        var html = page.map(veHang).join("");
+        ganNut(list);
+        return html;
+      };
+      var pagerFn = window.JavisPager || pager;
+      pagerFn(list, filtered, SHARE_MOI_TRANG, function (page) {
+        var html = page.map(veHang).join("");
+        setTimeout(function () { ganNut(list); }, 0);
+        return html;
+      }, '<p class="dim">' + esc(t("share.no_match")) + '</p>');
+      ganNut(list);
+    }
+
+    if (oTim) oTim.oninput = veDanhSach;
+    veDanhSach();
   }
 
   function placeholder(id, note) {

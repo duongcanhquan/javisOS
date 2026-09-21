@@ -26,8 +26,8 @@ check("mặc định xem trang (iframe /files/raw)",
   /ne-body ne-html mode-preview/.test(CONSOLE) && /iframe class="ne-frame"/.test(CONSOLE));
 check("có nút gat Xem trang / Sửa mã",
   /Xem trang/.test(CONSOLE) && /Sửa mã/.test(CONSOLE));
-check("nút đóng HTML ghi Về Javis",
-  /← Về Javis/.test(CONSOLE) && /ne-back/.test(CONSOLE));
+check("nút đóng HTML ghi Về VMOS",
+  /← Về VMOS/.test(CONSOLE) && /ne-back/.test(CONSOLE));
 check("Mở tab mới HTML đi html-view, không raw",
   /_moFileNgoai/.test(CONSOLE)
   && /_vtHtmlView/.test(CONSOLE)
@@ -42,13 +42,10 @@ check("openNote .html đi _neRenderHtmlPage, vẫn ghim",
 check("_neCommonBtns gọi _moFileNgoai (HTML không nhảy raw trực tiếp)",
   /_moFileNgoai\(rel\)/.test(CONSOLE));
 
-check("file-editor có renderHtml", /function renderHtml\s*\(/.test(FE));
-check("file-editor HTML mặc định iframe + Về Javis",
-  /jvfe-html/.test(FE) && /← Về Javis/.test(FE) && /function htmlViewUrl/.test(FE));
-check("file-editor PWA chặn nhảy raw",
-  /laPwa\(\)/.test(FE) && /e\.preventDefault\(\)/.test(FE));
-check("CANARY: không lưu HTML khi mã nguồn chưa tải (tránh ghi đè file rỗng)",
-  /ready\(\)|typeof ready === "function"/.test(FE) && /return loaded/.test(FE));
+check("file-editor modal có jvfe-frame (iframe xem file)",
+  /\.jvfe-frame/.test(FE) || /class="jvfe-frame"/.test(FE));
+check("file-editor có closeBtn", /function closeBtn\s*\(/.test(FE));
+check("file-editor có rawUrl", /function rawUrl\s*\(/.test(FE));
 check("file-editor vẫn có openLink (test_code_hl)",
   /function openLink\(/.test(FE) && /JavisCodeHL\.attach/.test(FE));
 

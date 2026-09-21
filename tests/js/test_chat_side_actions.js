@@ -47,7 +47,7 @@ function node(cls, parent) {
 }
 
 // ---- Lấy CHÍNH handler trong source ra chạy ----
-const m = SRC.match(/item\.onclick = function \(e\) \{\n([\s\S]*?)\n      \};/);
+const m = SRC.match(/item\.onclick = function \(e\) \{\r?\n([\s\S]*?)\r?\n      \};/);
 check("tìm được handler bấm vào một hội thoại", !!m);
 if (!m) { console.log("\nFAIL - test_chat_side_actions: không đọc được handler"); process.exit(1); }
 

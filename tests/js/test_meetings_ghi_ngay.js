@@ -8,6 +8,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..", "..");
 const src = fs.readFileSync(path.join(ROOT, "dashboard", "meetings.js"), "utf8");
 const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8");
+const consoleJs = fs.readFileSync(path.join(ROOT, "dashboard", "console.js"), "utf8");
 const fails = [];
 
 function check(name, cond, extra) {
@@ -64,8 +65,9 @@ check("timeout WASM ~40s (không 180s) + ngủ audio lúc load",
   /MOONSHINE_INIT_TIMEOUT_MS\s*=\s*40000/.test(src) && /function pauseAudioForWasmLoad\(/.test(src));
 check("không import jsDelivr Moonshine",
   src.indexOf("cdn.jsdelivr.net/npm/@moonshine-ai/moonshine-wasm") === -1);
-const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 43)", v >= 43, v);
+check("meetings.js lazy trong PAGE_LAZY",
+  /file:\s*"meetings\.js"/.test(consoleJs) && /PAGE_LAZY/.test(consoleJs));
+check("index không nạp meetings.js eager", !/\/static\/meetings\.js/.test(html));
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

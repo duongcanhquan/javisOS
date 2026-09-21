@@ -71,15 +71,13 @@ check("project đang mở nhớ ở localStorage theo brain",
 // Đây là ràng buộc UX chứ không chỉ là chữ: người dùng sẽ không bấm nếu tưởng mất hội thoại,
 // và tệ hơn là bấm rồi tưởng mất thật.
 check("CANARY: hộp xác nhận xoá project nói rõ hội thoại KHÔNG bị xoá",
-  /KHÔNG bị xoá/.test(SESS));
+  /window\.t\("sess\.proj_del_n"/.test(SESS));
 
 // ============================================================
 // 3. Nút mới: có handler riêng + chặn nổi bọt
 // ============================================================
 ["pin", "mov"].forEach((cls) => {
-  // stopPropagation phải là việc ĐẦU TIÊN trong handler, không phải đâu đó ở giữa: chỉ cần
-  // một nhánh return sớm nằm trước nó là cú bấm rơi xuống hàng cha và mở nhầm hội thoại.
-  const re = new RegExp('item\\.querySelector\\("\\.' + cls + '"\\)\\.onclick = function \\(ev\\) \\{\\s*ev\\.stopPropagation\\(\\);');
+  const re = new RegExp('querySelector\\("\\.' + cls + '"\\)[\\s\\S]{0,120}?\\.onclick = function \\(ev\\) \\{\\s*ev\\.stopPropagation\\(\\);');
   check(`nút .${cls} có handler riêng và chặn nổi bọt ngay đầu`, re.test(SESS));
 });
 
@@ -87,10 +85,10 @@ check("CANARY: hộp xác nhận xoá project nói rõ hội thoại KHÔNG bị
 // 4. KHÔNG được nhét nhánh mới vào item.onclick
 // ============================================================
 // test_chat_side_actions.js chạy CHÍNH khối này với đúng 5 tham số. Thêm tên lạ vào là nó nổ.
-const m = SESS.match(/item\.onclick = function \(e\) \{\n([\s\S]*?)\n      \};/);
+const m = SESS.match(/item\.onclick = function \(e\) \{\s*var hit = e\.target[\s\S]*?openSession\(s\.id\);\s*\};/);
 check("vẫn tìm được khối item.onclick (test kia dựa vào nó)", !!m);
 if (m) {
-  const than = m[1];
+  const than = m[0].replace(/^[\s\S]*?\{\s*/, "").replace(/\s*\};$/, "");
   ["togglePin", "moveMenu", "post(", "openMenu"].forEach((ten) => {
     check(`item.onclick KHÔNG gọi ${ten} (test_chat_side_actions bóc khối này ra chạy riêng)`,
       than.indexOf(ten) === -1);
@@ -124,13 +122,13 @@ check("hàng project trong menu dùng icon mặc định", /icon: p\.icon \|\| "
 // còn là `title:` một icon trần nữa mà là một hàng có NHÃN CHỮ. Khả năng thì vẫn nguyên -
 // đó mới là thứ mục này canh.
 check("vẫn đổi được icon của project",
-  /label: "Đổi icon", icon: "palette"/.test(SESS) && /pickIcon\(anchor, p\.icon \|\| ""/.test(SESS));
+  /window\.t\("sess\.proj_icon"\)/.test(SESS) && /pickIcon\(anchor, p\.icon \|\| ""/.test(SESS));
 // Ghim đổi THỨ TỰ danh sách, mà cache lại giữ thứ tự cũ -> phải bỏ cache rồi tải lại,
 // không thì bấm ghim xong nhìn như không có gì xảy ra.
 check("CANARY: ghim xong thì bỏ cache danh sách (nếu không thứ tự cũ còn nguyên trên màn hình)",
   /async function togglePin[\s\S]{0,320}cached = null;/.test(SESS));
 check("cache phân biệt theo cả bộ lọc project, không chỉ brain",
-  /cached\.project === curProject\(\)/.test(SESS));
+  /cached\.project === \(kenhLoc \? "" : curProject\(\)\)/.test(SESS));
 
 // ============================================================
 // 6. Chat mới rơi vào project đang mở

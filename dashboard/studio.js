@@ -1174,7 +1174,8 @@
     const modelOptions = (g) =>
       `<optgroup label="${esc(g.label)}">${g.models.map(m => `<option value="${esc(val(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`;
     const box = document.getElementById("editorBox");
-    box.innerHTML = `<h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
+    box.innerHTML = `<div class="agent-editor">
+      <h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
       <label>${esc(t("studio.role"))}</label>
       <textarea id="agRole" rows="3" class="js-input" placeholder="${esc(t("studio.ag_role_ph"))}">${esc(a ? a.role : "")}</textarea>
@@ -1198,7 +1199,13 @@
       <div class="dim" style="font-size:12px;margin-top:4px">${esc(nhom.length
         ? t("studio.model_hint")
         : t("studio.model_none"))}</div>
-      <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>`;
+      <div class="ag-assets">
+        <button type="button" class="s-btn-ghost" id="agAssets"${a && a.slug ? "" : " disabled"}
+          title="${esc(a && a.slug ? t("proj.tab_files") + " & " + t("proj.tab_links") : t("studio.assets_new"))}">${esc(t("proj.tab_files"))} &amp; ${esc(t("proj.tab_links"))}</button>
+        ${a && a.slug ? "" : `<span class="dim" style="font-size:12px;margin-left:8px">${esc(t("studio.assets_new"))}</span>`}
+      </div>
+      <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>
+    </div>`;
     if (a && a.model) {
       const sel = box.querySelector("#agModel");
       sel.value = val(a.model_provider || "", a.model);
@@ -1214,6 +1221,15 @@
     // ra khỏi màn hình sẽ mất tick, im lặng, và người dùng chỉ phát hiện sau khi agent chạy sai.
     const chosen = new Set(a ? (a.skills || []) : []);
     renderSkillPick(box, skills, chosen);
+    const nutAssets = box.querySelector("#agAssets");
+    if (nutAssets) {
+      nutAssets.onclick = () => {
+        if (!(a && a.slug)) return;
+        if (window.JavisChatSide && window.JavisChatSide.moKhungAgent) {
+          window.JavisChatSide.moKhungAgent(a.slug, a.name || a.slug);
+        }
+      };
+    }
     box.querySelector("#cancelEd").onclick = () => editor.classList.remove("open");
     box.querySelector("#saveAg").onclick = async () => {
       const name = box.querySelector("#agName").value.trim(); if (!name) return alert(t("studio.need_name"));

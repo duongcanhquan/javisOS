@@ -823,10 +823,9 @@ def _acquire_slot(slug: str) -> None:
         return
     victim = _pick_evict(slug)
     if not victim:
-        names = ", ".join(str(t.get("name") or t.get("slug")) for t in running) or "?"
         raise RuntimeError(
-            f"Hết chỗ máy chạy ({len(running)}/{cap}). "
-            f"Đang dùng: {names}. Đợi người khác nghỉ hoặc nhờ quản trị tắt một máy."
+            "Đang có nhiều máy mở cùng lúc. Máy của bạn xếp hàng — "
+            "não và file giữ nguyên, trang sẽ tự mở khi tới lượt."
         )
     stop(victim, park=False)
 
@@ -1053,10 +1052,10 @@ def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
         start_with_capacity(slug)
     except Exception as e:
         pos = oc.enqueue_wait(slug)
-        why = str(e) or "Hết chỗ RAM."
         return oc.wake_html(
-            host, "Đang xếp chỗ RAM",
-            why + f" Bạn đứng hàng thứ {pos}. Não và file không xóa. Trang tự thử lại khi có chỗ.",
+            host, "Đang xếp lượt mở máy",
+            f"Hiện nhiều người đang dùng cùng lúc. Bạn đứng hàng thứ {pos}. "
+            "Não và file không mất. Trang tự thử lại khi tới lượt — không phải lỗi.",
             8,
         ), 503
     return oc.wake_html(

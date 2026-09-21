@@ -131,7 +131,7 @@ check("mốc 'đã sửa gì chưa' lấy từ chính khung soạn, không phả
 check("lưu xong thì dời mốc (không lưu lại lần nữa khi rời file)",
   /_neGocText = content/.test(CON));
 check("hàm lưu trả về ĐƯỢC/KHÔNG để chỗ gọi tự động biết đường",
-  /return true;[\s\S]{0,400}return false;\n {6}\};/.test(CON));
+  /return true;[\s\S]{0,400}return false;\r?\n\s+\};/s.test(CON));
 
 // ============================================================
 // 5. Vệt không được trỏ vào file không còn tồn tại

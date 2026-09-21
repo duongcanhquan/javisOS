@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.2] - 2026-09-21
+### Sửa
+- **CI canary:** meetings/tool-apis lazy `/asset/`, nhãn Về VMOS, i18n Hội thoại/tài sản trợ lý, chatbot `cb.*`, mic/voice.
+- **Câu chờ xếp hàng:** bỏ chữ quá tải/hết chỗ; nhắc chờ lượt, hệ thống vẫn chạy bình thường (pool, chat, mở máy).
+
 ## [0.56.1] - 2026-09-21
 ### Sửa
 - **API pool:** nhả chỗ concurrency khi stream lỗi/`aclose` fail; không đốt RPM khi bị chặn song song.

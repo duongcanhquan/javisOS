@@ -50,7 +50,8 @@ def check_rate(slug: str) -> str | None:
         while q and now - q[0] > 60.0:
             q.popleft()
         if len(q) >= lim:
-            return f"Quá nhiều lệnh API pool ({lim}/phút). Thử lại sau vài giây."
+            # Không nói "quá tải / hỏng" — chỉ xếp hàng, mời chờ rồi gửi lại.
+            return "Đang có nhiều yêu cầu cùng lúc. Chờ vài giây rồi gửi lại nhé — hệ thống vẫn chạy bình thường."
         q.append(now)
     return None
 
@@ -70,11 +71,17 @@ class Inflight:
         with _LOCK:
             gmax = global_conc_limit()
             if _GLOBAL >= gmax:
-                self.error = "API pool đang quá tải (toàn hệ thống). Thử lại sau."
+                self.error = (
+                    "Hàng đợi đang hơi đông. Chờ vài giây rồi thử lại nhé — "
+                    "không phải lỗi, chỉ cần đợi lượt."
+                )
                 return self
             cmax = conc_limit()
             if _INFLIGHT[self.slug] >= cmax:
-                self.error = f"Máy này đang có quá nhiều lệnh pool song song (tối đa {cmax})."
+                self.error = (
+                    "Máy của bạn đang xử lý lệnh trước đó. "
+                    "Chờ lệnh đó xong rồi gửi tiếp nhé."
+                )
                 return self
             _INFLIGHT[self.slug] += 1
             _GLOBAL += 1

@@ -18,7 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "..", "..");
-const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g, "\n");
 const voice = read("dashboard/voice.js");
 const app = read("dashboard/app.js");
 const qs = read("dashboard/quick-settings.js");
@@ -53,11 +53,12 @@ check("câu mới thật sự khác thì nối tiếp", ghep("Xin chào", "hôm 
 check("chưa chốt gì thì lấy nguyên final", ghep("", "Ok") === "Ok");
 
 // ---- 2. Phiên tự mở lại không làm mất nửa câu đầu ----
+// onend gói qua ghepDuoiTam (kể cả đuôi tạm iOS), không còn _ghepChuyenBien("").
 check("onend tự mở lại thì gói phần đã nghe vào _committed trước",
-  /this\._committed = this\._ghepChuyenBien\(""\);\s*\n\s*this\.recognition\.start\(\);/.test(voice));
-check("mở nghe CHỦ ĐỘNG là lượt mới: xoá _committed",
-  /if \(!tuDong\) this\._committed = "";/.test(voice));
-check("gửi xong dọn _committed", /this\._committed = "";\s*\n\s*if \(finalText\) this\.onTranscript\(finalText\);/.test(voice));
+  /this\._committed = JavisVoice\.ghepDuoiTam\(this\.accumulatedTranscript \|\| this\._committed, this\._duoiTam\);\s*\n\s*this\._duoiTam = "";\s*\n\s*this\.recognition\.start\(\);/.test(voice));
+check("startListening luôn xoá _committed (lượt mới, kể cả tuDong)",
+  /startListening\([^)]*\) \{[\s\S]{0,600}this\._committed = "";/.test(voice));
+check("gửi xong dọn _committed", /this\._committed = "";\s*\n\s*this\._duoiTam = "";\s*\n\s*this\._batDauLuot = 0;[\s\S]{0,120}if \(finalText\) this\.onTranscript\(finalText\);/.test(voice));
 // Các chốt cũ của test_mic_khong_tu_gui phải còn nguyên (không được phá lúc sửa onresult).
 check("onstart/onend/onerror vẫn hạ _starting ở dòng đầu",
   /onstart = \(\) => \{\s*\n\s*this\._starting = false;/.test(voice)
@@ -112,7 +113,7 @@ check("voice.js đã bump (>= 17)", v("voice.js") >= 17, v("voice.js"));
 check("app.js đã bump (>= 101)", v("app.js") >= 101, v("app.js"));
 check("quick-settings.js đã bump (>= 7)", v("quick-settings.js") >= 7, v("quick-settings.js"));
 check("style.css đã bump (>= 81)", v("style.css") >= 81, v("style.css"));
-check("voice.js đã bump lần nữa cho đường iOS (>= 18)", v("voice.js") >= 18, v("voice.js"));
+check("voice.js đã bump lần nữa cho đường iOS (>= 26)", v("voice.js") >= 26, v("voice.js"));
 
 console.log();
 if (fails.length) { console.log("ĐỎ " + fails.length + " mục: " + fails.join(", ")); process.exit(1); }

@@ -185,6 +185,7 @@ const sandbox = {
   fetch: async () => ({ json: async () => ({ sessions: [] }) }),
   window: {
     innerWidth: 1400,
+    t: (k) => k,
     ic: () => "<svg></svg>",
     addEventListener() {},
     JavisSessions: { brain: () => "My Bullet Journal", current: () => null },

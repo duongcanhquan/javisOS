@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..", "..");
-const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8").replace(/\r\n/g, "\n");
 const voice = read("dashboard/voice.js");
 const app = read("dashboard/app.js");
 const html = read("dashboard/index.html");
@@ -50,11 +50,12 @@ check("onend hạ cờ _starting", /onend = \(\) => \{\s*\n\s*this\._starting = 
 check("onerror hạ cờ _starting",
   /onerror = \(event\) => \{[\s\S]{0,120}this\._starting = false;/.test(voice));
 
-// ---- 2. Barge-in chỉ rình khi mic đang thật sự mở ----
-// _resumeAfterTTS chỉ bật trong _muteRecognition, mà chỗ đó đòi isListening === true.
-// Vậy điều kiện này đúng bằng "người dùng đang trong phiên nói chuyện bằng giọng".
-check("_startBargeMonitor thoát sớm khi mic không mở (!_resumeAfterTTS)",
-  /_startBargeMonitor\(\) \{[\s\S]{0,900}if \(!this\._resumeAfterTTS\) return;/.test(voice));
+// ---- 2. Barge-in chỉ rình khi đang nói chuyện bằng giọng ----
+// 0.57.14 đổi chốt: `_resumeAfterTTS` một mình không đủ (rảnh tay hay tắt mic trước khi TTS
+// đọc thì cờ không bật). Phải kết hợp `handsFree` — rảnh tay TẮT thì VMOS đọc im lặng, không
+// rình, nên tiếng phòng không tự mở mic. `_resumeAfterTTS` vẫn giữ cho lúc mic tạm ngừa vì TTS.
+check("_startBargeMonitor thoát sớm khi không rảnh tay và không tạm ngừa TTS",
+  /_startBargeMonitor\(\) \{[\s\S]{0,2200}if \(!this\._resumeAfterTTS && !this\.handsFree\) return;/.test(voice));
 check("_muteRecognition vẫn là chỗ duy nhất bật _resumeAfterTTS khi đang nghe",
   /_muteRecognition\(\) \{[\s\S]{0,200}this\._resumeAfterTTS = true;/.test(voice)
   && (voice.match(/this\._resumeAfterTTS = true;/g) || []).length === 1);
@@ -70,16 +71,16 @@ check("chỉ có 5 chỗ gọi sendMessage (giọng nói, thử lại, Enter, n�
 // ---- 4. Server không tự nhập liệu: việc nền luôn là tin của Javis ----
 check("push_to_chat ghi vai assistant, không bao giờ là user",
   /def push_to_chat[\s\S]{0,1400}append_message\(sid, "assistant", clean\)/.test(server));
-// Đúng HAI chỗ ghi vai "user", cả hai đều là lượt hỏi có thật của người dùng: WebSocket của
-// dashboard, và tin nhắn đến từ Telegram/Zalo (phiên riêng theo chat_id, không dùng chung id
-// với hội thoại web). Con số này nhích lên là có đường mới đẻ ra tin của người dùng - phải
-// đọc lại xem nó đến từ đâu trước khi sửa test.
+// Bốn chỗ ghi vai "user", đều là lượt hỏi có thật: WebSocket dashboard, Telegram/Zalo bot,
+// và hai đường giọng realtime (Pipecat/OpenAI Live: text + transcript final). push_to_chat đã
+// kiểm riêng — việc nền luôn assistant. Con số nhích lên = đường mới sinh tin user, phải đọc
+// lại trước khi sửa test.
 const ghiUser = (server.match(/append_message\([^)]*"user"/g) || []).length;
-check("chỉ 2 chỗ trong server ghi vai user, đều là lượt hỏi thật (web + bot)", ghiUser === 2, ghiUser);
+check("4 chỗ server ghi vai user (web + bot + giọng realtime)", ghiUser === 4, ghiUser);
 
 // ---- 5. cache-bust ----
 const v = (f) => Number((html.match(new RegExp(f.replace(/\./g, "\\.") + "\\?v=(\\d+)")) || [])[1] || 0);
-check("voice.js đã bump ?v= (>= 16)", v("voice.js") >= 16, v("voice.js"));
+check("voice.js đã bump ?v= (>= 26)", v("voice.js") >= 26, v("voice.js"));
 
 console.log();
 if (fails.length) {

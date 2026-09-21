@@ -93,7 +93,7 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
         parsed = None
 
     timeout = httpx.Timeout(180.0, connect=20.0)
-    # Concurrency trước RPM: từ chối vì quá tải không đốt hạn mức phút.
+    # Concurrency trước RPM: từ chối xếp hàng không đốt hạn mức phút.
     slot = opg.Inflight(slug)
     slot.__enter__()
     if not slot.ok:

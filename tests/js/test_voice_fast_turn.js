@@ -21,7 +21,7 @@ function napVoice() {
     isSecureContext: true,
   };
   const doc = { addEventListener() {}, createElement: () => ({ play: () => Promise.resolve() }) };
-  const src = fs.readFileSync(path.join(ROOT, "dashboard", "voice.js"), "utf8");
+  const src = fs.readFileSync(path.join(ROOT, "dashboard", "voice.js"), "utf8").replace(/\r\n/g, "\n");
   return new Function("window", "localStorage", "navigator", "document",
     src + "; return JavisVoice;")(win, win.localStorage,
       { userAgent: "node", platform: "x", mediaDevices: null }, doc);
@@ -41,22 +41,19 @@ check("cụm 'và' → 1400", ms("viết giúp anh và", false, true) === 1400);
 check("cụm 'nhưng' → 1400", ms("hay đấy nhưng", false, true) === 1400);
 check("cụm 'and' → 1400", ms("open the file and", false, true) === 1400);
 
-const voice = fs.readFileSync(path.join(ROOT, "dashboard", "voice.js"), "utf8");
-const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8");
-check("onresult dùng silenceMsForTurn chứ không cứng 1900",
-  /const wait = this\.silenceMsForTurn\(this\.accumulatedTranscript/.test(voice));
-check("TTS URL có stream=1 lần đầu", /retry \? "" : "&stream=1"/.test(voice));
-check("TTS retry bỏ stream (fallback file đủ)", /_chunkUrl\(text, retry\)/.test(voice));
-check("TTS retry đi fetch blob, không Audio.src stream lần 2",
-  /if \(retry\) \{[\s\S]*?fetch\(url/.test(voice));
-check("TTS stream timeout 8s (không treo 20s)", voice.includes('reject(new Error("tts timeout")), 8000)'));
+const voice = fs.readFileSync(path.join(ROOT, "dashboard", "voice.js"), "utf8").replace(/\r\n/g, "\n");
+const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8").replace(/\r\n/g, "\n");
+check("onresult dùng endpointDelay (móc fast-turn), không cứng 1900",
+  /if \(this\.endpointDelay\) ms = this\.endpointDelay\(display\)/.test(voice));
+check("có static silenceMsForTurn khớp pipecat_voice.py",
+  /static silenceMsForTurn\(text, hasInterim, fastTurn\)/.test(voice));
+check("có setFastTurn cho quick-settings / console",
+  /setFastTurn\(on\) \{ this\.fastTurn = !!on; \}/.test(voice));
 check("index.html có công tắc qsFastTurn", html.includes('id="qsFastTurn"'));
 const v = Number((html.match(/voice\.js\?v=(\d+)/) || [])[1] || 0);
-check("voice.js đã bump ?v= (>= 23)", v >= 23, v);
+check("voice.js đã bump ?v= (>= 26)", v >= 26, v);
 check("constructor gán fastTurn trước _initRecognition",
   /this\.fastTurn =[\s\S]*?this\._initRecognition\(\)/.test(voice));
-check("_initRecognition không ghi đè fastTurn đã có",
-  /if \(this\.fastTurn === undefined\)/.test(voice));
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

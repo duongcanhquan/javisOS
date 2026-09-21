@@ -15028,7 +15028,10 @@ async def websocket_endpoint(ws: WebSocket):
             if _CHAT_RUNTIME.at_capacity():
                 await send_raw({
                     "type": "error",
-                    "content": "Máy đang xử lý quá nhiều lượt chat cùng lúc. Đợi một lát rồi chạy lại.",
+                    "content": (
+                        "Đang trả lời nhiều cuộc cùng lúc. Chờ một lát rồi chạy lại nhé — "
+                        "không phải lỗi, chỉ cần đợi lượt."
+                    ),
                     "session_id": conv_sid,
                 })
                 return
@@ -15176,7 +15179,10 @@ async def websocket_endpoint(ws: WebSocket):
             if _CHAT_RUNTIME.at_capacity():
                 await send_raw({
                     "type": "error",
-                    "content": "Máy đang xử lý quá nhiều lượt chat cùng lúc. Đợi một lát rồi gửi lại.",
+                    "content": (
+                        "Đang trả lời nhiều cuộc cùng lúc. Chờ một lát rồi gửi lại nhé — "
+                        "không phải lỗi, chỉ cần đợi lượt."
+                    ),
                     "session_id": conv_sid,
                 })
                 continue

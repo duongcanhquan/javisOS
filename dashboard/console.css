@@ -2438,3 +2438,34 @@ body.on-mcp .cview-body > .cview-placeholder {
   .pkm-tha { padding: 24px 16px; }
 }
 @keyframes pkmLen { from { transform: translateY(26px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Cộng sự / cột phải: chừa đệm cho viền tiêu điểm (outline 2px + offset 2px). */
+.ws-rpane { padding:4px; margin:0 -4px; }
+.agent-editor :is(input,select,textarea):focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.agent-editor .ag-assets { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:12px 0 4px; }
+
+/* Hội thoại khách (conversations.js): mobile thread + account cards */
+.ht-back { display: none; }
+.ht-wrap.thread-on .ht-list { display: none; }
+.ht-wrap.thread-on .ht-back { display: inline-flex; }
+.ht-acc { overflow-wrap: anywhere; }
+.ht-acc-loi span { min-width: 0; overflow-wrap: anywhere; }
+.ht-src > button { flex: none; white-space: nowrap; }
+@media (max-width: 900px) {
+  .ht-bubble { font-size: 16px; line-height: 1.45; }
+}
+
+/* Cộng sự (workspace.js) */
+.ws-main.onboard-on > .ws-slot { display: none; }
+.ws-onboard[hidden] { display: none !important; }
+.ws-main.edit-on > .ws-slot { display: none; }
+.ws-main.edit-on > .ws-edit { display: flex; }
+.ws-menu { position: fixed; z-index: 9000; }
+@media (hover: none) { .ws-item-more { opacity: 1; } }
+.cside-gon .cside-pane { padding: 0; }
+@media (max-width:600px) {
+  .ws-bar { flex-wrap: wrap; }
+  .ws-id { flex: 1 0 100%; order: -1; flex-wrap: wrap; }
+  #wsRightBtn { margin-left: auto; }
+  .ws-id .ws-err { flex: 1 0 100%; }
+}

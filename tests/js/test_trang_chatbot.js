@@ -33,15 +33,29 @@ const CB = D("chatbots.js");
 const CON = D("console.js");
 const HTML = D("index.html");
 const CSS = D("style.css");
+const VI = JSON.parse(fs.readFileSync(path.join(ROOT, "dashboard", "i18n", "vi.json"), "utf8"));
+
+// i18n: chữ nằm trong vi.json, chatbots.js chỉ gọi t("cb....").
+function i18nKey(name, key, marker) {
+  var txt = VI[key] || "";
+  var ref = new RegExp('(?:window\\.)?t\\("' + key.replace(/\./g, "\\.") + '"\\)').test(CB);
+  check(name, ref && (!marker || txt.indexOf(marker) !== -1));
+}
+function i18nKeys(name, keys, marker) {
+  var ok = keys.every(function (k) {
+    return VI[k] && (!marker || VI[k].indexOf(marker) !== -1);
+  }) && keys.every(function (k) {
+    return new RegExp('(?:window\\.)?t\\("' + k.replace(/\./g, "\\.") + '"\\)').test(CB);
+  });
+  check(name, ok);
+}
 
 // ============================================================
 // 1. Trang được đăng ký đúng chỗ
 // ============================================================
-check("index.html có nạp module trang Chatbot", /chatbots\.js\?v=/.test(HTML));
-// So bằng thẻ <script> chứ không bằng tên file: console.js được NHẮC trong hơn chục comment
-// nằm phía trên, nên indexOf("console.js") trần trụi trỏ vào comment đầu tiên.
-check("nạp TRƯỚC console.js (console gọi window.JavisChatbots)",
-  HTML.indexOf('src="/static/chatbots.js') < HTML.indexOf('src="/static/console.js'));
+check("chatbots.js lazy trong PAGE_LAZY",
+  /file:\s*"chatbots\.js"/.test(CON) && /PAGE_LAZY/.test(CON));
+check("index không nạp chatbots.js eager", !/\/static\/chatbots\.js/.test(HTML));
 check("module phơi ra đúng một cửa vào", /window\.JavisChatbots\s*=\s*\{\s*render:\s*render\s*\}/.test(CB));
 // RAIL_ITEMS nay là danh sách ID phẳng (nhãn lấy từ từ điển i18n).
 check("console có mục Chatbot trên thanh bên", /"chatbots"/.test(CON));
@@ -64,7 +78,7 @@ check("thẻ nào cũng có sửa", /cb-edit/.test(CB));
 check("thẻ nào cũng có xoá", /cb-del/.test(CB));
 check("gọi endpoint theo id, không phải endpoint số ít",
   /\/chatbots\/" \+ encodeURIComponent\(b\.id\)/.test(CB));
-check("có trạng thái rỗng dạy người dùng bước đầu", /Chưa có bot nào/.test(CB));
+i18nKey("có trạng thái rỗng dạy người dùng bước đầu", "cb.rong_tieu_de", "Chưa có bot nào");
 
 // ============================================================
 // 3. Bốn trạng thái, và lỗi phải NHÌN THẤY
@@ -77,37 +91,41 @@ check("CSS có màu riêng cho ô trạng thái lỗi", /\.cb-dot\.err/.test(CSS
 check("Agent biến mất thì thẻ báo động", /agent_missing/.test(CB));
 
 // ============================================================
-// 4. Token không rò, và mỗi bot một token
+// 4. Không dán token trên trang này — chọn tài khoản kênh đã nối
 // ============================================================
-check("ô token là type=password", /id="cbToken" type="password"/.test(CB));
-check("KHÔNG đổ token cũ vào ô", !/id="cbToken"[^>]*value="/.test(CB));
-check("sửa bot thì nói rõ để trống là giữ nguyên", /để trống nếu không đổi/.test(CB));
-check("có nút kiểm tra token trước khi lưu", /chatbots\/verify-token/.test(CB));
-check("dặn mỗi bot một token riêng", /token RIÊNG/.test(CB));
+check("form KHÔNG còn ô dán token", CB.indexOf('id="cbToken"') === -1);
+check("form chọn tài khoản kênh bằng checkbox", /class="cb-tk-o"/.test(CB) && /veChonTK/.test(CB));
+check("lưu bot gửi account_ids lên server", /account_ids:\s*ids\.join/.test(CB));
+check("nối kênh mới uỷ quyền tab Kênh", /JavisConversations\.themTaiKhoan/.test(CB) && /noiKenhMoi/.test(CB));
+i18nKey("hint giải thích chọn tài khoản kênh", "cb.hint_tai_khoan", "Tích được nhiều tài khoản");
 
 // ============================================================
 // 5. Nói thật với người dùng về hậu quả
 // ============================================================
 check("xoá bot có hỏi lại", /confirm\(/.test(CB));
-check("xoá nói rõ brain và Agent KHÔNG bị xoá", /KHÔNG bị xoá/.test(CB));
-check("form nói rõ bot tạo ra ở trạng thái tắt", /trạng thái <b>TẮT<\/b>/.test(CB));
-check("form nói rõ bot đọc tài liệu của brain nào", /chính brain này/.test(CB));
+i18nKey("xoá nói rõ brain và Agent KHÔNG bị xoá", "cb.xn_xoa_giu", "KHÔNG bị xoá");
+check("form nói rõ bot tạo ra ở trạng thái tắt",
+  /cb\.tao_xong_1/.test(CB) && /cb\.tao_xong_tat/.test(CB) &&
+  /trạng thái/.test(VI["cb.tao_xong_1"] || "") &&
+  /TẮT/.test(VI["cb.tao_xong_tat"] || ""));
+i18nKey("form nói rõ bot đọc tài liệu của brain nào", "cb.hint_agent_2", "chính brain này");
 // Lựa chọn quyết định bot "ăn nhập với Agent" hay không. Bản 0.20.0 ép cứng chế độ chỉ-tài-
 // liệu cho mọi bot, và một Agent coach viết rất kỹ vẫn trả lời "em chưa có thông tin" cho
 // đúng câu thuộc chuyên môn của nó. Phải cho chọn, và phải giải thích ngay tại chỗ chọn.
 check("form cho chọn nguồn trả lời", /id="cbNguon"/.test(CB));
 check("mặc định là chuyên môn Agent", /value="agent"[^>]*\+ \(!b \|\| b\.nguon_tra_loi !== "tai_lieu"/.test(CB));
-check("giải thích khi nào dùng chế độ nào", /thiệt hại thật/.test(CB));
+i18nKey("giải thích khi nào dùng chế độ nào", "cb.hint_nguon_2", "thiệt hại thật");
 // Trang phải nói ĐÚNG việc Javis làm: nó không viết luật cho bot, nó chỉ khoá phạm vi brain.
 // Hứa nhiều hơn thế là dạy người dùng tin vào một rào không tồn tại.
-check("nói rõ Javis không thêm luật của mình vào Agent",
-  /Javis không thêm luật nào của/.test(CB));
-check("nói rõ rào duy nhất là chỉ đọc được brain này",
-  /chỉ đọc\b[\s\S]{0,40}brain này/.test(CB));
+i18nKey("nói rõ VMOS không thêm luật của mình vào Agent",
+  "cb.hint_nguon_1", "VMOS không thêm luật nào của");
+i18nKey("nói rõ rào duy nhất là chỉ đọc được brain này",
+  "cb.intro_chi_doc", "chỉ đọc được brain này");
 check("lựa chọn được gửi lên server", /nguon_tra_loi: ngu/.test(CB));
-check("thẻ bot hiện đang chạy chế độ nào", /b\.nguon_tra_loi === "tai_lieu" \? "chỉ tài liệu"/.test(CB));
-check("trang nói rõ bot không ghi, không có lệnh quản trị",
-  /không có lệnh quản trị/.test(CB));
+check("thẻ bot hiện đang chạy chế độ nào",
+  /b\.nguon_tra_loi === "tai_lieu" \? window\.t\("cb\.nguon_tl_ngan"\)/.test(CB));
+i18nKey("trang nói rõ bot không ghi, không có lệnh quản trị",
+  "cb.intro_5", "không có lệnh quản trị");
 
 // ============================================================
 // 5b. Mức quyền: nới được, nhưng phải NHÌN THẤY cái mình đang trao đi
@@ -128,8 +146,8 @@ check("đổi mức là vẽ lại cảnh báo ngay", /oMuc\.onchange/.test(CB))
 check("chưa tick đồng ý thì không lưu được",
   /can_xac_nhan && !\(ack && ack\.checked\)/.test(CB));
 check("mức toàn quyền còn hỏi lại một lần nữa", /muc === "full" &&\s*\n?\s*!confirm\(/.test(CB));
-check("cảnh báo nói thẳng người điều khiển là người nhắn cho bot",
-  /người nhắn cho nó|người điều khiển bot/.test(CB));
+i18nKey("cảnh báo nói thẳng người điều khiển là người nhắn cho bot",
+  "cb.intro_6", "người nhắn cho nó");
 // CANARY - chữ trên trang phải tả theo LOẠI THAO TÁC, không kể tên việc của một ngành.
 // Bản đầu viết "tạo đơn, tiêu tiền quảng cáo, đăng bài": người dùng Javis để quản lý dự án hay
 // dạy học đọc xong tưởng cảnh báo không áp cho mình. Chủ repo bác (2026-08-05).
@@ -154,8 +172,8 @@ check("CSS cho nhãn mức quyền và khối cảnh báo",
   /\.cb-quyen\.full/.test(CSS) && /\.cb-canhbao\.full/.test(CSS) && /\.cb-ack/.test(CSS));
 // Hai rào KHÔNG đổi theo mức, và trang phải nói đúng như vậy - hứa thiếu thì chủ ngại nâng
 // mức một cách vô cớ, hứa thừa thì chủ tin vào một rào không tồn tại.
-check("trang nói rõ hai rào giữ nguyên ở mọi mức",
-  /không thấy brain khác, và không chạy được lệnh máy/.test(CB));
+i18nKey("trang nói rõ hai rào giữ nguyên ở mọi mức",
+  "cb.intro_7", "không thấy brain khác");
 
 // ============================================================
 // 6. Bot KHÔNG có brain riêng - trang thuộc về brain đang mở
@@ -169,16 +187,17 @@ check("trang lọc bot theo brain đang mở", /\/chatbots\?brain=" \+ encodeURI
 check("form nạp Agent của brain đang mở",
   /var br = brain\(\)/.test(CB) && /nạpAgent\(br\)/.test(CB));
 check("lưu bot thì Agent và tài liệu cùng một brain", /agent_brain: br, brain: br,/.test(CB));
-check("trang nói rõ đang xem bot của brain nào", /Bot của brain <b>/.test(CB));
-check("trang chỉ cách xem brain khác", /Đổi brain ở đầu trang/.test(CB));
+i18nKey("trang nói rõ đang xem bot của brain nào", "cb.intro_1", "Bot của brain");
+i18nKey("trang chỉ cách xem brain khác", "cb.intro_8", "Đổi brain ở đầu trang");
 // Thẻ bot bỏ dòng brain: mọi bot ở đây đều cùng một brain nên nhắc lại từng thẻ chỉ là nhiễu.
 check("thẻ bot không nhắc lại brain", !/ic\("brain"\) \+ ' ' \+ esc\(b\.brain\)/.test(CB));
-check("có nút sang trang Agents để tạo", /id="cbNewAgent"/.test(CB) && /JavisNav\.go\("agents"\)/.test(CB));
+check("có nút sang trang Cộng sự để tạo Agent",
+  /id="cbNewAgent"/.test(CB) && /JavisNav\.go\("workspace"\)/.test(CB));
 // Vai trò dài làm <option> tràn ngang khỏi hộp, mà <option> thì không tạo kiểu được.
 check("vai trò Agent bị cắt ngắn trước khi vào option", /vai\.slice\(0, 34\)/.test(CB));
 check("CSS chặn select nở rộng ra khỏi form", /\.cb-form select \{[^}]*text-overflow: ellipsis/.test(CSS));
 check("console phơi cửa chuyển trang cho module ngoài",
-  /window\.JavisNav = \{ go: navigateTo \}/.test(CON));
+  /window\.JavisNav\s*=\s*\{[\s\S]*go:\s*navigateTo/.test(CON));
 // Vai trò dài làm <option> tràn ngang khỏi hộp, mà <option> thì không tạo kiểu được.
 check("vai trò Agent bị cắt ngắn trước khi vào option", /vai\.slice\(0, 34\)/.test(CB));
 check("CSS chặn select nở rộng ra khỏi form", /\.cb-form select \{[^}]*text-overflow: ellipsis/.test(CSS));
@@ -196,8 +215,8 @@ check("lỗ hổng xếp theo số lần hỏi", /g\.lan/.test(CB));
 check("nói rõ mỗi dòng nghĩa là tài liệu đang thiếu", /tài liệu.{0,20}(đang )?thiếu/.test(CB));
 // Nguồn phải hiện: không có nó thì "bot trả lời đúng chưa" là câu hỏi không kiểm chứng được.
 check("từng lượt hiện NGUỒN bot đã dùng", /t\.nguon/.test(CB));
-check("lượt không tìm ra tài liệu bị đánh dấu", /không tìm thấy tài liệu/.test(CB));
-check("chưa có lượt nào thì dạy bước tiếp theo", /Nhắn thử cho bot/.test(CB));
+i18nKey("lượt không tìm ra tài liệu bị đánh dấu", "cb.khong_tai_lieu", "không tìm thấy tài liệu");
+i18nKey("chưa có lượt nào thì dạy bước tiếp theo", "cb.chua_luot_goi_y", "Nhắn thử cho bot");
 check("CSS của nhật ký đã có", /\.cb-tab/.test(CSS) && /\.cb-turn/.test(CSS));
 
 // ============================================================
@@ -217,7 +236,7 @@ check("đang mở form thì không vẽ lại dưới chân người dùng",
 // Nạp NGẦM khác nạp do người bấm: không được xoá lưới đang hiện để thay bằng "Đang tải…", và
 // mạng hỏng một nhịp thì giữ nguyên màn hình cũ. Nhấp nháy mỗi 5 giây tệ hơn số cũ vài giây.
 check("nạp ngầm không nhấp nháy màn hình", /async function tai\(im\)/.test(CB) &&
-  /if \(!im\) box\.innerHTML = '<div class="cb-empty">Đang tải…/.test(CB));
+  /if \(!im\) box\.innerHTML = '<div class="cb-empty">' \+ esc\(window\.t\("common\.loading"\)\)/.test(CB));
 
 // ============================================================
 // 6d. Nhóm chưa được bật phải NỔI LÊN thẻ, không được im lặng
@@ -243,7 +262,7 @@ check("cảnh báo chế độ riêng tư cho mọi bot có dùng nhóm",
   /var duNhom = \(b\.groups \|\| \[\]\)\.length \|\| \(b\.nhom_cho \|\| \[\]\)\.length/.test(CB) &&
   /duNhom && st\.da_hoi_telegram && !st\.doc_moi_tin_nhom/.test(CB));
 check("cảnh báo chỉ ra CẢ HAI cách sửa, không chỉ BotFather",
-  /setprivacy/.test(CB) && /quản trị viên/.test(CB));
+  /setprivacy/.test(CB) && /cb\.rt_quan_tri/.test(CB));
 // getMe hỏng: bot trả lời tin nhắn riêng hoàn hảo nhưng điếc trong mọi nhóm, vì không biết
 // @username của chính mình. Chấm vẫn xanh, lượt vẫn chạy - không có dòng này thì không ai đoán ra.
 check("thẻ nói ra khi bot không hỏi được danh tính của chính nó",
@@ -266,38 +285,32 @@ check("Zalo là chữ Z trắng trong bong bóng trò chuyện xanh",
   /zalo:[\s\S]{0,400}fill="#0068FF"[\s\S]{0,600}M8\.5 7\.9h7\.05/.test(ICONS));
 check("kênh lạ trả rỗng chứ không vẽ dấu hỏi", /if \(!k\) return "";/.test(ICONS));
 
-check("kênh hiện trên thẻ bot (huy hiệu ở icon + chip ở phần thông tin)",
-  /class="cb-ico-kenh"/.test(CB) && /function chipKenh\(/.test(CB) && /chipKenh\(kenh\)/.test(CB));
-check("form hỏi kênh NGAY Ở ĐẦU, trước cả tên bot",
-  CB.indexOf("Bot này nói chuyện ở đâu") > -1 &&
-  CB.indexOf("Bot này nói chuyện ở đâu") < CB.indexOf("<label>Tên bot</label>"));
-check("chọn kênh bằng thẻ bấm có logo, không phải <select> trơn",
-  /class="cb-kenh"/.test(CB) && /class="cb-kenh-o/.test(CB) && /cb-kenh-logo/.test(CB));
-check("mỗi kênh nói rõ ưu và nhược ngay trên nút",
-  /KENH_TOM\s*=/.test(CB) && /chưa gửi được tài liệu/.test(CB));
-// Đổi kênh của bot đã tạo = đổi sang một con bot khác (token khác, khách khác). Khoá lại và
-// nói thẳng, chứ đừng cho bấm rồi báo lỗi token ở bước sau.
-check("sửa bot thì kênh bị KHOÁ kèm lý do",
-  /veKenhChon\(kenh, sua\)/.test(CB) && /cb-kenh-khoa/.test(CB) &&
-  /Không đổi được kênh của bot đã tạo/.test(CB));
-check("đổi kênh là đổi theo cả form (nhãn token, chỗ lấy token, khối nhóm)",
-  /function apKenh\(k\)/.test(CB) && /cbTokenLabel/.test(CB) && /cbNhomBox/.test(CB));
-check("đổi kênh thì BỎ token đã kiểm (nó là danh tính ở nền tảng kia)",
-  /function apKenh\(k\)[\s\S]{0,400}if \(k !== kenh\) uname = "";/.test(CB));
-// Hàm này còn chạy MỘT LẦN lúc mở form để dựng trạng thái ban đầu. Bỏ uname vô điều kiện thì
-// mở form Sửa rồi bấm Lưu là xoá trắng tên bot đang chạy, và thẻ báo "chưa có token" cho một
-// con bot vẫn sống - hỏng im lặng, chỉ lộ ra khi nhìn kỹ thẻ.
-check("mở form Sửa mà chưa đổi kênh thì KHÔNG xoá tên bot đang dùng",
-  /if \(k !== kenh\) uname = "";/.test(CB) &&
-  /sua && k === \(\(b && b\.channel\) \|\| "telegram"\) && uname/.test(CB));
-check("kiểm token gửi kèm kênh để hỏi đúng nền tảng",
-  /channel: kenh/.test(CB) && /Đang hỏi " \+ kc\.nhan/.test(CB));
-check("tạo bot gửi kênh lên server", /channel: kenh,/.test(CB));
+check("kênh hiện trên thẻ bot (huy hiệu ở icon + chip tài khoản)",
+  /class="cb-ico-kenh"/.test(CB) && /function chipTK\(/.test(CB) && /function chipKenh\(/.test(CB));
+check("form hỏi tài khoản kênh ở BƯỚC 1, trước tên bot",
+  CB.indexOf('cb.lb_tai_khoan') > -1 &&
+  CB.indexOf('cb.lb_tai_khoan') < CB.indexOf('cb.lb_ten') &&
+  /var buoc = sua \? 2 : 1/.test(CB));
+check("chọn tài khoản bằng checkbox có logo kênh, không phải <select> trơn",
+  /class="cb-tk-o"/.test(CB) && /class="cb-tk-logo"/.test(CB) && /cb-tk-list/.test(CB));
+check("danh sách kênh và năng lực lấy từ SERVER",
+  /_kenhDS = d\.kenh/.test(CB) && /function kenhCua\(/.test(CB));
+// Sửa bot vào thẳng bước 2: tài khoản đã gắn, không bắt chọn lại từ đầu.
+check("sửa bot vào thẳng bước cài đặt",
+  /var buoc = sua \? 2 : 1/.test(CB) && /veBuoc\(sua \? 2 : 1\)/.test(CB));
+check("đổi tài khoản chọn thì cập nhật khối nhóm",
+  /function apNhom\(\)/.test(CB) && /#cbNhomBox/.test(CB));
+check("bỏ tích hết tài khoản thì không sang bước 2",
+  /if \(!tkDangChon\(\)\.length\) return alert\(window\.t\("cb\.chon_tai_khoan"\)\)/.test(CB));
+check("lưu bot gửi account_ids, không gửi token thô",
+  /account_ids:\s*ids\.join/.test(CB) && CB.indexOf("channel: kenh") === -1);
 check("kênh không vào được nhóm thì ẨN cả khối nhóm, không hiện ra rồi vô tác dụng",
-  /cbKhongNhom/.test(CB) && /kc\.co_nhom \? "" : "none"/.test(CB));
+  /cbKhongNhom/.test(CB) && /nhomBox\.style\.display = co \? "" : "none"/.test(CB));
 check("và KHÔNG gửi id nhóm thừa lên server",
-  /var coNhom = kenhCua\(kenh\)\.co_nhom/.test(CB) && /coNhom \? box\.querySelector\("#cbGroups"\)/.test(CB));
-check("cảnh báo riêng tư chỉ hiện cho bot Telegram", /kenh === "telegram" && duNhom/.test(CB));
+  /var coNhomLuu = coNhomForm\(\)/.test(CB) &&
+  /var gr = coNhomLuu \? box\.querySelector\("#cbGroups"\)/.test(CB));
+check("cảnh báo riêng tư chỉ hiện cho bot có tài khoản Telegram",
+  /var coTelegram = \(b\.accounts/.test(CB) && /coTelegram && duNhom/.test(CB));
 check("bộ lọc kênh chỉ hiện khi có từ hai kênh trở lên",
   /function veLoc\(/.test(CB) && /if \(ks\.length < 2\)/.test(CB));
 check("danh sách kênh lấy từ SERVER, không chép cứng ở giao diện",

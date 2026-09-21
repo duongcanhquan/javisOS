@@ -17,7 +17,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..", "..");
-const D = (f) => fs.readFileSync(path.join(ROOT, "dashboard", f), "utf8");
+const D = (f) => fs.readFileSync(path.join(ROOT, "dashboard", f), "utf8").replace(/\r\n/g, "\n");
 const APP = D("app.js");
 const CSS = D("style.css");
 const HTML = D("index.html");

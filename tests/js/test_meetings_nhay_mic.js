@@ -8,6 +8,7 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..", "..");
 const src = fs.readFileSync(path.join(ROOT, "dashboard", "meetings.js"), "utf8");
 const html = fs.readFileSync(path.join(ROOT, "dashboard", "index.html"), "utf8");
+const consoleJs = fs.readFileSync(path.join(ROOT, "dashboard", "console.js"), "utf8");
 const fails = [];
 
 function check(name, cond, extra) {
@@ -84,8 +85,9 @@ check("hủy chia sẻ màn hình không hỏi lần hai",
 check("mix loa máy lỗi thì tắt AEC trên mic",
   /applyMicAec\(false\)/.test(src) &&
   src.indexOf("state._hasSystemAudio = false") >= 0);
-const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 41)", v >= 41, v);
+check("meetings.js lazy trong PAGE_LAZY",
+  /file:\s*"meetings\.js"/.test(consoleJs) && /PAGE_LAZY/.test(consoleJs));
+check("index không nạp meetings.js eager", !/\/static\/meetings\.js/.test(html));
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

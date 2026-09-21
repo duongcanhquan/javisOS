@@ -82,7 +82,8 @@ check("CANARY: trang Tiết kiệm đã gộp vào Mức dùng, không còn bả
 
 // ---- Chạy thật helper để chắc nó lật đúng ----
 const src = CONSOLE.slice(CONSOLE.indexOf("function pager(box, items"));
-const body = src.slice(0, src.indexOf("\n  }\n") + 5);
+const pagerEnd = /\r?\n  \}\r?\n/.exec(src);
+const body = pagerEnd ? src.slice(0, pagerEnd.index + pagerEnd[0].length) : src;
 const pager = new Function("return " + body.trim())();
 const box = {
   innerHTML: "",

@@ -32,7 +32,7 @@ function check(name, cond, extra) {
 }
 
 // ---- Bóc nguyên văn hàm ra khỏi file nguồn ----
-const src = (con.match(/\n  async function _vtNameSearch\(q\)[\s\S]*?\n  \}\n/) || [""])[0];
+const src = (con.match(/\r?\n  async function _vtNameSearch\(q\)[\s\S]*?\r?\n  \}\r?\n/) || [""])[0];
 check("bóc được hàm _vtNameSearch từ console.js", src.length > 0);
 
 // Bệ đỡ tối thiểu: chỉ những thứ hàm thật sự chạm tới.
