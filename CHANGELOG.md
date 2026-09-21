@@ -1,5 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.56.6] - 2026-09-21
+### Mới
+- **74 skill hệ thống từ vmos-quan:** skill sách / vận hành / tích hợp (Tâm lý thuyết phục, Thôi miên ngôn từ, PMA-QMA, Kiến trúc EA, Đặt giá bán, …) đưa vào `.claude/skills/` để mọi brain nhận qua `system_sync`. Không kèm 4 gói asset nặng (open-design, htmlanything, motionanything, htmltomp4) — vẫn chỉ trên brain quan.
+
+## [0.56.5] - 2026-09-21
+### Sửa
+- **Hướng dẫn:** viết lại bản đồ rail Cộng sự / Hội thoại khách / Chia sẻ; cập nhật docs/07, docs/28, docs README và trang Hướng dẫn trong app.
+
 ## [0.56.4] - 2026-09-21
 ### Sửa
 - **Cache CDN/Cloudflare giữ JS cũ:** URL `/asset/` mang `VERSION` + vân tay nội dung; banner freshness có nút **Xóa cache & tải lại** (Ctrl+Shift+R không phá được tầng CDN).
