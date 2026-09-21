@@ -10,7 +10,15 @@ MGR_DOMAIN="${MGR_DOMAIN:-javis.vietmycollege.com}"
 EXPECT_IP="${EXPECT_IP:-14.225.205.248}"
 cd "$ROOT"
 
-quan_ip=$(dig +short "$QUAN_DOMAIN" A | tail -1 | tr -d '[:space:]')
+# VPS tối giản thường không có dig. getent/python3 luôn có.
+quan_ip=""
+if command -v getent >/dev/null 2>&1; then
+  quan_ip=$(getent ahostsv4 "$QUAN_DOMAIN" 2>/dev/null | awk '{print $1; exit}')
+fi
+if [ -z "$quan_ip" ]; then
+  quan_ip=$(python3 -c "import socket,sys; print(socket.getaddrinfo(sys.argv[1],80,socket.AF_INET)[0][4][0])" "$QUAN_DOMAIN")
+fi
+quan_ip=$(printf '%s' "$quan_ip" | tr -d '[:space:]')
 if [ "$quan_ip" != "$EXPECT_IP" ]; then
   echo "SPLIT_FAIL: DNS $QUAN_DOMAIN = '${quan_ip:-empty}' (cần $EXPECT_IP). Làm deploy/org/DNS.md trước."
   exit 1
