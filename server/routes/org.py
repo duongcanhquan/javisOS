@@ -392,6 +392,41 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         return {"ok": True}
 
+    @router.delete("/org/tenants/{slug}")
+    async def org_delete(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        rec = ot.get(slug)
+        if not rec:
+            return JSONResponse({"ok": False, "error": "Không có bản này."}, status_code=404)
+        if rec.get("protected"):
+            return JSONResponse(
+                {"ok": False, "error": "Không xóa bản quan / não hệ thống."},
+                status_code=400,
+            )
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        confirm = str(body.get("confirm") or "").strip().lower()
+        slug = str(rec.get("slug") or "").strip().lower()
+        if confirm != slug:
+            return JSONResponse(
+                {"ok": False, "error": f"Gõ đúng tên máy «{slug}» để xóa. Não mất hết, không lấy lại."},
+                status_code=400,
+            )
+        try:
+            org_docker.destroy(slug)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        try:
+            ot.audit("delete", slug)
+        except Exception:
+            pass
+        return {"ok": True, "coord": _coord_public()}
+
     @router.get("/org/pool/me")
     def org_pool_me(request: Request):
         rec = op.find_by_token(_ticket(request))

@@ -91,6 +91,13 @@ weak = c2.post("/org/tenants", json={"slug": "lan-test", "password": "admin", "l
 check("từ chối mật khẩu yếu", weak.status_code == 400)
 nopw = c2.post("/org/tenants", json={"slug": "lan-test2", "login_user": "lanhai"})
 check("từ chối thiếu mật khẩu", nopw.status_code == 400)
+gone = c2.request("DELETE", "/org/tenants/quan", json={"confirm": "quan"})
+check("không xóa bản quan", gone.status_code == 400)
+ot.upsert({"slug": "xoa-thu", "name": "Xoa", "protected": False})
+sai = c2.request("DELETE", "/org/tenants/xoa-thu", json={"confirm": "sai"})
+check("xóa phải gõ đúng tên máy", sai.status_code == 400 and ot.get("xoa-thu") is not None)
+okd = c2.request("DELETE", "/org/tenants/xoa-thu", json={"confirm": "xoa-thu"})
+check("xóa khi gõ đúng", okd.status_code == 200 and ot.get("xoa-thu") is None)
 
 pool = c2.get("/org/settings/pool").json()
 check("pool có danh sách nhà", "openrouter" in (pool.get("providers") or {}))
@@ -154,6 +161,10 @@ check("điều phối trần + idle + park",
 park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "def sync_park" in src else ""
 check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
+check("org.js có Sửa và Xóa người", ">Sửa</button>" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)
+dest = src.split("def destroy", 1)[-1].split("def people_running", 1)[0] if "def destroy" in src else ""
+check("xóa máy không gắn v=true (không xóa nhầm volume)", "?v=true" not in dest and "PROTECTED_VOLUMES" in dest)
+check("xóa không đụng javis-quan", "javis-quan" in dest)
 main_py = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
 check("tenant ghi last-active", "touch_last_active" in main_py)
 check("gốc tự bật khi mở link", "wake_or_wait" in main_py and "tick_coord" in main_py)

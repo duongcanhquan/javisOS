@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.268] - 2026-09-21
+### Mới
+- **Sửa và xóa người trên tab Quản lý.** Sửa tên, đăng nhập, hạn mức. Xóa phải gõ đúng tên máy; não mất hết. Không xóa được bản quan.
+
 ## [0.55.267] - 2026-09-21
 ### Sửa
 - **Máy từng người lên đúng bản mới** (VietMy OS trên thanh bar) khi Javis gốc cập nhật. Não và ổ không xóa; chỉ đổi vỏ chương trình.

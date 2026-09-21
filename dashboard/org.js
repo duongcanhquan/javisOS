@@ -198,7 +198,8 @@
       const prot = t.protected;
       const stopBtn = prot ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
       const pwBtn = prot ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
-      const editBtn = `<button class="btn" data-org-edit-open="${esc(t.slug)}">Sửa hạn mức</button>`;
+      const editBtn = `<button class="btn" data-org-edit-open="${esc(t.slug)}">Sửa</button>`;
+      const delBtn = prot ? "" : `<button class="btn org-del" data-org-del-open="${esc(t.slug)}">Xóa</button>`;
       const apiBtn = prot ? "" : `<button class="btn" data-org-api="${esc(t.slug)}" data-on="${t.shared_api ? "1" : "0"}">${t.shared_api ? "Tắt API chung" : "Bật API chung"}</button>`;
       return `<article class="org-card" data-slug="${esc(t.slug)}"
           data-hay="${esc(haystack(t))}" data-status="${esc(t.status || "")}"
@@ -225,12 +226,19 @@
           ${editBtn}
           ${apiBtn}
           ${pwBtn}
+          ${delBtn}
         </div>
         <form class="org-inline" data-org-edit="${esc(t.slug)}" hidden>
+          <label>Hiện tên<input name="name" value="${esc(t.name || "")}"></label>
+          <label>Tên đăng nhập<input name="login_user" value="${esc(t.login_user || "")}" maxlength="32"></label>
           <label>Ổ GB (0 = không trần)<input name="quota_gb" type="number" min="0" max="20" value="${esc(String(t.quota_gb || 0))}"></label>
           <label>Token/tháng (0 = không trần)<input name="token_quota" type="number" min="0" step="1000" value="${esc(String(t.token_quota || 0))}"></label>
-          <label>Hiện tên<input name="name" value="${esc(t.name || "")}"></label>
-          <button class="btn primary" type="submit">Lưu hạn mức</button>
+          <button class="btn primary" type="submit">Lưu</button>
+        </form>
+        <form class="org-inline org-del-form" data-org-del="${esc(t.slug)}" hidden>
+          <p>Xóa hết máy <code>${esc(t.slug)}</code>: não, chat, khóa API. Không lấy lại. Bản quan không xóa được từ đây.</p>
+          <label>Gõ <code>${esc(t.slug)}</code> để xác nhận<input name="confirm" required autocomplete="off" placeholder="Ví dụ: ${esc(t.slug)}"></label>
+          <button class="btn org-del" type="submit">Xóa vĩnh viễn</button>
         </form>
         <form class="org-inline" data-org-pw="${esc(t.slug)}" hidden>
           <label>Mật khẩu mới<input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
@@ -338,7 +346,7 @@
 
         <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <h3>Quản lý người</h3>
-          <p class="dim">Bật/tắt máy, hạn mức ổ, đặt lại mật khẩu. Não và API của họ ở máy họ. «Bật API chung» chỉ khi muốn một người dùng kho trường.</p>
+          <p class="dim">Bật/tắt máy, sửa tên và hạn mức, đặt lại mật khẩu, xóa người (gõ đúng tên máy). Não và API của họ ở máy họ.</p>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">
@@ -399,6 +407,8 @@
         .org-st.running{border-color:#2f9e44;color:#2f9e44}
         .org-st.stopped,.org-st.missing{opacity:.7}
         .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+        .org-del{border-color:#e03131;color:#e03131}
+        .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
         .org-meter{margin:8px 0}
         .org-meter-lbl{font-size:13px;margin-bottom:4px}
         .org-bar{height:8px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden}
@@ -561,6 +571,34 @@
         if (f) f.hidden = !f.hidden;
       });
     });
+    el.querySelectorAll("[data-org-del-open]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const f = el.querySelector('[data-org-del="' + b.getAttribute("data-org-del-open") + '"]');
+        if (f) f.hidden = !f.hidden;
+      });
+    });
+    el.querySelectorAll("form[data-org-del]").forEach((f) => {
+      f.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const slug = f.getAttribute("data-org-del");
+        const confirm = String(f.confirm.value || "").trim().toLowerCase();
+        if (confirm !== slug) {
+          msg.textContent = "Gõ đúng tên máy «" + slug + "» mới xóa được.";
+          return;
+        }
+        msg.textContent = "Đang xóa…";
+        try {
+          await api("/org/tenants/" + encodeURIComponent(slug), {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ confirm: slug }),
+          });
+          orgFlash = "Đã xóa " + slug + ". Não máy đó mất hết.";
+          orgTab = "quan";
+          render(el);
+        } catch (e) { msg.textContent = e.message; }
+      });
+    });
     el.querySelectorAll("[data-org-pw-open]").forEach((b) => {
       b.addEventListener("click", () => {
         const f = el.querySelector('[data-org-pw="' + b.getAttribute("data-org-pw-open") + '"]');
@@ -589,6 +627,7 @@
               quota_gb: Number(f.quota_gb.value || 0),
               token_quota: Number(f.token_quota.value || 0),
               name: String(f.name.value || ""),
+              login_user: String(f.login_user.value || ""),
             }),
           });
           orgTab = "quan";

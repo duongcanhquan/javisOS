@@ -176,3 +176,26 @@ def upsert(rec: dict) -> dict:
         data["tenants"].append(rec)
     save(data)
     return rec
+
+
+def remove(slug: str) -> None:
+    s = (slug or "").strip().lower()
+    if s in PROTECTED_SLUGS:
+        raise ValueError("Không xóa tên hệ thống.")
+    data = load()
+    data["tenants"] = [t for t in (data.get("tenants") or []) if str(t.get("slug") or "") != s]
+    save(data)
+
+
+def audit(action: str, slug: str, extra: str = "") -> None:
+    import time
+    p = cfgmod.STATE_DIR / "org-audit.jsonl"
+    line = json.dumps({
+        "ts": int(time.time()),
+        "action": str(action or ""),
+        "slug": str(slug or ""),
+        "extra": str(extra or ""),
+    }, ensure_ascii=False)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")

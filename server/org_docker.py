@@ -463,6 +463,41 @@ def stop(slug: str, park: bool = True) -> None:
             pass
 
 
+def destroy(slug: str) -> None:
+    """Xóa máy người: container + 4 volume tenant. Không đụng volume quan / manager."""
+    rec = ot.get(slug)
+    if not rec:
+        raise RuntimeError("Không có bản này.")
+    slug = str(rec.get("slug") or "").strip().lower()
+    if rec.get("protected") or slug in ot.PROTECTED_SLUGS:
+        raise RuntimeError("Không xóa bản hệ thống.")
+    err = ot.validate_slug(slug)
+    if err:
+        raise RuntimeError(err)
+    vols = ot.volume_names(slug)
+    for v in vols:
+        if v in ot.PROTECTED_VOLUMES:
+            raise RuntimeError(f"Từ chối xóa volume hệ thống: {v}")
+    cname = str(rec.get("container") or f"javis-{slug}")
+    if cname in ("javis-quan", "javis-manager", "javis-proxy", "javis-park"):
+        raise RuntimeError("Không xóa máy hệ thống.")
+    if docker_available() and inspect_name(cname):
+        _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
+        rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true", timeout=30.0)
+        if rm.status_code not in (204, 200, 404):
+            raise RuntimeError(f"gỡ máy HTTP {rm.status_code}: {(rm.text or '')[:200]}")
+    if docker_available():
+        for v in vols:
+            vr = _docker_api("DELETE", f"/volumes/{quote(v)}", timeout=30.0)
+            if vr.status_code not in (204, 200, 404):
+                raise RuntimeError(f"xóa ổ {v}: HTTP {vr.status_code} {(vr.text or '')[:200]}")
+    ot.remove(slug)
+    try:
+        sync_park()
+    except Exception:
+        pass
+
+
 def people_running() -> list[dict]:
     out = []
     if not docker_available():
