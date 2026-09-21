@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       phase:
-        description: "preflight | backup | proxy | split"
+        description: "preflight | backup | proxy | split | manager-admin"
         required: true
         type: string
         default: preflight
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$KEY" && test -n "$HOST" && test -n "$USER"
-          test "$PHASE" = "preflight" -o "$PHASE" = "backup" -o "$PHASE" = "proxy" -o "$PHASE" = "split"
+          test "$PHASE" = "preflight" -o "$PHASE" = "backup" -o "$PHASE" = "proxy" -o "$PHASE" = "split" -o "$PHASE" = "manager-admin"
           DIR="${DIR:-$HOME/javis}"
           mkdir -p ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/id
@@ -46,6 +46,7 @@ jobs:
             -o ServerAliveInterval=15 -o ServerAliveCountMax=40 -i ~/.ssh/id "$USER@$HOST")
           for f in scripts/org_cutover_preflight.sh scripts/org_backup_volumes.sh \
                    scripts/org_cutover_to_proxy.sh scripts/org_cutover_split_domains.sh \
+                   scripts/org_set_manager_admin.sh \
                    deploy/org/docker-compose.tenant-external.yml \
                    deploy/org/env.manager.example docker-compose.proxy.yml; do
             test -f "$f"
@@ -55,6 +56,7 @@ jobs:
           scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id \
             scripts/org_cutover_preflight.sh scripts/org_backup_volumes.sh \
             scripts/org_cutover_to_proxy.sh scripts/org_cutover_split_domains.sh \
+            scripts/org_set_manager_admin.sh \
             "$USER@$HOST:$DIR/scripts/"
           scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id \
             deploy/org/docker-compose.tenant-external.yml deploy/org/env.manager.example \
@@ -64,7 +66,8 @@ jobs:
           "${SSH[@]}" "chmod +x '$DIR/scripts/org_cutover_preflight.sh' \
             '$DIR/scripts/org_backup_volumes.sh' \
             '$DIR/scripts/org_cutover_to_proxy.sh' \
-            '$DIR/scripts/org_cutover_split_domains.sh'"
+            '$DIR/scripts/org_cutover_split_domains.sh' \
+            '$DIR/scripts/org_set_manager_admin.sh'"
           case "$PHASE" in
             preflight)
               "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh'"
@@ -88,5 +91,8 @@ jobs:
               ;;
             split)
               "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_split_domains.sh'"
+              ;;
+            manager-admin)
+              "${SSH[@]}" "bash '$DIR/scripts/org_set_manager_admin.sh'"
               ;;
           esac

@@ -47,6 +47,12 @@ check("org-split workflow: VPS_HOST (máy hiện tại)", "secrets.VPS_HOST" in 
 check("org-split workflow: không SSH máy cũ", "secrets.VPS_OLD" not in wf)
 check("org-split workflow: confirm ORG_SPLIT_JAVIS", "ORG_SPLIT_JAVIS" in wf)
 check("org-split workflow: phase backup/proxy/split", "backup" in wf and "proxy" in wf)
+check("org-split workflow: manager-admin", "manager-admin" in wf and "org_set_manager_admin.sh" in wf)
+adm = body("scripts/org_set_manager_admin.sh")
+check("set-manager-admin: set -euo", "set -euo pipefail" in adm)
+check("set-manager-admin: không đụng volume quan", "javis_javis" not in adm)
+check("set-manager-admin: chỉ javis-manager", "javis-manager" in adm)
+check("env.manager: default admin/admin", "JAVIS_ADMIN_PASSWORD=admin" in body("deploy/org/env.manager.example"))
 
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))

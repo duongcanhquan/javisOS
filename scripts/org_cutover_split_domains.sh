@@ -67,12 +67,6 @@ cp -f "$ROOT/docker-compose.yml" "$MGR/"
 cp -f "$ROOT/docker-compose.multi.yml" "$MGR/"
 if [ ! -f "$MGR/.env" ]; then
   cp -f "$ROOT/deploy/org/env.manager.example" "$MGR/.env"
-  # Không để mật khẩu mẫu trên máy thật: nếu chưa sửa, tạo random.
-  if grep -q 'doi-mat-khau-manh' "$MGR/.env"; then
-    pw=$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)
-    sed -i "s/doi-mat-khau-manh/${pw}/" "$MGR/.env"
-    echo "MANAGER_ADMIN_PASSWORD_SET (xem $MGR/.env, chmod 600)"
-  fi
 fi
 chmod 600 "$MGR/.env"
 # Image đang chạy trên bản quan.
