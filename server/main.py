@@ -11798,6 +11798,8 @@ async def branding_logo_reset():
 # Vị trí lời gọi register quyết định thứ tự route - xem routes/__init__.py.
 import routes.domain as domain_routes   # noqa: E402
 domain_routes.register(app, domain_routes.DomainDeps(deploy_mode=lambda: _deploy_mode()))
+import routes.org as org_routes   # noqa: E402
+org_routes.register(app)
 
 
 # ============================================

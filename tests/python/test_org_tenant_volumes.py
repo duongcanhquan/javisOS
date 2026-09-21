@@ -11,8 +11,10 @@ def check(label, ok):
 
 
 yml = (ROOT / "deploy" / "org" / "docker-compose.tenant-external.yml").read_text(encoding="utf-8")
+lim = (ROOT / "deploy" / "org" / "docker-compose.tenant-limits.yml").read_text(encoding="utf-8")
 envq = (ROOT / "deploy" / "org" / "env.quan.example").read_text(encoding="utf-8")
 envm = (ROOT / "deploy" / "org" / "env.manager.example").read_text(encoding="utf-8")
+envt = (ROOT / "deploy" / "org" / "env.tenant.example").read_text(encoding="utf-8")
 
 check("tenant-external: external true", "external: true" in yml)
 for name in (
@@ -27,6 +29,13 @@ check("env.quan: JAVIS_NAME=javis-quan", "JAVIS_NAME=javis-quan" in envq)
 check("env.quan: domain quan", "javis-quan.vietmycollege.com" in envq)
 check("env.manager: không trỏ volume quan", "javis_javis-data" not in envm)
 check("env.manager: JAVIS_ORG_MANAGER", "JAVIS_ORG_MANAGER=true" in envm)
+check("env.manager: catalog brain", "org-catalog" in envm)
+check("tenant-limits: mem_limit", "mem_limit" in lim)
+check("tenant-limits: cpus", "cpus:" in lim)
+check("tenant-limits: plugin tắt", "JAVIS_ENABLE_USER_PLUGINS" in lim)
+check("tenant-limits: không lệnh down -v", " down -v" not in lim and "volume rm" not in lim)
+check("env.tenant: quota 2GB", "JAVIS_QUOTA_GB=2" in envt)
+check("env.tenant: plugin tắt", "JAVIS_ENABLE_USER_PLUGINS=false" in envt)
 
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))

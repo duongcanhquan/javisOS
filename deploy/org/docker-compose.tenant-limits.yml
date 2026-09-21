@@ -1,0 +1,18 @@
+# Overlay hạn mức RAM/CPU cho Javis CON (học viên / nhân sự).
+# Không dùng cho Javis gốc (manager) và không dùng cho javis-quan đợt 1.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.multi.yml \
+#     -f deploy/org/docker-compose.tenant-limits.yml up -d
+#
+# Không xóa volume. Không khai lại volumes.
+services:
+  javis:
+    mem_limit: ${JAVIS_MEM_LIMIT:-768m}
+    memswap_limit: ${JAVIS_MEM_LIMIT:-768m}
+    cpus: ${JAVIS_CPUS:-0.75}
+    pids_limit: ${JAVIS_PIDS_LIMIT:-256}
+    environment:
+      JAVIS_ENABLE_USER_PLUGINS: ${JAVIS_ENABLE_USER_PLUGINS:-false}
+      JAVIS_KANBAN_MAX_WORKERS: ${JAVIS_KANBAN_MAX_WORKERS:-1}
+      JAVIS_ENABLE_PIXELLE: "false"
+      JAVIS_ORG_TENANT: "true"

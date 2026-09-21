@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.254] - 2026-09-21
+### Mới
+- **Javis gốc có mục Tổ chức.** Tạo Javis cho từng người (link `javis-[tên]`), bật/tắt máy. Đăng nhập mặc định admin/admin, rồi đổi mật khẩu trong Tài khoản. Bản quan không tắt từ đây.
+
 ## [0.55.253] - 2026-09-18
 ### Mới
 - **Tông Neon cyberpunk.** Nút đổi tông giờ chọn Tối / Neon / Sáng. Neon dùng nền navy đậm, thẻ kính viền xanh lơ phát sáng, số liệu trắng to, tiêu đề cyan, biểu đồ hồng-cam. Áp cho mọi trang quản lý, không chỉ chat.

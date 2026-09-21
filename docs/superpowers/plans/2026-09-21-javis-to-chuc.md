@@ -28,7 +28,7 @@
 
 ---
 
-### Task 1: Overlay compose "tenant gắn volume có sẵn"
+### Task 1: Overlay compose "tenant gắn volume có sẵn" ✅
 
 Chốt cách khai volume external trong repo để không đẻ volume trống khi đổi tên container.
 
@@ -46,7 +46,7 @@ Chốt cách khai volume external trong repo để không đẻ volume trống k
 
 ---
 
-### Task 2: Runbook cutover (người + script kiểm tra, chưa xóa gì)
+### Task 2: Runbook cutover (người + script kiểm tra, chưa xóa gì) ✅
 
 **Files:**
 - Create: `deploy/org/CUTOVER.md` (copy ngắn từ spec, lệnh inspect/backup/gắn mạng, thứ tự tắt `javis-caddy`)
@@ -59,7 +59,7 @@ Chốt cách khai volume external trong repo để không đẻ volume trống k
 
 ---
 
-### Task 3: Backup volume (chạy trên VPS khi user bảo)
+### Task 3: Backup volume (chạy trên VPS khi user bảo) ✅ 2.7G `/var/backups/javis-quan-20260921-103129.tgz`
 
 **Files:**
 - Create: `scripts/org_backup_volumes.sh` (docker run alpine tar 4 volume ra `/var/backups/javis-quan-<date>.tgz` hoặc volume scratch)
@@ -71,7 +71,7 @@ Chốt cách khai volume external trong repo để không đẻ volume trống k
 
 ---
 
-### Task 4: DNS + proxy + nhãn, vẫn phục vụ `javis.vietmycollege.com` trên volume cũ
+### Task 4: DNS + proxy + nhãn, vẫn phục vụ `javis.vietmycollege.com` trên volume cũ (proxy ✅ 2026-09-21; DNS javis-quan còn thiếu)
 
 Ops trên VPS. Code repo chỉ bổ sung nếu thiếu nhãn trong `docker-compose.multi.yml` (đã có).
 
@@ -164,7 +164,9 @@ Ops trên VPS. Code repo chỉ bổ sung nếu thiếu nhãn trong `docker-compo
 
 ---
 
-### Task 10: Quota ổ + usage
+### Task 10: Quota ổ + usage (+ RAM/CPU tenant)
+
+Overlay sẵn: `deploy/org/docker-compose.tenant-limits.yml` (768 MB, 0.75 CPU, plugin user tắt). Javis gốc và `javis-quan` không gắn file này.
 
 **Files:**
 - Create: `scripts/org_disk_usage.sh` (`du` trên mount)
@@ -176,6 +178,8 @@ Ops trên VPS. Code repo chỉ bổ sung nếu thiếu nhãn trong `docker-compo
 ---
 
 ### Task 11: Catalog trường (sync không đè user-modified)
+
+Nguồn soạn: Javis gốc (`javis.vietmycollege.com`) brain `org-catalog`. Tenant mới nhận lúc tạo. Tenant cũ: nút đẩy. Không copy chat/MCP/não quan.
 
 **Files:**
 - Create: `server/org_catalog.py` (tái sử dụng hash/manifest như `system_sync.py`)

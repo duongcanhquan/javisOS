@@ -233,6 +233,18 @@ check(
     "apply-model-routing" not in code,
 )
 check(
+    "vps-deploy.sh: cập nhật Javis gốc /root/javis-manager",
+    "javis-manager" in script and "JAVIS_MANAGER_DIR" in script,
+)
+check(
+    "vps-deploy.sh: Javis gốc không --remove-orphans",
+    "up -d --no-build javis" in script,
+)
+check(
+    "vps-deploy.sh: không volume rm javis_javis",
+    "volume rm" not in script and "down -v" not in script,
+)
+check(
     "cleanup-vps.sh: không gỡ Ollama mỗi lần dọn (chỉ khi host còn sót, ở vps-deploy)",
     "uninstall-ollama" not in cleanup_code,
 )

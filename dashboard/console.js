@@ -49,6 +49,7 @@
     logs: "scroll-text",
     account: "circle-user",
     usage: "chart-column",
+    org: "building-2",
   };
   // Cỡ icon rail do CSS lo (.rail-ico svg { width: 19px }), độ ưu tiên chọn tử
   // cao hơn .ic nên không cần truyền cỡ ở đây.
@@ -87,7 +88,7 @@
   const RAIL_ITEMS = [
     "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
     "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins",
-    "packs", "logs", "account", "usage",
+    "packs", "logs", "account", "usage", "org",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
   // ---- Gom rail thành nhóm theo chức năng (dễ tìm hơn danh sách phẳng 18 mục) ----
@@ -105,7 +106,7 @@
     { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
     { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
     { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
-    { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
+    { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account", "org"], foot: true },
   ];
   const RAIL_BY_ID = Object.fromEntries(RAIL_ITEMS.map(i => [i.id, i]));
 
@@ -118,8 +119,9 @@
   // ngay khi kho thành chỗ chứa PHẦN LỚN kết nối của Javis (0.55.36 dọn 16 khuôn ra kho):
   // một người mới cài, chưa đấu gì, không có trang nào để mà bấm tab - họ cần thấy lối vào
   // ngay trên thanh bên. Chủ dự án yêu cầu đưa ra, và đặt cạnh Kết nối.
-  const RAIL_AN = new Set();
+  const RAIL_AN = new Set(["org"]);
   window.JAVIS_UPDATES_UI = false;
+  window.JAVIS_ORG_MANAGER = false;
 
   async function napUpdatesUiFlag() {
     try {
@@ -148,6 +150,24 @@
         }
       } catch (e) {}
     }
+  }
+
+  async function napOrgFlag() {
+    try {
+      const d = await (await fetch("/org/status", { cache: "no-store" })).json();
+      window.JAVIS_ORG_MANAGER = d.manager === true;
+    } catch (e) {
+      window.JAVIS_ORG_MANAGER = false;
+    }
+    if (window.JAVIS_ORG_MANAGER) RAIL_AN.delete("org");
+    else RAIL_AN.add("org");
+    try {
+      const st = window.Alpine && Alpine.store("nav");
+      if (st) {
+        st.i18nTick = (st.i18nTick || 0) + 1;
+        if (st.active === "org" && !window.JAVIS_ORG_MANAGER) st.go("home");
+      }
+    } catch (e) {}
   }
   // Trả về [{label, foot, items:[...]}], bỏ id không tồn tại. Mục nào chưa xếp nhóm → dồn vào "Khác".
   function railGroups() {
@@ -178,7 +198,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "org"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -516,6 +536,11 @@
     if (id === "kanban")   return renderKanban(el);
     if (id === "logs")     return renderLogs(el);
     if (id === "usage")    return renderUsage(el);
+    if (id === "org") {
+      if (window.JavisOrg) return window.JavisOrg.render(el);
+      el.innerHTML = placeholder("org", "org.js chưa sẵn sàng.");
+      return;
+    }
     el.innerHTML = placeholder(id);
   }
 
@@ -6842,6 +6867,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       },
       go(id) {
         if (id === "logs" && window.JAVIS_UPDATES_UI === false) return;
+        if (id === "org" && window.JAVIS_ORG_MANAGER !== true) return;
         const item = RAIL_ITEMS.find(i => i.id === id);
         if (item && item.launch) { item.launch(); recomputeGraph(); return; }  // launcher: không đổi view
         const gl = groupLabelOf(id); if (gl) this.openGroup = gl;   // giữ nhóm chứa mục vừa mở luôn bung ra
@@ -7905,6 +7931,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
 
   async function boot() {
     await napUpdatesUiFlag();
+    await napOrgFlag();
     document.body.classList.add("has-rail");
     // Áp lại trạng thái thu gọn panel Vault ĐÃ LƯU ngay lúc tải trang (nút bấm gắn trong
     // _vtWire, nhưng chờ tới đó mới áp thì panel nháy to rồi mới thu).

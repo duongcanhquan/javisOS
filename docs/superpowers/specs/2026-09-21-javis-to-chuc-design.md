@@ -9,10 +9,10 @@
 
 Một VPS, hai vai:
 
-- `javis.vietmycollege.com` = **manager** (bản mới, trống dữ liệu cá nhân). Tạo / dừng / xóa Javis con, cấp tên miền, cấp hạn mức ổ, bật/tắt từng API pool trường hoặc bắt tự đấu nối, đẩy skill/agent/workflow/kiến thức chung.
-- `javis-quan.vietmycollege.com` = **Javis của bạn hôm nay**. Cùng volume, cùng đăng nhập, cùng MCP, cùng brain. Không export-import, không xóa volume gốc.
+- `javis.vietmycollege.com` = **Javis gốc** (bản đầy đủ, volume mới, không phải não `javis-quan`). Vào được chat, Studio, skill/agent/workflow như Javis thường. Đây là nơi soạn **kỹ thuật chung** của trường. Cũng là manager: tạo / dừng / xóa Javis con, cấp tên miền, hạn mức ổ/RAM/CPU, bật/tắt API pool, đẩy catalog.
+- `javis-quan.vietmycollege.com` = **Javis cá nhân của bạn hôm nay**. Cùng volume, cùng đăng nhập, cùng MCP, cùng brain. Không export-import, không xóa volume gốc. Không phải nguồn đẩy ra cả trường.
 
-Người khác sau này: `javis-<slug>.vietmycollege.com`, volume riêng, không đọc được bản của bạn.
+Người khác sau này: `javis-<slug>.vietmycollege.com`, volume riêng, không đọc được bản của bạn. Họ **thừa hưởng** lớp hệ thống (image) + catalog soạn trên Javis gốc. Skill/agent/plugin **tự viết trên bản họ** ở lại bản họ, có trần RAM/CPU/ổ riêng.
 
 ## Việc không làm trong bản này
 
@@ -37,9 +37,9 @@ Máy mới sau migrate 2026-09-20:
 ## Hình dung khi xong (người dùng thấy gì)
 
 1. Mở `javis-quan.vietmycollege.com` → đúng Javis bạn đang dùng: chat cũ, Models, Kết nối, Studio, brain. Đăng nhập cũ.
-2. Mở `javis.vietmycollege.com` → dashboard **quản trị tổ chức** (không phải não cá nhân của bạn): danh sách Javis con, nút tạo/dừng/xóa, hạn mức, chính sách API, catalog trường.
-3. Tạo người mới: manager điền slug + dung lượng + chế độ não → DNS + container + volume trống + tài khoản admin bản đó.
-4. Cập nhật chung: manager sửa catalog → từng Javis con bấm **Cập nhật từ trường** (hoặc manager bấm đẩy). File user đã sửa thì không đè (cùng luật `system_sync` hiện có).
+2. Mở `javis.vietmycollege.com` → **Javis gốc còn đủ tính năng** (chat, Studio, soạn skill/agent) **cộng** trang quản trị tổ chức: danh sách Javis con, tạo/dừng/xóa, hạn mức, chính sách API, nút đẩy catalog. Không chứa chat/MCP/wiki APC của bản quan.
+3. Tạo người mới: manager điền slug + dung lượng + chế độ não → DNS + container + volume trống + tài khoản admin bản đó. Bản mới **đã có** skill/agent/workflow mới nhất từ catalog gốc + lớp hệ thống trong image.
+4. Cập nhật chung: soạn trên Javis gốc (brain `org-catalog` hoặc đánh dấu org) rồi bấm **Đẩy cho mọi bản** / tenant bấm **Cập nhật từ trường**. File user đã sửa trên bản họ thì không đè (cùng luật `system_sync`). Chat, memory, kết nối MCP, file cá nhân **không** đi theo catalog.
 
 ## Kiến trúc
 
@@ -143,9 +143,43 @@ Khi tạo tenant: trần GB cho tổng `/data` + `/brains` (và auth nhỏ). Vư
 
 ## Catalog trường vs não cá nhân
 
-- Nguồn catalog: brain riêng của **manager** (vd `org-catalog`), không trộn với volume `javis-quan`.
-- Đẩy: copy/sync vào thư mục chuẩn trên tenant, ví dụ `<brain>/org/...` hoặc class `org` trong Studio, không ghi đè `skills/` user-modified (hash manifest, giống `system_sync`).
-- `javis-quan` nhận catalog khi bạn (hoặc manager) bấm cập nhật. Không tự xóa kiến thức APC/School of Art.
+Javis gốc **vẫn là một Javis**. Bạn ngồi `javis.vietmycollege.com`, tạo/sửa skill, agent, workflow, wiki kỹ thuật → đó là catalog trường. Bản người dùng sau (và bản đã có, khi đẩy) thừa hưởng đúng lớp đó.
+
+Hai đường cập nhật, không trộn:
+
+| Nguồn | Đi đâu | Ví dụ |
+|---|---|---|
+| Cursor / `main` / image GHCR | Mọi bản, qua `system_sync` | Sửa app, skill hệ thống `javis-builder` |
+| Soạn trên Javis gốc (Studio) | Catalog `org-catalog` → đẩy tenant | Skill giảng dạy, agent nhà trường |
+| Tự viết trên bản học viên / trên `javis-quan` | **Chỉ bản đó** | Skill riêng, plugin user, loop cá nhân |
+
+Không thừa hưởng: chat, memory, mật khẩu, MCP, file đính kèm, brain APC/School of Art. Những thứ đó ở `javis-quan` hoặc trên từng tenant.
+
+- Nguồn catalog: brain `org-catalog` trên **Javis gốc**, không đọc volume `javis-quan`.
+- Đẩy: copy/sync vào `<brain>/org/...` hoặc class `org` trong Studio. Không ghi đè file `user-modified` (hash, giống `system_sync`).
+- Tenant mới: nhận catalog lúc tạo. Tenant cũ: nút đẩy từ gốc hoặc **Cập nhật từ trường** trên bản họ.
+- `javis-quan` nhận catalog khi bạn bấm cập nhật. Không tự xóa kiến thức APC/School of Art.
+
+## Hạn mức tài nguyên bản người dùng (tránh tràn RAM/CPU)
+
+Áp cho **Javis con trường** (`javis-<slug>`), không áp cho Javis gốc và không siết `javis-quan` đợt 1.
+
+File: `deploy/org/docker-compose.tenant-limits.yml` + `deploy/org/env.tenant.example`.
+
+| Trần | Mặc định tenant | Lý do |
+|---|---|---|
+| Ổ `/data`+`/brains` | **2 GB** | Chat + ghi chú; video thì xin nâng 5 GB |
+| RAM container | **768 MB** (`mem_limit`, không swap thêm) | 8 GB máy, vài bản Up cùng lúc |
+| CPU | **0.75** nhân | Render/ffmpeg không chiếm hết 4 nhân |
+| PID | **256** | Chặn fork từ plugin/CLI |
+| Plugin user (Python trong process) | **Tắt** (`JAVIS_ENABLE_USER_PLUGINS=false`) | Code lạ đốt RAM/CPU; skill markdown vẫn viết được |
+| Kanban worker | **1** | Việc nền không nhân 2-8 process |
+| Pixelle / Ollama trong bản | **Tắt** | Không nhân model local theo người |
+| Docker socket | **Không mount** | Không đụng bản khác |
+
+Skill/agent/workflow **cá nhân** (markdown) được phép: tốn ổ trong trần 2 GB, chạy khi chat thì chịu `mem_limit`/`cpus`. Loop mặc định `enabled: false` + `suggest`. Plugin Python trên tenant: tắt; muốn bật từng người thì manager gỡ cổng, không mặc định.
+
+Vượt trần ổ: chặn ghi file mới, báo trên bản đó và trên gốc. Vượt RAM: Docker cgroup kill process (OOM), không kéo theo bản khác.
 
 ## Xóa người
 

@@ -211,4 +211,25 @@ if [ "${FORCE_MORNING_BRIEF_TODAY:-0}" = "1" ] && [ -f "$ROOT/scripts/force-morn
   bash "$ROOT/scripts/force-morning-brief-today-vps.sh" || echo "WARN: force-morning-brief-today skipped"
 fi
 
+# Javis gốc (tổ chức) nằm thư mục khác. Cùng image, không --remove-orphans, không đụng volume quan.
+MGR_DIR="${JAVIS_MANAGER_DIR:-/root/javis-manager}"
+if [ -f "$ENV_FILE" ] && grep -qE '^JAVIS_ORG_MANAGER=(true|1|yes|on)$' "$ENV_FILE"; then
+  echo "==> đang deploy ngay Javis gốc - không lặp $MGR_DIR"
+elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
+  echo "==> cập nhật Javis gốc ($MGR_DIR), không đụng volume javis_javis-*"
+  (
+    cd "$MGR_DIR"
+    export COMPOSE_PROJECT_NAME=javis-manager
+    export JAVIS_IMAGE
+    MGR_FILES=(-f docker-compose.yml)
+    if [ -f docker-compose.multi.yml ]; then
+      MGR_FILES+=(-f docker-compose.multi.yml)
+    fi
+    docker compose "${MGR_FILES[@]}" pull javis || echo "WARN: pull Javis gốc thất bại"
+    docker compose "${MGR_FILES[@]}" up -d --no-build javis
+  )
+else
+  echo "==> không có $MGR_DIR - bỏ cập nhật Javis gốc"
+fi
+
 echo "==> done"
