@@ -2,7 +2,7 @@
 name: Bài giảng slide
 description: "Deck slide ấn tượng: 1 ý/slide, speaker note dài, nhấn visual, ảnh/biểu đồ, xuất md/HTML."
 description_en: "Impressive slide decks: one idea/slide, long speaker notes, visual emphasis, charts/images."
-group: Nội dung
+group: Giáo dục
 ---
 
 # Bài giảng slide

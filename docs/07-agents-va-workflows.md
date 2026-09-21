@@ -1,3 +1,5 @@
+> **0.56:** Trên thanh bên, Trợ lý và Quy trình đã gộp thành trang **Cộng sự**. Tài liệu dưới đây vẫn đúng về cách viết agent/workflow.
+
 # Agents & Workflows
 
 ***Tiếng Việt** · [English](en/07-agents-and-workflows.md)*
@@ -73,7 +75,7 @@ Agent và workflow tạo từ trước bản 0.55.38 chưa có nhóm sẽ nằm 
 |---|---|---|
 | **Tên** | Tên agent, hiện trên thẻ. Bắt buộc. | VD: "Chuyên viên email" |
 | **Vai trò / mô tả (tiếng Việt, 2–3 dòng)** | Agent làm gì, dùng khi nào, cần dữ liệu/repo gì và lưu ý gì. Người đọc thẻ agent phải hiểu ngay không cần mở form. | VD: "Viết email bán hàng, giọng thân mật. Cần brief sản phẩm trong brain. Không gửi mail thật nếu chưa có danh sách." |
-| **Nhóm** | Tên nhóm để dashboard xếp agent vào cùng một cột bên trái. Gõ tên mới hoặc chọn từ nhóm đang có (ô có gợi ý). Để trống thì agent rơi vào nhóm "Chung". | VD: Marketing, Bán hàng, Nội dung |
+| **Nhóm** | Tên nhóm để dashboard xếp agent. **Chuẩn:** Marketing · Nghiên cứu · Nội dung · Giáo dục · Thiết kế & Web · Video & Motion · Tài chính · Vận hành · Pháp chế · AI & Hệ thống · Năng suất. Để trống → "Chung". | VD: Giáo dục, Video & Motion |
 | **System prompt (cách làm việc chi tiết)** | Hướng dẫn dài, chi tiết cách agent làm việc, nguyên tắc, đầu ra mong muốn. | VD: quy tắc viết, cấm dùng từ nào, format đầu ra |
 | **Skills** | Danh sách skill có sẵn trong vault, bấm tick để cho agent được dùng. | Chọn skill hợp với vai trò |
 | **Model** | Ô chọn có 8 lựa chọn, xem bảng ngay dưới. | Sonnet cho cân bằng, Opus khi cần suy luận sâu, Haiku khi cần nhanh và rẻ |

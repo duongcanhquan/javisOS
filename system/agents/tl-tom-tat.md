@@ -2,6 +2,7 @@
 type: agent
 name: Người tóm tắt
 slug: tl-tom-tat
+group: Năng suất
 role: Biến tài liệu dài, biên bản họp hay chuỗi tin nhắn thành quyết định và việc
   cần làm.
 skills:

@@ -1,5 +1,5 @@
 // ============================================
-// JAVIS OS - Studio: Agents / Skills / Workflows
+// VMOS - Studio: Agents / Skills / Workflows
 // ============================================
 (function () {
   // Locale để định dạng số/ngày. Lấy từ i18n chứ KHÔNG khoá "vi-VN": người dùng đổi
@@ -656,7 +656,7 @@
   .meta{color:#555;font-size:.9rem}
   @media print{body{margin:12mm;max-width:none}}
 </style></head><body>
-<p class="meta">${esc(new Date().toLocaleString(LOC()))} · Javis OS · ${esc(title)}</p>
+<p class="meta">${esc(new Date().toLocaleString(LOC()))} · VMOS · ${esc(title)}</p>
 <article>${html}</article>
 </body></html>`;
   }
@@ -685,7 +685,7 @@
       setTimeout(() => { try { win.focus(); win.print(); } catch (e) {} }, 350);
     };
     foot.querySelector("#runSaveVault").onclick = async () => {
-      const path = "Javis/workflow-runs/" + base + ".md";
+      const path = "VMOS/workflow-runs/" + base + ".md";
       const f = fd({ brain: brain(), path, content: md() });
       const r = await fetch("/files/write", { method: "POST", body: f, credentials: "same-origin" });
       const d = await r.json().catch(() => ({}));

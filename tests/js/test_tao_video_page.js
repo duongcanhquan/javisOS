@@ -47,7 +47,8 @@ check("workbench.css style range Tạo video", /jw-field-range/.test(css) && /jw
 check("workbench.css chips + subsec", /jw-feat-chips/.test(css) && /jw-subsec/.test(css));
 check("console rail có id video", /"video"/.test(consoleJs) && /ids: \[.*"video"/.test(consoleJs));
 check("console gọi renderTaoVideo", /renderTaoVideo/.test(consoleJs));
-check("index nạp video.js", /\/static\/video\.js/.test(indexHtml));
+check("index nạp video.js", /PAGE_LAZY/.test(consoleJs) && /file:\s*"video\.js"/.test(consoleJs));
+check("video.js lazy qua ensurePageScript", /ensurePageScript/.test(consoleJs) && /withLazyPage/.test(consoleJs));
 check("i18n vi page.video.label", /"page\.video\.label"\s*:\s*"Tạo video"/.test(vi));
 check("i18n en page.video.label", /"page\.video\.label"\s*:\s*"Make video"/.test(en));
 

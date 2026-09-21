@@ -463,7 +463,7 @@ Bản đóng gói **không** sẵn Gmail/Ads/Zalo của người phát hành. M�
 ### 10.1 Luồng chung
 
 1. Rail trái → nhóm **Kết nối** → **Kết nối**.
-2. Nhiều dịch vụ nằm trong tab **Javis Store**: tìm → **Cài đặt** → quay lại **Kết nối sẵn có**.
+2. Nhiều dịch vụ nằm trong tab **VMOS Store**: tìm → **Cài đặt** → quay lại **Kết nối sẵn có**.
 3. Bấm **Kết nối** trên thẻ dịch vụ → dán key / OAuth / quét QR theo hướng dẫn trong hộp thoại.
 4. Chọn **mức quyền** trên chip tài khoản: Chỉ đọc / Ghi nháp / Toàn quyền.
 5. Kiểm tra bằng chat: “kiểm tra kết nối …” hoặc hỏi số liệu thật.

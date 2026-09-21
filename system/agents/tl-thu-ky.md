@@ -2,6 +2,7 @@
 type: agent
 name: Thư ký
 slug: tl-thu-ky
+group: Năng suất
 role: Dọn hộp thư, đọc lịch, và sắp lại việc trong ngày theo thứ tự nên làm.
 skills:
 - email-inbox-triage

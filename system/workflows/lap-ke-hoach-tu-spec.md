@@ -3,7 +3,7 @@ type: workflow
 name: Lập kế hoạch từ spec
 slug: lap-ke-hoach-tu-spec
 status: active
-group: AI
+group: "AI & Hệ thống"
 description: "Sau khi user duyệt spec brainstorming: writing-plans → file plan chi tiết. Không tự code."
 steps:
   - agent: viet-ke-hoach-trien-khai

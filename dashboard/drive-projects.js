@@ -147,7 +147,7 @@
       box.style.display = "";
       box.innerHTML =
         "<h3>Chưa sẵn sàng</h3>" +
-        '<p class="jw-hint">Máy chạy Javis cần <code>rclone</code> (bản Docker từ 0.55.154 đã có). Cập nhật image rồi thử lại.</p>';
+        '<p class="jw-hint">Máy chạy VMOS cần <code>rclone</code> (bản Docker từ 0.55.154 đã có). Cập nhật image rồi thử lại.</p>';
       return;
     }
 
@@ -170,10 +170,10 @@
     box.innerHTML =
       "<h3>Bước 1 - Kết nối Google Drive</h3>" +
       (local
-        ? '<p class="jw-hint">Bạn đang mở Javis trên máy này. Bấm một lần, Allow Google là xong.</p>' +
+        ? '<p class="jw-hint">Bạn đang mở VMOS trên máy này. Bấm một lần, Allow Google là xong.</p>' +
           '<button type="button" class="jw-btn jw-btn-primary" id="dpAuthLocal">Kết nối Google Drive</button>' +
           '<div id="dpAuthProgress" class="jw-hint" style="display:none;margin-top:8px"></div>'
-        : '<p class="jw-hint">Javis đang trên VPS. Trên Mac: sao chép lệnh Terminal. Trên Windows: tải file .bat.</p>' +
+        : '<p class="jw-hint">VMOS đang trên VPS. Trên Mac: sao chép lệnh Terminal. Trên Windows: tải file .bat.</p>' +
           '<button type="button" class="jw-btn jw-btn-primary" id="dpPairStart">Bắt đầu kết nối (Mac / Windows)</button>' +
           '<div id="dpPairBox" style="display:none;margin-top:12px"></div>') +
       '<details style="margin-top:14px"><summary class="dim">Cách khác (hiếm khi cần)</summary>' +
@@ -375,7 +375,7 @@
       var rc = d.rclone || {};
       var connected = !!(d.google_connected || rc.google_connected);
       stEl.innerHTML = !rc.rclone_installed
-        ? '<span class="warn">Chưa có rclone trên máy Javis</span>'
+        ? '<span class="warn">Chưa có rclone trên máy VMOS</span>'
         : connected
           ? '<span class="ok">Google đã kết nối</span>'
           : '<span class="warn">Chưa kết nối Google</span>';

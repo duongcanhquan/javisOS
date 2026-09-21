@@ -1,5 +1,41 @@
 # Nhật ký cập nhật
 
+## [0.56.1] - 2026-09-21
+### Sửa
+- **API pool:** nhả chỗ concurrency khi stream lỗi/`aclose` fail; không đốt RPM khi bị chặn song song.
+- **Lazy trang Công việc:** luôn tải qua `/asset/{ver}/` (CDN không nuốt `?v=` trên `/static/`).
+- **Đổi não:** đóng SSE/workbench trước khi nạp lại trang; ẩn tiêu đề chung khi trang flush.
+- **Chat:** kiểm tra trần đồng thời sát lúc đăng ký job (sau mọi await).
+
+## [0.56.0] - 2026-09-21
+### Mới
+- **Cộng sự**: gộp Trợ lý và Quy trình thành một trang; Agents/Workflows cũ chuyển hướng về đây.
+- **Hội thoại khách**: hộp thư Telegram/Zalo, tab Kênh và Chatbot; nền CRM sẵn sàng cho gói Store.
+- **Chia sẻ công khai**: nút Chia sẻ trong trình sửa file, trang quản lý link /s/, thu hồi bất cứ lúc nào.
+- **Giọng nói nâng cao**: voice-turn, Live, lọc tạp âm (Whisper); không kèm linh vật.
+- **Tủ tài liệu trợ lý**: gắn file/link riêng cho từng trợ lý (agent assets).
+- **VMOS Store**: đổi tên từ Javis Store; mô tả gói/Kết nối đọc đủ không bị cắt 2 dòng.
+- **Mức dùng / Nhật ký cập nhật**: vẽ trước khi quét, đọc transcript tiếp, phân trang changelog.
+- **Bảo vệ API pool + lazy-load:** rate-limit/concurrency pool trường; trang Công việc/Tổ chức nạp JS lần đầu.
+
+### Giữ
+- Tổ chức (multi-tenant), Hướng dẫn, soft-delete 72h, policy model, đẩy catalog, nhật ký org.
+## [0.55.276] - 2026-09-21
+### Mới
+- **Chính sách model trên Tổ chức:** bốn chế độ (tự gắn API / chỉ kho trường / cả hai / chặn) và chọn từng provider kho trường trên thẻ người.
+- **Đẩy catalog** từ tab Tổng hợp: xem trước hoặc đẩy skill/agent/workflow gốc xuống mọi máy (không đè bản đã sửa).
+- **Nhật ký tổ chức** trên Tổng hợp (tạo, chính sách, tạm dừng, xóa, đẩy catalog).
+- **Đồng ý dữ liệu** bắt buộc khi tạo người mới.
+
+## [0.55.275] - 2026-09-21
+### Mới
+- **Xóa mềm 72 giờ trên Tổ chức.** Bấm Xóa chỉ đánh dấu; não giữ lại, có nút Khôi phục. Hết hạn tự xóa hẳn. Cần mất ngay thì bấm Xóa ngay (xác nhận lần nữa).
+- **Hàng đợi RAM ghi xuống đĩa.** Restart Javis gốc không làm mất thứ tự xếp chỗ.
+- **Thẻ Quản lý hiện lần hoạt động gần nhất và mã image ngắn.** Ổ đĩa lấy từ cache trong sổ (không gọi /usage từng thẻ nếu vừa mới đo).
+
+### Sửa
+- Mở link máy đang chờ xóa hiện trang báo rõ, không tự bật.
+
 ## [0.55.274] - 2026-09-21
 ### Mới
 - **Nhóm menu Hướng dẫn** (ngay dưới Kết nối): 4 trang — Javis làm được gì · Kết nối · Skill/Agent/Workflow · Công việc & chức năng. Chữ đơn giản, sơ đồ luồng, nút nhảy thẳng vào trang thật (guides.js).

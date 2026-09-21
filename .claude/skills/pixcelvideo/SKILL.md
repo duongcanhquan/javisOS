@@ -2,7 +2,7 @@
 name: pixcelvideo
 description: "Video đầy đủ bắt buộc có ảnh từng cảnh (ChatGPT/Pollinations) + TTS; không trả bản chỉ chữ."
 description_en: "Full video requires per-scene images (ChatGPT/Pollinations) + TTS; never text-only."
-group: Nội dung
+group: "Video & Motion"
 ---
 
 # pixcelvideo — bắt buộc có ảnh

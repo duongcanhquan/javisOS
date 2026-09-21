@@ -2653,7 +2653,7 @@
             out[name] = cu8;
             doneBytes += cu8.byteLength;
             fromCache++;
-            // Đồng bộ sang cache Javis v2 nếu lấy từ legacy (không chặn UI).
+            // Đồng bộ sang cache VMOS v2 nếu lấy từ legacy (không chặn UI).
             putMoonshineCached(url, cu8);
             if (onProgress) {
               onProgress(
@@ -3959,7 +3959,7 @@
     if (!data || data.connected === false) {
       host.innerHTML =
         '<div class="mt-archive-empty">' +
-        "<p><b>Fathom không ghi mic trong Javis.</b> Bot Fathom vào Zoom, Google Meet hoặc Teams. Kết nối xong, đồng bộ tóm tắt và transcript về vault.</p>" +
+        "<p><b>Fathom không ghi mic trong VMOS.</b> Bot Fathom vào Zoom, Google Meet hoặc Teams. Kết nối xong, đồng bộ tóm tắt và transcript về vault.</p>" +
         '<p class="dim">Chưa kết nối Fathom.</p>' +
         '<button type="button" class="s-btn" id="mtFathomGoMcp">' +
         ic("plug") +
@@ -4037,8 +4037,8 @@
         statusEl.textContent = st.connected
           ? "Đã kết nối" +
             (st.label ? " · " + st.label : "") +
-            ". Fathom ghi trên Zoom/Meet/Teams, không ghi mic trong Javis."
-          : "Chưa kết nối. Fathom ghi trên Zoom/Meet/Teams; Javis chỉ kéo note về vault.";
+            ". Fathom ghi trên Zoom/Meet/Teams, không ghi mic trong VMOS."
+          : "Chưa kết nối. Fathom ghi trên Zoom/Meet/Teams; VMOS chỉ kéo note về vault.";
       }
       if (!st.connected) {
         setFathomSyncEnabled(root, false);
@@ -4715,7 +4715,7 @@
       '<div id="mtArchiveDetail" hidden></div>' +
       "</div>" +
       '<div id="mtPanelFathom" hidden role="tabpanel" aria-labelledby="mtTabFathom">' +
-      '<p class="mt-hint">Fathom không ghi mic trong Javis. Bot Fathom vào Zoom/Meet/Teams; xong cuộc thì kéo tóm tắt và transcript vào vault.</p>' +
+      '<p class="mt-hint">Fathom không ghi mic trong VMOS. Bot Fathom vào Zoom/Meet/Teams; xong cuộc thì kéo tóm tắt và transcript vào vault.</p>' +
       '<div class="mt-fathom-toolbar">' +
       '<button type="button" class="s-btn" id="mtFathomSync">' +
       ic("download") +

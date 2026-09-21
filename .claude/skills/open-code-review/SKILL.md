@@ -2,7 +2,7 @@
 name: open-code-review
 description: "Review diff Git theo ruleset rõ (bug, bảo mật, hiệu năng): CLI ocr hoặc cùng khung nếu chưa cài."
 description_en: "Review Git diffs with a clear ruleset (bug, security, perf): ocr CLI or the same frame if missing."
-group: AI
+group: "AI & Hệ thống"
 license: Apache-2.0
 metadata:
   version: "1.0"

@@ -4,14 +4,14 @@
 
 Trang **Kết nối** là nơi bạn "đấu" Javis vào các công cụ bạn đang dùng: Pancake POS, Zalo, Webcake Landing, Botcake, quảng cáo Meta/Google/TikTok, lịch, CRM... Sau khi đấu, Javis đọc được số liệu THẬT và (nếu bạn cho quyền) thao tác thật trên các công cụ đó. Trang này hướng dẫn: kết nối một dịch vụ từ Kho, nối nhiều tài khoản, phân quyền, xem nhật ký, và cách đọc số liệu.
 
-> **Từ bản 0.55.36: phần lớn dịch vụ nằm trong Javis Store, không đi kèm app nữa.**
+> **Từ bản 0.55.36: phần lớn dịch vụ nằm trong VMOS Store, không đi kèm app nữa.**
 >
 > App chỉ còn cài sẵn **Composio**, **bộ Google** (Lịch, Gmail, Drive/Docs, Sheets, Tasks, Keep,
 > Ads, Search Console, NotebookLM), **Zalo**, **Botcake**, **Substack**, và ô **Tự thêm (nâng cao)**.
 >
 > Mọi dịch vụ khác trong tài liệu này - Pancake POS, Shopify, Meta Ads, Facebook Trang, TikTok
 > Ads, Slack, Lark, n8n, Hostinger, Webcake... - vẫn dùng y hệt, chỉ thêm MỘT bước đầu: mở tab
-> **Javis Store** trên trang Kết nối, tìm dịch vụ, bấm **Cài đặt**. Sau đó nó hiện ở tab
+> **VMOS Store** trên trang Kết nối, tìm dịch vụ, bấm **Cài đặt**. Sau đó nó hiện ở tab
 > **Kết nối sẵn có** và mọi hướng dẫn bên dưới đúng nguyên văn.
 >
 > Đổi lại: bản cập nhật của một dịch vụ tới thẳng qua kho, không phải chờ bản Javis mới. Nếu bạn
@@ -64,7 +64,7 @@ Pancake POS mặc định ở mức **Chỉ đọc** - Javis xem được doanh 
 
 ### 1b. Kết nối TTS Dropship (token lấy từ trình duyệt)
 
-Sàn dropship.thitruongsi.com **không phát hành API key**, nên thẻ này đăng nhập bằng chính token phiên của bạn trên trình duyệt. Cài **TTS Dropship** từ tab Javis Store trước, rồi:
+Sàn dropship.thitruongsi.com **không phát hành API key**, nên thẻ này đăng nhập bằng chính token phiên của bạn trên trình duyệt. Cài **TTS Dropship** từ tab VMOS Store trước, rồi:
 
 1. Mở [dropship.thitruongsi.com](https://dropship.thitruongsi.com) và đăng nhập như bình thường.
 2. Bấm **F12** (máy Mac: Cmd + Option + I) > tab **Application** (Chrome/Edge) hoặc **Storage** (Firefox) > **Local Storage** > dòng của trang TTS.

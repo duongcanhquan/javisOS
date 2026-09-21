@@ -3,7 +3,7 @@ type: workflow
 name: Thiết kế từ ý tưởng (tới spec)
 slug: thiet-ke-tu-y-tuong
 status: active
-group: AI
+group: "AI & Hệ thống"
 description: "Brainstorm Spike/Bounded/Architectural → draft design/spec → kiểm chứng. Dừng chờ user duyệt trước writing-plans."
 steps:
   - agent: brainstorm-thiet-ke-he-thong

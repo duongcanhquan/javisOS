@@ -1,7 +1,7 @@
 /* Trang Hướng dẫn trong dashboard.
  *
  * Bốn mục menu (nhóm «Hướng dẫn», đặt ngay dưới «Kết nối»):
- *   guide_what    — Javis làm được gì
+ *   guide_what    — VMOS làm được gì
  *   guide_connect — Kết nối (Models, MCP, kênh…)
  *   guide_studio  — Skill / Agent / Workflow
  *   guide_work    — Công việc & chức năng khác
@@ -102,7 +102,7 @@
 
   function toc(active) {
     const items = [
-      ["guide_what", "Javis làm được gì"],
+      ["guide_what", "VMOS làm được gì"],
       ["guide_connect", "Kết nối"],
       ["guide_studio", "Skill · Agent · Workflow"],
       ["guide_work", "Công việc & chức năng"],
@@ -122,11 +122,11 @@
     return `<div class="jv-g-hero"><h2>${ic(icon)} ${esc(title)}</h2><p>${esc(lead)}</p></div>`;
   }
 
-  /* ---------- 1. Javis làm được gì ---------- */
+  /* ---------- 1. VMOS làm được gì ---------- */
   function pageWhat() {
     return `<div class="jv-g">
-      ${hero("sparkles", "Javis làm được gì?",
-        "Javis là trợ lý AI gắn với bộ nhớ và công cụ của bạn. Nó chat được, nhớ việc, chạy quy trình, và nối được dịch vụ ngoài (email, Ads, Telegram…).")}
+      ${hero("sparkles", "VMOS làm được gì?",
+        "VMOS là trợ lý AI gắn với bộ nhớ và công cụ của bạn. Nó chat được, nhớ việc, chạy quy trình, và nối được dịch vụ ngoài (email, Ads, Telegram…).")}
       ${toc("guide_what")}
 
       <div class="jv-g-sec">
@@ -141,21 +141,21 @@
           <div class="ar">→</div>
           <div class="n">4. Kết nối<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Model · MCP</span></div>
         </div>
-        <div class="jv-g-note">Mẹo: làm xong <b>Kết nối Models</b> trước, rồi mới chat. Không có bộ não (model) thì Javis không trả lời được.</div>
+        <div class="jv-g-note">Mẹo: làm xong <b>Kết nối Models</b> trước, rồi mới chat. Không có bộ não (model) thì VMOS không trả lời được.</div>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("lightbulb")} Bạn dùng Javis để làm gì?</h3>
+        <h3>${ic("lightbulb")} Bạn dùng VMOS để làm gì?</h3>
         <div class="jv-g-map">
           <div class="m" data-ggo="chat"><div class="t">${ic("message-circle")} Trò chuyện</div><div class="d">Hỏi việc, viết email, tóm tắt tài liệu, nhờ gợi ý.</div></div>
-          <div class="m" data-ggo="kanban"><div class="t">${ic("square-kanban")} Giao việc nền</div><div class="d">Nói một goal — Javis tự chạy task trên bảng Việc.</div></div>
+          <div class="m" data-ggo="kanban"><div class="t">${ic("square-kanban")} Giao việc nền</div><div class="d">Nói một goal — VMOS tự chạy task trên bảng Việc.</div></div>
           <div class="m" data-ggo="skills"><div class="t">${ic("puzzle")} Kỹ năng sẵn</div><div class="d">SEO, kế toán, slide, nghiên cứu… bật skill rồi gọi.</div></div>
           <div class="m" data-ggo="workflows"><div class="t">${ic("workflow")} Quy trình nhiều bước</div><div class="d">Nghiên cứu → viết → kiểm chứng chạy một mạch.</div></div>
           <div class="m" data-ggo="meetings"><div class="t">${ic("mic")} Cuộc họp</div><div class="d">Ghi lời nói thành chữ, tóm tắt quyết định.</div></div>
           <div class="m" data-ggo="mcp"><div class="t">${ic("plug")} Dữ liệu thật</div><div class="d">Gmail, Ads, POS… qua trang Kết nối.</div></div>
-          <div class="m" data-ggo="learn"><div class="t">${ic("brain")} Tự học</div><div class="d">Sau chat, Javis rút ký ức / Wiki (có thể hoàn tác).</div></div>
+          <div class="m" data-ggo="learn"><div class="t">${ic("brain")} Tự học</div><div class="d">Sau chat, VMOS rút ký ức / Wiki (có thể hoàn tác).</div></div>
           <div class="m" data-ggo="files"><div class="t">${ic("folder-tree")} Quản lý tệp</div><div class="d">Đọc · sửa file trong bộ não (brain).</div></div>
-          <div class="m" data-ggo="channels"><div class="t">${ic("send")} Telegram / Zalo</div><div class="d">Hỏi Javis từ điện thoại.</div></div>
+          <div class="m" data-ggo="channels"><div class="t">${ic("send")} Telegram / Zalo</div><div class="d">Hỏi VMOS từ điện thoại.</div></div>
         </div>
       </div>
 
@@ -178,7 +178,7 @@
       <div class="jv-g-sec">
         <h3>${ic("info")} Khác chatbot thường ở chỗ nào?</h3>
         <table class="jv-g-table">
-          <thead><tr><th>Chatbot thường</th><th>Javis</th></tr></thead>
+          <thead><tr><th>Chatbot thường</th><th>VMOS</th></tr></thead>
           <tbody>
             <tr><td>Chỉ trả lời trong cửa sổ chat</td><td>Có bộ nhớ, file, skill, quy trình, kênh ngoài</td></tr>
             <tr><td>Mỗi lần hỏi gần như bắt đầu lại</td><td>Wiki / ký ức / dự án gắn theo brain của bạn</td></tr>
@@ -194,7 +194,7 @@
   function pageConnect() {
     return `<div class="jv-g">
       ${hero("link", "Hướng dẫn kết nối",
-        "Kết nối = cho Javis «não» (model) và «tay chân» (Gmail, Ads, Telegram…). Làm đúng thứ tự dưới đây sẽ ít lỗi nhất.")}
+        "Kết nối = cho VMOS «não» (model) và «tay chân» (Gmail, Ads, Telegram…). Làm đúng thứ tự dưới đây sẽ ít lỗi nhất.")}
       ${toc("guide_connect")}
 
       <div class="jv-g-sec">
@@ -247,7 +247,7 @@
         <div class="jv-g-pipe">
           <div class="box"><b>Bạn</b><span>Bấm Kết nối<br>đăng nhập / dán key</span></div>
           <div class="ar">→</div>
-          <div class="box"><b>Javis</b><span>Giữ phiên an toàn<br>gọi tool khi cần</span></div>
+          <div class="box"><b>VMOS</b><span>Giữ phiên an toàn<br>gọi tool khi cần</span></div>
           <div class="ar">→</div>
           <div class="box"><b>Dịch vụ</b><span>Gmail · Ads · …<br>trả số liệu thật</span></div>
         </div>
@@ -285,7 +285,7 @@
       <div class="jv-g-sec">
         <h3>${ic("triangle-alert")} Khi nào «não» không chạy?</h3>
         <ul>
-          <li>CLI chưa cài hoặc chưa login trên <b>đúng máy/container</b> đang chạy Javis.</li>
+          <li>CLI chưa cài hoặc chưa login trên <b>đúng máy/container</b> đang chạy VMOS.</li>
           <li>Key hết hạn / sai nhà cung cấp.</li>
           <li>Trên VPS nhiều bản: mỗi tenant có bộ não riêng — login trên quan không tự sang maihuong.</li>
         </ul>
@@ -312,7 +312,7 @@
         <table class="jv-g-table">
           <thead><tr><th></th><th>Là gì?</th><th>Khi nào dùng?</th></tr></thead>
           <tbody>
-            <tr><td><b>Skill</b></td><td>File hướng dẫn (SKILL.md). Javis tự nạp khi câu bạn khớp mô tả.</td><td>Một việc lặp lại: viết SEO, đọc hóa đơn, làm slide…</td></tr>
+            <tr><td><b>Skill</b></td><td>File hướng dẫn (SKILL.md). VMOS tự nạp khi câu bạn khớp mô tả.</td><td>Một việc lặp lại: viết SEO, đọc hóa đơn, làm slide…</td></tr>
             <tr><td><b>Agent</b></td><td>Trợ lý có vai trò, prompt, danh sách skill, model riêng.</td><td>Muốn «người» chuyên một mảng (nghiên cứu, kế toán…).</td></tr>
             <tr><td><b>Workflow</b></td><td>Chuỗi bước: agent A xong → agent B… có thể có bước kiểm chứng.</td><td>Việc nhiều giai đoạn, cần bàn giao giữa các vai.</td></tr>
           </tbody>
@@ -328,6 +328,7 @@
           <li><b>Xuất/nhập</b>: tải gói để mang sang máy/brain khác.</li>
         </ol>
         <div class="jv-g-note">Mô tả tốt: «Tóm tắt biên bản họp thành việc cần làm. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.» — không mở đầu bằng «Kích hoạt khi…».</div>
+        <div class="jv-g-note">Khi tạo skill/agent/workflow, chọn đúng <b>nhóm</b> để dễ lọc: Marketing · Nghiên cứu · Nội dung · Giáo dục · Thiết kế & Web · Video & Motion · Tài chính · Vận hành · Pháp chế · AI & Hệ thống · Năng suất.</div>
         <button type="button" class="jv-g-go" data-ggo="skills" style="margin-top:10px">${ic("puzzle")} Mở Skills</button>
       </div>
 
@@ -346,7 +347,7 @@
           </div>
           <div class="jv-g-card">
             <h4>Chạy agent ở đâu?</h4>
-            <p>Trong Workflow, Chatbot, hoặc khi bạn nhờ Javis dùng agent đó. Agent có bộ nhớ riêng trong vault.</p>
+            <p>Trong Workflow, Chatbot, hoặc khi bạn nhờ VMOS dùng agent đó. Agent có bộ nhớ riêng trong vault.</p>
           </div>
         </div>
         <button type="button" class="jv-g-go" data-ggo="agents" style="margin-top:10px">${ic("bot")} Mở Agents</button>
@@ -372,19 +373,73 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("package")} Plugin & Chatbot</h3>
-        <div class="jv-g-twin">
+        <h3>${ic("toolbox")} Plugins — dùng thế nào?</h3>
+        <p><b>Plugin</b> = mã Python chạy thật, thêm <b>tool</b> (engine gọi được) hoặc <b>hook</b>. Khác skill (chỉ là hướng dẫn chữ) và khác MCP (nguồn dữ liệu/app ngoài).</p>
+        <div class="jv-g-flow">
+          <div class="n">Năng lực → Plugins</div>
+          <div class="ar">→</div>
+          <div class="n hi">Bật plugin<br><span style="font-weight:400;font-size:12px;color:var(--text3)">● đang chạy</span></div>
+          <div class="ar">→</div>
+          <div class="n">Chat nhắc tool<br><span style="font-weight:400;font-size:12px;color:var(--text3)">vd «bây giờ mấy giờ»</span></div>
+        </div>
+        <ol class="jv-g-steps">
+          <li><b>Xem danh sách</b> — menu <b>Năng lực → Plugins</b>. Nhãn: Có sẵn / Toàn cục / Brain này.</li>
+          <li><b>Bật đúng cái cần</b> — chỉ thẻ «đang chạy» mới có tool. Đọc hàng chip 🔧 để biết tên tool.</li>
+          <li><b>Dùng trong Chat</b> — nói việc + tên tool nếu cần (vd «dùng javis_youtube_read tóm tắt link này»).</li>
+          <li><b>Plugin tự cài</b> — cần <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại; thả thư mục có <code>plugin.yaml</code> + <code>plugin.py</code>.</li>
+        </ol>
+        <div class="jv-g-note">Một số plugin cần Kết nối trước (ChatGPT OAuth cho ảnh, Meta Ads, Zalo…). Tool sẽ báo thiếu gì — đừng đoán.</div>
+        <table class="jv-g-table">
+          <thead><tr><th>Plugin có sẵn (ví dụ)</th><th>Khi nào dùng</th></tr></thead>
+          <tbody>
+            <tr><td><code>datetime-vn</code></td><td>Hỏi giờ / ngày VN</td></tr>
+            <tr><td><code>youtube-read</code></td><td>Tóm tắt video YouTube từ phụ đề</td></tr>
+            <tr><td><code>script-video</code></td><td>Render mp4 từ kịch bản (ảnh + TTS)</td></tr>
+            <tr><td><code>image-chatgpt</code></td><td>Tạo ảnh (đã login ChatGPT)</td></tr>
+            <tr><td><code>javis-task</code> / <code>javis-schedule</code></td><td>Giao việc Kanban / việc định kỳ từ chat</td></tr>
+          </tbody>
+        </table>
+        <button type="button" class="jv-g-go" data-ggo="plugins" style="margin-top:12px">${ic("toolbox")} Mở Plugins</button>
+      </div>
+
+      <div class="jv-g-sec">
+        <h3>${ic("play")} Ví dụ bổ sung: AutoClip (cắt highlight video)</h3>
+        <p><a href="https://github.com/zhouxiaoka/autoclip" target="_blank" rel="noopener">zhouxiaoka/autoclip</a> — AI trích highlight, cắt clip từ YouTube/Bilibili/file local. <b>Chưa ship sẵn trong VMOS</b>; gắn theo 1 trong 3 cách dưới (ưu tiên MCP).</p>
+        <div class="jv-g-pipe">
+          <div class="box"><b>1. MCP</b><span>Khuyến nghị<br>có sẵn trong AutoClip</span></div>
+          <div class="ar">→</div>
+          <div class="box"><b>2. Plugin</b><span>Bọc CLI/API<br>nếu muốn tool VMOS</span></div>
+          <div class="ar">→</div>
+          <div class="box"><b>3. Skill</b><span>Chỉ dạy quy trình<br>+ Terminal</span></div>
+        </div>
+        <ol class="jv-g-steps">
+          <li><b>Cài AutoClip trên máy/VPS</b> (Docker hoặc <code>pip install -e .</code>). Cần ffmpeg. Kiểm: <code>autoclip doctor</code>.</li>
+          <li><b>Cách A — MCP (nhanh nhất)</b>: AutoClip có lệnh <code>autoclip mcp</code>. Trong VMOS: <b>Kết nối → Tự thêm (nâng cao)</b>, loại stdio, lệnh trỏ tới binary trong venv, args <code>mcp</code>. Tool chính: <code>clip_video</code>, <code>get_job_status</code>, <code>export_clip</code>… Chat: «cắt highlight file này bằng AutoClip».</li>
+          <li><b>Cách B — Plugin VMOS</b>: viết plugin mỏng gọi <code>autoclip run … --json</code> hoặc HTTP <code>:8000/api/v1/…</code>, đăng ký tool kiểu <code>javis_autoclip_run</code>. Bật user plugins + thả vào thư mục plugin toàn cục/brain.</li>
+          <li><b>Cách C — Skill + Terminal</b>: skill hướng dẫn «khi nào gọi autoclip»; agent có shell chạy lệnh. Không cần plugin nếu máy đã có CLI.</li>
+        </ol>
+        <div class="jv-g-note warn">AutoClip nặng RAM/ổ (thường ≥4–8 GB). Trên VPS nhiều tenant: cài một bản dùng chung hoặc chỉ trên máy có GPU/ffmpeg đủ mạnh. Đừng nhầm với plugin <code>youtube-read</code> (chỉ đọc phụ đề) hay <code>script-video</code> (tạo video từ chữ).</div>
+        <div class="jv-g-twin" style="margin-top:12px">
           <div class="jv-g-card">
-            <h4>${ic("toolbox")} Plugins</h4>
-            <p>Tool/hook gắn sâu vào engine (lịch VN, ảnh…). Thường đã có sẵn; chỉ thêm khi bạn biết cần tool mới.</p>
-            <button type="button" class="jv-g-go" data-ggo="plugins">Mở Plugins</button>
+            <h4>Chat mẫu sau khi nối MCP</h4>
+            <p>«Dùng AutoClip cắt highlight video <code>exports/raw/talk.mp4</code>, min_score 0.5, rồi liệt kê file clip.»</p>
           </div>
           <div class="jv-g-card">
-            <h4>${ic("headset")} Chatbots</h4>
-            <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách — khác kênh chat cá nhân của bạn.</p>
-            <button type="button" class="jv-g-go" data-ggo="chatbots">Mở Chatbots</button>
+            <h4>Đọc thêm</h4>
+            <p>Docs VMOS: trang Plugins + Kết nối. AutoClip: <code>docs/CLI_AND_MCP.md</code> trên GitHub (CLI, MCP, Ollama).</p>
           </div>
         </div>
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" class="jv-g-go" data-ggo="mcp">${ic("plug")} Mở Kết nối</button>
+          <button type="button" class="jv-g-go" data-ggo="plugins">${ic("toolbox")} Mở Plugins</button>
+          <button type="button" class="jv-g-go" data-ggo="chatbots">${ic("headset")} Chatbots</button>
+        </div>
+      </div>
+
+      <div class="jv-g-sec">
+        <h3>${ic("headset")} Chatbot</h3>
+        <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách — khác kênh chat cá nhân của bạn.</p>
+        <button type="button" class="jv-g-go" data-ggo="chatbots" style="margin-top:10px">${ic("headset")} Mở Chatbots</button>
       </div>
     </div>`;
   }
@@ -398,11 +453,11 @@
 
       <div class="jv-g-sec">
         <h3>${ic("square-kanban")} Tạo công việc (Kanban)</h3>
-        <p>Menu <b>Công việc → Việc</b>. Bạn nói mục tiêu bằng lời; Javis tách thành task và chạy nền.</p>
+        <p>Menu <b>Công việc → Việc</b>. Bạn nói mục tiêu bằng lời; VMOS tách thành task và chạy nền.</p>
         <div class="jv-g-flow">
           <div class="n">Bạn nói goal</div>
           <div class="ar">→</div>
-          <div class="n hi">Javis đặc tả</div>
+          <div class="n hi">VMOS đặc tả</div>
           <div class="ar">→</div>
           <div class="n">Chạy task</div>
           <div class="ar">→</div>
@@ -467,7 +522,7 @@
           </div>
           <div class="jv-g-card">
             <h4>${ic("brain")} Tự học</h4>
-            <p>Sau hội thoại, Javis có thể rút ký ức / Wiki / đề xuất skill. Trang này để xem và hoàn tác nếu rút sai.</p>
+            <p>Sau hội thoại, VMOS có thể rút ký ức / Wiki / đề xuất skill. Trang này để xem và hoàn tác nếu rút sai.</p>
             <button type="button" class="jv-g-go" data-ggo="learn" style="margin-top:10px">Mở Tự học</button>
           </div>
         </div>
@@ -477,7 +532,7 @@
         <h3>${ic("message-circle")} Chat hiệu quả hơn</h3>
         <ul>
           <li>Gõ <code>/</code> để gọi skill hoặc lệnh phiên (<code>/new</code>, <code>/stop</code>…).</li>
-          <li>Đính file / ảnh khi cần Javis đọc đúng nguồn.</li>
+          <li>Đính file / ảnh khi cần VMOS đọc đúng nguồn.</li>
           <li>Nói rõ ràng: mục tiêu, ràng buộc, định dạng đầu ra mong muốn.</li>
           <li>Một brain = một «văn phòng» kiến thức — đừng lẫn dự án cá nhân vào brain công ty.</li>
         </ul>
@@ -491,8 +546,8 @@
           <div class="m" data-ggo="settings"><div class="t">${ic("settings")} Cài đặt</div><div class="d">Giao diện, giọng nói, truy cập, đồng bộ template (manager).</div></div>
           <div class="m" data-ggo="account"><div class="t">${ic("circle-user")} Tài khoản</div><div class="d">Mật khẩu, phiên đăng nhập.</div></div>
           <div class="m" data-ggo="logs"><div class="t">${ic("scroll-text")} Nhật ký</div><div class="d">Khi lỗi — xem log để gửi cho admin.</div></div>
-          <div class="m" data-ggo="terminal"><div class="t">${ic("terminal")} Terminal</div><div class="d">Dòng lệnh trên máy chạy Javis (cẩn thận).</div></div>
-          <div class="m" data-ggo="guide_what"><div class="t">${ic("sparkles")} Về tổng quan</div><div class="d">Quay lại «Javis làm được gì».</div></div>
+          <div class="m" data-ggo="terminal"><div class="t">${ic("terminal")} Terminal</div><div class="d">Dòng lệnh trên máy chạy VMOS (cẩn thận).</div></div>
+          <div class="m" data-ggo="guide_what"><div class="t">${ic("sparkles")} Về tổng quan</div><div class="d">Quay lại «VMOS làm được gì».</div></div>
         </div>
       </div>
     </div>`;

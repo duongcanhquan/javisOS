@@ -4,7 +4,7 @@ description: "Audit/sửa metadata HTML: title, description, canonical, Open Gra
 description_en: "Fix page title, meta description, canonical, Open Graph, Twitter cards, and favicons."
 version: 1.0.1
 license: MIT
-group: Marketing
+group: "Thiết kế & Web"
 ---
 
 ## Liên kết

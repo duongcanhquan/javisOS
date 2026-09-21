@@ -1,4 +1,4 @@
-/* chat-wait.js - cau cho khi Javis dang soan, dac biet luot lau.
+/* chat-wait.js - cau cho khi VMOS dang soan, dac biet luot lau.
 
    Bon cau xoay theo thoi gian cho (giay). Phan THUAN de test bang node:
      node tests/js/test_chat_wait.js

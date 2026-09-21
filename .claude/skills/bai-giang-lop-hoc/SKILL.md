@@ -2,7 +2,7 @@
 name: Bài giảng lớp học
 description: "Gói lớp học ấn tượng: kịch bản chi tiết ~1 phút/cảnh, nhấn visual kiểu Remotion, ảnh/biểu đồ, OpenMAIC."
 description_en: "Impressive class pack: ~1min scripts/scene, Remotion-style emphasis, charts/images, OpenMAIC."
-group: Nội dung
+group: Giáo dục
 ---
 
 # Bài giảng lớp học (ấn tượng, không chỉ chữ)

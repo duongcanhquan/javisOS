@@ -2,7 +2,7 @@
 name: Làm video
 description: "Điều phối làm video: chọn pipeline (paperdesign/Remotion/OmmiStudio), nghiên cứu, viết kịch bản, render đúng brief."
 description_en: "Orchestrate video: pick pipeline (paperdesign/Remotion/OmmiStudio), research, script, render to brief."
-group: Nội dung
+group: "Video & Motion"
 ---
 
 # Làm video - điều phối đa pipeline

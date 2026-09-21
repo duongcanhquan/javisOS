@@ -239,7 +239,7 @@
         "Mọi dịch vụ từ gói đều bắt đầu ở mức Chỉ đọc. Muốn cho ghi thì bạn tự nâng quyền từng "
         + "tài khoản.", true) : "",
       vt.length ? o("Thêm vào bộ não đang mở", '<div class="pkm-o-gt">' + vt.join(", ") + '</div>',
-        "Bộ não đã có mục trùng tên thì Javis giữ bản của bạn và bỏ qua bản trong gói. Gỡ gói "
+        "Bộ não đã có mục trùng tên thì VMOS giữ bản của bạn và bỏ qua bản trong gói. Gỡ gói "
         + "cũng chỉ xoá thứ bạn chưa sửa.", true) : "",
     ].filter(Boolean).join("");
 
@@ -270,8 +270,8 @@
       // `min_mode` chỉ giới hạn cái MODEL được gọi chứ không giới hạn cái mã làm được.
       + (coMa
         ? '<div class="pkm-canh do"><div class="pkm-canh-tieu">' + ic("triangle-alert")
-          + 'Gói này chạy Python thật trong máy chủ Javis</div>'
-          + '<div>Nó đọc được mọi khoá API, token và tệp mà Javis đọc được. Không có lớp ngăn '
+          + 'Gói này chạy Python thật trong máy chủ VMOS</div>'
+          + '<div>Nó đọc được mọi khoá API, token và tệp mà VMOS đọc được. Không có lớp ngăn '
           + 'nào cả. Chỉ cài gói từ nguồn bạn tin.</div>'
           + (py.length
               ? '<div class="pkm-o-phu">Tệp mã trong gói: '
@@ -372,7 +372,7 @@
         ? "<b>" + kn.map(x => esc(x.label)).join(", ") + "</b> ngừng hoạt động ngay khi gỡ. "
           + "Kết nối KHÔNG bị xoá: cài lại dịch vụ là chúng chạy tiếp như cũ."
         : "Dịch vụ này biến khỏi kho Kết nối và khỏi mọi engine. Tệp của nó vẫn nằm trong bản "
-          + "cài - Javis không sửa mã nguồn của chính nó - nên cài lại lúc nào cũng được."),
+          + "cài - VMOS không sửa mã nguồn của chính nó - nên cài lại lúc nào cũng được."),
     });
     if (!dongY) return { ok: false, huy: true };
     const r = await postJson("/connect/core-toggle", { id: id, off: true, confirm: true });
@@ -444,7 +444,7 @@
     const moi = coBanMoi(g);
     if (g.nguon === "app") {
       return g.installed
-        ? { nhan: "Gỡ khỏi Javis", lop: "kho-btn kho-btn-go", act: "coreoff" }
+        ? { nhan: "Gỡ khỏi VMOS", lop: "kho-btn kho-btn-go", act: "coreoff" }
         : { nhan: "Cài lại", lop: "kho-btn kho-btn-chinh", act: "coreon" };
     }
     if (moi) return { nhan: "Có bản mới v" + esc(g.version), lop: "kho-btn kho-btn-chinh", act: "cai" };
@@ -533,7 +533,7 @@
     // Danh mục cache 6 giờ ở phía server (`packs_store.TTL`). Với việc TÌM một gói mới thì 6
     // giờ là hợp lý. Với việc BIẾT gói mình đã cài có bản mới chưa thì nó sai một cách im
     // lặng: mở trang ra vẫn là danh mục của sáng nay, không dấu hiệu gì, và người dùng kết
-    // luận là Javis không có tính năng cập nhật.
+    // luận là VMOS không có tính năng cập nhật.
     //
     // Nên khi bản đang cầm đã quá cũ, lấy lại MỘT lần ở nền rồi vẽ lại. Không đụng TTL của
     // server (các nơi khác vẫn hưởng cache), chỉ trang Kho mới trả cái giá một request nhỏ.
@@ -731,17 +731,17 @@
   function manHinhChon(el, maxMb) {
     const m = modal(
       pkmDau(null, "Cài từ tệp .zip",
-        "Chọn gói đã tải về máy. Javis mở ra kiểm rồi cho bạn xem có gì trước khi cài.")
+        "Chọn gói đã tải về máy. VMOS mở ra kiểm rồi cho bạn xem có gì trước khi cài.")
       + '<div class="pkm-than">'
       + '<label class="pkm-tha" id="pkTha">'
       + '<input type="file" accept=".zip" id="pkTepHop" style="display:none">'
       + '<span class="pkm-tha-ico">' + ic("upload-cloud") + '</span>'
       + '<span class="pkm-tha-t">Kéo tệp .zip vào đây</span>'
       + '<span class="pkm-tha-s">hoặc <u>chọn tệp trên máy</u></span>'
-      + '<span class="pkm-tha-n">Tối đa ' + (maxMb || 25) + ' MB, chỉ nhận gói .zip của Javis</span>'
+      + '<span class="pkm-tha-n">Tối đa ' + (maxMb || 25) + ' MB, chỉ nhận gói .zip của VMOS</span>'
       + '</label>'
       + '<div class="pkm-luuy">' + ic("info")
-      + '<span>Chỉ cài gói từ nguồn bạn tin. Bước sau Javis mở gói ra, liệt kê đúng những thứ '
+      + '<span>Chỉ cài gói từ nguồn bạn tin. Bước sau VMOS mở gói ra, liệt kê đúng những thứ '
       + 'nó thêm vào máy, rồi mới hỏi bạn có cài không.</span></div>'
       + '</div>'
       + '<div class="pkm-chan"><button class="mp-btn" data-act="close">Huỷ</button></div>', true);
@@ -882,9 +882,9 @@
       (veTrang
         ? '<button class="kho-quaylai" id="pkQuayLai">← Quay lại ' + esc(veTrang.nhan) + '</button>'
         : "")
-      + '<div class="cview-section kho-khoi"><h3>◆ Javis Store</h3>'
+      + '<div class="cview-section kho-khoi"><h3>◆ VMOS Store</h3>'
       + '<div class="gcard-meta" style="max-width:740px">Trợ lý, kỹ năng, quy trình và công cụ '
-      + 'làm sẵn theo từng lĩnh vực. Bấm <b>Cài</b> là Javis tải về, mở ra cho bạn xem có gì '
+      + 'làm sẵn theo từng lĩnh vực. Bấm <b>Cài</b> là VMOS tải về, mở ra cho bạn xem có gì '
       + 'rồi mới hỏi.</div>'
       + (d.disabled
         ? '<div class="conn-guide" style="border-left:3px solid var(--warn,#e0a33e);padding-left:10px;margin-top:12px">'

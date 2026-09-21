@@ -3,7 +3,7 @@ type: workflow
 name: Bài giảng → Slide
 slug: bo-bai-giang-slide
 status: active
-group: Nội dung
+group: Giáo dục
 description: Nghiên cứu → deck HTML đẹp (slide-wright) + notes → kiểm chứng.
 steps:
 - agent: bg-nghien-cuu

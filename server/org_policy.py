@@ -16,6 +16,9 @@ import org_tenants as ot
 POOL_PROVIDERS = (
     "openrouter", "openai", "anthropic-api", "gemini", "groq", "deepseek",
 )
+# school = chỉ pool trường · byo = tự gắn key · both = cả hai · blocked = không gọi model qua pool
+BRAIN_MODES = ("school", "byo", "both", "blocked")
+CONSENT_VERSION = "2026-09-org-v1"
 _USER_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9._-]{2,31}$")
 _WEAK = frozenset({
     "admin", "password", "password1", "password12", "12345678", "1234567890",
@@ -176,10 +179,65 @@ def add_tokens(slug: str, n: int) -> None:
     ot.upsert(rec)
 
 
+def normalize_brain_mode(raw, shared_api: bool | None = None) -> str:
+    m = str(raw or "").strip().lower()
+    if m in BRAIN_MODES:
+        return m
+    if shared_api is True:
+        return "both"
+    if shared_api is False:
+        return "byo"
+    return "byo"
+
+
+def normalize_providers(raw) -> list[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        parts = [p.strip() for p in raw.replace(";", ",").split(",")]
+    elif isinstance(raw, (list, tuple, set)):
+        parts = [str(p).strip() for p in raw]
+    else:
+        return []
+    out = []
+    for p in parts:
+        if p in POOL_PROVIDERS and p not in out:
+            out.append(p)
+    return out
+
+
+def mode_uses_pool(mode: str) -> bool:
+    return mode in ("school", "both")
+
+
+def apply_policy(rec: dict, brain_mode=None, providers=None, shared_api=None) -> dict:
+    """Ghi brain_mode + providers; đồng bộ shared_api để tương thích cũ."""
+    if brain_mode is not None:
+        mode = normalize_brain_mode(brain_mode)
+    elif shared_api is not None:
+        mode = normalize_brain_mode(rec.get("brain_mode"), bool(shared_api))
+        if shared_api and mode == "byo":
+            mode = "both"
+        if shared_api is False and mode in ("school", "both"):
+            mode = "byo"
+    else:
+        mode = normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api")))
+    rec["brain_mode"] = mode
+    if providers is not None:
+        rec["providers"] = normalize_providers(providers)
+    else:
+        rec["providers"] = normalize_providers(rec.get("providers"))
+    rec["shared_api"] = mode_uses_pool(mode)
+    return rec
+
+
 def quota_ok(rec: dict) -> tuple[bool, str]:
-    if rec.get("protected") and not rec.get("shared_api"):
+    mode = normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api")))
+    if mode == "blocked":
+        return False, "Quản trị đã chặn gọi model trên máy này."
+    if rec.get("protected") and not mode_uses_pool(mode):
         return False, "Bản này không dùng API chung."
-    if not rec.get("shared_api"):
+    if not mode_uses_pool(mode):
         return False, "Quản trị chưa bật API chung cho người này."
     reset_month_if_needed(rec)
     cap = int(rec.get("token_quota") or 0)
@@ -187,6 +245,18 @@ def quota_ok(rec: dict) -> tuple[bool, str]:
     if cap > 0 and used >= cap:
         return False, f"Hết hạn mức token tháng này ({used}/{cap})."
     return True, ""
+
+
+def allowed_pool_providers(rec: dict) -> list[str]:
+    """Provider pool được phép cho tenant (đã có khóa trên gốc)."""
+    mode = normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api")))
+    if not mode_uses_pool(mode):
+        return []
+    ready = [k for k, v in pool_public()["providers"].items() if v.get("set")]
+    allow = normalize_providers(rec.get("providers"))
+    if not allow:
+        return ready
+    return [p for p in ready if p in allow]
 
 
 def native_url(provider: str) -> str:
@@ -252,8 +322,11 @@ def tenant_uses_pool(provider: str) -> bool:
     if not info.get("shared_api"):
         return False
     allow = info.get("providers")
-    if isinstance(allow, list):
+    if isinstance(allow, list) and allow:
         return provider in allow
+    # danh sách rỗng từ /me nghĩa là không có khóa / bị chặn
+    if isinstance(allow, list) and not allow:
+        return False
     return True
 
 
@@ -264,14 +337,23 @@ def chat_url(provider: str, native: str) -> str:
 
 
 def public_tenant(rec: dict) -> dict:
+    mode = normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api")))
+    providers = normalize_providers(rec.get("providers"))
     out = {k: rec.get(k) for k in (
-        "id", "slug", "name", "domain", "container", "quota_gb", "brain_mode",
-        "protected", "status", "login_user", "shared_api", "token_quota",
-        "tokens_used", "tokens_month", "paused",
+        "id", "slug", "name", "domain", "container", "quota_gb",
+        "protected", "status", "login_user", "token_quota",
+        "tokens_used", "tokens_month", "paused", "image_digest",
     )}
+    out["brain_mode"] = mode
+    out["providers"] = providers
     out["login_user"] = rec.get("login_user") or "admin"
-    out["shared_api"] = bool(rec.get("shared_api"))
+    out["shared_api"] = mode_uses_pool(mode)
     out["paused"] = bool(rec.get("paused"))
+    try:
+        out["consent_at"] = int(rec.get("consent_at") or 0)
+    except (TypeError, ValueError):
+        out["consent_at"] = 0
+    out["consent_version"] = str(rec.get("consent_version") or "")
     try:
         out["quota_gb"] = int(rec.get("quota_gb") or 0)
     except (TypeError, ValueError):
@@ -284,4 +366,30 @@ def public_tenant(rec: dict) -> dict:
         out["tokens_used"] = int(rec.get("tokens_used") or 0)
     except (TypeError, ValueError):
         out["tokens_used"] = 0
+    try:
+        out["last_active"] = int(rec.get("last_active") or 0)
+    except (TypeError, ValueError):
+        out["last_active"] = 0
+    try:
+        out["disk_bytes"] = int(rec.get("disk_bytes") or 0)
+    except (TypeError, ValueError):
+        out["disk_bytes"] = 0
+    try:
+        out["disk_checked_at"] = int(rec.get("disk_checked_at") or 0)
+    except (TypeError, ValueError):
+        out["disk_checked_at"] = 0
+    try:
+        da = int(rec.get("deleted_at") or 0)
+    except (TypeError, ValueError):
+        da = 0
+    out["deleted_at"] = da
+    if da > 0:
+        out["purge_after"] = da + ot.SOFT_DELETE_SEC
+        out["paused"] = True
+        if out.get("status") not in ("missing",):
+            out["status"] = "deleted"
+    else:
+        out["purge_after"] = 0
+    dig = str(rec.get("image_digest") or "").strip()
+    out["image_digest"] = dig[:64] if dig else ""
     return out

@@ -4,7 +4,7 @@ name: Thiết kế đồ họa & ảnh minh họa
 slug: thiet-ke-do-hoa-minh-hoa
 role: Brief hình ảnh minh họa sizing SOM, JTBD, bản đồ cạnh tranh, cover proposal và gợi ý layout slide đẹp.
 skills: [frontend-design, create-design-md, brainstorming, slide-wright, diagram-design]
-group: Marketing
+group: "Thiết kế & Web"
 model: gemini-3.6-flash-medium
 model_provider: antigravity-cli
 updated: 2026-09-16

@@ -2,7 +2,7 @@
 name: Tạo bài giảng
 description: "Điều phối tạo bài giảng từ chủ đề/file: chọn đầu ra lớp học, video, slide hoặc văn bản minh họa."
 description_en: "Orchestrate lesson creation from a topic/files: classroom, video, slide, or illustrated document."
-group: Nội dung
+group: Giáo dục
 ---
 
 # Tạo bài giảng

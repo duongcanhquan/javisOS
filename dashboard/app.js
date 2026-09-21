@@ -77,7 +77,7 @@ const orbState = document.getElementById("orbState");
 // Thanh trạng thái đã bỏ tên workspace + ngày tháng (0.9.195) - element có thể không còn,
 // nên mọi truy cập phải guard để trang không chết trắng nếu thiếu.
 fetch("/config").then(r => r.json()).then(cfg => {
-  const name = cfg.workspace_name || "Javis";
+  const name = cfg.workspace_name || "VMOS";
   const wn = document.getElementById("workspaceName");
   if (wn) wn.textContent = name;
   const bt = document.querySelector(".brand-text");
@@ -371,7 +371,7 @@ function sendMessage(text) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   // File còn ĐANG TẢI LÊN thì đợi nó xong rồi gửi, KHÔNG gửi thiếu. Trước đây dòng lọc
   // `a.path` bên dưới lặng lẽ bỏ file chưa tải xong: dán ảnh hay một đoạn văn dài rồi gõ câu
-  // hỏi và Enter ngay là tin bay đi tay không, bong bóng không có ảnh, Javis cũng không nhận
+  // hỏi và Enter ngay là tin bay đi tay không, bong bóng không có ảnh, VMOS cũng không nhận
   // được file - đúng lỗi chủ repo báo 2026-09-10. Chip trên thanh đính kèm vẫn hiện "đang
   // tải..." nên người dùng thấy vì sao tin chưa đi.
   const dangTai = pendingAttachments.filter(a => a.uploading);
@@ -425,7 +425,7 @@ function sendMessage(text) {
   // không còn gì để trỏ tới, và bong bóng chỉ còn trơ cái tên file.
   recordTurn("user", msg, atts.map(a => ({ name: a.name, kind: a.kind, url: a.url || "" })));
 
-  // Soạn message gửi Javis (kèm đường dẫn file trong Sources)
+  // Soạn message gửi VMOS (kèm đường dẫn file trong Sources)
   const _isSkill = _slash.type === "skill";
   let outMsg = _isSkill ? _slash.message : msg;
   if (atts.length) {
@@ -452,7 +452,7 @@ function sendMessage(text) {
       pinnedNote.sessionId = sid;
       _pinSave();
     }
-    outMsg = `[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}\n`
+    outMsg = `[FILE ĐANG MỞ trong trình sửa của VMOS: ${pinnedNote.abs}\n`
       + `Đây là file người dùng ĐANG LÀM VIỆC TRÊN ĐÓ - coi như đầu vào của cuộc trò chuyện này. `
       + `Khi được yêu cầu sửa/viết thêm/dọn lại mà không nói rõ file nào thì ghi thẳng vào chính file này. `
       + `Đã đọc trong lượt trước thì khỏi đọc lại nếu không cần.]\n\n${outMsg}`;
@@ -726,7 +726,7 @@ function notifySessions() { try { window.dispatchEvent(new Event("javis:sessions
 function actsHtml(role, ts, canResend) {
   return window.JavisActs ? window.JavisActs.actsHtml(role, ts, canResend) : "";
 }
-// Tin chỉ có ảnh (không kèm lời nhắn) thì chẳng có chữ nào để gửi lại. Ở tin của Javis
+// Tin chỉ có ảnh (không kèm lời nhắn) thì chẳng có chữ nào để gửi lại. Ở tin của VMOS
 // thì cái quyết định là CÂU HỎI ngay trên nó, nên soi tin người dùng cuối cùng đã nằm
 // trong khung (chatAppend chèn theo đúng thứ tự nên lúc này nó đã có mặt).
 function lastUserText() {
@@ -738,7 +738,7 @@ function lastUserText() {
 // (hoặc 0 nếu tin lưu từ trước bản này chưa có mốc giờ, khi đó phần giờ được ẩn).
 // Khối ngữ cảnh do CHÍNH dashboard chèn vào ĐẦU tin trước khi gửi: file đang ghim trong trình
 // sửa, đường dẫn file đính kèm. Chúng là chỉ dẫn cho model, không phải câu người dùng gõ.
-const _KHOI_NGU_CANH = ["[FILE ĐANG MỞ trong trình sửa của Javis:", "[File đính kèm"];
+const _KHOI_NGU_CANH = ["[FILE ĐANG MỞ trong trình sửa của VMOS:", "[File đính kèm"];
 
 // Gỡ mấy khối đó ra để lấy lại ĐÚNG câu người dùng đã gõ.
 //
@@ -1105,7 +1105,7 @@ function flashCopied(btn, label) {
   setTimeout(() => { btn.textContent = label || old; }, 1200);
 }
 // Bấm một nút trong hàng .msg-acts. Gửi lại / sửa lại đều lấy chữ GỐC của tin người
-// dùng (dataset.text) chứ không đọc lại DOM, vì tin dài đang thu gọn và tin Javis đã
+// dùng (dataset.text) chứ không đọc lại DOM, vì tin dài đang thu gọn và tin VMOS đã
 // thành HTML. Gửi lại = một lượt MỚI ở cuối hội thoại, không xoá gì của lượt cũ.
 function runMsgAct(btn) {
   const msgEl = btn.closest(".msg");
@@ -1118,7 +1118,7 @@ function runMsgAct(btn) {
   }
   // Chi tin NGUOI DUNG mang nut gui lai / sua lai, nen chu goc luon nam ngay tren chinh no.
   // Truoc day con mot nhanh nguoc len tim tin nguoi dung gan nhat - do la duong cua nut "tra
-  // loi lai cau hoi phia tren" o tin Javis, da bo o 0.52.13.
+  // loi lai cau hoi phia tren" o tin VMOS, da bo o 0.52.13.
   const text = msgEl.dataset.text || "";
   if (!text) return;
   if (act === "edit") {
@@ -1257,7 +1257,7 @@ async function initGraph() {
   await reloadGraph();
 }
 
-// Click node trong graph → Javis mở & thao tác note đó trong vault
+// Click node trong graph → VMOS mở & thao tác note đó trong vault
 window.onGraphNodeClick = (node) => {
   if (!node || !node.path) return;
   const brainRel = (node.path || "").split("/").slice(1).join("/") || node.path;   // bỏ đoạn gốc → path tương đối brain
@@ -1477,7 +1477,7 @@ async function checkVault() {
       const miss = d.items.filter(i => !i.present).map(i => i.label).join(", ");
       vbText.textContent = d.ok
         ? `Vault chạy được, nhưng thiếu: ${miss}.`
-        : `Cấu trúc vault chưa chuẩn cho Javis - thiếu: ${miss}.`;
+        : `Cấu trúc vault chưa chuẩn cho VMOS - thiếu: ${miss}.`;
       vaultBanner.classList.add("show");
     }
   } catch (e) {}
@@ -1691,7 +1691,7 @@ window.addEventListener("resize", () => { if (javisGraph) javisGraph.resize(); }
 let _stopBtnTick = 0;
 function pumpAudioLevel() {
   if (javisGraph) javisGraph.setLevel(voice.getLevel());
-  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc Javis đang đọc)
+  // Cập nhật hiển thị nút stop ~6 lần/giây (theo dõi cả lúc VMOS đang đọc)
   if ((_stopBtnTick++ % 10) === 0) {
     updateStopBtn();
     // Đọc xong cả hàng đợi (gồm các bước trung gian) → trả orb về nghỉ.
@@ -1954,7 +1954,7 @@ async function doReflect(auto) {
   reflecting = true;
   turnsSinceReflect = 0;
   if (!auto && learnBtn) { learnBtn.disabled = true; learnBtn.innerHTML = ic("brain") + " Đang học..."; }
-  if (memResult) memResult.innerHTML = auto ? ic("brain") + " Đang tự học nền..." : "Javis đang đọc lại hội thoại và rút ra ký ức...";
+  if (memResult) memResult.innerHTML = auto ? ic("brain") + " Đang tự học nền..." : "VMOS đang đọc lại hội thoại và rút ra ký ức...";
   try {
     const fd = new FormData();
     fd.append("brain", currentBrainPath());
@@ -2161,7 +2161,7 @@ async function uploadFile(file) {
 }
 async function _taiLen(file, att) {
   try {
-    // Chỉ STAGE để Javis đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
+    // Chỉ STAGE để VMOS đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
     const fd = new FormData();
     fd.append("file", file, att.name);
     fd.append("brain", currentBrainPath());
@@ -2196,7 +2196,7 @@ fileInput.addEventListener("change", () => {
 
 // Dán ảnh (Ctrl+V) + dán VĂN BẢN SIÊU DÀI thành file .txt đính kèm (kiểu Claude):
 // bài dài nhồi thẳng vào ô chat vừa khó đọc vừa nặng khung hội thoại - biến thành
-// file thì Javis đọc trọn vẹn còn màn hình chỉ hiện một chip gọn.
+// file thì VMOS đọc trọn vẹn còn màn hình chỉ hiện một chip gọn.
 const PASTE_TXT_CHARS = 1500;   // vượt MỘT trong hai ngưỡng là thành file
 const PASTE_TXT_LINES = 25;
 function pasteAsTxt(text) {
@@ -2306,10 +2306,10 @@ function alertMic(err) {
   if (err === "not-allowed") {
     // Trang không chạy ở ngữ cảnh bảo mật thì trình duyệt chặn thẳng, và KHÔNG hề hỏi quyền.
     // Bảo họ "cấp quyền" lúc này là chỉ họ đi tìm một cái nút không tồn tại. Hay gặp khi mở
-    // Javis qua địa chỉ LAN hoặc tên miền chưa có HTTPS.
+    // VMOS qua địa chỉ LAN hoặc tên miền chưa có HTTPS.
     if (!window.isSecureContext) {
       alert("Trình duyệt chặn micro vì trang này không chạy qua kết nối bảo mật." + "\n" + "\n"
-        + "Mở Javis bằng http://localhost:7777 trên chính máy chạy Javis, hoặc cho tên miền của bạn dùng HTTPS.");
+        + "Mở VMOS bằng http://localhost:7777 trên chính máy chạy VMOS, hoặc cho tên miền của bạn dùng HTTPS.");
     } else {
       alert("Bạn cần cấp quyền microphone cho trang này." + "\n" + "\n"
         + "Bấm biểu tượng ổ khoá cạnh thanh địa chỉ để cấp lại, rồi bấm nút mic lần nữa.");
@@ -2332,7 +2332,7 @@ voiceBtn.addEventListener("click", () => {
   handsFree = !handsFree;
   voiceBtn.classList.toggle("handsfree", handsFree);
   // Loa đi theo mic (chủ repo yêu cầu 02/09): bật nghe là muốn NÓI CHUYỆN bằng giọng, nên
-  // Javis phải đáp bằng giọng; tắt nghe là quay về gõ chữ, Javis im. Điện thoại từng không
+  // VMOS phải đáp bằng giọng; tắt nghe là quay về gõ chữ, VMOS im. Điện thoại từng không
   // có chỗ nào bật loa cả, nên gộp vào mic là một nút lo cả hai chiều.
   try { if (window.JavisTts) window.JavisTts.set(handsFree); } catch (e) {}
   if (handsFree) {
@@ -2373,7 +2373,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.code === "Escape") {
     // Esc chỉ thoát chế độ rảnh tay + tắt mic + đóng popup node nếu đang mở. KHÔNG còn dừng câu
-    // trả lời hay ngắt Javis đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
+    // trả lời hay ngắt VMOS đang nói (đã bỏ theo yêu cầu - đã có nút bật/tắt tiếng và nút Dừng).
     handsFree = false; voiceBtn.classList.remove("handsfree");
     voice.stopListening();
     try { if (window.JavisTts) window.JavisTts.set(false); } catch (e2) {}   // Esc = thoát nói chuyện bằng giọng
@@ -2528,7 +2528,7 @@ async function refreshTgStatus() {
 
 
 // ============================================
-// Mức dùng (token Javis tự đo, đa nhà cung cấp) - panel sidebar
+// Mức dùng (token VMOS tự đo, đa nhà cung cấp) - panel sidebar
 // ============================================
 const _PROV_LABEL = { cli: "Claude Code", codex: "ChatGPT", openrouter: "OpenRouter", openai: "OpenAI", "anthropic-api": "Anthropic", gemini: "Gemini", groq: "Groq", deepseek: "DeepSeek", ollama: "Ollama" };
 function _fmtTok(n) {
@@ -2668,7 +2668,7 @@ async function initAuthGate() {
     if (_wizardMandatory) {
       const pass = document.getElementById("wzPass"); if (pass) pass.required = true;
       const tw = document.getElementById("wzTokenWrap"); if (tw) tw.style.display = "";
-      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ Javis trên server công khai.";
+      const note = document.getElementById("wzErr"); if (note) note.textContent = "Đặt tài khoản + mật khẩu (≥8 ký tự) + MÃ THIẾT LẬP để bảo vệ VMOS trên server công khai.";
     }
     wz.classList.add("open");
   } else {
@@ -2780,7 +2780,7 @@ if (document.getElementById("settingsBtn")) {
 
   document.getElementById("saveGeneral").addEventListener("click", (e) => {
     _saveSetting("general", { workspace_name: document.getElementById("setWsName").value.trim() }, e.target)
-      .then(() => { (() => { const n = document.getElementById("setWsName").value.trim() || "Javis"; const wn=document.getElementById("workspaceName"); if(wn) wn.textContent=n; const bt=document.querySelector(".brand-text"); if(bt) bt.textContent=n; document.title=n; })(); });
+      .then(() => { (() => { const n = document.getElementById("setWsName").value.trim() || "VMOS"; const wn=document.getElementById("workspaceName"); if(wn) wn.textContent=n; const bt=document.querySelector(".brand-text"); if(bt) bt.textContent=n; document.title=n; })(); });
   });
   document.getElementById("saveModel").addEventListener("click", (e) => {
     const sel = document.getElementById("setOrModelSel");
@@ -2939,7 +2939,7 @@ if (document.getElementById("wzFinish")) {
     // còn không biết là CÓ một ô như vậy. Nên khi lỗi phải KÉO MÀN HÌNH tới đúng ô đó.
     const _soiOTrong = (o, cau) => {
       err.textContent = cau;
-      btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →";
+      btn.disabled = false; btn.textContent = "Bắt đầu dùng VMOS →";
       if (o) { try { o.scrollIntoView({ block: "center", behavior: "smooth" }); o.focus(); } catch (e) {} }
     };
     if (_wizardMandatory && !pass) {
@@ -2976,7 +2976,7 @@ if (document.getElementById("wzFinish")) {
       if (_kf && _ork && _ork.trim()) _mp[_kf] = _ork.trim();
       await fetch("/settings", { method: "POST", body: _fd({ section: "model", data: JSON.stringify(_mp) }) });
       markFreshLogin(); location.reload();
-    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng Javis →"; }
+    } catch (e) { err.textContent = "Lỗi mạng"; btn.disabled = false; btn.textContent = "Bắt đầu dùng VMOS →"; }
   });
 }
 

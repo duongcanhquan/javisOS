@@ -2,7 +2,7 @@
 name: Xuất gói nghiên cứu
 description: "Gom Markdown+ảnh nghiên cứu/kế hoạch (01-09) thành index, HTML, PDF (Chrome), PPTX; deck đẹp → slide-wright."
 description_en: "Pack research/plan Markdown+images (01-09) into index, HTML, PDF (Chrome), simple PPTX; polished deck → slide-wright."
-group: Marketing
+group: Nghiên cứu
 ---
 
 # Xuất gói nghiên cứu & kế hoạch (PDF / PPTX)

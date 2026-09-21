@@ -1,5 +1,5 @@
 // ============================================================
-// JAVIS OS - Nhóm Code trên rail
+// VMOS - Nhóm Code trên rail
 //
 // console.js gọi window.JavisCode.render(el, id) khi vào một trang thuộc nhóm Code, và
 // window.JavisCode.roi() khi rời.
@@ -113,7 +113,7 @@
     });
   }
 
-  // Bảng màu theo tông của Javis. xterm vẽ bằng canvas nên KHÔNG đọc được biến CSS - phải
+  // Bảng màu theo tông của VMOS. xterm vẽ bằng canvas nên KHÔNG đọc được biến CSS - phải
   // truyền màu vào tay, và đổi lại mỗi khi người dùng lật tông.
   function bangMau() {
     var neon = !!(window.javisTheme && window.javisTheme.isNeon && window.javisTheme.isNeon());
@@ -174,7 +174,7 @@
     return '<div class="code-empty">' + ic("lock", { cls: "ic-xl ic-dim" }) +
       "<div><b>Terminal đang tắt trên máy này.</b></div>" +
       '<div class="code-dim">Máy chủ đặt biến môi trường <code>JAVIS_TERMINAL=0</code>. ' +
-      "Bỏ biến đó rồi khởi động lại Javis là bật lại.</div></div>";
+      "Bỏ biến đó rồi khởi động lại VMOS là bật lại.</div></div>";
   }
 
   /** Dựng terminal NHIỀU TAB: mỗi tab là một phiên shell riêng ở server (trần số phiên do

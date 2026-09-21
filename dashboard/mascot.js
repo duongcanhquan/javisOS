@@ -1,4 +1,4 @@
-/* Javis dashboard page mascot - cursor-follow sprite (vanilla port of
+/* VMOS dashboard page mascot - cursor-follow sprite (vanilla port of
    nilbuild/page-mascot MIT © Kamran Ahmed). Preference: localStorage only. */
 (function () {
   "use strict";

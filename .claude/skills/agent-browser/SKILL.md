@@ -2,7 +2,7 @@
 name: Tự động hoá trình duyệt
 description: "Tự động hoá trình duyệt: mở trang, form, click, screenshot, scrape, QA (agent-browser)."
 description_en: "Browser automation: open pages, fill forms, click, screenshot, scrape, and QA with agent-browser. (EN)"
-group: Productivity
+group: Năng suất
 allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*)
 ---
 

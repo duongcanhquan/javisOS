@@ -1,6 +1,6 @@
-/* chat-ask.js - khoi hoi-lai co lua chon cho khung chat Javis.
+/* chat-ask.js - khoi hoi-lai co lua chon cho khung chat VMOS.
 
-   Javis ket thuc cau tra loi bang mot khoi an:
+   VMOS ket thuc cau tra loi bang mot khoi an:
      <!-- JAVIS_ASK: {"question":"...","header":"...","options":[{"label":"..","desc":".."}]} -->
    File nay boc khoi do ra, ve thanh hang chip duoi bong bong tra loi, va bat su kien bam.
    Bam mot chip = gui dung nhan do di nhu mot tin nhan nguoi dung binh thuong.
@@ -31,7 +31,7 @@
   }
 
   // Boc khoi JAVIS_ASK khoi text. LUON tra clean da bo khoi (ke ca khi JSON hong) -
-  // mot khoi sai cu phap KHONG duoc phep nuot mat cau tra loi cua Javis.
+  // mot khoi sai cu phap KHONG duoc phep nuot mat cau tra loi cua VMOS.
   //
   // Cat nhan (cut) NGAY O DAY - tang du lieu - chu khong cat luc ve (render). Ly do:
   // nut ve ra thu nguoi dung DOC roi moi bam, dung la lop xac nhan cuoi truoc khi noi
@@ -61,7 +61,7 @@
     return { clean: clean, ask: ask };
   }
 
-  // Ve hang chip vao cuoi .bubble cua thu tin nhan Javis.
+  // Ve hang chip vao cuoi .bubble cua thu tin nhan VMOS.
   // live=false -> ve san o trang thai dong cung (dung khi khoi phuc lich su).
   function render(msgEl, ask, live) {
     if (!msgEl || !ask || !ask.options || !ask.options.length) return null;

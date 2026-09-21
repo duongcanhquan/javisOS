@@ -2,7 +2,7 @@
 name: phap-che
 description: "Tư vấn pháp lý từ wiki+sources/phap-che (và phap_che_search nếu có). Cite số hiệu + điều; không bịa; không thay luật sư."
 description_en: "Legal counsel from wiki+sources/phap-che (and phap_che_search if available). Cite instrument + article; never invent; not a lawyer substitute."
-group: AI
+group: Pháp chế
 ---
 
 # Pháp chế cá nhân

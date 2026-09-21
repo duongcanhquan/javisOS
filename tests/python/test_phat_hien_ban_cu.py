@@ -65,14 +65,14 @@ check("CANARY: /app-version KHÔNG chạm mạng (khác /version đi hỏi GitHu
       "httpx" not in _av_ma and "AsyncClient" not in _av_ma, _av_ma[:120])
 check("và trả cả phiên bản lẫn vân tay", '"version"' in _av and '"assets"' in _av)
 
-_root = MAIN.split("async def root()", 1)[1].split("\n@app.", 1)[0]
-check("trang nhúng khối javis-fresh", 'id="javis-fresh"' in _root)
+_prep = MAIN.split("def _dash_prepare()", 1)[1].split("\n@app.", 1)[0]
+check("trang nhúng khối javis-fresh", 'id="javis-fresh"' in _prep)
 # Regex tìm vân tay bám vào `?v=` trên file nguồn index.html, nên tính SAU khi đổi
 # URL sang /asset/<ver>/ là ra rỗng sạch.
 check("CANARY: vân tay tính TRƯỚC khi viết lại URL tĩnh (tính sau là ra rỗng)",
-      _root.index("_asset_fps(html)") < _root.index("re.sub("), _root[:200])
+      _prep.index("_asset_fps(html)") < _prep.index("re.sub("), _prep[:200])
 check("CANARY: viết lại sang /asset/<phiên bản>/ (không chỉ ?v=; cache hay bỏ query)",
-      '"/asset/"' in _root or "/asset/" in _root)
+      '"/asset/"' in _prep or "/asset/" in _prep)
 check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticFiles nuốt)",
       '@app.get("/asset/{ver}/{path:path}")' in MAIN)
 # CANARY: VPS public + mật khẩu → HTML `/` public nhưng CSS/JS đi /asset/…; nếu
@@ -80,6 +80,8 @@ check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticF
 _pub = MAIN.split("_AUTH_PUBLIC_PREFIX = (", 1)[1].split(")", 1)[0]
 check("CANARY: /asset cùng mức public với /static (màn login cần CSS trước cookie)",
       '"/asset"' in _pub or "'/asset'" in _pub, _pub[:120])
+_root = MAIN.split("async def root()", 1)[1].split("\n@app.", 1)[0]
+check("root dùng _dash_prepare (cache HTML)", "_dash_prepare()" in _root)
 check("index.html vẫn trả no-store (điểm tựa phải luôn mới)",
       "no-cache, no-store, must-revalidate" in _root)
 

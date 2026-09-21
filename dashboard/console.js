@@ -1,5 +1,5 @@
 // ============================================
-// JAVIS OS - Console layer (sidebar + router)
+// VMOS - Console layer (sidebar + router)
 // Bọc ngoài cockpit: rail điều hướng + trang quản lý. KHÔNG sửa app.js.
 // Đồ thị tự pause khi rời cockpit (qua window.__javisGraph). Alpine cho UI.
 // Thêm trang mới = thêm 1 mục vào RAIL_ITEMS + 1 case trong renderPage().
@@ -26,6 +26,9 @@
     home: "hexagon",
     chat: "message-circle",
     settings: "settings",
+    workspace: "bot",
+    conversations: "messages-square",
+    share: "link",
     workflows: "workflow",
     agents: "bot",
     chatbots: "headset",
@@ -91,9 +94,9 @@
   // Nhãn rail lấy từ TỪ ĐIỂN (thư mục dashboard/i18n) chứ không viết cứng. `t()` suy biến về
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
-    "home", "chat", "settings", "workflows", "agents", "skills", "chatbots", "files", "drive",
+    "home", "chat", "settings", "workspace", "skills", "conversations", "files", "drive",
     "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins",
-    "packs", "logs", "account", "usage", "org",
+    "packs", "logs", "account", "usage", "share", "org",
     "guide_what", "guide_connect", "guide_studio", "guide_work",
   ].map(id => ({ id, icon: ICON[id], get label() { return t(`page.${id}.label`); } }));
 
@@ -101,30 +104,30 @@
   // Nhóm cuối (foot:true) được ghim xuống ĐÁY rail; các nhóm còn lại cuộn ở giữa.
   // Thứ tự & thành viên đổi ở đây; RAIL_ITEMS vẫn là nguồn icon/label + tra cứu cho go().
   const RAIL_GROUPS = [
-    { get label() { return t("nav.group.tro_ly"); },      icon: GICON["Trợ lý"],   ids: ["home", "chat"] },
-    { get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "drive", "learn"] },
+    { id: "tro_ly", get label() { return t("nav.group.tro_ly"); },      icon: GICON["Trợ lý"],   ids: ["home", "chat"] },
+    { id: "bo_nao", get label() { return t("nav.group.bo_nao"); },      icon: GICON["Bộ não"],   ids: ["files", "drive", "learn"] },
     // "Code" là NHÓM riêng, không phải một mục nhét vào "Bộ não". Đây là một KHU VỰC làm việc
     // sẽ dày lên (Terminal hôm nay, các công cụ lập trình khác sau này), chứ không phải một
     // chức năng của Second Brain - chủ repo nói rõ điều đó khi thấy bản đầu xếp nhầm.
     // Thêm chức năng Code mới = thêm 1 mục vào RAIL_ITEMS + 1 id vào đây + 1 dòng trong
     // CHUC_NANG của dashboard/code-term.js.
-    { get label() { return t("nav.group.code"); },        icon: GICON["Code"],     ids: ["terminal"] },
-    { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
-    { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
-    { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
-    { get label() { return t("nav.group.huong_dan"); },   icon: GICON["Hướng dẫn"], ids: ["guide_what", "guide_connect", "guide_studio", "guide_work"] },
-    { get label() { return t("nav.group.quan_tri"); },    icon: ic("building-2"), ids: ["org"], foot: true },
-    { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
+    { id: "code", get label() { return t("nav.group.code"); },        icon: GICON["Code"],     ids: ["terminal"] },
+    { id: "nang_luc", get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["workspace", "conversations", "skills", "plugins"] },
+    { id: "viec", get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
+    { id: "ket_noi", get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
+    { id: "huong_dan", get label() { return t("nav.group.huong_dan"); },   icon: GICON["Hướng dẫn"], ids: ["guide_what", "guide_connect", "guide_studio", "guide_work"] },
+    { id: "quan_tri", get label() { return t("nav.group.quan_tri"); },    icon: ic("building-2"), ids: ["org"], foot: true },
+    { id: "he_thong", get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "share", "logs", "account"], foot: true },
   ];
   const RAIL_BY_ID = Object.fromEntries(RAIL_ITEMS.map(i => [i.id, i]));
 
   // Trang CÓ THẬT nhưng KHÔNG hiện trên thanh bên. Bỏ hẳn khỏi `RAIL_ITEMS` thì không dùng
   // được, vì đó mới là nguồn icon và nhãn; nên chỗ ẩn nằm ở đây.
   //
-  // Rỗng từ 0.55.37. Trước đó Javis Store bị ẩn với lý do "nó không phải một chức năng ngang
+  // Rỗng từ 0.55.37. Trước đó VMOS Store bị ẩn với lý do "nó không phải một chức năng ngang
   // hàng với Trợ lý hay Kỹ năng, đường vào đúng là cái tab trên chính trang bạn đang đứng".
   // Lập luận đó đúng khi kho chỉ có vài gói và ai cũng tới nó từ một trang năng lực. Nó sai
-  // ngay khi kho thành chỗ chứa PHẦN LỚN kết nối của Javis (0.55.36 dọn 16 khuôn ra kho):
+  // ngay khi kho thành chỗ chứa PHẦN LỚN kết nối của VMOS (0.55.36 dọn 16 khuôn ra kho):
   // một người mới cài, chưa đấu gì, không có trang nào để mà bấm tab - họ cần thấy lối vào
   // ngay trên thanh bên. Chủ dự án yêu cầu đưa ra, và đặt cạnh Kết nối.
   const RAIL_AN = new Set(["org"]);
@@ -212,7 +215,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workflows", "agents", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "org", "guide_what", "guide_connect", "guide_studio", "guide_work"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workspace", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "conversations", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "share", "org", "guide_what", "guide_connect", "guide_studio", "guide_work"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -224,8 +227,8 @@
     },
   }]));
 
-  // 4 trang tách từ Studio cũ - render container rồi gọi loader trong studio.js (window.JavisStudio).
-  const STUDIO_PAGES = ["workflows", "agents", "skills"];
+  // Skills còn trong Studio; Agents/Workflows gộp vào Cộng sự (workspace).
+  const STUDIO_PAGES = ["skills"];
 
   let _settings = null;
   let _renderGen = 0;         // token chống race: mỗi lần đổi trang tăng 1; render async cũ tự bỏ
@@ -326,7 +329,7 @@
   // Trang cũ đã gộp đi đâu. Giữ bảng này thay vì xoá trắng: người dùng có bookmark, có nút
   // trong chat, và có thói quen. Bấm vào một id đã biến mất mà không có chỗ đáp là màn hình
   // trắng không giải thích gì.
-  const TRANG_GOP = { runtime: "usage" };
+  const TRANG_GOP = { runtime: "usage", agents: "workspace", workflows: "workspace", chatbots: "conversations" };
   function navigateTo(id) {
     id = TRANG_GOP[id] || id;
     const store = Alpine.store("nav");
@@ -340,7 +343,7 @@
       // Về nơi có hiển thị model thì làm mới, phòng khi model bị đổi bằng đường khác
       // (trang Models, Cài đặt nhanh, hoặc chỉnh tay settings).
       if (id === "home" || id === "chat") refreshModelUi();
-      // Nút điều khiển cockpit (cài đặt, giọng nói, làm mới) chỉ hiện ở trang Javis, không hiện navbar trang quản lý
+      // Nút điều khiển cockpit (cài đặt, giọng nói, làm mới) chỉ hiện ở trang VMOS, không hiện navbar trang quản lý
       document.body.classList.toggle("in-console", id !== "home");
       document.body.classList.toggle("on-mcp", id === "mcp");
       // Rời trang Cài đặt → cất #quickSet về holder TRƯỚC khi cviewBody bị ghi đè (giữ node + handler).
@@ -474,6 +477,83 @@
   // ============================================
   // Render từng trang vào #cviewBody
   // ============================================
+  // Trang ít mở (Công việc / Tổ chức / Drive): nạp JS lần đầu vào trang.
+  // Không đụng Alpine.store lúc parse - chỉ gắn window.render* / Javis* sau Alpine đã chạy.
+  // Dùng /asset/{ver}/… (cùng cơ chế HTML stamp) để CDN không nuốt bản cũ.
+  const PAGE_LAZY = {
+    meetings:  { file: "meetings.js",        ready: () => !!(window.JavisMeetings && window.JavisMeetings.render) },
+    baigiang:  { file: "baigiang.js",        ready: () => typeof window.renderBaiGiang === "function" },
+    video:     { file: "video.js",           ready: () => typeof window.renderTaoVideo === "function" },
+    marketing: { file: "marketing.js",       ready: () => typeof window.renderMarketing === "function" },
+    org:       { file: "org.js",             ready: () => !!window.JavisOrg },
+    drive:     { file: "drive-projects.js",  ready: () => !!window.JavisDriveProjects },
+    guides:    { file: "guides.js",          ready: () => !!window.JavisGuides },
+    tool_apis: { file: "tool-apis.js",       ready: () => !!window.JavisToolApis },
+    usage:     { file: "usage.js",           ready: () => !!(window.JavisUsage && window.JavisUsage.render) },
+    workspace: { file: "workspace.js",       ready: () => !!window.JavisWorkspace },
+    chatbots:  { file: "chatbots.js",        ready: () => !!(window.JavisChatbots && window.JavisChatbots.render) },
+  };
+  const _pageLazyProm = Object.create(null);
+
+  function _dashAssetVer() {
+    try {
+      const el = document.getElementById("javis-fresh");
+      if (el) {
+        const j = JSON.parse(el.textContent || "{}");
+        if (j && j.version) return String(j.version);
+      }
+    } catch (e) {}
+    return "0";
+  }
+
+  function _pageScriptUrl(file) {
+    // Luôn /asset/{ver}/… — CDN/nginx hay nuốt ?v= trên /static/ (cùng cơ chế HTML stamp).
+    return "/asset/" + encodeURIComponent(_dashAssetVer()) + "/" + file;
+  }
+
+  function ensurePageScript(pageId) {
+    const spec = PAGE_LAZY[pageId];
+    if (!spec) return Promise.resolve();
+    if (spec.ready()) return Promise.resolve();
+    if (_pageLazyProm[pageId]) return _pageLazyProm[pageId];
+    _pageLazyProm[pageId] = new Promise((ok, loi) => {
+      const s = document.createElement("script");
+      s.src = _pageScriptUrl(spec.file);
+      s.async = true;
+      s.onload = () => {
+        if (!spec.ready()) {
+          delete _pageLazyProm[pageId];
+          loi(new Error(spec.file + " đã tải nhưng chưa đăng ký renderer"));
+          return;
+        }
+        ok();
+      };
+      s.onerror = () => {
+        delete _pageLazyProm[pageId];
+        loi(new Error("Không tải được " + spec.file));
+      };
+      document.head.appendChild(s);
+    });
+    return _pageLazyProm[pageId];
+  }
+
+  async function withLazyPage(pageId, el, renderFn) {
+    const gen = _renderGen;
+    const spec = PAGE_LAZY[pageId];
+    if (spec && !spec.ready()) {
+      el.innerHTML = placeholder(pageId, "Đang tải…");
+    }
+    try {
+      await ensurePageScript(pageId);
+    } catch (e) {
+      if (gen !== _renderGen) return;
+      el.innerHTML = placeholder(pageId, String((e && e.message) || e));
+      return;
+    }
+    if (gen !== _renderGen) return;
+    return renderFn(el);
+  }
+
   async function renderPage(id) {
     let el = body();
     if (!el) return;
@@ -484,81 +564,98 @@
     const fresh = el.cloneNode(false); el.parentNode.replaceChild(fresh, el); el = fresh;
     _renderGen++;   // đổi trang → vô hiệu mọi render async đang dở (guard bổ sung cho renderer đã có)
     if (id === "chat")     return renderChat(el);
+    if (id === "workspace") return withLazyPage("workspace", el, (node) => renderWorkspace(node));
+    if (id === "conversations") {
+      return withLazyPage("chatbots", el, (node) => renderConversations(node));
+    }
+    if (id === "share") return renderSharePage(el);
     if (STUDIO_PAGES.includes(id)) return renderStudioPage(el, id);
     if (id === "settings") return renderSettings(el);
     if (id === "models")   return renderModels(el);
     if (id === "tool_apis") {
-      if (window.JavisToolApis) return window.JavisToolApis.render(el);
-      el.innerHTML = placeholder("tool_apis", "tool-apis.js chưa sẵn sàng.");
-      return;
+      return withLazyPage("tool_apis", el, (node) => {
+        if (window.JavisToolApis) return window.JavisToolApis.render(node);
+        node.innerHTML = placeholder("tool_apis", "tool-apis.js chưa sẵn sàng.");
+      });
     }
     if (id === "mcp")      return renderConnect(el);
     if (id === "plugins")  return renderPlugins(el);
     // Trang Gói do packs.js dựng, uỷ quyền y như renderStudioPage uỷ cho studio.js. Để riêng
-    // file vì console.js đã ~7k dòng.
+    // file vì console.js đã ~7k dòng. packs.js vẫn eager: trang Kết nối gọi moKho/goApp.
     if (id === "packs") {
       if (window.JavisPacks) return window.JavisPacks.render(el);
       el.innerHTML = placeholder("packs", "packs.js chưa sẵn sàng.");
       return;
     }
     if (id === "guide_what" || id === "guide_connect" || id === "guide_studio" || id === "guide_work") {
-      if (window.JavisGuides) return window.JavisGuides.render(el, id);
-      el.innerHTML = placeholder(id, "guides.js chưa sẵn sàng.");
-      return;
+      return withLazyPage("guides", el, (node) => {
+        if (window.JavisGuides) return window.JavisGuides.render(node, id);
+        node.innerHTML = placeholder(id, "guides.js chưa sẵn sàng.");
+      });
     }
     if (id === "channels") return renderChannels(el);
     if (id === "account")  return renderAccount(el);
     if (id === "files")    return renderFiles(el);
     if (id === "drive") {
-      if (window.JavisDriveProjects) return window.JavisDriveProjects.render(el);
-      el.innerHTML = placeholder("drive", "drive-projects.js chưa sẵn sàng.");
-      return;
+      return withLazyPage("drive", el, (node) => {
+        if (window.JavisDriveProjects) return window.JavisDriveProjects.render(node);
+        node.innerHTML = placeholder("drive", "drive-projects.js chưa sẵn sàng.");
+      });
     }
     if (CODE_PAGES.includes(id)) return renderCode(el, id);
     if (id === "selfimprove") return renderSelfImprove(el);
     if (id === "chatbots") return renderChatbots(el);
     if (id === "learn")    return renderLearn(el);
-    if (id === "meetings") return renderMeetings(el);
+    if (id === "meetings") return withLazyPage("meetings", el, (node) => renderMeetings(node));
     if (id === "baigiang") {
-      el.classList.add("cview-flush");
-      if (typeof window.renderBaiGiang === "function") window.renderBaiGiang(el);
-      else el.innerHTML = '<div class="dim">Thiếu baigiang.js</div>';
-      const prevBg = _pageLeave;
-      _pageLeave = () => {
-        el.classList.remove("cview-flush");
-        if (typeof prevBg === "function") try { prevBg(); } catch (e) {}
-      };
-      return;
+      return withLazyPage("baigiang", el, (node) => {
+        node.classList.add("cview-flush");
+        if (typeof window.renderBaiGiang === "function") window.renderBaiGiang(node);
+        else node.innerHTML = '<div class="dim">Thiếu baigiang.js</div>';
+        const prevBg = _pageLeave;
+        _pageLeave = () => {
+          node.classList.remove("cview-flush");
+          try { if (typeof window._bgLeave === "function") window._bgLeave(); } catch (e) {}
+          if (typeof prevBg === "function") try { prevBg(); } catch (e) {}
+        };
+      });
     }
     if (id === "video") {
-      el.classList.add("cview-flush");
-      if (typeof window.renderTaoVideo === "function") window.renderTaoVideo(el);
-      else el.innerHTML = '<div class="dim">Thiếu video.js</div>';
-      const prevVid = _pageLeave;
-      _pageLeave = () => {
-        el.classList.remove("cview-flush");
-        if (typeof prevVid === "function") try { prevVid(); } catch (e) {}
-      };
-      return;
+      return withLazyPage("video", el, (node) => {
+        node.classList.add("cview-flush");
+        if (typeof window.renderTaoVideo === "function") window.renderTaoVideo(node);
+        else node.innerHTML = '<div class="dim">Thiếu video.js</div>';
+        const prevVid = _pageLeave;
+        _pageLeave = () => {
+          node.classList.remove("cview-flush");
+          try { if (typeof window._vidLeave === "function") window._vidLeave(); } catch (e) {}
+          if (typeof prevVid === "function") try { prevVid(); } catch (e) {}
+        };
+      });
     }
     if (id === "marketing") {
-      el.classList.add("cview-flush");
-      if (typeof window.renderMarketing === "function") window.renderMarketing(el);
-      else el.innerHTML = '<div class="dim">Thiếu marketing.js</div>';
-      const prevMk = _pageLeave;
-      _pageLeave = () => {
-        el.classList.remove("cview-flush");
-        if (typeof prevMk === "function") try { prevMk(); } catch (e) {}
-      };
-      return;
+      return withLazyPage("marketing", el, (node) => {
+        node.classList.add("cview-flush");
+        if (typeof window.renderMarketing === "function") window.renderMarketing(node);
+        else node.innerHTML = '<div class="dim">Thiếu marketing.js</div>';
+        const prevMk = _pageLeave;
+        _pageLeave = () => {
+          node.classList.remove("cview-flush");
+          try { if (typeof window._mktLeave === "function") window._mktLeave(); } catch (e) {}
+          if (typeof prevMk === "function") try { prevMk(); } catch (e) {}
+        };
+      });
     }
     if (id === "kanban")   return renderKanban(el);
     if (id === "logs")     return renderLogs(el);
-    if (id === "usage")    return renderUsage(el);
+    if (id === "usage") {
+      return withLazyPage("usage", el, (node) => renderUsage(node));
+    }
     if (id === "org") {
-      if (window.JavisOrg) return window.JavisOrg.render(el);
-      el.innerHTML = placeholder("org", "org.js chưa sẵn sàng.");
-      return;
+      return withLazyPage("org", el, (node) => {
+        if (window.JavisOrg) return window.JavisOrg.render(node);
+        node.innerHTML = placeholder("org", "org.js chưa sẵn sàng.");
+      });
     }
     el.innerHTML = placeholder(id);
   }
@@ -596,7 +693,7 @@
     // hệt như "tab hỏng" chứ không giống "ai đó cướp handler".
     row.innerHTML = ds.map((x, i) =>
         `<button class="tab-kho${x.chon ? " on" : ""}" data-tab-cb="${i}">${esc(x.nhan)}</button>`).join("")
-      + `<button class="tab-kho" data-mo-kho="${kind}">${ic("package")} Javis Store</button>`;
+      + `<button class="tab-kho" data-mo-kho="${kind}">${ic("package")} VMOS Store</button>`;
     row.querySelectorAll("[data-tab-cb]").forEach(b => b.onclick = () => {
       const f = ds[Number(b.dataset.tabCb)];
       if (f && f.bam) f.bam();
@@ -662,9 +759,75 @@
   // Trang Chatbot do chatbots.js dựng - uỷ quyền y như renderStudioPage uỷ cho studio.js,
   // để console.js không phình thêm một màn hình nữa.
   function renderChatbots(el) {
-    const fn = window.JavisChatbots && window.JavisChatbots.render;
-    if (fn) { try { fn(el); } catch (e) { el.innerHTML = placeholder("chatbots", "Lỗi nạp: " + e.message); } }
-    else el.innerHTML = placeholder("chatbots", "chatbots.js chưa sẵn sàng.");
+    // Chatbot đã gộp vào tab Hội thoại; giữ hàm này phòng deep-link cũ.
+    return renderConversations(el);
+  }
+
+  function renderConversations(el) {
+    const fn = window.JavisConversations && window.JavisConversations.render;
+    if (fn) {
+      try { fn(el); } catch (e) {
+        el.innerHTML = placeholder("conversations", (window.t && t("cs.err_load")) || ("Lỗi: " + e.message));
+      }
+      return;
+    }
+    el.innerHTML = placeholder("conversations", "conversations.js chưa sẵn sàng.");
+  }
+
+  function renderWorkspace(el) {
+    if (!window.JavisWorkspace) {
+      el.innerHTML = placeholder("workspace", "workspace.js chưa sẵn sàng.");
+      return;
+    }
+    window.JavisWorkspace.render(el, { borrow: (typeof _borrowChatNodes === "function") ? _borrowChatNodes : undefined });
+    _pageLeave = () => {
+      try { if (window.JavisWorkspace && window.JavisWorkspace.roi) window.JavisWorkspace.roi(); } catch (e) {}
+    };
+  }
+
+  function renderSharePage(el) {
+    el.innerHTML = `
+      <div class="cview-section">
+        <h3>${esc(t("page.share.title") || "Link đang chia sẻ")}</h3>
+        <p class="dim">${esc(t("page.share.sub") || "Mọi đường link công khai · thu hồi bất cứ lúc nào")}</p>
+        <div id="orgShareList" class="dim">Đang tải…</div>
+      </div>`;
+    const box = el.querySelector("#orgShareList");
+    (async () => {
+      try {
+        const d = await (await fetch("/share/list", { cache: "no-store" })).json();
+        const rows = d.items || d.shares || d.links || [];
+        if (!rows.length) {
+          box.innerHTML = '<p class="dim">Chưa có link công khai. Mở một file trong Tệp tin rồi bấm Chia sẻ.</p>';
+          return;
+        }
+        box.innerHTML = `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>File</th><th>Link</th><th></th></tr></thead><tbody>`
+          + rows.map((r) => {
+            const tok = r.token || r.id || "";
+            const path = r.path || r.file || r.name || "";
+            const url = r.url || (tok ? ("/s/" + tok) : "");
+            return `<tr><td>${esc(path)}</td><td><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></td>`
+              + `<td><button type="button" class="btn" data-share-revoke="${esc(tok)}">Thu hồi</button></td></tr>`;
+          }).join("")
+          + `</tbody></table></div>`;
+        box.querySelectorAll("[data-share-revoke]").forEach((b) => {
+          b.addEventListener("click", async () => {
+            const tok = b.getAttribute("data-share-revoke");
+            if (!tok || !confirm("Thu hồi link này?")) return;
+            try {
+              await fetch("/share/revoke", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: tok }),
+              });
+              renderSharePage(el);
+            } catch (e) { alert(e.message || "Không thu hồi được"); }
+          });
+        });
+      } catch (e) {
+        box.textContent = e.message || "Không tải được danh sách chia sẻ.";
+      }
+    })();
   }
 
   function placeholder(id, note) {
@@ -677,7 +840,7 @@
   }
 
   // ============================================
-  // Trang Mức dùng (token & chi phí Javis tự đo, có đồ thị 14 ngày)
+  // Trang Mức dùng (token & chi phí VMOS tự đo, có đồ thị 14 ngày)
   // ============================================
   let _uzCss = false;
   function _injectUsageCss() {
@@ -755,7 +918,7 @@
       <table class="uz-tbl"><thead><tr><th>Nhà cung cấp / model</th><th style="text-align:right">Token vào</th><th style="text-align:right">Token ra</th><th style="text-align:right">Lượt</th><th style="text-align:right">Chi phí</th></tr></thead><tbody>${rows}</tbody></table>`;
 
     el.innerHTML = `<div class="uz-wrap">${cards}${chart}${table}
-      <div class="uz-note">Số liệu do Javis tự đo từ token vào/ra của mọi engine (Claude Code, ChatGPT/Codex, OpenRouter...), không phụ thuộc nhà cung cấp có lộ hạn mức hay không. Chi phí chỉ hiện khi nhà cung cấp trả về giá thật (vd Claude Code CLI); còn lại chỉ đếm token. Lưu 30 ngày gần nhất.</div>
+      <div class="uz-note">Số liệu do VMOS tự đo từ token vào/ra của mọi engine (Claude Code, ChatGPT/Codex, OpenRouter...), không phụ thuộc nhà cung cấp có lộ hạn mức hay không. Chi phí chỉ hiện khi nhà cung cấp trả về giá thật (vd Claude Code CLI); còn lại chỉ đếm token. Lưu 30 ngày gần nhất.</div>
     </div>`;
   }
 
@@ -837,9 +1000,44 @@
     if (t.includes("tài liệu") || t.includes("doc")) return "doc";
     return "other";
   }
-  // Phân trang nhật ký: giữ dữ liệu đã fetch, render 20 bản/trang - đỡ dài, đỡ nặng DOM.
-  let _clData = null;              // cache /changelog để đổi trang không phải gọi lại mạng
+  // Phân trang nhật ký: server trả ĐÚNG một trang, trang đã xem thì giữ lại trong bộ nhớ.
+  //
+  // Vì sao không tải một lần cả danh sách như bản cũ (sửa 2026-09-21, chủ repo báo trang
+  // "load khá chậm và có vẻ bị lỗi"): CHANGELOG.md đã lên 680 phiên bản, tức 923 KB JSON cho
+  // một trang chỉ vẽ 20 dòng. Tệ hơn, trang gọi /changelog HAI lần nối đuôi - khung trên gọi
+  // một lần để khoe "có gì mới", danh sách gọi một lần nữa - nên phải đợi 1,8 MB về mới thấy
+  // gì, và trong lúc đó ô danh sách chỉ nằm im ở chữ "Đang tải nhật ký cập nhật...".
+  let _clData = null;              // {current, latest, update_available, total}
+  const _clPages = new Map();      // offset -> releases[] đã tải
+  const _clInflight = new Map();   // offset -> Promise đang bay (gộp hai người gọi cùng lúc)
   const CL_PAGE_SIZE = 20;         // số phiên bản hiển thị mỗi trang
+
+  function _clReset() {
+    _clData = null; _clPages.clear(); _clInflight.clear();
+  }
+
+  // Một trang nhật ký. Hai chỗ cùng cần trang 0 (khung trên + danh sách) thì chia nhau ĐÚNG
+  // một lời gọi mạng, nhờ sổ _clInflight.
+  function _clFetchPage(offset, refresh) {
+    if (!refresh && _clPages.has(offset)) return Promise.resolve(_clPages.get(offset));
+    if (_clInflight.has(offset)) return _clInflight.get(offset);
+    const p = (async () => {
+      const q = `/changelog?offset=${offset}&limit=${CL_PAGE_SIZE}` + (refresh ? "&refresh=1" : "");
+      const r = await fetch(q, { cache: "no-store" });
+      const d = await r.json();
+      _clData = {
+        current: d.current, latest: d.latest, update_available: d.update_available,
+        // Server cũ chưa có `total` thì rơi về số bản nó trả (trang này vẫn vẽ được).
+        total: (d.total == null ? (d.releases || []).length : d.total),
+      };
+      const rels = d.releases || [];
+      _clPages.set(offset, rels);
+      return rels;
+    })();
+    _clInflight.set(offset, p);
+    p.catch(() => {}).then(() => _clInflight.delete(offset));
+    return p;
+  }
 
   // CHANGELOG.md là markdown, nhưng trang này in bằng esc() nên người dùng đọc thấy nguyên
   // `**Bấm vào link...**` kèm dấu sao và dấu huyền quanh mỗi tên file. Trên điện thoại thì
@@ -871,7 +1069,21 @@
     </div>`;
   }
 
-  function _clRenderPage(el, page) {
+  async function _clRenderPage(el, page) {
+    const total0 = _clData ? _clData.total : 0;
+    const pages0 = Math.max(1, Math.ceil((total0 || 1) / CL_PAGE_SIZE));
+    const want = Math.min(Math.max(0, page | 0), pages0 - 1);
+    const offset = want * CL_PAGE_SIZE;
+    if (!_clPages.has(offset)) {
+      // Trang chưa tải: hiện chữ chờ rồi mới đi lấy, đừng để ô trống không nói gì.
+      el.innerHTML = `<div class="cl-note">Đang tải nhật ký cập nhật...</div>`;
+      try { await _clFetchPage(offset); }
+      catch (e) { el.innerHTML = `<div class="cl-empty">Không tải được nhật ký cập nhật. Hãy tải lại trang.</div>`; return; }
+    }
+    _clDrawPage(el, want);
+  }
+
+  function _clDrawPage(el, page) {
     const d = _clData; if (!d) return;
     const cur = d.current || "?";
     const upBadge = d.update_available
@@ -880,12 +1092,10 @@
     const upNote = d.update_available
       ? `<div class="cl-note">Có thể cập nhật ngay ở khung phía trên; nếu bản Docker không hỗ trợ tự cập nhật, hãy <b>Redeploy</b> trên Hostinger hoặc chạy <code>docker compose up -d --pull always</code>.</div>`
       : "";
-    const rels = d.releases || [];
-    const total = rels.length;
+    const total = d.total || 0;
     const pages = Math.max(1, Math.ceil(total / CL_PAGE_SIZE));
     page = Math.min(Math.max(0, page | 0), pages - 1);
-    const start = page * CL_PAGE_SIZE;
-    const slice = rels.slice(start, start + CL_PAGE_SIZE);
+    const slice = _clPages.get(page * CL_PAGE_SIZE) || [];
     const timeline = slice.length
       ? slice.map(_clRelHtml).join("")
       : `<div class="cl-empty">Chưa có nhật ký. Thêm file <code>CHANGELOG.md</code> ở gốc dự án.</div>`;
@@ -902,8 +1112,8 @@
     </div>`;
     el.querySelectorAll(".cl-pg[data-clpage]").forEach(b => {
       if (b.disabled) return;
-      b.onclick = () => {
-        _clRenderPage(el, parseInt(b.dataset.clpage, 10) || 0);
+      b.onclick = async () => {
+        await _clRenderPage(el, parseInt(b.dataset.clpage, 10) || 0);
         let n = el; while (n && n.scrollHeight <= n.clientHeight + 1) n = n.parentElement;
         if (n) n.scrollTop = 0;   // đổi trang → cuộn lên đầu cho dễ đọc
       };
@@ -915,14 +1125,17 @@
       el.innerHTML = `<div class="cview-section"><h3>Cập nhật đã tắt</h3>
         <p class="dim">Máy chủ đặt <code>JAVIS_UPDATES_UI=0</code> - chuông tin cập nhật/cộng đồng và nhật ký phiên bản bị ẩn.
           Bỏ biến hoặc đặt <code>JAVIS_UPDATES_UI=1</code> rồi khởi động lại để bật.</p>
-        Bỏ biến hoặc đặt khác <code>0</code> rồi khởi động lại Javis nếu muốn bật lại.</p></div>`;
+        Bỏ biến hoặc đặt khác <code>0</code> rồi khởi động lại VMOS nếu muốn bật lại.</p></div>`;
       return;
     }
     _injectChangelogCss();
+    // Mở lại trang là nạp lại: tab để mở qua đêm mà vẫn thấy danh sách của hôm qua thì vô
+    // duyên. Rẻ, vì server đã cache sẵn và mỗi trang chỉ còn ~30 KB.
+    _clReset();
     const myGen = _renderGen;
     el.innerHTML = `<div class="cl-wrap">
-      <section class="upd-card" aria-label="Cập nhật Javis">
-        <div class="upd-title"><span class="upd-name">Javis</span><span class="gcard-tag" id="updVerTag">…</span></div>
+      <section class="upd-card" aria-label="Cập nhật VMOS">
+        <div class="upd-title"><span class="upd-name">VMOS</span><span class="gcard-tag" id="updVerTag">…</span></div>
         <div class="gcard-meta" id="updVerMeta">Đang kiểm tra bản mới…</div>
         <div class="upd-changes" id="updVerChangelog"></div>
         <div class="js-actions">
@@ -940,14 +1153,12 @@
     await napTimeline();
 
     async function napTimeline() {
-    let d;
     try {
-      // cache: "no-store" - KHÔNG phải đề phòng suông. Mọi lời gọi khác ở trang này đều đã
-      // no-store; riêng dòng nạp danh sách phiên bản thì quên, nên nó là chỗ duy nhất có thể
-      // ăn bản cũ trong bộ nhớ đệm trình duyệt. Triệu chứng đúng như chủ repo báo (2026-08-12):
-      // khung trên báo có bản mới, mà danh sách bên dưới không thấy bản đó đâu.
-      const r = await fetch("/changelog", { cache: "no-store" });
-      d = await r.json();
+      // cache: "no-store" nằm trong _clFetchPage - KHÔNG phải đề phòng suông. Mọi lời gọi khác
+      // ở trang này đều đã no-store; riêng dòng nạp danh sách phiên bản thì quên, nên nó là chỗ
+      // duy nhất có thể ăn bản cũ trong bộ nhớ đệm trình duyệt. Triệu chứng đúng như chủ repo
+      // báo (2026-08-12): khung trên báo có bản mới, mà danh sách bên dưới không thấy bản đó đâu.
+      await _clFetchPage(0);
     } catch (e) {
       if (myGen !== _renderGen) return;
       const timeline = el.querySelector("#clTimeline");
@@ -955,9 +1166,8 @@
       return;
     }
     if (myGen !== _renderGen) return;   // đã đổi trang trong lúc chờ
-    _clData = d;
     const timeline = el.querySelector("#clTimeline");
-    if (timeline) _clRenderPage(timeline, 0);
+    if (timeline) await _clRenderPage(timeline, 0);
     }
   }
 
@@ -1014,8 +1224,10 @@
     };
     const loadChanges = async () => {
       const box = q("updVerChangelog"); if (!box) return;
-      let d = {}; try { d = await (await fetch("/changelog", { cache: "no-store" })).json(); } catch (e) { return; }
-      const fresh = (d.releases || []).filter(r => !r.installed).slice(0, 2);
+      // Dùng CHUNG trang 0 với danh sách bên dưới: hai chỗ cùng cần đúng những bản mới nhất,
+      // nên gọi mạng hai lần là trả tiền hai lần cho một câu trả lời.
+      let rels = []; try { rels = await _clFetchPage(0); } catch (e) { return; }
+      const fresh = rels.filter(r => !r.installed).slice(0, 2);
       if (!fresh.length) { box.style.display = "none"; return; }
       box.style.display = "";
       box.innerHTML = "<b>Bản mới có gì:</b>" + fresh.map(r => {
@@ -1054,12 +1266,17 @@
     // đúng triệu chứng đó (2026-08-12): "trên bản update anh chưa thấy bản 28".
     const check = q("updVerCheck");
     if (check) check.onclick = async () => {
+      // Dọn cache trang RỒI mới lấy lại trang 0 kèm refresh=1 (ép server bỏ cả bản GitHub nó
+      // đang giữ 10 phút). Phải đi TRƯỚC loadVersion, không thì loadChanges kịp nạp lại bản cũ
+      // vào cache và nút bấm bao nhiêu lần cũng ra y như cũ.
+      _clReset();
+      try { await _clFetchPage(0, true); } catch (e) {}
       await loadVersion();
       if (typeof napLai === "function") await napLai();
     };
     const update = q("updVerUpdate");
     if (update) update.onclick = async () => {
-      if (!confirm("Cập nhật Javis lên bản mới nhất?\nApp sẽ tự khởi động lại; nếu lỗi hệ thống sẽ thử quay về bản cũ.")) return;
+      if (!confirm("Cập nhật VMOS lên bản mới nhất?\nApp sẽ tự khởi động lại; nếu lỗi hệ thống sẽ thử quay về bản cũ.")) return;
       const status = q("updVerStatus"), rollback = q("updVerRollback");
       const oldCur = root.dataset.currentVersion || "";
       update.disabled = true; if (rollback) { rollback.style.display = "none"; rollback.innerHTML = ""; }
@@ -1337,7 +1554,7 @@
       catch (e) { listEl.innerHTML = `<div class="empty" style="padding:20px;color:var(--red)">Lỗi kết nối: ${esc(e.message)}</div>`; return null; }
       if (!resp.ok || d.error) {
         const msg = d.error || (resp.status === 404
-          ? "Máy chủ Javis chưa có chức năng Tệp tin - hãy KHỞI ĐỘNG LẠI server (stop-javis.bat → start-javis.vbs) rồi tải lại trang."
+          ? "Máy chủ VMOS chưa có chức năng Tệp tin - hãy KHỞI ĐỘNG LẠI server (stop-javis.bat → start-javis.vbs) rồi tải lại trang."
           : resp.status === 401 ? "Phiên đăng nhập hết hạn - tải lại trang & đăng nhập."
           : "Lỗi máy chủ (" + resp.status + ").");
         listEl.innerHTML = `<div class="empty" style="padding:20px;color:var(--red)">${WARN_ICON} ${esc(msg)}</div>`;
@@ -1411,7 +1628,7 @@
       const n = items.length;
       fixEl.innerHTML = `<div class="fm-fix">${WARN_ICON}
         <b>${n} file .md còn dấu vết hỏng từ bản cũ.</b>
-        Bản Javis trước 0.33.4 lưu note qua trình sửa trực quan là làm hỏng khối thuộc tính
+        Bản VMOS trước 0.33.4 lưu note qua trình sửa trực quan là làm hỏng khối thuộc tính
         (<code>---</code> đầu note thành <code>* * *</code>) và dồn dấu gạch chéo vào chữ.
         Bản này đã bịt đường đó; mấy file lỡ hỏng thì chữa lại một lần là xong.
         <div class="fm-fix-list" id="fmFixList"></div>
@@ -1753,7 +1970,7 @@
         <div class="wf-desc">${esc(p.description || "")}</div>
         <div class="wf-steps">${meta}${chips ? `<div style="margin-top:8px">${chips}</div>` : ""}${p.error ? `<div style="margin-top:6px;color:var(--red)">${esc(p.error)}</div>` : ""}</div>
         <div class="wf-actions">${p.source === "pack"
-            ? `<button class="s-btn-ghost" data-goto-packs="1">Quản lý ở Javis Store</button>`
+            ? `<button class="s-btn-ghost" data-goto-packs="1">Quản lý ở VMOS Store</button>`
             : p.removed
               ? `<button class="s-btn-ghost undel">Cài lại</button>`
               : `<button class="s-btn-ghost tgl">${p.enabled ? "Tắt" : "Bật"}</button>
@@ -1799,9 +2016,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       let d = { plugins: [] };
       try { d = await (await fetch(`/plugins?brain=${encodeURIComponent(fbrain())}`)).json(); } catch (e) {}
       if (myGen !== _renderGen) return;
-      const intro = `<p class="jx-page-lead" style="margin-bottom:12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho Javis mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
-      const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:var(--warn-ink);font-size:13px;line-height:1.55"><b>${WARN_ICON} Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại Javis. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
-      const dirHint = `<p style="color:var(--text3);font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo Javis trong khung chat: "tạo plugin ...".</p>`;
+      const intro = `<p class="jx-page-lead" style="margin-bottom:12px">Plugin thêm <b>tool</b> (công cụ engine gọi được) và <b>hook</b> native cho VMOS mà không sửa lõi - dùng được ở MỌI engine (Claude Code, Codex, API) qua hub, tôn trọng 3 mức quyền như tool khác.</p>`;
+      const gateBanner = (!d.user_gate) ? `<div style="margin-bottom:14px;padding:11px 13px;border:1px solid rgba(224,160,74,.5);border-radius:10px;background:rgba(224,160,74,.08);color:var(--warn-ink);font-size:13px;line-height:1.55"><b>${WARN_ICON} Plugin do bạn cài đang bị chặn.</b> Plugin toàn cục/brain chạy code Python thật trong server nên mặc định TẮT. Để bật: đặt biến môi trường <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại VMOS. Plugin có sẵn (bundled) vẫn chạy bình thường.</div>` : "";
+      const dirHint = `<p style="color:var(--text3);font-size:12.5px;margin:0 0 14px">Thả plugin TOÀN CỤC (dùng cho MỌI brain) vào <code>${esc(d.global_dir || "")}</code> · mỗi plugin gồm <code>plugin.yaml</code> + <code>plugin.py</code>. Hoặc bảo VMOS trong khung chat: "tạo plugin ...".</p>`;
       const plugins = (d.plugins || []).slice();
       const order = { bundled: 0, user: 1, vault: 2 };
       plugins.sort((a, b) => (order[a.source] ?? 9) - (order[b.source] ?? 9) || (a.name || "").localeCompare(b.name || ""));
@@ -1834,7 +2051,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const myGen = _renderGen;   // chống race: đổi trang → mọi loadLoops/loadLog dở tự bỏ
     let pollTimer = null;       // 1 chuỗi poll duy nhất (clearTimeout trước khi đặt lại)
     el.innerHTML = `<div class="cview-section"><div class="empty">${esc(t("common.loading"))}</div></div>`;
-    const GNAME = { business: "Kinh doanh", brain: "Bộ não", product: "Cải thiện Javis", custom: "Tự định nghĩa" };
+    const GNAME = { business: "Kinh doanh", brain: "Bộ não", product: "Cải thiện VMOS", custom: "Tự định nghĩa" };
     const fmtT = ts => ts ? new Date(ts * 1000).toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit" }) : "-";
     // Giờ TRẦN (chỉ "07:00") không cho biết là hôm nay, mai hay tuần sau - nhìn thẻ việc vẫn
     // không biết bao giờ nó chạy. fmtWhen luôn nói rõ NGÀY khi không phải hôm nay.
@@ -1876,7 +2093,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             <button class="si-chip sel" data-kind="loop">${ic("repeat")} Việc lặp</button>
             <button class="si-chip" data-kind="reminder">${ic("alarm-clock")} Nhắc hẹn</button></div></div>
           <div class="si-field"><label>Tên</label><input id="lpName" placeholder="Ví dụ: Đọc email mỗi 2 tiếng"></div>
-          <div class="si-field si-span"><label id="lpBodyLabel">Mô tả nhiệm vụ (mỗi vòng Javis làm đúng việc này)</label>
+          <div class="si-field si-span"><label id="lpBodyLabel">Mô tả nhiệm vụ (mỗi vòng VMOS làm đúng việc này)</label>
             <textarea id="lpBody" placeholder="Ví dụ: Mỗi vòng đọc 1 source chưa xử lý trong 06 - Sources rồi đề xuất Wiki page nên tạo. Hoặc: đọc số đơn hôm nay qua MCP POS, nếu thấp thì soạn nháp 1 caption đẩy hàng vào 05 - Projects."></textarea></div>
           <div id="lpLoopFields">
             <div class="si-row" style="gap:14px;flex-wrap:wrap">
@@ -1898,7 +2115,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
                 <button class="si-chip" data-mq="auto">Ghi file</button>
                 <button class="si-chip sel" data-mq="full">Toàn quyền</button></div></div>
             </div>
-            <div class="dim" style="font-size:12px;color:var(--text3);margin-top:4px">Nhắc một lần: "30 phút nữa", "8h30", "2026-07-20 09:00". Lặp theo giờ cố định: cron 5 trường (vd "0 7 * * *" = 7h sáng mỗi ngày). "Chỉ nhắc" = bắn tin nhắc bạn; "Tự làm rồi báo" = Javis chạy đúng việc này rồi báo kết quả.</div>
+            <div class="dim" style="font-size:12px;color:var(--text3);margin-top:4px">Nhắc một lần: "30 phút nữa", "8h30", "2026-07-20 09:00". Lặp theo giờ cố định: cron 5 trường (vd "0 7 * * *" = 7h sáng mỗi ngày). "Chỉ nhắc" = bắn tin nhắc bạn; "Tự làm rồi báo" = VMOS chạy đúng việc này rồi báo kết quả.</div>
             <div id="lpRemMqWarn" style="display:none;margin-top:6px;padding:10px 12px;border:1px solid rgba(224,102,74,.5);border-radius:8px;background:rgba(224,102,74,.08);color:var(--red);font-size:13px;line-height:1.5">
               <b>${WARN_ICON} TOÀN QUYỀN.</b> Tới giờ việc này chạy <b>một mình</b>, với đầy đủ quyền như lúc bạn đang ngồi chat: nó dùng được mọi công cụ đã đấu, nên tuỳ việc bạn giao mà nó có thể <b>gửi tin, đăng bài, đặt lịch, tạo đơn hoặc tiêu tiền thật</b>. Ở bước đó không có ai duyệt lại, và phần lớn những việc đó <b>không rút lại được</b>. Chỉ giao thứ bạn sẵn sàng để nó tự làm; muốn nó chỉ đọc rồi báo lại thì chọn <b>Chỉ đọc</b>.
             </div>
@@ -1940,8 +2157,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (q("#lpLoopNote")) q("#lpLoopNote").style.display = isRem ? "none" : "";
       if (isRem && q("#lpFullWarn")) q("#lpFullWarn").style.display = "none";
       q("#lpBodyLabel").textContent = isRem
-        ? "Nội dung nhắc (Javis sẽ nhắc hoặc làm đúng việc này)"
-        : "Mô tả nhiệm vụ (mỗi vòng Javis làm đúng việc này)";
+        ? "Nội dung nhắc (VMOS sẽ nhắc hoặc làm đúng việc này)"
+        : "Mô tả nhiệm vụ (mỗi vòng VMOS làm đúng việc này)";
     }
     el.querySelectorAll("#lpKind .si-chip").forEach(c => c.onclick = () => {
       // Đang SỬA (loop hay nhắc hẹn) → khoá loại: đổi loại giữa đường là ghi sang kho khác,
@@ -2082,7 +2299,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       const brainVal = el.querySelector("#lpBrain").value || fbrain();   // brain đích do user chọn
       const b = el.querySelector("#lpSave");
       if (!name) { msg.textContent = "Nhập tên"; return; }
-      if (!body) { msg.textContent = fkind === "reminder" ? "Nhập nội dung nhắc" : "Nhập mô tả nhiệm vụ (Javis cần biết mỗi vòng làm gì)"; return; }
+      if (!body) { msg.textContent = fkind === "reminder" ? "Nhập nội dung nhắc" : "Nhập mô tả nhiệm vụ (VMOS cần biết mỗi vòng làm gì)"; return; }
 
       // NHẮC HẸN → kho reminders. Tạo mới: POST /reminders. Đang sửa: POST /reminders/update.
       if (fkind === "reminder") {
@@ -2387,7 +2604,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           const e2 = document.createElement("div");
           e2.className = "empty"; e2.style.margin = "0 0 10px";
           e2.dataset.lp = "empty";
-          e2.innerHTML = `Chưa có việc nào ở brain này. Bấm <b>+ Thêm việc</b>, hoặc nói với Javis trong chat.`;
+          e2.innerHTML = `Chưa có việc nào ở brain này. Bấm <b>+ Thêm việc</b>, hoặc nói với VMOS trong chat.`;
           group.appendChild(e2);
         }
         loops.forEach(lp => { allLoops.push(lp); group.appendChild(loopCard(lp)); });
@@ -2402,7 +2619,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         box.appendChild(group);
       });
       if (!anyItem) {
-        box.innerHTML = `<div class="empty">Chưa có việc định kỳ hay nhắc hẹn nào. Bấm <b>+ Thêm việc</b>, hoặc nói với Javis trong chat (vd "tạo loop mỗi 2 tiếng đọc 1 source rồi đề xuất").</div>`;
+        box.innerHTML = `<div class="empty">Chưa có việc định kỳ hay nhắc hẹn nào. Bấm <b>+ Thêm việc</b>, hoặc nói với VMOS trong chat (vd "tạo loop mỗi 2 tiếng đọc 1 source rồi đề xuất").</div>`;
       }
       applyLpSearch();   // giữ nguyên bộ lọc tìm kiếm sau mỗi lần render lại danh sách
       // Bộ lọc nhật ký: mọi loop mọi brain (value = index vào allLoops → biết cả brain lẫn slug).
@@ -2461,7 +2678,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const gitWarn = cfg.git_available ? "" : `<div class="dim" style="color:var(--text3);font-size:13px;margin-top:6px">ℹ Máy chưa có <code>git</code>: Tự học VẪN chạy bình thường, chỉ là chưa có hoàn tác 1-chạm/backup lên GitHub. Cài git để bật undo + sao lưu brain.</div>`;
 
     el.innerHTML = `<div class="cview-page">
-      <p class="jx-page-lead" style="margin-bottom:4px">Sau mỗi hội thoại, Javis tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b>, <b>vai (agent)</b>, <b>chuỗi bước (workflow)</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
+      <p class="jx-page-lead" style="margin-bottom:4px">Sau mỗi hội thoại, VMOS tự rút <b>ký ức</b>, đúc <b>tri thức Wiki</b>, <b>kỹ năng</b>, <b>vai (agent)</b>, <b>chuỗi bước (workflow)</b> và <b>việc</b> - qua tiến trình học <b>chỉ-đọc, cô lập</b> (0 MCP, không xoá). Người ghi file là code tin cậy. Mặc định <b>bật sẵn + tự ghi</b>; nếu brain có git thì mỗi lần học còn được <b>git-commit để hoàn tác 1 chạm</b>.</p>
       <div class="si-grid">
         <div class="si-field"><label>Bật tự học</label>
           <button class="si-chip ${cfg.enabled ? "sel" : ""}" id="lnEnabled">${cfg.enabled ? "● Đang bật" : "○ Đang tắt"}</button>
@@ -2511,7 +2728,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             <div class="si-field"><label>Tự động</label><button class="si-chip" id="bkAuto">○ Tắt</button></div>
             <div class="si-field"><label>Đồng bộ cả ảnh</label><button class="si-chip" id="bkAnh">○ Tắt</button></div>
           </div>
-          <div class="dim" style="font-size:12.5px;color:var(--text3);max-width:680px;margin-top:-4px">Bật "Đồng bộ cả ảnh" thì ảnh trong brain (jpg, png, gif, webp - mỗi ảnh tối đa 10MB) cũng lên repo và theo bạn sang máy khác. Cân nhắc trước khi bật: <b>git nhớ mãi mãi</b> - ảnh đã đẩy lên nằm vĩnh viễn trong lịch sử repo, tắt sau cũng không lấy lại dung lượng; dùng nhiều máy chung repo thì <b>bật trên mọi máy</b>. Video và file nặng vẫn không bao giờ lên. Khi bật, Javis <b>ngừng tự dọn ảnh cũ trong attachments</b> để ảnh đã backup không tự biến mất theo hạn dọn.</div>
+          <div class="dim" style="font-size:12.5px;color:var(--text3);max-width:680px;margin-top:-4px">Bật "Đồng bộ cả ảnh" thì ảnh trong brain (jpg, png, gif, webp - mỗi ảnh tối đa 10MB) cũng lên repo và theo bạn sang máy khác. Cân nhắc trước khi bật: <b>git nhớ mãi mãi</b> - ảnh đã đẩy lên nằm vĩnh viễn trong lịch sử repo, tắt sau cũng không lấy lại dung lượng; dùng nhiều máy chung repo thì <b>bật trên mọi máy</b>. Video và file nặng vẫn không bao giờ lên. Khi bật, VMOS <b>ngừng tự dọn ảnh cũ trong attachments</b> để ảnh đã backup không tự biến mất theo hạn dọn.</div>
           <div class="si-actions">
             <button class="s-btn-ghost" id="bkTest">${ic("plug")} Kiểm tra kết nối</button>
             <button class="s-btn" id="bkNow">⇅ Đồng bộ ngay</button>
@@ -2522,7 +2739,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         </div>
       </div>
 
-      <div class="si-log"><h3 style="font-size:15px;color:var(--text)">Javis đã tự học gì (commit gần nhất)</h3><div id="lnReview">Đang tải...</div></div>
+      <div class="si-log"><h3 style="font-size:15px;color:var(--text)">VMOS đã tự học gì (commit gần nhất)</h3><div id="lnReview">Đang tải...</div></div>
       <div class="si-log"><h3 style="font-size:15px;color:var(--text)">Nhật ký học</h3><div id="lnLog">Đang tải...</div></div>
     </div>`;
 
@@ -2973,10 +3190,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const m = s.model || {};
     // Đọc từ model.main + model.providers (nguồn thật của trang Models), KHÔNG từ m.engine -
     // trường cũ đó chỉ biết "cli" với "openrouter" nên máy đang chạy Gemini/OpenAI vẫn bị
-    // ghi là "Claude CLI". Mọi provider đều có MCP Javis, khác nhau ở chỗ chạy được lệnh máy.
+    // ghi là "Claude CLI". Mọi provider đều có MCP VMOS, khác nhau ở chỗ chạy được lệnh máy.
     const _mainP = (m.providers || []).find(p => p.id === (m.main || {}).provider) || {};
     const eng = (_mainP.label || (m.main || {}).provider || "-")
-      + (_mainP.kind === "api" ? " (MCP Javis)" : _mainP.kind ? " (MCP Javis + lệnh máy)" : "");
+      + (_mainP.kind === "api" ? " (MCP VMOS)" : _mainP.kind ? " (MCP VMOS + lệnh máy)" : "");
     const curModel = (m.main || {}).model || "mặc định";
     const tg = s.telegram || {};
     const dash = s.dashboard || {};
@@ -2985,7 +3202,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       <div class="cview-section" id="ovVerSection">
         <h3>Phiên bản</h3>
         <div class="gcard" style="max-width:640px">
-          <div class="gcard-top"><span class="gcard-name">Javis</span><span class="gcard-tag" id="ovVerTag">…</span></div>
+          <div class="gcard-top"><span class="gcard-name">VMOS</span><span class="gcard-tag" id="ovVerTag">…</span></div>
           <div class="gcard-meta" id="ovVerMeta">Đang kiểm tra bản mới…</div>
           <div id="ovVerChangelog" style="display:none;margin:8px 0;padding:8px 10px;border-left:3px solid var(--accent,var(--accent));background:rgba(120,140,160,.08);border-radius:6px;font-size:13px;line-height:1.6"></div>
           <div class="js-actions">
@@ -3017,7 +3234,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         <div class="cgrid">
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Engine</span></div><div class="gcard-meta">${esc(eng)}</div></div>
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Model</span></div><div class="gcard-meta">${esc(curModel)}</div></div>
-          <div class="gcard"><div class="gcard-top"><span class="gcard-name">Workspace</span></div><div class="gcard-meta">${esc(s.workspace_name || "Javis OS")}</div></div>
+          <div class="gcard"><div class="gcard-top"><span class="gcard-name">Workspace</span></div><div class="gcard-meta">${esc(s.workspace_name || "VMOS")}</div></div>
           <div class="gcard"><div class="gcard-top"><span class="gcard-name">Telegram</span></div><div class="gcard-meta">${tg.enabled ? "● Bật" : "○ Tắt"}${tg.chat_id ? " · " + esc(tg.chat_id) : ""}</div></div>
         </div>
       </div>
@@ -3037,7 +3254,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         <h3>Khởi động cùng máy</h3>
         <div class="cgrid">
           <div class="gcard">
-            <div class="gcard-top"><span class="gcard-name">Tự bật Javis khi mở máy</span><span class="gcard-tag" id="ovAutoTag">…</span></div>
+            <div class="gcard-top"><span class="gcard-name">Tự bật VMOS khi mở máy</span><span class="gcard-tag" id="ovAutoTag">…</span></div>
             <div class="gcard-meta" id="ovAutoMeta">Đang kiểm tra…</div>
             <button class="gcard-btn" id="ovAutoToggle" style="display:none"></button>
             <div class="gcard-meta" id="ovAutoStatus" style="margin-top:8px"></div>
@@ -3140,7 +3357,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (verCheck) verCheck.onclick = ovLoadVersion;
     const verUpd = document.getElementById("ovVerUpdate");
     if (verUpd) verUpd.onclick = async () => {
-      if (!confirm("Cập nhật Javis lên bản mới nhất?\nApp sẽ tự khởi động lại. Nếu bản mới lỗi, hệ thống sẽ tự quay về bản cũ (bản git) hoặc hiện cách lùi (Docker).")) return;
+      if (!confirm("Cập nhật VMOS lên bản mới nhất?\nApp sẽ tự khởi động lại. Nếu bản mới lỗi, hệ thống sẽ tự quay về bản cũ (bản git) hoặc hiện cách lùi (Docker).")) return;
       const st = document.getElementById("ovVerStatus");
       const rb = document.getElementById("ovVerRollback");
       const oldCur = window._ovVerCur || "";
@@ -3220,8 +3437,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         on ? (j.ly_do ? "bật nhưng không chạy" : "bật") : "tắt";
       const meta = document.getElementById("ovAutoMeta");
       meta.innerHTML = on
-        ? "Javis tự chạy nền mỗi khi bạn đăng nhập Windows - không cần bật tay. Chạy ẩn, mở <code>localhost:7777</code> để dùng."
-        : "Bật để Javis tự khởi động mỗi khi mở máy. Chạy ẩn ở nền, không hiện cửa sổ.";
+        ? "VMOS tự chạy nền mỗi khi bạn đăng nhập Windows - không cần bật tay. Chạy ẩn, mở <code>localhost:7777</code> để dùng."
+        : "Bật để VMOS tự khởi động mỗi khi mở máy. Chạy ẩn ở nền, không hiện cửa sổ.";
       if (j.ly_do) meta.innerHTML += '<br><span class="dim">' + WARN_ICON + " " + esc(j.ly_do) + "</span>";
       const btn = document.getElementById("ovAutoToggle");
       btn.style.display = "";
@@ -3253,7 +3470,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const mig = document.getElementById("ovMigrate");
     if (mig) mig.onclick = async () => {
       const brain = (window.currentBrainPath ? currentBrainPath() : "brain");
-      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển Javis/agents→agents, Javis/workflows→workflows; gộp Memory→memory kể cả khi cả hai đã tồn tại. Có git backup.)")) return;
+      if (!confirm("Chuẩn hóa cấu trúc brain đang chọn?\n(Di chuyển VMOS/agents→agents, VMOS/workflows→workflows; gộp Memory→memory kể cả khi cả hai đã tồn tại. Có git backup.)")) return;
       mig.disabled = true; mig.textContent = "Đang chuẩn hóa...";
       const fd = new FormData(); fd.append("brain", brain);
       let r = {};
@@ -3361,8 +3578,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   }
 
   // ===== Tab Local Model (Ollama chạy trên máy) =====
-  // HAI trạng thái chứ không ba như bản demo. Demo có "đang cài Ollama" vì nó giả định Javis
-  // tự chạy được lệnh cài trên máy người dùng - chỉ đúng khi Javis chạy native. Bản Docker/VPS
+  // HAI trạng thái chứ không ba như bản demo. Demo có "đang cài Ollama" vì nó giả định VMOS
+  // tự chạy được lệnh cài trên máy người dùng - chỉ đúng khi VMOS chạy native. Bản Docker/VPS
   // không có quyền, cũng không có đường, chạy lệnh trên máy vật lý của người ta. Nên ở đây
   // chỉ còn: CHƯA NỐI (hiện lệnh cài để người dùng tự chạy trong terminal máy thật) và ĐÃ NỐI.
   const OL_LENH = {
@@ -3371,7 +3588,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     windows: "winget install Ollama.Ollama",
   };
   // Bản Docker cần NHIỀU HƠN một lệnh cài. Bản 0.55.0 chỉ nói "cài trên máy thật rồi điền địa
-  // chỉ", và chủ repo dán ngay lệnh đó vào terminal của Javis (02/09) - dễ hiểu, vì nút copy
+  // chỉ", và chủ repo dán ngay lệnh đó vào terminal của VMOS (02/09) - dễ hiểu, vì nút copy
   // nằm ngay cạnh mà app thì có sẵn một cái terminal. Nhưng kể cả cài đúng chỗ vẫn còn hai bức
   // tường nữa: Ollama mặc định chỉ nghe 127.0.0.1 nên container không với tới, và không ai
   // đoán được phải điền địa chỉ cầu nối Docker. Thiếu một trong hai là "không nối được" mà
@@ -3388,7 +3605,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       "sudo systemctl daemon-reload && sudo systemctl restart ollama";
   }
   // (Hằng OL_DIA_CHI_DOCKER = "http://172.17.0.1:11434" ĐÃ BỎ.) 172.17.0.1 là cổng của mạng
-  // bridge MẶC ĐỊNH, chỉ đúng với `docker run` trần. Javis cài bằng compose thì nằm trên mạng
+  // bridge MẶC ĐỊNH, chỉ đúng với `docker run` trần. VMOS cài bằng compose thì nằm trên mạng
   // riêng của project (172.18.x trở đi), nên con số đó SAI với gần như mọi bản cài - điền
   // đúng theo hướng dẫn vẫn không nối được. Nay server dò cổng thật và trả về `goi_y_endpoint`.
 
@@ -3406,7 +3623,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
 
   function olVeChuaNoi(el, st) {
     const lenh = OL_LENH[st.host_platform] || OL_LENH.linux;
-    // Docker/VPS: máy chạy Javis KHÔNG phải máy người dùng, nên câu hướng dẫn phải khác hẳn -
+    // Docker/VPS: máy chạy VMOS KHÔNG phải máy người dùng, nên câu hướng dẫn phải khác hẳn -
     // bảo họ chạy lệnh "trên máy này" là bảo họ cài Ollama vào trong container.
     const xa = st.deploy_mode === "docker";
     const lenhNghe = olLenhNghe(st);
@@ -3452,7 +3669,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
               esc(t("common.copy")) + "</button></div>"
           : "") +
         (st.error ? '<div class="ol-err">' + ic("triangle-alert") + "<span>" + esc(st.error) + "</span></div>" : "") +
-        // Đã lưu địa chỉ mà vẫn không nối được thì từ trong container Javis không phân biệt
+        // Đã lưu địa chỉ mà vẫn không nối được thì từ trong container VMOS không phân biệt
         // nổi "chưa cài" với "đã chạy nhưng chỉ nghe 127.0.0.1". Máy chủ thì phân biệt được
         // bằng đúng một lệnh - đưa lệnh đó và cách đọc kết quả, thay vì để người dùng đoán.
         (st.error && xa ? '<div class="ol-note">' + ic("terminal") + "<span>" + esc(t("ol.dk_chan_doan")) + "</span></div>" : "") +
@@ -3827,7 +4044,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (p.id === "grok-cli") {
         // Bộ não thứ 11. Đây là thẻ CLI DUY NHẤT có nút "Đăng nhập" thật sự bấm được trên VPS:
         // `grok login --device-auth` in ra một link và một mã rồi tự đứng hỏi máy chủ, nên
-        // Javis chỉ cần bóc link + mã đưa lên đây, không phải giả lập terminal như bản `agy`
+        // VMOS chỉ cần bóc link + mã đưa lên đây, không phải giả lập terminal như bản `agy`
         // 0.30-0.32.1 từng thử (và tắc trên Windows vì không có pseudo-terminal).
         const dn = p.dang_nhap || {};
         const st = on
@@ -3900,7 +4117,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             ${dn.cai_shell ? `<div>Hoặc: <code>${esc(dn.cai_shell)}</code></div>` : ""}
           </div>`}
           <div class="prov-steps">
-            <div><b>Lối 1 - gói:</b> trên máy chạy Javis gõ <code>${esc(dn.dang_nhap || "copilot login")}</code> rồi bấm Kiểm tra lại.</div>
+            <div><b>Lối 1 - gói:</b> trên máy chạy VMOS gõ <code>${esc(dn.dang_nhap || "copilot login")}</code> rồi bấm Kiểm tra lại.</div>
             <div><b>Lối 2 - token:</b> tạo fine-grained PAT (resource owner = tài khoản cá nhân, quyền Account → Copilot Requests), dán vào ô dưới.</div>
             ${dn.ghi_chu ? `<div class="dim">${esc(dn.ghi_chu)}</div>` : ""}
           </div>
@@ -3943,7 +4160,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       }
       if (p.kind === "cli") {   // Claude Code - trạng thái + login/logout nạp động qua /claude/status
         // Ô chọn nguồn xác thực. Cả hai lựa chọn giữ NGUYÊN năng lực (Bash, WebFetch, MCP, nối
-        // phiên cũ); khác nhau ở chỗ ai trả tiền và ai chịu rủi ro. Javis cố ý không tắt cứng
+        // phiên cũ); khác nhau ở chỗ ai trả tiền và ai chịu rủi ro. VMOS cố ý không tắt cứng
         // đường subscription - chủ máy tự cân, nhưng phải cân khi đã BIẾT, nên có cảnh báo.
         const byKey = p.auth_mode === "api_key";
         return `<div class="prov-card prov-card-sm ${p.is_main ? "main" : ""}">
@@ -3971,7 +4188,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       }
       const masked = (m[KEYFIELD[p.id]] || "").slice(-4);
       return `<div class="prov-card ${p.is_main ? "main" : ""}">
-        ${provHead(p, on, p.kind === "cli" ? "MCP/skill" : "MCP Javis", (on ? t("models.st_connected") : t("models.st_not_connected")) + " · " + p.models.length + " model")}
+        ${provHead(p, on, p.kind === "cli" ? "MCP/skill" : "MCP VMOS", (on ? t("models.st_connected") : t("models.st_not_connected")) + " · " + p.models.length + " model")}
         ${p.needs_key
           ? `<div class="prov-action"><input class="js-input" id="pk-${p.id}" type="password" placeholder="${on ? esc(t("models.key_change_ph", { duoi: masked })) : esc(t("models.key_ph"))}"><button class="gcard-btn" data-pk="${p.id}">${on ? esc(t("models.key_change")) : esc(t("models.connect"))}</button>${on ? `<button class="gcard-btn ghost" data-disc="${p.id}">${esc(t("models.disconnect"))}</button>` : ""}</div>`
           : `<div class="prov-note">${esc(t("models.no_key_note"))}</div>`}
@@ -4162,7 +4379,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (gl) gl.onclick = () => startGeminiLogin(el);
     const glo = el.querySelector("[data-glogout]");
     if (glo) glo.onclick = async () => {
-      if (!confirm("Ngắt tài khoản Google khỏi Javis?")) return;
+      if (!confirm("Ngắt tài khoản Google khỏi VMOS?")) return;
       glo.disabled = true; glo.textContent = t("models.disconnecting");
       try { await fetch("/gemini-cli/logout", { method: "POST" }); } catch (e) {}
       _daHoiModel.delete("gemini-cli");
@@ -4191,13 +4408,13 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (msg) msg.textContent = t("models.testing");
       let r = null;
       // Gửi kèm brain đang mở: phần `mcp` của câu trả lời soi cấu hình theo ĐÚNG brain đó
-      // (header X-Javis-Vault khoá tool file/lịch vào một brain), nên hỏi trống là soi nhầm.
+      // (header X-VMOS-Vault khoá tool file/lịch vào một brain), nên hỏi trống là soi nhầm.
       const _br = window.currentBrainPath ? currentBrainPath() : "brain";
       try { r = await (await fetch(`/antigravity/check?brain=${encodeURIComponent(_br)}`,
                                    { method: "POST" })).json(); }
       catch (e) { r = { ok: false, error: t("common.net_err") }; }
       agk.disabled = false; agk.textContent = cu2;
-      // Nói RIÊNG chuyện tool của Javis. "Chat được" và "gọi được tool của Javis" là hai
+      // Nói RIÊNG chuyện tool của VMOS. "Chat được" và "gọi được tool của VMOS" là hai
       // chuyện khác nhau, và suốt các bản 0.30-0.42 cái thứ hai luôn hỏng trong khi cái thứ
       // nhất vẫn xanh - nên thẻ này chỉ báo "Dùng được" là báo thiếu đúng chỗ đau.
       const mcpTxt = (r && r.mcp)
@@ -4241,7 +4458,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (!r || !r.ok) { if (msg) msg.innerHTML = Icons.warn((r && r.error) || t("models.cant_open")); return; }
       if (r.xong) { renderModelsCloudTab(el); return; }
       // Link + mã hiện ra để người dùng mở trên MÁY CỦA HỌ - đây là cả lý do tồn tại của
-      // đường device code: máy chạy Javis (VPS) không cần có trình duyệt.
+      // đường device code: máy chạy VMOS (VPS) không cần có trình duyệt.
       if (box) {
         box.style.display = "";
         box.innerHTML = `<div>${esc(t("models.grok_open"))}<br><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a></div>`
@@ -4308,7 +4525,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
                                    { method: "POST" })).json(); }
       catch (e) { r = { ok: false, error: t("common.net_err") }; }
       gkc.disabled = false; gkc.textContent = cu3;
-      // Nói RIÊNG chuyện tool của Javis: "chat được" và "gọi được tool của Javis" là hai
+      // Nói RIÊNG chuyện tool của VMOS: "chat được" và "gọi được tool của VMOS" là hai
       // chuyện khác nhau, và cái thứ hai mới là chỗ đã ba lần hỏng câm với `agy`.
       const mcpTxt2 = (r && r.mcp)
         ? (r.mcp.co_javis ? " · " + esc(t("models.mcp_ok"))
@@ -4321,7 +4538,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         setTimeout(() => renderModelsCloudTab(el), 700);
       } else if (msg) {
         msg.innerHTML = Icons.warn((r && r.error) || t("models.not_works")) + mcpTxt2;
-        // Chưa dùng được thì hiện luôn chỗ Javis đã nhìn: binary nào, thư mục nào, trong đó
+        // Chưa dùng được thì hiện luôn chỗ VMOS đã nhìn: binary nào, thư mục nào, trong đó
         // có file gì. Chỉ TÊN file và TÊN khoá - giá trị trong auth.json là token thật.
         const cd = r && r.chan_doan, box2 = el.querySelector("#grokBox");
         if (cd && box2) {
@@ -4355,7 +4572,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   //
   // Vì sao cần: con số trên thẻ đọc từ `model.catalog` trong settings, mà catalog chỉ được ghi
   // SAU một lần lấy live thành công. ChatGPT không có catalog mặc định (danh sách model do
-  // Codex quyết, Javis cố ý không ghim version), nên trên máy mới đăng nhập xong là thẻ hiện
+  // Codex quyết, VMOS cố ý không ghim version), nên trên máy mới đăng nhập xong là thẻ hiện
   // "● Đã kết nối · 0 model" và nằm im như vậy cho tới khi ai đó mở hộp chọn model - trông y
   // hệt đăng nhập hỏng. Máy cũ không thấy lỗi này chỉ vì catalog đã có sẵn từ lần trước.
   const _daHoiModel = new Set();   // hỏi HỤT thì thôi, không quay vòng vô tận
@@ -4960,14 +5177,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         force: !!m._forceAdd });
       if (!r.ok) {
         err.textContent = r.error || "Lỗi";
-        // can_force = server chặn có lý do (vd connector cần trình duyệt trên máy chạy Javis
+        // can_force = server chặn có lý do (vd connector cần trình duyệt trên máy chạy VMOS
         // mà đang mở qua domain public - issue #112). Bấm lần nữa là xác nhận vẫn muốn đấu.
         if (r.can_force) { m._forceAdd = true; go.textContent = "Tôi hiểu, vẫn kết nối"; }
         else { go.textContent = "Kết nối"; }
         go.disabled = false; return;
       }
       m.querySelector(".conn-form").innerHTML = '<div class="conn-ok">' + CHECK_ICON + ' Đã kết nối: <b>' + esc(r.label || con.name) + '</b> (' + (r.tools || 0) + ' công cụ)'
-        + (isFirst ? '<div class="conn-hint">Sang trang Javis hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
+        + (isFirst ? '<div class="conn-hint">Sang trang VMOS hỏi thử: "Hôm nay bán được bao nhiêu?"</div>' : "") + '</div>';
       go.style.display = "none";
       setTimeout(() => { closeConnModal(); _connTab = "live"; renderConnect(el); }, 1600);
     };
@@ -5003,7 +5220,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         } else if (st.state === "done") {
           clearInterval(_connPoll); _connPoll = null;
           zone.innerHTML = '<div class="conn-ok">' + CHECK_ICON + ' Đã đăng nhập: <b>' + esc(st.label || "Zalo") + '</b>'
-            + (isFirst ? '<div class="conn-hint">Sang trang Javis nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
+            + (isFirst ? '<div class="conn-hint">Sang trang VMOS nhắn thử: "Đọc tin nhắn Zalo mới nhất"</div>' : "") + '</div>';
           setTimeout(() => { closeConnModal(); _connTab = "live"; renderConnect(el); }, 1800);
         } else if (st.state === "error") {
           clearInterval(_connPoll); _connPoll = null;
@@ -5206,7 +5423,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   }
   function openFullAck(el, c, con) {
     const text = (con && con.risk) ? con.risk
-      : "Mức này cho phép Javis thao tác THẬT ra ngoài qua kết nối này: tạo đơn, gửi tin, chạy quảng cáo, publish… Hành động có thể KHÔNG hoàn tác được.";
+      : "Mức này cho phép VMOS thao tác THẬT ra ngoài qua kết nối này: tạo đơn, gửi tin, chạy quảng cáo, publish… Hành động có thể KHÔNG hoàn tác được.";
     const m = connModal(mHead(WARN_ICON + " BẬT TOÀN QUYỀN")
       + '<div class="conn-form"><div class="conn-risk">' + esc(text) + '</div>'
       + '<label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="ackChk"> Tôi hiểu rủi ro và tự chịu trách nhiệm</label></div>'
@@ -5270,12 +5487,12 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         await postJson("/connect/update", { id: c.id, deny_tools: v.split(",").map(x => x.trim()).filter(Boolean) });
         closeConnModal(); renderConnect(el);
       } else if (act === "relogin") {
-        // Nguồn tự giữ token ngoài Javis (workspace-mcp): nút Kết nối lại chỉ lưu key chứ không
+        // Nguồn tự giữ token ngoài VMOS (workspace-mcp): nút Kết nối lại chỉ lưu key chứ không
         // đụng được token, nên token cấp thiếu quyền là thiếu mãi. Đây là đường duy nhất bắt nó
         // hỏi lại quyền.
         if (!confirm('Xoá đăng nhập Google của "' + (c.label || "") + '"?\n\n'
-          + 'Kết nối giữ nguyên. Lần sau nhờ Javis làm việc với nguồn này, trình duyệt trên MÁY '
-          + 'CHẠY JAVIS sẽ mở để bạn cấp lại quyền - nhớ tick hết các ô.')) return;
+          + 'Kết nối giữ nguyên. Lần sau nhờ VMOS làm việc với nguồn này, trình duyệt trên MÁY '
+          + 'CHẠY VMOS sẽ mở để bạn cấp lại quyền - nhớ tick hết các ô.')) return;
         setNote("Đang xoá phiên đăng nhập…", "busy");
         const r = await postJson("/connect/relogin", { id: c.id });
         setNote((r && r.ok ? CHECK_ICON : WARN_ICON) + " " + esc((r && (r.message || r.error)) || "Lỗi"),
@@ -5415,24 +5632,24 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const st = await freshSettings();
     const main = (st.model && st.model.main) || {};
     const provs = (st.model && st.model.providers) || [];
-    // MỌI provider Javis hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
+    // MỌI provider VMOS hỗ trợ đều gọi được kho Kết nối: CLI (Claude, Codex, Antigravity,
     // Gemini) đi native hoặc hub; provider API đi qua vòng gọi tool + hub. Antigravity/Gemini
     // CLI từng rơi vào nhánh vàng vì thiếu ở đây dù server đã gắn hub (_apply_antigravity_hub).
     const MCP_PROVIDERS = ["anthropic-cli", "openrouter", "openai", "anthropic-api", "gemini", "groq", "ollama", "deepseek", "ollama-local"];
     const mainLabel = (provs.find(p => p.id === main.provider) || {}).label || main.provider || "-";
     let warn = "";
     if (main.provider === "openai-oauth") {
-      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - Javis tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>ChatGPT (gói subscription)</b> chạy qua <b>Codex CLI</b> - VMOS tự đẩy kho Kết nối sang Codex qua hub, nên vẫn dùng được đầy đủ.</div></div>`;
     } else if (main.provider === "antigravity-cli") {
-      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Antigravity CLI</b> (<code>agy</code>) dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Không có WebSearch sẵn như Claude Code - tra web phải qua MCP đã đấu (vd Search Console cho SEO site của bạn).</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Antigravity CLI</b> (<code>agy</code>) dùng được kho Kết nối qua <b>MCP VMOS</b> + skill + lệnh máy. Không có WebSearch sẵn như Claude Code - tra web phải qua MCP đã đấu (vd Search Console cho SEO site của bạn).</div></div>`;
     } else if (main.provider === "copilot-cli") {
-      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>GitHub Copilot CLI</b> dùng gói Copilot qua binary <code>copilot</code> - kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy (không dán API key).</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>GitHub Copilot CLI</b> dùng gói Copilot qua binary <code>copilot</code> - kho Kết nối qua <b>MCP VMOS</b> + skill + lệnh máy (không dán API key).</div></div>`;
     } else if (main.provider === "gemini-cli") {
-      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Gemini CLI</b> dùng được kho Kết nối qua <b>MCP Javis</b> + skill + lệnh máy. Google đã ngắt hạng cá nhân 18/06/2026 - nên dùng <b>Antigravity CLI</b> nếu còn lỗi đăng nhập.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>Gemini CLI</b> dùng được kho Kết nối qua <b>MCP VMOS</b> + skill + lệnh máy. Google đã ngắt hạng cá nhân 18/06/2026 - nên dùng <b>Antigravity CLI</b> nếu còn lỗi đăng nhập.</div></div>`;
     } else if (!MCP_PROVIDERS.includes(main.provider)) {
       warn = `<div class="gx-alert gx-alert-warn"><div class="gcard-meta" style="opacity:1">${WARN_ICON} Main Model đang là <b>${esc(mainLabel)}</b> - chưa hỗ trợ gọi công cụ. Đổi ở trang <b>Models</b>.</div></div>`;
     } else if (main.provider !== "anthropic-cli") {
-      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>${esc(mainLabel)}</b> dùng được kho Kết nối qua <b>MCP Javis</b> (vòng gọi tool + hub), kèm tool file trong brain và skill - không phải chat suông.</div></div>`;
+      warn = `<div class="gx-alert gx-alert-ok"><div class="gcard-meta" style="opacity:1">${CHECK_ICON} <b>${esc(mainLabel)}</b> dùng được kho Kết nối qua <b>MCP VMOS</b> (vòng gọi tool + hub), kèm tool file trong brain và skill - không phải chat suông.</div></div>`;
     }
     const groups = {};
     conns.forEach(c => { const k = c.connector_id || "custom"; (groups[k] = groups[k] || []).push(c); });
@@ -5442,12 +5659,12 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const removed = d.removed || [];
     const orphans = d.orphans || [];
     // Kết nối mất khuôn thì `mcp_store.resolved` từ chối dựng dial spec, tức nó IM. Phải nói ra
-    // thay vì để người dùng ngồi đoán vì sao một nguồn đang có mà Javis bảo không có.
+    // thay vì để người dùng ngồi đoán vì sao một nguồn đang có mà VMOS bảo không có.
     //
     // Hai nguyên nhân, hai lối thoát khác hẳn nhau - trộn làm một là đẩy người dùng đi sai
     // đường ở đúng lúc họ đang hoảng:
     //   `co_trong_kho`  người dùng vừa tự gỡ dịch vụ đó → cài lại ở khu "Đã gỡ" ngay dưới.
-    //   không có        dịch vụ đã DỌN RA Javis Store (0.55.36 dọn 16 cái) → cài lại từ kho.
+    //   không có        dịch vụ đã DỌN RA VMOS Store (0.55.36 dọn 16 cái) → cài lại từ kho.
     //
     // Câu cũ ở nhánh thứ hai xui người dùng nâng cấp app hoặc bỏ kết nối đi. Từ 0.55.36 nó
     // vừa sai vừa nguy hiểm: nâng cấp không mọc lại dịch vụ nữa, còn bỏ kết nối là vứt luôn
@@ -5460,7 +5677,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         + (orphans.some(o => o.co_trong_kho)
             ? 'Cài lại dịch vụ ở khu "Đã gỡ" bên dưới là chúng chạy lại. ' : "")
         + (moCoiKho.length
-            ? 'Những dịch vụ này đã dọn ra Javis Store để nhận bản mới mà không cần cập nhật app. '
+            ? 'Những dịch vụ này đã dọn ra VMOS Store để nhận bản mới mà không cần cập nhật app. '
               + 'Cài lại là kết nối cũ chạy tiếp, không phải đăng nhập lại.'
               // Nút xếp NGANG và chỉ rộng bằng chữ. `.gcard-btn` mặc định chiếm trọn hàng, nên
               // để trần thì hai ba nút thành hai ba dải to đùng chồng lên nhau, trông như lỗi.
@@ -5495,14 +5712,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       + '<div class="cview-section conn-sec">'
       + '<div class="conn-sec-head"><h3>◆ Đã kết nối</h3>'
       + '<span class="conn-sec-count">' + conns.length + ' tài khoản</span></div>'
-      + '<div class="conn-lead">Một dịch vụ nối được nhiều tài khoản. Mọi bộ não dùng chung kho này qua trung tâm kết nối Javis.</div>'
-      + '<label class="conn-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của Javis (bỏ kết nối sẵn của máy)</label>'
+      + '<div class="conn-lead">Một dịch vụ nối được nhiều tài khoản. Mọi bộ não dùng chung kho này qua trung tâm kết nối VMOS.</div>'
+      + '<label class="conn-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của VMOS (bỏ kết nối sẵn của máy)</label>'
       + '<div class="conn-grid">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào — mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
       + '<div class="conn-guide conn-cta">'
-      + '<span class="conn-cta-text">Muốn nối thêm dịch vụ? Chọn từ kho sẵn có, hoặc tải thêm từ Javis Store.</span>'
+      + '<span class="conn-cta-text">Muốn nối thêm dịch vụ? Chọn từ kho sẵn có, hoặc tải thêm từ VMOS Store.</span>'
       + '<div class="conn-cta-actions">'
       + '<button class="mp-btn" id="mcpDiSanCo">Kết nối sẵn có</button>'
-      + '<button class="mp-btn primary" id="mcpDiKho">Javis Store</button></div></div>'
+      + '<button class="mp-btn primary" id="mcpDiKho">VMOS Store</button></div></div>'
       + '<details class="cview-section amb-details conn-sec" id="ambWrap"><summary><h3 style="display:inline">◆ Kết nối sẵn của Claude Code và Codex <span style="opacity:.5">chỉ hiển thị — bấm để xem</span></h3></summary>'
       + '<div class="conn-lead" style="margin-top:10px">Nguồn đã đăng nhập sẵn trong Claude / Codex CLI. Quản lý trong app Claude hoặc lệnh <code>codex mcp</code>.</div>'
       + '<div class="conn-grid" id="mcpAmbient" style="margin-top:12px"><div class="mp-empty conn-empty">Bấm để tải…</div></div>'
@@ -5687,7 +5904,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       <div class="ch-page">
         <header class="jx-page-head">
           <div><h2 class="jx-page-title">Kênh</h2>
-          <p class="jx-page-lead">Bot chat với Javis từ điện thoại. Khác trang Kết nối (MCP thao tác hộp thư / Zalo cá nhân).</p></div>
+          <p class="jx-page-lead">Bot chat với VMOS từ điện thoại. Khác trang Kết nối (MCP thao tác hộp thư / Zalo cá nhân).</p></div>
         </header>
         <div class="jx-split-2 ch-split">
           <section class="cview-section jx-pane">
@@ -5705,7 +5922,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <section class="cview-section jx-pane">
             <h3>${Icons.kenh("zalo", { size: "18px" })} Zalo Official</h3>
             <div class="gcard ch-card">
-              <div class="gcard-meta" style="margin-bottom:8px">Bot OA để hỏi Javis. Khác <b>Zalo Agent MCP</b> (trang Kết nối) - cái kia là tài khoản cá nhân của bạn.</div>
+              <div class="gcard-meta" style="margin-bottom:8px">Bot OA để hỏi VMOS. Khác <b>Zalo Agent MCP</b> (trang Kết nối) - cái kia là tài khoản cá nhân của bạn.</div>
               <label class="js-row"><span>Bật bot Zalo</span><input type="checkbox" id="zlEnabled" ${zl.enabled ? "checked" : ""}></label>
               <label class="js-lbl">Bot token ${zl.token_set ? '<span class="dim">(đã đặt)</span>' : ""}</label>
               <input class="js-input" id="zlToken" type="password" placeholder="${zl.token_set ? "Để trống nếu không đổi" : "Token từ Zalo Bot Manager"}">
@@ -5728,7 +5945,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       else if (!d.token_set) line = ic("circle", { cls: "ic-dim" }) + " Chưa có bot token.";
       else if (d.status === "polling") {
         const n = (d.chat_ids || []).length;
-        line = `${ic("circle", { cls: "ic-fill ic-ok" })} Bot đang nhận tin - ${n ? n + " chat ID được phép" : "MỌI NGƯỜI nhắn được (chưa giới hạn ID)"} - nhắn cho bot là Javis trả lời.`;
+        line = `${ic("circle", { cls: "ic-fill ic-ok" })} Bot đang nhận tin - ${n ? n + " chat ID được phép" : "MỌI NGƯỜI nhắn được (chưa giới hạn ID)"} - nhắn cho bot là VMOS trả lời.`;
       }
       else if (d.status === "conflict") line = ic("circle", { cls: "ic-fill ic-err" }) + " 409: " + esc(d.last_error || "token bị poll nơi khác hoặc còn webhook") + " - bot tự xoá webhook khi khởi động; nếu vẫn lỗi thì có nơi khác đang poll cùng token.";
       else if (d.status === "error") line = WARN_ICON + " Lỗi bot: " + esc(d.last_error || "");
@@ -5833,7 +6050,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         <h3>Workspace</h3>
         <div class="gcard">
           <label class="js-lbl">Tên workspace</label>
-          <input class="js-input" id="acWs" value="${esc(s.workspace_name || "Javis OS")}">
+          <input class="js-input" id="acWs" value="${esc(s.workspace_name || "VMOS")}">
           <div class="js-actions"><button class="gcard-btn" id="acWsSave">Lưu</button></div>
           <div class="gcard-meta" id="acWsStatus"></div>
         </div>
@@ -5864,7 +6081,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       <section class="cview-section${auth.has_password ? "" : " cview-span"}">
         <h3>Token API (cho CLI)</h3>
         <div class="gcard">
-          <div class="gcard-meta">Token để <b>Javis CLI</b> (hoặc script) gọi được Javis từ máy khác. Không có token nào sẵn - chưa tạo thì không đường nào vào ngoài trình duyệt.</div>
+          <div class="gcard-meta">Token để <b>VMOS CLI</b> (hoặc script) gọi được VMOS từ máy khác. Không có token nào sẵn - chưa tạo thì không đường nào vào ngoài trình duyệt.</div>
           <label class="js-lbl">Tên token</label>
           <input class="js-input" id="tkName" placeholder="Ví dụ: laptop của bạn">
           <label class="js-lbl">Phạm vi</label>
@@ -5877,7 +6094,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div id="tkNew"></div>
           <div id="tkList" class="tk-list"></div>
           <div class="tk-docs">
-            <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/24-cli-terminal.md" target="_blank" rel="noopener">Hướng dẫn Javis CLI ↗</a>
+            <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/24-cli-terminal.md" target="_blank" rel="noopener">Hướng dẫn VMOS CLI ↗</a>
             <a href="https://github.com/duongcanhquan/javisOS/blob/main/docs/14-bao-mat-tai-khoan.md" target="_blank" rel="noopener">Bảo mật &amp; tài khoản ↗</a>
           </div>
         </div>
@@ -5923,7 +6140,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       wsStatus.textContent = "Đang lưu...";
       const r = await saveSetting("general", { workspace_name: document.getElementById("acWs").value.trim() });
       wsStatus.innerHTML = r.ok ? OK_ICON + " Đã lưu." : WARN_ICON + " Lỗi.";
-      const _ws = document.getElementById("acWs").value.trim() || "Javis";
+      const _ws = document.getElementById("acWs").value.trim() || "VMOS";
       const wn = document.getElementById("workspaceName"); if (wn) wn.textContent = _ws;
       const bt = document.querySelector(".brand-text"); if (bt) bt.textContent = _ws;
       document.title = _ws;
@@ -6035,7 +6252,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         bao("Đã tạo bộ mã khôi phục mới.");
       };
       document.getElementById("tfaOff").onclick = async () => {
-        if (!confirm("Tắt xác thực 2 lớp? Từ đó chỉ còn mật khẩu bảo vệ Javis.")) return;
+        if (!confirm("Tắt xác thực 2 lớp? Từ đó chỉ còn mật khẩu bảo vệ VMOS.")) return;
         const fd = new FormData();
         fd.append("password", document.getElementById("tfaPw").value);
         fd.append("code", document.getElementById("tfaCode").value.trim());
@@ -6050,7 +6267,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     // .env), nên nói rõ ra thay vì để họ tự nhớ mình đã chọn gì mấy phút trước.
     head.innerHTML = a.totp_suggested
       ? ic("shield") + " <b>Bạn đã chọn bật 2 lớp lúc cài.</b> Bấm Bật để quét QR và hoàn tất."
-      : ic("shield") + " Chưa bật. Bật thì mật khẩu lộ ra ngoài cũng chưa đủ để vào được Javis.";
+      : ic("shield") + " Chưa bật. Bật thì mật khẩu lộ ra ngoài cũng chưa đủ để vào được VMOS.";
     body.innerHTML = `<div class="js-actions"><button class="gcard-btn" id="tfaOn">Bật xác thực 2 lớp</button></div>`;
     document.getElementById("tfaOn").onclick = async () => {
       const r = await (await fetch("/auth/2fa/start", { method: "POST" })).json();
@@ -6181,9 +6398,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // ---- Trang Cài đặt: nhúng #quickSet + bộ chọn nhà cung cấp giọng đọc ----
   // Dòng trạng thái 2FA trong khối "Tài khoản đăng nhập" cũ (#quickSet, index.html).
   //
-  // Vì sao cần: Javis có HAI bề mặt cài đặt tài khoản - trang Tài khoản (đủ thứ, gồm cả 2FA)
+  // Vì sao cần: VMOS có HAI bề mặt cài đặt tài khoản - trang Tài khoản (đủ thứ, gồm cả 2FA)
   // và khối cũ này nhúng trong trang Cài đặt (chỉ đổi mật khẩu). Ai mở Cài đặt trước sẽ thấy
-  // một khối tài khoản không nhắc gì tới 2FA và kết luận Javis không có, rồi thôi.
+  // một khối tài khoản không nhắc gì tới 2FA và kết luận VMOS không có, rồi thôi.
   //
   // Đây CHỈ là trạng thái + lối đi. Nút bấm mang data-settings-go="account" nên nó dùng chung
   // đúng đường chuyển trang với mấy nút còn lại, không tự gọi navigateTo.
@@ -6213,7 +6430,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         + (con <= 2 ? ` <b class="tfa-low">(sắp hết)</b>` : "")
         + ` <button class="s-btn-ghost" data-settings-go="account">Quản lý</button>`
       : `${ic("shield")} Xác thực 2 lớp: <b class="tfa-off">chưa bật</b>`
-        + ` - bật thì mật khẩu lộ ra ngoài cũng chưa đủ để vào được Javis.`
+        + ` - bật thì mật khẩu lộ ra ngoài cũng chưa đủ để vào được VMOS.`
         + ` <button class="s-btn" data-settings-go="account">Bật ngay</button>`;
   }
 
@@ -6333,7 +6550,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div class="settings-status-grid">
             <div><span>Engine</span><b>${esc(engine)}</b></div>
             <div><span>Model</span><b>${esc(currentModel)}</b></div>
-            <div><span>Workspace</span><b>${esc(s.workspace_name || "Javis OS")}</b></div>
+            <div><span>Workspace</span><b>${esc(s.workspace_name || "VMOS")}</b></div>
             <div><span>Telegram</span><b>${esc(telegram.enabled ? t("settings.on") : t("settings.off"))}</b></div>
           </div>
           <div class="settings-links">
@@ -6440,7 +6657,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       const selUi = document.getElementById("vpUiLang");
       if (selUi) selUi.onchange = async () => {
         // Đổi NGAY trên máy này trước, rồi mới lưu lên server. Ngôn ngữ giao diện là lựa chọn
-        // THEO THIẾT BỊ (người dùng mở Javis từ nhiều máy), nên trải nghiệm phải tức thì và
+        // THEO THIẾT BỊ (người dùng mở VMOS từ nhiều máy), nên trải nghiệm phải tức thì và
         // không được phụ thuộc vào việc gọi mạng có thành công hay không.
         try { await JavisI18n.setLang(selUi.value); } catch (e) { /* noop */ }
         await saveSetting("locale", { ui_lang: selUi.value });
@@ -6511,7 +6728,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     // Gỡ dấu nguồn gốc AI: hỏi lại một lần khi BẬT (tắt thì cho về thẳng, vì về mặc định
     // an toàn thì không cần cản). Chỉ đổi ảnh tạo MỚI, ảnh cũ giữ nguyên.
     const setC2pa = async (strip) => {
-      if (strip && !confirm("Gỡ dấu nguồn gốc AI khỏi ảnh Javis tạo?\n\n"
+      if (strip && !confirm("Gỡ dấu nguồn gốc AI khỏi ảnh VMOS tạo?\n\n"
           + "Dấu này cho người xem biết ảnh do AI sinh ra. Gỡ đi thì Facebook thường "
           + "không gắn nhãn nữa, nhưng nghĩa vụ công bố nội dung AI vẫn thuộc về bạn "
           + "với tư cách người đăng.\n\nChỉ áp dụng cho ảnh tạo từ giờ trở đi.")) return;
@@ -6564,8 +6781,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       // trang Tổng quan lẫn trang Cài đặt, viết hai bản thì sớm muộn hai bản nói khác nhau.
       // Bản trước trang này bỏ qua hẳn cờ `stale`, nên cùng một máy hỏng mà hai trang nói khác nhau.
       document.getElementById("setAutoMeta").innerHTML = (on
-        ? "Javis tự chạy nền khi bạn đăng nhập Windows; mở <code>localhost:7777</code> để dùng."
-        : "Bật để Javis tự khởi động ở nền mỗi khi mở máy.")
+        ? "VMOS tự chạy nền khi bạn đăng nhập Windows; mở <code>localhost:7777</code> để dùng."
+        : "Bật để VMOS tự khởi động ở nền mỗi khi mở máy.")
         + (j.ly_do ? '<br><span class="dim">' + WARN_ICON + " " + esc(j.ly_do) + "</span>" : "");
       const button = document.getElementById("setAutoToggle");
       button.style.display = ""; button.disabled = false; button.textContent = on ? "Tắt tự khởi động" : "Bật tự khởi động";
@@ -6584,7 +6801,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // Trang TRÒ CHUYỆN - khung chat toàn khung (mượn node chat của cockpit + sidebar lịch sử)
   // Không nhân đôi bộ máy chat: relocate chính #chatArea/#attachBar/#modelBar/#hudVoice
   // (giữ nguyên mọi handler + WebSocket + streaming đã gắn trong app.js) rồi TRẢ về HUD khi
-  // rời trang. Cùng một cuộc trò chuyện hiển thị ở cả màn Javis lẫn tab này.
+  // rời trang. Cùng một cuộc trò chuyện hiển thị ở cả màn VMOS lẫn tab này.
   // ============================================
   const CHAT_NODE_IDS = ["chatArea", "bgStrip", "attachBar", "modelBar", "hudVoice"];
   let _chatSlots = [];        // vị trí gốc từng node để trả về đúng chỗ trong HUD
@@ -6633,7 +6850,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     .cp-min{ display:inline-flex; align-items:center; gap:5px; font-family:var(--font); }
     .chatpage-slot{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:10px; }
     /* Mở file từ tab Thư mục (desktop): trình sửa bên TRÁI, khung chat co thành CỘT PHẢI
-       y như màn Javis - hội thoại ở trên, ô nhập dưới đáy cột (chủ chỉnh 27/08: bản xếp
+       y như màn VMOS - hội thoại ở trên, ô nhập dưới đáy cột (chủ chỉnh 27/08: bản xếp
        chồng dọc trước đó để chat nằm TRÊN trình sửa theo thứ tự DOM, nhìn ngược). Grid
        đặt chỗ theo ô nên thứ tự DOM không còn quyết định vị trí. Màn hẹp giữ lối cũ:
        trình sửa chiếm chỗ (luật display:none nằm trong khối @media 860px bên dưới),
@@ -6652,10 +6869,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     .cedit-thu-btn svg, .cedit-expand svg{ transform:scaleX(-1); }
     @media (min-width:861px){
       /* Bản 0.47.5 nhét CẢ cụm nhập (file chip + thanh model + ô nhập) vào cột phải 340px
-         nên chật cứng - chủ chỉnh lại: y như màn Javis, các thanh đó phải TRẢI DÀI TOÀN BỀ
-         RỘNG dưới cùng (ở màn Javis chúng nằm NGOÀI .hud-body, vắt ngang đáy), chỉ có
+         nên chật cứng - chủ chỉnh lại: y như màn VMOS, các thanh đó phải TRẢI DÀI TOÀN BỀ
+         RỘNG dưới cùng (ở màn VMOS chúng nằm NGOÀI .hud-body, vắt ngang đáy), chỉ có
          HỘI THOẠI đứng cột phải. Slot tan vào lưới bằng display:contents để từng con của
-         nó tự nhận ô grid riêng. Cột hội thoại 476px khớp màn Javis (340×1,4). */
+         nó tự nhận ô grid riêng. Cột hội thoại 476px khớp màn VMOS (340×1,4). */
       .chatpage-main.edit-on{ display:grid; column-gap:14px;
         grid-template-columns:minmax(0,1fr) 476px;
         grid-template-rows:auto minmax(0,1fr) auto auto auto auto; }
@@ -6701,11 +6918,11 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
        cột rộng trông như chữ chú thích. User không bung full để câu ngắn không thành thanh. */
     .chatpage-slot .msg-javis .bubble{ max-width:100%; font-size:15px; }
     .chatpage-slot .msg-user .bubble{ max-width:min(78%, 72ch); font-size:15px; }
-    /* Khung nhập giữ NGUYÊN bộ mặt của thanh nhập ở màn Javis (--bg2 + bo 18px). Trước đây
+    /* Khung nhập giữ NGUYÊN bộ mặt của thanh nhập ở màn VMOS (--bg2 + bo 18px). Trước đây
        gõ cứng rgba(24,24,34,.6) nên tông sáng lòi ra một dải xám đen giữa nền giấy. */
     .chatpage-slot .hud-voice{ background:var(--bg2); border:1px solid var(--border); border-radius:18px; }
     .chatpage-slot .attach-bar{ flex:none; }
-    /* Màn hẹp: cả hàng tiêu đề phải nằm gọn MỘT dòng. Trước đây tiêu đề "Trò chuyện với Javis"
+    /* Màn hẹp: cả hàng tiêu đề phải nằm gọn MỘT dòng. Trước đây tiêu đề "Trò chuyện với VMOS"
        xuống bốn dòng và chữ "Thu nhỏ" xuống hai dòng, đẩy khung chat tụt hẳn xuống - chủ repo
        chụp lại đúng cảnh đó. Nay hàng này nhẹ hẳn: tiêu đề tĩnh và nhãn engine đều đã bỏ, chỉ
        còn hai nút (rút về icon) và chip project ở mép phải (tự cắt, xem style.css). */
@@ -6782,14 +6999,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   }
   // ===== Cho tab "Thư mục" của khung chat MƯỢN chính panel Vault =====
   // Không dựng lại cây thứ hai. Bản đầu của tính năng này viết hẳn một module cây riêng, và
-  // chủ repo chỉ ra ngay: "sao không bê nguyên cái cây y hệt bên Javis sang mà phải dựng lại".
+  // chủ repo chỉ ra ngay: "sao không bê nguyên cái cây y hệt bên VMOS sang mà phải dựng lại".
   // Đúng - cây Vault đã có sẵn tìm theo tên/nội dung, tạo file, tạo thư mục, làm mới, tô sáng
   // file đang mở. Dựng bản thứ hai là chép lại từng đó thứ rồi để hai bản trôi lệch nhau.
   // Mượn node y như cách trang này vẫn mượn #chatArea: cùng một cây, chỉ đổi chỗ đứng.
   // ===== Trình sửa file đứng TRÊN khung chat khi mở file từ tab Thư mục =====
   // Ở màn chính, trình sửa là lớp nổi đè lên visual não - chỗ đó rỗng nên đè là hợp lý. Ở
   // trang Trò chuyện, desktop XẾP CHỒNG: trình sửa trên, khung chat rút gọn ở dưới - chủ
-  // repo đổi ý 27/08 (trước đó muốn ẩn hẳn): vừa sửa file vừa nhắn Javis về file đó.
+  // repo đổi ý 27/08 (trước đó muốn ẩn hẳn): vừa sửa file vừa nhắn VMOS về file đó.
   // Màn hẹp vẫn ẩn hẳn khung chat vì không đủ chỗ. Xem khối CSS .chatpage-main.edit-on.
   // Vẫn MƯỢN chính #noteEditor chứ không dựng trình sửa thứ hai - cùng lý do với cây Vault.
   // `into` = khung sẽ mượn trình sửa. Bỏ trống = khung của trang Trò chuyện (#chatPageEdit).
@@ -6846,10 +7063,31 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   }
   if (typeof window !== "undefined") {
     window.JavisVaultPanel = { borrow: _borrowVaultPanel, giveBack: _returnVaultPanel };
-    // Cửa chuyển trang cho module ngoài (vd nút "Tạo Agent" ở trang Chatbot). Phơi navigateTo
-    // chứ không để module tự đặt store.active: navigateTo còn dọn trang cũ, cất #quickSet và
-    // vẽ lại đồ thị - bỏ qua mấy bước đó là để lại rác của trang trước trên trang sau.
-    window.JavisNav = { go: navigateTo };
+    // Cửa chuyển trang cho module ngoài (vd nút "Tạo Agent" ở trang Chatbot) + lệnh giọng nói
+    // (open_group / sidebar qua ui-actions.js). Phơi navigateTo chứ không để module tự đặt
+    // store.active: navigateTo còn dọn trang cũ, cất #quickSet và vẽ lại đồ thị.
+    window.JavisNav = {
+      go: navigateTo,
+      openGroup: function (gid) {
+        try {
+          const st = (window.Alpine && Alpine.store) ? Alpine.store("nav") : null;
+          if (!st) return false;
+          const g = RAIL_GROUPS.find(function (x) { return x.id === gid; });
+          if (!g) return false;
+          const lab = g.label;
+          st.openGroup = lab;
+          return true;
+        } catch (e) { return false; }
+      },
+      setCollapsed: function (on) {
+        try {
+          const st = (window.Alpine && Alpine.store) ? Alpine.store("nav") : null;
+          if (!st) return;
+          st.collapsed = !!on;
+          try { localStorage.setItem("javis_rail_collapsed", st.collapsed ? "1" : "0"); } catch (e2) {}
+        } catch (e) {}
+      },
+    };
   }
 
   function _returnChatNodes() {
@@ -6885,9 +7123,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
             // Chữ nằm trong <span> để màn hẹp ẩn được, giữ lại icon. Để chữ trần thì không
             // có cách nào ẩn mà không mất luôn cả nút.
             '<button class="cp-ico-btn cp-min" type="button" id="cpMinBtn" ' +
-              'title="Thu nhỏ về màn Javis" aria-label="Thu nhỏ về màn Javis">' +
+              'title="Thu nhỏ về màn VMOS" aria-label="Thu nhỏ về màn VMOS">' +
               ic("chevron-left") + '<span>Thu nhỏ</span></button>' +
-            // Tiêu đề tĩnh "Trò chuyện với Javis" ĐÃ BỎ (chủ repo yêu cầu 01/09). Nó nói
+            // Tiêu đề tĩnh "Trò chuyện với VMOS" ĐÃ BỎ (chủ repo yêu cầu 01/09). Nó nói
             // đúng một điều mà rail đang tô sáng và khung trống đã ghi bằng chữ in nghiêng
             // ngay bên dưới, nên nó chỉ ăn chỗ. Chip project lùi về mép phải, chiếm chỗ đó.
             '<span class="proj-chip-host"></span>' +
@@ -6950,7 +7188,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       em.onclick = () => datEditThu(false);
       slot.appendChild(et); slot.appendChild(em);
     }
-    // Đường VỀ. Nút phóng to ở màn Javis nay dẫn thẳng sang trang này (lớp nổi .chat-stage đã
+    // Đường VỀ. Nút phóng to ở màn VMOS nay dẫn thẳng sang trang này (lớp nổi .chat-stage đã
     // bỏ), nên trang này phải có nút thu nhỏ, nếu không người dùng chỉ còn cách bấm rail.
     el.querySelector("#cpMinBtn").onclick = () => navigateTo("home");
     slot.addEventListener("click", () => { if (isNar() && page.classList.contains("side-open")) page.classList.remove("side-open"); });
@@ -7044,7 +7282,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   let _neDangDiLichSu = false; // cờ: lần openNote này là do bấm Lùi/Tiến, đừng ghi thêm vệt
   const NE_LICH_SU_MAX = 50;   // vệt là để quay lại chỗ vừa đọc, không phải nhật ký cả phiên
   const _vtRaw = (rel, dl) => `/files/raw?brain=${encodeURIComponent(fbrain())}&path=${encodeURIComponent(rel)}${dl ? "&dl=1" : ""}`;
-  // Landing / trang HTML: xem trong khung Javis (có nút đóng). Tab mới đi qua
+  // Landing / trang HTML: xem trong khung VMOS (có nút đóng). Tab mới đi qua
   // /files/html-view chứ không phải /files/raw — raw là trang thuần, không có chrome,
   // và trên PWA/iOS standalone window.open thường thay chính cửa sổ app.
   const _laHtml = (rel) => {
@@ -7303,7 +7541,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     try { resp = await fetch(`/files/search?brain=${encodeURIComponent(fbrain())}&q=${encodeURIComponent(q)}&limit=60`); d = await resp.json().catch(() => ({})); }
     catch (e) { resp = null; }
     if (!resp || resp.status === 404) {
-      box.innerHTML = `<div class="vr-empty">Tìm theo <b>nội dung</b> cần khởi động lại Javis một lần (chạy start-javis.bat) để bật. Tạm thời hãy tìm theo <b>Tên</b>.</div>`;
+      box.innerHTML = `<div class="vr-empty">Tìm theo <b>nội dung</b> cần khởi động lại VMOS một lần (chạy start-javis.bat) để bật. Tạm thời hãy tìm theo <b>Tên</b>.</div>`;
       return;
     }
     if (!resp.ok) { box.innerHTML = `<div class="vr-empty">Lỗi tìm kiếm (${resp.status}).</div>`; return; }
@@ -7498,7 +7736,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (!confirm(`Xoá "${name}"? Không hoàn tác được.`)) return;
     const fd = new FormData(); fd.append("brain", fbrain()); fd.append("path", rel);
     try { await fetch("/files/delete", { method: "POST", body: fd }); } catch (e) {}
-    // Ghim trỏ tới file vừa xoá thì bỏ, đừng để Javis đi mở một đường dẫn không còn tồn tại.
+    // Ghim trỏ tới file vừa xoá thì bỏ, đừng để VMOS đi mở một đường dẫn không còn tồn tại.
     try {
       const p = window.JavisPin && window.JavisPin.get();
       if (p && p.rel === rel) window.JavisPin.clear();
@@ -7522,14 +7760,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const dong = mk(X_ICON, "Đóng (Esc)", closeNote);
     if (_laHtml(rel)) {
       dong.className = (dong.className ? dong.className + " " : "") + "ne-back";
-      dong.innerHTML = "← Về Javis";
-      dong.title = "Đóng và về Javis (Esc)";
+      dong.innerHTML = "← Về VMOS";
+      dong.title = "Đóng và về VMOS (Esc)";
     }
     actions.appendChild(dong);
   }
   // .html/.htm: mặc định XEM TRANG (iframe /files/raw) chứ không phải mã nguồn.
   // Skill landing-page giao [Mở landing](...) — người dùng muốn thấy trang chạy,
-  // rồi mới sửa mã. Thanh Javis luôn còn, nút Về Javis/Esc không bị landing che.
+  // rồi mới sửa mã. Thanh VMOS luôn còn, nút Về VMOS/Esc không bị landing che.
   function _neRenderHtmlPage(body, actions, rel, it, content) {
     body.className = "ne-body ne-html mode-preview";
     body.innerHTML = `<iframe class="ne-frame" src="${_vtRaw(rel)}" title="${esc(it.name || "landing")}"></iframe>`
@@ -7798,7 +8036,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // Nội dung có khác lúc vừa mở không. So với BẢN ĐÃ VÒNG QUA markdown lúc mở, không phải
   // chữ thô đọc từ đĩa: bản render WYSIWYG đổi lại thành markdown luôn lệch đôi chỗ so với
   // file gốc (turndown chuẩn hoá dấu, xuống dòng). So với file gốc thì mỗi lần chỉ ĐỌC rồi
-  // rời đi cũng bị tính là có sửa, và Javis sẽ âm thầm ghi đè định dạng của file đó.
+  // rời đi cũng bị tính là có sửa, và VMOS sẽ âm thầm ghi đè định dạng của file đó.
   function _neCoSuaChua() {
     if (!_neSaveFn || !_neLayNoiDung || _neGocText == null) return false;
     try { return _neLayNoiDung() !== _neGocText; } catch (e) { return false; }
@@ -8050,7 +8288,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // của server rồi nối thêm hướng dẫn, ra một chuỗi dài hơn cả thanh trạng thái nên bị cắt
   // cụt, và nó còn chỉ sai chỗ ("mở terminal gõ /login") vì giờ kết nối ở trang Models.
   // Người dùng cũng không cần biết "bộ não claude" là gì: với họ chỉ có một sự thật là chưa
-  // dùng được Javis, và một việc phải làm là vào Models.
+  // dùng được VMOS, và một việc phải làm là vào Models.
   async function refreshEngineBanner() {
     const b = document.getElementById("engineBanner");
     if (!b) return;
@@ -8067,7 +8305,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     // không đáng chiếm chỗ trên thanh trạng thái.
     const [name, rec] = dead[0];
     b.title = `Chưa dùng được: ${name} - ${rec.message || "không phản hồi"}. `
-      + "Vào trang Models để kết nối và sử dụng Javis.";
+      + "Vào trang Models để kết nối và sử dụng VMOS.";
     b.hidden = false;
   }
 
@@ -8116,16 +8354,22 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const st = document.getElementById("studio");
     if (st) new MutationObserver(recomputeGraph).observe(st, { attributes: true, attributeFilter: ["class"] });
     // Màn hình co/giãn qua ngưỡng mobile → tính lại (chỉ tắt/bật graph, KHÔNG tự nhảy trang:
-    // đang đứng ở màn Javis mà tự bị đẩy sang Trò chuyện là mất chỗ đang xem)
+    // đang đứng ở màn VMOS mà tự bị đẩy sang Trò chuyện là mất chỗ đang xem)
     window.matchMedia("(max-width: 860px)").addEventListener("change", recomputeGraph);
     // Đổi brain (Select Brain) → nạp lại trang quản lý đang xem theo brain mới (không cần F5)
     const gs = document.getElementById("graphSource");
     if (gs) gs.addEventListener("change", () => {
       const active = Alpine.store("nav").active;
-      if (active !== "home") renderPage(active);
+      if (active !== "home") {
+        // Rời trang cũ trước (đóng SSE / gỡ cview-flush) — nếu chỉ renderPage thì
+        // cloneNode bỏ node cũ mà _pageLeave/_bgLeave không chạy → EventSource mồ côi.
+        const leave = _pageLeave; _pageLeave = null;
+        if (leave) { try { leave(); } catch (e) {} }
+        renderPage(active);
+      }
       // Cây vault ở cột trái sống ngoài hệ cview → tự làm mới theo brain mới
       _vtCache.clear(); _vtIndex = null; _vtActivePath = null; renderVaultTree();
-      // Ghim của brain cũ trỏ ra ngoài brain mới → bỏ, kẻo Javis sửa nhầm file brain khác.
+      // Ghim của brain cũ trỏ ra ngoài brain mới → bỏ, kẻo VMOS sửa nhầm file brain khác.
       try { if (window.JavisPin) window.JavisPin.clear(); } catch (e) {}
       // Vệt đường đi cũng thuộc brain cũ: mọi bước trong đó trỏ vào file của brain kia.
       _neLichSu = []; _neViTri = -1; _neVeNutLui();
@@ -8158,7 +8402,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         }
       } catch (e) { /* thiếu ô thì rail vẫn sống */ }
       graphEnabled = !(s.dashboard && s.dashboard.graph_enabled === false);
-      // MỞ APP LÀ VÀO MÀN JAVIS, kể cả lite-mode (cờ graph tắt hoặc màn hẹp): màn Javis đã có
+      // MỞ APP LÀ VÀO MÀN VMOS, kể cả lite-mode (cờ graph tắt hoặc màn hẹp): màn VMOS đã có
       // sẵn ô chat, chỉ khác là không vẽ khoang não. Bản trước tự đẩy sang trang Trò chuyện,
       // hoá ra rối hơn - mỗi lần tải lại là mỗi lần rơi vào một trang khác.
       recomputeGraph();

@@ -1,5 +1,5 @@
 /* Trang Khóa API: dán khóa dịch vụ (Atlas, Kling, Tavily, ElevenLabs...) và khóa tự thêm.
- * Javis nhớ trong settings (mã hoá) rồi bơm vào env cho skill. Không phải trang Models.
+ * VMOS nhớ trong settings (mã hoá) rồi bơm vào env cho skill. Không phải trang Models.
  *
  * File riêng: console.js đã dày. Test: node tests/js/test_tool_apis.js
  * Ghi chu: KHONG dung ky tu em dash. */

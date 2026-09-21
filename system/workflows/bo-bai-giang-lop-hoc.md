@@ -3,7 +3,7 @@ type: workflow
 name: Bài giảng → Lớp học
 slug: bo-bai-giang-lop-hoc
 status: active
-group: Nội dung
+group: Giáo dục
 description: Nghiên cứu → thiết kế lớp học tương tác (cảnh/quiz/script) → kiểm chứng.
 steps:
 - agent: bg-nghien-cuu

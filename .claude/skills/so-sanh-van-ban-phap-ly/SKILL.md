@@ -2,7 +2,7 @@
 name: so-sanh-van-ban-phap-ly
 description: "So sánh / đối chiếu hai (hoặc nhiều) văn bản pháp lý đã có trong wiki hoặc sources/phap-che: bảng theo Điều, điểm giống/khác, xung đột."
 description_en: "Compare legal instruments already in wiki or sources/phap-che: article matrix, overlaps, conflicts."
-group: AI
+group: Pháp chế
 ---
 
 # So sánh văn bản pháp lý

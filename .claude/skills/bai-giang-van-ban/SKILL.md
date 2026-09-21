@@ -2,7 +2,7 @@
 name: Bài giảng văn bản minh họa
 description: "Bài đọc dài hấp dẫn kèm ảnh/biểu đồ: cấu trúc, ví dụ, chart text, prompt ảnh."
 description_en: "Long illustrated reading with images/charts: structure, examples, text charts, image prompts."
-group: Nội dung
+group: Giáo dục
 ---
 
 # Bài giảng văn bản + ảnh & biểu đồ

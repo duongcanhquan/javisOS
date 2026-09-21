@@ -2,7 +2,7 @@
 name: Brainstorming & thiết kế hệ thống
 description: "Brainstorm & thiết kế hệ thống: Spike/Bounded/Architectural; hard-gate duyệt trước code; spec rồi writing-plans."
 description_en: "Brainstorm into system design: Spike/Bounded/Architectural; hard-gate before code; then writing-plans."
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # Brainstorming & Thiết kế Hệ thống (Từ ý tưởng đến bản thiết kế)

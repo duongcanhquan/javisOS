@@ -7,7 +7,7 @@
        dưới); ở tab Safari thường iOS 10+ vẫn cho zoom bằng tay vì lý do accessibility, nên còn
        chặn thêm bằng touch-action trong style.css làm lớp thứ hai. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Javis OS</title>
+  <title>VMOS</title>
   <!-- Favicon + apple-touch + PWA icons đều theo ảnh đại diện (/brand-icon vuông PNG). -->
   <link rel="icon" type="image/png" sizes="192x192" href="/brand-icon/192?v=8" id="brandFavicon">
   <link rel="apple-touch-icon" href="/brand-icon/192?v=8" id="brandAppleTouch">
@@ -19,7 +19,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Javis OS">
+  <meta name="apple-mobile-web-app-title" content="VMOS">
   <meta name="theme-color" content="#0e0e16">
   <!-- Manifest ĐỘNG (/manifest.webmanifest): icon URL kèm logo_v để Chrome không giữ
        avatar cũ trên nút «Mở trong ứng dụng». File static/manifest.json chỉ còn fallback. -->
@@ -30,10 +30,10 @@
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
   <link rel="stylesheet" href="/static/style.css?v=97">
   <link rel="stylesheet" href="/static/console.css?v=64">
-  <link rel="stylesheet" href="/static/workbench.css?v=6">
+  <link rel="stylesheet" href="/static/workbench.css?v=7">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng/neon.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
-  <script>(function(){try{var t=localStorage.getItem('javis.theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='neon'||t==='cyber'||t==='cyberpunk')document.documentElement.setAttribute('data-theme','neon');}catch(e){}})();</script>
+  <script>(function(){try{var t=localStorage.getItem('vmos.theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='neon'||t==='cyber'||t==='cyberpunk')document.documentElement.setAttribute('data-theme','neon');}catch(e){}})();</script>
 </head>
 <body>
   <div class="hud">
@@ -48,7 +48,7 @@
       </button>
       <!-- NHÓM TRÁI: thương hiệu + chọn brain + số liệu (bám trái) -->
       <div class="hud-top-left">
-        <div class="brand"><span class="brand-icon"><img src="/brand-logo" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;object-fit:cover"></span> <span class="brand-text">JAVIS OS</span></div>
+        <div class="brand"><span class="brand-icon"><img src="/brand-logo" alt="" style="width:22px;height:22px;border-radius:5px;vertical-align:middle;object-fit:cover"></span> <span class="brand-text">VMOS</span></div>
         <!-- Select Brain: dời từ góc graph lên navbar -->
         <div class="orb-graph-ctl navbar-brain">
           <i data-ic="brain" class="brain-select-ico" data-ic-title="Bộ não đang chọn" data-i18n-title="top.brain_current"></i>
@@ -79,12 +79,12 @@
           <span class="notification-trigger-label" data-i18n="noti.label">Thông báo</span>
           <span class="notification-badge" id="notificationBadge" hidden>0</span>
         </button>
-        <!-- Cài Javis như app riêng (PWA). Ẩn mặc định: app.js chỉ hiện khi trình duyệt
+        <!-- Cài VMOS như app riêng (PWA). Ẩn mặc định: app.js chỉ hiện khi trình duyệt
              bắn beforeinstallprompt (Chrome/Edge desktop + Android) và chưa chạy standalone.
              Safari/iOS không có event này - bên đó vẫn là Share → Thêm vào MH chính. -->
         <button class="install-app-btn" id="installAppBtn" type="button" hidden
-                title="Cài Javis thành app riêng - mở từ Desktop/Dock, không lẫn giữa các tab" data-i18n-title="top.install_title"
-                aria-label="Cài Javis thành app riêng" data-i18n-aria="top.install">
+                title="Cài VMOS thành app riêng - mở từ Desktop/Dock, không lẫn giữa các tab" data-i18n-title="top.install_title"
+                aria-label="Cài VMOS thành app riêng" data-i18n-aria="top.install">
           <img class="install-app-icon" id="installAppIcon" src="/brand-icon/192" width="18" height="18" alt="" aria-hidden="true">
           <span class="install-app-label" data-i18n="top.install_label">Mở như app</span>
         </button>
@@ -158,7 +158,7 @@
       <div class="noti-head">
         <div>
           <div class="noti-title" data-i18n="noti.label">Thông báo</div>
-          <div class="noti-sub" id="notificationSummary" data-i18n="noti.summary">Cập nhật mới và tin từ Javis OS</div>
+          <div class="noti-sub" id="notificationSummary" data-i18n="noti.summary">Cập nhật mới và tin từ VMOS</div>
         </div>
         <div class="noti-head-actions">
           <button class="noti-text-btn" id="notificationReadAll" type="button" data-i18n="noti.read_all">Đọc tất cả</button>
@@ -183,7 +183,7 @@
       <div class="noti-push" id="notificationPush" hidden>
         <div class="noti-push-main">
           <span class="noti-push-title" data-i18n="noti.push">Thông báo đẩy</span>
-          <span class="noti-push-note" id="notificationPushNote" data-i18n="noti.push_note">Báo cả khi bạn không mở Javis</span>
+          <span class="noti-push-note" id="notificationPushNote" data-i18n="noti.push_note">Báo cả khi bạn không mở VMOS</span>
         </div>
         <button class="noti-text-btn" id="notificationPushTest" type="button" hidden data-i18n="noti.push_test">Gửi thử</button>
         <button class="noti-text-btn primary" id="notificationPushToggle" type="button" data-i18n="noti.push_on">Bật</button>
@@ -420,9 +420,9 @@
 
             <div class="qs-block">
               <div class="popover-label" data-i18n="qs.domain">TÊN MIỀN & SSL</div>
-              <div class="opt-sub dom-intro" data-i18n="qs.domain_intro">Nhập tên miền để Javis kiểm tra DNS và hướng dẫn bật HTTPS theo đúng môi trường đang chạy.</div>
+              <div class="opt-sub dom-intro" data-i18n="qs.domain_intro">Nhập tên miền để VMOS kiểm tra DNS và hướng dẫn bật HTTPS theo đúng môi trường đang chạy.</div>
               <div class="dom-field">
-                <input id="setDomain" placeholder="Ví dụ: javis.tencuaban.com" data-i18n-ph="qs.domain_ph" autocomplete="off" spellcheck="false">
+                <input id="setDomain" placeholder="Ví dụ: vmos.tencuaban.com" data-i18n-ph="qs.domain_ph" autocomplete="off" spellcheck="false">
                 <button class="s-btn" id="saveDomain" data-i18n="qs.domain_save">Lưu &amp; kiểm tra</button>
               </div>
               <div class="dom-status" id="domStatusRow" style="display:none">
@@ -468,7 +468,7 @@
       <!-- 0.49.3: dải này BỎ hai đèn "HỆ THỐNG" (Claude Code CLI / Voice) - chúng gần như
            luôn xanh nên không nói thêm được gì, mà trạng thái thật đã có chỗ tử tế hơn:
            banner đỏ trên navbar khi mất model, trang Kết nối cho MCP. Chỗ trống dành cho
-           thứ THAY ĐỔI theo từng lượt: BA tool Javis vừa gọi, mới nhất đứng đầu. -->
+           thứ THAY ĐỔI theo từng lượt: BA tool VMOS vừa gọi, mới nhất đứng đầu. -->
       <div class="sysbar" id="sysBar">
         <span class="sysbar-label" data-i18n="mb.recent">VỪA GỌI</span>
         <div id="mcpList" class="mcp-list"><div class="mcp-item dim" data-i18n="mb.no_tools">Chưa gọi tool nào</div></div>
@@ -489,7 +489,7 @@
         </svg>
       </button>
       <input type="file" id="fileInput" multiple style="display:none">
-      <textarea id="chatInput" class="voice-input" placeholder="Nói với Javis, gõ ở đây, hoặc kéo/dán file vào..." data-i18n-ph="bar.input_ph" rows="1"></textarea>
+      <textarea id="chatInput" class="voice-input" placeholder="Nói với VMOS, gõ ở đây, hoặc kéo/dán file vào..." data-i18n-ph="bar.input_ph" rows="1"></textarea>
       <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" data-i18n-title="bar.stop" style="display:none">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
       </button>
@@ -507,7 +507,7 @@
        x-effect="document.body.classList.toggle('rail-collapsed', $store.nav.collapsed)">
     <!-- ĐỈNH cố định -->
     <div class="rail-top">
-      <div class="rail-brand"><img src="/brand-logo" alt="Javis" style="width:30px;height:30px;border-radius:8px;display:block;object-fit:cover"></div>
+      <div class="rail-brand"><img src="/brand-logo" alt="VMOS" style="width:30px;height:30px;border-radius:8px;display:block;object-fit:cover"></div>
     </div>
     <!-- GIỮA cuộn được - gom theo nhóm; nhóm foot (Hệ thống) tự ghim xuống đáy -->
     <div class="rail-nav">
@@ -588,7 +588,7 @@
   <!-- Vault structure banner -->
   <div class="vault-banner" id="vaultBanner">
     <i class="vb-icon" data-ic="triangle-alert"></i>
-    <span class="vb-text" id="vbText" data-i18n="vbanner.text">Cấu trúc vault chưa chuẩn cho Javis.</span>
+    <span class="vb-text" id="vbText" data-i18n="vbanner.text">Cấu trúc vault chưa chuẩn cho VMOS.</span>
     <button class="vb-init" id="vbInit" data-i18n="vbanner.init">Khởi tạo cấu trúc</button>
     <button class="vb-close" id="vbClose"><i data-ic="x"></i></button>
   </div>
@@ -617,7 +617,7 @@
   <!-- Bộ cài đặt lần đầu (hiện khi chưa setup_done) -->
   <div class="modal-overlay" id="setupWizard">
     <div class="settings-modal" style="max-width:460px">
-      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span data-i18n="wz.welcome">Chào mừng tới Javis</span></div>
+      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span data-i18n="wz.welcome">Chào mừng tới VMOS</span></div>
       <div class="settings-body">
         <style>
         .wz-prov{display:flex;flex-direction:column;gap:8px;margin-top:6px}
@@ -634,7 +634,7 @@
         <div class="set-note"><span data-i18n="wz.intro">Vài bước nhanh để bắt đầu. Mọi thứ đổi lại được sau trong</span> <i data-ic="settings"></i> <span data-i18n="page.settings.label">Cài đặt</span>.</div>
         <div class="set-sec">
           <h4 data-i18n="wz.s1">1. Workspace</h4>
-          <label data-i18n="wz.ws_name">Tên hiển thị</label><input id="wzWsName" placeholder="Javis OS">
+          <label data-i18n="wz.ws_name">Tên hiển thị</label><input id="wzWsName" placeholder="VMOS">
         </div>
         <div class="set-sec">
           <h4><span data-i18n="wz.s2">2. Tài khoản admin</span> <span class="dim" data-i18n="wz.s2_rec">(khuyến nghị)</span></h4>
@@ -645,7 +645,7 @@
             <label><span data-i18n="wz.token">Mã thiết lập</span> <span class="dim" data-i18n="wz.token_sec">(bảo mật)</span></label>
             <input id="wzToken" placeholder="Dán MÃ THIẾT LẬP từ log server" data-i18n-ph="wz.token_ph">
             <div class="wz-tokhelp">
-              <b><i data-ic="circle-help"></i> <span data-i18n="wz.tok_q">Mã thiết lập là gì?</span></b> <span data-i18n="wz.tok_a">Javis đang chạy trên server công khai. Để chắc chính bạn (không phải người lạ vô tình mở link) là người tạo tài khoản admin, bạn dán một mã chỉ in ra log server - nơi duy nhất chủ máy xem được.</span>
+              <b><i data-ic="circle-help"></i> <span data-i18n="wz.tok_q">Mã thiết lập là gì?</span></b> <span data-i18n="wz.tok_a">VMOS đang chạy trên server công khai. Để chắc chính bạn (không phải người lạ vô tình mở link) là người tạo tài khoản admin, bạn dán một mã chỉ in ra log server - nơi duy nhất chủ máy xem được.</span>
               <br><b data-i18n="wz.tok_how">Cách lấy mã (Hostinger → App terminal):</b>
               <ol>
                 <li data-i18n="wz.tok_s1">Mở app → bấm App terminal (bạn sẽ vào BÊN TRONG container javis).</li>
@@ -669,12 +669,12 @@
             <label class="wz-card" data-prov="openai-oauth">
               <input type="radio" name="wzprov" value="openai-oauth">
               <div><b><i data-ic="message-circle"></i> <span data-i18n="wz.prov_gpt_name">ChatGPT (gói subscription)</span></b>
-                <div class="wz-pdesc" data-i18n="wz.prov_gpt">Đăng nhập ChatGPT Plus/Pro (qua Codex) → vẫn dùng được MCP của Javis. Hợp nếu bạn đã có gói ChatGPT.</div></div>
+                <div class="wz-pdesc" data-i18n="wz.prov_gpt">Đăng nhập ChatGPT Plus/Pro (qua Codex) → vẫn dùng được MCP của VMOS. Hợp nếu bạn đã có gói ChatGPT.</div></div>
             </label>
             <label class="wz-card" data-prov="openrouter">
               <input type="radio" name="wzprov" value="openrouter">
               <div><b><i data-ic="globe"></i> OpenRouter</b>
-                <div class="wz-pdesc" data-i18n="wz.prov_or">Nhiều model giá rẻ một chỗ, vẫn đủ MCP Javis + skill + đọc/ghi file brain. Chỉ cần API key - không cần đăng nhập.</div></div>
+                <div class="wz-pdesc" data-i18n="wz.prov_or">Nhiều model giá rẻ một chỗ, vẫn đủ MCP VMOS + skill + đọc/ghi file brain. Chỉ cần API key - không cần đăng nhập.</div></div>
             </label>
           </div>
           <div id="wzOrKey" style="display:none">
@@ -683,7 +683,7 @@
           </div>
           <div id="wzProvHint"></div>
         </div>
-        <div class="set-actions"><button class="s-btn" id="wzFinish" data-i18n="wz.start">Bắt đầu dùng Javis →</button></div>
+        <div class="set-actions"><button class="s-btn" id="wzFinish" data-i18n="wz.start">Bắt đầu dùng VMOS →</button></div>
         <div class="auth-err" id="wzErr"></div>
       </div>
     </div>
@@ -692,7 +692,7 @@
   <!-- Đăng nhập (chỉ hiện khi admin đã đặt mật khẩu & chưa đăng nhập) -->
   <div class="modal-overlay" id="authOverlay">
     <div class="folder-modal auth-modal">
-      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span id="authTitle" data-i18n="auth.title">Đăng nhập Javis</span></div>
+      <div class="fm-head"><img src="/brand-logo" alt="" style="width:24px;height:24px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"><span id="authTitle" data-i18n="auth.title">Đăng nhập VMOS</span></div>
       <div class="auth-body">
         <input id="authUser" placeholder="Tài khoản" data-i18n-ph="common.account" autocomplete="username">
         <input id="authPass" type="password" placeholder="Mật khẩu" data-i18n-ph="common.password" autocomplete="current-password">
@@ -710,7 +710,7 @@
         <div class="auth-help"><span id="authForgot" data-i18n="auth.forgot">Quên mật khẩu?</span></div>
         <div class="auth-reset" id="authResetInfo" style="display:none">
           <span data-i18n="auth.reset1">Mở file</span> <code>server/settings.json</code><span data-i18n="auth.reset2">, xóa khối</span> <code>"auth"</code> <span data-i18n="auth.reset3">(hoặc đặt rỗng), rồi chạy</span>
-          <code>stop-javis.bat</code> → <code>start-javis.vbs</code>. <span data-i18n="auth.reset4">Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.</span>
+          <code>stop-vmos.bat</code> → <code>start-vmos.vbs</code>. <span data-i18n="auth.reset4">Mở lại sẽ về bộ cài đặt để tạo tài khoản mới.</span>
         </div>
       </div>
     </div>
@@ -719,7 +719,7 @@
   <!-- Cài đặt -->
   <div class="modal-overlay" id="settingsOverlay">
     <div class="settings-modal">
-      <div class="fm-head"><span><i data-ic="settings"></i> <span data-i18n="setm.title">Cài đặt Javis</span></span><button class="fm-close" id="settingsClose"><i data-ic="x"></i></button></div>
+      <div class="fm-head"><span><i data-ic="settings"></i> <span data-i18n="setm.title">Cài đặt VMOS</span></span><button class="fm-close" id="settingsClose"><i data-ic="x"></i></button></div>
       <div class="settings-body">
         <div class="set-sec">
           <h4 data-i18n="setm.general">Chung</h4>
@@ -730,8 +730,8 @@
           <h4>Model</h4>
           <label data-i18n="setm.engine">Engine xử lý chat</label>
           <select id="setEngine">
-            <option value="cli" data-i18n="setm.engine_cli">Claude Code CLI - MCP Javis + skill + loop + lệnh máy</option>
-            <option value="openrouter" data-i18n="setm.engine_or">OpenRouter - MCP Javis + skill + loop (không lệnh máy)</option>
+            <option value="cli" data-i18n="setm.engine_cli">Claude Code CLI - MCP VMOS + skill + loop + lệnh máy</option>
+            <option value="openrouter" data-i18n="setm.engine_or">OpenRouter - MCP VMOS + skill + loop (không lệnh máy)</option>
           </select>
           <label data-i18n="setm.claude_model">Model Claude (khi dùng CLI)</label>
           <!-- Danh sách nạp động từ /provider/models (app.js: loadClaudeModels). Mấy option
@@ -756,7 +756,7 @@
           <label><span data-i18n="setm.tg_chat">Chat ID được phép dùng</span> <span class="dim" data-i18n="setm.tg_chat_dim">(nhiều ID cách nhau dấu phẩy)</span></label>
           <input id="setTgChat" placeholder="Ví dụ: 123456789, 987654321" data-i18n-ph="setm.tg_chat_ph">
           <div class="set-note" id="setTgStatus">-</div>
-          <div class="set-note" data-i18n="setm.tg_note">Nhắn Telegram ↔ Javis. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
+          <div class="set-note" data-i18n="setm.tg_note">Nhắn Telegram ↔ VMOS. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.</div>
           <div class="set-actions">
             <button class="s-btn" id="saveTelegram" data-i18n="setm.tg_save">Lưu & bật</button>
             <button class="s-btn-ghost" id="testTelegram" data-i18n="setm.tg_test">Gửi test</button>
@@ -776,7 +776,7 @@
             <button class="s-btn-ghost" id="logoutBtn" data-i18n="setm.logout">Đăng xuất</button>
             <button class="s-btn-ghost" id="disableAuthBtn" data-i18n="setm.auth_off">Tắt đăng nhập</button>
           </div>
-          <div class="set-note" data-i18n="setm.auth_note">Đặt mật khẩu để chặn người lạ khi đưa Javis lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
+          <div class="set-note" data-i18n="setm.auth_note">Đặt mật khẩu để chặn người lạ khi đưa VMOS lên VPS. Lưu ý: trên VPS nên chạy sau HTTPS (reverse proxy).</div>
           <!-- Xác thực 2 lớp: CỐ Ý chỉ là dòng trạng thái + lối đi, không phải luồng bật đầy đủ.
                Màn quét QR nằm ở trang Tài khoản. Bê nguyên luồng đó sang đây là có hai bản sao
                của một tính năng bảo mật, và chỗ nào quên sửa thì chỗ đó thành lỗ.
@@ -810,7 +810,10 @@
   <script src="/static/theme.js?v=4"></script>
   <script src="/static/starfield.js?v=2"></script>
   <script src="/static/brain-waves.js?v=5"></script>
-  <script src="/static/voice.js?v=24"></script>
+  <script src="/static/voice.js?v=25"></script>
+  <script src="/static/voice-turn.js?v=1"></script>
+  <script src="/static/voice-chunker.js?v=1"></script>
+  <script src="/static/voice-live.js?v=2"></script>
   <script src="/static/graph.js?v=22"></script>
   <script src="/static/chat-render.js?v=15"></script>
   <script src="/static/code-hl.js?v=1"></script>
@@ -819,7 +822,9 @@
   <!-- Bảng lệnh của trình soạn .md (nút thanh công cụ + phím tắt + menu "/"). PHẢI đứng
        trước console.js: _neBuildToolbar đọc window.JavisEditorCmds để vẽ nút. -->
   <script src="/static/editor-cmds.js?v=1"></script>
-  <script src="/static/file-editor.js?v=9"></script>
+  <script src="/static/file-editor.js?v=11"></script>
+  <script src="/static/ui-actions.js?v=1"></script>
+  <script src="/static/ui-context.js?v=1"></script>
   <script src="/static/chat-ask.js?v=1"></script>
   <script src="/static/limit-resume.js?v=1"></script>
   <script src="/static/chat-slash.js?v=1"></script>
@@ -837,23 +842,16 @@
   <script src="/static/sessions-ui.js?v=17"></script>
   <script src="/static/studio.js?v=36"></script>
   <script src="/static/packs.js?v=2"></script>
-  <script src="/static/guides.js?v=1"></script>
-  <script src="/static/tool-apis.js?v=2"></script>
-  <script src="/static/chatbots.js?v=10"></script>
-  <!-- Dashboard Token (trang Mức dùng nâng cấp): nạp TRƯỚC console.js để renderUsage ủy quyền được. -->
-  <script src="/static/usage.js?v=2"></script>
+  <script src="/static/conversations.js?v=4"></script>
+  <!-- guides / tool-apis / chatbots / workspace / usage: lazy PAGE_LAZY trong console.js -->
   <!-- Trang Code (terminal): nạp TRƯỚC console.js để renderCode ủy quyền được. File này CHỈ có
        phần khung - xterm.js (285KB) nạp lười ở lần đầu mở tab, không nằm trong đường khởi động. -->
   <script src="/static/code-term.js?v=3"></script>
-  <!-- Trang Cuộc họp (Moonshine / Web Speech / Cloud STT Gemini): nạp TRƯỚC console.js. -->
-  <script src="/static/meetings.js?v=45"></script>
-  <script src="/static/baigiang.js?v=8"></script>
-  <script src="/static/video.js?v=4"></script>
-  <script src="/static/drive-projects.js?v=4"></script>
-  <script src="/static/marketing.js?v=5"></script>
-  <script src="/static/org.js?v=6"></script>
+  <!-- Trang ít dùng: lazy-load trong console.js (PAGE_LAZY) lần đầu mở tab.
+       workbench.css vẫn nạp sớm. packs.js vẫn eager (Kết nối gọi moKho/goApp). -->
+  <script type="application/json" id="javis-page-lazy">["meetings.js","baigiang.js","video.js","marketing.js","org.js","drive-projects.js","guides.js","tool-apis.js","usage.js","workspace.js","chatbots.js"]</script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=157"></script>
+  <script src="/static/console.js?v=160"></script>
   <script src="/static/mobile-chat.js?v=9"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>

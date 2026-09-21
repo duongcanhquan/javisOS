@@ -35,6 +35,24 @@ class ChatRuntime:
     def remove_client(self, client_id: str) -> None:
         self._clients.pop(client_id, None)
 
+    def active_count(self) -> int:
+        n = 0
+        for session_id in list(self._jobs):
+            if self.get_job(session_id):
+                n += 1
+        return n
+
+    def at_capacity(self, max_jobs: int | None = None) -> bool:
+        """True nếu đã đủ số job chat đồng thời (trần toàn process)."""
+        import os
+        if max_jobs is None:
+            try:
+                max_jobs = int(os.getenv("JAVIS_CHAT_MAX_CONCURRENT") or "8")
+            except (TypeError, ValueError):
+                max_jobs = 8
+        max_jobs = max(1, min(64, int(max_jobs)))
+        return self.active_count() >= max_jobs
+
     def register_job(self, session_id: str, task: asyncio.Task, tag: str,
                      runtime_task_id: str = "", runtime_step_id: str = "") -> None:
         self._jobs[session_id] = ChatJob(

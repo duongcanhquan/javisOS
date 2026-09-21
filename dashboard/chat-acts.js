@@ -1,7 +1,7 @@
-/* chat-acts.js - hang nut duoi moi tin nhan trong khung chat Javis.
+/* chat-acts.js - hang nut duoi moi tin nhan trong khung chat VMOS.
 
    Moi bong bong co mot hang nho ben duoi. Tin cua NGUOI DUNG: gio gui, gui lai, sua lai,
-   sao chep. Tin cua JAVIS: chi gio gui + sao chep. Hang nay AN san (opacity 0), chi hien khi
+   sao chep. Tin cua VMOS: chi gio gui + sao chep. Hang nay AN san (opacity 0), chi hien khi
    hover tren may tinh hoac khi cham vao tin tren dien thoai (.acts-on).
 
    File nay chi giu phan THUAN (khong dung tai lieu DOM that) de test bang node:
@@ -51,9 +51,9 @@
 
   // role: "user" | "javis".
   //
-  // Tin cua JAVIS chi con gio + sao chep. Nut "Tra loi lai cau hoi phia tren" da BO
+  // Tin cua VMOS chi con gio + sao chep. Nut "Tra loi lai cau hoi phia tren" da BO
   // (chu repo yeu cau 01/09): no nam ngay canh nut sao chep, ma sao chep la thao tac
-  // hay dung nhat duoi mot cau tra loi - bam truot mot ly la Javis chay lai ca luot,
+  // hay dung nhat duoi mot cau tra loi - bam truot mot ly la VMOS chay lai ca luot,
   // ton tien va de mat cau tra loi dang doc. Ai muon hoi lai thi go lai cau hoi, hoac
   // bam "Gui lai cau nay" ngay tren bong bong cau hoi cua chinh minh - van con day.
   //

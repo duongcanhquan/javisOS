@@ -2,6 +2,7 @@
 type: agent
 name: Nexu Render MP4
 slug: nexu-render
+group: "Video & Motion"
 role: Render HTML đã motion thành MP4 bằng htmltomp4 và gửi Telegram
 skills: [htmltomp4]
 model: ""

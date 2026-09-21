@@ -778,6 +778,8 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 /* Trang duy nhất chiếm TRỌN khung: terminal đo chiều cao thật để tính ra số dòng, nên khung
    phải cao cố định và tự cuộn bên trong chứ không để cả trang trôi. console.js gắn/gỡ lớp này. */
 .cview-body.cview-flush { padding: 0; overflow: hidden; }
+/* Workbench (Bài giảng / Video / Marketing / Terminal…): tiêu đề nằm trong trang → ẩn head chung. */
+.cview:has(.cview-body.cview-flush) .cview-head { display: none; }
 .code-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .code-panel { flex: 1; min-height: 0; display: flex; }
 .code-empty {
@@ -1165,9 +1167,9 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
 .cat-card-sm .gico { width: 26px; height: 26px; font-size: 16px; border-radius: 7px; }
 .cat-card-sm .cat-name { font-size: 13.5px; line-height: 1.3; }
 .cat-card-sm .cat-desc {
-  font-size: 12px; line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden; min-height: 0;
+  font-size: 12px; line-height: 1.45; opacity: .85;
+  display: block; overflow: visible; white-space: normal;
+  min-height: 0;
 }
 .cat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; }
 
@@ -2214,8 +2216,7 @@ body.on-mcp .cview-body > .cview-placeholder {
 .kho-btn-go { background: transparent; color: var(--danger-ink, #b3261e);
   border-color: var(--border); }
 .kho-btn-go:hover { border-color: var(--danger-ink, #b3261e); }
-.kho-the .cat-desc { font-size: 12.5px; line-height: 1.4; opacity: .82; display: -webkit-box;
-  -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kho-the .cat-desc { font-size: 12.5px; line-height: 1.45; opacity: .88; overflow: visible; display: block; white-space: normal; }
 .kho-the .prov-meta { font-size: 11.5px; }
 .kho-the .prov-kind { font-size: 10.5px; padding: 1px 5px; }
 

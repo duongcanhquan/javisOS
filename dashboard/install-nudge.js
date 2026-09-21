@@ -1,8 +1,8 @@
-/* install-nudge.js - nhắc thêm Javis vào Màn hình chính, MỖI NGÀY MỘT LẦN.
+/* install-nudge.js - nhắc thêm VMOS vào Màn hình chính, MỖI NGÀY MỘT LẦN.
 
-   Vì sao cần: trên điện thoại, Javis mở bằng tab trình duyệt và Javis mở bằng app đã cài là
+   Vì sao cần: trên điện thoại, VMOS mở bằng tab trình duyệt và VMOS mở bằng app đã cài là
    hai trải nghiệm khác hẳn nhau - và cái khác lớn nhất không nhìn thấy được. iOS CHỈ cho
-   nhận thông báo đẩy khi trang đã được "Thêm vào MH chính" (iOS 16.4+). Ai dùng Javis bằng
+   nhận thông báo đẩy khi trang đã được "Thêm vào MH chính" (iOS 16.4+). Ai dùng VMOS bằng
    Safari thường sẽ không bao giờ nhận được kết quả việc nền, mà cũng không có gì nói cho họ
    biết vì sao. Nút "Mở như app" trên thanh trạng thái chỉ hiện ở trình duyệt có
    beforeinstallprompt (Chrome/Edge), tức là đúng iOS - nơi cần nhất - lại không có nút nào.
@@ -65,7 +65,7 @@
         + '<li>Kéo xuống chọn <b>Thêm vào MH chính</b>.</li>'
         + '<li>Bấm <b>Thêm</b> là xong.</li></ol>'
       : (coNutCai
-        ? '<p class="inud-mo">Bấm <b>Cài Javis</b>, trình duyệt sẽ hỏi xác nhận một lần.</p>'
+        ? '<p class="inud-mo">Bấm <b>Cài VMOS</b>, trình duyệt sẽ hỏi xác nhận một lần.</p>'
         : '<ol class="inud-buoc">'
           + '<li>Mở <b>menu</b> của trình duyệt (ba chấm ở góc).</li>'
           + '<li>Chọn <b>Thêm vào màn hình chính</b> hoặc <b>Cài ứng dụng</b>.</li></ol>');
@@ -73,14 +73,14 @@
     var el = document.createElement("div");
     el.className = "inud-wrap";
     el.setAttribute("role", "dialog");
-    el.setAttribute("aria-label", "Thêm Javis vào Màn hình chính");
+    el.setAttribute("aria-label", "Thêm VMOS vào Màn hình chính");
     el.innerHTML =
       '<div class="inud-nen"></div>'
       + '<div class="inud-hop">'
       + '  <div class="inud-dau">'
       + '    <img class="inud-icon" src="/brand-icon/192" alt="">'
       + '    <div class="inud-tieude">'
-      + '      <b>Thêm Javis vào Màn hình chính</b>'
+      + '      <b>Thêm VMOS vào Màn hình chính</b>'
       + '      <span>Mở nhanh như một app, và <b>nhận được thông báo</b> khi việc chạy nền xong.</span>'
       + '    </div>'
       + '  </div>'
@@ -89,7 +89,7 @@
       + '    <button type="button" class="inud-tat" id="inudTat">Đừng nhắc nữa</button>'
       + '    <span class="inud-day"></span>'
       + '    <button type="button" class="inud-sau" id="inudSau">Để sau</button>'
-      + (coNutCai && !ios ? '    <button type="button" class="inud-cai" id="inudCai">Cài Javis</button>' : "")
+      + (coNutCai && !ios ? '    <button type="button" class="inud-cai" id="inudCai">Cài VMOS</button>' : "")
       + '  </div>'
       + '</div>';
     document.body.appendChild(el);

@@ -2,6 +2,7 @@
 type: agent
 name: Người phản biện
 slug: tl-phan-bien
+group: Năng suất
 role: Soi một kế hoạch hoặc ý tưởng để tìm chỗ sẽ hỏng, trước khi tiền và thời gian
   đổ vào.
 skills:

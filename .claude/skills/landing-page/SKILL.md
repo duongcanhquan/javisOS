@@ -2,7 +2,7 @@
 name: landing-page
 description: "Landing SaaS HTML/Tailwind: brief hoặc chủ đề → copy, chọn layout, xuất exports/landing + preview chat."
 description_en: "SaaS landing HTML/Tailwind: brief or topic → copy, pick layout, write exports/landing + chat preview."
-group: Marketing
+group: "Thiết kế & Web"
 license: MIT
 metadata:
   version: "1.0"

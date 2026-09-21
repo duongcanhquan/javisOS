@@ -108,7 +108,12 @@ ot.upsert({"slug": "xoa-thu", "name": "Xoa", "protected": False})
 sai = c2.request("DELETE", "/org/tenants/xoa-thu", json={"confirm": "sai"})
 check("xóa phải gõ đúng tên máy", sai.status_code == 400 and ot.get("xoa-thu") is not None)
 okd = c2.request("DELETE", "/org/tenants/xoa-thu", json={"confirm": "xoa-thu"})
-check("xóa khi gõ đúng", okd.status_code == 200 and ot.get("xoa-thu") is None)
+rec_soft = ot.get("xoa-thu")
+check("xóa mềm khi gõ đúng", okd.status_code == 200 and ot.is_soft_deleted(rec_soft))
+ok_restore = c2.post("/org/tenants/xoa-thu/restore")
+check("khôi phục sau xóa mềm", ok_restore.status_code == 200 and not ot.is_soft_deleted(ot.get("xoa-thu")))
+ok_purge = c2.request("DELETE", "/org/tenants/xoa-thu", json={"confirm": "xoa-thu", "purge_now": True})
+check("xóa hẳn với purge_now", ok_purge.status_code == 200 and ot.get("xoa-thu") is None)
 pq = c2.post("/org/tenants/quan/pause")
 check("không tạm dừng bản quan", pq.status_code == 400)
 ot.upsert({"slug": "dung-thu", "name": "Dung", "protected": False})
@@ -181,10 +186,55 @@ park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "
 check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
 check("org.js điều phối theo RAM thật", "effective_max" in org_js and "xếp hàng" in org_js)
-check("index nạp org.js v=6", "/static/org.js?v=6" in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
+check("index không nạp org.js eager (lazy trong console)",
+      "/static/org.js" not in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
 check("org.js có Lưu thay đổi và Xóa người", "Lưu thay đổi" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)
 check("org.js tạm dừng tài khoản", "Tạm dừng tài khoản" in org_js and "Chạy lại" in org_js and "/pause" in org_js)
+check("org.js xóa mềm 72h + khôi phục", "Khôi phục" in org_js and "data-org-restore" in org_js and "72 giờ" in org_js)
+check("org.js hiện last_active / image", "hoạt động" in org_js and "image_digest" in org_js)
+check("org.js Đợt B policy + catalog + audit + consent",
+      "brain_mode" in org_js and "Đẩy catalog" in org_js and "orgAuditBody" in org_js and "consent" in org_js)
+check("policy helpers", callable(op.apply_policy) and callable(op.allowed_pool_providers))
+check("mode blocked từ chối pool", op.quota_ok({"brain_mode": "blocked", "shared_api": True})[0] is False)
+check("mode byo không pool", op.quota_ok({"brain_mode": "byo", "shared_api": False})[0] is False)
+m = op.apply_policy({}, brain_mode="school", providers=["openrouter", "nope"])
+check("apply_policy school + lọc provider", m["brain_mode"] == "school" and m["shared_api"] is True and m["providers"] == ["openrouter"])
+check("audit_tail tồn tại", callable(ot.audit_tail))
+ot.audit("policy", "lan", "test")
+check("audit_tail đọc được", any(r.get("action") == "policy" for r in ot.audit_tail(20)))
 check("tạm dừng không tự bật khi mở link", "pause_account" in src and 'rec.get("paused")' in src)
+check("xóa mềm trong docker", "def soft_delete" in src and "purge_soft_deleted" in src)
+check("hàng đợi ghi đĩa", "wait_queue" in (ROOT / "server" / "org_coord.py").read_text(encoding="utf-8"))
+check("soft_delete_mark / restore_mark", hasattr(ot, "soft_delete_mark") and hasattr(ot, "restore_mark"))
+oc.enqueue_wait("lan")
+oc.enqueue_wait("minh")
+data_w = ot.load()
+check("wait_queue lưu sau enqueue", isinstance(data_w.get("wait_queue"), dict) and "lan" in data_w["wait_queue"])
+# Giả lập restart: xóa RAM rồi hydrate lại
+oc._WAIT.clear()
+oc._WAIT_LOADED = False
+check("wait sống sau hydrate", oc.peek_waiter() == "lan" and oc.wait_len() == 2)
+oc.clear_wait("lan")
+oc.clear_wait("minh")
+fake = {
+    "id": "t1", "slug": "lan", "name": "Lan", "domain": ot.tenant_domain("lan"),
+    "container": "javis-lan", "quota_gb": 2, "protected": False, "status": "stopped",
+    "login_user": "lan", "shared_api": False, "token_quota": 0, "tokens_used": 0,
+}
+ot.upsert(fake)
+marked = ot.soft_delete_mark("lan")
+check("soft delete có deleted_at", ot.is_soft_deleted(marked))
+pub = op.public_tenant(marked)
+check("public status deleted", pub.get("status") == "deleted" and pub.get("purge_after") > 0)
+restored = ot.restore_mark("lan")
+check("restore gỡ deleted_at", not ot.is_soft_deleted(restored) and restored.get("paused") is True)
+ot.remove("lan")
+# hết hạn 72h
+fake2 = dict(fake)
+fake2["deleted_at"] = 1
+ot.upsert(fake2)
+check("purge_due nhận slug hết hạn", "lan" in ot.purge_due_slugs(now=ot.SOFT_DELETE_SEC + 10))
+ot.remove("lan")
 html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 check("form sửa người hiện sẵn, không hidden", 'data-org-edit="${esc(t.slug)}">' in org_js and 'data-org-edit="${esc(t.slug)}" hidden' not in org_js)
 check("quan không ghi Não gốc ở cột API", "Não gốc" not in org_js)
@@ -202,9 +252,11 @@ check("Moonshine lấy tên máy từ JAVIS_NAME", "JAVIS_NAME:-javis" in moon)
 check("không em dash org.js", "\u2014" not in org_js)
 con = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 check("rail có nhóm Tổ chức riêng", 'nav.group.quan_tri' in con and 'ids: ["org"]' in con)
+check("console lazy-load org.js",
+      'file: "org.js"' in con and "ensurePageScript" in con and "withLazyPage" in con)
 html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
-check("index nạp org.js trước console.js",
-      0 < html.find("/static/org.js") < html.find("/static/console.js"))
+check("index không nạp org.js trước console (PAGE_LAZY)",
+      "/static/org.js" not in html and "/static/console.js" in html)
 
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))

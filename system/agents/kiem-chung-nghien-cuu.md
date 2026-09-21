@@ -4,7 +4,7 @@ name: Kiểm chứng nghiên cứu
 slug: kiem-chung-nghien-cuu
 role: Soi gói nghiên cứu/proposal theo checklist skill chuyên sâu và proposal nâng cấp.
 skills: [nghien-cuu-thi-truong, proposal-chien-luoc, query-wiki]
-group: Marketing
+group: Nghiên cứu
 model: gemini-3.8-flash-high
 model_provider: antigravity-cli
 updated: 2026-09-06

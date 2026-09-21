@@ -2,7 +2,7 @@
 name: Notes
 description: Lưu tin nhắn hiện tại nguyên văn vào sources/ (kèm ảnh), tự chưng cất lên wiki nếu note đáng.
 description_en: "Save the current message verbatim into sources/ (images included), then distil it up to the wiki if it earns a place."
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # NOTES - lưu nhanh 1 note vào Second Brain (giữ nguyên văn), wiki nếu đáng

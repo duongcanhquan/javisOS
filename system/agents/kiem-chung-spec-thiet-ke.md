@@ -4,7 +4,7 @@ name: Kiểm chứng spec thiết kế
 slug: kiem-chung-spec-thiet-ke
 role: Soi spec brainstorming trước khi writing-plans (placeholder, unit, PII/legal).
 skills: [brainstorming, writing-plans]
-group: AI
+group: "AI & Hệ thống"
 model: gemini-3.8-flash-high
 model_provider: antigravity-cli
 updated: 2026-09-06

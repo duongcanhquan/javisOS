@@ -2,7 +2,7 @@
 name: cherry-pick-agent-skills
 description: "Cherry-pick đúng một SKILL.md từ kho agent-skills, viết lại chuẩn Javis; cấm import cả repo."
 description_en: "Cherry-pick one SKILL.md from an agent-skills catalog, rewrite to Javis format; never import the whole repo."
-group: AI
+group: "AI & Hệ thống"
 metadata:
   version: "1.0"
 ---

@@ -2,6 +2,7 @@
 type: agent
 name: Nexu Brief & Design
 slug: nexu-brief-design
+group: "Video & Motion"
 role: Chốt brief + DESIGN.md brand system cho pipeline video Nexu
 skills: [open-design]
 model: ""

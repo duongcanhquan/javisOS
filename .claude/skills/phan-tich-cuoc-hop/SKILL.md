@@ -2,7 +2,7 @@
 name: phan-tich-cuoc-hop
 description: "Tổng kết transcript cuộc họp như trợ lý chuyên nghiệp: diễn biến, ý kiến, đề xuất, quyết định, việc cần làm, lưu ý. Không bịa."
 description_en: "Professionally summarize a meeting transcript: flow, opinions, proposals, decisions, actions, notes. Do not invent."
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # Phân tích / tổng kết cuộc họp

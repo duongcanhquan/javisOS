@@ -19,6 +19,41 @@ PRESSURE_IDLE_SEC = 90
 
 _WAIT: dict[str, float] = {}
 _WLOCK = threading.Lock()
+_WAIT_LOADED = False
+DISK_CACHE_SEC = 120
+
+
+def _hydrate_wait() -> None:
+    """Nạp hàng đợi từ org-tenants.json (sống qua restart manager)."""
+    global _WAIT, _WAIT_LOADED
+    with _WLOCK:
+        if _WAIT_LOADED:
+            return
+        try:
+            raw = ot.load().get("wait_queue")
+            if isinstance(raw, dict):
+                cleaned: dict[str, float] = {}
+                for k, v in raw.items():
+                    s = str(k or "").strip().lower()
+                    if not s:
+                        continue
+                    try:
+                        cleaned[s] = float(v)
+                    except (TypeError, ValueError):
+                        cleaned[s] = time.time()
+                _WAIT = cleaned
+        except Exception:
+            _WAIT = {}
+        _WAIT_LOADED = True
+
+
+def _save_wait_snap(snap: dict) -> None:
+    try:
+        data = ot.load()
+        data["wait_queue"] = snap
+        ot.save(data)
+    except Exception as e:
+        print(f"[org coord] không lưu hàng đợi: {e}", flush=True)
 
 
 def _meminfo_mb() -> tuple[int, int]:
@@ -100,6 +135,9 @@ def put_coord(max_running: int | None = None, idle_minutes: int | None = None) -
     if idle_minutes is not None:
         cur["idle_minutes"] = max(0, min(24 * 60, int(idle_minutes)))
     data["coord"] = {"max_running": cur["max_running"], "idle_minutes": cur["idle_minutes"]}
+    _hydrate_wait()
+    with _WLOCK:
+        data["wait_queue"] = dict(_WAIT)
     ot.save(data)
     return coord(data)
 
@@ -108,19 +146,29 @@ def enqueue_wait(slug: str) -> int:
     s = (slug or "").strip().lower()
     if not s:
         return 0
+    _hydrate_wait()
     with _WLOCK:
         _WAIT.setdefault(s, time.time())
         order = sorted(_WAIT, key=lambda k: _WAIT[k])
-        return order.index(s) + 1
+        pos = order.index(s) + 1
+        snap = dict(_WAIT)
+    _save_wait_snap(snap)
+    return pos
 
 
 def clear_wait(slug: str) -> None:
     s = (slug or "").strip().lower()
+    _hydrate_wait()
     with _WLOCK:
+        if s not in _WAIT:
+            return
         _WAIT.pop(s, None)
+        snap = dict(_WAIT)
+    _save_wait_snap(snap)
 
 
 def peek_waiter() -> str:
+    _hydrate_wait()
     with _WLOCK:
         if not _WAIT:
             return ""
@@ -129,16 +177,20 @@ def peek_waiter() -> str:
 
 def next_waiter() -> str:
     """Lấy người đầu hàng và xóa khỏi hàng. Dùng sau khi bật máy xong."""
+    _hydrate_wait()
     with _WLOCK:
         if not _WAIT:
             return ""
         order = sorted(_WAIT, key=lambda k: _WAIT[k])
         s = order[0]
         _WAIT.pop(s, None)
-        return s
+        snap = dict(_WAIT)
+    _save_wait_snap(snap)
+    return s
 
 
 def wait_len() -> int:
+    _hydrate_wait()
     with _WLOCK:
         return len(_WAIT)
 

@@ -6,7 +6,7 @@
       người dùng bấm là spam, và Chrome chặn vĩnh viễn miền đó sau vài lần bị từ chối - tức
       là hỏng luôn cả những lần sau khi người ta THẬT SỰ muốn bật. Chỉ hỏi khi bấm nút.
    2. Không có secure context thì ẩn hẳn nút, kèm lý do. Web Push đòi https (localhost được
-      tính là an toàn); Javis chạy trần bằng IP LAN qua http là không có cách nào lách.
+      tính là an toàn); VMOS chạy trần bằng IP LAN qua http là không có cách nào lách.
    3. Hụt push không bao giờ đồng nghĩa mất tin: nội dung nằm trong hòm thư ở server. Nút
       này chỉ bật/tắt cái chuông cửa.
 */
@@ -20,7 +20,7 @@
   function antoan() { return window.isSecureContext === true; }
 
   function vichLyDo() {
-    if (!antoan()) return "Trình duyệt chỉ cho bật thông báo đẩy trên https (hoặc localhost). Javis đang chạy qua http nên chưa bật được.";
+    if (!antoan()) return "Trình duyệt chỉ cho bật thông báo đẩy trên https (hoặc localhost). VMOS đang chạy qua http nên chưa bật được.";
     if (!coHoTro()) return "Trình duyệt này không hỗ trợ thông báo đẩy.";
     if (Notification.permission === "denied") return "Bạn đã chặn thông báo cho trang này. Mở phần cài đặt quyền của trình duyệt để bỏ chặn.";
     return "";
@@ -123,7 +123,7 @@
     catch (e) { return []; }
   }
 
-  // Bấm vào thông báo khi Javis đang mở: service worker focus đúng tab này rồi nhắn sang.
+  // Bấm vào thông báo khi VMOS đang mở: service worker focus đúng tab này rồi nhắn sang.
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", function (ev) {
       var d = ev.data || {};

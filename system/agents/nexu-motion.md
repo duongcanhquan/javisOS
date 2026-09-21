@@ -2,6 +2,7 @@
 type: agent
 name: Nexu Motion
 slug: nexu-motion
+group: "Video & Motion"
 role: Gắn motion/GSAP/timeline vào HTML storyboard bằng motionanything
 skills: [motionanything]
 model: ""

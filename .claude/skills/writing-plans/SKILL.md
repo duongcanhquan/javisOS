@@ -2,7 +2,7 @@
 name: Writing Plans
 description: "Viết kế hoạch triển khai chi tiết từ spec đã duyệt: task nhỏ, file chạm, test, commit; trước khi code."
 description_en: "Write a bite-sized implementation plan from an approved spec before coding."
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # Writing Plans (kế hoạch triển khai từ spec)

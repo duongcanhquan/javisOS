@@ -2,7 +2,7 @@
 name: Paperdesign
 description: "Làm video collage giấy kiểu Vox: topic/ảnh/talking-head → beats, poster, motion, VO, nhạc, ghép mp4 (Atlas+ffmpeg)."
 description_en: "Vox-style paper-collage video: topic/photo/talking-head → beats, posters, motion, VO, music, final mp4 (Atlas+ffmpeg)."
-group: Nội dung
+group: "Video & Motion"
 ---
 
 # Paperdesign (Vox Director)

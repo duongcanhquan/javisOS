@@ -2,7 +2,7 @@
 name: diagram-design
 description: "Sơ đồ editorial HTML/SVG: kiến trúc, flowchart, journey, chart; brand tokens; vẽ lại draw.io/Mermaid/Excalidraw."
 description_en: "Editorial HTML/SVG diagrams: architecture, flowchart, journey, charts; brand tokens; redraw draw.io/Mermaid/Excalidraw."
-group: Marketing
+group: "Thiết kế & Web"
 license: MIT
 metadata:
   version: "2.6"

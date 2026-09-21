@@ -2,7 +2,7 @@
 name: openmaic
 description: "Gói lớp OpenMAIC: cài đặt, tạo classroom tương tác, cấu hình provider, mở rộng SDK."
 description_en: "OpenMAIC pack: setup, generate interactive classrooms, provider config, SDK extension."
-group: Nội dung
+group: Giáo dục
 user-invocable: true
 metadata: { "openclaw": { "emoji": "🏫" } }
 ---

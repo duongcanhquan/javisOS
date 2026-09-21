@@ -114,7 +114,7 @@
     var chatInput = document.getElementById("chatInput");
     var longPh = chatInput ? chatInput.getAttribute("placeholder") : "";
     function setPlaceholder() {
-      if (chatInput) chatInput.setAttribute("placeholder", mq.matches ? "Nói hoặc gõ cho Javis…" : longPh);
+      if (chatInput) chatInput.setAttribute("placeholder", mq.matches ? "Nói hoặc gõ cho VMOS…" : longPh);
     }
 
     // ---- 4) Nút + = hội thoại mới (reset) + focus ô nhập cho phản hồi tức thì ----

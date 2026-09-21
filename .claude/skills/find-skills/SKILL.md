@@ -2,7 +2,7 @@
 name: Research Skills
 description: "Tìm và cài skill từ skills.sh khi hỏi cách làm X hoặc tìm skill phù hợp."
 description_en: "Discover and install agent skills from skills.sh when users ask how to do X or find a skill. (EN)"
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # Research Skills (find-skills)

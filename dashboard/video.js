@@ -19,11 +19,11 @@
       id: "postcard",
       pipeline: "postcard-video",
       label: "Promo sản phẩm",
-      blurb: "Demo app/web, nhạc + hiệu ứng",
+      blurb: "Demo app/web · shotcraft",
       full: "Promo sản phẩm (cinematic, chụp trang thật)",
-      when: "Clip ra mắt hoặc demo sản phẩm: máy quay 2.5D, nhạc và hiệu ứng. Cần URL hoặc ảnh trang thật. Giọng đọc thường không có.",
+      when: "Clip ra mắt hoặc demo sản phẩm: máy quay 2.5D, nhạc và hiệu ứng. Cần URL hoặc ảnh trang thật. Không phải video bài giảng.",
       example: "Ra mắt app ghi chú → clip dọc ~30 giây, có nhạc, không cần lời đọc.",
-      time: "Gợi ý 15–45s (template ~36s); kéo tối đa 10 phút",
+      time: "Gợi ý 15-45s (tối đa 2 phút)",
       topicPh: "Ví dụ: Ra mắt app ghi chú cho học sinh",
       needsUrl: true,
       assetsLabel: "URL sản phẩm / staging hoặc screenshot *",
@@ -33,16 +33,16 @@
         "Chụp trang thật / screenshot",
         "Máy quay 2.5D, khóa nhịp nhạc",
         "Nhạc nền + hiệu ứng âm thanh",
-        "15–45 giây là đẹp nhất",
+        "15-45 giây là đẹp nhất",
         "Có thể xuất sang CapCut (Jianying)",
       ],
       aspects: DEFAULT_ASPECTS,
       duration: {
         min: 10,
-        max: MAX_DURATION_SEC,
+        max: 120,
         step: 5,
         def: 30,
-        hint: "Postcard khuyến nghị 15–45s. >60s chậm/tốn; tối đa kéo 10 phút.",
+        hint: "Khuyến nghị 15-45s. Postcard tối đa 2 phút.",
       },
       slides: {
         min: 3,
@@ -61,7 +61,7 @@
           def: "tự do",
           options: [
             { value: "template Ink Press", label: "Template Ink Press (đổi sản phẩm)" },
-            { value: "tự do", label: "Tự do - Javis quyết hết" },
+            { value: "tự do", label: "Tự do - VMOS quyết hết" },
             { value: "cùng sáng tạo", label: "Cùng làm - dừng duyệt từng bước" },
           ],
         },
@@ -223,7 +223,7 @@
         max: MAX_DURATION_SEC,
         step: 5,
         def: 45,
-        hint: "30–90s thường đủ. Dài hơn = nhiều cảnh/lời (tối đa 10 phút).",
+        hint: "30-90s thường đủ. Dài hơn = nhiều cảnh/lời (tối đa 10 phút).",
       },
       slides: {
         min: 3,
@@ -275,7 +275,7 @@
           label: "Giọng đọc (Edge-TTS)",
           def: "tự chọn",
           options: [
-            { value: "tự chọn", label: "Javis tự chọn theo ngôn ngữ" },
+            { value: "tự chọn", label: "VMOS tự chọn theo ngôn ngữ" },
             { value: "nữ", label: "Ưu tiên giọng nữ" },
             { value: "nam", label: "Ưu tiên giọng nam" },
           ],
@@ -346,7 +346,7 @@
         max: MAX_DURATION_SEC,
         step: 5,
         def: 45,
-        hint: "30s→6–8 beat; 60s→10–12. Tối đa 10 phút.",
+        hint: "30s→6-8 beat; 60s→10-12. Tối đa 10 phút.",
       },
       slides: {
         min: 3,
@@ -493,9 +493,9 @@
       id: "remotion",
       pipeline: "remotion",
       label: "Đồ họa số liệu",
-      blurb: "Biểu đồ, dashboard, bản đồ",
+      blurb: "Biểu đồ / UI  -  không phải promo",
       full: "Đồ họa số liệu (Remotion)",
-      when: "Không quay người: motion graphics từ số liệu, biểu đồ, dashboard, chữ, bản đồ.",
+      when: "Motion graphics từ số liệu, biểu đồ, dashboard  -  không phải promo shotcraft hay video bài giảng.",
       example: "Tăng trưởng quý 3 → biểu đồ vẽ 30 giây + chữ chú thích.",
       time: "Kéo tới 10 phút; chọn loại composition",
       topicPh: "Ví dụ: Số liệu tăng trưởng quý 3",
@@ -516,7 +516,7 @@
         max: MAX_DURATION_SEC,
         step: 5,
         def: 30,
-        hint: "15–40s thường đủ cho một beat số liệu. Tối đa 10 phút.",
+        hint: "15-40s thường đủ cho một beat số liệu. Tối đa 10 phút.",
       },
       slides: {
         min: 2,
@@ -635,7 +635,7 @@
         max: MAX_DURATION_SEC,
         step: 1,
         def: 20,
-        hint: "Short HTML thường 10–30s. Tối đa 10 phút.",
+        hint: "Short HTML thường 10-30s. Tối đa 10 phút.",
       },
       slides: {
         min: 1,
@@ -705,12 +705,12 @@
     },
     {
       id: "auto",
-      pipeline: "để đạo diễn chọn",
-      label: "Javis chọn",
+      pipeline: "auto",
+      label: "VMOS chọn",
       blurb: "Chưa chắc kiểu nào",
-      full: "Để Javis chọn kiểu video phù hợp",
+      full: "Để VMOS chọn kiểu video phù hợp",
       when: "Chưa biết dùng loại nào: điền chủ đề và mục tiêu, đạo diễn chọn hộ (promo / lời đọc / collage / đồ họa / HTML).",
-      example: "Giới thiệu quán cà phê → Javis chọn kiểu rồi làm.",
+      example: "Giới thiệu quán cà phê → VMOS chọn kiểu rồi làm.",
       time: "Thời lượng + số cảnh gợi ý",
       topicPh: "Ví dụ: Video giới thiệu cửa hàng cà phê",
       needsUrl: false,
@@ -955,9 +955,12 @@
     var list = f.extras || [];
     if (!list.length) return "";
     var html =
-      '<p class="jw-sec">3. Yêu cầu «' +
+      '<details class="jw-more" id="vidExtrasBox">' +
+      "<summary>Tuỳ chỉnh «" +
       esc(f.label) +
-      '»</p><div class="jw-type-opts">';
+      "» (nâng cao)</summary>" +
+      '<p class="jw-hint">Các lựa chọn dưới đây đưa vào brief cho đạo diễn. Chế độ «cùng sáng tạo» / «duyệt beat» chỉ là gợi ý  -  stream hiện tại không dừng giữa chừng để bạn bấm duyệt.</p>' +
+      '<div class="jw-type-opts">';
     var lastGroup = "";
     list.forEach(function (ex) {
       if (ex.group && ex.group !== lastGroup) {
@@ -988,7 +991,7 @@
       }
       html += "</div>";
     });
-    html += "</div>";
+    html += "</div></details>";
     return html;
   }
 
@@ -1031,6 +1034,7 @@
     var es = null;
     var tabIdx = 0;
     var running = false;
+    var runFinished = false;
     var stepIdx = -1;
     var draft = {};
 
@@ -1039,7 +1043,7 @@
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
       "<div><h2 class=\"jw-title\">Tạo video</h2>" +
-      '<p class="jw-lead">Mỗi tab một kiểu video (dòng nhỏ trên tab là dùng khi nào). Chọn xong, kéo thời lượng, bấm <b>Tạo video</b>. Collage giấy cần khóa Atlas: <button type="button" class="jw-link" id="vidGotoKeys">Kết nối → Khóa API</button>.</p></div>' +
+      '<p class="jw-lead">Kiểu marketing / promo / motion  -  khác <button type="button" class="jw-link" id="vidGotoBaiGiang">Video bài giảng</button>. Chọn tab · kéo thời lượng · <b>Tạo video</b>. Collage cần Atlas: <button type="button" class="jw-link" id="vidGotoKeys">Khóa API</button>.</p></div>' +
       "</div>" +
       '<div class="jw-tabs jw-tabs-video" role="tablist" id="vidTabs"></div>' +
       '<p class="jw-tab-hint" id="vidTabHint"></p>' +
@@ -1079,6 +1083,14 @@
       gotoKeys.onclick = function () {
         try {
           if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("tool_apis");
+        } catch (e) {}
+      };
+    }
+    var gotoBg = root.querySelector("#vidGotoBaiGiang");
+    if (gotoBg) {
+      gotoBg.onclick = function () {
+        try {
+          if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("baigiang");
         } catch (e) {}
       };
     }
@@ -1288,13 +1300,6 @@
         aspectsHtml(f, draft.vidAspect) +
         '<div class="jw-field"><label for="vidLang">Ngôn ngữ *</label>' +
         '<select id="vidLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div></div>' +
-        '<div class="jw-row2">' +
-        '<div class="jw-field"><label for="vidChannel">Đăng ở đâu</label>' +
-        '<input id="vidChannel" type="text" placeholder="Reels, TikTok, YouTube, Ads…"></div>' +
-        '<div class="jw-field"><label for="vidCta">CTA / lời kêu gọi</label>' +
-        '<input id="vidCta" type="text" placeholder="Ví dụ: Tải app, Đăng ký, Inbox…"></div></div>' +
-        '<div class="jw-field"><label for="vidBrand">Cấm / brand / lưu ý</label>' +
-        '<input id="vidBrand" type="text" placeholder="Màu cấm, không dùng đối thủ, logo phải hiện…"></div>' +
         '<div class="jw-field"><label for="vidAssets">' +
         esc(f.assetsLabel) +
         "</label>" +
@@ -1305,11 +1310,18 @@
         "</div>" +
         extrasHtml(f) +
         '<details class="jw-more">' +
-        "<summary>Thêm kịch bản, tone, file (tuỳ chọn)</summary>" +
+        "<summary>Kênh, CTA, brand, kịch bản, file</summary>" +
+        '<div class="jw-row2">' +
+        '<div class="jw-field"><label for="vidChannel">Đăng ở đâu</label>' +
+        '<input id="vidChannel" type="text" placeholder="Reels, TikTok, YouTube, Ads…"></div>' +
+        '<div class="jw-field"><label for="vidCta">CTA / lời kêu gọi</label>' +
+        '<input id="vidCta" type="text" placeholder="Ví dụ: Tải app, Đăng ký, Inbox…"></div></div>' +
+        '<div class="jw-field"><label for="vidBrand">Cấm / brand / lưu ý</label>' +
+        '<input id="vidBrand" type="text" placeholder="Màu cấm, không dùng đối thủ, logo phải hiện…"></div>' +
         '<div class="jw-field"><label for="vidTone">Giọng / cảm xúc</label>' +
         '<input id="vidTone" type="text" placeholder="Ví dụ: Ấm áp, sạch sẽ, vui, chuyên nghiệp"></div>' +
         '<div class="jw-field"><label for="vidScript">Kịch bản sẵn có</label>' +
-        '<textarea id="vidScript" rows="5" placeholder="Có outline hoặc lời thoại thì dán vào. Để trống = Javis viết giúp."></textarea></div>' +
+        '<textarea id="vidScript" rows="4" placeholder="Có outline hoặc lời thoại thì dán vào. Để trống = VMOS viết giúp."></textarea></div>' +
         '<div class="jw-field"><label for="vidFiles">Đính kèm ảnh / logo / file nghe</label>' +
         '<input id="vidFiles" type="file" multiple>' +
         '<p class="jw-hint" id="vidFileList">Chưa chọn file</p></div>' +
@@ -1322,11 +1334,15 @@
         "</button>" +
         '<button type="button" class="jw-btn jw-btn-ghost" id="vidStop" disabled>Dừng xem</button>' +
         "</div>" +
-        '<p class="jw-hint jw-hint-foot">Lần đầu có thể bấm «Cài bộ làm video» trong mục tuỳ chọn. Các lần sau cứ Tạo video.</p>';
+        '<p class="jw-hint jw-hint-foot">Lần đầu có thể mở «Kênh, CTA…» → Cài bộ làm video. Các lần sau cứ Tạo video.</p>';
 
       restoreDraft();
       wireLeft();
       paintTabHint();
+      var fl = root.querySelector("#vidFileList");
+      if (fl && uploaded.length) {
+        fl.textContent = "Đã tải: " + uploaded.join(", ");
+      }
     }
 
     function wireLeft() {
@@ -1374,6 +1390,7 @@
       var stopBtn = root.querySelector("#vidStop");
       if (stopBtn) {
         stopBtn.onclick = function () {
+          runFinished = true;
           try {
             if (es) es.close();
           } catch (e) {}
@@ -1530,6 +1547,7 @@
     }
 
     function finishBusy(statusMsg, statusOk) {
+      runFinished = true;
       try {
         if (es) es.close();
       } catch (e) {}
@@ -1561,6 +1579,7 @@
 
       stepIdx = 0;
       paintSteps();
+      runFinished = false;
       setBusy(true, "Đang tạo «" + f.full + "»…");
       if (es) {
         try {
@@ -1575,8 +1594,17 @@
       try {
         var fd0 = new FormData();
         fd0.append("brain", brain());
-        await fetch("/studio/seed-video", { method: "POST", body: fd0 });
-      } catch (e0) {}
+        var seedRes = await fetch("/studio/seed-video", { method: "POST", body: fd0 });
+        var seedJson = await seedRes.json().catch(function () { return null; });
+        if (!seedRes.ok || (seedJson && seedJson.ok === false)) {
+          appendLog(
+            "CẢNH BÁO seed: " +
+              ((seedJson && (seedJson.error || seedJson.detail)) || "HTTP " + seedRes.status)
+          );
+        }
+      } catch (e0) {
+        appendLog("CẢNH BÁO seed: " + ((e0 && e0.message) || e0));
+      }
 
       var url =
         "/workflows/run?slug=" +
@@ -1622,9 +1650,18 @@
         }
       };
       es.onerror = function () {
+        if (runFinished || !running) return;
         finishBusy("Mất kết nối (có thể đã xong hoặc lỗi). Xem log bên dưới.", false);
       };
     }
+
+    window._vidLeave = function () {
+      runFinished = true;
+      try {
+        if (es) es.close();
+      } catch (e) {}
+      es = null;
+    };
 
     paintSteps();
     paintLeft();

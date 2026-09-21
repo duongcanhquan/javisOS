@@ -2,7 +2,7 @@
 name: Query Wiki
 description: "Khai thác tri thức trong Second Brain: tổng hợp, so sánh, giả thuyết. Trả lời có trích dẫn."
 description_en: "Mine the knowledge held in the Second Brain: synthesis, comparison, hypotheses. Every answer carries citations."
-group: AI
+group: "AI & Hệ thống"
 ---
 
 # QUERY - trả lời từ wiki (có citation, compounding)

@@ -1,4 +1,4 @@
-"""Cổng cá nhân hiện VietMy OS trên thanh bar; Javis gốc giữ Javis OS."""
+"""Cổng cá nhân hiện VietMy OS trên thanh bar; VMOS gốc giữ VMOS."""
 from _paths import ROOT, SERVER  # noqa: E402,F401
 import json
 import os
@@ -29,7 +29,7 @@ def _reset():
 
 
 _reset()
-check("mặc định không phải cổng cá nhân", cfgmod.read_settings().get("workspace_name") == "Javis OS")
+check("mặc định không phải cổng cá nhân", cfgmod.read_settings().get("workspace_name") == "VMOS")
 
 os.environ["JAVIS_ORG_TENANT"] = "true"
 _reset()
@@ -38,11 +38,12 @@ src = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 html = cfgmod.stamp_html_brand(src)
 check("HTML title VietMy OS", "<title>VietMy OS</title>" in html)
 check("thanh bar VietMy OS", ">VietMy OS</span>" in html)
+check("không còn VMOS trên bar", ">VMOS</span>" not in html)
 check("không còn JAVIS OS trên bar", ">JAVIS OS</span>" not in html)
 
 os.environ["JAVIS_ORG_MANAGER"] = "true"
 _reset()
-check("Javis gốc giữ Javis OS", cfgmod.read_settings().get("workspace_name") == "Javis OS")
+check("VMOS gốc giữ VMOS", cfgmod.read_settings().get("workspace_name") == "VMOS")
 os.environ.pop("JAVIS_ORG_MANAGER", None)
 os.environ.pop("JAVIS_ORG_TENANT", None)
 

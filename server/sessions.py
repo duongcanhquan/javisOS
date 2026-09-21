@@ -28,12 +28,17 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # DB nằm cùng nơi settings.json/.sessions.json (JAVIS_STATE_DIR, mặc định server/).
 _STATE_DIR = Path(os.getenv("JAVIS_STATE_DIR", str(Path(__file__).parent)))
 _DEFAULT_DB = _STATE_DIR / "conversations.db"
 DB_PATH = Path(os.getenv("JAVIS_SESSIONS_DB", str(_DEFAULT_DB)))
+
+# Kênh của phiên "cộng sự": chat với MỘT trợ lý hoặc MỘT quy trình (trang Cộng sự, 0.59).
+# Thanh lịch sử của trang Trò chuyện không liệt kê các kênh này: chúng thuộc về cột phải của
+# trang Cộng sự, lẫn vào đây thì người dùng thấy hai bản ghi cho một việc.
+KENH_CONG_SU = ("agent:", "workflow:")
 
 
 def loc_brain(brain, cot: str = "s.brain"):
@@ -128,6 +133,39 @@ CREATE TABLE IF NOT EXISTS project_links (
     added_at   REAL NOT NULL
 );
 
+-- Tài liệu và link người dùng TỰ GẮN vào một CUỘC TRÒ CHUYỆN.
+--
+-- Khác hẳn danh sách "file & link trong cuộc này" đang có: danh sách đó SUY RA từ tin nhắn
+-- (xem `main.sessions_assets`) nên nó chỉ thấy thứ Javis có nhắc tên, và không ai thêm bớt
+-- được. Hai bảng dưới là phần NGƯỜI DÙNG chủ động gắn vào - đúng cái quyền họ đã có ở khung
+-- Project. Hai nguồn được trộn lúc đọc chứ không ghi đè nhau: máy đoán vẫn đoán, người vẫn
+-- thêm được thứ máy không đoán ra (file ghi lặng lẽ giữa lượt, link chưa dán vào chat).
+--
+-- KHÔNG có cột `brain`, cùng lý do như `project_files`: phiên đã thuộc đúng một brain
+-- (`sessions.brain`), và đường dẫn chỉ có nghĩa trong brain đó. Lưu brain lần nữa ở đây là
+-- mở cửa cho một cuộc trỏ sang file của brain khác, phá rào `_safe_path` bằng DỮ LIỆU.
+--
+-- Ở ĐÂY thì khai được REFERENCES (khác project_files): hai bảng này sinh ra mới nguyên nên
+-- không phải đi đường ALTER TABLE - xoá hội thoại là tài liệu gắn vào nó đi theo, không để
+-- lại hàng mồ côi trỏ vào một phiên không còn.
+CREATE TABLE IF NOT EXISTS session_files (
+    id         TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    path       TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    pinned     INTEGER NOT NULL DEFAULT 0,
+    added_at   REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS session_links (
+    id         TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    url        TEXT NOT NULL,
+    label      TEXT,
+    pinned     INTEGER NOT NULL DEFAULT 0,
+    added_at   REAL NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_brain   ON sessions(brain, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, ts);
@@ -135,6 +173,8 @@ CREATE INDEX IF NOT EXISTS idx_projects_brain   ON projects(brain, updated_at DE
 -- Thứ tự index khớp ĐÚNG thứ tự đọc ra (ghim lên đầu, mới nhất trước) để khỏi sort lại.
 CREATE INDEX IF NOT EXISTS idx_pf_project ON project_files(project_id, pinned DESC, added_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pl_project ON project_links(project_id, pinned DESC, added_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sf_session ON session_files(session_id, pinned DESC, added_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sl_session ON session_links(session_id, pinned DESC, added_at DESC);
 """
 
 # FTS5 mirror giữ đồng bộ qua trigger (shape port từ hermes_state.py:738-761).
@@ -169,6 +209,9 @@ _KHOI_DINH_KEM = re.compile(r"^\s*\[File đính kèm[^\]]*\]\s*")
 # tên "[FILE ĐANG MỞ trong trình sửa của Javis: /home/…". Ghim còn được gửi lại MỖI LƯỢT nên
 # nó phổ biến hơn khối đính kèm nhiều.
 _KHOI_GHIM = re.compile(r"^\s*\[FILE ĐANG MỞ[^\]]*\]\s*")
+# Khối ngữ cảnh giao diện (Voice V1, dashboard/ui-context.js): trang đang mở, đoạn đang bôi
+# đen, câu Javis bị ngắt lời. Cùng loại với hai khối trên và cũng đi TRƯỚC câu của user.
+_KHOI_NGU_CANH_UI = re.compile(r"^\s*\[NGỮ CẢNH GIAO DIỆN:[^\]]*\]\s*")
 # Câu dashboard tự điền khi user đính kèm file mà KHÔNG gõ gì - không mang thông tin gì.
 _CAU_TU_DIEN = "Hãy đọc (các) file trên và phản hồi / tóm tắt nội dung chính."
 # File đính kèm được app.js liệt kê mỗi dòng một cái, dạng "- <đường dẫn>". Neo vào ĐÚNG dạng
@@ -213,6 +256,7 @@ def title_from_message(msg: str, gioi_han: int = TITLE_MAX) -> str:
     for _ in range(4):
         truoc = con_lai
         con_lai = _KHOI_GHIM.sub("", con_lai, count=1)
+        con_lai = _KHOI_NGU_CANH_UI.sub("", con_lai, count=1)
         m_dk = _KHOI_DINH_KEM.match(con_lai)
         if m_dk:
             khoi_dk = m_dk.group(0)
@@ -251,6 +295,12 @@ def title_from_message(msg: str, gioi_han: int = TITLE_MAX) -> str:
 # không âm thầm nuốt ngân sách token của mọi câu hỏi trong đó.
 PROJECT_INSTRUCTIONS_MAX = 4000
 
+# Trần số tài liệu/link người dùng gắn tay vào MỘT cuộc trò chuyện. Cùng loại chi phí như trên
+# (khối này cũng ghép vào system prompt mỗi lượt của cuộc đó), nhưng để rộng hơn vì đây là
+# danh sách TÊN chứ không phải nội dung: phần nạp nội dung đã có trần riêng ở tầng prompt.
+# Có trần là để một cuộc chat kéo dài cả tháng không âm thầm tích thành vài trăm dòng.
+SESSION_ASSETS_MAX = 50
+
 # Tên icon Lucide: chữ thường, số và gạch nối (vd "message-circle"). Cột `projects.icon` lưu
 # TÊN icon chứ không phải ký tự emoji: icon Lucide tự đổi màu theo tông sáng/tối và vẽ giống
 # nhau trên mọi máy.
@@ -275,16 +325,6 @@ def _sach_icon(icon: Optional[str]) -> Optional[str]:
 class SessionStore:
     """Kho hội thoại SQLite thread-safe (1 connection + app-lock, WAL)."""
 
-    # Nhãn engine (dashboard/Telegram) → cột SQLite giữ mạch native. Thêm engine giữ phiên mới
-    # thì chỉ sửa bảng này + migration cột tương ứng; `clear_native_threads` tự nhận.
-    _MACH_NATIVE = {
-        "cli": "cli_session_id",
-        "codex": "codex_thread_id",
-        "gemini-cli": "gemini_session_id",
-        "grok-cli": "grok_session_id",
-        "antigravity-cli": "agy_conversation_id",
-    }
-
     _WRITE_MAX_RETRIES = 12
     _RETRY_MIN_S = 0.020
     _RETRY_MAX_S = 0.150
@@ -298,11 +338,15 @@ class SessionStore:
         self._conn = sqlite3.connect(
             str(self.db_path),
             check_same_thread=False,   # truy cập từ threadpool worker của FastAPI
-            timeout=1.0,               # ngắn; tự retry với jitter
+            timeout=5.0,               # multi-user: chờ writer khác (trước 1s dễ nổ dưới tải)
             isolation_level=None,      # tự quản BEGIN/COMMIT
         )
         self._conn.row_factory = sqlite3.Row
         self._apply_wal()
+        try:
+            self._conn.execute("PRAGMA busy_timeout=5000")
+        except sqlite3.OperationalError:
+            pass
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._init_schema()
 
@@ -360,11 +404,6 @@ class SessionStore:
                               # chung một cột là lượt sau đưa id của engine này cho engine kia
                               # resume, và nó nối vào một mạch không tồn tại rồi hỏng câm.
                               ("grok_session_id", "TEXT"),
-                              # Mạch native của Antigravity CLI (`agy --conversation`). Cột
-                              # RIÊNG. Trước đây mỗi lượt mở mạch mới + mồi lại cả transcript
-                              # → dễ "Agent execution terminated" vì tràn ngữ cảnh; nối mạch
-                              # khi CLI đã phát conversation_id thì hết nhồi lịch sử mỗi lần.
-                              ("agy_conversation_id", "TEXT"),
                               # Model GHIM RIÊNG của phiên. Hai nguồn ghi: user đổi model ngay
                               # trong phiên, và từ 0.35.5 server tự ĐÓNG DẤU model đang chạy ở
                               # lượt dashboard đầu tiên - nên đổi mặc định chung không bao giờ
@@ -454,17 +493,9 @@ class SessionStore:
     def get_or_create(self, session_id: Optional[str], *, brain: str,
                       engine: str, model: Optional[str]) -> str:
         """Resume phiên cũ hoặc tạo mới. Trả về conv id.
-
-        Nếu session_id trỏ tới phiên thuộc brain KHÁC → tạo phiên mới (không ghi đè /
-        không append vào hội thoại brain kia).
-        """
+        Backward compatible: session_id None/không tồn tại -> tạo phiên mới."""
         if session_id:
-            row = self.get_session(session_id)
-            if row:
-                stored = (row.get("brain") or "").strip()
-                want = (brain or "").strip()
-                if stored and want and not self._brains_loosely_equal(stored, want):
-                    return self.create_session(brain=brain, engine=engine, model=model)
+            if self.get_session(session_id):
                 self._write(lambda c: c.execute(
                     "UPDATE sessions SET engine=?, model=?, updated_at=? WHERE id=?",
                     (engine, model, time.time(), session_id),
@@ -472,27 +503,6 @@ class SessionStore:
                 return session_id
         return self.create_session(brain=brain, engine=engine, model=model,
                                    session_id=session_id)
-
-    @staticmethod
-    def _brains_loosely_equal(a: str, b: str) -> bool:
-        """So brain đã lưu vs brain request (path tuyệt đối / alias 'brain')."""
-        def norm(x: str) -> str:
-            return (x or "").strip().replace("\\", "/").rstrip("/").lower()
-        na, nb = norm(a), norm(b)
-        if not na or not nb:
-            return True
-        if na == nb:
-            return True
-        if na.endswith("/" + nb) or nb.endswith("/" + na):
-            return True
-        la, lb = na.rsplit("/", 1)[-1], nb.rsplit("/", 1)[-1]
-        if la and la == lb:
-            return True
-        if na == "brain" or nb == "brain":
-            other = nb if na == "brain" else na
-            if other.endswith("/brain") or other.endswith("/brain default"):
-                return True
-        return False
 
     def append_message(self, session_id: str, role: str, content: Optional[str],
                        tool_calls: Any = None) -> int:
@@ -540,27 +550,79 @@ class SessionStore:
             return True
         return bool(self._write(_do))
 
+    def replace_last_message(self, session_id: str, role: str, content: str) -> bool:
+        """Thay NỘI DUNG tin cuối của phiên nếu nó đúng vai. Trả True khi có thay.
+
+        Dùng cho lượt nói: tin người dùng được lưu NGAY khi tới (chữ thô của máy nghe), rồi bộ
+        não giọng diễn giải lại câu đó (JAVIS_NGHE). Bản lưu phải là câu đã diễn giải, vì đó
+        là câu Javis thực sự trả lời, là câu người dùng thấy trong khung chat sau F5, và là câu
+        đi vào vòng tự học. Trigger messages_fts_upd cập nhật chỉ mục tìm kiếm theo."""
+        def _do(conn):
+            row = conn.execute(
+                "SELECT id, role FROM messages WHERE session_id = ? "
+                "ORDER BY ts DESC, id DESC LIMIT 1", (session_id,)).fetchone()
+            if not row or row[1] != role:
+                return False
+            conn.execute("UPDATE messages SET content = ? WHERE id = ?", (content, row[0]))
+            return True
+        return bool(self._write(_do))
+
+    @staticmethod
+    def _tin(r: sqlite3.Row) -> Dict[str, Any]:
+        """Một dòng bảng messages -> dict trả ra ngoài (mở gói tool_calls_json)."""
+        d = dict(r)
+        if d.get("tool_calls_json"):
+            try:
+                d["tool_calls"] = json.loads(d["tool_calls_json"])
+            except Exception:
+                d["tool_calls"] = None
+        d.pop("tool_calls_json", None)
+        return d
+
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
         rows = self._read(
             "SELECT id, role, content, ts, tool_calls_json FROM messages "
             "WHERE session_id = ? ORDER BY ts, id",
             (session_id,),
         )
-        out = []
-        for r in rows:
-            d = dict(r)
-            if d.get("tool_calls_json"):
-                try:
-                    d["tool_calls"] = json.loads(d["tool_calls_json"])
-                except Exception:
-                    d["tool_calls"] = None
-            d.pop("tool_calls_json", None)
-            out.append(d)
-        return out
+        return [self._tin(r) for r in rows]
+
+    def count_messages(self, session_id: str) -> int:
+        rows = self._read("SELECT COUNT(*) AS n FROM messages WHERE session_id = ?",
+                          (session_id,))
+        return int(rows[0]["n"]) if rows else 0
+
+    def get_messages_page(self, session_id: str, limit: int = 30,
+                          before: Optional[Tuple[float, int]] = None) -> Dict[str, Any]:
+        """Một KHÚC tin nhắn tính từ CUỐI lên, cho khung chat tải dần.
+
+        `before` là con trỏ (ts, id) của tin GIÀ NHẤT đang hiện trên màn: lượt sau lấy tiếp
+        những tin đứng trước nó. Con trỏ phải là CẶP chứ không chỉ mỗi id, vì thứ tự hiển thị
+        là `ORDER BY ts, id`: tin nhập vào lệch mốc giờ (bot, việc nền ghi bù) sẽ có id lớn mà
+        ts nhỏ, và một con trỏ chỉ có id sẽ lặng lẽ nhảy cóc qua vài tin hoặc trả lại tin cũ.
+
+        Trả về `messages` đã xếp XUÔI (cũ trước) để dựng bong bóng theo đúng thứ tự, kèm
+        `has_more` cho biết phía trên còn tin nữa không.
+        """
+        limit = max(1, int(limit))
+        sql = ("SELECT id, role, content, ts, tool_calls_json FROM messages "
+               "WHERE session_id = ?")
+        params: List[Any] = [session_id]
+        if before is not None:
+            sql += " AND (ts < ? OR (ts = ? AND id < ?))"
+            params += [float(before[0]), float(before[0]), int(before[1])]
+        # Lấy DƯ 1 mục để biết còn tin phía trên hay không, khỏi phải đếm cả bảng mỗi lượt.
+        sql += " ORDER BY ts DESC, id DESC LIMIT ?"
+        params.append(limit + 1)
+        rows = self._read(sql, tuple(params))
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        return {"messages": [self._tin(r) for r in reversed(rows)], "has_more": has_more}
 
     def list_sessions(self, limit: int = 50, brain: Any = None,
                       include_archived: bool = False,
-                      project: Optional[str] = None) -> List[Dict[str, Any]]:
+                      project: Optional[str] = None,
+                      channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """Danh sách hội thoại, MỤC GHIM luôn nằm trên đầu.
 
         `project`: bỏ trống = tất cả; "none" = các cuộc chưa xếp vào project nào;
@@ -569,6 +631,11 @@ class SessionStore:
 
         `brain`: một chuỗi, hoặc DANH SÁCH các cách viết cùng trỏ về một brain (xem
         `loc_brain`).
+
+        `channel`: None (mặc định) = danh sách cho thanh lịch sử trang Trò chuyện, loại các
+        kênh cộng sự (`KENH_CONG_SU`) vì chúng đã có chỗ riêng ở trang Cộng sự; "*" = MỌI
+        kênh, không lọc gì cả (chỗ nào coi hội thoại cộng sự cũng là hội thoại của chủ thì
+        dùng giá trị này, ví dụ vòng tự học); còn lại = CHỈ đúng kênh đó.
         """
         where = []
         params: list = []
@@ -583,6 +650,15 @@ class SessionStore:
         elif project:
             where.append("s.project_id = ?")
             params.append(project)
+        if channel == "*":
+            pass  # mọi kênh, không lọc gì thêm
+        elif channel:
+            where.append("s.channel = ?")
+            params.append(channel)
+        else:
+            for tien_to in KENH_CONG_SU:
+                where.append("s.channel NOT LIKE ?")
+                params.append(tien_to + "%")
         where_sql = ("WHERE " + " AND ".join(where)) if where else ""
         params.append(limit)
         rows = self._read(
@@ -601,6 +677,35 @@ class SessionStore:
             tuple(params),
         )
         return [dict(r) for r in rows]
+
+    def brain_gan_nhat(self) -> str:
+        """Brain của cuộc trò chuyện được cập nhật GẦN NHẤT, tức "brain đang mở".
+
+        MCP Hub dùng hàm này khi một client gọi tool mà không mang header `X-Javis-Vault`
+        (mọi phiên Codex người dùng tự mở đều như vậy - xem `mcp_hub.resolve_vault`). Đọc từ
+        đây thay vì nuôi thêm một file trạng thái riêng: cột `brain` đã được MỌI kênh ghi sẵn
+        ở mỗi lượt chat, nên nó luôn đúng mà không ai phải nhớ cập nhật.
+
+        KHÔNG dùng `list_sessions(limit=1)` cho việc này: hàm kia xếp mục GHIM lên đầu, nên
+        phiên đầu danh sách có thể là một cuộc ghim từ tháng trước ở brain khác hẳn.
+        """
+        rows = self._read(
+            "SELECT brain FROM sessions "
+            "WHERE archived = 0 AND brain IS NOT NULL AND TRIM(brain) != '' "
+            "ORDER BY updated_at DESC LIMIT 1")
+        return (rows[0]["brain"] if rows else "") or ""
+
+    def moc_cap_nhat_theo_kenh(self, brain: Any, tien_to: str) -> Dict[str, float]:
+        """{kênh: updated_at mới nhất} cho các kênh bắt đầu bằng `tien_to` (vd "agent:").
+        Trang Cộng sự dùng để xếp trợ lý vừa chat gần nhất lên đầu."""
+        cond, bparams = loc_brain(brain)
+        sql = "SELECT channel, MAX(updated_at) AS m FROM sessions s WHERE s.channel LIKE ?"
+        params: list = [tien_to + "%"]
+        if cond:
+            sql += " AND " + cond
+            params += bparams
+        sql += " GROUP BY channel"
+        return {r["channel"]: float(r["m"] or 0) for r in self._read(sql, tuple(params))}
 
     # ── ghim / icon / project của một hội thoại ──
 
@@ -665,17 +770,10 @@ class SessionStore:
         ))
         return pid
 
-    def list_projects(self, brain: Optional[Any] = None) -> List[Dict[str, Any]]:
+    def list_projects(self, brain: Optional[str] = None) -> List[Dict[str, Any]]:
         """Project kèm số hội thoại đang nằm trong đó (đếm cả cuộc đã cất vào kho lưu:
-        con số này để người dùng biết xoá project sẽ gỡ nhãn bao nhiêu cuộc).
-
-        `brain` một chuỗi hoặc DANH SÁCH bí danh (giống list_sessions / loc_brain).
-        Cuộc họp và cột Lịch sử từng lệch nhau: một bên gửi "brain", một bên gửi path
-        tuyệt đối của đúng vault đó, dropdown gắn dự án ra trống.
-        """
-        cond, bparams = loc_brain(brain, cot="p.brain")
-        where_sql = ("WHERE " + cond) if cond else ""
-        params = tuple(bparams)
+        con số này để người dùng biết xoá project sẽ gỡ nhãn bao nhiêu cuộc)."""
+        where_sql, params = ("WHERE p.brain = ?", (brain,)) if brain else ("", ())
         rows = self._read(
             f"""
             SELECT p.id, p.name, p.icon, p.brain, p.pinned, p.created_at, p.updated_at,
@@ -844,6 +942,92 @@ class SessionStore:
             "UPDATE project_links SET pinned = ? WHERE id = ? AND project_id = ?",
             (1 if pinned else 0, link_id, project_id))).rowcount)
 
+    # ── tài liệu & link người dùng TỰ GẮN vào một cuộc trò chuyện ──
+    #
+    # Song sinh với bộ hàm project ngay trên, và cố ý giống hệt về hình dạng: cùng một ngăn
+    # kéo trên giao diện vẽ cả hai, nên hai bộ API mà lệch nhau là chỗ nào cũng phải rẽ nhánh.
+    # Khác đúng một điểm: khoá ngoại lo phần xoá theo, nên không có `delete_session_assets`.
+
+    def list_session_files(self, session_id: str) -> List[Dict[str, Any]]:
+        return [dict(r) for r in self._read(
+            "SELECT id, path, name, pinned, added_at FROM session_files "
+            "WHERE session_id = ? ORDER BY pinned DESC, added_at DESC", (session_id,))]
+
+    def list_session_links(self, session_id: str) -> List[Dict[str, Any]]:
+        return [dict(r) for r in self._read(
+            "SELECT id, url, label, pinned, added_at FROM session_links "
+            "WHERE session_id = ? ORDER BY pinned DESC, added_at DESC", (session_id,))]
+
+    def add_session_file(self, session_id: str, path: str, name: str = "") -> Optional[str]:
+        """Gắn một file có sẵn trong brain vào cuộc trò chuyện. Trùng đường dẫn thì trả id cũ.
+
+        Đường dẫn phải được caller kiểm bằng rào path của brain TRƯỚC khi gọi (xem
+        `main._safe_path`): kho này không biết brain nào, và không được đoán.
+        """
+        rel = (path or "").strip()
+        if not rel:
+            return None
+        cu = self._read("SELECT id FROM session_files WHERE session_id = ? AND path = ?",
+                        (session_id, rel))
+        if cu:
+            return str(cu[0]["id"])
+        if len(self.list_session_files(session_id)) >= SESSION_ASSETS_MAX:
+            return None
+        fid = uuid.uuid4().hex
+        ten = (name or "").strip() or rel.replace("\\", "/").split("/")[-1]
+        self._write(lambda c: c.execute(
+            "INSERT INTO session_files (id, session_id, path, name, pinned, added_at) "
+            "VALUES (?, ?, ?, ?, 0, ?)", (fid, session_id, rel, ten[:160], time.time())))
+        return fid
+
+    def remove_session_file(self, session_id: str, file_id: str) -> bool:
+        # Kèm session_id trong WHERE vì id đến từ client: đoán trúng một uuid không được phép
+        # thành quyền xoá bản ghi của cuộc khác.
+        return bool(self._write(lambda c: c.execute(
+            "DELETE FROM session_files WHERE id = ? AND session_id = ?",
+            (file_id, session_id))).rowcount)
+
+    def set_session_file_pinned(self, session_id: str, file_id: str, pinned: bool) -> bool:
+        return bool(self._write(lambda c: c.execute(
+            "UPDATE session_files SET pinned = ? WHERE id = ? AND session_id = ?",
+            (1 if pinned else 0, file_id, session_id))).rowcount)
+
+    def add_session_link(self, session_id: str, url: str, label: str = "") -> Optional[str]:
+        u = (url or "").strip()
+        if not u:
+            return None
+        cu = self._read("SELECT id FROM session_links WHERE session_id = ? AND url = ?",
+                        (session_id, u))
+        if cu:
+            return str(cu[0]["id"])
+        if len(self.list_session_links(session_id)) >= SESSION_ASSETS_MAX:
+            return None
+        lid = uuid.uuid4().hex
+        self._write(lambda c: c.execute(
+            "INSERT INTO session_links (id, session_id, url, label, pinned, added_at) "
+            "VALUES (?, ?, ?, ?, 0, ?)",
+            (lid, session_id, u[:2000], (label or "").strip()[:160], time.time())))
+        return lid
+
+    def remove_session_link(self, session_id: str, link_id: str) -> bool:
+        return bool(self._write(lambda c: c.execute(
+            "DELETE FROM session_links WHERE id = ? AND session_id = ?",
+            (link_id, session_id))).rowcount)
+
+    def set_session_link_pinned(self, session_id: str, link_id: str, pinned: bool) -> bool:
+        return bool(self._write(lambda c: c.execute(
+            "UPDATE session_links SET pinned = ? WHERE id = ? AND session_id = ?",
+            (1 if pinned else 0, link_id, session_id))).rowcount)
+
+    def all_session_file_paths(self) -> set:
+        """MỌI đường dẫn đang được một CUỘC TRÒ CHUYỆN trỏ tới (gộp mọi cuộc).
+
+        Cùng vai với `all_project_file_paths`: media_gc dọn vùng cache theo tuổi, mà tài liệu
+        người dùng gắn tay vào một cuộc thì phải sống lâu bằng cuộc đó.
+        """
+        return {str(r["path"]) for r in self._read("SELECT DISTINCT path FROM session_files")
+                if (r["path"] or "").strip()}
+
     def rename(self, session_id: str, title: str) -> None:
         self._write(lambda c: c.execute(
             "UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?",
@@ -968,22 +1152,15 @@ class SessionStore:
             (session_id,),
         ))
 
-    def set_agy_conversation_id(self, session_id: str, agy_id: str) -> None:
-        """Gắn mạch native của Antigravity CLI (`--conversation`) để lượt sau nối đúng chỗ."""
-        if not agy_id:
-            return
-        self._write(lambda c: c.execute(
-            "UPDATE sessions SET agy_conversation_id = ?, updated_at = ? WHERE id = ?",
-            (agy_id, time.time(), session_id),
-        ))
-
-    def clear_agy_conversation_id(self, session_id: str) -> None:
-        self._write(lambda c: c.execute(
-            "UPDATE sessions SET agy_conversation_id = NULL "
-            "WHERE id = ? AND agy_conversation_id IS NOT NULL",
-            (session_id,),
-        ))
-
+    # ── mạch native của các engine giữ phiên ──
+    #
+    # Nhãn engine -> cột giữ mạch. Engine KHÔNG có mặt ở bảng này (Antigravity CLI và mọi
+    # engine API) không giữ mạch riêng: chúng dựng lại ngữ cảnh từ transcript ở MỌI lượt nên
+    # không bao giờ stale. Thêm engine giữ phiên mới thì thêm một dòng ở đây, đừng rải thêm
+    # một lệnh clear nữa vào main.py - đó chính là cách bảng này bị bỏ sót hai engine.
+    _MACH_NATIVE = {"cli": "cli_session_id",
+                    "codex": "codex_thread_id",
+                    "grok-cli": "grok_session_id"}
 
     def clear_native_threads(self, session_id: str, keep: str = "") -> List[str]:
         """Vô hiệu mạch native của MỌI engine, TRỪ engine `keep` đang chạy lượt này.
@@ -1036,16 +1213,24 @@ class SessionStore:
         return q.strip()
 
     def search(self, query: str, limit: int = 30,
-               brain: Any = None) -> List[Dict[str, Any]]:
+               brain: Any = None, channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """Full-text search nội dung mọi hội thoại. FTS5 nếu có, fallback LIKE.
 
-        `brain` nhận cả danh sách bí danh, cùng luật với `list_sessions`."""
+        `brain` nhận cả danh sách bí danh, cùng luật với `list_sessions`.
+
+        `channel`: bỏ trống = tìm trong MỌI kênh (giữ nguyên hành vi cũ của thanh tìm ở trang
+        Trò chuyện); có giá trị = chỉ đúng kênh đó, cho ô tìm ở cột lịch sử của một cộng sự -
+        ở đó mà trả về hội thoại của cả brain thì bấm vào là nhảy ra khỏi trợ lý đang mở."""
         q = (query or "").strip()
         if not q:
             return []
 
         _bcond, _bparams = loc_brain(brain)
         brain_clause = (" AND " + _bcond) if _bcond else ""
+        ch = str(channel or "").strip()
+        if ch:
+            brain_clause += " AND s.channel = ?"
+            _bparams = list(_bparams) + [ch]
         if self._fts_enabled:
             fts_q = self._sanitize_fts(q)
             if fts_q:

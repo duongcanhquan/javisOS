@@ -4,7 +4,7 @@ name: Viết kế hoạch triển khai
 slug: viet-ke-hoach-trien-khai
 role: Viết plan triển khai chi tiết từ spec đã được user duyệt (writing-plans).
 skills: [writing-plans, brainstorming]
-group: AI
+group: "AI & Hệ thống"
 model: gemini-3.8-flash-high
 model_provider: antigravity-cli
 updated: 2026-09-06

@@ -2,7 +2,7 @@
 name: Nghiên cứu thị trường chuyên sâu
 description: "Nghiên cứu thị trường chuyên sâu: tâm lý JTBD, pháp lý STEEPLE, văn hóa; TAM/SAM/SOM chéo; insight cho proposal."
 description_en: "Deep market research: JTBD psychology, STEEPLE/legal, culture; triangulated TAM/SAM/SOM; insights for proposals."
-group: Marketing
+group: Nghiên cứu
 ---
 
 # Nghiên cứu thị trường chuyên sâu cho chiến lược & proposal

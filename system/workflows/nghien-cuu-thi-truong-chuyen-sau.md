@@ -3,7 +3,7 @@ type: workflow
 name: Nghiên cứu thị trường chuyên sâu
 slug: nghien-cuu-thi-truong-chuyen-sau
 status: active
-group: Marketing
+group: Nghiên cứu
 description: "Nghiên cứu (JTBD/STEEPLE/SOM) → khảo sát → đối thủ → đồ họa → proposal → kiểm chứng → PDF/PPTX. Tiếp: ke-hoach-kd-mkt-tu-nghien-cuu."
 steps:
   - agent: nghien-cuu-thi-truong-sau

@@ -2,7 +2,7 @@
 name: Hỗ trợ Frontend Design Skill
 description: "UI frontend có chủ đích: palette, typography, layout — tránh mặc định kiểu AI."
 description_en: "Distinctive frontend UI: intentional palette, typography, and layout - avoid templated AI defaults."
-group: Marketing
+group: "Thiết kế & Web"
 license: Complete terms in LICENSE.txt
 ---
 

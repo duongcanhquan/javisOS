@@ -32,6 +32,18 @@ Ba thứ này hay bị lẫn. Phân biệt bằng câu hỏi "cái đang thiếu
 
 Nói ngắn: skill là **tri thức cách làm**, plugin là **mã chạy thật**, MCP là **nguồn dữ liệu có sẵn**. Nếu việc bạn cần đã có MCP thì đừng viết plugin.
 
+### Ví dụ ngoài kho: AutoClip (cắt highlight video)
+
+[AutoClip](https://github.com/zhouxiaoka/autoclip) trích highlight / cắt clip bằng AI. **Chưa có sẵn trong Javis.** Cách gắn khuyến nghị:
+
+1. **MCP (ưu tiên):** cài AutoClip trên máy/VPS, chạy `autoclip mcp`, rồi ở trang **Kết nối → Tự thêm (nâng cao)** thêm server stdio trỏ lệnh đó. Chat nhờ `clip_video` / `export_clip`. Chi tiết CLI/MCP: [docs/CLI_AND_MCP.md](https://github.com/zhouxiaoka/autoclip/blob/main/docs/CLI_AND_MCP.md) trong repo AutoClip.
+2. **Plugin (tuỳ chọn):** bọc CLI `autoclip run … --json` hoặc API FastAPI `:8000` thành tool `javis_autoclip_*` (cần `JAVIS_ENABLE_USER_PLUGINS=true`).
+3. **Skill + Terminal:** skill dạy quy trình; agent có shell gọi `autoclip` trực tiếp.
+
+Đừng lẫn với plugin có sẵn `youtube-read` (chỉ phụ đề) hay `script-video` (tạo video từ kịch bản).
+
+Trong dashboard, nhóm **Hướng dẫn → Skill · Agent · WF** cũng có mục Plugins + ví dụ AutoClip.
+
 ## Mở ở đâu trong Javis
 
 Mở dashboard (mặc định tại cổng 7777), nhìn thanh điều hướng bên trái, bấm nhóm **Năng lực** để mở ra, rồi bấm mục **Plugins**. Đầu trang hiện tiêu đề **Plugins** kèm dòng phụ "Tool/hook native cho mọi engine".

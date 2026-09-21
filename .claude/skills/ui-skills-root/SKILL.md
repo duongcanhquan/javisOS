@@ -2,7 +2,7 @@
 name: Design UI Skill
 description: "Bộ skill thiết kế UI: chọn ngữ cảnh nhỏ nhất, polish layout, a11y, SEO meta, motion."
 description_en: "UI skills router: pick the smallest useful context for layout, a11y, SEO meta, motion."
-group: Marketing
+group: "Thiết kế & Web"
 license: MIT
 ---
 # Design UI Skill

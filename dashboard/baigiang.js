@@ -7,54 +7,62 @@
 
   var FORMATS = [
     {
+      id: "lop-hoc",
+      slug: "bo-bai-giang-lop-hoc",
+      label: "Lớp học",
+      blurb: "OpenMAIC · quiz · thực hành",
+      full: "Lớp học tương tác",
+      tagline: "Cảnh · quiz · thực hành",
+      when: "Dạy live: kịch bản cả buổi rồi tạo classroom OpenMAIC ngay trong VMOS.",
+      gets: ["Outline 8-15 cảnh", "Quiz + PBL ngắn", "Tạo lớp OpenMAIC trong khung Kết quả"],
+      example: "«Biến trong Python» → mở → demo → mini-lab → quiz → tổng kết.",
+      time: "~20-40 phút",
+      topicPh: "VD: Nhập môn biến trong Python",
+    },
+    {
       id: "slide",
       slug: "bo-bai-giang-slide",
       label: "Slide",
+      blurb: "Deck dạy / seminar",
       full: "Slide trình chiếu",
       tagline: "Dạy trên lớp / seminar",
       when: "Cần chiếu máy chiếu hoặc gửi trước cho học viên. Ít chữ, có gợi ý hình.",
       gets: ["Deck HTML đẹp (theme + preview)", "Outline + speaker notes", "Gợi ý ảnh / biểu đồ"],
       example: "«Quang hợp lớp 8» → hook → 3 bước → ví dụ → quiz → tóm tắt.",
-      time: "~10–20 phút",
+      time: "~10-20 phút",
       topicPh: "VD: Quang hợp cho học sinh lớp 8",
-    },
-    {
-      id: "video",
-      slug: "bo-bai-giang-video",
-      label: "Video",
-      full: "Video giải thích",
-      tagline: "Clip xem lại / Zalo / LMS",
-      when: "Giải thích một ý khó bằng hình động để học viên tự xem trước hoặc ôn.",
-      gets: ["Beat giảng (hook → giải thích → ví dụ)", "Gói render / pack thủ công", "Độ dài gợi ý 60–90s"],
-      example: "«Vì sao trời xanh?» → clip ~75 giây, kết luận 1 câu dễ nhớ.",
-      time: "Kịch bản nhanh; render lâu hơn",
-      topicPh: "VD: Vì sao trời xanh?",
-    },
-    {
-      id: "lop-hoc",
-      slug: "bo-bai-giang-lop-hoc",
-      label: "Lớp học",
-      full: "Lớp học tương tác",
-      tagline: "Cảnh · quiz · thực hành",
-      when: "Dạy live và cần kịch bản cả buổi: hoạt động, câu hỏi, bài tập ngắn.",
-      gets: ["Outline 8–15 cảnh", "Quiz + PBL ngắn", "Script giảng từng cảnh"],
-      example: "«Biến trong Python» → mở → demo → mini-lab → quiz → tổng kết.",
-      time: "~20–40 phút",
-      topicPh: "VD: Nhập môn biến trong Python",
     },
     {
       id: "van-ban",
       slug: "bo-bai-giang-van-ban",
       label: "Bài đọc",
-      full: "Bài đọc + ảnh & biểu đồ",
+      blurb: "Handout + ảnh / biểu đồ",
+      full: "Bài đọc minh họa",
       tagline: "Handout / đọc trước",
       when: "Cần tài liệu chữ rõ, có chỗ ảnh/biểu đồ, học viên đọc một mình được.",
-      gets: ["Longread 1200–2000 chữ", "Chỗ [ẢNH]/[BIỂU ĐỒ]", "Ví dụ + bài luyện"],
+      gets: ["Longread 1200-2000 chữ", "Chỗ [ẢNH]/[BIỂU ĐỒ]", "Ví dụ + bài luyện"],
       example: "«An toàn mạng» → 5 mục + bảng so sánh + checklist mang về.",
-      time: "~15–25 phút",
+      time: "~15-25 phút",
       topicPh: "VD: An toàn mạng cho học sinh",
     },
+    {
+      id: "video",
+      slug: "bo-bai-giang-video",
+      label: "Video bài giảng",
+      blurb: "Clip giáo dục 60-90s",
+      full: "Video bài giảng (giải thích)",
+      tagline: "Clip xem lại / Zalo / LMS",
+      when: "Giải thích một ý khó để học viên xem trước hoặc ôn  -  không phải video marketing.",
+      gets: ["Beat giảng (hook → giải thích → ví dụ)", "Gói render / pack thủ công", "Độ dài gợi ý 60-90s"],
+      example: "«Vì sao trời xanh?» → clip ~75 giây, kết luận 1 câu dễ nhớ.",
+      time: "Kịch bản nhanh; render lâu hơn",
+      topicPh: "VD: Vì sao trời xanh?",
+      crossLink: "video",
+      crossText: "Cần promo / Reels / có lời đọc marketing → Công việc · Tạo video",
+    },
   ];
+
+  var BG_FIELD_IDS = ["bgTopic", "bgAudience", "bgGoals", "bgPaste", "bgLang"];
 
   function brain() {
     try {
@@ -73,52 +81,22 @@
       .replace(/"/g, "&quot;");
   }
 
-  var OM_LS_URL = "javis.baigiang.openmaicUrl";
-  var OM_LS_CODE = "javis.baigiang.openmaicCode";
-  var OM_DEFAULT_URL = "https://openmaic.vietmycollege.com";
-  var OM_DEFAULT_CODE = "vietmy-openmaic";
+  var OM_FALLBACK_URL = "https://openmaic.vietmycollege.com";
 
-  function loadOm() {
-    var url = OM_DEFAULT_URL;
-    var code = OM_DEFAULT_CODE;
-    try {
-      url = localStorage.getItem(OM_LS_URL) || OM_DEFAULT_URL;
-      code = localStorage.getItem(OM_LS_CODE);
-      if (code == null || code === "") code = OM_DEFAULT_CODE;
-    } catch (e) {}
-    return { url: String(url).trim().replace(/\/$/, ""), code: String(code).trim() };
-  }
-
-  function saveOm(url, code) {
-    try {
-      localStorage.setItem(OM_LS_URL, String(url || "").trim().replace(/\/$/, ""));
-      localStorage.setItem(OM_LS_CODE, String(code == null ? "" : code).trim());
-    } catch (e) {}
-  }
-
-  function omLangRules(lang) {
-    var L = String(lang || "vi").trim().toLowerCase() || "vi";
-    if (L === "vietnamese") L = "vi";
-    return {
-      code: L,
-      isVi: L === "vi" || L.indexOf("vi") === 0,
-    };
-  }
-
-  /** Lệnh handoff (advanced). API OpenMAIC chỉ nhận en-US|zh-CN — dùng en-US + nội dung VI. */
+  /** Lệnh handoff (advanced). API OpenMAIC chỉ nhận en-US|zh-CN  -  dùng en-US + nội dung VI. */
   function buildOpenmaicHandoff(opts) {
     opts = opts || {};
-    var om = loadOm();
+    var pub = opts.publicUrl || OM_FALLBACK_URL;
     var topic = opts.topic || "(chưa ghi chủ đề)";
     var goals = opts.goals || "";
     var paste = opts.paste || "";
     var slugHint = opts.slugHint || "exports/bai-giang/<slug>/lop-hoc.md";
     var lines = [
-      "Trong Javis: Việc → Bài giảng → Lớp học → bấm «Tạo lớp OpenMAIC» (không mở domain riêng / Live Demo).",
-      "Server tự gọi " + om.url + " với language=en-US + script tiếng Việt + TTS Edge.",
+      "Trong VMOS: Việc → Bài giảng → Lớp học → bấm «Tạo lớp OpenMAIC» (không mở domain riêng / Live Demo).",
+      "Server tự gọi OpenMAIC với language=en-US + script tiếng Việt + TTS Edge.",
       "",
       "Nếu generate thủ công (debug):",
-      "URL API: " + om.url,
+      "URL public: " + pub,
       "path: " + slugHint,
       "Chủ đề: " + topic,
     ];
@@ -153,7 +131,7 @@
     if (files && files.length) parts.push("File đính kèm:\n- " + files.join("\n- "));
     if (fmt && fmt.id === "lop-hoc") {
       parts.push(
-        "Sau khi ghi exports/bai-giang/<slug>/lop-hoc.md: hướng dẫn user bấm «Tạo lớp OpenMAIC» NGAY TRONG Javis (không mở domain OpenMAIC, không Live Demo)."
+        "Sau khi ghi exports/bai-giang/<slug>/lop-hoc.md: hướng dẫn user bấm «Tạo lớp OpenMAIC» NGAY TRONG VMOS (không mở domain OpenMAIC, không Live Demo)."
       );
       parts.push(
         "Script/quiz tiếng Việt dấu đủ. OpenMAIC API dùng language=en-US + TTS Edge (tránh fallback zh-CN)."
@@ -198,28 +176,33 @@
     var es = null;
     var tabIdx = 0;
     var running = false;
+    var runFinished = false;
     var lastLopHocPath = "";
     var lastTopic = "";
     var omPollTimer = null;
     var omGenerating = false;
+    var draft = {};
+    var lastOmThin = false;
+    var cachedPublicUrl = "";
 
     root.innerHTML =
       '<div class="jw" id="bgJw">' +
       '<div class="jw-top">' +
       '<div class="jw-top-row">' +
-      "<div><h2 class=\"jw-title\">Tạo bài giảng</h2>" +
-      '<p class="jw-lead">Chọn loại đầu ra, điền brief hoặc dán giáo án. Tab Lớp học: tạo classroom OpenMAIC <b>ngay trong Javis</b> (không mở domain riêng).</p></div>' +
+      "<div><h2 class=\"jw-title\">Bài giảng</h2>" +
+      '<p class="jw-lead">Chọn loại đầu ra · điền brief · Chạy. <b>Lớp học</b> tạo classroom OpenMAIC trong khung Kết quả (không mở domain riêng). Video marketing → <button type="button" class="jw-link" id="bgGotoVideo">Tạo video</button>.</p></div>' +
       '<div class="jw-top-actions">' +
       '<button type="button" class="jw-btn jw-btn-ghost" id="bgSeed">Chuẩn bị lần đầu</button>' +
       "</div></div>" +
-      '<div class="jw-tabs" role="tablist" id="bgTabs"></div>' +
+      '<div class="jw-tabs jw-tabs-stack" role="tablist" id="bgTabs"></div>' +
+      '<p class="jw-tab-hint" id="bgTabHint"></p>' +
       "</div>" +
       '<div class="jw-body">' +
       '<aside class="jw-left"><div class="jw-left-scroll" id="bgLeft"></div></aside>' +
       '<section class="jw-right">' +
       '<div class="jw-right-head"><h3>Kết quả</h3><div class="jw-status" id="bgStatus">Chưa chạy</div></div>' +
       '<div class="jw-out" id="bgOut">' +
-      '<div class="jw-empty" id="bgEmpty"><strong>Sẵn sàng tạo</strong>Chọn tab đầu ra, nhập chủ đề, rồi bấm Chạy. Tiến trình và nội dung hiện tại đây.</div>' +
+      '<div class="jw-empty" id="bgEmpty"><strong>Sẵn sàng tạo</strong>Chọn tab đầu ra, nhập chủ đề + mục tiêu, rồi bấm Chạy. File xong thường ở Files → exports/bai-giang/.</div>' +
       '<pre class="jw-log" id="bgLog" hidden></pre>' +
       '<div class="jw-om-stage" id="bgOmStage" hidden>' +
       '<div class="jw-om-stage-bar">' +
@@ -232,22 +215,71 @@
       "</div></div>";
 
     var tabsEl = root.querySelector("#bgTabs");
-    tabsEl.innerHTML = FORMATS.map(function (f, i) {
-      return (
-        '<button type="button" class="jw-tab' +
-        (i === 0 ? " on" : "") +
-        '" role="tab" aria-selected="' +
-        (i === 0 ? "true" : "false") +
-        '" data-i="' +
-        i +
-        '">' +
+    FORMATS.forEach(function (f, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "jw-tab jw-tab-stack" + (i === 0 ? " on" : "");
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", i === 0 ? "true" : "false");
+      b.setAttribute("data-i", String(i));
+      b.innerHTML =
+        '<span class="jw-tab-label">' +
         esc(f.label) +
-        "</button>"
-      );
-    }).join("");
+        '</span><span class="jw-tab-blurb">' +
+        esc(f.blurb || f.tagline) +
+        "</span>";
+      tabsEl.appendChild(b);
+    });
+
+    var gotoVid = root.querySelector("#bgGotoVideo");
+    if (gotoVid) {
+      gotoVid.onclick = function () {
+        try {
+          if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("video");
+        } catch (e) {}
+      };
+    }
 
     function fmt() {
       return FORMATS[tabIdx] || FORMATS[0];
+    }
+
+    function paintTabHint() {
+      var f = fmt();
+      var el = root.querySelector("#bgTabHint");
+      if (!el) return;
+      el.innerHTML =
+        "<b>" +
+        esc(f.full) +
+        "</b> · " +
+        esc(f.when) +
+        ' <span class="dim">· ' +
+        esc(f.time) +
+        "</span>";
+    }
+
+    function saveDraft() {
+      BG_FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (el) draft[id] = el.value;
+      });
+      var pathEl = root.querySelector("#bgOmPath");
+      if (pathEl) draft.bgOmPath = pathEl.value;
+    }
+
+    function restoreDraft() {
+      BG_FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (el && draft[id] != null) el.value = draft[id];
+      });
+      var pathEl = root.querySelector("#bgOmPath");
+      if (pathEl) {
+        pathEl.value = draft.bgOmPath || lastLopHocPath || "";
+      }
+      var list = root.querySelector("#bgFileList");
+      if (list && uploaded.length) {
+        list.textContent = "Đã tải: " + uploaded.join(", ");
+      }
     }
 
     function setStatus(msg, kind) {
@@ -275,66 +307,75 @@
 
     function paintLeft() {
       var f = fmt();
-      var gets = (f.gets || []).map(function (g) {
-        return "<li>" + esc(g) + "</li>";
-      }).join("");
+      var gets = (f.gets || [])
+        .map(function (g) {
+          return "<li>" + esc(g) + "</li>";
+        })
+        .join("");
       var left = root.querySelector("#bgLeft");
       left.innerHTML =
-        '<div class="jw-brief">' +
+        '<div class="jw-brief jw-brief-lite">' +
         '<p class="jw-brief-kicker">Đầu ra đang chọn</p>' +
         "<h3>" +
         esc(f.full) +
         "</h3>" +
-        "<p><b>Chọn khi:</b> " +
+        "<p>" +
         esc(f.when) +
         "</p>" +
         "<ul>" +
         gets +
         "</ul>" +
-        '<p class="jw-ex"><b>Ví dụ:</b> ' +
+        '<p class="jw-ex">Ví dụ: ' +
         esc(f.example) +
         "</p>" +
-        '<div class="jw-meta"><span class="jw-chip">' +
-        esc(f.time) +
-        '</span><span class="jw-chip">' +
-        esc(f.tagline) +
-        "</span></div></div>" +
+        (f.crossText
+          ? '<p class="jw-cross"><button type="button" class="jw-link" id="bgCrossLink">' +
+            esc(f.crossText) +
+            "</button></p>"
+          : "") +
+        "</div>" +
+        '<p class="jw-sec">1. Brief</p>' +
         '<div class="jw-field"><label for="bgTopic">Chủ đề *</label>' +
         '<input id="bgTopic" type="text" autocomplete="off" placeholder="' +
         esc(f.topicPh) +
         '"></div>' +
         '<div class="jw-field"><label for="bgAudience">Đối tượng học</label>' +
         '<input id="bgAudience" type="text" placeholder="Ví dụ: học sinh THCS, sinh viên năm 1"></div>' +
-        '<div class="jw-field"><label for="bgGoals">Mục tiêu học</label>' +
+        '<div class="jw-field"><label for="bgGoals">Mục tiêu học *</label>' +
         '<textarea id="bgGoals" rows="3" placeholder="Sau buổi học, học viên…"></textarea></div>' +
-        '<div class="jw-field"><label for="bgPaste">Dán giáo án / đề cương / kịch bản</label>' +
-        '<textarea id="bgPaste" rows="5" placeholder="Ctrl+V nội dung sẵn có (Word, PDF copy, outline…). Dùng cho lớp học, video, slide — không cần gõ lại."></textarea>' +
-        '<p class="jw-hint">Paste một lần → agent dùng làm nguyên liệu. Tab Video: dán beat/script nếu đã có.</p></div>' +
+        '<div class="jw-field"><label for="bgPaste">Dán giáo án / đề cương (tuỳ chọn)</label>' +
+        '<textarea id="bgPaste" rows="4" placeholder="Ctrl+V nội dung sẵn có…"></textarea></div>' +
+        '<div class="jw-row2">' +
         '<div class="jw-field"><label for="bgLang">Ngôn ngữ</label>' +
         '<select id="bgLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>' +
         '<div class="jw-field"><label for="bgFiles">File đính kèm</label>' +
         '<input id="bgFiles" type="file" multiple>' +
-        '<p class="jw-hint" id="bgFileList">Giáo án, PDF, ảnh… (tuỳ chọn)</p></div>' +
+        '<p class="jw-hint" id="bgFileList">Giáo án, PDF, ảnh…</p></div></div>' +
         openmaicBlock(f) +
-        '<div class="jw-actions">' +
+        '<div class="jw-actions jw-actions-main">' +
         '<button type="button" class="jw-btn jw-btn-primary" id="bgRun">Chạy: ' +
         esc(f.label) +
         "</button>" +
         '<button type="button" class="jw-btn jw-btn-ghost" id="bgStop" disabled>Dừng xem</button>' +
         "</div>";
 
+      restoreDraft();
       wireLeft();
+      paintTabHint();
     }
 
     function openmaicBlock(f) {
       if (!f || f.id !== "lop-hoc") return "";
       return (
         '<div class="jw-om" id="bgOmPanel">' +
-        '<p class="jw-brief-kicker">OpenMAIC trong Javis</p>' +
-        '<p class="jw-hint">Sau khi Chạy xong: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả. Javis gọi server (language=en-US + nội dung VI + TTS Edge tiếng Việt).</p>' +
-        '<div class="jw-om-llm" id="bgOmLlm">' +
-        '<p class="jw-brief-kicker">LLM cho OpenMAIC</p>' +
-        '<p class="jw-hint">Chọn nhà model dùng khi <b>Tạo lớp</b>. Key lấy từ trang Models. Nút dưới = lưu lựa chọn và (nếu được) đổi container OpenMAIC — <b>không</b> phải nút tạo lớp.</p>' +
+        '<p class="jw-sec">2. OpenMAIC (sau khi Chạy)</p>' +
+        '<p class="jw-hint">Bước 1: Chạy workflow → có file lop-hoc.md. Bước 2: bấm <b>Tạo lớp OpenMAIC</b> ở cột Kết quả.</p>' +
+        '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md</label>' +
+        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="exports/bai-giang/…/lop-hoc.md">' +
+        '<p class="jw-hint">Để trống = tự lấy từ log sau khi Chạy.</p></div>' +
+        '<details class="jw-more">' +
+        "<summary>LLM &amp; debug OpenMAIC</summary>" +
+        '<p class="jw-hint">Chọn model khi tạo lớp. Key lấy từ trang Models. Nút «Lưu LLM» chỉ lưu cấu hình  -  không tạo lớp.</p>' +
         '<div class="jw-field"><label for="bgOmProv">Nhà cung cấp</label>' +
         '<select id="bgOmProv">' +
         '<option value="google">Google Gemini</option>' +
@@ -345,14 +386,7 @@
         '<select id="bgOmModel"></select>' +
         '<p class="jw-hint" id="bgOmLlmHint">Đang tải…</p></div>' +
         '<div class="jw-actions">' +
-        '<button type="button" class="jw-btn jw-btn-primary" id="bgOmLlmApply">Lưu LLM cho OpenMAIC</button>' +
-        "</div></div>" +
-        '<div class="jw-field"><label for="bgOmPath">Đường dẫn lop-hoc.md (tuỳ chọn)</label>' +
-        '<input id="bgOmPath" type="text" autocomplete="off" placeholder="Ví dụ: exports/bai-giang/…/lop-hoc.md">' +
-        '<p class="jw-hint">Để trống = tự lấy từ kết quả chạy. Có quiz.md cùng thư mục sẽ kèm theo.</p></div>' +
-        '<details class="jw-om-adv"><summary>Tuỳ chọn nâng cao</summary>' +
-        '<p class="jw-hint">Chỉ khi cần debug ngoài Javis.</p>' +
-        '<div class="jw-actions jw-om-actions">' +
+        '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmLlmApply">Lưu LLM cho OpenMAIC</button>' +
         '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmCopyCmd">Copy lệnh debug</button>' +
         '<button type="button" class="jw-btn jw-btn-ghost" id="bgOmOpen">Mở URL public</button>' +
         "</div></details></div>"
@@ -360,12 +394,33 @@
     }
 
     function wireLeft() {
+      BG_FIELD_IDS.forEach(function (id) {
+        var el = root.querySelector("#" + id);
+        if (!el) return;
+        el.addEventListener("change", saveDraft);
+        el.addEventListener("input", saveDraft);
+      });
+      var pathWatch = root.querySelector("#bgOmPath");
+      if (pathWatch) {
+        pathWatch.addEventListener("change", saveDraft);
+        pathWatch.addEventListener("input", saveDraft);
+      }
+
+      var cross = root.querySelector("#bgCrossLink");
+      if (cross) {
+        cross.onclick = function () {
+          try {
+            if (window.Alpine && Alpine.store("nav")) Alpine.store("nav").go("video");
+          } catch (e) {}
+        };
+      }
+
       root.querySelector("#bgFiles").onchange = async function () {
         var files = Array.from((root.querySelector("#bgFiles").files) || []);
         uploaded = [];
         var list = root.querySelector("#bgFileList");
         if (!files.length) {
-          if (list) list.textContent = "Giáo án, PDF, ảnh… (tuỳ chọn)";
+          if (list) list.textContent = "Giáo án, PDF, ảnh…";
           return;
         }
         if (list) list.textContent = "Đang tải…";
@@ -385,6 +440,7 @@
       };
 
       root.querySelector("#bgStop").onclick = function () {
+        runFinished = true;
         try { if (es) es.close(); } catch (e) {}
         es = null;
         setBusy(false, "Đã dừng theo dõi (server có thể vẫn chạy).", true);
@@ -395,7 +451,7 @@
       var copyCmdBtn = root.querySelector("#bgOmCopyCmd");
       var openBtn = root.querySelector("#bgOmOpen");
       var pathEl = root.querySelector("#bgOmPath");
-      if (pathEl && lastLopHocPath) pathEl.value = lastLopHocPath;
+      if (pathEl && lastLopHocPath && !pathEl.value) pathEl.value = lastLopHocPath;
 
       // --- OpenMAIC LLM module ---
       var omLlmCache = null;
@@ -417,13 +473,13 @@
         var keyOk = !!meta.has_key;
         var dockerOk = !!omLlmCache.docker;
         var bits = [];
-        bits.push(keyOk ? "Models: đã có key" : "Models: chưa có key — vào trang Models dán key");
-        bits.push(dockerOk ? "Docker: áp dụng trực tiếp được" : "Docker: chưa gắn socket — Áp dụng chỉ lưu, cần sync deploy");
+        bits.push(keyOk ? "Models: đã có key" : "Models: chưa có key  -  vào trang Models dán key");
+        bits.push(dockerOk ? "Docker: áp dụng trực tiếp được" : "Docker: chưa gắn socket  -  Áp dụng chỉ lưu, cần sync deploy");
         if (omLlmCache.default_model) bits.push("Đã chọn: " + omLlmCache.default_model);
         if (omLlmCache.container_model) {
           bits.push("Container: " + omLlmCache.container_model);
           if (omLlmCache.in_sync === false) {
-            bits.push("CHƯA ĐỒNG BỘ — bấm Áp dụng hoặc chạy sync deploy");
+            bits.push("CHƯA ĐỒNG BỘ  -  bấm Lưu LLM hoặc sync deploy");
           }
         }
         if (hint) hint.textContent = bits.join(" · ");
@@ -492,6 +548,18 @@
       }
       loadOmLlm();
 
+      async function resolvePublicUrl() {
+        if (cachedPublicUrl) return cachedPublicUrl;
+        try {
+          var h = await (await fetch("/openmaic/health")).json();
+          if (h && h.public_url) {
+            cachedPublicUrl = String(h.public_url).replace(/\/$/, "");
+            return cachedPublicUrl;
+          }
+        } catch (e) {}
+        return OM_FALLBACK_URL;
+      }
+
       async function copyText(text, okMsg) {
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -502,30 +570,31 @@
           setStatus(okMsg || "Đã copy.", true);
         } catch (e) {
           appendLog("--- Copy thủ công ---\n" + text + "\n---");
-          setStatus("Clipboard bị chặn — xem cột Kết quả để copy tay.", false);
+          setStatus("Clipboard bị chặn  -  xem cột Kết quả để copy tay.", false);
         }
       }
 
       if (copyCmdBtn) {
         copyCmdBtn.onclick = async function () {
+          var pub = await resolvePublicUrl();
           var text = buildOpenmaicHandoff({
+            publicUrl: pub,
             topic: ((root.querySelector("#bgTopic") || {}).value || "").trim() || lastTopic || "(chưa ghi chủ đề)",
             goals: ((root.querySelector("#bgGoals") || {}).value || "").trim(),
             paste: ((root.querySelector("#bgPaste") || {}).value || "").trim(),
-            lang: ((root.querySelector("#bgLang") || {}).value || "vi").trim(),
             slugHint:
               ((root.querySelector("#bgOmPath") || {}).value || "").trim() ||
               lastLopHocPath ||
               "exports/bai-giang/<slug>/lop-hoc.md",
           });
-          await copyText(text, "Đã copy lệnh debug (ưu tiên dùng nút Tạo lớp trong Javis).");
+          await copyText(text, "Đã copy lệnh debug (ưu tiên dùng nút Tạo lớp trong VMOS).");
         };
       }
       if (openBtn) {
-        openBtn.onclick = function () {
-          var om = loadOm();
-          window.open(om.url || OM_DEFAULT_URL, "_blank", "noopener,noreferrer");
-          setStatus("Đã mở URL public (debug). Classroom nên xem trong iframe Javis.", true);
+        openBtn.onclick = async function () {
+          var pub = await resolvePublicUrl();
+          window.open(pub, "_blank", "noopener,noreferrer");
+          setStatus("Đã mở URL public (debug). Classroom nên xem trong iframe VMOS.", true);
         };
       }
     }
@@ -565,9 +634,19 @@
         frame.hidden = false;
         frame.src = url;
       }
-      if (btn) btn.hidden = true;
-      if (hint) hint.textContent = "Classroom sẵn sàng trong khung dưới.";
-      setStatus("Lớp OpenMAIC đã sẵn trong Javis.", true);
+      if (btn) {
+        btn.hidden = !lastOmThin;
+        btn.disabled = false;
+        btn.textContent = lastOmThin ? "Tạo lại lớp OpenMAIC" : "Tạo lớp OpenMAIC";
+      }
+      if (hint) {
+        hint.textContent = lastOmThin
+          ? "Classroom mỏng  -  xem cảnh báo trong log; có thể tạo lại."
+          : "Classroom sẵn sàng trong khung dưới.";
+      }
+      if (!lastOmThin) {
+        setStatus("Lớp OpenMAIC đã sẵn trong VMOS.", true);
+      }
     }
 
     async function startOpenmaicGenerate() {
@@ -581,7 +660,7 @@
         );
       }
       if (!path) {
-        setStatus("Thiếu đường dẫn lop-hoc.md — điền ô path hoặc chạy workflow Lớp học trước.", false);
+        setStatus("Thiếu đường dẫn lop-hoc.md  -  điền ô path hoặc chạy workflow Lớp học trước.", false);
         return;
       }
       lastLopHocPath = path;
@@ -615,7 +694,7 @@
             if (pathField && firstHint) {
               pathField.value = firstHint;
               lastLopHocPath = firstHint;
-              appendLog("Đã điền path gợi ý: " + firstHint + " — bấm lại «Tạo lớp OpenMAIC».");
+              appendLog("Đã điền path gợi ý: " + firstHint + "  -  bấm lại «Tạo lớp OpenMAIC».");
             }
           }
           setStatus(String(err), false);
@@ -680,7 +759,7 @@
             if (tries === 1 || tries % 3 === 0) {
               appendLog("[openmaic] " + st + (step ? " / " + step : "") + prog);
             }
-            setStatus("OpenMAIC: " + st + (step ? " — " + step : "") + prog + " (" + tries + ")");
+            setStatus("OpenMAIC: " + st + (step ? "  -  " + step : "") + prog + " (" + tries + ")");
             if (data.failed || String(st).toLowerCase() === "failed") {
               omGenerating = false;
               appendLog("ERROR: " + (data.error || data.message || "generate failed"));
@@ -702,17 +781,20 @@
                   (sc != null ? "\nscenesCount: " + sc : "")
               );
               if (data.thinClassroom || (typeof sc === "number" && sc < 3)) {
+                lastOmThin = true;
                 appendLog(
                   "CẢNH BÁO: chỉ " +
                     (sc != null ? sc : "?") +
-                    " scene — thường là slide chào. " +
+                    " scene  -  thường là slide chào. " +
                     (data.warning ||
                       "Kiểm tra lop-hoc.md (cần outline 8-15 cảnh + script) và thử model mạnh hơn OpenAI (vd. gpt-4o).")
                 );
                 setStatus(
-                  "Lớp chỉ có " + (sc != null ? sc : "ít") + " scene — xem cảnh báo trong log.",
+                  "Lớp chỉ có " + (sc != null ? sc : "ít") + " scene  -  xem cảnh báo trong log.",
                   false
                 );
+              } else {
+                lastOmThin = false;
               }
               showOmIframe(url);
               return;
@@ -726,7 +808,7 @@
             }
             if (tries >= maxTries) {
               omGenerating = false;
-              setStatus("Hết thời gian chờ OpenMAIC — job " + jobId + " có thể vẫn chạy.", false);
+              setStatus("Hết thời gian chờ OpenMAIC  -  job " + jobId + " có thể vẫn chạy.", false);
               showOmStage(true);
               return;
             }
@@ -746,6 +828,7 @@
     }
 
     function selectTab(i) {
+      saveDraft();
       tabIdx = i;
       tabsEl.querySelectorAll(".jw-tab").forEach(function (btn, j) {
         var on = j === i;
@@ -818,6 +901,7 @@
     }
 
     function finishBusy(statusMsg, statusOk) {
+      runFinished = true;
       try { if (es) es.close(); } catch (e) {}
       es = null;
       setBusy(false, statusMsg, statusOk);
@@ -870,8 +954,10 @@
       var brief = composeBrief(v.topic, v.audience, v.goals, v.lang, f, uploaded, v.paste);
 
       setBusy(true, "Đang chạy «" + f.full + "»…");
+      runFinished = false;
       stopOmPoll();
       omGenerating = false;
+      lastOmThin = false;
       var stage = root.querySelector("#bgOmStage");
       var frame = root.querySelector("#bgOmFrame");
       var createBtn = root.querySelector("#bgOmCreate");
@@ -892,8 +978,17 @@
       try {
         var fd0 = new FormData();
         fd0.append("brain", brain());
-        await fetch("/studio/seed-bai-giang", { method: "POST", body: fd0 });
-      } catch (e0) {}
+        var seedRes = await fetch("/studio/seed-bai-giang", { method: "POST", body: fd0 });
+        var seedJson = await seedRes.json().catch(function () { return null; });
+        if (!seedRes.ok || (seedJson && seedJson.ok === false)) {
+          appendLog(
+            "CẢNH BÁO seed: " +
+              ((seedJson && (seedJson.error || seedJson.detail)) || "HTTP " + seedRes.status)
+          );
+        }
+      } catch (e0) {
+        appendLog("CẢNH BÁO seed: " + ((e0 && e0.message) || e0));
+      }
 
       var url =
         "/workflows/run?slug=" +
@@ -936,9 +1031,9 @@
               var pathField = root.querySelector("#bgOmPath");
               if (pathField && lastLopHocPath) pathField.value = lastLopHocPath;
               appendLog(
-                "OpenMAIC trong Javis: bấm «Tạo lớp OpenMAIC» ở cột Kết quả" +
+                "OpenMAIC trong VMOS: bấm «Tạo lớp OpenMAIC» ở cột Kết quả" +
                   (lastLopHocPath ? "\npath: " + lastLopHocPath : "") +
-                  "\n(language=en-US + nội dung VI + TTS Edge — không mở domain)."
+                  "\n(language=en-US + nội dung VI + TTS Edge  -  không mở domain)."
               );
               showOmStage(true);
             }
@@ -956,9 +1051,17 @@
         }
       };
       es.onerror = function () {
+        if (runFinished || !running) return;
         finishBusy("Mất kết nối stream (có thể đã xong hoặc lỗi).", false);
       };
     }
+
+    window._bgLeave = function () {
+      runFinished = true;
+      stopOmPoll();
+      try { if (es) es.close(); } catch (e) {}
+      es = null;
+    };
 
     paintLeft();
   };

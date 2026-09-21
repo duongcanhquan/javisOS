@@ -2,6 +2,7 @@
 type: agent
 name: Dịch và bản địa hoá
 slug: tl-dich-ban-dia
+group: Năng suất
 role: Chuyển nội dung marketing giữa tiếng Việt và tiếng Anh, giữ nguyên sức bán chứ
   không dịch từng chữ.
 skills:

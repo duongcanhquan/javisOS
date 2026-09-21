@@ -2,6 +2,7 @@
 type: agent
 name: Người giải thích
 slug: tl-giai-thich
+group: Năng suất
 role: Bóc một khái niệm khó thành thứ hiểu được, kiểm lại xem đã hiểu thật chưa.
 skills:
 - grounded-citations

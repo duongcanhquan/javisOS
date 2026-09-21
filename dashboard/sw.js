@@ -1,6 +1,6 @@
-/* Service worker của Javis - CHỈ để nhận thông báo đẩy.
+/* Service worker của VMOS - CHỈ để nhận thông báo đẩy.
 
-   Cố ý KHÔNG cache gì cả. Javis là app tự host, người dùng cập nhật bằng cách kéo bản mới
+   Cố ý KHÔNG cache gì cả. VMOS là app tự host, người dùng cập nhật bằng cách kéo bản mới
    rồi tải lại trang; một service worker có cache sẽ phục vụ bản cũ và biến mỗi lần nâng cấp
    thành một cuộc đi tìm "sao sửa rồi mà không thấy đổi". Đổi lại, file này chỉ làm đúng hai
    việc: hiện thông báo, và đưa người dùng về đúng chỗ khi họ bấm vào.
@@ -13,7 +13,7 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: (event.data && event.data.text()) || "" }; }
-  const title = d.title || "Javis";
+  const title = d.title || "VMOS";
   const opts = {
     body: d.body || "",
     icon: "/brand-icon/192?v=1",
@@ -32,8 +32,8 @@ self.addEventListener("notificationclick", (event) => {
   const url = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil((async () => {
     const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    // Đã mở Javis ở đâu đó thì FOCUS đúng tab đó rồi nhắn cho nó mở mẩu thư, chứ đừng mở
-    // thêm một tab thứ hai - người dùng sẽ có hai bản Javis chạy song song, mỗi bản một
+    // Đã mở VMOS ở đâu đó thì FOCUS đúng tab đó rồi nhắn cho nó mở mẩu thư, chứ đừng mở
+    // thêm một tab thứ hai - người dùng sẽ có hai bản VMOS chạy song song, mỗi bản một
     // hội thoại, và không hiểu vì sao.
     for (const c of list) {
       if (c.url && new URL(c.url).origin === self.location.origin) {

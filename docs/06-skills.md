@@ -12,7 +12,7 @@ Một skill trong Javis là một thư mục chứa file `SKILL.md`, đặt tạ
 
 - `name`: tên hiển thị của skill.
 - `description`: mô tả ngắn, chính là **trigger** - quyết định KHI NÀO skill được kích hoạt. Trường này có luật viết riêng, đọc kỹ mục ngay bên dưới trước khi điền.
-- `group`: tên nhóm để dashboard gom skill lại cho gọn (ví dụ Marketing, Bán hàng, Nội dung). Trường này bắt buộc; nếu để trống skill sẽ rơi vào nhóm "Chung".
+- `group`: tên nhóm để dashboard gom skill lại cho gọn. **Nhóm chuẩn:** Marketing · Nghiên cứu · Nội dung · Giáo dục · Thiết kế & Web · Video & Motion · Tài chính · Vận hành · Pháp chế · AI & Hệ thống · Năng suất. Trường này bắt buộc về mặt UX; nếu để trống skill sẽ rơi vào nhóm "Chung".
 
 Phần còn lại của file là nội dung hướng dẫn chi tiết cho AI khi skill chạy.
 

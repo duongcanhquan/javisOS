@@ -6,7 +6,7 @@ role: 'Soi gói bài giảng so với brief: mục tiêu, ví dụ, định dạ
 skills: []
 model: gemini-2.5-flash
 model_provider: gemini
-group: Nội dung
+group: Giáo dục
 updated: '2026-09-07'
 ---
 

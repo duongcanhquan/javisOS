@@ -15,6 +15,8 @@ PROTECTED_SLUGS = frozenset({
 PROTECTED_VOLUMES = frozenset({
     "javis_javis-data", "javis_javis-brains", "javis_claude-auth", "javis_codex-auth",
 })
+# Xóa mềm: giữ volume, tự xóa hẳn sau 72 giờ (tinh thần NĐ 13 / design Tổ chức).
+SOFT_DELETE_SEC = 72 * 3600
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _PREFIX_RE = re.compile(r"^[a-z][a-z0-9]{0,15}$")
 
@@ -187,6 +189,64 @@ def remove(slug: str) -> None:
     save(data)
 
 
+def is_soft_deleted(rec: dict | None) -> bool:
+    if not isinstance(rec, dict):
+        return False
+    try:
+        return int(rec.get("deleted_at") or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def soft_delete_mark(slug: str) -> dict:
+    """Đánh dấu chờ xóa 72h. Không gỡ volume."""
+    rec = get(slug)
+    if not rec:
+        raise ValueError("Không có bản này.")
+    s = str(rec.get("slug") or "").strip().lower()
+    if rec.get("protected") or s in PROTECTED_SLUGS:
+        raise ValueError("Không xóa bản hệ thống.")
+    if is_soft_deleted(rec):
+        return rec
+    import time
+    rec["deleted_at"] = int(time.time())
+    rec["paused"] = True
+    rec["status"] = "stopped"
+    return upsert(rec)
+
+
+def restore_mark(slug: str) -> dict:
+    """Gỡ cờ chờ xóa. Não còn. Không tự bật máy."""
+    rec = get(slug)
+    if not rec:
+        raise ValueError("Không có bản này.")
+    if not is_soft_deleted(rec):
+        raise ValueError("Máy này không đang chờ xóa.")
+    rec.pop("deleted_at", None)
+    # Giữ paused=True — admin bấm Chạy lại khi sẵn sàng.
+    rec["paused"] = True
+    return upsert(rec)
+
+
+def purge_due_slugs(now: int | None = None) -> list[str]:
+    """Slug đã hết hạn 72h, cần destroy thật."""
+    import time
+    ts = int(now if now is not None else time.time())
+    out = []
+    for t in load().get("tenants") or []:
+        if t.get("protected"):
+            continue
+        try:
+            da = int(t.get("deleted_at") or 0)
+        except (TypeError, ValueError):
+            da = 0
+        if da > 0 and ts - da >= SOFT_DELETE_SEC:
+            slug = str(t.get("slug") or "").strip().lower()
+            if slug:
+                out.append(slug)
+    return out
+
+
 def audit(action: str, slug: str, extra: str = "") -> None:
     import time
     p = cfgmod.STATE_DIR / "org-audit.jsonl"
@@ -199,3 +259,46 @@ def audit(action: str, slug: str, extra: str = "") -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+def audit_tail(limit: int = 80, slug: str = "") -> list[dict]:
+    """Đọc cuối file audit (mới nhất trước)."""
+    import time
+    p = cfgmod.STATE_DIR / "org-audit.jsonl"
+    if not p.is_file():
+        return []
+    try:
+        n = max(1, min(500, int(limit or 80)))
+    except (TypeError, ValueError):
+        n = 80
+    want = (slug or "").strip().lower()
+    try:
+        lines = p.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return []
+    out = []
+    for line in reversed(lines):
+        line = (line or "").strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(row, dict):
+            continue
+        if want and str(row.get("slug") or "").lower() != want:
+            continue
+        try:
+            row["ts"] = int(row.get("ts") or 0)
+        except (TypeError, ValueError):
+            row["ts"] = 0
+        out.append({
+            "ts": row["ts"],
+            "action": str(row.get("action") or ""),
+            "slug": str(row.get("slug") or ""),
+            "extra": str(row.get("extra") or ""),
+        })
+        if len(out) >= n:
+            break
+    return out

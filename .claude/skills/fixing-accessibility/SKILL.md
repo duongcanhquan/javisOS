@@ -2,7 +2,7 @@
 name: fixing-accessibility
 description: "Audit/sửa HTML a11y: ARIA, bàn phím, focus, contrast, form."
 description_en: "Audit and fix HTML accessibility: ARIA, keyboard, focus, color contrast, and form errors."
-group: Marketing
+group: "Thiết kế & Web"
 ---
 
 ## Liên kết

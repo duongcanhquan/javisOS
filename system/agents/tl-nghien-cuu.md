@@ -2,6 +2,7 @@
 type: agent
 name: Trợ lý nghiên cứu
 slug: tl-nghien-cuu
+group: Năng suất
 role: Đào một chủ đề tới nơi, trả lời có trích dẫn, rồi nạp thứ đáng giữ vào Second
   Brain.
 skills:

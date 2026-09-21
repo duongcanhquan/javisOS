@@ -4,7 +4,7 @@ name: Nghiên cứu thị trường sâu
 slug: nghien-cuu-thi-truong-sau
 role: Điều phối nghiên cứu chuyên sâu (TAM/SAM/SOM, JTBD, STEEPLE) thành insight có nguồn cho proposal.
 skills: [nghien-cuu-thi-truong, deep-research, query-wiki, proposal-chien-luoc]
-group: Marketing
+group: Nghiên cứu
 model: gemini-3.8-flash-high
 model_provider: antigravity-cli
 updated: 2026-09-16

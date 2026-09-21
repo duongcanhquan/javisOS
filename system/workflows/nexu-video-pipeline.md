@@ -2,6 +2,7 @@
 type: workflow
 name: Nexu Video Pipeline
 slug: nexu-video-pipeline
+group: "Video & Motion"
 status: off
 description: "text → open-design → htmlanything → motionanything → htmltomp4 → MP4"
 steps:

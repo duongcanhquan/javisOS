@@ -2,7 +2,7 @@
 name: Deep Research
 description: "Nghiên cứu sâu lặp theo breadth/depth: sinh query, tra web, rút learning, đào tiếp, báo cáo có nguồn."
 description_en: "Iterative deep research by breadth/depth: SERP queries, web dig, learnings, recurse, sourced report."
-group: Năng suất
+group: Nghiên cứu
 ---
 
 # Deep Research (Open Deep Research → Javis)

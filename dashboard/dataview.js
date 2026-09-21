@@ -1,4 +1,4 @@
-/* dataview.js - Dataview LITE cho Javis OS (cam hung obsidian-dataview + obsidian-tasks).
+/* dataview.js - Dataview LITE cho VMOS (cam hung obsidian-dataview + obsidian-tasks).
    Khoi ```dataview trong note/chat duoc chat-render.js do thanh <div class="jv-dataview"
    data-dv-q="...">; file nay tu phat hien (MutationObserver), tai chi muc note tu
    /files/mdindex roi CHAY TRUY VAN NGAY TREN TRINH DUYET va ve ket qua.

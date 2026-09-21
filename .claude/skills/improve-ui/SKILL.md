@@ -2,7 +2,7 @@
 name: improve-ui
 description: "Audit UI theo bằng chứng thiết kế; viết plan bàn giao cho agent khác."
 description_en: "Audit a product UI against its own design evidence and write implementation plans for another agent."
-group: Marketing
+group: "Thiết kế & Web"
 ---
 
 ## Liên kết

@@ -13,6 +13,20 @@
 (function () {
   "use strict";
 
+  // Chữ hiện ra lấy từ từ điển. Trong trình duyệt là window.t (i18n/index.js nạp trước mọi
+  // module này); dưới node - nơi test require() thẳng file này - `window` CHƯA KHAI BÁO nên
+  // đọc window.t là ReferenceError chứ không phải undefined, phải hỏi bằng typeof. Ở đó đọc
+  // thẳng vi.json để hàm vẫn trả về chữ thật, không phải mã khoá trần.
+  function tw(khoa, bien) {
+    if (typeof window !== "undefined" && window.t) return window.t(khoa, bien);
+    try {
+      var s = require("./i18n/vi.json")[khoa] || khoa;
+      return String(s).replace(/\{(\w+)\}/g, function (m, ten) {
+        return (bien && bien[ten] != null) ? String(bien[ten]) : m;
+      });
+    } catch (e) { return khoa; }
+  }
+
   var IMG = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"];
 
   function esc(s) {
@@ -47,19 +61,6 @@
   function rawUrl(b, ceilRel, dl) {
     return "/files/raw?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceilRel) + (dl ? "&dl=1" : "");
   }
-  function htmlViewUrl(b, ceilRel) {
-    return "/files/html-view?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceilRel);
-  }
-  function laHtml(p) {
-    var e = extOf(p);
-    return e === ".html" || e === ".htm";
-  }
-  function laPwa() {
-    try {
-      return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
-        || window.navigator.standalone === true;
-    } catch (e) { return false; }
-  }
 
   // ---------------------------------------------------------------- CSS (chen 1 lan)
   function injectCss() {
@@ -80,7 +81,27 @@
       ".jvfe-actions{display:flex;gap:6px;flex:none;align-items:center;flex-wrap:wrap}" +
       // Man hep: thanh nut trum khong du cho -> nut Dong bi day ra ngoai va nguoi dung
       // mac ket trong trinh sua. Cho phep xuong dong va giu nut Dong luon o cuoi.
-      "@media(max-width:700px){.jvfe-head{flex-wrap:wrap;gap:6px}.jvfe-actions{width:100%;justify-content:flex-end}.jvfe-actions .icon{order:99}}" +
+      //
+      // Va tu 0.55.57, o dien thoai thi TOAN MAN HINH thay vi mot the noi giua nen mo. Chu repo
+      // bao 2026-09-08: "mo file.txt trong khung chat hoac khung .md thi khong an nut tat duoc,
+      // khong co cach nao back lai man hinh cu". The noi giua duoc can theo 88vh cua man hinh
+      // DAY DU, ma ban phim ao chiem gan nua man - nen dau the (cho co nut Dong) bi day len
+      // ngoai vung nhin thay, va nguoi dung khong con duong ra. Dan the vao bon canh thi dau
+      // the luon nam dung mep tren, ban phim che gi thi che.
+      "@media(max-width:700px){" +
+        ".jvfe-modal{padding:0;align-items:stretch;justify-content:stretch}" +
+        ".jvfe-card{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;" +
+        "border-radius:0;border:0}" +
+        // Dau the dinh o tren ke ca khi than cuon: nut Dong khong bao gio troi khoi tam tay.
+        ".jvfe-head{position:sticky;top:0;z-index:2;background:var(--bg2);flex-wrap:wrap;gap:6px}" +
+        ".jvfe-actions{width:100%;justify-content:flex-end}.jvfe-actions .icon{order:99}" +
+        // 32px la co chuot; ngon tay can 40px tro len moi bam trung chac.
+        ".jvfe-btn.icon{width:40px;height:40px}.jvfe-btn{padding:8px 12px}" +
+        ".jvfe-text{min-height:0}" +
+      "}" +
+      // Khoa cuon nen khi dang mo. Lop nay duoc gan tu 0.9.x nhung CHUA BAO GIO co luat CSS
+      // nao - tuc trang phia sau van cuon duoc duoi ngon tay, dung kieu hong am tham.
+      "body.jvfe-open{overflow:hidden}" +
       ".jvfe-seg{display:flex;gap:4px;margin-right:4px}" +
       ".jvfe-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);" +
       "border-radius:7px;padding:5px 11px;font-size:13px;cursor:pointer;font-family:inherit}" +
@@ -88,6 +109,14 @@
       ".jvfe-btn.active{color:var(--accent);border-color:var(--accent)}" +
       ".jvfe-btn.icon{width:32px;height:32px;padding:0;font-size:14px}" +
       ".jvfe-btn.saved{color:var(--green);border-color:var(--green)}" +
+      // Thanh link chia se. Xuong dong duoc vi tren dien thoai mot hang bon mon khong du cho,
+      // va o nhap link chiem het be ngang con lai de nguoi ta nhin thay CA duong link.
+      ".jvfe-share{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg3);" +
+      "font-size:13px;color:var(--text2)}" +
+      ".jvfe-share-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}" +
+      ".jvfe-share-url{flex:1 1 220px;min-width:0;padding:7px 10px;border-radius:8px;" +
+      "border:1px solid var(--border);background:var(--bg2);color:var(--text-hi);font-size:13px}" +
+      ".jvfe-share-note{margin-top:7px;line-height:1.5;opacity:.85}" +
       ".jvfe-body{flex:1;min-height:0;overflow:auto;background:var(--bg);display:flex;flex-direction:column}" +
       ".jvfe-text{flex:1;min-height:52vh;width:100%;box-sizing:border-box;border:0;outline:none;resize:none;" +
       "background:var(--bg);color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace;" +
@@ -103,16 +132,31 @@
       ".jvfe-note a{color:var(--accent)}" +
       ".jvfe-img{padding:16px;text-align:center;overflow:auto}" +
       ".jvfe-img img{max-width:100%;height:auto;border-radius:8px}" +
-      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff}" +
-      ".jvfe-modal.jvfe-html .jvfe-card{width:min(1100px,98vw);max-height:96vh}" +
-      ".jvfe-modal.jvfe-html .jvfe-frame{height:calc(96vh - 58px)}" +
-      ".jvfe-btn.jvfe-back{font-weight:600;color:var(--accent);border-color:var(--accent);order:99}" +
-      "@media(max-width:700px){.jvfe-actions .jvfe-back{order:99}}";
+      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff}";
     document.head.appendChild(s);
+  }
+
+  // Man cam ung (dien thoai/tablet) hay khong. Quyet dinh MOT viec duy nhat nhung quan trong:
+  // co tu dat con tro vao o soan khi vua mo file hay khong.
+  //
+  // Tren dien thoai, focus la ban phim ao bat len ngay lap tuc va an mat nua man hinh, keo theo
+  // trinh duyet tu cuon o soan vao giua - dau the cung nut Dong bi day khuat. Nguoi dung mo mot
+  // file .txt de DOC lai bi nem thang vao che do go chu, roi khong thoat ra duoc. Tren may tinh
+  // thi focus san van dung: go duoc ngay, va luon co phim Esc lam duong lui.
+  function laCamUng() {
+    try {
+      return window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 860;
+    } catch (e) { return false; }
+  }
+  function focusNeuDuocPhep(el) {
+    if (!el || laCamUng()) return;
+    setTimeout(function () { try { el.focus(); } catch (e) {} }, 30);
   }
 
   // ---------------------------------------------------------------- modal (dung 1 lan, tai su dung)
   var modal = null, card = null, elTitle = null, elActions = null, elBody = null, curSave = null;
+  var daDayLichSu = false;   // da chen mot buoc lich su cho nut Back chua
+  var elShareModal = null;   // thanh hien link chia se CUA MODAL nay (an mac dinh)
 
   function build() {
     if (modal) return;
@@ -122,6 +166,7 @@
     modal.innerHTML =
       '<div class="jvfe-card" role="dialog" aria-modal="true">' +
         '<div class="jvfe-head"><span class="jvfe-title"></span><span class="jvfe-actions"></span></div>' +
+        '<div class="jvfe-share" hidden></div>' +
         '<div class="jvfe-body"></div>' +
       "</div>";
     document.body.appendChild(modal);
@@ -129,7 +174,20 @@
     elTitle = modal.querySelector(".jvfe-title");
     elActions = modal.querySelector(".jvfe-actions");
     elBody = modal.querySelector(".jvfe-body");
-    modal.addEventListener("mousedown", function (e) { if (e.target === modal) close(); });   // bam nen mo -> dong
+    elShareModal = modal.querySelector(".jvfe-share");
+    // Bam nen mo -> dong. Bat CA hai su kien: iOS khong phai luc nao cung sinh mousedown cho
+    // mot the <div> tron, nen chi nghe mousedown la tren dien thoai bam nen khong an gi.
+    modal.addEventListener("mousedown", function (e) { if (e.target === modal) close(); });
+    modal.addEventListener("click", function (e) { if (e.target === modal) close(); });
+    // Nut Back cua dien thoai (va cu vuot canh man hinh) phai dong trinh sua, khong phai thoat
+    // ca app. Truoc day khong co nhanh nay nen nguoi dung bam Back la bay ra khoi Javis - mot
+    // duong "lui" ma khong ai muon. Ca app khong dung History API o cho nao khac, nen chen mot
+    // buoc o day khong dam vao dieu huong nao.
+    window.addEventListener("popstate", function () {
+      if (!isOpen()) return;
+      daDayLichSu = false;      // buoc vua bi go chinh la buoc minh chen
+      close();
+    });
     document.addEventListener("keydown", function (e) {
       if (!isOpen()) return;
       if (e.key === "Escape") { e.stopPropagation(); close(); return; }
@@ -142,15 +200,19 @@
   function close() {
     if (!modal) return;
     modal.classList.remove("open");
-    modal.classList.remove("jvfe-html");
     elBody.innerHTML = ""; elActions.innerHTML = ""; curSave = null;   // don iframe/textarea
+    if (elShareModal) { elShareModal.innerHTML = ""; elShareModal.hidden = true; }
     document.body.classList.remove("jvfe-open");
+    // Dong bang nut X / Esc / bam nen: nha luon buoc lich su da chen, khong thi nguoi dung phai
+    // bam Back mot cai "khong lam gi" truoc khi thuc su roi trang.
+    if (daDayLichSu) {
+      daDayLichSu = false;
+      try { history.back(); } catch (e) {}
+    }
   }
-  function closeBtn(veJavis) {
+  function closeBtn() {
     var b = document.createElement("button");
-    b.className = veJavis ? "jvfe-btn jvfe-back" : "jvfe-btn icon";
-    b.innerHTML = veJavis ? "← Về Javis" : ic("x");
-    b.title = veJavis ? "Đóng và về Javis (Esc)" : "Đóng (Esc)";
+    b.className = "jvfe-btn icon"; b.innerHTML = ic("x"); b.title = tw("fedit.close_esc");
     b.onclick = close; return b;
   }
 
@@ -160,11 +222,13 @@
     build();
     var b = brain();
     elTitle.innerHTML = esc(baseOf(brainRel));
-    elActions.innerHTML = ""; elBody.innerHTML = '<div class="jvfe-note">Đang mở…</div>';
+    elActions.innerHTML = ""; elBody.innerHTML = '<div class="jvfe-note">' + esc(tw("fedit.opening")) + "</div>";
     curSave = null;
     modal.classList.add("open");
-    modal.classList.remove("jvfe-html");
     document.body.classList.add("jvfe-open");
+    if (!daDayLichSu) {
+      try { history.pushState({ jvfe: 1 }, ""); daDayLichSu = true; } catch (e) {}
+    }
 
     var ext = extOf(brainRel);
     getHome(b).then(function (home) {
@@ -172,7 +236,6 @@
       // Anh / PDF: xem truoc thang qua /files/raw (khong doc dang text).
       if (IMG.indexOf(ext) >= 0) { renderImage(b, ceil, brainRel); return; }
       if (ext === ".pdf") { renderPdf(b, ceil, brainRel); return; }
-      if (laHtml(brainRel)) { renderHtml(b, ceil, brainRel); return; }
       // Con lai: doc noi dung.
       fetch("/files/read?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceil))
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
@@ -187,7 +250,7 @@
   }
 
   function renderImage(b, ceil, brainRel) {
-    elActions.appendChild(openLink(b, ceil)); elActions.appendChild(dlLink(b, ceil)); elActions.appendChild(closeBtn());
+    elActions.appendChild(shareBtn(b, ceil)); elActions.appendChild(openLink(b, ceil)); elActions.appendChild(dlLink(b, ceil)); elActions.appendChild(closeBtn());
     elBody.innerHTML = '<div class="jvfe-img"><img src="' + esc(rawUrl(b, ceil)) + '" alt="' + esc(baseOf(brainRel)) + '"></div>';
   }
   function renderPdf(b, ceil, brainRel) {
@@ -200,13 +263,13 @@
   }
   function renderError(b, ceil, brainRel, msg) {
     elActions.innerHTML = ""; elActions.appendChild(closeBtn());
-    elBody.innerHTML = '<div class="jvfe-note">' + esc(msg || "Không đọc được file.") +
-      ' - <a href="' + esc(rawUrl(b, ceil)) + '" target="_blank" rel="noopener">Mở tab mới</a>' +
-      ' · <a href="' + esc(rawUrl(b, ceil, 1)) + '">Tải về</a></div>';
+    elBody.innerHTML = '<div class="jvfe-note">' + esc(msg || tw("fedit.read_err")) +
+      ' - <a href="' + esc(rawUrl(b, ceil)) + '" target="_blank" rel="noopener">' + esc(tw("fedit.open_tab")) + "</a>" +
+      ' · <a href="' + esc(rawUrl(b, ceil, 1)) + '">' + esc(tw("common.download")) + "</a></div>";
   }
   function dlLink(b, ceil) {
     var a = document.createElement("a");
-    a.href = rawUrl(b, ceil, 1); a.title = "Tải về";
+    a.href = rawUrl(b, ceil, 1); a.title = tw("common.download");
     a.innerHTML = '<button class="jvfe-btn icon" type="button">⇩</button>';
     return a;
   }
@@ -215,80 +278,119 @@
   // phai co san ngay tren thanh nay. Trinh sua dinh (console.js) da co doi nut nay tu truoc.
   function openLink(b, ceil) {
     var a = document.createElement("a");
-    var html = laHtml(ceil);
-    a.href = html ? htmlViewUrl(b, ceil) : rawUrl(b, ceil);
-    a.target = "_blank"; a.rel = "noopener"; a.title = "Mở tab mới";
+    a.href = rawUrl(b, ceil); a.target = "_blank"; a.rel = "noopener"; a.title = tw("fedit.open_tab");
     a.innerHTML = '<button class="jvfe-btn icon" type="button">↗</button>';
-    if (html) {
-      a.addEventListener("click", function (e) {
-        if (laPwa()) e.preventDefault();
-      });
-    }
     return a;
   }
 
-  // .html: xem TRANG trong iframe (thanh Javis con nut Dong). Khong mo raw full-page
-  // trong PWA - window.open thuong thay chinh cua so app, khong co nut ve.
-  function renderHtml(b, ceil, brainRel) {
-    modal.classList.add("jvfe-html");
-    elBody.innerHTML =
-      '<iframe class="jvfe-frame" src="' + esc(rawUrl(b, ceil)) + '" title="' + esc(baseOf(brainRel)) + '"></iframe>' +
-      '<textarea class="jvfe-text" spellcheck="false" hidden></textarea>';
-    var frame = elBody.querySelector(".jvfe-frame");
-    var ta = elBody.querySelector(".jvfe-text");
-    var loaded = false;
-    function loadSrc(cb) {
-      if (loaded) { if (cb) cb(); return; }
-      fetch("/files/read?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceil))
-        .then(function (r) { return r.json(); })
+  // ---- Nut CHIA SE: mot duong link ai cam cung xem duoc, KHONG can dang nhap ----
+  // Trang mo ra la BAN HOAN THIEN chu khong phai ma nguon: .html chay that, .md hien dam
+  // nghieng va anh. Phia may chu lo phan dung trang (server/share_render.py) va lo cach ly
+  // noi dung (header sandbox) - o day chi lo cai nut.
+  //
+  // Link tro toi FILE THAT chu khong phai ban chup: sua file thi nguoi xem tai lai la thay
+  // ban moi. Chu du an chon vay ngay 18/09.
+  //
+  // `hostEl` la cho VE THANH LINK ra. De trong thi dung thanh cua modal nay. Trinh sua dinh
+  // (noteEditor trong console.js) la MOT khung khac han, khong dung modal nay, nen no truyen
+  // o chua cua no vao - nguoi dung mo file o khung nao cung phai thay nut Chia se, chu khong
+  // phai doan xem minh dang o khung nao. `lop` doi ten lop nut cho hop thanh cong cu so tai.
+  function shareBtn(b, ceil, hostEl, lop) {
+    injectCss();   // goi tu khung khac: modal chua dung nen CSS .jvfe-share chua duoc chen
+    var btn = document.createElement("button");
+    btn.className = (lop == null ? "jvfe-btn icon" : lop); btn.type = "button";
+    // "share-2" (ba nut tron noi nhau) chu KHONG phai "link": trong trinh sua .md, thanh dinh
+    // dang markdown ngay ben duoi da co nut Chen lien ket dung dung ic("link"), nen hai cai
+    // giong het nhau - chu du an bao 18/09: "trung voi icon them link mat roi". Icon nay vua
+    // duoc them vao icons.manifest.json va sinh lai bo vendor.
+    // Khong de emoji lam duong lui: giao dien dashboard cam emoji (test_icons.py canh).
+    btn.innerHTML = ic("link");
+    btn.title = tw("fedit.share_title");
+    // Da co link san thi nut sang len ngay tu luc mo file, de nguoi dung biet file nay DANG
+    // duoc chia se ma khong phai bam thu.
+    fetch("/share/of?brain=" + encodeURIComponent(b) + "&path=" + encodeURIComponent(ceil))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.share) btn.classList.add("active"); })
+      .catch(function () {});
+    btn.onclick = function () {
+      btn.disabled = true;
+      fetch("/share/create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brain: b, path: ceil }),
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (d) {
-          if (!isOpen()) return;
-          ta.value = (d && d.content) || "";
-          loaded = true;
-          try {
-            var lang = window.JavisCodeHL ? window.JavisCodeHL.langFromPath(ceil) : "";
-            if (lang) window.JavisCodeHL.attach(ta, lang);
-          } catch (e) {}
-          if (cb) cb();
+          btn.disabled = false;
+          if (!d || !d.ok) { veThanhShare(null, d && d.error); return; }
+          btn.classList.add("active");
+          veThanhShare(location.origin + d.path, "", d.token);
         })
-        .catch(function () { if (cb) cb(); });
+        .catch(function () { btn.disabled = false; veThanhShare(null, tw("app.err_net")); });
+    };
+    return btn;
+
+    function veThanhShare(url, loi, token) {
+      var elShare = hostEl || elShareModal;
+      if (!elShare) return;
+      elShare.innerHTML = "";
+      elShare.hidden = false;
+      if (!url) {
+        elShare.textContent = loi || tw("app.err_cap");
+        return;
+      }
+      var o = document.createElement("input");
+      o.type = "text"; o.readOnly = true; o.value = url; o.className = "jvfe-share-url";
+      o.onclick = function () { o.select(); };
+      var chep = document.createElement("button");
+      chep.className = "jvfe-btn"; chep.type = "button"; chep.textContent = tw("common.copy");
+      chep.onclick = function () {
+        // navigator.clipboard chi co tren HTTPS (hoac localhost). Tren HTTP trong mang LAN no
+        // KHONG ton tai, nen phai co duong lui bang execCommand - khong thi bam Chep im lang
+        // khong lam gi, dung canh nguoi dung thay "hong ma khong bao".
+        var xong = function () {
+          chep.textContent = tw("common.copied");
+          setTimeout(function () { chep.textContent = tw("common.copy"); }, 1400);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(url).then(xong).catch(function () { o.select(); });
+        } else {
+          o.select();
+          try { document.execCommand("copy"); xong(); } catch (e) {}
+        }
+      };
+      var mo = document.createElement("a");
+      mo.href = url; mo.target = "_blank"; mo.rel = "noopener";
+      mo.innerHTML = '<button class="jvfe-btn" type="button">' + esc(tw("fedit.share_open")) + "</button>";
+      var thu = document.createElement("button");
+      thu.className = "jvfe-btn"; thu.type = "button"; thu.textContent = tw("fedit.share_revoke");
+      thu.onclick = function () {
+        thu.disabled = true;
+        fetch("/share/revoke", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token }),
+        }).then(function () {
+          btn.classList.remove("active");
+          elShare.innerHTML = "";
+          elShare.textContent = tw("fedit.share_revoked");
+          setTimeout(function () { elShare.hidden = true; elShare.textContent = ""; }, 1800);
+        }).catch(function () { thu.disabled = false; });
+      };
+      var nhac = document.createElement("div");
+      nhac.className = "jvfe-share-note";
+      nhac.textContent = tw("fedit.share_note");
+      var hang = document.createElement("div");
+      hang.className = "jvfe-share-row";
+      hang.appendChild(o); hang.appendChild(chep); hang.appendChild(mo); hang.appendChild(thu);
+      elShare.appendChild(hang);
+      elShare.appendChild(nhac);
     }
-    var seg = document.createElement("span");
-    seg.className = "jvfe-seg";
-    var bXem = document.createElement("button");
-    bXem.className = "jvfe-btn active"; bXem.textContent = "Xem trang";
-    var bSua = document.createElement("button");
-    bSua.className = "jvfe-btn"; bSua.textContent = "Sửa mã";
-    bXem.onclick = function () {
-      frame.hidden = false; ta.hidden = true;
-      bXem.classList.add("active"); bSua.classList.remove("active");
-      frame.src = rawUrl(b, ceil) + "&_=" + Date.now();
-    };
-    bSua.onclick = function () {
-      loadSrc(function () {
-        if (!isOpen()) return;
-        frame.hidden = true; ta.hidden = false;
-        bSua.classList.add("active"); bXem.classList.remove("active");
-        try { ta.focus(); } catch (e) {}
-      });
-    };
-    elActions.appendChild(seg);
-    seg.appendChild(bXem); seg.appendChild(bSua);
-    appendSaveAndClose(b, ceil, function () { return ta.value; }, true, function () { return loaded; });
-    loadSrc();
   }
 
   // Nut Luu (dung getContent de lay noi dung THAT theo che do dang mo) + Tai + Dong.
-  // ready(): HTML xem trang tai ma nguon xong moi cho luu — bam Luu som se ghi de file thanh rong.
-  function appendSaveAndClose(b, ceil, getContent, veJavis, ready) {
+  function appendSaveAndClose(b, ceil, getContent) {
     var save = document.createElement("button");
-    save.className = "jvfe-btn"; save.innerHTML = ic("save") + " Lưu"; save.title = "Lưu (Ctrl+S)";
+    save.className = "jvfe-btn"; save.innerHTML = ic("save") + " " + esc(tw("common.save")); save.title = tw("fedit.save_title");
     curSave = function () {
-      if (typeof ready === "function" && !ready()) {
-        save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Đang tải";
-        setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1200);
-        return;
-      }
       var fd = new FormData();
       fd.append("brain", b); fd.append("path", ceil); fd.append("content", getContent());
       save.textContent = "…"; save.disabled = true;
@@ -297,17 +399,18 @@
         .then(function (r) {
           save.disabled = false;
           if (r && r.ok) {
-            save.innerHTML = ic("check", { cls: "ic-ok" }) + " Đã lưu"; save.classList.add("saved");
-            setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; save.classList.remove("saved"); }, 1400);
-          } else { save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Lỗi"; setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1600); }
+            save.innerHTML = ic("check", { cls: "ic-ok" }) + " " + esc(tw("fedit.saved")); save.classList.add("saved");
+            setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); save.classList.remove("saved"); }, 1400);
+          } else { save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " " + esc(tw("app.err_cap")); setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); }, 1600); }
         })
-        .catch(function () { save.disabled = false; save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " Lỗi"; setTimeout(function () { save.innerHTML = ic("save") + " Lưu"; }, 1600); });
+        .catch(function () { save.disabled = false; save.innerHTML = ic("triangle-alert", { cls: "ic-warn" }) + " " + esc(tw("app.err_cap")); setTimeout(function () { save.innerHTML = ic("save") + " " + esc(tw("common.save")); }, 1600); });
     };
     save.onclick = curSave;
     elActions.appendChild(save);
+    elActions.appendChild(shareBtn(b, ceil));
     elActions.appendChild(openLink(b, ceil));
     elActions.appendChild(dlLink(b, ceil));
-    elActions.appendChild(closeBtn(!!veJavis));
+    elActions.appendChild(closeBtn());
   }
 
   function renderEditor(b, ceil, brainRel, d) {
@@ -330,7 +433,7 @@
       if (lang) window.JavisCodeHL.attach(ta, lang);
     } catch (e) {}
     appendSaveAndClose(b, ceil, function () { return ta.value; });
-    setTimeout(function () { try { ta.focus(); } catch (e) {} }, 30);
+    focusNeuDuocPhep(ta);
   }
 
   // .md: WYSIWYG 2 khung (ban render sua truc tiep + nguon markdown) dung LAI bo may editor cay.
@@ -349,12 +452,15 @@
     var wys = neBody.querySelector(".ne-wys");
     var ta = neBody.querySelector(".ne-src textarea");
     ta.value = d.content || "";
-    wys.innerHTML = window.mdToHtml(ta.value);
+    // Duong dan tuong doi trong .md tinh theo thu muc chua chinh file do (xem ungVienAnh
+    // trong chat-render.js), khong phai theo goc brain.
+    var thuMuc = ceil.indexOf("/") >= 0 ? ceil.slice(0, ceil.lastIndexOf("/")) : "";
+    wys.innerHTML = window.mdToHtml(ta.value, b, { thuMuc: thuMuc });
     // Tick checkbox task trong ban render -> tu luu ngay (nhu Obsidian)
     wys.addEventListener("jv-task-toggle", function () { if (curSave) curSave(); });
 
     var curMode = "source";
-    function srcToWys() { wys.innerHTML = window.mdToHtml(ta.value); }
+    function srcToWys() { wys.innerHTML = window.mdToHtml(ta.value, b, { thuMuc: thuMuc }); }
     function wysToSrc() { var md = NE.mdFromHtml(wys.innerHTML); if (md != null) ta.value = md; }
     function mdGetter() {
       if (curMode === "wys") { var md = NE.mdFromHtml(wys.innerHTML); return md != null ? md : ta.value; }
@@ -362,8 +468,8 @@
     }
 
     var seg = document.createElement("span"); seg.className = "ne-seg";
-    var bWys = document.createElement("button"); bWys.className = "jvfe-btn"; bWys.textContent = "Sửa";
-    var bSrc = document.createElement("button"); bSrc.className = "jvfe-btn active"; bSrc.textContent = "Nguồn";
+    var bWys = document.createElement("button"); bWys.className = "jvfe-btn"; bWys.textContent = tw("common.edit");
+    var bSrc = document.createElement("button"); bSrc.className = "jvfe-btn active"; bSrc.textContent = tw("fedit.tab_source");
     function setMode(m) {
       if (m === curMode) return;
       if (m === "source") wysToSrc(); else srcToWys();
@@ -371,6 +477,8 @@
       neBody.className = "ne-body ne-md " + (m === "wys" ? "mode-wys" : "mode-source");
       bWys.classList.toggle("active", m === "wys"); bSrc.classList.toggle("active", m === "source");
     }
+    // Nguoi dung TU BAM sang che do soan thi cho focus that: do la y dinh ro rang cua ho,
+    // khac han chuyen tu dat con tro ngay luc file vua mo ra.
     bWys.onclick = function () { setMode("wys"); try { wys.focus(); } catch (e) {} };
     bSrc.onclick = function () { setMode("source"); try { ta.focus(); } catch (e) {} };
     seg.appendChild(bWys); seg.appendChild(bSrc); elActions.appendChild(seg);
@@ -379,13 +487,16 @@
     appendSaveAndClose(b, ceil, mdGetter);
 
     // Vao che do Sua (WYSIWYG) khi Turndown san sang; offline khong nap duoc thi o lai Nguon (van sua tot).
-    if (window.TurndownService) { setMode("wys"); try { wys.focus(); } catch (e) {} }
-    else NE.ensureTurndown().then(function () { if (isOpen() && window.TurndownService) { setMode("wys"); try { wys.focus(); } catch (e) {} } });
+    if (window.TurndownService) { setMode("wys"); focusNeuDuocPhep(wys); }
+    else NE.ensureTurndown().then(function () { if (isOpen() && window.TurndownService) { setMode("wys"); focusNeuDuocPhep(wys); } });
   }
 
   if (typeof window !== "undefined") {
     window.JavisEditFile = open;
     window.JavisFileEditor = { open: open, close: close };
+    // Trinh sua dinh (console.js) dung lai DUNG cai nut nay, khong chep lai logic:
+    // mot cho sua la ca hai khung cung doi.
+    window.JavisShareBtn = shareBtn;
   }
   if (typeof module !== "undefined" && module.exports) {
     module.exports = { ceilPath: ceilPath };

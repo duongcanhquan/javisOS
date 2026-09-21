@@ -2,7 +2,7 @@
 name: snapshot-van-ban-web
 description: "Chụp văn bản pháp lý công khai từ web vào sources/phap-che (bản ngày), rồi đề xuất INGEST. Không phụ thuộc URL sống lâu dài."
 description_en: "Snapshot a public legal text from the web into sources/phap-che (dated copy), then suggest INGEST. Do not rely on live URLs long-term."
-group: AI
+group: Pháp chế
 ---
 
 # Snapshot văn bản web → kho pháp chế

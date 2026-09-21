@@ -9,7 +9,7 @@ skills:
 - deep-research
 model: gemini-2.5-flash
 model_provider: gemini
-group: Nội dung
+group: Giáo dục
 updated: '2026-09-10'
 ---
 

@@ -51,6 +51,8 @@ def _coord_public():
 
 
 async def _proxy_upstream(provider: str, request: Request, rec: dict):
+    import org_pool_guard as opg
+
     key = op.pool_key(provider)
     if not key:
         return JSONResponse(
@@ -60,6 +62,8 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
     url = op.native_url(provider)
     if not url:
         return JSONResponse({"ok": False, "error": "Nhà cung cấp không hỗ trợ."}, status_code=400)
+    slug = str(rec.get("slug") or "").strip()
+
     body = await request.body()
     headers = {"Content-Type": request.headers.get("content-type") or "application/json"}
     if provider == "anthropic-api":
@@ -69,8 +73,9 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
         headers["Authorization"] = "Bearer " + key
         if provider == "openrouter":
             headers["HTTP-Referer"] = "https://javis.vietmycollege.com"
-            headers["X-Title"] = "Javis OS org"
+            headers["X-Title"] = "VMOS org"
     import httpx
+    from starlette.background import BackgroundTask
 
     stream = (request.headers.get("accept") or "").find("text/event-stream") >= 0
     try:
@@ -88,6 +93,16 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
         parsed = None
 
     timeout = httpx.Timeout(180.0, connect=20.0)
+    # Concurrency trước RPM: từ chối vì quá tải không đốt hạn mức phút.
+    slot = opg.Inflight(slug)
+    slot.__enter__()
+    if not slot.ok:
+        return JSONResponse({"ok": False, "error": slot.error}, status_code=429)
+    rate_err = opg.check_rate(slug)
+    if rate_err:
+        slot.__exit__(None, None, None)
+        return JSONResponse({"ok": False, "error": rate_err}, status_code=429)
+
     if stream:
         client = httpx.AsyncClient(timeout=timeout)
 
@@ -100,7 +115,10 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
                         yield chunk
                         tail = (tail + chunk)[-12000:]
             finally:
-                await client.aclose()
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
                 try:
                     import json as _json
                     import re as _re
@@ -114,25 +132,34 @@ async def _proxy_upstream(provider: str, request: Request, rec: dict):
                     used = 0
                 if used:
                     op.add_tokens(str(rec.get("slug") or ""), used)
+                slot.__exit__(None, None, None)
 
-        return StreamingResponse(gen(), media_type="text/event-stream")
+        # BackgroundTask: nếu ASGI không bao giờ iterate gen(), vẫn nhả slot.
+        return StreamingResponse(
+            gen(),
+            media_type="text/event-stream",
+            background=BackgroundTask(slot.__exit__, None, None, None),
+        )
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(url, headers=headers, content=body)
-    n = 0
     try:
-        data = r.json()
-        usage = data.get("usage") or {}
-        n = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
-        n += int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
-    except Exception:
-        data = None
-    if n:
-        op.add_tokens(str(rec.get("slug") or ""), n)
-    return JSONResponse(
-        content=data if isinstance(data, dict) else {"detail": (r.text or "")[:800]},
-        status_code=r.status_code,
-    )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(url, headers=headers, content=body)
+        n = 0
+        try:
+            data = r.json()
+            usage = data.get("usage") or {}
+            n = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
+            n += int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
+        except Exception:
+            data = None
+        if n:
+            op.add_tokens(str(rec.get("slug") or ""), n)
+        return JSONResponse(
+            content=data if isinstance(data, dict) else {"detail": (r.text or "")[:800]},
+            status_code=r.status_code,
+        )
+    finally:
+        slot.__exit__(None, None, None)
 
 
 def _make_router() -> APIRouter:
@@ -200,13 +227,29 @@ def _make_router() -> APIRouter:
         data = ot.load()
         out = []
         dk_ok = org_docker.docker_available()
+        names = [str(t.get("container") or "") for t in data["tenants"] if t.get("container")]
+        st_map = org_docker.containers_status_map(names) if (dk_ok and names) else {}
         for t in data["tenants"]:
             rec = op.public_tenant(t)
             cname = str(t.get("container") or "")
             if cname and dk_ok:
-                rec["status"] = org_docker.container_status(cname)
-            if rec.get("paused"):
+                rec["status"] = st_map.get(cname, "missing")
+            if ot.is_soft_deleted(t):
+                rec["status"] = "deleted"
+                rec["paused"] = True
+            elif rec.get("paused"):
                 rec["status"] = "paused"
+            # Digest image: chỉ khi đang chạy và sổ chưa có - tránh inspect hàng loạt.
+            if cname and dk_ok and rec.get("status") == "running" and not rec.get("image_digest"):
+                try:
+                    dig = org_docker.image_short(cname)
+                    if dig:
+                        rec["image_digest"] = dig
+                        t2 = ot.get(str(t.get("slug") or "")) or t
+                        t2["image_digest"] = dig
+                        ot.upsert(t2)
+                except Exception:
+                    pass
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
                 "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
@@ -239,7 +282,17 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": err}, status_code=400)
         quota = _int(body.get("quota_gb"), 2, 1, 20)
         token_quota = _int(body.get("token_quota"), 0, 0, 50_000_000)
-        shared = bool(body.get("shared_api"))
+        if not bool(body.get("consent")):
+            return JSONResponse(
+                {"ok": False, "error": "Cần tích đồng ý xử lý dữ liệu cá nhân trước khi tạo."},
+                status_code=400,
+            )
+        if "brain_mode" in body:
+            brain_mode = op.normalize_brain_mode(body.get("brain_mode"))
+        else:
+            brain_mode = "both" if body.get("shared_api") else "byo"
+        providers = op.normalize_providers(body.get("providers"))
+        shared = op.mode_uses_pool(brain_mode)
         name = str(body.get("name") or slug).strip()
         ok, why = org_docker.docker_status()
         if not ok:
@@ -263,9 +316,21 @@ def _make_router() -> APIRouter:
                 shared_api=shared,
                 token_quota=token_quota,
                 pool_token=token,
+                brain_mode=brain_mode,
+                providers=providers,
             )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        import time as _time
+        rec = ot.get(slug) or rec
+        rec["consent_at"] = int(_time.time())
+        rec["consent_version"] = op.CONSENT_VERSION
+        op.apply_policy(rec, brain_mode=brain_mode, providers=providers)
+        ot.upsert(rec)
+        try:
+            ot.audit("create", slug, f"mode={brain_mode}")
+        except Exception:
+            pass
         started = str(rec.get("status") or "") == "running"
         note = ""
         if not started:
@@ -299,8 +364,19 @@ def _make_router() -> APIRouter:
                     org_docker.write_quota(cname, rec["quota_gb"])
                 except Exception:
                     pass
-        if "shared_api" in body:
-            rec["shared_api"] = bool(body.get("shared_api"))
+        if "shared_api" in body or "brain_mode" in body or "providers" in body:
+            mode = body.get("brain_mode") if "brain_mode" in body else None
+            prov = body.get("providers") if "providers" in body else None
+            shared = body.get("shared_api") if "shared_api" in body else None
+            op.apply_policy(rec, brain_mode=mode, providers=prov, shared_api=shared)
+            try:
+                ot.audit(
+                    "policy",
+                    slug,
+                    f"mode={rec.get('brain_mode')} providers={','.join(rec.get('providers') or [])}",
+                )
+            except Exception:
+                pass
         if "token_quota" in body:
             rec["token_quota"] = _int(body.get("token_quota"), 0, 0, 50_000_000)
         if "login_user" in body:
@@ -351,21 +427,23 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": "Không có bản này."}, status_code=404)
         op.reset_month_if_needed(rec)
         disk = 0
-        cname = str(rec.get("container") or "")
-        if cname and org_docker.docker_available() and org_docker.container_status(cname) != "missing":
-            try:
-                disk = org_docker.disk_usage_bytes(cname)
-            except Exception:
-                disk = 0
-        ot.upsert(rec)
+        try:
+            disk = org_docker.cache_disk_usage(slug, force=True)
+            rec = ot.get(slug) or rec
+        except Exception:
+            disk = int(rec.get("disk_bytes") or 0)
         return {
             "ok": True,
             "quota_gb": int(rec.get("quota_gb") or 0),
             "disk_bytes": disk,
+            "disk_checked_at": int(rec.get("disk_checked_at") or 0),
             "token_quota": int(rec.get("token_quota") or 0),
             "tokens_used": int(rec.get("tokens_used") or 0),
             "tokens_month": rec.get("tokens_month") or "",
             "shared_api": bool(rec.get("shared_api")),
+            "last_active": int(rec.get("last_active") or 0),
+            "image_digest": str(rec.get("image_digest") or ""),
+            "deleted_at": int(rec.get("deleted_at") or 0),
         }
 
     @router.post("/org/tenants/{slug}/start")
@@ -373,6 +451,11 @@ def _make_router() -> APIRouter:
         if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
+        if rec and ot.is_soft_deleted(rec):
+            return JSONResponse(
+                {"ok": False, "error": "Máy đang chờ xóa. Bấm Khôi phục trước."},
+                status_code=400,
+            )
         if rec:
             rec["paused"] = False
             ot.upsert(rec)
@@ -420,6 +503,20 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         return {"ok": True}
 
+    @router.post("/org/tenants/{slug}/restore")
+    def org_restore(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        try:
+            rec = org_docker.restore_account(slug)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        try:
+            ot.audit("restore", slug)
+        except Exception:
+            pass
+        return {"ok": True, "tenant": op.public_tenant(rec), "coord": _coord_public()}
+
     @router.delete("/org/tenants/{slug}")
     async def org_delete(slug: str, request: Request):
         if (deny := _need_manager(request)) is not None:
@@ -442,18 +539,31 @@ def _make_router() -> APIRouter:
         slug = str(rec.get("slug") or "").strip().lower()
         if confirm != slug:
             return JSONResponse(
-                {"ok": False, "error": f"Gõ đúng tên máy «{slug}» để xóa. Não mất hết, không lấy lại."},
+                {"ok": False, "error": f"Gõ đúng tên máy «{slug}» để xóa."},
                 status_code=400,
             )
+        purge_now = bool(body.get("purge_now"))
+        # Đã soft-delete + purge_now, hoặc purge_now lần đầu → xóa hẳn
+        if purge_now or (ot.is_soft_deleted(rec) and body.get("force")):
+            try:
+                org_docker.destroy(slug)
+            except Exception as e:
+                return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+            try:
+                ot.audit("delete", slug, "purge_now")
+            except Exception:
+                pass
+            return {"ok": True, "purged": True, "coord": _coord_public()}
+        # Mặc định: xóa mềm 72h
         try:
-            org_docker.destroy(slug)
+            org_docker.soft_delete(slug)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         try:
-            ot.audit("delete", slug)
+            ot.audit("soft_delete", slug)
         except Exception:
             pass
-        return {"ok": True, "coord": _coord_public()}
+        return {"ok": True, "soft": True, "purge_after_hours": 72, "coord": _coord_public()}
 
     @router.get("/org/pool/me")
     def org_pool_me(request: Request):
@@ -461,12 +571,15 @@ def _make_router() -> APIRouter:
         if not rec:
             return JSONResponse({"ok": False, "error": "Vé không hợp lệ."}, status_code=401)
         ok, why = op.quota_ok(rec)
-        ready = [k for k, v in op.pool_public()["providers"].items() if v.get("set")]
+        ready = op.allowed_pool_providers(rec) if ok else []
         return {
             "ok": True,
-            "shared_api": bool(rec.get("shared_api")) and ok,
+            "shared_api": bool(ok and op.mode_uses_pool(
+                op.normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api")))
+            )),
             "reason": "" if ok else why,
-            "providers": ready if rec.get("shared_api") else [],
+            "providers": ready,
+            "brain_mode": op.normalize_brain_mode(rec.get("brain_mode"), bool(rec.get("shared_api"))),
         }
 
     @router.api_route("/org/pool/{provider}/chat", methods=["POST"])
@@ -476,10 +589,97 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": "Vé không hợp lệ."}, status_code=401)
         if provider not in op.POOL_PROVIDERS:
             return JSONResponse({"ok": False, "error": "Nhà cung cấp không hỗ trợ."}, status_code=400)
+        if rec.get("paused") or ot.is_soft_deleted(rec):
+            return JSONResponse(
+                {"ok": False, "error": "Máy đang tạm dừng hoặc chờ xóa - không dùng được API pool."},
+                status_code=403,
+            )
         ok, why = op.quota_ok(rec)
         if not ok:
             return JSONResponse({"ok": False, "error": why}, status_code=403)
+        allowed = op.allowed_pool_providers(rec)
+        if provider not in allowed:
+            return JSONResponse(
+                {"ok": False, "error": f"Provider «{provider}» chưa được bật cho máy này."},
+                status_code=403,
+            )
         return await _proxy_upstream(provider, request, rec)
+
+    @router.get("/org/audit")
+    def org_audit(request: Request, limit: int = 80, slug: str = ""):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        rows = ot.audit_tail(limit=limit, slug=slug)
+        return {"ok": True, "rows": rows}
+
+    @router.get("/org/catalog/status")
+    def org_catalog_status(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        try:
+            import manager_template_sync as mts
+        except Exception as e:
+            return {"ok": False, "error": str(e), "docker": False, "tenants": []}
+        docker = False
+        tenants = []
+        try:
+            docker = mts.docker_ok()
+            if docker:
+                tenants = [
+                    n for n in mts.list_javis_containers(
+                        exclude={"javis-manager", "javis-proxy", "javis-park"}
+                    )
+                ]
+        except Exception as e:
+            return {"ok": True, "docker": False, "error": str(e), "tenants": [],
+                    "brain": getattr(mts, "BRAIN_NAME", "Brain Default"),
+                    "manager_role": mts.is_manager_role()}
+        return {
+            "ok": True,
+            "docker": docker,
+            "brain": getattr(mts, "BRAIN_NAME", "Brain Default"),
+            "tenants": tenants,
+            "manager_role": mts.is_manager_role(),
+        }
+
+    @router.post("/org/catalog/push")
+    async def org_catalog_push(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        dry = bool(body.get("dry_run"))
+        try:
+            import manager_template_sync as mts
+            import asyncio
+            import os as _os
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        if not mts.docker_ok():
+            return JSONResponse({
+                "ok": False,
+                "error": "Docker không dùng được. Gắn docker.sock hoặc chạy scripts/sync_manager_template.py --sync trên VPS.",
+            }, status_code=503)
+        manager_name = (
+            _os.environ.get("JAVIS_MANAGER_NAME")
+            or _os.environ.get("JAVIS_NAME")
+            or "javis-manager"
+        )
+        report = await asyncio.to_thread(
+            mts.sync_via_docker,
+            manager=manager_name,
+            dry_run=dry,
+        )
+        try:
+            ot.audit("catalog_push", "", "dry" if dry else "sync")
+        except Exception:
+            pass
+        code = 200 if report.get("ok") else 500
+        return JSONResponse(report, status_code=code)
 
     return router
 

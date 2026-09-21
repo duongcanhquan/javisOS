@@ -1,4 +1,4 @@
-// Trang Tổ chức: tab Tổng hợp / Cài đặt / Tạo mới / Quản lý. Chỉ admin Javis gốc.
+// Trang Tổ chức: tab Tổng hợp / Cài đặt / Tạo mới / Quản lý. Chỉ admin VMOS gốc.
 (function () {
   "use strict";
 
@@ -14,6 +14,33 @@
     ["groq", "Groq"],
     ["deepseek", "DeepSeek"],
   ];
+
+  const MODES = [
+    ["byo", "Tự gắn API (riêng)"],
+    ["school", "Chỉ kho trường"],
+    ["both", "Kho trường + API riêng"],
+    ["blocked", "Chặn gọi model"],
+  ];
+
+  function modeLabel(m) {
+    const hit = MODES.find(([id]) => id === m);
+    return hit ? hit[1] : (m || "byo");
+  }
+
+  function providerChecks(name, selected) {
+    const sel = Array.isArray(selected) ? selected : [];
+    return POOL.map(([id, label]) => {
+      const on = sel.length === 0 ? false : sel.includes(id);
+      return `<label class="org-check org-prov"><input type="checkbox" name="${esc(name)}" value="${esc(id)}"${on ? " checked" : ""}> ${esc(label)}</label>`;
+    }).join("");
+  }
+
+  function modeSelect(name, cur) {
+    const v = cur || "byo";
+    return `<select name="${esc(name)}">${MODES.map(([id, label]) =>
+      `<option value="${esc(id)}"${id === v ? " selected" : ""}>${esc(label)}</option>`
+    ).join("")}</select>`;
+  }
 
   let orgTab = "tong";
   let orgQ = "";
@@ -35,8 +62,28 @@
     if (s === "stopped") return "Đã tắt";
     if (s === "missing") return "Chưa có máy";
     if (s === "paused") return "Tạm dừng";
+    if (s === "deleted") return "Chờ xóa";
     if (s === "unknown") return "Không rõ";
     return s || "?";
+  }
+
+  function fmtAgo(ts) {
+    const n = Number(ts || 0);
+    if (!n) return "";
+    const sec = Math.max(0, Math.floor(Date.now() / 1000 - n));
+    if (sec < 60) return "vừa xong";
+    if (sec < 3600) return Math.floor(sec / 60) + " phút trước";
+    if (sec < 86400) return Math.floor(sec / 3600) + " giờ trước";
+    return Math.floor(sec / 86400) + " ngày trước";
+  }
+
+  function fmtLeft(purgeAfter) {
+    const end = Number(purgeAfter || 0);
+    if (!end) return "72 giờ";
+    const left = Math.max(0, end - Math.floor(Date.now() / 1000));
+    const h = Math.max(1, Math.ceil(left / 3600));
+    if (h >= 48) return Math.ceil(h / 24) + " ngày";
+    return h + " giờ";
   }
 
   function genPw() {
@@ -69,7 +116,8 @@
 
   function haystack(t) {
     return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug, "vmos-" + t.slug,
-            t.paused ? "tam dung tam dung tai khoan" : ""]
+            t.paused ? "tam dung tam dung tai khoan" : "",
+            t.deleted_at ? "cho xoa soft delete khoi phuc" : ""]
       .join(" ").toLowerCase();
   }
 
@@ -155,8 +203,8 @@
     try {
       d = await api("/org/tenants");
     } catch (e) {
-      el.innerHTML = '<p class="dim">Trang này chỉ có trên Javis gốc, dành cho admin đăng nhập tại '
-        + '<code>javis.vietmycollege.com</code>. Javis con không có mục Tổ chức.</p>';
+      el.innerHTML = '<p class="dim">Trang này chỉ có trên VMOS gốc, dành cho admin đăng nhập tại '
+        + '<code>javis.vietmycollege.com</code>. VMOS con không có mục Tổ chức.</p>';
       return;
     }
     const tenants = d.tenants || [];
@@ -203,23 +251,48 @@
     const cards = tenants.map((t) => {
       const href = "https://" + hostOf(t);
       const prot = t.protected;
-      const paused = !!t.paused;
-      const stopBtn = prot || paused ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
-      const pauseBtn = prot || paused ? "" : `<button class="btn" data-org-pause="${esc(t.slug)}">Tạm dừng tài khoản</button>`;
-      const startLbl = paused ? "Chạy lại" : "Bật máy";
-      const pwBtn = prot ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
-      const delBtn = prot ? "" : `<button class="btn org-del" data-org-del-open="${esc(t.slug)}">Xóa</button>`;
-      const apiBtn = prot ? "" : `<button class="btn" data-org-api="${esc(t.slug)}" data-on="${t.shared_api ? "1" : "0"}">${t.shared_api ? "Tắt API chung" : "Bật API chung"}</button>`;
-      const st = paused ? "paused" : (t.status || "");
+      const deleted = !!t.deleted_at;
+      const paused = !!t.paused && !deleted;
+      const st = deleted ? "deleted" : (paused ? "paused" : (t.status || ""));
+      const stopBtn = prot || paused || deleted ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
+      const pauseBtn = prot || paused || deleted ? "" : `<button class="btn" data-org-pause="${esc(t.slug)}">Tạm dừng tài khoản</button>`;
+      const startBtn = deleted ? "" : `<button class="btn primary" data-org-start="${esc(t.slug)}">${paused ? "Chạy lại" : "Bật máy"}</button>`;
+      const restoreBtn = deleted ? `<button class="btn primary" data-org-restore="${esc(t.slug)}">Khôi phục</button>` : "";
+      const pwBtn = prot || deleted ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
+      const delBtn = prot ? "" : `<button class="btn org-del" data-org-del-open="${esc(t.slug)}">${deleted ? "Xóa ngay" : "Xóa"}</button>`;
+      const mode = t.brain_mode || (t.shared_api ? "both" : "byo");
+      const provs = Array.isArray(t.providers) ? t.providers : [];
+      const ago = fmtAgo(t.last_active);
+      const dig = (t.image_digest || "").trim();
+      const metaBits = [];
+      if (ago) metaBits.push("hoạt động " + ago);
+      if (dig) metaBits.push("image " + dig);
+      const metaLine = metaBits.length
+        ? `<div class="dim">${esc(metaBits.join(" · "))}</div>`
+        : "";
+      const diskKnown = Number(t.disk_checked_at || 0) > 0 || Number(t.disk_bytes || 0) > 0;
+      const diskBar = diskKnown
+        ? (() => {
+            const disk = Number(t.disk_bytes || 0);
+            const cap = Number(t.quota_gb || 0);
+            const diskLabel = cap ? (fmtGB(disk) + " / " + cap + " GB") : (fmtGB(disk) + " (không trần)");
+            const pct = cap ? Math.max(0, Math.min(100, Math.round(100 * disk / (cap * 1024 * 1024 * 1024)))) : 0;
+            const cls = pct >= 95 ? "hot" : (pct >= 80 ? "warn" : "");
+            return `<div class="org-meter"><div class="org-meter-lbl">Ổ: <b>${esc(diskLabel)}</b></div>
+              <div class="org-bar ${cls}"><i style="width:${cap ? pct : 0}%"></i></div></div>`;
+          })()
+        : barHtml(t.quota_gb ? "?" : 0, t.quota_gb, "Ổ");
       return `<article class="org-card" data-slug="${esc(t.slug)}"
           data-hay="${esc(haystack(t))}" data-status="${esc(st)}"
           data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}">
         <header>
           <div>
-            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}${paused ? ' <span class="org-pill">tạm dừng</span>' : ""}
+            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}${paused ? ' <span class="org-pill">tạm dừng</span>' : ""}${deleted ? ' <span class="org-pill hot">chờ xóa</span>' : ""}
             <div class="dim">máy <code>javis-${esc(t.slug)}</code> · đăng nhập <code>${esc(t.login_user || "admin")}</code></div>
+            ${metaLine}
             ${prot ? '<div class="dim">Đăng nhập, não, Kết nối, Models giữ nguyên như trước khi có Tổ chức. Không tắt/xóa từ đây.</div>' : ""}
             ${paused ? '<div class="dim">Tài khoản đang khóa. Mở link không vào được. Não còn. Bấm Chạy lại khi cần.</div>' : ""}
+            ${deleted ? `<div class="dim">Não còn khoảng <b>${esc(fmtLeft(t.purge_after))}</b>. Bấm Khôi phục để giữ, hoặc Xóa ngay nếu chắc chắn.</div>` : ""}
           </div>
           <span class="org-st ${esc(st)}">${esc(stLabel(st))}</span>
         </header>
@@ -227,30 +300,39 @@
         <div class="org-usage" data-org-usage="${esc(t.slug)}"
              data-quota="${esc(String(t.quota_gb || 0))}"
              data-tok="${esc(String(t.token_quota || 0))}"
-             data-used="${esc(String(t.tokens_used || 0))}">
-          ${barHtml(t.quota_gb ? "?" : 0, t.quota_gb, "Ổ")}
+             data-used="${esc(String(t.tokens_used || 0))}"
+             data-disk="${esc(String(t.disk_bytes || 0))}"
+             data-disk-checked="${esc(String(t.disk_checked_at || 0))}">
+          ${diskBar}
           ${barHtml(t.tokens_used || 0, t.token_quota || 0, "Token tháng")}
-          <div class="dim">API chung: <b>${t.shared_api ? "Có" : "Không"}</b></div>
+          <div class="dim">Chế độ: <b>${esc(modeLabel(mode))}</b>${provs.length ? (" · " + esc(provs.join(", "))) : ""}</div>
         </div>
         <div class="org-acts">
-          <button class="btn primary" data-org-start="${esc(t.slug)}">${startLbl}</button>
+          ${startBtn}
+          ${restoreBtn}
           ${stopBtn}
           ${pauseBtn}
-          ${apiBtn}
           ${pwBtn}
           ${delBtn}
         </div>
-        <form class="org-inline org-edit-form" data-org-edit="${esc(t.slug)}">
+        ${deleted || prot ? "" : `<form class="org-inline org-policy-form" data-org-policy="${esc(t.slug)}">
+          <label>Chế độ model${modeSelect("brain_mode", mode)}</label>
+          <div class="org-prov-wrap"><span class="dim">Provider kho trường (trống = mọi khóa đã dán)</span>${providerChecks("prov_" + t.slug, provs)}</div>
+          <button class="btn primary" type="submit">Lưu chính sách</button>
+        </form>`}
+        ${deleted ? "" : `<form class="org-inline org-edit-form" data-org-edit="${esc(t.slug)}">
           <label>Hiện tên<input name="name" value="${esc(t.name || "")}"></label>
           ${prot ? "" : `<label>Tên đăng nhập<input name="login_user" value="${esc(t.login_user || "")}" maxlength="32"></label>`}
           <label>Ổ GB (0 = không trần)<input name="quota_gb" type="number" min="0" max="20" value="${esc(String(t.quota_gb || 0))}"></label>
           <label>Token/tháng (0 = không trần)<input name="token_quota" type="number" min="0" step="1000" value="${esc(String(t.token_quota || 0))}"></label>
           <button class="btn primary org-save" type="submit">Lưu thay đổi</button>
-        </form>
-        <form class="org-inline org-del-form" data-org-del="${esc(t.slug)}" hidden>
-          <p>Xóa hết máy <code>${esc(t.slug)}</code>: não, chat, khóa API. Không lấy lại. Bản quan không xóa được từ đây.</p>
+        </form>`}
+        <form class="org-inline org-del-form" data-org-del="${esc(t.slug)}" ${deleted ? "" : "hidden"}>
+          ${deleted
+            ? `<p>Xóa <b>ngay</b> máy <code>${esc(t.slug)}</code>: não mất hết, không lấy lại. Hoặc đợi hết hạn tự xóa.</p>`
+            : `<p>Đánh dấu xóa máy <code>${esc(t.slug)}</code>. Não giữ <b>72 giờ</b> rồi mới xóa hẳn. Có thể Khôi phục trong lúc đó.</p>`}
           <label>Gõ <code>${esc(t.slug)}</code> để xác nhận<input name="confirm" required autocomplete="off" placeholder="Ví dụ: ${esc(t.slug)}"></label>
-          <button class="btn org-del" type="submit">Xóa vĩnh viễn</button>
+          <button class="btn org-del" type="submit">${deleted ? "Xóa vĩnh viễn ngay" : "Xóa (giữ 72 giờ)"}</button>
         </form>
         <form class="org-inline" data-org-pw="${esc(t.slug)}" hidden>
           <label>Mật khẩu mới<input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
@@ -263,11 +345,13 @@
 
     const snapRows = tenants.map((t) => {
       const href = "https://" + hostOf(t);
-      const st = t.paused ? "paused" : (t.status || "");
+      const st = t.deleted_at ? "deleted" : (t.paused ? "paused" : (t.status || ""));
+      const mode = t.brain_mode || (t.shared_api ? "both" : "byo");
+      const modeTxt = t.protected ? "Riêng (bản cũ)" : modeLabel(mode);
       return `<tr>
         <td><button type="button" class="org-link" data-org-goto="quan" data-org-q="${esc(t.slug)}">${esc(t.name || t.slug)}</button></td>
         <td><span class="org-st ${esc(st)}">${esc(stLabel(st))}</span></td>
-        <td>${t.protected ? "Riêng (bản cũ)" : (t.shared_api ? "API chung" : "Riêng")}</td>
+        <td>${esc(modeTxt)}</td>
         <td><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || ("javis-" + t.slug))}</a></td>
       </tr>`;
     }).join("");
@@ -290,11 +374,11 @@
         <p class="dim" id="orgMsg">${esc(flash)}</p>
 
         <section class="org-pane" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
-          <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
+          <p class="org-lead">Chỉ admin VMOS gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
           <div class="org-stats">
             <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy người đang chạy</span></button>
-            <button type="button" data-org-goto="cai"><b>${ramEst} MB</b><span>Ước RAM Javis con</span></button>
+            <button type="button" data-org-goto="cai"><b>${ramEst} MB</b><span>Ước RAM VMOS con</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="stopped"><b>${stopped}</b><span>Tắt / chưa có</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
           </div>
@@ -307,18 +391,30 @@
               <button type="button" class="btn" data-org-goto="cai">Kho API trường (tùy chọn)</button>
             </div>
             <div>
+              <h3>Catalog trường</h3>
+              <p class="dim">Đẩy skill / agent / workflow từ Brain Default của VMOS gốc xuống mọi máy người. Không đè file họ đã sửa.</p>
+              <div class="org-acts">
+                <button type="button" class="btn" id="orgCatDry">Xem trước</button>
+                <button type="button" class="btn primary" id="orgCatPush">Đẩy catalog</button>
+              </div>
+              <p class="dim" id="orgCatMsg"></p>
+            </div>
+            <div>
               <h3>Sổ nhanh</h3>
               ${tenants.length
-                ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Người</th><th>Máy</th><th>API</th><th>Link</th></tr></thead><tbody>${snapRows}</tbody></table></div>`
+                ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Người</th><th>Máy</th><th>Chế độ</th><th>Link</th></tr></thead><tbody>${snapRows}</tbody></table></div>`
                 : '<p class="dim">Chưa có người mới, chỉ còn bản cũ của bạn.</p>'}
               <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button>
             </div>
           </div>
+          <h3>Nhật ký tổ chức</h3>
+          <p class="dim">Tạo, chính sách, tạm dừng, xóa, đẩy catalog…</p>
+          <div class="org-table-wrap"><table class="org-table" id="orgAuditTable"><thead><tr><th>Lúc</th><th>Việc</th><th>Máy</th><th>Chi tiết</th></tr></thead><tbody id="orgAuditBody"><tr><td colspan="4" class="dim">Đang tải…</td></tr></tbody></table></div>
         </section>
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
           <h3>Điều phối máy (RAM)</h3>
-          <p>Máy 6 GB RAM: Javis tự chừa chỗ cho gốc + Quan, còn khoảng <b>3</b> máy người chạy cùng lúc.
+          <p>Máy 6 GB RAM: VMOS tự chừa chỗ cho gốc + Quan, còn khoảng <b>3</b> máy người chạy cùng lúc.
           RAM thấp thì tắt máy đang nghỉ trước (não không xóa), người mới xếp hàng rồi tự bật.
           Trần tay bên dưới là trần tối đa; máy tự hạ nếu RAM không đủ.</p>
           <form id="orgCoord" class="org-form">
@@ -334,7 +430,7 @@
           <h3>Kho API trường (tùy chọn)</h3>
           <p>Mặc định <b>không dùng</b>: mỗi người tự gắn OpenRouter, Claude, Grok… trên máy họ, não và khóa ở lại volume của họ.
           Chỉ dán khóa vào đây nếu sau này muốn một người dùng chung kho trường (bật từng người trên Quản lý).
-          Khóa ở lại Javis gốc, không chép xuống máy con. Ô trống khi lưu thì giữ khóa cũ.</p>
+          Khóa ở lại VMOS gốc, không chép xuống máy con. Ô trống khi lưu thì giữ khóa cũ.</p>
           <form id="orgPool" class="org-keys">${poolRows}
             <button class="btn primary" type="submit">Lưu khóa API</button>
           </form>
@@ -343,7 +439,7 @@
 
         <section class="org-pane" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
           <h3>Tạo người mới</h3>
-          <p>Mỗi người một Javis tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>, <b>não riêng</b>.
+          <p>Mỗi người một VMOS tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>, <b>não riêng</b>.
           Họ tự vào trang Models trên máy đó để dán API hoặc đăng nhập Claude / Grok của chính họ.
           Mật khẩu tối thiểu 10 ký tự, có chữ và số. Gốc không lưu mật khẩu dạng đọc được, không đọc được não họ.</p>
           <form id="orgCreate" class="org-form">
@@ -353,16 +449,18 @@
             <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
-            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="Chỉ khi bật API chung. 0 = không trần"></label>
-            <label class="org-check"><input name="shared_api" type="checkbox"> Dùng kho API trường (để trống = tự gắn API riêng)</label>
+            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="Chỉ khi dùng kho trường. 0 = không trần"></label>
+            <label>Chế độ model${modeSelect("brain_mode", "byo")}</label>
+            <div class="org-prov-wrap"><span class="dim">Provider kho trường (tùy chọn)</span>${providerChecks("create_prov", [])}</div>
+            <label class="org-check"><input name="consent" type="checkbox" required> Đồng ý tạo chỗ xử lý dữ liệu cá nhân cho người này (não, chat, khóa API trên máy họ; quản trị không đọc nội dung)</label>
             <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
-            <button class="btn primary" type="submit">Tạo Javis</button>
+            <button class="btn primary" type="submit">Tạo VMOS</button>
           </form>
         </section>
 
         <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <h3>Quản lý người</h3>
-          <p class="dim">Đổi tên, ổ GB rồi bấm Lưu thay đổi. Tạm dừng thì máy tắt, mở link không vào được đến khi bấm Chạy lại. Não còn.</p>
+          <p class="dim">Đổi tên, ổ GB rồi bấm Lưu thay đổi. Xóa giữ não 72 giờ (có thể Khôi phục). Tạm dừng thì máy tắt đến khi Chạy lại.</p>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">
@@ -370,6 +468,7 @@
               <option value="running"${orgSt === "running" ? " selected" : ""}>Đang chạy</option>
               <option value="stopped"${orgSt === "stopped" ? " selected" : ""}>Tắt / chưa có</option>
               <option value="paused"${orgSt === "paused" ? " selected" : ""}>Tạm dừng</option>
+              <option value="deleted"${orgSt === "deleted" ? " selected" : ""}>Chờ xóa</option>
             </select>
             <select id="orgApi" class="org-filter" aria-label="Lọc API">
               <option value="all"${orgApi === "all" ? " selected" : ""}>Mọi API</option>
@@ -378,7 +477,7 @@
             </select>
             <select id="orgKind" class="org-filter" aria-label="Loại máy">
               <option value="all"${orgKind === "all" ? " selected" : ""}>Mọi máy</option>
-              <option value="people"${orgKind === "people" ? " selected" : ""}>Javis người</option>
+              <option value="people"${orgKind === "people" ? " selected" : ""}>VMOS người</option>
               <option value="root"${orgKind === "root" ? " selected" : ""}>Bản cũ của bạn</option>
             </select>
             <span class="dim" id="orgCount"></span>
@@ -412,6 +511,9 @@
         .org-edit-form .org-save{min-height:38px}
         .org-form label,.org-inline label,.org-key{display:flex;flex-direction:column;gap:4px;font-size:13px}
         .org-form input,.org-inline input,.org-key input{min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
+        .org-prov-wrap{width:100%;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:4px 0}
+        .org-prov{font-size:12px}
+        .org-form select,.org-inline select{min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
         .org-check{flex-direction:row !important;align-items:center;gap:8px;min-height:38px}
         .org-check input{min-width:auto}
         .org-keys{gap:14px}
@@ -419,6 +521,7 @@
         .org-key-h{display:flex;gap:8px;align-items:center;justify-content:space-between}
         .org-pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--glass-brd,var(--border));opacity:.85}
         .org-pill.on{border-color:#2f9e44;color:#2f9e44}
+        .org-pill.hot{border-color:#e03131;color:#e03131}
         .org-grid{display:grid;gap:14px}
         .org-card{padding:14px 16px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2))}
         .org-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
@@ -426,6 +529,7 @@
         .org-st.running{border-color:#2f9e44;color:#2f9e44}
         .org-st.stopped,.org-st.missing{opacity:.7}
         .org-st.paused{border-color:#f59f00;color:#f59f00}
+        .org-st.deleted{border-color:#e03131;color:#e03131}
         .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
         .org-del{border-color:#e03131;color:#e03131}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
@@ -457,26 +561,34 @@
       const cap = Number(box.getAttribute("data-quota") || 0);
       const tokCap = Number(box.getAttribute("data-tok") || 0);
       let tokUsed = Number(box.getAttribute("data-used") || 0);
-      let disk = 0;
-      try {
-        const u = await api("/org/tenants/" + encodeURIComponent(slug) + "/usage");
-        disk = u.disk_bytes || 0;
-        tokUsed = u.tokens_used || tokUsed;
-      } catch (e) {}
+      let disk = Number(box.getAttribute("data-disk") || 0);
+      const checked = Number(box.getAttribute("data-disk-checked") || 0);
+      const fresh = checked > 0 && (Date.now() / 1000 - checked) < 120;
+      // Có cache từ list → không gọi /usage (tránh N round-trip). Hết hạn / chưa có thì lấy một lần.
+      if (!fresh) {
+        try {
+          const u = await api("/org/tenants/" + encodeURIComponent(slug) + "/usage");
+          disk = u.disk_bytes || 0;
+          tokUsed = u.tokens_used || tokUsed;
+        } catch (e) {}
+      }
       const diskLabel = cap ? (fmtGB(disk) + " / " + cap + " GB") : (fmtGB(disk) + " (không trần)");
       const pct = cap ? Math.max(0, Math.min(100, Math.round(100 * disk / (cap * 1024 * 1024 * 1024)))) : 0;
       const cls = pct >= 95 ? "hot" : (pct >= 80 ? "warn" : "");
+      const apiLine = box.querySelector(".dim");
+      const apiHtml = apiLine ? apiLine.outerHTML : "";
       box.innerHTML =
         `<div class="org-meter"><div class="org-meter-lbl">Ổ: <b>${esc(diskLabel)}</b></div>
            <div class="org-bar ${cls}"><i style="width:${cap ? pct : 0}%"></i></div></div>`
-        + barHtml(tokUsed, tokCap, "Token tháng");
+        + barHtml(tokUsed, tokCap, "Token tháng")
+        + apiHtml;
     });
 
     if (gen) gen.addEventListener("click", () => {
       const pw = genPw();
       form.password.value = pw;
       form.password2.value = pw;
-      msg.textContent = "Đã điền mật khẩu mạnh. Gửi cho người đó một lần, Javis không lưu lại.";
+      msg.textContent = "Đã điền mật khẩu mạnh. Gửi cho người đó một lần, VMOS không lưu lại.";
     });
     if (coordForm) coordForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -529,6 +641,8 @@
       }
       msg.textContent = "Đang tạo máy. Chờ khoảng 1 phút…";
       try {
+        const providers = [];
+        form.querySelectorAll('input[name="create_prov"]:checked').forEach((c) => providers.push(c.value));
         const created = await api("/org/tenants", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -539,7 +653,9 @@
             password: String(fd.get("password") || ""),
             quota_gb: Number(fd.get("quota_gb") || 2),
             token_quota: Number(fd.get("token_quota") || 0),
-            shared_api: form.shared_api.checked,
+            brain_mode: String(fd.get("brain_mode") || "byo"),
+            providers,
+            consent: !!(form.consent && form.consent.checked),
           }),
         });
         orgQ = String(fd.get("slug") || "");
@@ -575,7 +691,7 @@
     });
     el.querySelectorAll("[data-org-stop]").forEach((b) => {
       b.addEventListener("click", async () => {
-        if (!confirm("Tắt Javis này? Não và file không xóa.")) return;
+        if (!confirm("Tắt VMOS này? Não và file không xóa.")) return;
         try {
           await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-stop")) + "/stop", { method: "POST" });
           orgTab = "quan";
@@ -598,6 +714,84 @@
         } catch (e) { msg.textContent = e.message; }
       });
     });
+    el.querySelectorAll("form[data-org-policy]").forEach((f) => {
+      f.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const slug = f.getAttribute("data-org-policy");
+        const providers = [];
+        f.querySelectorAll('input[type="checkbox"]:checked').forEach((c) => providers.push(c.value));
+        try {
+          await api("/org/tenants/" + encodeURIComponent(slug), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              brain_mode: String(f.brain_mode.value || "byo"),
+              providers,
+            }),
+          });
+          orgFlash = "Đã lưu chính sách cho " + slug + ".";
+          orgTab = "quan";
+          render(el);
+        } catch (e) { msg.textContent = e.message; }
+      });
+    });
+    async function doCatalog(dry) {
+      const box = el.querySelector("#orgCatMsg");
+      if (box) box.textContent = dry ? "Đang xem trước…" : "Đang đẩy catalog…";
+      try {
+        const r = await api("/org/catalog/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dry_run: !!dry }),
+        });
+        const tenants = (r.tenants || r.results || []);
+        const n = Array.isArray(tenants) ? tenants.length : 0;
+        if (box) {
+          box.textContent = dry
+            ? ("Xem trước xong" + (n ? (" · " + n + " máy") : "") + (r.error ? (" · " + r.error) : ""))
+            : (r.ok ? ("Đã đẩy catalog" + (n ? (" · " + n + " máy") : "")) : (r.error || "Lỗi đẩy catalog"));
+        }
+        if (!dry && r.ok) orgFlash = "Đã đẩy catalog xuống máy người.";
+      } catch (e) {
+        if (box) box.textContent = e.message || "Không đẩy được.";
+      }
+    }
+    const catDry = el.querySelector("#orgCatDry");
+    const catPush = el.querySelector("#orgCatPush");
+    if (catDry) catDry.addEventListener("click", () => doCatalog(true));
+    if (catPush) catPush.addEventListener("click", () => {
+      if (!confirm("Đẩy skill/agent/workflow từ gốc xuống mọi máy người? File họ đã sửa sẽ không bị đè.")) return;
+      doCatalog(false);
+    });
+    (async () => {
+      const body = el.querySelector("#orgAuditBody");
+      if (!body) return;
+      try {
+        const a = await api("/org/audit?limit=40");
+        const rows = a.rows || [];
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="4" class="dim">Chưa có nhật ký.</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map((r) => {
+          const when = r.ts ? new Date(r.ts * 1000).toLocaleString("vi-VN") : "";
+          return `<tr><td>${esc(when)}</td><td>${esc(r.action || "")}</td><td>${esc(r.slug || "")}</td><td class="dim">${esc(r.extra || "")}</td></tr>`;
+        }).join("");
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="4" class="dim">' + esc(e.message || "Không đọc được nhật ký") + '</td></tr>';
+      }
+    })();
+    el.querySelectorAll("[data-org-restore]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        msg.textContent = "Đang khôi phục…";
+        try {
+          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-restore")) + "/restore", { method: "POST" });
+          orgFlash = "Đã khôi phục. Máy vẫn tạm dừng - bấm Chạy lại khi cần.";
+          orgTab = "quan";
+          render(el);
+        } catch (e) { msg.textContent = e.message; }
+      });
+    });
     el.querySelectorAll("[data-org-del-open]").forEach((b) => {
       b.addEventListener("click", () => {
         const f = el.querySelector('[data-org-del="' + b.getAttribute("data-org-del-open") + '"]');
@@ -608,19 +802,26 @@
       f.addEventListener("submit", async (ev) => {
         ev.preventDefault();
         const slug = f.getAttribute("data-org-del");
-        const confirm = String(f.confirm.value || "").trim().toLowerCase();
-        if (confirm !== slug) {
+        const confirmVal = String(f.confirm.value || "").trim().toLowerCase();
+        if (confirmVal !== slug) {
           msg.textContent = "Gõ đúng tên máy «" + slug + "» mới xóa được.";
           return;
         }
-        msg.textContent = "Đang xóa…";
+        const already = !!tenants.find((t) => t.slug === slug && t.deleted_at);
+        const purgeNow = already;
+        if (purgeNow && !window.confirm("Xóa vĩnh viễn ngay? Não mất hết, không lấy lại.")) return;
+        msg.textContent = purgeNow ? "Đang xóa hẳn…" : "Đang đánh dấu xóa…";
         try {
-          await api("/org/tenants/" + encodeURIComponent(slug), {
+          const body = { confirm: slug };
+          if (purgeNow) body.purge_now = true;
+          const res = await api("/org/tenants/" + encodeURIComponent(slug), {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ confirm: slug }),
+            body: JSON.stringify(body),
           });
-          orgFlash = "Đã xóa " + slug + ". Não máy đó mất hết.";
+          orgFlash = res.purged
+            ? ("Đã xóa hẳn " + slug + ".")
+            : ("Đã đánh dấu xóa " + slug + ". Não giữ 72 giờ - có thể Khôi phục.");
           orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
@@ -679,7 +880,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: f.password.value }),
           });
-          msg.textContent = "Đã đặt mật khẩu mới. Javis gốc không lưu mật khẩu. Gửi cho người đó rồi họ tự đổi.";
+          msg.textContent = "Đã đặt mật khẩu mới. VMOS gốc không lưu mật khẩu. Gửi cho người đó rồi họ tự đổi.";
           f.hidden = true;
           f.reset();
         } catch (e) { msg.textContent = e.message; }

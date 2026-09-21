@@ -1,4 +1,4 @@
-/* chat-render.js - bo render chat "chan that nhu Claude" cho Javis OS.
+/* chat-render.js - bo render chat "chan that nhu Claude" cho VMOS.
    Thay bo markdownToHtml regex cu trong app.js: markdown day du (heading h1-h6,
    danh sach co thu tu + long + checkbox, blockquote, duong ke ngang, in nghieng,
    gach ngang, link, anh), code block co nhan ngon ngu + to mau cu phap, render an
@@ -40,7 +40,7 @@
   // Vi sao can: duong dan anh trong tin nhan la tuong doi ("attachments/x.png"), khong mang
   // brain. Truoc day moi lan ve lai deu ghep voi brain DANG chon, nen mo mot hoi thoai cu
   // trong khi dang o brain khac la anh tro sai cho, 404, roi bi thay bang o xam - nguoi dung
-  // tuong Javis tu xoa anh di. Gan brain cua chinh hoi thoai do vao luot render thi het.
+  // tuong VMOS tu xoa anh di. Gan brain cua chinh hoi thoai do vao luot render thi het.
   var _brainForRender = null;
   function brainPath() {
     if (_brainForRender != null) return _brainForRender;
@@ -89,7 +89,7 @@
   // file:///brains/Brain%20Default/wiki/x.md -> /brains/Brain Default/wiki/x.md
   // file:///wiki/x.md -> /wiki/x.md
   // file://localhost/brains/... -> /brains/...
-  // file:///C:/Users/... (Windows) -> "" (khong phai vault Javis)
+  // file:///C:/Users/... (Windows) -> "" (khong phai vault VMOS)
   function fileUriToPathish(href) {
     var s = String(href == null ? "" : href).trim();
     var m = /^file:/i.exec(s);
@@ -99,7 +99,7 @@
     rest = rest.replace(/^\/+/, "");
     if (!rest) return "";
     // file://host/path - neu doan dau khong giong o dia Windows thi co the la hostname
-    // (localhost). Path vault Javis luon bat dau bang brains/ hoac ten thu muc vault.
+    // (localhost). Path vault VMOS luon bat dau bang brains/ hoac ten thu muc vault.
     if (/^[a-zA-Z]:/.test(rest)) return "";   // C:/... - o dia may, khong mo trong app
     if (/^\/\/[a-zA-Z]:/i.test("/" + rest)) return "";
     // Con host? "localhost/brains/..." hoac "brains/..."
@@ -385,7 +385,7 @@
   // Khoi `---\n...\n---` o DAU mot file .md la METADATA (type, status, created...), khong phai
   // van ban de soan. Truoc ban nay no roi vao luat "--- = duong ke ngang", nen mo mot note trong
   // trinh sua WYSIWYG roi bam Luu la frontmatter bien thanh "* * *" cong may dong chu roi: file
-  // hong that su, va moi thu doc metadata (Javis, dataview, Obsidian) doc truot tu do. Chu repo
+  // hong that su, va moi thu doc metadata (VMOS, dataview, Obsidian) doc truot tu do. Chu repo
   // gap dung canh nay 2026-08-13 ("mot so file .md dang khong doc duoc").
   //
   // Cach chua: cat ra thanh MOT khoi rieng, contenteditable=false, va giu NGUYEN VAN trong
@@ -914,7 +914,7 @@
     base = base.replace(/\\/g, "/");
     if (!base) return rel;
     // Đã là đường từ gốc brain (memory/…, agents/…) thì giữ nguyên.
-    if (/^(memory|agents|skills|workflows|wiki|sources|attachments|Javis)\//i.test(rel)) return rel;
+    if (/^(memory|agents|skills|workflows|wiki|sources|attachments|VMOS)\//i.test(rel)) return rel;
     var dir = base.indexOf("/") >= 0 ? base.replace(/\/[^/]+$/, "") : "";
     if (!dir) return rel;
     var parts = (dir + "/" + rel).split("/");
@@ -1004,7 +1004,7 @@
     document.body.appendChild(_lb);
     document.body.classList.add("jv-lb-open");
     // Nut Back cua dien thoai (va cu vuot canh man hinh) phai DONG anh, khong phai roi khoi
-    // Javis. Chu repo bao 2026-09-13: dang xem anh thi vuot canh trai khong an gi, ma nut X thi
+    // VMOS. Chu repo bao 2026-09-13: dang xem anh thi vuot canh trai khong an gi, ma nut X thi
     // bi thanh trang thai che - khong con duong nao ra. Chen mot buoc lich su o day de cu Back
     // co cho ma lui ve.
     if (!_lbDayLichSu) {

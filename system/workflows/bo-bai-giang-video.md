@@ -3,7 +3,7 @@ type: workflow
 name: Bài giảng → Video
 slug: bo-bai-giang-video
 status: active
-group: Nội dung
+group: Giáo dục
 description: Nghiên cứu → beat/video bài giảng (lam-video) → kiểm chứng.
 steps:
 - agent: bg-nghien-cuu

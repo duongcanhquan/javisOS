@@ -35,7 +35,7 @@
   }
 
   /* crc32 khớp từng bit với zlib.crc32 bên Python (server dùng chính hàm đó).
-   * Không dùng crypto.subtle: nó chỉ có trong ngữ cảnh bảo mật, mà Javis rất hay chạy
+   * Không dùng crypto.subtle: nó chỉ có trong ngữ cảnh bảo mật, mà VMOS rất hay chạy
    * trên http:// theo IP của VPS - dùng nó là người gác cổng chết lặng đúng lúc cần nhất. */
   var BANG = null;
   function bangCrc() {
@@ -124,14 +124,14 @@
   /* KHÔNG tự tải lại trang. Người dùng có thể đang gõ dở một câu dài, và mất chữ đang gõ vì
    * một thứ họ không hề bấm là tệ hơn hẳn cái nó chữa. Chỉ hiện dải và để họ bấm. */
   function baoCoBanMoi(verMoi) {
-    veDai("Javis vừa cập nhật lên bản " + verMoi + ".",
+    veDai("VMOS vừa cập nhật lên bản " + verMoi + ".",
           "Tải lại trang để dùng bản mới.", "Tải lại", function () { location.reload(); });
   }
 
   function baoChayBanCu(ds, daThuTaiLai) {
     var ten = ds.slice(0, 3).join(", ") + (ds.length > 3 ? " và " + (ds.length - 3) + " file nữa" : "");
     if (!daThuTaiLai) {
-      veDai("Trình duyệt đang chạy bản cũ của Javis.",
+      veDai("Trình duyệt đang chạy bản cũ của VMOS.",
             "Bấm để tải lại. (" + ten + ")", "Tải lại", function () {
               try { sessionStorage.setItem(KHOA_DA_TAI, "1"); } catch (e) { /* noop */ }
               location.reload();
@@ -142,7 +142,7 @@
     // phải làm gì, đừng để người dùng bấm Tải lại mãi mà không hiểu vì sao không đổi.
     veDai("Vẫn đang chạy bản cũ dù đã tải lại.",
           "Bấm Ctrl+Shift+R (máy Mac: Cmd+Shift+R). Vẫn vậy thì có một tầng cache giữa "
-          + "máy bạn và Javis đang giữ file cũ: " + ten,
+          + "máy bạn và VMOS đang giữ file cũ: " + ten,
           "Thử lại", function () { location.reload(true); });
   }
 

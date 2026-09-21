@@ -2,6 +2,7 @@
 type: agent
 name: Nexu HTML Builder
 slug: nexu-html-builder
+group: "Video & Motion"
 role: Dựng HTML/storyboard frame từ brief + DESIGN.md bằng htmlanything
 skills: [htmlanything]
 model: ""

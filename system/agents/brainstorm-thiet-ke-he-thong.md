@@ -4,7 +4,7 @@ name: Brainstorm & thiết kế hệ thống
 slug: brainstorm-thiet-ke-he-thong
 role: Phân loại Spike/Bounded/Architectural, thiết kế + spec, HARD-GATE trước code.
 skills: [brainstorming, nghien-cuu-thi-truong, query-wiki]
-group: AI
+group: "AI & Hệ thống"
 model: gemini-3.8-flash-high
 model_provider: antigravity-cli
 updated: 2026-09-06

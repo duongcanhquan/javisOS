@@ -17,6 +17,10 @@ _NANO_CPUS = 750_000_000
 _PIDS = 256
 _LOCK = threading.Lock()
 _WAKE_TS: dict[str, float] = {}
+# Cache trạng thái container ngắn hạn: list tenants + tick_coord trước đây mỗi tên = 1 inspect
+# (N Docker round-trip trên event loop). TTL 2.5s gom các lần gọi sát nhau thành 1 list.
+_STATUS_TTL = 2.5
+_STATUS_CACHE: dict[str, Any] = {"at": 0.0, "by_name": {}}
 
 
 def _docker_api(method: str, path: str, json_body: Any = None, timeout: float = 60.0):
@@ -57,6 +61,70 @@ def docker_available() -> bool:
     return ok
 
 
+def invalidate_status_cache(*names: str) -> None:
+    """Gọi sau start/stop/remove để lần list kế không ăn trạng thái cũ."""
+    if not names:
+        _STATUS_CACHE["at"] = 0.0
+        _STATUS_CACHE["by_name"] = {}
+        return
+    by = _STATUS_CACHE.get("by_name") or {}
+    for n in names:
+        by.pop(str(n or ""), None)
+
+
+def _status_from_inspect(data: dict) -> str:
+    if not data:
+        return "missing"
+    st = ((data.get("State") or {}) if isinstance(data.get("State"), dict) else {})
+    if st.get("Running"):
+        return "running"
+    if st.get("Paused"):
+        return "paused"
+    return "stopped"
+
+
+def containers_status_map(names: list[str] | None = None, force: bool = False) -> dict[str, str]:
+    """Map tên container → running|paused|stopped|missing bằng MỘT lần list Docker.
+
+    `names=None` trả toàn bộ đang biết trong cache/list. Tên không thấy trong list = missing.
+    """
+    now = time.time()
+    cached = _STATUS_CACHE.get("by_name") or {}
+    if (not force and now - float(_STATUS_CACHE.get("at") or 0) < _STATUS_TTL
+            and cached):
+        if names is None:
+            return dict(cached)
+        return {n: cached.get(n, "missing") for n in names}
+
+    by: dict[str, str] = {}
+    try:
+        r = _docker_api("GET", "/containers/json?all=true", timeout=15.0)
+        if r.status_code == 200:
+            for item in (r.json() or []):
+                if not isinstance(item, dict):
+                    continue
+                state = str(item.get("State") or "").lower()
+                if state == "running":
+                    status = "running"
+                elif state == "paused":
+                    status = "paused"
+                else:
+                    status = "stopped"
+                for nm in item.get("Names") or []:
+                    nm = str(nm or "").lstrip("/")
+                    if nm:
+                        by[nm] = status
+    except Exception:
+        # List hỏng: giữ cache cũ nếu còn, không xoá trắng (tránh báo missing hàng loạt).
+        if cached:
+            by = dict(cached)
+    _STATUS_CACHE["at"] = now
+    _STATUS_CACHE["by_name"] = by
+    if names is None:
+        return dict(by)
+    return {n: by.get(n, "missing") for n in names}
+
+
 def inspect_name(name: str) -> dict[str, Any]:
     try:
         r = _docker_api("GET", f"/containers/{quote(name)}/json", timeout=20.0)
@@ -69,15 +137,20 @@ def inspect_name(name: str) -> dict[str, Any]:
 
 
 def container_status(name: str) -> str:
-    data = inspect_name(name)
-    if not data:
+    nm = str(name or "")
+    if not nm:
         return "missing"
-    st = ((data.get("State") or {}) if isinstance(data.get("State"), dict) else {})
-    if st.get("Running"):
-        return "running"
-    if st.get("Paused"):
-        return "paused"
-    return "stopped"
+    now = time.time()
+    cached = _STATUS_CACHE.get("by_name") or {}
+    if now - float(_STATUS_CACHE.get("at") or 0) < _STATUS_TTL and nm in cached:
+        return cached[nm]
+    data = inspect_name(nm)
+    st = _status_from_inspect(data)
+    cached[nm] = st
+    _STATUS_CACHE["by_name"] = cached
+    if not _STATUS_CACHE.get("at"):
+        _STATUS_CACHE["at"] = now
+    return st
 
 
 def _self_inspect() -> dict[str, Any]:
@@ -232,6 +305,8 @@ def create_and_start(
     shared_api: bool = False,
     token_quota: int = 0,
     pool_token: str = "",
+    brain_mode: str = "",
+    providers: list | None = None,
 ) -> dict:
     err = ot.validate_slug(slug)
     if err:
@@ -322,16 +397,17 @@ def create_and_start(
         "container": cname,
         "volumes": vols,
         "quota_gb": int(quota_gb),
-        "brain_mode": "school",
         "protected": False,
         "status": container_status(cname),
         "login_user": login,
-        "shared_api": bool(shared_api),
         "token_quota": int(token_quota or 0),
         "tokens_used": 0,
         "tokens_month": "",
         "pool_token_hash": op.hash_token(pool_token) if pool_token else "",
     }
+    mode = brain_mode or ("both" if shared_api else "byo")
+    op.apply_policy(rec, brain_mode=mode, providers=providers if providers is not None else [],
+                    shared_api=shared_api if not brain_mode else None)
     ot.upsert(rec)
     try:
         wait_health(cname)
@@ -446,6 +522,7 @@ def start(slug: str) -> None:
     r = _docker_api("POST", f"/containers/{quote(cname)}/start", timeout=60.0)
     if r.status_code not in (204, 200, 304):
         raise RuntimeError(f"start HTTP {r.status_code}: {(r.text or '')[:300]}")
+    invalidate_status_cache(cname)
     try:
         wait_health(cname)
         write_quota(cname, int(rec.get("quota_gb") or 0))
@@ -466,6 +543,7 @@ def stop(slug: str, park: bool = True) -> None:
     r = _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
     if r.status_code not in (204, 200, 304):
         raise RuntimeError(f"stop HTTP {r.status_code}: {(r.text or '')[:300]}")
+    invalidate_status_cache(cname)
     rec["status"] = "stopped"
     ot.upsert(rec)
     if park:
@@ -483,6 +561,8 @@ def pause_account(slug: str) -> None:
     slug = str(rec.get("slug") or "").strip().lower()
     if rec.get("protected") or slug in ot.PROTECTED_SLUGS:
         raise RuntimeError("Không tạm dừng bản hệ thống.")
+    if ot.is_soft_deleted(rec):
+        raise RuntimeError("Máy đang chờ xóa. Bấm Khôi phục trước, hoặc đợi hết 72 giờ.")
     rec["paused"] = True
     rec["status"] = "stopped"
     ot.upsert(rec)
@@ -497,6 +577,44 @@ def pause_account(slug: str) -> None:
         sync_park()
     except Exception:
         pass
+
+
+def soft_delete(slug: str) -> dict:
+    """Tắt máy, đánh dấu chờ xóa 72h. Giữ volume / não. Không tự bật khi mở link."""
+    rec = ot.get(slug)
+    if not rec:
+        raise RuntimeError("Không có bản này.")
+    slug = str(rec.get("slug") or "").strip().lower()
+    if rec.get("protected") or slug in ot.PROTECTED_SLUGS:
+        raise RuntimeError("Không xóa bản hệ thống.")
+    err = ot.validate_slug(slug)
+    if err:
+        raise RuntimeError(err)
+    if ot.is_soft_deleted(rec):
+        return rec
+    cname = str(rec.get("container") or f"javis-{slug}")
+    if docker_available() and inspect_name(cname) and container_status(cname) == "running":
+        try:
+            stop(slug, park=False)
+        except Exception:
+            pass
+    rec = ot.soft_delete_mark(slug)
+    oc.clear_wait(slug)
+    try:
+        sync_park()
+    except Exception:
+        pass
+    return rec
+
+
+def restore_account(slug: str) -> dict:
+    """Gỡ chờ xóa. Não còn. Vẫn tạm dừng đến khi bấm Chạy lại."""
+    rec = ot.restore_mark(slug)
+    try:
+        sync_park()
+    except Exception:
+        pass
+    return rec
 
 
 def destroy(slug: str) -> None:
@@ -527,6 +645,7 @@ def destroy(slug: str) -> None:
             vr = _docker_api("DELETE", f"/volumes/{quote(v)}", timeout=30.0)
             if vr.status_code not in (204, 200, 404):
                 raise RuntimeError(f"xóa ổ {v}: HTTP {vr.status_code} {(vr.text or '')[:200]}")
+    oc.clear_wait(slug)
     ot.remove(slug)
     try:
         sync_park()
@@ -534,17 +653,92 @@ def destroy(slug: str) -> None:
         pass
 
 
+def purge_soft_deleted() -> list[str]:
+    """Hủy hẳn các máy đã hết hạn 72h. Gọi từ tick_coord."""
+    done = []
+    for slug in ot.purge_due_slugs():
+        try:
+            destroy(slug)
+            ot.audit("purge", slug, "soft-delete 72h")
+            done.append(slug)
+        except Exception as e:
+            print(f"[org purge] {slug}: {e}", flush=True)
+    return done
+
+
 def people_running() -> list[dict]:
     out = []
     if not docker_available():
         return out
-    for t in ot.load().get("tenants") or []:
-        if t.get("protected"):
-            continue
+    tenants = [t for t in (ot.load().get("tenants") or [])
+               if not t.get("protected") and not ot.is_soft_deleted(t)]
+    names = [str(t.get("container") or "") for t in tenants if t.get("container")]
+    st_map = containers_status_map(names) if names else {}
+    for t in tenants:
         cname = str(t.get("container") or "")
-        if cname and container_status(cname) == "running":
+        if cname and st_map.get(cname) == "running":
             out.append(t)
     return out
+
+
+def image_short(cname: str) -> str:
+    """Digest/ID ngắn của image container (hiển thị trên card)."""
+    data = inspect_name(cname)
+    if not data:
+        return ""
+    iid = str(data.get("Image") or "").strip()
+    if iid.startswith("sha256:"):
+        return iid[7:19]
+    if len(iid) > 12 and ":" not in iid[:20]:
+        return iid[:12]
+    # Config.Image thường là tag; ImageID mới là digest
+    iid2 = str(data.get("ImageID") or (data.get("Config") or {}).get("Image") or "").strip()
+    if isinstance(data.get("ImageID"), str) and data["ImageID"].startswith("sha256:"):
+        return data["ImageID"][7:19]
+    cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
+    tag = str(cfg.get("Image") or iid or "").strip()
+    if "@sha256:" in tag:
+        return tag.split("@sha256:", 1)[1][:12]
+    if tag:
+        # rút gọn tag dài: lấy phần sau dấu : cuối hoặc 20 ký tự đầu
+        if ":" in tag and "/" in tag:
+            return tag.rsplit(":", 1)[-1][:20]
+        return tag[-20:] if len(tag) > 20 else tag
+    return (iid2[:12] if iid2 else "")
+
+
+def cache_disk_usage(slug: str, force: bool = False) -> int:
+    """Đọc ổ và ghi cache trên ledger (TTL ~120s)."""
+    rec = ot.get(slug)
+    if not rec:
+        return 0
+    now = int(time.time())
+    try:
+        checked = int(rec.get("disk_checked_at") or 0)
+        cached = int(rec.get("disk_bytes") or 0)
+    except (TypeError, ValueError):
+        checked, cached = 0, 0
+    if not force and checked and now - checked < oc.DISK_CACHE_SEC:
+        return cached
+    cname = str(rec.get("container") or "")
+    disk = cached
+    if cname and docker_available() and container_status(cname) != "missing":
+        try:
+            disk = disk_usage_bytes(cname)
+        except Exception:
+            disk = cached
+    rec["disk_bytes"] = int(disk or 0)
+    rec["disk_checked_at"] = now
+    dig = ""
+    if cname and docker_available() and container_status(cname) != "missing":
+        try:
+            dig = image_short(cname)
+        except Exception:
+            dig = ""
+    if dig:
+        rec["image_digest"] = dig
+    ot.upsert(rec)
+    return int(disk or 0)
 
 
 def read_last_active(cname: str, rec: dict | None = None) -> int:
@@ -652,6 +846,8 @@ def start_with_capacity(slug: str) -> dict:
     rec = ot.get(slug)
     if not rec:
         raise RuntimeError("Không có bản này.")
+    if ot.is_soft_deleted(rec):
+        raise RuntimeError("Máy đang chờ xóa. Bấm Khôi phục trên Tổ chức trước.")
     if rec.get("paused"):
         raise RuntimeError("Tài khoản đang tạm dừng. Bấm Chạy lại trên Tổ chức.")
     cname = str(rec.get("container") or f"javis-{slug}")
@@ -683,6 +879,10 @@ def start_with_capacity(slug: str) -> dict:
 def tick_coord() -> None:
     if not ot.manager_enabled() or not docker_available():
         return
+    try:
+        purge_soft_deleted()
+    except Exception as e:
+        print(f"[org purge] {e}", flush=True)
     now = int(time.time())
     idle = int(oc.coord().get("idle_minutes") or 0)
     _, avail = oc.host_mem_mb()
@@ -696,18 +896,22 @@ def tick_coord() -> None:
             except Exception as e:
                 print(f"[org coord] RAM thấp, tắt {victim}: {e}", flush=True)
     cap = int(oc.effective_max())
-    while len(people_running()) > cap:
+    # Snapshot MỘT LẦN rồi lọc dần - trước đây mỗi vòng while/for gọi lại people_running()
+    # (= list Docker × số tenant).
+    running = people_running()
+    while len(running) > cap:
         victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
         if not victim:
             break
         try:
             stop(victim, park=False)
+            running = [t for t in running if str(t.get("slug") or "") != victim]
         except Exception as e:
             print(f"[org coord] hạ trần tắt {victim}: {e}", flush=True)
             break
     if idle > 0:
         limit = idle * 60
-        for t in list(people_running()):
+        for t in list(running):
             slug = str(t.get("slug") or "")
             if not slug:
                 continue
@@ -715,14 +919,18 @@ def tick_coord() -> None:
             ts = read_last_active(cname, t)
             if ts and now - ts >= limit:
                 try:
+                    rec = ot.get(slug) or t
+                    rec["last_active"] = ts
+                    ot.upsert(rec)
                     stop(slug, park=False)
+                    running = [x for x in running if str(x.get("slug") or "") != slug]
                 except Exception as e:
                     print(f"[org coord] tắt {slug}: {e}", flush=True)
-    if len(people_running()) < cap:
+    if len(running) < cap:
         w = oc.peek_waiter()
         if w:
             rec = ot.get(w)
-            if rec and not rec.get("paused") and not rec.get("protected"):
+            if rec and not rec.get("paused") and not rec.get("protected") and not ot.is_soft_deleted(rec):
                 try:
                     start_with_capacity(w)
                 except Exception:
@@ -740,14 +948,18 @@ def sync_park() -> None:
     if not docker_available():
         return
     hosts = []
-    for t in ot.load().get("tenants") or []:
+    tenants = ot.load().get("tenants") or []
+    names = [str(t.get("container") or "") for t in tenants
+             if t.get("container") and not t.get("protected")]
+    st_map = containers_status_map(names) if names else {}
+    for t in tenants:
         if t.get("protected"):
             continue
         slug = str(t.get("slug") or "")
         cname = str(t.get("container") or "")
         if not slug or not cname:
             continue
-        if container_status(cname) == "running":
+        if st_map.get(cname) == "running":
             continue
         hosts.append(ot.tenant_domain(slug))
     wanted = "|".join(hosts)
@@ -803,6 +1015,18 @@ def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
         title = "Không có Javis này"
         body = "Tên máy không có trên tổ chức. Hỏi quản trị tạo lại trên Javis gốc."
         return oc.wake_html(host, title, body, 8), 404
+    if ot.is_soft_deleted(rec):
+        try:
+            left = max(0, int(rec.get("deleted_at") or 0) + ot.SOFT_DELETE_SEC - int(time.time()))
+            hrs = max(1, (left + 3599) // 3600)
+        except Exception:
+            hrs = 72
+        return oc.wake_html(
+            host, "Máy đang chờ xóa",
+            f"Quản trị đã đánh dấu xóa. Não còn khoảng {hrs} giờ nữa rồi mới xóa hẳn. "
+            "Bấm Khôi phục trên Tổ chức nếu cần giữ lại.",
+            0,
+        ), 403
     if rec.get("paused"):
         return oc.wake_html(
             host, "Tài khoản tạm dừng",

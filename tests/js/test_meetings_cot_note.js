@@ -47,16 +47,18 @@ check("ô gắn dự án có tìm + danh sách hiện (không chỉ select 1 hà
 check("GET dự án cuộc họp dùng credentials và não đang mở",
   /\/projects\?brain=/.test(src) &&
   /credentials:\s*"same-origin"/.test(src));
-check("tab Fathom trên trang cuộc họp (không ghi mic trong Javis)",
+check("tab Fathom trên trang cuộc họp (không ghi mic trong VMOS)",
   /data-mt-tab="fathom"/.test(src) &&
   /mtPanelFathom/.test(src) &&
-  /Fathom không ghi mic trong Javis/.test(src) &&
+  /Fathom không ghi mic trong (Javis|VMOS)/.test(src) &&
   /\/meetings\/fathom\/sync/.test(src) &&
   /\/meetings\/fathom\/import/.test(src) &&
   /Alpine\.store\("nav"\)\.go\("mcp"\)/.test(src) &&
   /function safeHttpUrl\(/.test(src));
-const v = Number((html.match(/meetings\.js\?v=(\d+)/) || [])[1] || 0);
-check("meetings.js đã bump ?v= (>= 45)", v >= 45, v);
+const con = fs.readFileSync(path.join(ROOT, "dashboard", "console.js"), "utf8");
+check("meetings.js lazy trong PAGE_LAZY",
+  /file:\s*"meetings\.js"/.test(con) && /ensurePageScript/.test(con));
+check("index không nạp meetings.js eager", !/\/static\/meetings\.js/.test(html));
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));

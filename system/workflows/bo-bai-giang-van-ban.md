@@ -3,7 +3,7 @@ type: workflow
 name: Bài giảng → Văn bản minh họa
 slug: bo-bai-giang-van-ban
 status: active
-group: Nội dung
+group: Giáo dục
 description: Nghiên cứu → bài đọc kèm ảnh/biểu đồ → kiểm chứng.
 steps:
 - agent: bg-nghien-cuu
