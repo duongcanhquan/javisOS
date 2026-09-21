@@ -267,10 +267,11 @@ def public_tenant(rec: dict) -> dict:
     out = {k: rec.get(k) for k in (
         "id", "slug", "name", "domain", "container", "quota_gb", "brain_mode",
         "protected", "status", "login_user", "shared_api", "token_quota",
-        "tokens_used", "tokens_month",
+        "tokens_used", "tokens_month", "paused",
     )}
     out["login_user"] = rec.get("login_user") or "admin"
     out["shared_api"] = bool(rec.get("shared_api"))
+    out["paused"] = bool(rec.get("paused"))
     try:
         out["quota_gb"] = int(rec.get("quota_gb") or 0)
     except (TypeError, ValueError):

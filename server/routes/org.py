@@ -205,6 +205,8 @@ def _make_router() -> APIRouter:
             cname = str(t.get("container") or "")
             if cname and dk_ok:
                 rec["status"] = org_docker.container_status(cname)
+            if rec.get("paused"):
+                rec["status"] = "paused"
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
                 "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
@@ -370,10 +372,36 @@ def _make_router() -> APIRouter:
     def org_start(slug: str, request: Request):
         if (deny := _need_manager(request)) is not None:
             return deny
+        rec = ot.get(slug)
+        if rec:
+            rec["paused"] = False
+            ot.upsert(rec)
         try:
             org_docker.start_with_capacity(slug)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        return {"ok": True, "coord": _coord_public()}
+
+    @router.post("/org/tenants/{slug}/pause")
+    def org_pause(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        rec = ot.get(slug)
+        if not rec:
+            return JSONResponse({"ok": False, "error": "Không có bản này."}, status_code=404)
+        if rec.get("protected"):
+            return JSONResponse(
+                {"ok": False, "error": "Không tạm dừng bản quan từ đây."},
+                status_code=400,
+            )
+        try:
+            org_docker.pause_account(slug)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        try:
+            ot.audit("pause", slug)
+        except Exception:
+            pass
         return {"ok": True, "coord": _coord_public()}
 
     @router.post("/org/tenants/{slug}/stop")

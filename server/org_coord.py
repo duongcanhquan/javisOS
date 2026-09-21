@@ -87,14 +87,23 @@ def wake_html(host: str, title: str, body: str, refresh: int = 4) -> str:
     h = (host or "").replace("<", "").replace(">", "").replace('"', "")
     t = (title or "").replace("<", "").replace(">", "")
     b = (body or "").replace("<", "").replace(">", "")
-    r = max(2, min(15, int(refresh)))
+    try:
+        r = int(refresh)
+    except (TypeError, ValueError):
+        r = 4
+    meta = ""
+    more = f'<p><a href="https://{h}/">Thử mở lại</a></p>'
+    if r > 0:
+        r = max(2, min(15, r))
+        meta = f'<meta http-equiv="refresh" content="{r};url=https://{h}/">'
+        more = f"<p>Trang tự mở lại sau {r} giây. <a href=\"https://{h}/\">Mở ngay</a></p>"
     return (
         "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\">"
-        f"<meta http-equiv=\"refresh\" content=\"{r};url=https://{h}/\">"
+        f"{meta}"
         f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         f"<title>{t}</title></head>"
         "<body style=\"font-family:sans-serif;max-width:36rem;margin:15vh auto;padding:0 16px;line-height:1.45\">"
         f"<h1 style=\"font-size:1.35rem\">{t}</h1><p>{b}</p>"
-        f"<p>Trang tự mở lại sau {r} giây. <a href=\"https://{h}/\">Mở ngay</a></p>"
+        f"{more}"
         "</body></html>"
     )

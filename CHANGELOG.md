@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.271] - 2026-09-21
+### Mới
+- **Tạm dừng tài khoản trên Quản lý:** máy tắt, mở link không tự vào được, não còn. Bấm Chạy lại mới hoạt động. Bản quan không tạm dừng từ đây.
+
 ## [0.55.270] - 2026-09-21
 ### Sửa
 - **Quản lý người: ô tên, ổ GB, token hiện sẵn trên thẻ, có nút Lưu thay đổi.** Đổi xong bấm Lưu; không còn phải mở form Sửa.

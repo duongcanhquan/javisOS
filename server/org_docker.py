@@ -463,6 +463,30 @@ def stop(slug: str, park: bool = True) -> None:
             pass
 
 
+def pause_account(slug: str) -> None:
+    """Tắt máy và khóa tự bật. Não còn. Chỉ vào lại khi quản trị bấm Chạy lại."""
+    rec = ot.get(slug)
+    if not rec:
+        raise RuntimeError("Không có bản này.")
+    slug = str(rec.get("slug") or "").strip().lower()
+    if rec.get("protected") or slug in ot.PROTECTED_SLUGS:
+        raise RuntimeError("Không tạm dừng bản hệ thống.")
+    rec["paused"] = True
+    rec["status"] = "stopped"
+    ot.upsert(rec)
+    cname = str(rec.get("container") or f"javis-{slug}")
+    if docker_available() and inspect_name(cname) and container_status(cname) == "running":
+        stop(slug)
+        rec = ot.get(slug) or rec
+        rec["paused"] = True
+        ot.upsert(rec)
+        return
+    try:
+        sync_park()
+    except Exception:
+        pass
+
+
 def destroy(slug: str) -> None:
     """Xóa máy người: container + 4 volume tenant. Không đụng volume quan / manager."""
     rec = ot.get(slug)
@@ -614,6 +638,8 @@ def start_with_capacity(slug: str) -> dict:
     rec = ot.get(slug)
     if not rec:
         raise RuntimeError("Không có bản này.")
+    if rec.get("paused"):
+        raise RuntimeError("Tài khoản đang tạm dừng. Bấm Chạy lại trên Tổ chức.")
     cname = str(rec.get("container") or f"javis-{slug}")
     if rec.get("protected"):
         start(slug)
@@ -729,6 +755,12 @@ def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
         title = "Không có Javis này"
         body = "Tên máy không có trên tổ chức. Hỏi quản trị tạo lại trên Javis gốc."
         return oc.wake_html(host, title, body, 8), 404
+    if rec.get("paused"):
+        return oc.wake_html(
+            host, "Tài khoản tạm dừng",
+            "Quản trị đã tạm dừng máy này. Não và file còn, không xóa. Bấm Chạy lại trên Tổ chức mới vào được.",
+            0,
+        ), 403
     cname = str(rec.get("container") or f"javis-{slug}")
     if docker_available() and container_status(cname) == "running":
         return oc.wake_html(

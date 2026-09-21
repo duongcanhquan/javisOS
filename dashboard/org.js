@@ -68,7 +68,8 @@
   }
 
   function haystack(t) {
-    return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug, "vmos-" + t.slug]
+    return [t.name, t.slug, t.login_user, t.domain, "javis-" + t.slug, "vmos-" + t.slug,
+            t.paused ? "tam dung tam dung tai khoan" : ""]
       .join(" ").toLowerCase();
   }
 
@@ -98,7 +99,9 @@
       const prot = card.getAttribute("data-prot") === "1";
       const okQ = !q || hay.includes(q);
       const okSt = st === "all"
-        || (st === "stopped" ? (status === "stopped" || status === "missing") : status === st);
+        || (st === "paused" ? status === "paused"
+          : st === "stopped" ? (status === "stopped" || status === "missing")
+          : status === st);
       const okApi = apiF === "all" || shared === apiF;
       const okKind = kind === "all" || (kind === "root" ? prot : !prot);
       const show = okQ && okSt && okApi && okKind;
@@ -196,20 +199,25 @@
     const cards = tenants.map((t) => {
       const href = "https://" + hostOf(t);
       const prot = t.protected;
-      const stopBtn = prot ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
+      const paused = !!t.paused;
+      const stopBtn = prot || paused ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
+      const pauseBtn = prot || paused ? "" : `<button class="btn" data-org-pause="${esc(t.slug)}">Tạm dừng tài khoản</button>`;
+      const startLbl = paused ? "Chạy lại" : "Bật máy";
       const pwBtn = prot ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
       const delBtn = prot ? "" : `<button class="btn org-del" data-org-del-open="${esc(t.slug)}">Xóa</button>`;
       const apiBtn = prot ? "" : `<button class="btn" data-org-api="${esc(t.slug)}" data-on="${t.shared_api ? "1" : "0"}">${t.shared_api ? "Tắt API chung" : "Bật API chung"}</button>`;
+      const st = paused ? "paused" : (t.status || "");
       return `<article class="org-card" data-slug="${esc(t.slug)}"
-          data-hay="${esc(haystack(t))}" data-status="${esc(t.status || "")}"
+          data-hay="${esc(haystack(t))}" data-status="${esc(st)}"
           data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}">
         <header>
           <div>
-            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}
+            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}${paused ? ' <span class="org-pill">tạm dừng</span>' : ""}
             <div class="dim">máy <code>javis-${esc(t.slug)}</code> · đăng nhập <code>${esc(t.login_user || "admin")}</code></div>
             ${prot ? '<div class="dim">Đăng nhập, não, Kết nối, Models giữ nguyên như trước khi có Tổ chức. Không tắt/xóa từ đây.</div>' : ""}
+            ${paused ? '<div class="dim">Tài khoản đang khóa. Mở link không vào được. Não còn. Bấm Chạy lại khi cần.</div>' : ""}
           </div>
-          <span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span>
+          <span class="org-st ${esc(st)}">${esc(stLabel(st))}</span>
         </header>
         <p><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || href)}</a></p>
         <div class="org-usage" data-org-usage="${esc(t.slug)}"
@@ -221,8 +229,9 @@
           <div class="dim">API chung: <b>${t.shared_api ? "Có" : "Không"}</b></div>
         </div>
         <div class="org-acts">
-          <button class="btn primary" data-org-start="${esc(t.slug)}">Bật máy</button>
+          <button class="btn primary" data-org-start="${esc(t.slug)}">${startLbl}</button>
           ${stopBtn}
+          ${pauseBtn}
           ${apiBtn}
           ${pwBtn}
           ${delBtn}
@@ -250,9 +259,10 @@
 
     const snapRows = tenants.map((t) => {
       const href = "https://" + hostOf(t);
+      const st = t.paused ? "paused" : (t.status || "");
       return `<tr>
         <td><button type="button" class="org-link" data-org-goto="quan" data-org-q="${esc(t.slug)}">${esc(t.name || t.slug)}</button></td>
-        <td><span class="org-st ${esc(t.status || "")}">${esc(stLabel(t.status))}</span></td>
+        <td><span class="org-st ${esc(st)}">${esc(stLabel(st))}</span></td>
         <td>${t.protected ? "Riêng (bản cũ)" : (t.shared_api ? "API chung" : "Riêng")}</td>
         <td><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || ("javis-" + t.slug))}</a></td>
       </tr>`;
@@ -345,13 +355,14 @@
 
         <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <h3>Quản lý người</h3>
-          <p class="dim">Đổi tên, ổ GB, token rồi bấm Lưu thay đổi. Đặt lại mật khẩu hoặc xóa thì gõ đúng tên máy. Não và API của họ ở máy họ.</p>
+          <p class="dim">Đổi tên, ổ GB rồi bấm Lưu thay đổi. Tạm dừng thì máy tắt, mở link không vào được đến khi bấm Chạy lại. Não còn.</p>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">
               <option value="all"${orgSt === "all" ? " selected" : ""}>Mọi trạng thái</option>
               <option value="running"${orgSt === "running" ? " selected" : ""}>Đang chạy</option>
               <option value="stopped"${orgSt === "stopped" ? " selected" : ""}>Tắt / chưa có</option>
+              <option value="paused"${orgSt === "paused" ? " selected" : ""}>Tạm dừng</option>
             </select>
             <select id="orgApi" class="org-filter" aria-label="Lọc API">
               <option value="all"${orgApi === "all" ? " selected" : ""}>Mọi API</option>
@@ -407,6 +418,7 @@
         .org-st{font-size:12px;padding:4px 8px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));white-space:nowrap}
         .org-st.running{border-color:#2f9e44;color:#2f9e44}
         .org-st.stopped,.org-st.missing{opacity:.7}
+        .org-st.paused{border-color:#f59f00;color:#f59f00}
         .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
         .org-del{border-color:#e03131;color:#e03131}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
@@ -536,6 +548,19 @@
         msg.textContent = "Đang bật…";
         try {
           await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-start")) + "/start", { method: "POST" });
+          orgFlash = "Đã chạy lại.";
+          orgTab = "quan";
+          render(el);
+        } catch (e) { msg.textContent = e.message; }
+      });
+    });
+    el.querySelectorAll("[data-org-pause]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        if (!confirm("Tạm dừng tài khoản này? Máy tắt, mở link không vào được đến khi bấm Chạy lại. Não không xóa.")) return;
+        msg.textContent = "Đang tạm dừng…";
+        try {
+          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-pause")) + "/pause", { method: "POST" });
+          orgFlash = "Đã tạm dừng. Não còn, tài khoản khóa đến khi chạy lại.";
           orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
