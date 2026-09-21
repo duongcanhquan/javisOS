@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.270] - 2026-09-21
+### Sửa
+- **Quản lý người: ô tên, ổ GB, token hiện sẵn trên thẻ, có nút Lưu thay đổi.** Đổi xong bấm Lưu; không còn phải mở form Sửa.
+
 ## [0.55.269] - 2026-09-21
 ### Sửa
 - **Javis Quan trên sổ Tổ chức ghi Riêng (bản cũ), không còn chữ Não gốc ở cột API.** Đó là máy bạn đang dùng: đăng nhập, não, Kết nối, Models như trước. Không phải kho API trường.
