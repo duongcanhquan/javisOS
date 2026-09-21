@@ -118,12 +118,19 @@
     root.querySelectorAll("[data-org-goto]").forEach((b) => {
       b.addEventListener("click", () => {
         const tab = b.getAttribute("data-org-goto");
-        const q = b.getAttribute("data-org-q");
-        if (q) {
-          orgQ = q;
-          const inp = root.querySelector("#orgSearch");
-          if (inp) inp.value = q;
+        if (b.hasAttribute("data-org-reset")) {
+          orgQ = ""; orgSt = "all"; orgApi = "all"; orgKind = "all";
         }
+        if (b.hasAttribute("data-org-q")) orgQ = b.getAttribute("data-org-q") || "";
+        if (b.hasAttribute("data-org-st")) orgSt = b.getAttribute("data-org-st") || "all";
+        const inp = root.querySelector("#orgSearch");
+        if (inp) inp.value = orgQ;
+        const stEl = root.querySelector("#orgSt");
+        if (stEl) stEl.value = orgSt;
+        const apiEl = root.querySelector("#orgApi");
+        if (apiEl) apiEl.value = orgApi;
+        const kindEl = root.querySelector("#orgKind");
+        if (kindEl) kindEl.value = orgKind;
         showTab(root, tab);
         applyFilter(root);
       });
@@ -256,9 +263,9 @@
         <section class="org-pane" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
           <p class="org-lead">Chỉ admin Javis gốc thấy trang này. Não từng người không đọc được từ đây.</p>
           <div class="org-stats">
-            <button type="button" data-org-goto="quan"><b>${tenants.length}</b><span>Người / máy</span></button>
-            <button type="button" data-org-goto="quan"><b>${running}</b><span>Đang chạy</span></button>
-            <button type="button" data-org-goto="quan"><b>${stopped}</b><span>Tắt / chưa có</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${running}</b><span>Đang chạy</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="stopped"><b>${stopped}</b><span>Tắt / chưa có</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
           </div>
           <div class="org-snap">
@@ -295,9 +302,9 @@
           Mật khẩu tối thiểu 10 ký tự, có chữ và số. Họ tự đổi sau trong Tài khoản của máy họ.
           Javis gốc không lưu mật khẩu dạng đọc được.</p>
           <form id="orgCreate" class="org-form">
-            <label>Tên máy (slug)<input name="slug" required placeholder="vd lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
+            <label>Tên máy (slug)<input name="slug" required placeholder="Ví dụ: lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
             <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
-            <label>Tên đăng nhập<input name="login_user" required placeholder="lan" maxlength="32"></label>
+            <label>Tên đăng nhập<input name="login_user" required placeholder="Ví dụ: lan" maxlength="32"></label>
             <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
             <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>

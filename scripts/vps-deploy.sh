@@ -179,6 +179,8 @@ if [ "$ok_health" != "1" ]; then
 fi
 
 # Model Moonshine + vendor CDN đã persist trên host → copy lại vào container (nhanh, không tải lại).
+# Sau org-split máy cá nhân tên javis-quan, không còn container tên javis.
+export JAVIS_CONTAINER="${JAVIS_CONTAINER:-${JAVIS_NAME:-javis}}"
 if [ -f "$ROOT/scripts/fetch-moonshine-models.sh" ]; then
   echo "==> restore Moonshine models (copy-only)"
   chmod +x "$ROOT/scripts/fetch-moonshine-models.sh"
@@ -196,13 +198,13 @@ if [ -f "$ROOT/scripts/patch-moonshine-wasm-threads.sh" ]; then
 fi
 if [ -d /root/javis-data/dashboard-vendor ]; then
   echo "==> restore dashboard CDN vendor"
-  docker exec -u root "${JAVIS_NAME:-javis}" mkdir -p /app/dashboard/vendor
+  docker exec -u root "${JAVIS_CONTAINER}" mkdir -p /app/dashboard/vendor
   for d in mermaid turndown fonts; do
     if [ -d "/root/javis-data/dashboard-vendor/$d" ]; then
-      docker cp "/root/javis-data/dashboard-vendor/$d" "${JAVIS_NAME:-javis}:/app/dashboard/vendor/" || true
+      docker cp "/root/javis-data/dashboard-vendor/$d" "${JAVIS_CONTAINER}:/app/dashboard/vendor/" || true
     fi
   done
-  docker exec -u root "${JAVIS_NAME:-javis}" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts 2>/dev/null || true
+  docker exec -u root "${JAVIS_CONTAINER}" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts 2>/dev/null || true
 fi
 
 # Seed / optimize: TẮT mặc định (trước đây làm deploy chậm + prune image + health 2 lần).
@@ -277,6 +279,21 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
     docker compose "${MGR_FILES[@]}" pull javis || echo "WARN: pull Javis gốc thất bại"
     docker compose "${MGR_FILES[@]}" up -d --no-build --force-recreate javis
   )
+  echo "==> health Javis gốc (:7778)"
+  _mgr_ok=0
+  for i in $(seq 1 30); do
+    if curl -fsS -m 3 http://127.0.0.1:7778/health >/dev/null; then
+      curl -fsS -m 3 http://127.0.0.1:7778/health || true
+      echo
+      _mgr_ok=1
+      break
+    fi
+    echo "waiting Javis gốc... ($i)"
+    sleep 2
+  done
+  if [ "$_mgr_ok" != 1 ]; then
+    echo "WARN: Javis gốc chưa trả /health sau recreate - thử https://javis.vietmycollege.com"
+  fi
 else
   echo "==> không có $MGR_DIR - bỏ cập nhật Javis gốc"
 fi

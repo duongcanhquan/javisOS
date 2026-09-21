@@ -158,13 +158,14 @@ def _make_router() -> APIRouter:
             return deny
         data = ot.load()
         out = []
+        dk_ok = org_docker.docker_available()
         for t in data["tenants"]:
             rec = op.public_tenant(t)
             cname = str(t.get("container") or "")
-            if cname and org_docker.docker_available():
+            if cname and dk_ok:
                 rec["status"] = org_docker.container_status(cname)
             out.append(rec)
-        return {"ok": True, "tenants": out, "docker": org_docker.docker_available(),
+        return {"ok": True, "tenants": out, "docker": dk_ok,
                 **op.pool_public()}
 
     @router.post("/org/tenants")
@@ -203,7 +204,7 @@ def _make_router() -> APIRouter:
             )
         if shared and not any(v.get("set") for v in op.pool_public()["providers"].values()):
             return JSONResponse(
-                {"ok": False, "error": "Chưa dán khóa API chung ở phần cài đặt phía trên."},
+                {"ok": False, "error": "Chưa dán khóa API chung ở tab Cài đặt chung."},
                 status_code=400,
             )
         token = op.new_pool_token()

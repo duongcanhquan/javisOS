@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.55.260] - 2026-09-21
+### Sửa
+- **Tạo người mới không kẹt chờ máy.** Lần tạo dở hiện lại trên Quản lý để đặt mật khẩu, không thành máy ma.
+- **Họp trên javis-quan có lại model giọng nói** sau mỗi cập nhật.
+- **Javis gốc đợi lên xong** mới kết thúc cập nhật.
+
 ## [0.55.259] - 2026-09-21
 ### Mới
 - **Tổ chức chia 4 tab:** Tổng hợp, Cài đặt chung, Tạo mới, Quản lý. Trên Quản lý có ô tìm tên và lọc máy đang chạy / API chung.

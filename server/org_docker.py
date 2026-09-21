@@ -123,20 +123,55 @@ def _exec(cname: str, cmd: list[str], extra_env: list[str] | None = None, timeou
     return (st.text or "")[-2000:]
 
 
+def _health_inside(cname: str) -> bool:
+    """Gọi /health từ bên trong máy con (127.0.0.1), không cần DNS giữa các container."""
+    code = (
+        "import os,sys,urllib.request\n"
+        "u='http://127.0.0.1:'+os.getenv('JAVIS_PORT','7777')+'/health'\n"
+        "sys.exit(0 if urllib.request.urlopen(u,timeout=4).status==200 else 1)\n"
+    )
+    body = {
+        "AttachStdout": True,
+        "AttachStderr": True,
+        "Tty": False,
+        "Cmd": ["python", "-c", code],
+    }
+    try:
+        cr = _docker_api("POST", f"/containers/{quote(cname)}/exec", json_body=body, timeout=20.0)
+        if cr.status_code not in (200, 201):
+            return False
+        eid = ((cr.json() or {}).get("Id") or "").strip()
+        if not eid:
+            return False
+        _docker_api(
+            "POST",
+            f"/exec/{quote(eid)}/start",
+            json_body={"Detach": False, "Tty": False},
+            timeout=15.0,
+        )
+        inf = _docker_api("GET", f"/exec/{quote(eid)}/json", timeout=10.0)
+        return int(((inf.json() or {}).get("ExitCode")) or 1) == 0
+    except Exception:
+        return False
+
+
 def wait_health(cname: str, tries: int = 40) -> None:
     import time
-    import httpx
 
-    url = f"http://{cname}:7777/health"
     last = ""
     for _ in range(max(3, tries)):
-        try:
-            r = httpx.get(url, timeout=3.0)
-            if r.status_code == 200:
+        data = inspect_name(cname)
+        if not data:
+            last = "không thấy máy"
+        else:
+            st = data.get("State") if isinstance(data.get("State"), dict) else {}
+            if not st.get("Running"):
+                last = "máy chưa chạy"
+            elif _health_inside(cname):
                 return
-            last = f"HTTP {r.status_code}"
-        except Exception as e:
-            last = str(e)[:120]
+            else:
+                health = st.get("Health") if isinstance(st.get("Health"), dict) else {}
+                last = str(health.get("Status") or "chưa trả lời /health")
         time.sleep(2)
     raise RuntimeError(f"Javis con chưa sẵn sàng ({last}).")
 
@@ -200,74 +235,79 @@ def create_and_start(
     vols = ot.volume_names(slug)
     cname = f"javis-{slug}"
     domain = ot.tenant_domain(slug)
-    if inspect_name(cname):
+    existing = inspect_name(cname)
+    if existing and ot.get(slug):
         raise RuntimeError(f"Container {cname} đã tồn tại.")
-    for v in vols:
-        _ensure_volume(v)
-    img = _self_image()
     tz = (os.getenv("TZ") or "Asia/Ho_Chi_Minh").strip() or "Asia/Ho_Chi_Minh"
     import secrets as _secrets
     bootstrap = _secrets.token_urlsafe(24)
     mgr = (os.getenv("JAVIS_NAME") or "").strip() or "javis-manager"
     login = (login_user or "admin").strip() or "admin"
-    env = [
-        f"DOMAIN_NAME={domain}",
-        "JAVIS_HOST=0.0.0.0",
-        "JAVIS_PORT=7777",
-        f"JAVIS_NAME={cname}",
-        f"TZ={tz}",
-        f"JAVIS_ADMIN_USER={login}",
-        f"JAVIS_ADMIN_PASSWORD={bootstrap}",
-        "JAVIS_ENABLE_USER_PLUGINS=false",
-        "JAVIS_KANBAN_MAX_WORKERS=1",
-        "JAVIS_ENABLE_PIXELLE=false",
-        "JAVIS_ORG_MANAGER=false",
-        "JAVIS_ORG_TENANT=true",
-        f"JAVIS_QUOTA_GB={int(quota_gb)}",
-        f"JAVIS_ORG_POOL_URL=http://{mgr}:7777/org/pool",
-        f"JAVIS_ORG_POOL_TOKEN={pool_token}",
-        "WATCHTOWER_TOKEN=",
-    ]
-    body = {
-        "Image": img,
-        "Hostname": cname,
-        "Env": env,
-        "Labels": {
-            "caddy": domain,
-            "caddy.reverse_proxy": "{{upstreams 7777}}",
-            "javis.org.tenant": slug,
-        },
-        "HostConfig": {
-            "Memory": _MEM,
-            "MemorySwap": _MEM,
-            "NanoCpus": _NANO_CPUS,
-            "PidsLimit": _PIDS,
-            "RestartPolicy": {"Name": "unless-stopped"},
-            "Binds": [
-                f"{vols[0]}:/data",
-                f"{vols[1]}:/brains",
-                f"{vols[2]}:/home/javis/.claude",
-                f"{vols[3]}:/home/javis/.codex",
-            ],
-            "NetworkMode": "javis-web",
-        },
-    }
-    me = _self_inspect()
-    cfg = me.get("Config") if isinstance(me.get("Config"), dict) else {}
-    user = cfg.get("User")
-    if isinstance(user, str) and user.strip():
-        body["User"] = user.strip()
-    cr = _docker_api("POST", f"/containers/create?name={quote(cname)}", json_body=body, timeout=120.0)
-    if cr.status_code not in (200, 201):
-        raise RuntimeError(f"create HTTP {cr.status_code}: {(cr.text or '')[:400]}")
-    cid = (cr.json() or {}).get("Id") or ""
-    st = _docker_api("POST", f"/containers/{quote(cid or cname)}/start", timeout=60.0)
-    if st.status_code not in (204, 200):
-        raise RuntimeError(f"start HTTP {st.status_code}: {(st.text or '')[:400]}")
-    wait_health(cname)
-    if password:
-        set_admin(cname, login, password)
-    write_quota(cname, int(quota_gb))
+    cid = ""
+    if not existing:
+        for v in vols:
+            _ensure_volume(v)
+        img = _self_image()
+        env = [
+            f"DOMAIN_NAME={domain}",
+            "JAVIS_HOST=0.0.0.0",
+            "JAVIS_PORT=7777",
+            f"JAVIS_NAME={cname}",
+            f"TZ={tz}",
+            f"JAVIS_ADMIN_USER={login}",
+            f"JAVIS_ADMIN_PASSWORD={bootstrap}",
+            "JAVIS_ENABLE_USER_PLUGINS=false",
+            "JAVIS_KANBAN_MAX_WORKERS=1",
+            "JAVIS_ENABLE_PIXELLE=false",
+            "JAVIS_ORG_MANAGER=false",
+            "JAVIS_ORG_TENANT=true",
+            f"JAVIS_QUOTA_GB={int(quota_gb)}",
+            f"JAVIS_ORG_POOL_URL=http://{mgr}:7777/org/pool",
+            f"JAVIS_ORG_POOL_TOKEN={pool_token}",
+            "WATCHTOWER_TOKEN=",
+        ]
+        body = {
+            "Image": img,
+            "Hostname": cname,
+            "Env": env,
+            "Labels": {
+                "caddy": domain,
+                "caddy.reverse_proxy": "{{upstreams 7777}}",
+                "javis.org.tenant": slug,
+            },
+            "HostConfig": {
+                "Memory": _MEM,
+                "MemorySwap": _MEM,
+                "NanoCpus": _NANO_CPUS,
+                "PidsLimit": _PIDS,
+                "RestartPolicy": {"Name": "unless-stopped"},
+                "Binds": [
+                    f"{vols[0]}:/data",
+                    f"{vols[1]}:/brains",
+                    f"{vols[2]}:/home/javis/.claude",
+                    f"{vols[3]}:/home/javis/.codex",
+                ],
+                "NetworkMode": "javis-web",
+            },
+        }
+        me = _self_inspect()
+        cfg = me.get("Config") if isinstance(me.get("Config"), dict) else {}
+        user = cfg.get("User")
+        if isinstance(user, str) and user.strip():
+            body["User"] = user.strip()
+        cr = _docker_api("POST", f"/containers/create?name={quote(cname)}", json_body=body, timeout=120.0)
+        if cr.status_code not in (200, 201):
+            raise RuntimeError(f"create HTTP {cr.status_code}: {(cr.text or '')[:400]}")
+        cid = (cr.json() or {}).get("Id") or ""
+        st = _docker_api("POST", f"/containers/{quote(cid or cname)}/start", timeout=60.0)
+        if st.status_code not in (204, 200):
+            raise RuntimeError(f"start HTTP {st.status_code}: {(st.text or '')[:400]}")
+    else:
+        cid = str(existing.get("Id") or "")
+        if container_status(cname) != "running":
+            st = _docker_api("POST", f"/containers/{quote(cname)}/start", timeout=60.0)
+            if st.status_code not in (204, 200, 304):
+                raise RuntimeError(f"start HTTP {st.status_code}: {(st.text or '')[:400]}")
     rec = {
         "id": cid[:12] if cid else slug,
         "slug": slug,
@@ -278,7 +318,7 @@ def create_and_start(
         "quota_gb": int(quota_gb),
         "brain_mode": "school",
         "protected": False,
-        "status": "running",
+        "status": container_status(cname),
         "login_user": login,
         "shared_api": bool(shared_api),
         "token_quota": int(token_quota or 0),
@@ -286,7 +326,18 @@ def create_and_start(
         "tokens_month": "",
         "pool_token_hash": op.hash_token(pool_token) if pool_token else "",
     }
-    return ot.upsert(rec)
+    ot.upsert(rec)
+    try:
+        wait_health(cname)
+        if password:
+            set_admin(cname, login, password)
+        write_quota(cname, int(quota_gb))
+        rec["status"] = "running"
+        return ot.upsert(rec)
+    except Exception:
+        rec["status"] = container_status(cname)
+        ot.upsert(rec)
+        raise
 
 
 def write_quota(cname: str, quota_gb: int) -> None:

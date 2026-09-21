@@ -123,6 +123,11 @@ check("org.js chia tab tổng hợp/cài/tạo/quản",
       'data-org-tab="tong"' in org_js and 'data-org-tab="cai"' in org_js
       and 'data-org-tab="tao"' in org_js and 'data-org-tab="quan"' in org_js)
 check("org.js tìm và lọc người", "orgSearch" in org_js and "orgSt" in org_js and "orgApi" in org_js)
+check("org.js placeholder Ví dụ", "Ví dụ: lan" in org_js)
+check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _health_inside" in src)
+check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
+moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")
+check("Moonshine lấy tên máy từ JAVIS_NAME", "JAVIS_NAME:-javis" in moon)
 check("không em dash org.js", "\u2014" not in org_js)
 con = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 check("rail có nhóm Tổ chức riêng", 'nav.group.quan_tri' in con and 'ids: ["org"]' in con)

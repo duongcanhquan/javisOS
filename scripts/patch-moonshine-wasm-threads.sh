@@ -3,7 +3,7 @@
 # nạp lại moonshine.wasm → treo ở loadWasmModuleToAllWorkers (UI đếm giây mãi).
 # Giới hạn 2 worker. Idempotent.
 set -euo pipefail
-CONTAINER="${JAVIS_CONTAINER:-javis}"
+CONTAINER="${JAVIS_CONTAINER:-${JAVIS_NAME:-javis}}"
 TARGET="/app/dashboard/vendor/moonshine-wasm/dist/moonshine.mjs"
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
   echo "WARN: container $CONTAINER chưa chạy"

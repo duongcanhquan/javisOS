@@ -253,6 +253,15 @@ check(
     "DOCKER_GID=" in script and "stat -c '%g' /var/run/docker.sock" in script,
 )
 check(
+    "vps-deploy.sh: Moonshine copy đúng tên máy (javis-quan)",
+    'JAVIS_CONTAINER="${JAVIS_CONTAINER:-${JAVIS_NAME:-javis}}"' in script
+    or "export JAVIS_CONTAINER=" in script,
+)
+check(
+    "vps-deploy.sh: đợi health Javis gốc :7778",
+    "127.0.0.1:7778/health" in script,
+)
+check(
     "vps-deploy.sh: Javis gốc không --remove-orphans",
     "up -d --no-build --force-recreate javis" in script,
 )

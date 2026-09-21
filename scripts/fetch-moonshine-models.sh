@@ -8,7 +8,7 @@
 #                                                   # (không tải lại file đã có trên persist)
 set -euo pipefail
 
-CONTAINER="${JAVIS_CONTAINER:-javis}"
+CONTAINER="${JAVIS_CONTAINER:-${JAVIS_NAME:-javis}}"
 PERSIST="${JAVIS_MOONSHINE_DIR:-/root/javis-data/moonshine-models}"
 HF="https://huggingface.co/moonshine-ai/moonshine-voice-assets/resolve/main/model"
 DEST_IN="/app/dashboard/vendor/moonshine-models"
