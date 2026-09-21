@@ -514,6 +514,13 @@ def _builtin_tools(mode, vault_root, include_ambient=False, hidden=None, lang=""
                     "(auto) rồi chạy lại. Ngay bây giờ: ĐỪNG thử ghi lại, hãy đưa TRỌN nội dung "
                     "file vào câu trả lời để người dùng tự lưu.")
         p = _safe_path(vault_root, (args or {}).get("path"))
+        try:
+            import org_quota
+            loi = org_quota.guard(len(str((args or {}).get("content") or "").encode("utf-8")))
+            if loi:
+                return "ERROR: " + loi
+        except Exception:
+            pass
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(str((args or {}).get("content") or ""), encoding="utf-8")
         return f"Đã ghi {p.name} ({len(str((args or {}).get('content') or ''))} ký tự)"

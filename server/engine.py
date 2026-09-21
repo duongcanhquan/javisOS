@@ -661,6 +661,14 @@ OLLAMA_BASE = os.getenv("OLLAMA_BASE", "https://ollama.com")
 OLLAMA_URL = OLLAMA_BASE + "/v1/chat/completions"
 
 
+def _u(provider: str, native: str) -> str:
+    try:
+        import org_policy as op
+        return op.chat_url(provider, native)
+    except Exception:
+        return native
+
+
 
 def _ollama_needs_auth() -> bool:
     """Ollama Cloud (https://ollama.com) cần Bearer key; Ollama local (http://...) thì không."""
@@ -1114,7 +1122,7 @@ async def _openai_compat_stream(url, label, api_key, model, messages, reasoning,
 
 async def openai_stream(api_key, model, messages, reasoning="off"):
     """OpenAI Chat Completions (provider 'openai') - chat thuần, định dạng giống OpenRouter."""
-    async for ev in _openai_compat_stream(OPENAI_URL, "OpenAI", api_key, model or "gpt-4o-mini",
+    async for ev in _openai_compat_stream(_u("openai", OPENAI_URL), "OpenAI", api_key, model or "gpt-4o-mini",
                                           messages, reasoning, _openai_is_reasoning(model)):
         yield ev
 
@@ -1124,7 +1132,7 @@ async def groq_stream(api_key, model, messages, reasoning="off"):
     không có tool nào; đường thường là groq_chat_with_mcp)."""
     mdl = groq_resolve_model(model)
     async for ev in _openai_compat_stream(
-            GROQ_URL, "Groq", api_key, mdl, messages, reasoning, _groq_is_reasoning(mdl),
+            _u("groq", GROQ_URL), "Groq", api_key, mdl, messages, reasoning, _groq_is_reasoning(mdl),
             extra=_groq_payload_extra(mdl, reasoning)):
         yield ev
 
@@ -1132,7 +1140,7 @@ async def groq_stream(api_key, model, messages, reasoning="off"):
 async def deepseek_stream(api_key, model, messages, reasoning="off"):
     """DeepSeek API (endpoint OpenAI-compatible, provider 'deepseek') - nhánh KHÔNG tool."""
     async for ev in _openai_compat_stream(
-            DEEPSEEK_URL, "DeepSeek", api_key, model or DEEPSEEK_DEFAULT_MODEL,
+            _u("deepseek", DEEPSEEK_URL), "DeepSeek", api_key, model or DEEPSEEK_DEFAULT_MODEL,
             messages, reasoning, False, extra=_deepseek_thinking(reasoning)):
         yield ev
 
@@ -1261,7 +1269,7 @@ async def ollama_local_chat_with_mcp(api_key, model, messages, reasoning, mcp_to
 async def gemini_stream(api_key, model, messages, reasoning="off"):
     """Google Gemini qua endpoint OpenAI-compatible (provider 'gemini') - chat thuần, cùng định dạng."""
     mdl = gemini_resolve_model(model)
-    async for ev in _openai_compat_stream(GEMINI_URL, "Gemini", api_key, mdl,
+    async for ev in _openai_compat_stream(_u("gemini", GEMINI_URL), "Gemini", api_key, mdl,
                                           messages, reasoning, _gemini_is_reasoning(mdl)):
         yield ev
 
@@ -1289,7 +1297,7 @@ async def anthropic_stream(api_key, model, messages, reasoning="off"):
     try:
         timeout = httpx.Timeout(120.0, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            async with client.stream("POST", ANTHROPIC_URL, headers=headers, json=payload) as r:
+            async with client.stream("POST", _u("anthropic-api", ANTHROPIC_URL), headers=headers, json=payload) as r:
                 if r.status_code != 200:
                     body = await r.aread()
                     body_text = body.decode("utf-8", "replace")
@@ -1386,7 +1394,7 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
         }
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=15)) as client:
-                response = await client.post(ANTHROPIC_URL, headers=headers, json=payload)
+                response = await client.post(_u("anthropic-api", ANTHROPIC_URL), headers=headers, json=payload)
             if response.status_code != 200:
                 return {"status": "error", "error_code": f"provider_http_{response.status_code}",
                         "input": 0, "output": 0}
@@ -1407,12 +1415,12 @@ async def single_tool_plan(provider, api_key, model, messages, reasoning, tool_s
                 "model": data.get("model") or model, "input": tokens_in, "output": tokens_out}
 
     endpoints = {
-        "openai": (OPENAI_URL, model or "gpt-4o-mini"),
-        "groq": (GROQ_URL, groq_resolve_model(model)),
-        "gemini": (GEMINI_URL, gemini_resolve_model(model)),
-        "openrouter": (OPENROUTER_URL, model or "openai/gpt-4o-mini"),
+        "openai": (_u("openai", OPENAI_URL), model or "gpt-4o-mini"),
+        "groq": (_u("groq", GROQ_URL), groq_resolve_model(model)),
+        "gemini": (_u("gemini", GEMINI_URL), gemini_resolve_model(model)),
+        "openrouter": (_u("openrouter", OPENROUTER_URL), model or "openai/gpt-4o-mini"),
         "ollama": (OLLAMA_URL, model),
-        "deepseek": (DEEPSEEK_URL, model or DEEPSEEK_DEFAULT_MODEL),
+        "deepseek": (_u("deepseek", DEEPSEEK_URL), model or DEEPSEEK_DEFAULT_MODEL),
     }
     if provider not in endpoints:
         return {"status": "error", "error_code": "provider_not_supported", "input": 0, "output": 0}
@@ -1485,7 +1493,7 @@ async def openrouter_stream(api_key, model, messages, reasoning="off"):
         try:
             timeout = httpx.Timeout(120.0, connect=15.0)
             async with httpx.AsyncClient(timeout=timeout) as client:
-                async with client.stream("POST", OPENROUTER_URL, headers=headers, json=payload) as r:
+                async with client.stream("POST", _u("openrouter", OPENROUTER_URL), headers=headers, json=payload) as r:
                     if r.status_code != 200:
                         body = await r.aread()
                         body_text = body.decode("utf-8", "replace")
@@ -2379,7 +2387,7 @@ async def openai_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
     if reasoning not in (None, "", "off") and _openai_is_reasoning(model):
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(OPENAI_URL, headers, model or "gpt-4o-mini", messages, mcp_tools, mcp_route, extra, "OpenAI"):
+    async for ev in _cc_tool_loop(_u("openai", OPENAI_URL), headers, model or "gpt-4o-mini", messages, mcp_tools, mcp_route, extra, "OpenAI"):
         yield ev
 
 
@@ -2392,7 +2400,7 @@ async def groq_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, mcp
     if reasoning not in (None, "", "off") and _groq_is_reasoning(mdl):
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": mdl}
-    async for ev in _cc_tool_loop(GROQ_URL, headers, mdl, messages, mcp_tools, mcp_route, extra, "Groq"):
+    async for ev in _cc_tool_loop(_u("groq", GROQ_URL), headers, mdl, messages, mcp_tools, mcp_route, extra, "Groq"):
         yield ev
 
 
@@ -2401,7 +2409,7 @@ async def deepseek_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools,
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     extra = _deepseek_thinking(reasoning)
     yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(DEEPSEEK_URL, headers, model or DEEPSEEK_DEFAULT_MODEL,
+    async for ev in _cc_tool_loop(_u("deepseek", DEEPSEEK_URL), headers, model or DEEPSEEK_DEFAULT_MODEL,
                                   messages, mcp_tools, mcp_route, extra, "DeepSeek"):
         yield ev
 
@@ -2427,7 +2435,7 @@ async def gemini_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools, m
     if reasoning not in (None, "", "off") and _gemini_is_reasoning(model):
         extra["reasoning_effort"] = api_effort(reasoning)
     yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(GEMINI_URL, headers, model, messages, mcp_tools, mcp_route, extra, "Gemini"):
+    async for ev in _cc_tool_loop(_u("gemini", GEMINI_URL), headers, model, messages, mcp_tools, mcp_route, extra, "Gemini"):
         yield ev
 
 
@@ -2438,7 +2446,7 @@ async def openrouter_chat_with_mcp(api_key, model, messages, reasoning, mcp_tool
     if reasoning not in (None, "", "off"):
         extra["reasoning"] = {"effort": api_effort(reasoning)}
     yield {"type": "meta", "model": model}
-    async for ev in _cc_tool_loop(OPENROUTER_URL, headers, model or "openai/gpt-4o-mini", messages, mcp_tools, mcp_route, extra, "OpenRouter",
+    async for ev in _cc_tool_loop(_u("openrouter", OPENROUTER_URL), headers, model or "openai/gpt-4o-mini", messages, mcp_tools, mcp_route, extra, "OpenRouter",
                                   cache_system=_is_claude_model(model)):
         yield ev
 
@@ -2605,7 +2613,7 @@ async def anthropic_chat_with_mcp(api_key, model, messages, reasoning, mcp_tools
             if sys_txt:
                 payload["system"] = [{"type": "text", "text": sys_txt, "cache_control": {"type": "ephemeral"}}]
             try:
-                r = await client.post(ANTHROPIC_URL, headers=headers, json=payload)
+                r = await client.post(_u("anthropic-api", ANTHROPIC_URL), headers=headers, json=payload)
             except Exception as e:
                 yield ev_loi_exc("Anthropic lỗi", e)
                 return

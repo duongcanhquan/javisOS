@@ -156,6 +156,7 @@
     try {
       const d = await (await fetch("/org/status", { cache: "no-store" })).json();
       window.JAVIS_ORG_MANAGER = d.manager === true;
+      window.JAVIS_ORG_TENANT = d.tenant === true;
     } catch (e) {
       window.JAVIS_ORG_MANAGER = false;
     }
@@ -5838,6 +5839,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         const cur = curEl ? curEl.value : "";
         if (!cur) { acStatus.innerHTML = WARN_ICON + " Nhập mật khẩu hiện tại để xác nhận."; return; }
         if (pass && pass.length < 8) { acStatus.innerHTML = WARN_ICON + " Mật khẩu mới tối thiểu 8 ký tự."; return; }
+        if (window.JAVIS_ORG_TENANT && pass && pass.length < 10) { acStatus.innerHTML = WARN_ICON + " Mật khẩu mới tối thiểu 10 ký tự, có chữ và số."; return; }
         if (!pass && user === (auth.username || "")) { acStatus.innerHTML = WARN_ICON + " Chưa đổi gì cả - nhập mật khẩu mới hoặc tên đăng nhập mới."; return; }
         acStatus.textContent = "Đang lưu...";
         const fd = new FormData();

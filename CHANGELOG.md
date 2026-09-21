@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.255] - 2026-09-21
+### Mới
+- **Tổ chức: tạo người với tên + mật khẩu mạnh**, hạn mức ổ và token, bật/tắt API chung. Khóa API dán trên Javis gốc, không chép xuống máy từng người. Họ tự đổi mật khẩu trong Tài khoản.
+
 ## [0.55.254] - 2026-09-21
 ### Mới
 - **Javis gốc có mục Tổ chức.** Tạo Javis cho từng người (link `javis-[tên]`), bật/tắt máy. Đăng nhập mặc định admin/admin, rồi đổi mật khẩu trong Tài khoản. Bản quan không tắt từ đây.

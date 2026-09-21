@@ -2852,6 +2852,7 @@ if (document.getElementById("settingsBtn")) {
     const cur = curEl ? curEl.value : "";
     if (!cur) { bao(false, "Nhập mật khẩu hiện tại."); return; }
     if (pass && pass.length < 8) { bao(false, "Mật khẩu mới tối thiểu 8 ký tự."); return; }
+    if (window.JAVIS_ORG_TENANT && pass && pass.length < 10) { bao(false, "Mật khẩu mới tối thiểu 10 ký tự, có chữ và số."); return; }
     if (!pass && !user) { bao(false, "Chưa đổi gì cả."); return; }
     const fd = new FormData();
     fd.append("current_password", cur); fd.append("username", user);

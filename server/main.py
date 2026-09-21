@@ -169,7 +169,7 @@ app.add_middleware(CORSMiddleware,
 # /asset/<ver>/… = CSS/JS đã gắn phiên bản (index.html viết lại từ /static/?v=).
 # Phải public giống /static: màn đăng nhập tải style/script TRƯỚC khi có cookie —
 # thiếu /asset thì VPS bật mật khẩu hiện trang “vỡ” (HTML trần, không CSS).
-_AUTH_PUBLIC_PREFIX = ("/static", "/asset", "/health", "/drive-projects/rclone/pair/")
+_AUTH_PUBLIC_PREFIX = ("/static", "/asset", "/health", "/drive-projects/rclone/pair/", "/org/pool")
 # /brand-logo: hiện trên màn đăng nhập (trước session). /tls-check: Caddy gọi (không đăng nhập được).
 _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth/setup",
                       "/brand-logo", "/brand-icon/192", "/brand-icon/512",
@@ -1244,8 +1244,18 @@ async def auth_password(request: Request, current_password: str = Form(""),
         await asyncio.sleep(0.5)   # cùng nhịp làm chậm với /auth/login
         return JSONResponse({"ok": False, "error": "Sai mật khẩu hiện tại."}, status_code=401)
     ten = (username or "").strip()
-    if password and len(password) < 8:
-        return JSONResponse({"ok": False, "error": "Mật khẩu tối thiểu 8 ký tự"}, status_code=400)
+    if password:
+        try:
+            import org_policy as _op
+            if _op.tenant_side():
+                err = _op.validate_password(password, ten)
+                if err:
+                    return JSONResponse({"ok": False, "error": err}, status_code=400)
+            elif len(password) < 8:
+                return JSONResponse({"ok": False, "error": "Mật khẩu tối thiểu 8 ký tự"}, status_code=400)
+        except Exception:
+            if len(password) < 8:
+                return JSONResponse({"ok": False, "error": "Mật khẩu tối thiểu 8 ký tự"}, status_code=400)
     if not password and not ten:
         return JSONResponse({"ok": False, "error": "Không có gì để đổi."}, status_code=400)
     # GHI ĐÈ TỪNG KHOÁ, không thay cả object `auth`: 2FA cũng nằm trong đó, gán đè nguyên cục
@@ -1622,6 +1632,15 @@ def _provider_key(mcfg, d):
         if not (mcfg.get("ollama_local_endpoint") or "").strip():
             return ""
         return (mcfg.get("ollama_local_key") or "").strip() or "local"
+    try:
+        import org_policy as _op
+        pid = d.get("id") or ""
+        if _op.tenant_uses_pool(pid):
+            tok = _op.pool_token()
+            if tok:
+                return tok
+    except Exception:
+        pass
     return mcfg.get(d["key_field"], "") if d.get("key_field") else ""
 
 
@@ -6540,6 +6559,13 @@ async def files_read(brain: str = Query("brain"), path: str = Query(...)):
 @app.post("/files/write")
 async def files_write(brain: str = Form("brain"), path: str = Form(...), content: str = Form("")):
     try:
+        import org_quota
+        loi = org_quota.guard(len((content or "").encode("utf-8")))
+        if loi:
+            return JSONResponse({"error": loi}, status_code=413)
+    except Exception:
+        pass
+    try:
         f = _safe_path(brain, path)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
@@ -6604,6 +6630,18 @@ async def files_upload(file: UploadFile = File(...), brain: str = Form("brain"),
                        path: str = Form(""), folder: str = Form("")):
     """Tải file vào brain. Đưa `folder` (tên logic) thì server tự tìm đúng thư mục thật;
     không thì dùng `path` như cũ (tương đối TRẦN duyệt)."""
+    try:
+        import org_quota
+        extra = 1
+        try:
+            extra = int(file.size or 1)
+        except Exception:
+            extra = 1
+        loi = org_quota.guard(extra)
+        if loi:
+            return JSONResponse({"error": loi}, status_code=413)
+    except Exception:
+        pass
     if folder:
         mau = _THU_MUC_LOGIC.get(folder.strip().lower())
         if not mau:
