@@ -38,6 +38,7 @@ os.environ["JAVIS_ORG_HOST_PREFIX"] = "vmos"
 check("domain prefix vmos", ot.tenant_domain("lan") == "vmos-lan.vietmycollege.com")
 check("vmos vẫn giữ alias javis-", "javis-lan.vietmycollege.com" in ot.public_hosts("lan"))
 check("bóc slug vmos-lan", oc.slug_from_host("vmos-lan.vietmycollege.com") == "lan")
+check("bóc alias javis-lan khi prefix vmos", oc.slug_from_host("javis-lan.vietmycollege.com") == "lan")
 check("không bóc javis gốc", oc.slug_from_host("javis.vietmycollege.com") == "")
 os.environ.pop("JAVIS_ORG_HOST_PREFIX", None)
 check("trần máy mặc định 6", oc.coord()["max_running"] == 6)
@@ -50,6 +51,12 @@ cset = oc.put_coord(max_running=99, idle_minutes=-1)
 check("kẹp trần 20", cset["max_running"] == 20)
 check("kẹp idle 0", cset["idle_minutes"] == 0)
 oc.put_coord(max_running=6, idle_minutes=30)
+oc.enqueue_wait("lan")
+oc.enqueue_wait("minh")
+check("peek không xóa hàng đợi", oc.peek_waiter() == "lan" and oc.wait_len() == 2)
+oc.clear_wait("lan")
+check("xóa đầu hàng còn minh", oc.peek_waiter() == "minh" and oc.wait_len() == 1)
+oc.clear_wait("minh")
 
 check("username rỗng", op.validate_username("") is not None)
 check("username lan ok", op.validate_username("lan") is None)
@@ -158,8 +165,11 @@ check("org.js chia tab tổng hợp/cài/tạo/quản",
 check("org.js tìm và lọc người", "orgSearch" in org_js and "orgSt" in org_js and "orgApi" in org_js)
 check("org.js placeholder Ví dụ", "Ví dụ: lan" in org_js)
 check("org.js dùng host_prefix từ API", "host_prefix" in org_js and "hostOf" in org_js)
-check("gắn lại tên miền không xóa volume",
-      "def apply_public_hosts" in src and "force=true" in src and "down -v" not in src)
+check("gắn lại luôn 4 ổ tenant, không ổ rỗng",
+      "Từ chối gắn lại máy không có ổ não" in src and "ot.volume_names" in src.split("def apply_public_hosts", 1)[-1].split("def write_quota", 1)[0])
+lock_fn = src.split("def start_with_capacity", 1)[-1].split("with _LOCK:", 1)[-1].split("def tick_coord", 1)[0]
+check("giữ khóa chỗ đến khi bật máy",
+      "_acquire_slot(slug)" in lock_fn and lock_fn.find("_acquire_slot") < lock_fn.find("start(slug)"))
 check("Caddy một hostname, không ghép phẩy", '"caddy": domain' in src)
 check("gắn lại khi nhãn cũ khác đúng một tên", "old == wanted" in src)
 check("làm mới image máy con theo Javis gốc", "want_id" in src and "WORKSPACE_NAME=VietMy OS" in src)

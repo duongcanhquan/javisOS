@@ -120,7 +120,15 @@ def clear_wait(slug: str) -> None:
         _WAIT.pop(s, None)
 
 
+def peek_waiter() -> str:
+    with _WLOCK:
+        if not _WAIT:
+            return ""
+        return sorted(_WAIT, key=lambda k: _WAIT[k])[0]
+
+
 def next_waiter() -> str:
+    """Lấy người đầu hàng và xóa khỏi hàng. Dùng sau khi bật máy xong."""
     with _WLOCK:
         if not _WAIT:
             return ""
@@ -141,11 +149,15 @@ def slug_from_host(host: str) -> str:
     if not h.endswith(suf):
         return ""
     left = h[: -len(suf)]
-    pre = ot.host_prefix() + "-"
-    if not left.startswith(pre):
-        return ""
-    slug = left[len(pre):]
-    if ot.validate_slug(slug):
+    prefixes = [ot.host_prefix() + "-"]
+    if "javis-" not in prefixes:
+        prefixes.append("javis-")
+    slug = ""
+    for pre in prefixes:
+        if left.startswith(pre):
+            slug = left[len(pre):]
+            break
+    if not slug or ot.validate_slug(slug):
         return ""
     return slug
 

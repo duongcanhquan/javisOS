@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.273] - 2026-09-21
+### Sửa
+- **Chỗ RAM không bị hai người bật cùng lúc.** Link cũ `javis-tên` vẫn bật đúng máy. Gắn lại tên miền luôn giữ ổ não, không gắn máy trống.
+
 ## [0.55.272] - 2026-09-21
 ### Mới
 - **Điều phối RAM theo máy thật.** 6 GB thì khoảng 3 người chạy cùng lúc (gốc và Quan luôn bật). RAM thấp thì tắt máy đang nghỉ, người mới xếp hàng rồi tự vào. Não không xóa.

@@ -386,6 +386,18 @@ def apply_public_hosts(slug: str) -> None:
     env.append("WORKSPACE_NAME=VietMy OS")
     labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
+    try:
+        vols = ot.volume_names(str(rec.get("slug") or slug))
+        binds = [
+            f"{vols[0]}:/data",
+            f"{vols[1]}:/brains",
+            f"{vols[2]}:/home/javis/.claude",
+            f"{vols[3]}:/home/javis/.codex",
+        ]
+    except Exception:
+        binds = list(hc.get("Binds") or [])
+    if not binds:
+        raise RuntimeError("Từ chối gắn lại máy không có ổ não.")
     body = {
         "Image": img,
         "Hostname": cfg.get("Hostname") or cname,
@@ -397,7 +409,7 @@ def apply_public_hosts(slug: str) -> None:
             "NanoCpus": hc.get("NanoCpus") or _NANO_CPUS,
             "PidsLimit": hc.get("PidsLimit") or _PIDS,
             "RestartPolicy": hc.get("RestartPolicy") or {"Name": "unless-stopped"},
-            "Binds": hc.get("Binds") or [],
+            "Binds": binds,
             "NetworkMode": hc.get("NetworkMode") or "javis-web",
         },
     }
@@ -651,9 +663,11 @@ def start_with_capacity(slug: str) -> dict:
         if container_status(cname) == "running":
             rec["last_active"] = int(time.time())
             rec["status"] = "running"
-            return ot.upsert(rec)
+            rec = ot.upsert(rec)
+            oc.clear_wait(slug)
+            return rec
         _acquire_slot(slug)
-    start(slug)
+        start(slug)
     rec = ot.get(slug) or rec
     rec["last_active"] = int(time.time())
     rec["status"] = container_status(cname)
@@ -705,16 +719,16 @@ def tick_coord() -> None:
                 except Exception as e:
                     print(f"[org coord] tắt {slug}: {e}", flush=True)
     if len(people_running()) < cap:
-        w = oc.next_waiter()
+        w = oc.peek_waiter()
         if w:
             rec = ot.get(w)
             if rec and not rec.get("paused") and not rec.get("protected"):
                 try:
                     start_with_capacity(w)
                 except Exception:
-                    oc.enqueue_wait(w)
-            elif w:
-                oc.enqueue_wait(w)
+                    pass
+            else:
+                oc.clear_wait(w)
     try:
         sync_park()
     except Exception as e:
