@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.263] - 2026-09-21
+### Sửa
+- **Người mới mở `vmos-tên`, ví dụ `vmos-maihuong.vietmycollege.com`.** Bản trước gắn hai tên một lúc nên HTTPS gãy; giờ mỗi máy một tên như bản quan.
+
 ## [0.55.262] - 2026-09-21
 ### Sửa
 - **Mở `vmos-quan.vietmycollege.com`.** Bản trước gắn hai tên dính nhau nên HTTPS gãy; giờ mỗi máy một tên rõ.

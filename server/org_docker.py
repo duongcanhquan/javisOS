@@ -266,13 +266,12 @@ def create_and_start(
             f"JAVIS_ORG_POOL_TOKEN={pool_token}",
             "WATCHTOWER_TOKEN=",
         ]
-        hosts = ot.public_hosts(slug)
         body = {
             "Image": img,
             "Hostname": cname,
             "Env": env,
             "Labels": {
-                "caddy": ", ".join(hosts),
+                "caddy": domain,
                 "caddy.reverse_proxy": "{{upstreams 7777}}",
                 "javis.org.tenant": slug,
             },
@@ -347,23 +346,22 @@ def apply_public_hosts(slug: str) -> None:
     if not rec or rec.get("protected"):
         return
     cname = str(rec.get("container") or f"javis-{slug}")
-    hosts = [h.strip() for h in ot.public_hosts(slug) if h.strip()]
-    if not hosts:
+    wanted = ot.tenant_domain(slug).strip()
+    if not wanted:
         return
-    joined = ", ".join(hosts)
     data = inspect_name(cname)
     if not data:
         return
     was_running = container_status(cname) == "running"
     cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
     labels = dict(cfg.get("Labels") or {})
-    old = (labels.get("caddy") or "").replace(" ", "")
-    if old == joined.replace(" ", ""):
+    old = (labels.get("caddy") or "").strip()
+    if old == wanted:
         return
     hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
     env = [e for e in (cfg.get("Env") or []) if not str(e).startswith("DOMAIN_NAME=")]
-    env.append("DOMAIN_NAME=" + hosts[0])
-    labels["caddy"] = joined
+    env.append("DOMAIN_NAME=" + wanted)
+    labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
     body = {
         "Image": cfg.get("Image"),

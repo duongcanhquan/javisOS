@@ -132,6 +132,8 @@ check("org.js placeholder Ví dụ", "Ví dụ: lan" in org_js)
 check("org.js dùng host_prefix từ API", "host_prefix" in org_js and "hostOf" in org_js)
 check("gắn lại tên miền không xóa volume",
       "def apply_public_hosts" in src and "force=true" in src and "down -v" not in src)
+check("Caddy một hostname, không ghép phẩy", '"caddy": domain' in src)
+check("gắn lại khi nhãn cũ khác đúng một tên", "old == wanted" in src)
 check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _health_inside" in src)
 check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
 moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")
