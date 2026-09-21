@@ -76,10 +76,16 @@ COMPOSE_UP=("${COMPOSE_BASE[@]}")
 if docker ps --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-tunnel"; then
   COMPOSE_UP+=(--profile tunnel)
 fi
-# Caddy HTTPS: lần deploy trước dùng --remove-orphans trên mỗi docker-compose.yml
-# nên gỡ nhầm javis-caddy. Giữ file https nếu container hoặc volume Caddy còn.
-if [ -f "$ROOT/docker-compose.https.yml" ]; then
+# Caddy HTTPS trong project CHỈ khi CHƯA có proxy ngoài.
+# Có javis-proxy thì dùng multi.yml (nhãn domain), không bật javis-caddy (tránh tranh 443).
+if docker ps --format '{{.Names}}' | grep -qx javis-proxy; then
+  if [ -f "$ROOT/docker-compose.multi.yml" ]; then
+    COMPOSE_UP+=(-f docker-compose.multi.yml)
+    echo "==> proxy ngoài (javis-proxy) + docker-compose.multi.yml"
+  fi
+elif [ -f "$ROOT/docker-compose.https.yml" ]; then
   if docker ps -a --format '{{.Names}}' | grep -qx "${JAVIS_NAME:-javis}-caddy" \
+    || docker ps -a --format '{{.Names}}' | grep -qx javis-caddy \
     || docker volume ls -q | grep -qE 'caddy-data|caddy_data'; then
     COMPOSE_UP+=(-f docker-compose.https.yml)
     echo "==> giữ Caddy HTTPS (docker-compose.https.yml)"

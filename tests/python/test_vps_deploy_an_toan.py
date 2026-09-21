@@ -171,6 +171,10 @@ check(
     "vps-deploy.sh: giữ Caddy HTTPS nếu volume/container còn (không --remove-orphans mất 443)",
     "docker-compose.https.yml" in code and "caddy-data" in code,
 )
+check(
+    "vps-deploy.sh: có javis-proxy thì multi.yml, không tranh Caddy",
+    "javis-proxy" in code and "docker-compose.multi.yml" in code,
+)
 
 # Ép false phải đứng trước lệnh up. Không được chỉ dựa vào optimize-vps.sh.
 idx_false = script.find("JAVIS_ENABLE_PIXELLE=false")

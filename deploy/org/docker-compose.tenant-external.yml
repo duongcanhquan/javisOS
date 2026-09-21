@@ -1,0 +1,20 @@
+# Overlay: gắn 4 volume ĐÃ CÓ (não javis-quan). Không đẻ volume trống.
+#
+# Dùng KÈM docker-compose.yml (+ docker-compose.multi.yml khi có proxy ngoài).
+# Không xóa volume. Không khai lại services.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.multi.yml \
+#     -f deploy/org/docker-compose.tenant-external.yml up -d
+volumes:
+  javis-data:
+    external: true
+    name: ${JAVIS_DATA_VOLUME:-javis_javis-data}
+  javis-brains:
+    external: true
+    name: ${JAVIS_BRAINS_VOLUME:-javis_javis-brains}
+  claude-auth:
+    external: true
+    name: ${JAVIS_CLAUDE_VOLUME:-javis_claude-auth}
+  codex-auth:
+    external: true
+    name: ${JAVIS_CODEX_VOLUME:-javis_codex-auth}

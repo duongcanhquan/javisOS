@@ -1,0 +1,80 @@
+# Tách javis-quan / manager trên VPS hiện tại (secrets VPS_*).
+# Không SSH máy cũ. Không xóa volume não.
+name: Org split javis-quan
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Gõ ORG_SPLIT_JAVIS"
+        required: true
+        type: string
+      phase:
+        description: "preflight | backup | proxy | split"
+        required: true
+        type: string
+        default: preflight
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  org:
+    if: ${{ github.event.inputs.confirm == 'ORG_SPLIT_JAVIS' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run org cutover phase on current VPS
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          DIR: ${{ secrets.VPS_DIR }}
+          PHASE: ${{ github.event.inputs.phase }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY" && test -n "$HOST" && test -n "$USER"
+          test "$PHASE" = "preflight" -o "$PHASE" = "backup" -o "$PHASE" = "proxy" -o "$PHASE" = "split"
+          DIR="${DIR:-$HOME/javis}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id
+          chmod 600 ~/.ssh/id
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH=(ssh -T -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id "$USER@$HOST")
+          for f in scripts/org_cutover_preflight.sh scripts/org_backup_volumes.sh \
+                   scripts/org_cutover_to_proxy.sh scripts/org_cutover_split_domains.sh \
+                   deploy/org/docker-compose.tenant-external.yml \
+                   deploy/org/env.manager.example docker-compose.proxy.yml; do
+            test -f "$f"
+          done
+          echo "== scp scripts → $DIR =="
+          "${SSH[@]}" "mkdir -p '$DIR/scripts' '$DIR/deploy/org'"
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id \
+            scripts/org_cutover_preflight.sh scripts/org_backup_volumes.sh \
+            scripts/org_cutover_to_proxy.sh scripts/org_cutover_split_domains.sh \
+            "$USER@$HOST:$DIR/scripts/"
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id \
+            deploy/org/docker-compose.tenant-external.yml deploy/org/env.manager.example \
+            "$USER@$HOST:$DIR/deploy/org/"
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id \
+            docker-compose.proxy.yml "$USER@$HOST:$DIR/"
+          "${SSH[@]}" "chmod +x '$DIR/scripts/org_cutover_preflight.sh' \
+            '$DIR/scripts/org_backup_volumes.sh' \
+            '$DIR/scripts/org_cutover_to_proxy.sh' \
+            '$DIR/scripts/org_cutover_split_domains.sh'"
+          case "$PHASE" in
+            preflight)
+              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh'"
+              ;;
+            backup)
+              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_preflight.sh' && bash '$DIR/scripts/org_backup_volumes.sh'"
+              ;;
+            proxy)
+              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_to_proxy.sh'"
+              ;;
+            split)
+              "${SSH[@]}" "JAVIS_DIR='$DIR' bash '$DIR/scripts/org_cutover_split_domains.sh'"
+              ;;
+          esac
