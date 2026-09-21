@@ -77,6 +77,18 @@ check("tra loi khach tu Hop thu qua /reply, chi khi kenh co nang luc",
       SRC.includes('nangLuc(c.channel, "tra_loi_tu_javis")'));
 check("ba tab Hop thu | Kenh | Chatbot, tab Chatbot uy quyen cho chatbots.js",
       /TABS = \["inbox", "kenh", "chatbot"\]/.test(SRC) && SRC.includes("window.JavisChatbots.render"));
+check("layout split pane + tab sticky + stats chip",
+      /\.ht-page \{/.test(CSS) && /\.ht-tabs \{[^}]*position: sticky/.test(CSS) &&
+      /\.ht-body \{[^}]*grid-template-columns:/.test(CSS) && /\.ht-stat \{/.test(CSS));
+check("CSS hang hop thu khop class JS .ht-item",
+      /\.ht-item \{/.test(CSS) && /\.ht-item\.on \{/.test(CSS) &&
+      /\.ht-item-text \{/.test(CSS) && SRC.includes('class="ht-item'));
+check("CSS the kenh khop .ht-acc-head / .ht-acc-grid",
+      /\.ht-acc-head \{/.test(CSS) && /\.ht-acc-grid \{/.test(CSS) &&
+      SRC.includes("ht-acc-head") && SRC.includes("ht-acc-grid"));
+check("i18n ht.* co du tab va stats (vi)",
+      ["ht.tab_inbox", "ht.tab_kenh", "ht.tab_chatbot", "ht.st_tong", "ht.st_chua_doc",
+       "ht.chon_mot", "ht.gui", "ht.them_tk"].every((k) => typeof VI[k] === "string" && VI[k].length > 0));
 check("dien thoai: mo hoi thoai la them lop thread-on, co nut quay lai",
       SRC.includes('classList.add("thread-on")') && SRC.includes(".ht-back") &&
       /\.ht-wrap\.thread-on \.ht-list \{ display: none; \}/.test(CSS) &&

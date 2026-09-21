@@ -230,8 +230,15 @@
     el.innerHTML =
       '<div class="wspage" id="wsPage">' +
         '<aside class="ws-left" id="wsLeft">' +
-          '<div class="ws-seg"><button type="button" data-loai="agent">' + ic("bot") + ' ' + esc(t("ws.tab_agent")) + '</button>' +
-          '<button type="button" data-loai="workflow">' + ic("workflow") + ' ' + esc(t("ws.tab_workflow")) + '</button></div>' +
+          '<div class="ws-seg" role="tablist" aria-label="' + esc(t("page.workspace.label")) + '">' +
+            '<button type="button" role="tab" data-loai="agent" aria-selected="false">' +
+              ic("bot") +
+              '<span class="ws-seg-txt"><span class="ws-seg-main">' + esc(t("ws.tab_agent")) + '</span>' +
+              '<span class="ws-seg-sub">' + esc(t("ws.tab_agent_sub")) + '</span></span></button>' +
+            '<button type="button" role="tab" data-loai="workflow" aria-selected="false">' +
+              ic("workflow") +
+              '<span class="ws-seg-txt"><span class="ws-seg-main">' + esc(t("ws.tab_workflow")) + '</span>' +
+              '<span class="ws-seg-sub">' + esc(t("ws.tab_workflow_sub")) + '</span></span></button></div>' +
           // Ô tìm KHÔNG mở sẵn (chủ repo yêu cầu): cột trái chỉ rộng 210-260px, một ô nhập
           // nằm đó suốt ngày ăn mất một dòng mà chín trên mười lần người dùng không gõ gì.
           // Bấm nút kính lúp mới bung ra, gõ xong xoá hết rồi rời đi là nó tự thu lại.
@@ -258,13 +265,16 @@
         '</aside>' +
         '<div class="ws-main">' +
           '<div class="ws-bar">' +
-            '<button type="button" class="ws-ico" id="wsLeftBtn" title="' + esc(t("ws.toggle_list")) + '">' + ic("panel-left") + '</button>' +
+            '<button type="button" class="ws-ico" id="wsLeftBtn" title="' + esc(t("ws.toggle_list")) + '" aria-label="' + esc(t("ws.toggle_list")) + '">' + ic("panel-left") + '</button>' +
             '<div class="ws-id" id="wsIdentity"></div>' +
-            '<button type="button" class="ws-btn" id="wsFiles">' + ic("paperclip") + ' ' + esc(t("ws.files_links")) + '</button>' +
+            '<button type="button" class="ws-btn" id="wsAgentAssets" hidden title="' + esc(t("ws.agent_assets_title")) + '">' +
+              ic("book-open") + ' ' + esc(t("ws.agent_assets")) + '</button>' +
+            '<button type="button" class="ws-btn" id="wsFiles" title="' + esc(t("ws.files_links_title")) + '">' +
+              ic("paperclip") + ' ' + esc(t("ws.files_links")) + '</button>' +
             '<button type="button" class="ws-btn" id="wsNewChat">' + esc(t("sess.new_chat")) + '</button>' +
             // Bộ icon chưa đóng gói "panel-right" (xem icons.manifest.json) và thêm icon mới
             // phải chạy gen_icons tải mạng - lật gương panel-left bằng CSS rẻ hơn mà cùng nghĩa.
-            '<button type="button" class="ws-ico lat" id="wsRightBtn" title="' + esc(t("ws.toggle_panel")) + '">' + ic("panel-left") + '</button>' +
+            '<button type="button" class="ws-ico lat" id="wsRightBtn" title="' + esc(t("ws.toggle_panel")) + '" aria-label="' + esc(t("ws.toggle_panel")) + '">' + ic("panel-left") + '</button>' +
           '</div>' +
           // Màn khởi đầu: danh sách rỗng thì không có phiên nào để mở, ô nhập bị khoá, nên
           // chỗ khung chat là hai nút tạo. Nằm TRƯỚC #wsSlot trong DOM cho thuận mắt, còn
@@ -291,7 +301,11 @@
         '</aside>' +
       '</div>';
     if (opts && opts.borrow) opts.borrow(el.querySelector("#wsSlot"));
-    el.querySelectorAll("[data-loai]").forEach(function (b) { b.onclick = function () { S.loai = b.dataset.loai; S.nhom = ""; S.hien = TRANG; luuChon(); veTrai(); chonMacDinh(); }; });
+    el.querySelectorAll("[data-loai]").forEach(function (b) {
+      b.onclick = function () {
+        S.loai = b.dataset.loai; S.nhom = ""; S.hien = TRANG; luuChon(); veTrai(); chonMacDinh();
+      };
+    });
     noiODoTim(el);
     el.querySelectorAll("[data-rtab]").forEach(function (b) { b.onclick = function () { chonTabPhai(b.dataset.rtab); }; });
     el.querySelector(".ws-panel-close").onclick = function () { el.querySelector("#wsPage").classList.remove("right-open"); };
@@ -303,6 +317,13 @@
       });
     };
     el.querySelector("#wsFiles").onclick = function () { if (ready && window.JavisChatSide) window.JavisChatSide.moKhungCuoc(); };
+    el.querySelector("#wsAgentAssets").onclick = function () {
+      var x = dangChon();
+      if (!(x && S.loai === "agent")) return;
+      if (window.JavisChatSide && window.JavisChatSide.moKhungAgent) {
+        window.JavisChatSide.moKhungAgent(x.slug, x.name || x.slug);
+      }
+    };
     el.querySelector("#wsStore").onclick = function () { if (window.JavisPacks && window.JavisPacks.moKho) window.JavisPacks.moKho(S.loai, "workspace", t("page.workspace.label")); };
     el.querySelector("#wsNewChat").onclick = function () { var x = dangChon(); if (x) moPhien(x, true); };
     var page = el.querySelector("#wsPage");
@@ -508,7 +529,11 @@
 
   function veTrai() {
     var el = S.el; if (!el) return;
-    el.querySelectorAll("[data-loai]").forEach(function (b) { b.classList.toggle("on", b.dataset.loai === S.loai); });
+    el.querySelectorAll("[data-loai]").forEach(function (b) {
+      var on = b.dataset.loai === S.loai;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
     var nhoms = demNhom();
     // Nhóm trống đã có người thì thành nhóm thật, bỏ khỏi sổ.
     var trong = docNhomTrong(), conTrong = trong.filter(function (g) { return !nhoms[g]; });
@@ -602,7 +627,7 @@
     // một khối và để chúng là hai nút ngang hàng.
     return '<div class="ws-item-wrap' + (x.pinned ? " ghim" : "") + '">' +
       '<button type="button" class="ws-item' + (x.slug === chon ? " on" : "") + '" aria-pressed="' + (x.slug === chon) + '" data-slug="' + esc(x.slug) + '">' +
-      '<span class="ws-item-ic">' + (S.loai === "agent" ? avatar(x, 42)
+      '<span class="ws-item-ic">' + (S.loai === "agent" ? avatar(x, 36)
         : (chay ? ic("loader", { cls: "ic-spin", title: t("ws.running") }) : ic("workflow"))) + '</span>' +
       '<span class="ws-item-text"><strong>' + esc(x.name) + '</strong>' +
       '<small>' + esc(phu) + '</small></span>' +
@@ -939,8 +964,10 @@
   // `nhac` = câu thay cho lời mời chọn mục, dùng khi danh sách rỗng (chưa có gì để chọn cả).
   function veGiua(item, nhac) {
     var el = S.el && S.el.querySelector("#wsIdentity"); if (!el) return;
+    var nutAg = S.el && S.el.querySelector("#wsAgentAssets");
     // Không có mục nào để mở VÀ danh sách thật sự rỗng (đã tải xong) = màn khởi đầu.
     veKhoiDau(!item && daTai && !danhSach().length);
+    if (nutAg) nutAg.hidden = !(item && S.loai === "agent");
     if (!item) {
       el.innerHTML = '<strong>' + esc(nhac || t("ws.pick_one")) + '</strong>';
       if (nhac) { var o = document.getElementById("chatInput"); if (o) o.placeholder = nhac; }
@@ -969,6 +996,7 @@
     var tieu = trong ? t("ws.start_title") : t(S.loai === "agent" ? "ws.start_no_agent" : "ws.start_no_workflow");
     host.innerHTML = ic("bot", { cls: "ws-ob-ic", size: "34px" }) +
       '<h3>' + esc(tieu) + '</h3><p>' + esc(t("ws.start_desc")) + '</p>' +
+      '<p class="ws-ob-note">' + esc(t("ws.start_note")) + '</p>' +
       '<div class="ws-ob-acts">' +
         '<button type="button" class="ws-btn primary" id="wsObAgent">' + ic("plus") + ' ' + esc(t("ws.new_agent")) + '</button>' +
         '<button type="button" class="ws-btn primary" id="wsObWf">' + ic("plus") + ' ' + esc(t("ws.new_workflow")) + '</button>' +

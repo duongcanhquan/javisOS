@@ -429,8 +429,20 @@ check("phan tram", W.phanTram(W.tienDoMoi(4)) === 0 && W.phanTram(st) === 100);
   const vi = JSON.parse(fs.readFileSync(path.join(root, "dashboard", "i18n", "vi.json"), "utf8"));
   const en = JSON.parse(fs.readFileSync(path.join(root, "dashboard", "i18n", "en.json"), "utf8"));
   check("chu man khoi dau co ca hai thu tieng",
-    ["ws.start_title", "ws.start_no_agent", "ws.start_no_workflow", "ws.start_desc", "ws.err_list"]
+    ["ws.start_title", "ws.start_no_agent", "ws.start_no_workflow", "ws.start_desc", "ws.start_note", "ws.err_list"]
       .every((k) => vi[k] && en[k]));
+  check("nut Tai lieu tro ly nam tren thanh giua",
+    ws.includes('id="wsAgentAssets"') && ws.includes("moKhungAgent")
+    && vi["ws.agent_assets"] && en["ws.agent_assets"]);
+  check("onboard co cau start_note", ws.includes('t("ws.start_note")') && /\.ws-ob-note/.test(css));
+  check("rail copy noi Tro ly va Quy trinh",
+    /Trợ Lý|Agent|Quy Trình|Workflow/.test(vi["page.workspace.sub"] || "")
+    && /Agents|Workflows/.test(en["page.workspace.sub"] || "")
+    && vi["ws.tab_agent"] === "Trợ Lý" && vi["ws.tab_workflow"] === "Quy Trình"
+    && vi["ws.tab_agent_sub"] === "Agent" && vi["ws.tab_workflow_sub"] === "Workflows");
+  check("tab segment co dong phu Agent/Workflows",
+    ws.includes("ws-seg-sub") && ws.includes('t("ws.tab_agent_sub")')
+    && ws.includes('t("ws.tab_workflow_sub")'));
 }
 
 // Dựng khung: ô nhập phải được GIEO LẠI từ S.q, và nút kính lúp phải trỏ tới nó bằng

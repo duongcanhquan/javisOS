@@ -1,5 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.56.3] - 2026-09-21
+### Sửa
+- **Chat Antigravity:** khôi phục `set_agy_conversation_id` / `clear_agy_conversation_id`, cột `agy_conversation_id` và `_brains_loosely_equal` trên SessionStore (lỗi AttributeError lặp lại khi chat).
+- **Cộng sự UI:** tab **Trợ Lý (Agent)** / **Quy Trình (Workflows)**; layout 3 cột rõ; font/màu khớp hệ thống.
+- **Hội thoại khách:** CSS khớp class JS (`.ht-item`, `.ht-acc-head`, `.ht-acc-grid`); stats chip + split pane; đủ i18n `ht.*`.
+- **Tài liệu trợ lý / Chia sẻ:** nhãn rõ, empty state chỉ đường mở file → Chia sẻ.
+
 ## [0.56.2] - 2026-09-21
 ### Sửa
 - **CI canary:** meetings/tool-apis lazy `/asset/`, nhãn Về VMOS, i18n Hội thoại/tài sản trợ lý, chatbot `cb.*`, mic/voice.

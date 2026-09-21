@@ -404,6 +404,10 @@ class SessionStore:
                               # chung một cột là lượt sau đưa id của engine này cho engine kia
                               # resume, và nó nối vào một mạch không tồn tại rồi hỏng câm.
                               ("grok_session_id", "TEXT"),
+                              # Mạch conversation của Antigravity CLI (`--conversation`). Cột
+                              # RIÊNG cùng lý do: đổi engine giữa chừng mà dùng chung một cột
+                              # là lượt sau đưa id của engine này cho engine kia resume.
+                              ("agy_conversation_id", "TEXT"),
                               # Model GHIM RIÊNG của phiên. Hai nguồn ghi: user đổi model ngay
                               # trong phiên, và từ 0.35.5 server tự ĐÓNG DẤU model đang chạy ở
                               # lượt dashboard đầu tiên - nên đổi mặc định chung không bao giờ
@@ -493,9 +497,17 @@ class SessionStore:
     def get_or_create(self, session_id: Optional[str], *, brain: str,
                       engine: str, model: Optional[str]) -> str:
         """Resume phiên cũ hoặc tạo mới. Trả về conv id.
-        Backward compatible: session_id None/không tồn tại -> tạo phiên mới."""
+
+        Nếu session_id trỏ tới phiên thuộc brain KHÁC → tạo phiên mới (không ghi đè /
+        không append vào hội thoại brain kia).
+        """
         if session_id:
-            if self.get_session(session_id):
+            row = self.get_session(session_id)
+            if row:
+                stored = (row.get("brain") or "").strip()
+                want = (brain or "").strip()
+                if stored and want and not self._brains_loosely_equal(stored, want):
+                    return self.create_session(brain=brain, engine=engine, model=model)
                 self._write(lambda c: c.execute(
                     "UPDATE sessions SET engine=?, model=?, updated_at=? WHERE id=?",
                     (engine, model, time.time(), session_id),
@@ -503,6 +515,27 @@ class SessionStore:
                 return session_id
         return self.create_session(brain=brain, engine=engine, model=model,
                                    session_id=session_id)
+
+    @staticmethod
+    def _brains_loosely_equal(a: str, b: str) -> bool:
+        """So brain đã lưu vs brain request (path tuyệt đối / alias 'brain')."""
+        def norm(x: str) -> str:
+            return (x or "").strip().replace("\\", "/").rstrip("/").lower()
+        na, nb = norm(a), norm(b)
+        if not na or not nb:
+            return True
+        if na == nb:
+            return True
+        if na.endswith("/" + nb) or nb.endswith("/" + na):
+            return True
+        la, lb = na.rsplit("/", 1)[-1], nb.rsplit("/", 1)[-1]
+        if la and la == lb:
+            return True
+        if na == "brain" or nb == "brain":
+            other = nb if na == "brain" else na
+            if other.endswith("/brain") or other.endswith("/brain default"):
+                return True
+        return False
 
     def append_message(self, session_id: str, role: str, content: Optional[str],
                        tool_calls: Any = None) -> int:
@@ -1152,15 +1185,33 @@ class SessionStore:
             (session_id,),
         ))
 
+    def set_agy_conversation_id(self, session_id: str, conversation_id: str) -> None:
+        """Gắn mạch `--conversation` của Antigravity CLI vào hội thoại để lượt sau nối đúng."""
+        if not conversation_id:
+            return
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET agy_conversation_id = ?, updated_at = ? WHERE id = ?",
+            (conversation_id, time.time(), session_id),
+        ))
+
+    def clear_agy_conversation_id(self, session_id: str) -> None:
+        """Mạch Antigravity thành stale khi engine khác chen lượt / xoay mạch / lượt hỏng."""
+        self._write(lambda c: c.execute(
+            "UPDATE sessions SET agy_conversation_id = NULL "
+            "WHERE id = ? AND agy_conversation_id IS NOT NULL",
+            (session_id,),
+        ))
+
     # ── mạch native của các engine giữ phiên ──
     #
-    # Nhãn engine -> cột giữ mạch. Engine KHÔNG có mặt ở bảng này (Antigravity CLI và mọi
-    # engine API) không giữ mạch riêng: chúng dựng lại ngữ cảnh từ transcript ở MỌI lượt nên
-    # không bao giờ stale. Thêm engine giữ phiên mới thì thêm một dòng ở đây, đừng rải thêm
-    # một lệnh clear nữa vào main.py - đó chính là cách bảng này bị bỏ sót hai engine.
+    # Nhãn engine -> cột giữ mạch. Engine KHÔNG có mặt ở bảng này (mọi engine API thuần) không
+    # giữ mạch riêng: chúng dựng lại ngữ cảnh từ transcript ở MỌI lượt nên không bao giờ stale.
+    # Thêm engine giữ phiên mới thì thêm một dòng ở đây + cột migration + set/clear, đừng rải
+    # thêm một lệnh clear nữa vào main.py - đó chính là cách bảng này bị bỏ sót.
     _MACH_NATIVE = {"cli": "cli_session_id",
                     "codex": "codex_thread_id",
-                    "grok-cli": "grok_session_id"}
+                    "grok-cli": "grok_session_id",
+                    "antigravity-cli": "agy_conversation_id"}
 
     def clear_native_threads(self, session_id: str, keep: str = "") -> List[str]:
         """Vô hiệu mạch native của MỌI engine, TRỪ engine `keep` đang chạy lượt này.

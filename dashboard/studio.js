@@ -1201,8 +1201,10 @@
         : t("studio.model_none"))}</div>
       <div class="ag-assets">
         <button type="button" class="s-btn-ghost" id="agAssets"${a && a.slug ? "" : " disabled"}
-          title="${esc(a && a.slug ? t("proj.tab_files") + " & " + t("proj.tab_links") : t("studio.assets_new"))}">${esc(t("proj.tab_files"))} &amp; ${esc(t("proj.tab_links"))}</button>
-        ${a && a.slug ? "" : `<span class="dim" style="font-size:12px;margin-left:8px">${esc(t("studio.assets_new"))}</span>`}
+          title="${esc(a && a.slug ? t("studio.assets_btn") : t("studio.assets_new"))}">${esc(t("studio.assets_btn"))}</button>
+        ${a && a.slug
+          ? `<span class="ag-assets-hint">${esc(t("studio.assets_hint"))}</span>`
+          : `<span class="dim ag-assets-hint">${esc(t("studio.assets_new"))}</span>`}
       </div>
       <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>
     </div>`;

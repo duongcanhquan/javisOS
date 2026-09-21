@@ -106,7 +106,11 @@ check("nút gọi đúng cầu nối, không dựng khung riêng",
 // năng; để nút bấm được thì bấm vào không có gì xảy ra. Đứng im kèm một câu là đường thứ ba.
 check("trợ lý chưa lưu thì nút đứng im", /a && a\.slug \? "" : " disabled"/.test(ST));
 check("và nói rõ vì sao", /Lưu trợ lý/.test(VI["studio.assets_new"] || ""));
+check("nhãn nút là Tài liệu trợ lý (không còn File & Link chung)",
+  /studio\.assets_btn/.test(ST) && /Tài liệu trợ lý/.test(VI["studio.assets_btn"] || "")
+  && !!EN["studio.assets_btn"] && /studio\.assets_hint/.test(ST));
 check("có kiểu cho hàng tài liệu trong form", /\.agent-editor \.ag-assets \{/.test(CSS));
+check("có hint một dòng dưới nút", /\.agent-editor \.ag-assets-hint \{/.test(CSS));
 
 // ============================================================
 // 6. Viền tiêu điểm không bị cắt (lỗi chủ repo báo cùng lượt)
