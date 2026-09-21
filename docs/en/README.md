@@ -6,7 +6,7 @@ Detailed guides for every feature of Javis OS. Each page is a standalone how-to:
 
 > Just starting? Read [Installation in the README](../../README.en.md), the Vietnamese packaged guide [HUONG-DAN-CAI-DAT-VA-SU-DUNG.md](../../HUONG-DAN-CAI-DAT-VA-SU-DUNG.md) (PC + VPS + domain + connections), then [01 - Getting started and first setup](01-getting-started.md).
 
-The dashboard's navigation rail groups **19 pages** into **7 groups**: Assistant · Brain · Code · Capabilities · Work · Connections · System. The table of contents below follows the same logic.
+The dashboard's navigation rail groups **19 pages** into **8 groups**: Assistant · Brain · Code · Capabilities · Work · Connections · System · Organization. The table of contents below follows the same logic.
 
 ## Table of contents
 

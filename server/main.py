@@ -176,7 +176,9 @@ _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth
                       "/manifest.webmanifest", "/tls-check",
                       # /hub/mcp: Claude CLI/Codex gọi bằng Bearer hub_token riêng (không có cookie).
                       # /connect/oauth/callback: browser redirect từ provider OAuth về.
-                      "/hub/mcp", "/connect/oauth/callback")
+                      "/hub/mcp", "/connect/oauth/callback",
+                      # Chỉ cờ boolean: rail Tổ chức cần biết trước khi cookie ổn.
+                      "/org/status")
 # Endpoint CHỈ-LOCALHOST: agent (Claude CLI chạy cùng máy/container) curl được mà không cần
 # cookie đăng nhập; request từ ngoài (qua Traefik/Caddy/LAN) đến từ IP khác loopback → vẫn bị chặn.
 # /reminders/cancel đi cùng nhóm với /reminders (TẠO nhắc): huỷ là thao tác YẾU HƠN tạo, nên
@@ -10898,12 +10900,23 @@ async def path_exists(path: str = Query("", description="Đường dẫn tuyệt
 @app.get("/config")
 async def config():
     s = cfgmod.read_settings()
+    org_manager = False
+    org_tenant = False
+    try:
+        import org_tenants as _ot
+        import org_policy as _op
+        org_manager = _ot.manager_enabled()
+        org_tenant = _op.tenant_side()
+    except Exception:
+        pass
     return {
         "workspace_name": s.get("workspace_name") or os.getenv("WORKSPACE_NAME", "Javis OS"),
         "user_name": os.getenv("USER_NAME", "Bạn"),
         "tts_voice": os.getenv("TTS_VOICE", "vi-VN-HoaiMyNeural"),
         "tts_rate": os.getenv("TTS_RATE", "+5%"),
         "updates_ui": cfgmod.updates_ui_bat(),
+        "org_manager": org_manager,
+        "org_tenant": org_tenant,
     }
 
 

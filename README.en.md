@@ -152,7 +152,7 @@ Open Javis and the setup wizard walks you through:
 
 > 📚 **Detailed docs:** see the **[docs/](docs/README.md)** folder - a guide per feature (where to open it, what to press, how to use it). Most pages are in Vietnamese; [docs/en/](docs/en/README.md) has the translated ones. The table below is a quick map.
 
-The left navigation rail groups **19 pages** into **7 groups** (click a group name to open it):
+The left navigation rail groups **19 pages** into **8 groups** (click a group name to open it):
 
 | Group | Item | What it does | Guide |
 |---|---|---|---|
@@ -176,6 +176,7 @@ The left navigation rail groups **19 pages** into **7 groups** (click a group na
 | | **Settings** | System status, interface & brain, voice, branding, custom domain. | [Getting started](docs/en/01-getting-started.md) |
 | | **Updates** | Current version, update/Redeploy, progress and the feature changelog. | [Troubleshooting](docs/17-khac-phuc-su-co.md) |
 | | **Account** | Workspace, sign in/out, change or disable the password, API tokens for the CLI. | [Security & accounts](docs/14-bao-mat-tai-khoan.md) · [Javis CLI](docs/24-cli-terminal.md) |
+| **Organization** | **Organization** | Root admin only: people, passwords, disk/token quotas, shared API. Tenant Javis does not get this item. | |
 
 **Full table of contents (27 pages):** [docs/README.md](docs/README.md) - it also covers [Second Brain: memory / Wiki / INGEST](docs/13-second-brain-bo-nho-wiki.md), [Backing the brain up to GitHub](docs/18-sao-luu-github.md), [Tasks & Dataview in notes](docs/19-task-va-dataview.md), [Branding & custom domains](docs/15-thuong-hieu-ten-mien.md) and [.env configuration](docs/16-cau-hinh-env.md).
 

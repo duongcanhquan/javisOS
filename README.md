@@ -173,7 +173,7 @@ Mở Javis → bộ cài đặt sẽ dẫn bạn qua:
 
 > 📚 **Tài liệu chi tiết:** xem thư mục **[docs/](docs/README.md)** - hướng dẫn từng chức năng (mở ở đâu, bấm gì, dùng thế nào). Bảng dưới là bản đồ nhanh; cột **Chi tiết** dẫn tới trang hướng dẫn tương ứng.
 
-Thanh điều hướng bên trái gom **19 trang** thành **7 nhóm** (bấm tên nhóm để mở):
+Thanh điều hướng bên trái gom **19 trang** thành **8 nhóm** (bấm tên nhóm để mở):
 
 | Nhóm | Mục | Làm gì | Chi tiết |
 |---|---|---|---|
@@ -197,6 +197,7 @@ Thanh điều hướng bên trái gom **19 trang** thành **7 nhóm** (bấm tê
 | | **Cài đặt** | Trạng thái hệ thống, giao diện & brain, giọng nói, thương hiệu, tên miền. | [Bắt đầu & thiết lập](docs/01-bat-dau-thiet-lap.md) |
 | | **Cập nhật** | Phiên bản hiện tại, cập nhật/Redeploy, tiến trình và nhật ký tính năng mới. | [Khắc phục sự cố](docs/17-khac-phuc-su-co.md) |
 | | **Tài khoản** | Workspace, đăng nhập/đăng xuất, đổi/tắt mật khẩu, token API cho CLI. | [Bảo mật & tài khoản](docs/14-bao-mat-tai-khoan.md) · [Javis CLI](docs/24-cli-terminal.md) |
+| **Tổ chức** | **Tổ chức** | Chỉ admin Javis gốc: tạo người, mật khẩu, hạn mức ổ/token, API chung. Javis con không có mục này. | |
 
 **Mục lục đầy đủ (27 trang):** [docs/README.md](docs/README.md) - gồm thêm [Second Brain: bộ nhớ / Wiki / INGEST](docs/13-second-brain-bo-nho-wiki.md), [Sao lưu brain lên GitHub](docs/18-sao-luu-github.md), [Task & Dataview trong note](docs/19-task-va-dataview.md), [Thương hiệu & tên miền riêng](docs/15-thuong-hieu-ten-mien.md), [Cấu hình .env](docs/16-cau-hinh-env.md).
 

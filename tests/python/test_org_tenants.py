@@ -7,6 +7,9 @@ from pathlib import Path
 
 os.environ["JAVIS_STATE_DIR"] = tempfile.mkdtemp(prefix="javis-org-")
 os.environ.pop("JAVIS_ORG_MANAGER", None)
+os.environ.pop("JAVIS_ORG_TENANT", None)
+os.environ.pop("JAVIS_NAME", None)
+os.environ.pop("DOMAIN_NAME", None)
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -47,6 +50,12 @@ c = TestClient(app)
 st0 = c.get("/org/status").json()
 check("status không manager", st0.get("manager") is False)
 check("status không tenant", st0.get("tenant") is False)
+os.environ["JAVIS_NAME"] = "javis-manager"
+check("tên javis-manager hiện Tổ chức", ot.manager_enabled() is True)
+os.environ["JAVIS_ORG_MANAGER"] = "false"
+check("cờ false thắng tên máy (Javis con)", ot.manager_enabled() is False)
+os.environ.pop("JAVIS_ORG_MANAGER", None)
+os.environ.pop("JAVIS_NAME", None)
 check("list 404 khi không phải manager", c.get("/org/tenants").status_code == 404)
 check("pool settings 404 khi không manager", c.get("/org/settings/pool").status_code == 404)
 
@@ -108,7 +117,10 @@ check("engine có cổng pool", "_u(" in (ROOT / "server" / "engine.py").read_te
 
 org_js = (ROOT / "dashboard" / "org.js").read_text(encoding="utf-8")
 check("org.js có mật khẩu + API chung", "password" in org_js and "shared_api" in org_js and "orgPool" in org_js)
+check("org.js thẻ người + hạn mức", "org-card" in org_js and "data-org-usage" in org_js)
 check("không em dash org.js", "\u2014" not in org_js)
+con = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
+check("rail có nhóm Tổ chức riêng", 'nav.group.quan_tri' in con and 'ids: ["org"]' in con)
 html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 check("index nạp org.js trước console.js",
       0 < html.find("/static/org.js") < html.find("/static/console.js"))

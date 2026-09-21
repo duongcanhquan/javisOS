@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.55.256] - 2026-09-21
+### Mới
+- **Tổ chức hiện thành nhóm riêng trên Javis gốc** (`javis.vietmycollege.com`), bấm là vào. Chỉ admin gốc thấy; Javis từng người không có mục này.
+- **Sổ người đủ hạn mức:** ổ đang dùng, token tháng, bật/tắt API chung, sửa trần, đặt lại mật khẩu ngay trên thẻ. Khóa API dán một lần trên Javis gốc.
+
 ## [0.55.255] - 2026-09-21
 ### Mới
 - **Tổ chức: tạo người với tên + mật khẩu mạnh**, hạn mức ổ và token, bật/tắt API chung. Khóa API dán trên Javis gốc, không chép xuống máy từng người. Họ tự đổi mật khẩu trong Tài khoản.

@@ -106,7 +106,8 @@
     { get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["agents", "chatbots", "skills", "workflows", "plugins"] },
     { get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
     { get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
-    { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account", "org"], foot: true },
+    { get label() { return t("nav.group.quan_tri"); },    icon: ic("building-2"), ids: ["org"], foot: true },
+    { get label() { return t("nav.group.he_thong"); },    icon: GICON["Hệ thống"], ids: ["usage", "settings", "logs", "account"], foot: true },
   ];
   const RAIL_BY_ID = Object.fromEntries(RAIL_ITEMS.map(i => [i.id, i]));
 
@@ -127,6 +128,8 @@
     try {
       const d = await (await fetch("/config", { cache: "no-store" })).json();
       window.JAVIS_UPDATES_UI = d.updates_ui === true;
+      window.JAVIS_ORG_MANAGER = d.org_manager === true;
+      window.JAVIS_ORG_TENANT = d.org_tenant === true;
     } catch (e) {
       window.JAVIS_UPDATES_UI = false;
     }
@@ -150,18 +153,21 @@
         }
       } catch (e) {}
     }
+    if (window.JAVIS_ORG_MANAGER) RAIL_AN.delete("org");
   }
 
   async function napOrgFlag() {
     try {
-      const d = await (await fetch("/org/status", { cache: "no-store" })).json();
-      window.JAVIS_ORG_MANAGER = d.manager === true;
-      window.JAVIS_ORG_TENANT = d.tenant === true;
-    } catch (e) {
-      window.JAVIS_ORG_MANAGER = false;
-    }
+      const r = await fetch("/org/status", { cache: "no-store" });
+      const d = await r.json();
+      if (r.ok) {
+        window.JAVIS_ORG_MANAGER = d.manager === true;
+        window.JAVIS_ORG_TENANT = d.tenant === true;
+      }
+    } catch (e) {}
     if (window.JAVIS_ORG_MANAGER) RAIL_AN.delete("org");
     else RAIL_AN.add("org");
+    document.body.classList.toggle("org-manager", window.JAVIS_ORG_MANAGER === true);
     try {
       const st = window.Alpine && Alpine.store("nav");
       if (st) {
@@ -6862,7 +6868,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       get groups() { void this.i18nTick; return railGroups(); },
       get meta() { void this.i18nTick; return VIEW_META[this.active] || VIEW_META.home; },
       isOpen(label) { return this.openGroup === label; },
-      toggleGroup(label) { this.openGroup = (this.openGroup === label) ? null : label; },   // 1 nhóm mở 1 lúc; bấm lại để đóng
+      toggleGroup(label) {
+        const g = this.groups.find((x) => x.label === label);
+        if (g && g.items.length === 1 && g.items[0].id === "org") {
+          this.go("org");
+          return;
+        }
+        this.openGroup = (this.openGroup === label) ? null : label;
+      },
       toggleCollapsed() {   // thu/mở sidebar: thu → chỉ còn icon; mở → đầy chữ. Nhớ lựa chọn qua localStorage.
         this.collapsed = !this.collapsed;
         try { localStorage.setItem("javis_rail_collapsed", this.collapsed ? "1" : "0"); } catch (e) {}

@@ -20,7 +20,15 @@ _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 def manager_enabled() -> bool:
     v = (os.getenv("JAVIS_ORG_MANAGER") or "").strip().lower()
-    return v in ("1", "true", "yes", "on")
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    name = (os.getenv("JAVIS_NAME") or "").strip().lower()
+    if name == "javis-manager":
+        return True
+    domain = (os.getenv("DOMAIN_NAME") or "").strip().lower()
+    return domain == "javis.vietmycollege.com"
 
 
 def store_path() -> Path:

@@ -11,6 +11,11 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-javis}"
 # Plugin user + Antigravity file storage (idempotent, rẻ).
 ENV_FILE="$ROOT/.env"
 touch "$ENV_FILE"
+# Sau org-split, máy cá nhân tên javis-quan chứ không còn javis.
+if [ -z "${JAVIS_NAME:-}" ]; then
+  _jn=$(grep -E '^JAVIS_NAME=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d ' "')
+  if [ -n "$_jn" ]; then export JAVIS_NAME="$_jn"; fi
+fi
 if grep -q '^JAVIS_ENABLE_USER_PLUGINS=' "$ENV_FILE" 2>/dev/null; then
   sed -i.bak 's/^JAVIS_ENABLE_USER_PLUGINS=.*/JAVIS_ENABLE_USER_PLUGINS=true/' "$ENV_FILE" && rm -f "$ENV_FILE.bak"
 else

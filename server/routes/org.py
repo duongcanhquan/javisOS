@@ -13,9 +13,16 @@ def _404():
     return JSONResponse({"ok": False, "error": "Không phải Javis gốc."}, status_code=404)
 
 
-def _need_manager():
+def _need_manager(request: Request | None = None):
     if not ot.manager_enabled():
         return _404()
+    if request is not None:
+        import config as cfgmod
+        if cfgmod.gate_active() and not cfgmod.valid_session(request.cookies.get("javis_session", "")):
+            return JSONResponse(
+                {"ok": False, "error": "Chỉ admin đăng nhập trên Javis gốc mới quản lý được."},
+                status_code=403,
+            )
     return None
 
 
@@ -127,14 +134,14 @@ def _make_router() -> APIRouter:
         return {"ok": True, "manager": ot.manager_enabled(), "tenant": op.tenant_side()}
 
     @router.get("/org/settings/pool")
-    def org_pool_get():
-        if (deny := _need_manager()) is not None:
+    def org_pool_get(request: Request):
+        if (deny := _need_manager(request)) is not None:
             return deny
         return {"ok": True, **op.pool_public()}
 
     @router.put("/org/settings/pool")
     async def org_pool_put(request: Request):
-        if (deny := _need_manager()) is not None:
+        if (deny := _need_manager(request)) is not None:
             return deny
         try:
             body = await request.json()
@@ -145,8 +152,8 @@ def _make_router() -> APIRouter:
         return {"ok": True, **op.put_pool_keys(body)}
 
     @router.get("/org/tenants")
-    def org_list():
-        if (deny := _need_manager()) is not None:
+    def org_list(request: Request):
+        if (deny := _need_manager(request)) is not None:
             return deny
         data = ot.load()
         out = []
@@ -160,7 +167,7 @@ def _make_router() -> APIRouter:
 
     @router.post("/org/tenants")
     async def org_create(request: Request):
-        if (deny := _need_manager()) is not None:
+        if (deny := _need_manager(request)) is not None:
             return deny
         try:
             body = await request.json()
@@ -214,7 +221,7 @@ def _make_router() -> APIRouter:
 
     @router.patch("/org/tenants/{slug}")
     async def org_patch(slug: str, request: Request):
-        if (deny := _need_manager()) is not None:
+        if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
         if not rec:
@@ -250,7 +257,7 @@ def _make_router() -> APIRouter:
 
     @router.post("/org/tenants/{slug}/password")
     async def org_password(slug: str, request: Request):
-        if (deny := _need_manager()) is not None:
+        if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
         if not rec:
@@ -279,8 +286,8 @@ def _make_router() -> APIRouter:
         return {"ok": True}
 
     @router.get("/org/tenants/{slug}/usage")
-    def org_usage(slug: str):
-        if (deny := _need_manager()) is not None:
+    def org_usage(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
         if not rec:
@@ -305,8 +312,8 @@ def _make_router() -> APIRouter:
         }
 
     @router.post("/org/tenants/{slug}/start")
-    def org_start(slug: str):
-        if (deny := _need_manager()) is not None:
+    def org_start(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
             return deny
         try:
             org_docker.start(slug)
@@ -315,8 +322,8 @@ def _make_router() -> APIRouter:
         return {"ok": True}
 
     @router.post("/org/tenants/{slug}/stop")
-    def org_stop(slug: str):
-        if (deny := _need_manager()) is not None:
+    def org_stop(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
         if rec and rec.get("protected"):
