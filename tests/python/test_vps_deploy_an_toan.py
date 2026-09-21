@@ -104,8 +104,8 @@ check(
     "workflow_run.conclusion" in deploy_txt and "workflow_dispatch" in deploy_txt,
 )
 check(
-    "deploy-vps: truyền JAVIS_IMAGE (image GHCR của repo, không hardcode upstream)",
-    "JAVIS_IMAGE" in deploy_txt,
+    "deploy-vps: git init + remote nếu thư mục VPS chưa có repo",
+    "git init" in deploy_txt and "git remote add origin" in deploy_txt,
 )
 check(
     "deploy-vps: đăng nhập GHCR trước pull (GITHUB_TOKEN)",

@@ -24,8 +24,13 @@ jobs:
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR"
             cd "$DIR"
-            git fetch --all --prune 2>/dev/null || true
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/duongcanhquan/javisOS.git
+            fi
+            git fetch origin main 2>/dev/null || git fetch --all --prune 2>/dev/null || true
             git reset --hard origin/main 2>/dev/null || true
             chmod +x scripts/check-vps-health.sh
             bash scripts/check-vps-health.sh

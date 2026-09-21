@@ -61,7 +61,12 @@ jobs:
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR"
             cd "$DIR"
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/duongcanhquan/javisOS.git
+            fi
             export COMPOSE_PROJECT_NAME=javis
             export JAVIS_IMAGE GHCR_TOKEN GHCR_USER WANT_SHA JAVIS_SKIP_GIT JAVIS_DEPLOY_EXTRAS
             ok=0
