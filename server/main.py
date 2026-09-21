@@ -10659,6 +10659,30 @@ async def _start_scheduler():
                   "=" * 66 + "\n", file=_sys.stderr)
     except Exception as e:
         print(f"[auth bootstrap] {e}", file=_sys.stderr)
+    try:
+        import org_tenants as _otboot
+        if _otboot.manager_enabled():
+            import threading as _th
+
+            def _org_public_hosts():
+                try:
+                    import org_docker as _od
+                    for t in (_otboot.load().get("tenants") or []):
+                        if t.get("protected"):
+                            continue
+                        slug = str(t.get("slug") or "")
+                        if not slug:
+                            continue
+                        try:
+                            _od.apply_public_hosts(slug)
+                        except Exception as _oe:
+                            print(f"[org host] {slug}: {_oe}", file=_sys.stderr)
+                except Exception as _e:
+                    print(f"[org host] {_e}", file=_sys.stderr)
+
+            _th.Thread(target=_org_public_hosts, daemon=True, name="org-hosts").start()
+    except Exception as e:
+        print(f"[org host boot] {e}", file=_sys.stderr)
     async def _scheduler_loop():
         while True:
             try:
