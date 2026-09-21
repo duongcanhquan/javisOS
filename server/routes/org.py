@@ -131,7 +131,8 @@ def _make_router() -> APIRouter:
 
     @router.get("/org/status")
     def org_status():
-        return {"ok": True, "manager": ot.manager_enabled(), "tenant": op.tenant_side()}
+        return {"ok": True, "manager": ot.manager_enabled(), "tenant": op.tenant_side(),
+                "docker": org_docker.docker_available()}
 
     @router.get("/org/settings/pool")
     def org_pool_get(request: Request):
@@ -163,7 +164,8 @@ def _make_router() -> APIRouter:
             if cname and org_docker.docker_available():
                 rec["status"] = org_docker.container_status(cname)
             out.append(rec)
-        return {"ok": True, "tenants": out, **op.pool_public()}
+        return {"ok": True, "tenants": out, "docker": org_docker.docker_available(),
+                **op.pool_public()}
 
     @router.post("/org/tenants")
     async def org_create(request: Request):
@@ -193,9 +195,10 @@ def _make_router() -> APIRouter:
         token_quota = _int(body.get("token_quota"), 0, 0, 50_000_000)
         shared = bool(body.get("shared_api"))
         name = str(body.get("name") or slug).strip()
-        if not org_docker.docker_available():
+        ok, why = org_docker.docker_status()
+        if not ok:
             return JSONResponse(
-                {"ok": False, "error": "Javis gốc chưa gắn Docker socket, không tạo được bản mới."},
+                {"ok": False, "error": why or "Javis gốc chưa gắn Docker socket, không tạo được bản mới."},
                 status_code=503,
             )
         if shared and not any(v.get("set") for v in op.pool_public()["providers"].values()):

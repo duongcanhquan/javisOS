@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.55.258] - 2026-09-21
+### Sửa
+- **Tạo người trên Javis gốc hết báo thiếu Docker.** Deploy gắn đúng quyền `docker.sock` (DOCKER_GID). Thử tạo lại trên Tổ chức.
+
 ## [0.55.257] - 2026-09-21
 ### Sửa
 - **Nhóm Tổ chức hiện trên Javis gốc.** Cờ quản trị trước đây chỉ nằm file máy chủ, không vào container nên rail giấu mục. Mở `javis.vietmycollege.com`, đáy thanh trái. Não cá nhân vẫn ở `javis-quan`.

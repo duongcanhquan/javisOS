@@ -111,6 +111,7 @@ check("không env không trần", org_quota.quota_bytes() == 0)
 src = (ROOT / "server" / "org_docker.py").read_text(encoding="utf-8")
 binds = src.split('"Binds":', 1)[1].split("NetworkMode", 1)[0] if '"Binds":' in src else ""
 check("Binds tenant không có docker.sock", "docker.sock" not in binds)
+check("phân biệt thiếu socket và thiếu quyền", "def docker_status" in src and "DOCKER_GID" in src)
 check("không nhét MK user vào env container", 'JAVIS_ADMIN_PASSWORD=admin"' not in src.replace(" ", ""))
 check("tenant không phải manager", "JAVIS_ORG_MANAGER=false" in src)
 check("engine có cổng pool", "_u(" in (ROOT / "server" / "engine.py").read_text(encoding="utf-8"))

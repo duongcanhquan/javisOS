@@ -136,6 +136,7 @@
     el.innerHTML = `
       <div class="org-page">
         <p class="org-lead">Chỉ tài khoản admin trên Javis gốc thấy trang này. Javis của từng người không có mục Tổ chức, không đọc được não người khác.</p>
+        ${d.docker === false ? '<p class="org-warn">Chưa gọi được Docker trên máy chủ. Tạo người mới sẽ lỗi cho đến khi deploy gắn DOCKER_GID.</p>' : ''}
         <div class="org-stats">
           <div><b>${tenants.length}</b><span>Người / máy</span></div>
           <div><b>${running}</b><span>Đang chạy</span></div>
@@ -176,6 +177,7 @@
       </div>
       <style>
         .org-lead{margin:0 0 16px}
+        .org-warn{padding:10px 12px;border-radius:10px;border:1px solid #e03131;color:#e03131;margin:0 0 16px}
         .org-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:0 0 22px}
         .org-stats div{padding:12px 14px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2))}
         .org-stats b{display:block;font-size:22px;line-height:1.2}

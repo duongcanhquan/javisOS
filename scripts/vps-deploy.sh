@@ -49,6 +49,18 @@ if grep -qiE 'blogminhquy/javis' "$ENV_FILE" 2>/dev/null; then
   fi
 fi
 
+# Quyền gọi Docker từ user javis (10001): GID của docker.sock, không mặc định 998.
+if [ -S /var/run/docker.sock ]; then
+  _dg=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 998)
+  echo "==> DOCKER_GID=${_dg}"
+  if grep -qE '^DOCKER_GID=' "$ENV_FILE"; then
+    sed -i "s/^DOCKER_GID=.*/DOCKER_GID=${_dg}/" "$ENV_FILE"
+  else
+    echo "DOCKER_GID=${_dg}" >> "$ENV_FILE"
+  fi
+  export DOCKER_GID="${_dg}"
+fi
+
 # Git: bỏ qua nếu deploy-vps.yml đã reset đúng WANT_SHA (tránh fetch 2 lần).
 if [ "${JAVIS_SKIP_GIT:-0}" = "1" ]; then
   echo "==> git: bỏ qua (đã reset ở workflow)"
@@ -250,6 +262,9 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   _mgr_set DOMAIN_NAME javis.vietmycollege.com
   _mgr_set JAVIS_HOST_PORT 7778
   _mgr_set JAVIS_BIND 127.0.0.1
+  if [ -n "${DOCKER_GID:-}" ]; then
+    _mgr_set DOCKER_GID "$DOCKER_GID"
+  fi
   (
     cd "$MGR_DIR"
     unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT
@@ -260,7 +275,7 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
       MGR_FILES+=(-f docker-compose.multi.yml)
     fi
     docker compose "${MGR_FILES[@]}" pull javis || echo "WARN: pull Javis gốc thất bại"
-    docker compose "${MGR_FILES[@]}" up -d --no-build javis
+    docker compose "${MGR_FILES[@]}" up -d --no-build --force-recreate javis
   )
 else
   echo "==> không có $MGR_DIR - bỏ cập nhật Javis gốc"

@@ -249,8 +249,12 @@ check(
     "_mgr_set JAVIS_ORG_MANAGER true" in script,
 )
 check(
+    "vps-deploy.sh: ghi DOCKER_GID từ docker.sock",
+    "DOCKER_GID=" in script and "stat -c '%g' /var/run/docker.sock" in script,
+)
+check(
     "vps-deploy.sh: Javis gốc không --remove-orphans",
-    "up -d --no-build javis" in script,
+    "up -d --no-build --force-recreate javis" in script,
 )
 check(
     "vps-deploy.sh: không volume rm javis_javis",

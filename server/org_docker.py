@@ -19,18 +19,37 @@ def _docker_api(method: str, path: str, json_body: Any = None, timeout: float = 
 
     sock = "/var/run/docker.sock"
     if not Path(sock).exists():
-        raise RuntimeError("Máy này không gắn Docker socket.")
+        alt = "/run/docker.sock"
+        if Path(alt).exists():
+            sock = alt
+        else:
+            raise RuntimeError("Máy này không gắn Docker socket.")
     transport = httpx.HTTPTransport(uds=sock)
     with httpx.Client(transport=transport, base_url="http://localhost", timeout=timeout) as client:
         return client.request(method, path, json=json_body)
 
 
-def docker_available() -> bool:
+def docker_status() -> tuple[bool, str]:
+    sock = Path("/var/run/docker.sock")
+    if not sock.exists() and not Path("/run/docker.sock").exists():
+        return False, "Javis gốc chưa gắn Docker socket, không tạo được bản mới."
     try:
         r = _docker_api("GET", "/_ping", timeout=5.0)
-        return r.status_code == 200 and (r.text or "").strip() == "OK"
-    except Exception:
-        return False
+        if r.status_code == 200:
+            return True, ""
+        return False, f"Docker không trả lời (HTTP {r.status_code})."
+    except PermissionError:
+        return False, "Javis gốc chưa có quyền Docker. Cần DOCKER_GID đúng trên máy chủ."
+    except Exception as e:
+        msg = str(e).lower()
+        if "permission" in msg or "13" in msg or "denied" in msg:
+            return False, "Javis gốc chưa có quyền Docker. Cần DOCKER_GID đúng trên máy chủ."
+        return False, "Javis gốc chưa gọi được Docker, không tạo được bản mới."
+
+
+def docker_available() -> bool:
+    ok, _ = docker_status()
+    return ok
 
 
 def inspect_name(name: str) -> dict[str, Any]:
