@@ -312,7 +312,7 @@
     noiODoTim(el);
     el.querySelectorAll("[data-rtab]").forEach(function (b) { b.onclick = function () { chonTabPhai(b.dataset.rtab); }; });
     el.querySelector(".ws-panel-close").onclick = function () { el.querySelector("#wsPage").classList.remove("right-open"); };
-    el.querySelector("#wsNew").onclick = function () { taoMoi(S.loai); };
+    el.querySelector("#wsNew").onclick = function (e) { taoMoi(S.loai, e && e.currentTarget); };
     el.querySelector("#wsImport").onclick = function () {
       if (window.JavisStudio) window.JavisStudio.importItems(async function () {
         if (!active) return;
@@ -783,8 +783,8 @@
       dongMenu(); datMeta(item, { pinned: ghim ? "0" : "1" });
     };
     m.querySelector('[data-act="nhom"]').onclick = function () { veMenuNhom(item, m); };
-    m.querySelector('[data-act="sua"]').onclick = function () { dongMenu(); suaMuc(item); };
-    m.querySelector('[data-act="xoa"]').onclick = function () { dongMenu(); xoaMuc(item); };
+    m.querySelector('[data-act="sua"]').onclick = function (e) { dongMenu(); suaMuc(item, e && e.currentTarget); };
+    m.querySelector('[data-act="xoa"]').onclick = function (e) { dongMenu(); danhDauBam(e && e.currentTarget, 800); xoaMuc(item); };
   }
   // Chọn nhóm NGAY TRONG menu (hai tầng tại chỗ) thay vì menu con nổi ra cạnh: menu con phải
   // tự tính chỗ lần nữa và rất dễ tràn khỏi màn hình hẹp.
@@ -846,9 +846,26 @@
     alert(t("ws.studio_missing") || "Studio chưa sẵn sàng. Tải lại trang rồi thử lại.");
     return false;
   }
+  // Phản hồi tức thì: mờ + cursor progress ngay trong cùng frame với cú bấm.
+  function danhDauBam(el, ms) {
+    if (window.JavisStudio && typeof window.JavisStudio.markTap === "function") {
+      return window.JavisStudio.markTap(el, ms);
+    }
+    if (!el || !el.classList) return function () {};
+    el.classList.add("jv-busy");
+    el.setAttribute("aria-busy", "true");
+    var done = false;
+    var clear = function () {
+      if (done) return; done = true;
+      el.classList.remove("jv-busy"); el.removeAttribute("aria-busy");
+    };
+    setTimeout(clear, ms != null ? ms : 1800);
+    return clear;
+  }
   // Xuất độc lập khỏi JavisStudio (cùng URL /export) - nút Xuất không còn chết khi
   // studio.js lỗi giữa chừng hoặc chưa gắn exportItem.
-  function xuatMuc(kind, slug) {
+  function xuatMuc(kind, slug, neo) {
+    danhDauBam(neo, 900);
     if (!kind || !slug) return;
     if (window.JavisStudio && typeof window.JavisStudio.exportItem === "function") {
       window.JavisStudio.exportItem(kind, slug);
@@ -863,9 +880,10 @@
     a.click();
     a.remove();
   }
-  function suaMuc(item) {
+  function suaMuc(item, neo) {
+    danhDauBam(neo, 1600);
     if (!canStudio(S.loai === "agent" ? "editAgent" : "editWorkflow")) return;
-    var xong = { onSaved: async function () { await sauLuu(item, S.loai); } };
+    var xong = { onSaved: async function () { await sauLuu(item, S.loai); }, agents: S.agents };
     if (S.loai === "agent") window.JavisStudio.editAgent(item, xong);
     else window.JavisStudio.editWorkflow(item, xong);
   }
@@ -1030,8 +1048,8 @@
         '<button type="button" class="ws-btn" id="wsObStore">' + ic("package") + ' VMOS Store</button>' +
       '</div>';
     var nut = function (id, fn) { var b = host.querySelector(id); if (b) b.onclick = fn; };
-    nut("#wsObAgent", function () { taoMoi("agent"); });
-    nut("#wsObWf", function () { taoMoi("workflow"); });
+    nut("#wsObAgent", function (e) { taoMoi("agent", e && e.currentTarget); });
+    nut("#wsObWf", function (e) { taoMoi("workflow", e && e.currentTarget); });
     nut("#wsObStore", function () { if (window.JavisPacks && window.JavisPacks.moKho) window.JavisPacks.moKho(S.loai, "workspace", t("page.workspace.label")); });
   }
 
@@ -1070,8 +1088,9 @@
         window.JavisStudio.editAgent(item, { host: host.querySelector("#wsAgentForm"),
           onSaved: async function () { await sauLuu(item, "agent"); } });
       }
-      host.querySelector("#wsExport").onclick = function () { xuatMuc("agent", item.slug); };
-      host.querySelector("#wsDel").onclick = async function () {
+      host.querySelector("#wsExport").onclick = function (e) { xuatMuc("agent", item.slug, e && e.currentTarget); };
+      host.querySelector("#wsDel").onclick = async function (e) {
+        danhDauBam(e && e.currentTarget, 1200);
         if (!confirm(t("studio.del_ag", { ten: item.name }))) return;
         await api("/agents/delete", { method: "POST", body: fd({ slug: item.slug, brain: brain() }) });
         S.chon.agent = null; await taiDanhSach(); veTrai(); chonMacDinh();
@@ -1086,15 +1105,20 @@
         '<div class="ws-acts"><button type="button" class="ws-btn" id="wsEditWf">' + esc(t("ws.edit_steps")) + '</button>' +
         '<button type="button" class="ws-btn" id="wsExport">' + esc(t("studio.export")) + '</button>' +
         '<button type="button" class="ws-btn danger" id="wsDel">' + esc(t("common.delete")) + '</button></div>';
-      host.querySelector("#wsRun").onclick = chayQuyTrinh;
+      host.querySelector("#wsRun").onclick = function (e) { danhDauBam(e && e.currentTarget, 2000); chayQuyTrinh(); };
       veBuoc(item, td);
-      host.querySelector("#wsEditWf").onclick = function () {
+      host.querySelector("#wsEditWf").onclick = function (e) {
+        danhDauBam(e && e.currentTarget, 1600);
         if (!canStudio("editWorkflow")) return;
         var moi = dangChon() || item;
-        window.JavisStudio.editWorkflow(moi, { onSaved: async function () { await sauLuu(moi, "workflow"); } });
+        window.JavisStudio.editWorkflow(moi, {
+          agents: S.agents,
+          onSaved: async function () { await sauLuu(moi, "workflow"); },
+        });
       };
-      host.querySelector("#wsExport").onclick = function () { xuatMuc("workflow", item.slug); };
-      host.querySelector("#wsDel").onclick = async function () {
+      host.querySelector("#wsExport").onclick = function (e) { xuatMuc("workflow", item.slug, e && e.currentTarget); };
+      host.querySelector("#wsDel").onclick = async function (e) {
+        danhDauBam(e && e.currentTarget, 1200);
         if (!confirm(t("studio.del_wf", { ten: item.name }))) return;
         await api("/workflows/delete", { method: "POST", body: fd({ slug: item.slug, brain: brain() }) });
         S.chon.workflow = null; await taiDanhSach(); veTrai(); chonMacDinh();
@@ -1136,13 +1160,15 @@
     }).join("") + (td.cho_duyet ? '<div class="ws-wait">' + esc(t("studio.wait1")) + ' "' + esc(td.cho_duyet.node) + '"' + (td.cho_duyet.prompt ? ": " + esc(td.cho_duyet.prompt) : "") +
       '<div><button type="button" class="ws-btn primary" id="wsApprove">' + esc(t("studio.approve")) + ' ' + esc(td.cho_duyet.code) + '</button><small>' + esc(t("studio.wait_warn")) + '</small></div></div>' : "");
     host.querySelectorAll(".ws-step[data-si]").forEach(function (el) {
-      el.onclick = function () {
+      el.onclick = function (e) {
+        danhDauBam(e && e.currentTarget, 1600);
         if (!canStudio("editWorkflow")) return;
         var moi = dangChon() || item;
         var si = parseInt(el.getAttribute("data-si"), 10);
         window.JavisStudio.editWorkflow(moi, {
+          agents: S.agents,
           openIdx: isFinite(si) ? si : 0,
-          onSaved: async function () { await sauLuu(moi, "workflow"); }
+          onSaved: async function () { await sauLuu(moi, "workflow"); },
         });
       };
     });
@@ -1267,7 +1293,8 @@
   // ---------- tạo mới ----------
   // `loai` chỉ rõ tạo TRỢ LÝ hay QUY TRÌNH: màn khởi đầu bày cả hai nút nên nút được bấm mới
   // là thứ quyết định, không phải tab đang đứng. Bỏ trống thì theo tab (nút Tạo mới cột trái).
-  function taoMoi(loai) {
+  function taoMoi(loai, neo) {
+    danhDauBam(neo, 1600);
     loai = loai === "agent" || loai === "workflow" ? loai : S.loai;
     if (!canStudio(loai === "agent" ? "editAgent" : "editWorkflow")) return;
     var sau = async function (saved) {
@@ -1282,8 +1309,9 @@
     };
     // Không truyền `host`: tạo mới vẫn mở modal của Studio (cột phải đang là form của mục
     // đang chọn, vẽ đè lên đó thì người dùng tưởng mình đang sửa mục cũ).
-    if (loai === "agent") window.JavisStudio.editAgent(null, { onSaved: sau });
-    else window.JavisStudio.editWorkflow(null, { onSaved: sau });
+    var goi = { onSaved: sau, agents: S.agents };
+    if (loai === "agent") window.JavisStudio.editAgent(null, goi);
+    else window.JavisStudio.editWorkflow(null, goi);
   }
 
   // Rời trang: trả ô nhập về lời mời chung. veGiua() đổi placeholder thành "Nhắn cho <trợ lý>",

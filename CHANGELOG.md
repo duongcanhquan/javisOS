@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.10] - 2026-09-22
+### Sửa
+- **Nút phản hồi ngay:** bấm là mờ + con trỏ chờ, biết đã nhận lệnh trước khi việc nặng xong.
+- **Sửa / tạo nhanh hơn:** form mở từ catalog model sẵn có; không còn chờ làm mới OAuth/provider. Cộng sự gửi sẵn danh sách trợ lý nên khỏi gọi lại `/agents`.
+
 ## [0.56.9] - 2026-09-22
 ### Sửa
 - **Cộng sự / quy trình:** bấm Sửa các bước hoặc từng bước mở modal ngay (không chờ API xong mới hiện). Xuất dùng link tải trực tiếp, không phụ thuộc popup.

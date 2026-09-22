@@ -12,13 +12,58 @@
   const esc = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   const api = async (p, o) => {
     // Timeout 12s → loader hiện trạng thái rỗng thay vì kẹt "Đang tải..." mãi nếu server chậm/treo.
+    // o.timeoutMs: rút ngắn cho gọi phụ (catalog model nền) để khỏi kéo dài cảm giác chờ.
+    const opts = Object.assign({}, o || {});
+    const ms = opts.timeoutMs != null ? opts.timeoutMs : 12000;
+    delete opts.timeoutMs;
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 12000);
-    try { return await (await fetch(p, Object.assign({}, o, { signal: ctrl.signal }))).json(); }
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try { return await (await fetch(p, Object.assign({}, opts, { signal: ctrl.signal }))).json(); }
     catch (e) { return {}; }
     finally { clearTimeout(t); }
   };
   const fd = (obj) => { const f = new FormData(); Object.entries(obj).forEach(([k, v]) => f.append(k, v)); return f; };
+  const uniqModels = (xs) => [...new Set((xs || []).filter(Boolean))];
+  // Catalog trong /settings đủ để MỞ form ngay. Live /provider/models (đặc biệt refresh=1)
+  // từng làm nút Sửa chờ hàng chục giây - chỉ bổ sung NỀN sau khi form đã hiện.
+  function modelGroupsFromSettings(st) {
+    const provs = ((st && st.model) || {}).providers || [];
+    return provs.filter(p => p.agent_ok && p.configured)
+      .map(p => ({ id: p.id, label: p.label, models: uniqModels(p.models || []) }))
+      .filter(g => g.models.length);
+  }
+  async function modelGroupsLive(st) {
+    const provs = (((st && st.model) || {}).providers || []).filter(p => p.agent_ok && p.configured);
+    const live = await Promise.all(provs.map(p =>
+      api(`/provider/models?provider=${encodeURIComponent(p.id)}`, { timeoutMs: 4000 })
+        .then(d => uniqModels(d.models)).catch(() => [])));
+    return provs.map((p, i) => ({
+      id: p.id, label: p.label, models: uniqModels(live[i].concat(p.models || [])),
+    })).filter(g => g.models.length);
+  }
+  function buildModelOptionsHtml(groups, mVal, defaultLabel) {
+    return [
+      `<option value="">${esc(defaultLabel)}</option>`,
+      ...(groups || []).map(g =>
+        `<optgroup label="${esc(g.label)}">${g.models.map(m =>
+          `<option value="${esc(mVal(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`),
+    ].join("");
+  }
+  // Gắn class busy ngay trong cùng frame với cú bấm - người dùng thấy nút đã nhận lệnh.
+  function markTap(el, ms) {
+    if (!el || !el.classList) return function () {};
+    el.classList.add("jv-busy");
+    el.setAttribute("aria-busy", "true");
+    let done = false;
+    const clear = () => {
+      if (done) return;
+      done = true;
+      el.classList.remove("jv-busy");
+      el.removeAttribute("aria-busy");
+    };
+    setTimeout(clear, ms != null ? ms : 1800);
+    return clear;
+  }
 
   // ===== Xuất / Nhập năng lực (chia sẻ agent/skill/workflow qua file .zip) =====
   // slug nhận 1 chuỗi hoặc mảng (chọn nhiều) - server gói tất cả vào MỘT file .zip.
@@ -306,10 +351,10 @@
         ${w.description ? `<div class="wf-desc">${esc(w.description)}</div>` : ''}
         <div class="wf-pipeline">${renderPipeline(w.steps)}</div>`;
       noiSel("workflow", "wfDl", div.querySelector(".wf-sel"), w.slug);
-      div.querySelector(".exp").onclick = () => exportItem("workflow", w.slug);
+      div.querySelector(".exp").onclick = (e) => { markTap(e.currentTarget, 900); exportItem("workflow", w.slug); };
       div.querySelector(".archive").onclick = async () => { await api("/workflows/toggle", { method: "POST", body: fd({ slug: w.slug, brain: brain() }) }); loadWorkflows(); };
       div.querySelector(".run").onclick = () => runWorkflow(w, div);
-      div.querySelector(".edit").onclick = () => editWorkflow(w);
+      div.querySelector(".edit").onclick = (e) => { markTap(e.currentTarget, 1600); editWorkflow(w); };
       div.querySelector(".del").onclick = async () => { if (confirm(t("studio.del_wf", { ten: w.name }))) { await api("/workflows/delete", { method: "POST", body: fd({ slug: w.slug, brain: brain() }) }); loadWorkflows(); } };
       cards.appendChild(div);
     });
@@ -976,11 +1021,19 @@
     const dangTai = `<div class="dim" style="padding:28px;text-align:center">${esc(t("common.loading"))}</div>`;
     box.innerHTML = dangTai;
     if (!embed && editor) editor.classList.add("open");
-    const [ad, st] = await Promise.all([
-      api(`/agents?brain=${encodeURIComponent(brain())}`),
-      api("/settings"),
-    ]);
-    agentsCache = ad.agents || [];
+    // Agents từ Cộng sự (đã có trong bộ nhớ) → khỏi chờ /agents. Chỉ lấy /settings.
+    let st = {};
+    if (opts.agents && opts.agents.length) {
+      agentsCache = opts.agents.slice();
+      st = await api("/settings");
+    } else {
+      const [ad, st0] = await Promise.all([
+        api(`/agents?brain=${encodeURIComponent(brain())}`),
+        api("/settings"),
+      ]);
+      agentsCache = ad.agents || [];
+      st = st0 || {};
+    }
     if (!agentsCache.length) {
       if (!embed && editor) editor.classList.remove("open");
       box.innerHTML = "";
@@ -992,19 +1045,10 @@
     const optsV = (sel) => `<option value="">${esc(t("studio.no_verify"))}</option>` + agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const agentName = (slug) => { const a = agentsCache.find(x => x.slug === slug); return a ? a.name : (slug || "?"); };
     const MODEL_SEP = "::";
-    const uniq = (xs) => [...new Set((xs || []).filter(Boolean))];
-    const provs = ((st.model || {}).providers || []).filter(p => p.agent_ok && p.configured);
-    const live = await Promise.all(provs.map(p =>
-      api(`/provider/models?provider=${encodeURIComponent(p.id)}` + (p.id === "openai-oauth" ? "&refresh=1" : ""))
-        .then(d => uniq(d.models)).catch(() => [])));
-    const nhomM = provs.map((p, i) => ({ id: p.id, label: p.label, models: uniq(live[i].concat(p.models || [])) }))
-                      .filter(g => g.models.length);
     const mVal = (pid, m) => pid + MODEL_SEP + m;
-    const modelOptionsHtml = [
-      `<option value="">${esc(t("studio.wf_model_default"))}</option>`,
-      ...nhomM.map(g => `<optgroup label="${esc(g.label)}">${g.models.map(m =>
-        `<option value="${esc(mVal(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`),
-    ].join("");
+    // Catalog trong settings → form hiện NGAY. Live models chạy nền, không chặn nút.
+    let nhomM = modelGroupsFromSettings(st);
+    let modelOptsHtml = buildModelOptionsHtml(nhomM, mVal, t("studio.wf_model_default"));
     let openIdx = (opts.openIdx != null) ? opts.openIdx : (w ? null : 0);
     let ten = w ? (w.name || "") : "";
     let mota = w ? (w.description || "") : "";
@@ -1012,6 +1056,15 @@
     let wfModelVal = (w && w.model)
       ? mVal(w.model_provider || "", w.model)
       : "";
+    function applyModelSelect(sel) {
+      if (!sel) return;
+      sel.innerHTML = modelOptsHtml;
+      sel.value = wfModelVal;
+      if (wfModelVal && !sel.value && w && w.model) {
+        const hit = [...sel.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === w.model);
+        if (hit) sel.value = hit.value;
+      }
+    }
     function move(i, d) {
       const j = i + d;
       if (j < 0 || j >= steps.length) return;
@@ -1035,20 +1088,13 @@
         <input id="wfGroup" list="wfGroupList" value="${esc(nhom)}" placeholder="${esc(t("studio.group_ph"))}">
         ${nhomDatalist(_wfState.wfs, "wfGroupList")}
         <label>${esc(t("studio.wf_model_lbl"))}</label>
-        <select id="wfModel">${modelOptionsHtml}</select>
+        <select id="wfModel">${modelOptsHtml}</select>
         <div class="dim" style="font-size:12px;margin-top:4px">${esc(t("studio.wf_model_note"))}</div>
         <label>${esc(t("studio.steps_label"))}</label>
         <div id="stepList"></div>
         <button type="button" class="s-btn-ghost" id="addStep">${esc(t("studio.add_step"))}</button>
         <div class="editor-actions"><button type="button" class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button type="button" class="s-btn" id="saveWf">${esc(t("common.save"))}</button></div>`;
-      const selM = box.querySelector("#wfModel");
-      if (selM) {
-        selM.value = wfModelVal;
-        if (wfModelVal && !selM.value && w && w.model) {
-          const hit = [...selM.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === w.model);
-          if (hit) selM.value = hit.value;
-        }
-      }
+      applyModelSelect(box.querySelector("#wfModel"));
       const sl = box.querySelector("#stepList"); sl.innerHTML = "";
       steps.forEach((st, i) => {
         const open = i === openIdx;
@@ -1089,9 +1135,10 @@
       });
       box.querySelector("#addStep").onclick = () => { captureSteps(); steps.push({ agent: agentsCache[0].slug, task: "" }); openIdx = steps.length - 1; render(); };
       box.querySelector("#cancelEd").onclick = () => dongForm();
-      box.querySelector("#saveWf").onclick = async () => {
+      box.querySelector("#saveWf").onclick = async (ev) => {
+        const xong = markTap(ev && ev.currentTarget, 4000);
         captureSteps();
-        if (!ten.trim()) return alert(t("studio.need_name"));
+        if (!ten.trim()) { xong(); return alert(t("studio.need_name")); }
         const raw = (box.querySelector("#wfModel") || {}).value || "";
         let mProv = "", mName = "";
         if (raw.includes(MODEL_SEP)) {
@@ -1102,6 +1149,7 @@
           group: nhom.trim() || NHOM_MD, steps: JSON.stringify(steps),
           status: w ? w.status : "active", slug: w ? w.slug : "", brain: brain(),
           model: mName, model_provider: mProv }) });
+        xong();
         if (r && r.error) { alert(r.error); return; }
         const ket = { slug: (r && r.slug) || (w && w.slug) || "", ok: true };
         if (embed) {
@@ -1128,6 +1176,16 @@
     }
     render();
     if (!embed && editor) editor.classList.add("open");
+    // Bổ sung model live ở nền - không chặn form. Bỏ refresh=1 (OAuth) vì làm chậm vô ích lúc mở sửa.
+    modelGroupsLive(st).then((liveGroups) => {
+      if (!box.isConnected || !box.querySelector("#wfModel")) return;
+      if (!liveGroups.length) return;
+      nhomM = liveGroups;
+      modelOptsHtml = buildModelOptionsHtml(nhomM, mVal, t("studio.wf_model_default"));
+      const oMd = box.querySelector("#wfModel");
+      if (oMd) wfModelVal = oMd.value || wfModelVal;
+      applyModelSelect(oMd);
+    }).catch(() => {});
   }
 
   // ===== Agents =====
@@ -1179,8 +1237,8 @@
         : `<div class="ag-role thieu">${esc(t("studio.ag_role_missing"))}</div>`;
       div.innerHTML = `<div class="ag-name"><input type="checkbox" class="ag-sel" data-slug="${esc(a.slug)}" title="${esc(t("studio.sel_one"))}"> ${ic("bot")} ${esc(a.name)} <span class="ag-model">${esc(a.model_provider ? a.model_provider + "/" : "")}${esc(a.model || "")}</span></div>${roleHtml}<div class="ag-skills">${(a.skills || []).map(s => `<span class="chip-skill">${esc(s)}</span>`).join("") || `<span class="dim">${esc(t("studio.no_skills"))}</span>`}</div><div class="ag-group">${ic("folder-open")} ${esc(nhomCua(a))}</div><div class="wf-actions"><button class="s-btn-ghost edit">${esc(t("common.edit"))}</button><button class="s-btn-ghost exp" title="${esc(t("studio.export_title"))}">${esc(t("studio.export"))}</button><button class="s-btn-ghost del">${esc(t("common.delete"))}</button></div>`;
       noiSel("agent", "agDl", div.querySelector(".ag-sel"), a.slug);
-      div.querySelector(".exp").onclick = () => exportItem("agent", a.slug);
-      div.querySelector(".edit").onclick = () => editAgent(a);
+      div.querySelector(".exp").onclick = (e) => { markTap(e.currentTarget, 900); exportItem("agent", a.slug); };
+      div.querySelector(".edit").onclick = (e) => { markTap(e.currentTarget, 1600); editAgent(a); };
       div.querySelector(".del").onclick = async () => { if (confirm(t("studio.del_ag", { ten: a.name }))) { await api("/agents/delete", { method: "POST", body: fd({ slug: a.slug, brain: brain() }) }); loadAgents(); } };
       cards.appendChild(div);
     });
@@ -1215,28 +1273,18 @@
       api("/settings"),
     ]);
     const skills = sd.skills || [];
-    const uniq = (xs) => [...new Set((xs || []).filter(Boolean))];
-    // CÙNG nguồn với trình chọn model chính (/settings → model.providers), nên thêm nhà mới
-    // ở trang Models là ô này có ngay. Lọc `agent_ok`: server chỉ dựng nổi engine agent cho
-    // một số nhà (xem AGENT_PROVIDERS), bày thêm là hứa suông. Lọc `configured`: chưa cắm
-    // key thì chọn vào cũng không chạy.
-    const provs = ((st.model || {}).providers || []).filter(p => p.agent_ok && p.configured);
-    // Danh sách LIVE cho nhà có catalog rỗng/đổi liên tục (Codex, Gemini CLI, Groq...).
-    // Hỏng một nhà thì chỉ nhà đó rơi về catalog, không kéo cả ô chọn chết theo.
-    const live = await Promise.all(provs.map(p =>
-      api(`/provider/models?provider=${encodeURIComponent(p.id)}` + (p.id === "openai-oauth" ? "&refresh=1" : ""))
-        .then(d => uniq(d.models)).catch(() => [])));
-    const nhom = provs.map((p, i) => ({ id: p.id, label: p.label, models: uniq(live[i].concat(p.models || [])) }))
-                      .filter(g => g.models.length);
+    // Catalog trước → form hiện; live models nền (không refresh=1).
+    let nhom = modelGroupsFromSettings(st);
     const val = (pid, m) => pid + MODEL_SEP + m;
-    // Agent đang lưu một model không còn trong danh sách nào (nhà đã ngắt key, model bị gỡ):
-    // vẫn bày ra để mở form lên KHÔNG âm thầm đổi model của agent thành "Mặc định".
-    const dangCo = a && a.model && !nhom.some(g => (!a.model_provider || g.id === a.model_provider) && g.models.includes(a.model));
-    const currentOnly = dangCo
-      ? `<optgroup label="${esc(t("studio.model_saved"))}"><option value="${esc(val(a.model_provider || "", a.model))}">${esc(a.model)} ${esc(t("studio.saved_suffix"))}</option></optgroup>` : "";
+    function currentOnlyHtml(groups) {
+      const dangCo = a && a.model && !groups.some(g => (!a.model_provider || g.id === a.model_provider) && g.models.includes(a.model));
+      return dangCo
+        ? `<optgroup label="${esc(t("studio.model_saved"))}"><option value="${esc(val(a.model_provider || "", a.model))}">${esc(a.model)} ${esc(t("studio.saved_suffix"))}</option></optgroup>` : "";
+    }
     const modelOptions = (g) =>
       `<optgroup label="${esc(g.label)}">${g.models.map(m => `<option value="${esc(val(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`;
-    box.innerHTML = `<div class="agent-editor">
+    function paintForm(groups) {
+      box.innerHTML = `<div class="agent-editor">
       <h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
       <label>${esc(t("studio.role"))}</label>
@@ -1255,10 +1303,10 @@
       </div>` : `<div class="skill-pick"><span class="dim">${esc(t("studio.sp_none"))}</span></div>`}
       <label>Model</label><select id="agModel">
         <option value="">${esc(t("studio.model_default"))}</option>
-        ${currentOnly}
-        ${nhom.map(modelOptions).join("")}
+        ${currentOnlyHtml(groups)}
+        ${groups.map(modelOptions).join("")}
       </select>
-      <div class="dim" style="font-size:12px;margin-top:4px">${esc(nhom.length
+      <div class="dim" style="font-size:12px;margin-top:4px">${esc(groups.length
         ? t("studio.model_hint")
         : t("studio.model_none"))}</div>
       <div class="ag-assets">
@@ -1270,54 +1318,72 @@
       </div>
       <div class="editor-actions"><button type="button" class="s-btn-ghost" id="cancelEd"${embed ? " hidden" : ""}>${esc(t("common.cancel"))}</button><button type="button" class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>
     </div>`;
-    if (a && a.model) {
-      const sel = box.querySelector("#agModel");
-      sel.value = val(a.model_provider || "", a.model);
-      // Agent CŨ lưu mỗi tên model (chưa có trường nhà): dò dòng đầu tiên trùng tên để form
-      // mở lên vẫn hiện đúng model đang chạy, thay vì nhảy về "Mặc định" rồi bấm Lưu là mất.
-      if (!sel.value) {
-        const hit = [...sel.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === a.model);
-        if (hit) sel.value = hit.value;
+      if (a && a.model) {
+        const sel = box.querySelector("#agModel");
+        sel.value = val(a.model_provider || "", a.model);
+        if (!sel.value) {
+          const hit = [...sel.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === a.model);
+          if (hit) sel.value = hit.value;
+        }
       }
+      renderSkillPick(box, skills, chosen);
+      const nutAssets = box.querySelector("#agAssets");
+      if (nutAssets) {
+        nutAssets.onclick = () => {
+          if (!(a && a.slug)) return;
+          if (window.JavisChatSide && window.JavisChatSide.moKhungAgent) {
+            window.JavisChatSide.moKhungAgent(a.slug, a.name || a.slug);
+          }
+        };
+      }
+      const cancel = box.querySelector("#cancelEd");
+      if (cancel) cancel.onclick = () => { if (editor) editor.classList.remove("open"); };
+      box.querySelector("#saveAg").onclick = async (ev) => {
+        const xong = markTap(ev && ev.currentTarget, 4000);
+        const name = box.querySelector("#agName").value.trim();
+        if (!name) { xong(); return alert(t("studio.need_name")); }
+        const sk = [...chosen].join(",");
+        const raw = box.querySelector("#agModel").value;
+        const cut = raw.indexOf(MODEL_SEP);
+        const mProv = cut === -1 ? "" : raw.slice(0, cut);
+        const mName = cut === -1 ? raw : raw.slice(cut + MODEL_SEP.length);
+        const r = await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value,
+          group: box.querySelector("#agGroup").value.trim() || NHOM_MD,
+          prompt: box.querySelector("#agPrompt").value, skills: sk, model: mName, model_provider: mProv,
+          slug: a ? a.slug : "", brain: brain() }) });
+        xong();
+        if (r && r.error) { alert(r.error); return; }
+        const ket = { slug: (r && r.slug) || (a && a.slug) || "", ok: true };
+        if (embed) {
+          if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+        } else {
+          if (editor) editor.classList.remove("open");
+          loadAgents();
+          if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+        }
+      };
     }
     // Trạng thái chọn giữ trong Set, DOM chỉ là HÌNH CHIẾU của nó. Đây là chỗ dễ hỏng nhất của
     // khung có bộ lọc: vẽ lại theo bộ lọc rồi lúc lưu mới đi đọc DOM thì mọi skill đang bị lọc
     // ra khỏi màn hình sẽ mất tick, im lặng, và người dùng chỉ phát hiện sau khi agent chạy sai.
     const chosen = new Set(a ? (a.skills || []) : []);
-    renderSkillPick(box, skills, chosen);
-    const nutAssets = box.querySelector("#agAssets");
-    if (nutAssets) {
-      nutAssets.onclick = () => {
-        if (!(a && a.slug)) return;
-        if (window.JavisChatSide && window.JavisChatSide.moKhungAgent) {
-          window.JavisChatSide.moKhungAgent(a.slug, a.name || a.slug);
-        }
-      };
-    }
-    const cancel = box.querySelector("#cancelEd");
-    if (cancel) cancel.onclick = () => { if (editor) editor.classList.remove("open"); };
-    box.querySelector("#saveAg").onclick = async () => {
-      const name = box.querySelector("#agName").value.trim(); if (!name) return alert(t("studio.need_name"));
-      const sk = [...chosen].join(",");
-      const raw = box.querySelector("#agModel").value;
-      const cut = raw.indexOf(MODEL_SEP);
-      const mProv = cut === -1 ? "" : raw.slice(0, cut);
-      const mName = cut === -1 ? raw : raw.slice(cut + MODEL_SEP.length);
-      const r = await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value,
-        group: box.querySelector("#agGroup").value.trim() || NHOM_MD,
-        prompt: box.querySelector("#agPrompt").value, skills: sk, model: mName, model_provider: mProv,
-        slug: a ? a.slug : "", brain: brain() }) });
-      if (r && r.error) { alert(r.error); return; }
-      const ket = { slug: (r && r.slug) || (a && a.slug) || "", ok: true };
-      if (embed) {
-        if (typeof opts.onSaved === "function") await opts.onSaved(ket);
-      } else {
-        if (editor) editor.classList.remove("open");
-        loadAgents();
-        if (typeof opts.onSaved === "function") await opts.onSaved(ket);
-      }
-    };
+    paintForm(nhom);
     if (!embed && editor) editor.classList.add("open");
+    modelGroupsLive(st).then((liveGroups) => {
+      if (!box.isConnected || !box.querySelector("#agModel")) return;
+      if (!liveGroups.length) return;
+      const cur = (box.querySelector("#agModel") || {}).value || "";
+      nhom = liveGroups;
+      // Chỉ thay ô model - không vẽ lại cả form (mất chữ đang gõ / tick skill).
+      const sel = box.querySelector("#agModel");
+      if (!sel) return;
+      sel.innerHTML = `<option value="">${esc(t("studio.model_default"))}</option>${currentOnlyHtml(liveGroups)}${liveGroups.map(modelOptions).join("")}`;
+      sel.value = cur;
+      if (cur && !sel.value && a && a.model) {
+        const hit = [...sel.options].find(o => o.value.split(MODEL_SEP).slice(1).join(MODEL_SEP) === a.model);
+        if (hit) sel.value = hit.value;
+      }
+    }).catch(() => {});
   }
 
   // ===== Khung chọn skill trong màn sửa Agent =====
@@ -1611,6 +1677,6 @@
   // Thiếu export thì nút Sửa bước / Xuất / Nhập bấm không chạy gì (lỗi im lặng - chủ repo 22/09).
   window.JavisStudio = {
     workflows: loadWorkflows, agents: loadAgents, skills: loadSkills,
-    editAgent, editWorkflow, exportItem, importItems,
+    editAgent, editWorkflow, exportItem, importItems, markTap,
   };
 })();

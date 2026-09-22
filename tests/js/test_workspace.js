@@ -472,12 +472,20 @@ check("editWorkflow mo modal TRUOC khi cho API",
 check("exportItem dung the a click (khong chi window.open)",
   /function exportItem\(kind, slug\)[\s\S]{0,400}createElement\("a"\)/.test(studio));
 check("workspace xuatMuc khong phu thuoc JavisStudio im lang",
-  /function xuatMuc\(kind, slug\)/.test(app) && /function canStudio\(fn\)/.test(app));
+  /function xuatMuc\(kind, slug/.test(app) && /function canStudio\(fn\)/.test(app));
 check("workspace nut Sua buoc goi canStudio",
   /wsEditWf[\s\S]{0,200}canStudio\("editWorkflow"\)/.test(app));
 check("nhom Cong su mac dinh thu gon (so mo)", /javis_ws_mo/.test(fs.readFileSync(path.join(root, "dashboard", "workspace.js"), "utf8")));
 check("studio-editor z-index tren ws-menu",
   /\.studio-editor\s*\{[^}]*z-index:\s*9200/.test(fs.readFileSync(path.join(root, "dashboard", "style.css"), "utf8")));
+check("nut bam co phan hoi jv-busy",
+  /\.jv-busy/.test(fs.readFileSync(path.join(root, "dashboard", "style.css"), "utf8")) &&
+  /function danhDauBam\(/.test(app) && /function markTap\(/.test(studio));
+check("editWorkflow dung catalog model truoc, live sau",
+  /modelGroupsFromSettings\(/.test(studio) && /modelGroupsLive\(/.test(studio) &&
+  /opts\.agents && opts\.agents\.length/.test(studio));
+check("editWorkflow KHONG cho refresh=1 truoc khi ve form",
+  !/async function editWorkflow[\s\S]*?refresh=1[\s\S]*?function render\(/.test(studio));
 // Bảng chạy của Studio: bước đã báo lỗi thì TẮT vòng quay của chính nó. Trước đây chỉ
 // `step_done` mới thay được .rs-spin, mà bước hỏng thì không bao giờ có step_done nữa (server
 // dừng ngay), nên bước ấy quay mãi trong khi cả lần chạy đã kết thúc.
