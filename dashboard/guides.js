@@ -548,10 +548,10 @@
         <div class="jv-g-twin">
           <div class="jv-g-card">
             <h4>${ic("folder-tree")} Tệp tin & Drive</h4>
-            <p>Duyệt / sửa file trong brain. Kho Drive đồng bộ thư mục Google vào Second Brain khi đã cấu hình.</p>
+            <p><b>Kho Drive</b> = đồng bộ một thư mục Google vào bộ não (3 bước trên trang). Khác thẻ Google ở menu Kết nối.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <button type="button" class="jv-g-go" data-ggo="files">Tệp tin</button>
-              <button type="button" class="jv-g-go" data-ggo="drive">Drive</button>
+              <button type="button" class="jv-g-go" data-ggo="drive">Kho Drive</button>
             </div>
           </div>
           <div class="jv-g-card">

@@ -2,53 +2,51 @@
 
 ***Tiếng Việt** · [English](en/29-drive-library.md)*
 
-Đồng bộ một thư mục Google Drive vào Second Brain bằng **rclone**, rồi làm việc như một **Dự án chat**: hỏi, ingest-source, viết skill. Không cần thẻ Google Workspace (OAuth browser trên máy Javis).
+Đồng bộ **một thư mục** Google Drive vào Second Brain. Không cần thẻ Google Workspace.
 
-## Kiến trúc
+> Trang **Bộ não → Kho Drive** khác menu **Kết nối → Google**. Ở đây chỉ kéo file thư mục vào bộ não.
 
-| Lớp | Đường dẫn | Vai trò |
+## Làm lần đầu (3 bước trên trang Kho Drive)
+
+### Bước 1 - Kết nối Google
+
+**Nếu mở VMOS trên máy bạn (localhost):**  
+1. Bấm **Kết nối Google Drive**.  
+2. Allow trên Google.  
+3. Quay lại trang - trạng thái chuyển sang đã kết nối.
+
+**Nếu VMOS chạy trên VPS:**  
+1. Chọn **Tôi dùng Mac** hoặc **Tôi dùng Windows**.  
+2. Bấm **Bắt đầu kết nối**.  
+3. **Mac:** Sao chép lệnh → dán vào Terminal → Enter → Allow Google.  
+4. **Windows:** Tải `.bat` → double-click → Allow Google.  
+5. Quay lại trang Kho Drive (chờ vài giây).
+
+### Bước 2 - Tạo kho
+
+1. Đặt tên kho (ví dụ: Giáo trình Marketing).  
+2. Trên Drive: mở thư mục → Sao chép liên kết (hoặc copy URL thanh địa chỉ).  
+3. Dán link vào ô → **Tạo và đồng bộ**.
+
+### Bước 3 - Dùng hàng ngày
+
+1. Sửa file trên Google Drive.  
+2. Trang Kho Drive → **Đồng bộ lại**.  
+3. Tệp tin → `sources/drive/…` hoặc Dự án chat của kho.  
+4. Bảo Javis đọc / ingest từng file quan trọng (không nuốt cả kho một lần).
+
+Config rclone lưu tại `/data/state/rclone.conf` (Docker).
+
+## Kiến trúc (tóm tắt)
+
+| Lớp | Đường | Vai trò |
 |---|---|---|
-| Drive | Folder trên Google Drive | Bản gốc, chia sẻ |
-| Corpus | `JAVIS_STATE_DIR/drive-corpus/<brain>/<slug>/` | File nhị phân sau `rclone sync` (không vào git brain) |
-| Sources | `<brain>/sources/drive/<slug>/` | `.md` mirror / stub PDF để Javis đọc |
-| Dự án chat | Tự tạo khi lập kho | Ghim README + hướng dẫn dùng kho |
-
-```
-Google Drive ──rclone sync──► corpus (STATE)
-                                 │
-                                 └── mirror text / stub PDF ──► sources/drive/<slug>/
-                                                              │
-                                              Dự án chat (pin README)
-                                              ingest-source → wiki → skill
-```
-
-## Setup trong dashboard (khuyên dùng)
-
-1. Image Javis từ 0.55.154 có sẵn `rclone`.
-2. **Bộ não → Kho Drive**:
-   - **localhost:** bấm **Kết nối Google Drive** → Allow.
-   - **VPS:** bấm **Bắt đầu kết nối** → trên Mac **sao chép lệnh Terminal** (dán vào Terminal, không tải .command); trên Windows tải `.bat` → Allow Google → quay lại trang.
-3. **Tên kho** + **dán link thư mục Drive** → **Tạo và đồng bộ**.
-4. Config lưu tại `/data/state/rclone.conf` (Docker).
-
-Cách thủ công (Terminal) vẫn dùng được; xem cuối trang.
-
-## Dùng hằng ngày
-
-1. Cập nhật file trên Drive.
-2. Trang Kho Drive → **Đồng bộ ngay**.
-3. Mở Dự án chat «Kho Drive · …» (hoặc Tệp tin → `sources/drive/<slug>/`).
-4. Bảo Javis: *ingest source `sources/drive/<slug>/….md` rồi viết skill …*.
-
-**Không** mass-ingest cả kho một lần. Chọn file quan trọng.
+| Drive | Thư mục Google | Bản gốc |
+| Corpus | `JAVIS_STATE_DIR/drive-corpus/…` | File sau rclone |
+| Sources | `<brain>/sources/drive/<slug>/` | Cho Javis đọc |
+| Dự án chat | Tự tạo | Hỏi đáp / ingest |
 
 ## API
 
-- `GET /drive-projects?brain=…` / `GET /drive-projects/status`
-- `POST /drive-projects` JSON `{name, drive_folder_id, rclone_remote?, brain?}`
-- `POST /drive-projects/{id}/sync`
-- `POST /drive-projects/{id}/update` · `…/delete`
-
-## Khác pháp chế
-
-[Pháp chế cá nhân](28-phap-che-ca-nhan.md) dùng cùng ý rclone nhưng folder cố định + agent Pháp chế. Kho Drive là **nhiều kho tùy ý**, UI dashboard, gắn Dự án chat chung.
+- `GET /drive-projects/status` · `POST /drive-projects` · `…/{id}/sync` · `…/delete`
+- Kết nối: `…/rclone/authorize/*` (localhost) · `…/rclone/pair/*` (VPS)

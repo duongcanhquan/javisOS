@@ -1,26 +1,25 @@
-# Drive library — Google Drive knowledge on a VPS
+# Drive library - Google Drive knowledge on a VPS
 
 ***English** · [Tiếng Việt](../29-kho-drive.md)*
 
-Sync a Google Drive folder into the Second Brain with **rclone**, then work it as a **chat Project**: ask questions, `ingest-source`, write skills. No Google Workspace browser OAuth on the Javis host.
+Sync **one Google Drive folder** into the Second Brain. You do **not** need the Google Workspace connection card.
 
-## Layout
+> **Brain → Drive library** is different from **Connect → Google**. Here you only pull a folder into the brain.
 
-| Layer | Path | Role |
-|---|---|---|
-| Drive | Google Drive folder | Source of truth |
-| Corpus | `JAVIS_STATE_DIR/drive-corpus/<brain>/<slug>/` | Binary tree after `rclone sync` |
-| Sources | `<brain>/sources/drive/<slug>/` | Mirrored `.md` / PDF stubs |
-| Chat project | Auto-created | Pins README + instructions |
+## First-time setup (3 steps on the Drive page)
 
-## Setup in the dashboard (recommended)
+### Step 1 - Connect Google
 
-1. Javis image ≥ 0.55.154 includes `rclone`.
-2. **Brain → Drive library**:
-   - **localhost:** click **Connect Google Drive** → Allow.
-   - **VPS:** click to get download links → Mac (`.command`) or Windows (`.bat`) → double-click → Allow Google → return to the page.
-3. **Name** + paste Drive folder **URL** → **Create & sync**.
+**VMOS on this machine (localhost):** click **Connect Google Drive** → Allow → return to the page.
 
-## Daily use
+**VMOS on a VPS:** pick **Mac** or **Windows** → **Start connect** → Mac: copy Terminal command / Windows: download `.bat` → Allow Google → return to the page.
 
-Update Drive → Sync now → open the chat Project → ingest important files → write skills. Do not mass-ingest the whole library in one turn.
+### Step 2 - Create a library
+
+Name the library → paste the Drive **folder** link → **Create and sync**.
+
+### Step 3 - Daily use
+
+Edit files on Drive → **Sync again** on this page → open `sources/drive/…` or the chat project → ask Javis to ingest important files (not the whole library at once).
+
+rclone config lives at `/data/state/rclone.conf` (Docker).

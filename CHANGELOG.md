@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.25] - 2026-09-22
+### Cải thiện
+- **Kho Drive:** hướng dẫn 3 bước rõ trên trang (kết nối Google → tạo kho → dùng hàng ngày). VPS tách Mac/Windows; có mẹo lấy link thư mục. Phân biệt với thẻ Google ở menu Kết nối.
+
 ## [0.56.24] - 2026-09-22
 ### Sửa
 - **Terminal / dán mã đăng nhập:** nút **Dán** + Ctrl/Cmd+Shift+V đưa clipboard vào shell. Nếu trình duyệt chặn clipboard thì hiện ô dán tay rồi Gửi - hết cảnh copy được mã mà không dán vào `agy` được.

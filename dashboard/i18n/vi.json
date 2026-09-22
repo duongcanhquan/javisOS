@@ -24,7 +24,7 @@
   "page.files.label": "Tệp tin",
   "page.files.sub": "Duyệt · sửa · tải file trong brain",
   "page.drive.label": "Kho Drive",
-  "page.drive.sub": "Sync Google Drive (rclone) → Second Brain · Dự án chat",
+  "page.drive.sub": "3 bước: kết nối Google → dán link thư mục → đồng bộ vào bộ não",
   "page.terminal.label": "Terminal",
   "page.terminal.sub": "Dòng lệnh chạy thẳng trên máy đang chạy VMOS",
   "page.selfimprove.label": "Việc định kỳ",
