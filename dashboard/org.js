@@ -317,9 +317,11 @@
         <div class="org-kpi-i"><span class="org-kpi-l">RAM</span><strong class="org-kpi-v">${esc(vpsRamLine)}</strong></div>
         <div class="org-kpi-i"><span class="org-kpi-l">Ổ đĩa</span><strong class="org-kpi-v">${esc(vpsDiskLine)}</strong></div>
         <div class="org-kpi-i"><span class="org-kpi-l">CPU</span><strong class="org-kpi-v">${cpuN ? (cpuN + " lõi") : "chưa rõ"}</strong></div>
-        <div class="org-kpi-i"><span class="org-kpi-l">Chỗ người</span><strong class="org-kpi-v">gợi ý ${esc(String(suggestN))} · trần ${esc(String(maxHand))} · hiệu lực ${esc(String(maxR))}</strong>
-          <span class="org-kpi-s">đang chạy ${esc(String(runP))} · còn ${esc(String(slotsLeft))} chỗ</span></div>
-        <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy người</span><strong class="org-kpi-v">~${esc(String(ramPer))} MB RAM</strong>
+        <div class="org-kpi-i"><span class="org-kpi-l">Người trong sổ</span><strong class="org-kpi-v">${esc(String(people.length))} tài khoản</strong>
+          <span class="org-kpi-s">đã tạo · tắt / tạm dừng vẫn còn · không bị trần chỗ xóa</span></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Máy đang mở (Docker)</span><strong class="org-kpi-v">${esc(String(runP))}/${esc(String(maxR))}</strong>
+          <span class="org-kpi-s">cùng lúc · còn ${esc(String(slotsLeft))} · gợi ý RAM ${esc(String(suggestN))} · trần tay ${esc(String(maxHand))}</span></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy khi mở</span><strong class="org-kpi-v">~${esc(String(ramPer))} MB RAM</strong>
           <span class="org-kpi-s">chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} gốc + Quan</span></div>
         <div class="org-kpi-i"><span class="org-kpi-l">Trần ổ đã cấp</span><strong class="org-kpi-v">${esc(String(quotaSum))} GB · ${esc(String(people.length))} người</strong>
           ${diskFreeB ? `<span class="org-kpi-s">ổ còn ${esc(fmtGB(diskFreeB))}</span>` : ""}</div>
@@ -484,8 +486,8 @@
         <section class="org-pane org-pane-tong" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
           <p class="org-lead">Chỉ admin VMOS gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
           <div class="org-stats" role="group" aria-label="Chỉ số nhanh">
-            <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
-            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy người đang chạy</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1"><b>${people.length}</b><span>Người trong sổ</span></button>
+            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy đang mở</span></button>
             <button type="button" data-org-goto="cai"><b>${ramHost ? (ramHost + " GB") : "?"} · ${diskTotB ? fmtGB(diskTotB) : "?"}</b><span>RAM · ổ VPS</span></button>
             <button type="button" data-org-goto="cai"><b>${suggestN}</b><span>Gợi ý chỗ người</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
@@ -535,14 +537,14 @@
           <div class="org-split">
             <div class="org-sec">
               <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
-                <p class="dim org-sec-sub">Gợi ý <b>${esc(String(suggestN))}</b> chỗ · đang mở <b>${runP}/${maxR}</b>
-                  ${waitN ? (" · xếp hàng " + waitN) : ""}.
-                  Ưu tiên người đang dùng; máy nghỉ nhường chỗ cho người sau.</p></div></div>
+                <p class="dim org-sec-sub"><b>Không giới hạn số tài khoản.</b> Chỉ giới hạn số máy <b>đang mở cùng lúc</b>
+                  (hiện ${runP}/${maxR}). Tạo thêm người thoải mái - máy mới tắt sẵn nếu hết chỗ; não vẫn giữ.
+                  Tạm dừng / tắt tay không xóa. Chỉ xóa khi bạn bấm Xóa (giữ 72 giờ).</p></div></div>
               ${vpsKpis}
               ${ramCalc}
               <form id="orgCoord" class="org-form org-form-row">
-                <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
-                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng. Ví dụ 5 = không ai vào 5 phút thì tắt máy (não giữ), nhường RAM cho người xếp hàng."></label>
+                <label>Trần máy mở cùng lúc<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}" title="Không phải số người trong sổ. Chỉ số container Docker đang chạy."></label>
+                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng. Ví dụ 5 = không ai vào 5 phút thì tắt máy (não giữ), nhường RAM."></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
               <p class="dim org-sec-note"><b>Tự tắt sau ${idleM || "0"} phút</b>:
@@ -550,7 +552,7 @@
                   ? ("không ai mở/chat trên máy đó trong " + idleM + " phút → tắt container, não giữ. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
                   : "đang tắt - máy mở sẽ chiếm chỗ đến khi tắt tay hoặc RAM thấp."}
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
-                Chỗ = số máy Docker đang mở (kể cả không chat), không phải số tài khoản trong sổ.</p>
+                Gợi ý RAM khoảng <b>${esc(String(suggestN))}</b> máy mở. Trần tay đang <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">
@@ -567,7 +569,8 @@
         <section class="org-pane org-pane-tao" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
           <div class="org-sec">
             <div class="org-sec-h"><div><h3>Tạo người mới</h3>
-              <p class="dim org-sec-sub">Máy <code>${esc(prefix)}-[slug].${esc(suffix)}</code> · não riêng · MK ≥10 ký tự (chữ + số).</p></div></div>
+              <p class="dim org-sec-sub">Máy <code>${esc(prefix)}-[slug].${esc(suffix)}</code> · não riêng · MK ≥10 ký tự (chữ + số).
+                <b>Không giới hạn số người tạo.</b> Hết chỗ máy mở thì máy mới tạm tắt (não vẫn còn) - họ mở link sẽ xếp hàng / bật khi có chỗ.</p></div></div>
             <form id="orgCreate" class="org-form org-form-grid">
               <label>Tên máy (slug)<input name="slug" required placeholder="Ví dụ: lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
               <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
@@ -589,7 +592,8 @@
 
         <section class="org-pane org-pane-quan" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <div class="org-sec-h org-quan-head"><div><h3>Quản lý người</h3>
-            <p class="dim org-sec-sub">Bật/tắt máy ở thẻ. Mở <b>Chỉnh cấu hình</b> để đổi chế độ / ổ / token. Xóa giữ não 72 giờ.</p></div>
+            <p class="dim org-sec-sub">Sổ: <b>${esc(String(people.length))}</b> người · đang mở Docker: <b>${runP}/${maxR}</b>.
+              Bật/tắt/tạm dừng không xóa não. Lọc «Đang chạy» chỉ hiện máy mở - chọn «Mọi trạng thái» để thấy hết.</p></div>
             <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button></div>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">

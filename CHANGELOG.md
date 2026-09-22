@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.28] - 2026-09-22
+### Làm rõ
+- **Tổ chức:** tách «Người trong sổ» và «Máy đang mở». Trần chỗ chỉ giới hạn máy Docker bật cùng lúc - **không xóa** tài khoản khi vượt trần; tạo thêm người vẫn được (máy mới có thể tắt sẵn). Tạm dừng/tắt tay giữ não.
+
 ## [0.56.27] - 2026-09-22
 ### Kiểm tra
 - Thêm test canary wizard Kho Drive (tab Mac/Windows, 3 bước). Đã chạy test drive + terminal + lazy load trước khi ship.
