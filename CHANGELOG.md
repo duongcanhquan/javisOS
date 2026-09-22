@@ -2,7 +2,7 @@
 
 ## [0.56.32] - 2026-09-22
 ### Thêm / Làm rõ
-- **Tổ chức · RAM realtime:** `GET /org/ram_live` + poll ~4 giây trên dashboard (không reload cả sổ). Thanh VPS dùng **RAM đang dùng (Docker)** thật thay cho «RAM ước» = N×trần. Trần mỗi máy mới **1024 MB** (trước 768); máy đã tạo giữ trần cũ đến khi tạo lại container. Chưa ship — chờ yêu cầu commit/deploy.
+- **Tổ chức · RAM realtime:** `GET /org/ram_live` + poll ~4 giây trên dashboard (không reload cả sổ). Thanh VPS dùng **RAM đang dùng (Docker)** thật thay cho «RAM ước» = N×trần. Trần mỗi máy mới **1024 MB** (trước 768); máy đã tạo giữ trần cũ đến khi tạo lại container.
 
 ## [0.56.31] - 2026-09-22
 ### Sửa
