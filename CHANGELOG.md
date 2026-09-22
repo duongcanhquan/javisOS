@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.22] - 2026-09-22
+### Mới
+- **Tổ chức / RAM thật:** bảng đo từng máy đang mở (MB đang dùng, đang dùng hay nghỉ vẫn tốn RAM); điều phối nhìn RAM trống + nhả máy nghỉ, không chỉ đếm chỗ.
+
 ## [0.56.21] - 2026-09-22
 ### Sửa
 - **Tự tắt sau N phút:** đúng số phút bạn cài (5 phút = 5 phút). Hết chỗ thì ưu tiên người đang dùng; máy nghỉ nhường chỗ cho người xếp hàng (nhường sớm hơn khi có hàng đợi).

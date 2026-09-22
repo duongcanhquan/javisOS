@@ -21,6 +21,8 @@ _WAKE_TS: dict[str, float] = {}
 # (N Docker round-trip trên event loop). TTL 2.5s gom các lần gọi sát nhau thành 1 list.
 _STATUS_TTL = 2.5
 _STATUS_CACHE: dict[str, Any] = {"at": 0.0, "by_name": {}}
+_MEM_TTL = 12.0
+_MEM_CACHE: dict[str, Any] = {"at": 0.0, "by_name": {}}
 
 
 def _docker_api(method: str, path: str, json_body: Any = None, timeout: float = 60.0):
@@ -707,6 +709,86 @@ def people_running() -> list[dict]:
     return out
 
 
+def container_mem_mb(cname: str) -> tuple[int, int]:
+    """(usage_mb, limit_mb) từ Docker stats. (0,0) nếu lỗi."""
+    name = (cname or "").strip()
+    if not name or not docker_available():
+        return 0, 0
+    now = time.time()
+    by = _MEM_CACHE.get("by_name") or {}
+    if now - float(_MEM_CACHE.get("at") or 0) < _MEM_TTL and name in by:
+        u, lim = by[name]
+        return int(u), int(lim)
+    try:
+        r = _docker_api("GET", f"/containers/{quote(name)}/stats?stream=false", timeout=8.0)
+        if r.status_code != 200:
+            return 0, 0
+        data = r.json() or {}
+        ms = data.get("memory_stats") if isinstance(data.get("memory_stats"), dict) else {}
+        usage = int(ms.get("usage") or 0)
+        stats = ms.get("stats") if isinstance(ms.get("stats"), dict) else {}
+        cache = int(stats.get("total_inactive_file") or stats.get("inactive_file") or 0)
+        if cache and cache < usage:
+            usage = usage - cache
+        limit = int(ms.get("limit") or 0)
+        if limit <= 0 or limit > 256 * 1024 * 1024 * 1024:
+            limit = _MEM
+        u_mb = max(0, usage // (1024 * 1024))
+        lim_mb = max(0, limit // (1024 * 1024))
+    except Exception:
+        return 0, 0
+    if now - float(_MEM_CACHE.get("at") or 0) >= _MEM_TTL:
+        _MEM_CACHE["at"] = now
+        _MEM_CACHE["by_name"] = {}
+        by = _MEM_CACHE["by_name"]
+    by[name] = (u_mb, lim_mb)
+    return u_mb, lim_mb
+
+
+def ram_live_report() -> dict:
+    """RAM thật các máy người đang mở; tách máy đang dùng / đang nghỉ."""
+    now = int(time.time())
+    idle_m = int(oc.coord().get("idle_minutes") or 0)
+    grace = oc.idle_sec(idle_m) if idle_m > 0 else oc.HANDOFF_CAP_SEC
+    machines = []
+    used = 0
+    idle_used = 0
+    active_n = idle_n = 0
+    for t in people_running():
+        slug = str(t.get("slug") or "")
+        cname = str(t.get("container") or "")
+        u, lim = container_mem_mb(cname) if cname else (0, 0)
+        ts = read_last_active(cname, t)
+        age = (now - ts) if ts > 0 else 10**9
+        is_idle = age >= grace
+        if is_idle:
+            idle_n += 1
+            idle_used += u
+        else:
+            active_n += 1
+        used += u
+        machines.append({
+            "slug": slug,
+            "mem_mb": u,
+            "limit_mb": lim or oc.RAM_MB,
+            "idle": is_idle,
+            "idle_sec": int(age) if age < 10**9 else None,
+        })
+    _tot, avail = oc.host_mem_mb()
+    budget = max(0, int(avail or 0) + idle_used - oc.KEEP_FREE_MB)
+    fit_more = budget // max(1, oc.RAM_MB)
+    return {
+        "machines": machines,
+        "people_used_mb": used,
+        "people_idle_mb": idle_used,
+        "people_active_n": active_n,
+        "people_idle_n": idle_n,
+        "ram_limit_mb": oc.RAM_MB,
+        "fit_more_est": int(fit_more),
+        "note": "Máy bật (Docker) luôn tốn RAM thật - nghỉ vẫn chiếm đến khi tắt.",
+    }
+
+
 def image_short(cname: str) -> str:
     """Digest/ID ngắn của image container (hiển thị trên card)."""
     data = inspect_name(cname)
@@ -841,33 +923,43 @@ def _pick_evict(except_slug: str, grace_sec: int | None = None) -> str:
 
 
 def _acquire_slot(slug: str) -> None:
-    """Lấy 1 chỗ chạy: còn trống thì thôi; hết chỗ thì nhường máy nghỉ lâu nhất.
+    """Lấy 1 chỗ chạy: còn trống thì thôi; hết chỗ / RAM chật thì nhường máy nghỉ.
 
-    Người đang/vừa dùng được ưu tiên. Có xếp hàng thì nhường máy nghỉ sớm hơn
-    (handoff) để người sau vào được - não máy bị tắt giữ nguyên.
+    Máy Docker đang bật luôn tốn RAM thật (kể cả không ai chat) - máy nghỉ phải tắt
+    mới nhả RAM. Ưu tiên người đang/vừa dùng.
     """
     cap = int(oc.effective_max())
     running = people_running()
     if any(str(t.get("slug") or "") == slug for t in running):
         return
-    if len(running) < cap:
+    _tot, avail = oc.host_mem_mb()
+    ram_tight = bool(avail and avail < oc.KEEP_FREE_MB + oc.RAM_MB)
+    need_slot = len(running) >= cap
+    if not need_slot and not ram_tight:
         return
     victim = _pick_evict(slug)
     if not victim:
         victim = _pick_evict(slug, grace_sec=_handoff_grace_sec())
     if not victim:
+        if not need_slot:
+            # Dưới trần chỗ nhưng RAM thấp và không có máy nghỉ đủ lâu để nhường.
+            raise RuntimeError(
+                f"RAM máy chủ còn ~{avail} MB - chưa đủ mở thêm một máy (~{oc.RAM_MB} MB). "
+                "Đợi máy nghỉ tự tắt, hoặc tắt tay máy không dùng trên Tổ chức. "
+                "Não và file giữ nguyên."
+            )
         names = [str(t.get("slug") or "?") for t in running[:8]]
         more = f" (+{len(running) - 8})" if len(running) > 8 else ""
         idle_m = int(oc.coord().get("idle_minutes") or 0)
         tip = (
-            f"Máy nghỉ ≥{idle_m} phút sẽ tự nhả chỗ."
+            f"Máy nghỉ ≥{idle_m} phút sẽ tự nhả RAM."
             if idle_m > 0
             else "Bật «Tự tắt sau (phút)» hoặc tắt tay máy không dùng trên Tổ chức."
         )
         raise RuntimeError(
             f"Hết chỗ máy người: đang mở {len(running)}/{cap}. "
             f"Đang chạy: {', '.join(names)}{more}. "
-            f"Ưu tiên người đang dùng; {tip} "
+            f"Máy bật dù không chat vẫn tốn RAM. Ưu tiên người đang dùng; {tip} "
             "Não và file giữ nguyên - trang tự mở khi có chỗ."
         )
     stop(victim, park=False)

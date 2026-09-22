@@ -47,7 +47,13 @@ def _coord_public():
         n = len(org_docker.people_running()) if org_docker.docker_available() else 0
     except Exception:
         n = 0
-    return oc.snapshot(n)
+    live = None
+    try:
+        if org_docker.docker_available():
+            live = org_docker.ram_live_report()
+    except Exception:
+        live = None
+    return oc.snapshot(n, ram_live=live)
 
 
 async def _proxy_upstream(provider: str, request: Request, rec: dict):

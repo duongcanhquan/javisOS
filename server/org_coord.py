@@ -327,7 +327,8 @@ def touch_last_active() -> None:
         pass
 
 
-def snapshot(running: int, max_running: int | None = None, idle_minutes: int | None = None) -> dict:
+def snapshot(running: int, max_running: int | None = None, idle_minutes: int | None = None,
+             ram_live: dict | None = None) -> dict:
     c = coord()
     n = max(0, int(running))
     idle = int(idle_minutes if idle_minutes is not None else c["idle_minutes"])
@@ -337,7 +338,8 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
         eff = max(1, min(hand, suggest_slots(tot)))
     else:
         eff = hand
-    return {
+    live = ram_live if isinstance(ram_live, dict) else {}
+    out = {
         "max_running": hand,
         "effective_max": eff,
         "idle_minutes": idle,
@@ -355,7 +357,26 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
         "host_disk_path": str(c.get("host_disk_path") or ""),
         "host_cpus": int(c.get("host_cpus") or 0),
         "suggest": int(c.get("suggest") or hand),
+        # Công thức cho UI: ngân sách máy người trên host
+        "budget_people_mb": max(0, tot - RESERVE_MB - KEEP_FREE_MB) if tot else 0,
+        "formula": (
+            f"(RAM host - chừa {RESERVE_MB}MB gốc/Quan/OS - giữ trống {KEEP_FREE_MB}MB) "
+            f"/ {RAM_MB}MB mỗi máy, trần {AUTO_CAP}"
+        ),
     }
+    if live:
+        out["ram_live"] = live
+        # Chỗ còn theo RAM thật: trống host + có thể lấy lại từ máy nghỉ
+        try:
+            fit = int(live.get("fit_more_est") or 0)
+            out["slots_by_ram"] = max(0, fit)
+            out["people_used_mb"] = int(live.get("people_used_mb") or 0)
+            out["people_idle_mb"] = int(live.get("people_idle_mb") or 0)
+            out["people_active_n"] = int(live.get("people_active_n") or 0)
+            out["people_idle_n"] = int(live.get("people_idle_n") or 0)
+        except (TypeError, ValueError):
+            pass
+    return out
 
 
 def wake_html(host: str, title: str, body: str, refresh: int = 4) -> str:

@@ -266,6 +266,47 @@
     const vpsDiskLine = diskTotB
       ? (`${fmtGB(diskTotB)} tổng · ${fmtGB(diskFreeB)} trống`)
       : "chưa đọc được";
+    const ramLive = (coord && coord.ram_live) || {};
+    const liveMachines = Array.isArray(ramLive.machines) ? ramLive.machines : [];
+    const budgetMb = Number(coord.budget_people_mb || 0);
+    const formula = String(coord.formula || "");
+    const peopleUsed = Number((coord.people_used_mb != null ? coord.people_used_mb : ramLive.people_used_mb) || 0);
+    const peopleIdleMb = Number((coord.people_idle_mb != null ? coord.people_idle_mb : ramLive.people_idle_mb) || 0);
+    const activeN = Number((coord.people_active_n != null ? coord.people_active_n : ramLive.people_active_n) || 0);
+    const idleN = Number((coord.people_idle_n != null ? coord.people_idle_n : ramLive.people_idle_n) || 0);
+    const slotsByRam = Number((coord.slots_by_ram != null ? coord.slots_by_ram : ramLive.fit_more_est) || 0);
+    const liveRows = liveMachines.map((m) => {
+      const mb = Number(m.mem_mb || 0);
+      const lim = Number(m.limit_mb || ramPer || 768);
+      const pct = lim ? Math.min(100, Math.round(100 * mb / lim)) : 0;
+      const tag = m.idle ? '<span class="org-pill">nghỉ - đang tốn RAM</span>' : '<span class="org-pill on">đang dùng</span>';
+      return `<tr>
+        <td><code>${esc(m.slug || "")}</code></td>
+        <td>${esc(String(mb))} / ${esc(String(lim))} MB (${pct}%)</td>
+        <td>${tag}</td>
+      </tr>`;
+    }).join("");
+    const ramCalc = `
+      <div class="org-sec org-ram-calc">
+        <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
+          <p class="dim org-sec-sub">Máy Docker <b>bật</b> = đang chiếm RAM (kể cả không chat). Chỉ khi <b>tắt</b> mới nhả RAM.</p></div></div>
+        <div class="org-kpi">
+          <div class="org-kpi-i"><span class="org-kpi-l">Ngân sách máy người</span>
+            <strong class="org-kpi-v">${budgetMb ? (esc(String(budgetMb)) + " MB") : "?"}</strong>
+            <span class="org-kpi-s">host ${esc(String(ramHost || "?"))} GB - chừa ${esc(String(reserveMb))} MB - giữ ${esc(String(Number(coord.keep_free_mb || 400)))} MB</span></div>
+          <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy (trần)</span>
+            <strong class="org-kpi-v">${esc(String(ramPer))} MB</strong>
+            <span class="org-kpi-s">gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
+          <div class="org-kpi-i"><span class="org-kpi-l">Đang đo trên VPS</span>
+            <strong class="org-kpi-v">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
+            <span class="org-kpi-s">${esc(String(activeN))} đang dùng · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
+              ${slotsByRam ? (" · ước mở thêm ~" + slotsByRam + " nếu nhả máy nghỉ") : ""}</span></div>
+        </div>
+        ${formula ? `<p class="dim org-sec-note">${esc(formula)}</p>` : ""}
+        ${liveRows
+          ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Máy</th><th>RAM đang dùng</th><th>Trạng thái</th></tr></thead><tbody>${liveRows}</tbody></table></div>`
+          : '<p class="dim">Chưa đo được máy người đang mở (hoặc chưa có máy chạy).</p>'}
+      </div>`;
     const vpsMeters = `
       ${diskTotB ? `<div class="org-meter"><div class="org-meter-lbl">Ổ máy chủ: <b>${esc(fmtGB(diskUsedB))}</b> / ${esc(fmtGB(diskTotB))}</div>
         <div class="org-bar ${diskTotB && diskFreeB / diskTotB < 0.1 ? "hot" : (diskTotB && diskFreeB / diskTotB < 0.2 ? "warn" : "")}"><i style="width:${diskTotB ? Math.max(0, Math.min(100, Math.round(100 * diskUsedB / diskTotB))) : 0}%"></i></div></div>` : ""}
@@ -451,6 +492,7 @@
           </div>
 
           ${vpsCardTong}
+          ${ramCalc}
 
           <div class="org-dash">
             <div class="org-sec">
@@ -497,6 +539,7 @@
                   ${waitN ? (" · xếp hàng " + waitN) : ""}.
                   Ưu tiên người đang dùng; máy nghỉ nhường chỗ cho người sau.</p></div></div>
               ${vpsKpis}
+              ${ramCalc}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
                 <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng. Ví dụ 5 = không ai vào 5 phút thì tắt máy (não giữ), nhường RAM cho người xếp hàng."></label>

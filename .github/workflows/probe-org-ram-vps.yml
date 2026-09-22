@@ -1,0 +1,51 @@
+# Đo RAM thực tế các máy Javis trên VPS (workflow_dispatch).
+name: Probe org RAM on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe RAM over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            echo "=== HOST ==="
+            free -m | head -3
+            nproc
+            echo "=== JAVIS CONTAINERS (limit + usage) ==="
+            docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.CPUPerc}}' $(docker ps --format '{{.Names}}' | grep -E '^javis-' | tr '\n' ' ') 2>/dev/null || docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}' | grep javis || true
+            echo "=== MEMORY LIMITS ==="
+            for c in $(docker ps --format '{{.Names}}' | grep -E '^javis-' | sort); do
+              lim=$(docker inspect -f '{{.HostConfig.Memory}}' "$c" 2>/dev/null || echo 0)
+              lim_mb=$((lim/1024/1024))
+              echo "$c limit_mb=$lim_mb"
+            done
+            echo "=== ORG COORD VIA MANAGER ==="
+            docker exec javis-manager python - <<'PY' 2>/dev/null || true
+            import os, sys
+            sys.path.insert(0, "/app/server")
+            import org_coord as oc
+            import org_docker as od
+            c = oc.coord()
+            print("host_ram_mb", c.get("host_ram_mb"), "avail", c.get("host_avail_mb"))
+            print("suggest", c.get("suggest"), "max_running", c.get("max_running"), "effective", oc.effective_max())
+            print("ram_mb_per", c.get("ram_mb"), "reserve", c.get("reserve_mb"), "keep_free", c.get("keep_free_mb"))
+            try:
+              run = od.people_running()
+              print("people_running", len(run), [t.get("slug") for t in run])
+            except Exception as e:
+              print("people_running err", e)
+            PY
+            echo PROBE_RAM_DONE
