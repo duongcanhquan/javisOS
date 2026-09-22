@@ -327,12 +327,18 @@ def touch_last_active() -> None:
         pass
 
 
-# Request nền (Docker healthcheck mỗi 30s, probe nội bộ…) không được coi là «người đang dùng»
-# - nếu ghi last-active thì máy không bao giờ đủ tuổi để tự tắt / hiện «nghỉ».
+# Request nền không được coi là «người đang dùng» — nếu ghi last-active thì máy không
+# bao giờ đủ tuổi để tự tắt / hiện «nghỉ»:
+#   /health,/ready     — Docker healthcheck ~30s
+#   /background        — dải việc nền poll 6–20s kể cả tab bỏ quên
+#   /connect/health    — chip kết nối poll từ dashboard mở sẵn
+#   /ws*               — WebSocket giữ/reconnect tab (không phải thao tác mới)
 _TOUCH_SKIP_EXACT = frozenset({
     "/health",
     "/ready",
     "/favicon.ico",
+    "/background",
+    "/connect/health",
 })
 
 
@@ -344,6 +350,8 @@ def should_touch_last_active(path: str) -> bool:
     if not p:
         p = "/"
     if p in _TOUCH_SKIP_EXACT:
+        return False
+    if p == "/ws" or p.startswith("/ws/"):
         return False
     if p == "/static" or p.startswith("/static/"):
         return False

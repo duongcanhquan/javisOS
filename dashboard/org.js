@@ -301,7 +301,7 @@
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
           <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Chỉ khi <b>tắt container</b> mới nhả RAM.
-            Nhãn tín hiệu = người/API gần đây — không phải «đang chat». Healthcheck Docker không tính là tín hiệu.</p></div></div>
+            Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck Docker và poll nền (dải việc, kết nối, WebSocket) không tính.</p></div></div>
         <div class="org-kpi">
           <div class="org-kpi-i"><span class="org-kpi-l">Ngân sách máy người</span>
             <strong class="org-kpi-v">${budgetMb ? (esc(String(budgetMb)) + " MB") : "?"}</strong>
@@ -561,7 +561,7 @@
               </form>
               <p class="dim org-sec-note"><b>Tự tắt sau ${idleM || "0"} phút</b>:
                 ${idleM
-                  ? ("không ai mở dashboard/API trên máy đó trong " + idleM + " phút → tắt container, não giữ. Healthcheck Docker không tính. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
+                  ? ("không ai mở trang / chat / API thật trên máy đó trong " + idleM + " phút → tắt container, não giữ. Healthcheck Docker, poll dải việc nền, chip kết nối và WebSocket giữ tab không tính. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
                   : "đang tắt - máy mở sẽ chiếm chỗ đến khi tắt tay hoặc RAM thấp."}
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
                 Gợi ý RAM khoảng <b>${esc(String(suggestN))}</b> máy mở. Trần tay đang <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>.</p>

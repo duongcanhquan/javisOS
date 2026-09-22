@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.30] - 2026-09-22
+### Sửa
+- **Tổ chức · idle:** tab dashboard bỏ quên vẫn poll `/background`, `/connect/health` và giữ `/ws` → `org-last-active` không bao giờ già → máy «có tín hiệu» mãi và không tự tắt. Nay các poll/WebSocket đó không còn tính là tín hiệu người (cùng nhóm với `/health`).
+
 ## [0.56.29] - 2026-09-22
 ### Sửa
 - **Tổ chức · Tính RAM thật:** Docker healthcheck `/health` (mỗi 30s) trước đây ghi `org-last-active` → mọi máy luôn «đang dùng» và không bao giờ tự tắt dù không có người. Nay health/static/asset không còn tính là tín hiệu; bảng đổi nhãn «có tín hiệu / nghỉ · Docker vẫn bật» + tuổi tín hiệu. Cột RAM vẫn là Docker stats thật khi container còn mở.
