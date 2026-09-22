@@ -50,11 +50,26 @@
   let orgFlash = "";
 
   async function api(path, opt) {
-    const r = await fetch(path, Object.assign({ cache: "no-store" }, opt || {}));
+    const r = await fetch(path, Object.assign({
+      cache: "no-store",
+      credentials: "same-origin",
+    }, opt || {}));
     let d = {};
     try { d = await r.json(); } catch (e) { d = {}; }
     if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
     return d;
+  }
+
+  function tipOn(btn, text) {
+    const card = btn && btn.closest ? btn.closest(".org-card") : null;
+    const tip = card && card.querySelector("[data-org-tip]");
+    if (tip) tip.textContent = text || "";
+  }
+
+  function busyBtn(btn, on) {
+    if (!btn) return;
+    btn.disabled = !!on;
+    btn.setAttribute("aria-busy", on ? "true" : "false");
   }
 
   function stLabel(s) {
@@ -304,22 +319,23 @@
       const deleted = !!t.deleted_at;
       const paused = !!t.paused && !deleted;
       const st = deleted ? "deleted" : (paused ? "paused" : (t.status || ""));
-      const stopBtn = prot || paused || deleted ? "" : `<button class="btn" data-org-stop="${esc(t.slug)}">Tắt máy</button>`;
-      const pauseBtn = prot || paused || deleted ? "" : `<button class="btn" data-org-pause="${esc(t.slug)}">Tạm dừng tài khoản</button>`;
-      const startBtn = deleted ? "" : `<button class="btn primary" data-org-start="${esc(t.slug)}">${paused ? "Chạy lại" : "Bật máy"}</button>`;
-      const restoreBtn = deleted ? `<button class="btn primary" data-org-restore="${esc(t.slug)}">Khôi phục</button>` : "";
-      const pwBtn = prot || deleted ? "" : `<button class="btn" data-org-pw-open="${esc(t.slug)}">Đặt lại mật khẩu</button>`;
-      const delBtn = prot ? "" : `<button class="btn org-del" data-org-del-open="${esc(t.slug)}">${deleted ? "Xóa ngay" : "Xóa"}</button>`;
+      const isRun = st === "running";
+      const stopBtn = (prot || paused || deleted || !isRun)
+        ? ""
+        : `<button type="button" class="org-pwr off" data-org-stop="${esc(t.slug)}" title="Tắt máy (não không xóa)">Tắt máy</button>`;
+      const pauseBtn = prot || paused || deleted
+        ? ""
+        : `<button type="button" class="btn org-btn-ghost" data-org-pause="${esc(t.slug)}">Tạm dừng</button>`;
+      const startBtn = deleted || (isRun && !paused)
+        ? ""
+        : `<button type="button" class="org-pwr on" data-org-start="${esc(t.slug)}" title="${paused ? "Mở khóa và bật máy" : "Bật máy"}">${paused ? "Chạy lại" : "Bật máy"}</button>`;
+      const restoreBtn = deleted ? `<button type="button" class="org-pwr on" data-org-restore="${esc(t.slug)}">Khôi phục</button>` : "";
+      const pwBtn = prot || deleted ? "" : `<button type="button" class="btn org-btn-ghost" data-org-pw-open="${esc(t.slug)}">Đổi MK</button>`;
+      const delBtn = prot ? "" : `<button type="button" class="btn org-btn-danger" data-org-del-open="${esc(t.slug)}">${deleted ? "Xóa ngay" : "Xóa"}</button>`;
       const mode = t.brain_mode || (t.shared_api ? "both" : "byo");
       const provs = Array.isArray(t.providers) ? t.providers : [];
       const ago = fmtAgo(t.last_active);
       const dig = (t.image_digest || "").trim();
-      const metaBits = [];
-      if (ago) metaBits.push("hoạt động " + ago);
-      if (dig) metaBits.push("image " + dig);
-      const metaLine = metaBits.length
-        ? `<div class="dim">${esc(metaBits.join(" · "))}</div>`
-        : "";
       const diskKnown = Number(t.disk_checked_at || 0) > 0 || Number(t.disk_bytes || 0) > 0;
       const diskBar = diskKnown
         ? (() => {
@@ -334,19 +350,18 @@
         : barHtml(t.quota_gb ? "?" : 0, t.quota_gb, "Ổ");
       return `<article class="org-card" data-slug="${esc(t.slug)}"
           data-hay="${esc(haystack(t))}" data-status="${esc(st)}"
-          data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}">
+          data-shared="${t.shared_api ? "on" : "off"}" data-prot="${prot ? "1" : "0"}"
+          data-image-digest="${esc(dig)}" title="${esc(dig ? ("image_digest " + dig) : "")}">
         <header>
           <div>
-            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ của bạn</span>' : ""}${paused ? ' <span class="org-pill">tạm dừng</span>' : ""}${deleted ? ' <span class="org-pill hot">chờ xóa</span>' : ""}
-            <div class="dim">máy <code>javis-${esc(t.slug)}</code> · đăng nhập <code>${esc(t.login_user || "admin")}</code></div>
-            ${metaLine}
-            ${prot ? '<div class="dim">Đăng nhập, não, Kết nối, Models giữ nguyên như trước khi có Tổ chức. Không tắt/xóa từ đây.</div>' : ""}
-            ${paused ? '<div class="dim">Tài khoản đang khóa. Mở link không vào được. Não còn. Bấm Chạy lại khi cần.</div>' : ""}
-            ${deleted ? `<div class="dim">Não còn khoảng <b>${esc(fmtLeft(t.purge_after))}</b>. Bấm Khôi phục để giữ, hoặc Xóa ngay nếu chắc chắn.</div>` : ""}
+            <b>${esc(t.name || t.slug)}</b>${prot ? ' <span class="org-pill">bản cũ</span>' : ""}${paused ? ' <span class="org-pill">tạm dừng</span>' : ""}${deleted ? ' <span class="org-pill hot">chờ xóa</span>' : ""}
+            <div class="dim"><code>javis-${esc(t.slug)}</code> · <code>${esc(t.login_user || "admin")}</code>${ago ? (" · hoạt động " + esc(ago)) : ""}</div>
+            ${prot ? '<div class="dim">Không tắt/xóa bản này từ đây.</div>' : ""}
+            ${paused ? '<div class="dim">Tài khoản khóa - bấm Chạy lại.</div>' : ""}
+            ${deleted ? `<div class="dim">Não còn ~<b>${esc(fmtLeft(t.purge_after))}</b>.</div>` : ""}
           </div>
-          <span class="org-st ${esc(st)}">${esc(stLabel(st))}</span>
         </header>
-        <p><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || href)}</a></p>
+        <p class="org-card-link"><a href="${esc(href)}" target="_blank" rel="noopener">${esc(t.domain || href)}</a></p>
         <div class="org-usage" data-org-usage="${esc(t.slug)}"
              data-quota="${esc(String(t.quota_gb || 0))}"
              data-tok="${esc(String(t.token_quota || 0))}"
@@ -357,14 +372,18 @@
           ${barHtml(t.tokens_used || 0, t.token_quota || 0, "Token tháng")}
           <div class="dim">Chế độ: <b>${esc(modeLabel(mode))}</b>${provs.length ? (" · " + esc(provs.join(", "))) : ""}</div>
         </div>
-        <div class="org-acts">
+        <div class="org-pwr-row">
           ${startBtn}
-          ${restoreBtn}
           ${stopBtn}
+          ${restoreBtn}
+          <span class="org-st ${esc(st)}">${esc(stLabel(st))}</span>
+        </div>
+        <div class="org-acts">
           ${pauseBtn}
           ${pwBtn}
           ${delBtn}
         </div>
+        <p class="org-tip dim" data-org-tip aria-live="polite"></p>
         ${deleted ? "" : `<details class="org-more"><summary>Chỉnh cấu hình</summary>
         <form class="org-inline org-edit-form org-edit-grid" data-org-edit="${esc(t.slug)}">
           ${prot ? "" : `<label>Chế độ model${modeSelect("brain_mode", mode)}</label>
@@ -475,7 +494,7 @@
             <div class="org-sec">
               <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
                 <p class="dim org-sec-sub">Gợi ý <b>${esc(String(suggestN))}</b> chỗ · đang dùng <b>${runP}/${maxR}</b>
-                  ${waitN ? (" · hàng đợi " + waitN) : ""}. Trần tay bị hạ nếu RAM không đủ.</p></div></div>
+                  ${waitN ? (" · hàng đợi " + waitN) : ""}. Trần tay bị hạ nếu RAM không đủ; người mới xếp hàng rồi tự bật.</p></div></div>
               ${vpsKpis}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
@@ -625,18 +644,27 @@
         .org-pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--glass-brd,var(--border));opacity:.85}
         .org-pill.on{border-color:#2f9e44;color:#2f9e44}
         .org-pill.hot{border-color:#e03131;color:#e03131}
-        .org-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-        .org-card{padding:12px 14px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));min-width:0}
+        .org-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+        .org-card{padding:12px 14px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));min-width:0;display:flex;flex-direction:column;gap:6px}
         .org-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-        .org-card > p{margin:6px 0 8px;font-size:13px;overflow:hidden;text-overflow:ellipsis}
+        .org-card-link{margin:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .org-pwr-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px}
+        .org-pwr{border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:650;cursor:pointer;min-height:36px;line-height:1.2}
+        .org-pwr.on{background:#2f9e44;color:#fff}
+        .org-pwr.on:hover{filter:brightness(1.06)}
+        .org-pwr.off{background:#e03131;color:#fff}
+        .org-pwr.off:hover{filter:brightness(1.06)}
+        .org-pwr:disabled{opacity:.55;cursor:wait}
+        .org-btn-ghost{background:transparent!important}
+        .org-btn-danger,.org-del{border-color:#e03131!important;color:#e03131!important}
+        .org-tip{min-height:1.1em;margin:2px 0 0;font-size:12px;color:var(--text2)}
         .org-st{font-size:12px;padding:4px 8px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));white-space:nowrap}
-        .org-st.running{border-color:#2f9e44;color:#2f9e44}
-        .org-st.stopped,.org-st.missing{opacity:.7}
-        .org-st.paused{border-color:#f59f00;color:#f59f00}
+        .org-st.running{border-color:#2f9e44;color:#2f9e44;background:rgba(47,158,68,.12)}
+        .org-st.stopped,.org-st.missing{border-color:#e03131;color:#e03131;background:rgba(224,49,49,.1)}
+        .org-st.paused{border-color:#f59f00;color:#f59f00;background:rgba(245,159,0,.12)}
         .org-st.deleted{border-color:#e03131;color:#e03131}
-        .org-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+        .org-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
         .org-acts .btn{padding:6px 10px;font-size:12.5px}
-        .org-del{border-color:#e03131;color:#e03131}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
         .org-meter{margin:0}
         .org-meter-lbl{font-size:12.5px;margin-bottom:3px}
@@ -655,6 +683,7 @@
           .org-split{grid-template-columns:1fr}
           .org-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
           .org-keys-grid{grid-template-columns:1fr}
+          .org-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
         }
         @media (max-width:720px){
           .org-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -809,36 +838,68 @@
       }
     });
     el.querySelectorAll("[data-org-start]").forEach((b) => {
-      b.addEventListener("click", async () => {
-        msg.textContent = "Đang bật…";
+      b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const slug = b.getAttribute("data-org-start");
+        tipOn(b, "Đang bật máy…");
+        if (msg) msg.textContent = "Đang bật «" + slug + "»…";
+        busyBtn(b, true);
         try {
-          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-start")) + "/start", { method: "POST" });
-          orgFlash = "Đã chạy lại.";
+          await api("/org/tenants/" + encodeURIComponent(slug) + "/start", { method: "POST" });
+          orgFlash = "Đã bật máy «" + slug + "».";
           orgTab = "quan";
           render(el);
-        } catch (e) { msg.textContent = e.message; }
+        } catch (e) {
+          busyBtn(b, false);
+          const err = e.message || "Không bật được.";
+          tipOn(b, err);
+          if (msg) msg.textContent = err;
+        }
       });
     });
     el.querySelectorAll("[data-org-pause]").forEach((b) => {
-      b.addEventListener("click", async () => {
+      b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
         if (!confirm("Tạm dừng tài khoản này? Máy tắt, mở link không vào được đến khi bấm Chạy lại. Não không xóa.")) return;
-        msg.textContent = "Đang tạm dừng…";
+        const slug = b.getAttribute("data-org-pause");
+        tipOn(b, "Đang tạm dừng…");
+        if (msg) msg.textContent = "Đang tạm dừng «" + slug + "»…";
+        busyBtn(b, true);
         try {
-          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-pause")) + "/pause", { method: "POST" });
-          orgFlash = "Đã tạm dừng. Não còn, tài khoản khóa đến khi chạy lại.";
+          await api("/org/tenants/" + encodeURIComponent(slug) + "/pause", { method: "POST" });
+          orgFlash = "Đã tạm dừng «" + slug + "». Não còn.";
           orgTab = "quan";
           render(el);
-        } catch (e) { msg.textContent = e.message; }
+        } catch (e) {
+          busyBtn(b, false);
+          const err = e.message || "Không tạm dừng được.";
+          tipOn(b, err);
+          if (msg) msg.textContent = err;
+        }
       });
     });
     el.querySelectorAll("[data-org-stop]").forEach((b) => {
-      b.addEventListener("click", async () => {
+      b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
         if (!confirm("Tắt VMOS này? Não và file không xóa.")) return;
+        const slug = b.getAttribute("data-org-stop");
+        tipOn(b, "Đang tắt máy…");
+        if (msg) msg.textContent = "Đang tắt «" + slug + "»…";
+        busyBtn(b, true);
         try {
-          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-stop")) + "/stop", { method: "POST" });
+          await api("/org/tenants/" + encodeURIComponent(slug) + "/stop", { method: "POST" });
+          orgFlash = "Đã tắt máy «" + slug + "».";
           orgTab = "quan";
           render(el);
-        } catch (e) { msg.textContent = e.message; }
+        } catch (e) {
+          busyBtn(b, false);
+          const err = e.message || "Không tắt được.";
+          tipOn(b, err);
+          if (msg) msg.textContent = err;
+        }
       });
     });
     el.querySelectorAll("[data-org-api]").forEach((b) => {
@@ -903,14 +964,24 @@
       }
     })();
     el.querySelectorAll("[data-org-restore]").forEach((b) => {
-      b.addEventListener("click", async () => {
-        msg.textContent = "Đang khôi phục…";
+      b.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const slug = b.getAttribute("data-org-restore");
+        tipOn(b, "Đang khôi phục…");
+        if (msg) msg.textContent = "Đang khôi phục «" + slug + "»…";
+        busyBtn(b, true);
         try {
-          await api("/org/tenants/" + encodeURIComponent(b.getAttribute("data-org-restore")) + "/restore", { method: "POST" });
-          orgFlash = "Đã khôi phục. Máy vẫn tạm dừng - bấm Chạy lại khi cần.";
+          await api("/org/tenants/" + encodeURIComponent(slug) + "/restore", { method: "POST" });
+          orgFlash = "Đã khôi phục «" + slug + "». Bấm Chạy lại khi cần.";
           orgTab = "quan";
           render(el);
-        } catch (e) { msg.textContent = e.message; }
+        } catch (e) {
+          busyBtn(b, false);
+          const err = e.message || "Không khôi phục được.";
+          tipOn(b, err);
+          if (msg) msg.textContent = err;
+        }
       });
     });
     el.querySelectorAll("[data-org-del-open]").forEach((b) => {
@@ -991,7 +1062,11 @@
           orgFlash = "Đã lưu thay đổi cho " + slug + ".";
           orgTab = "quan";
           render(el);
-        } catch (e) { msg.textContent = e.message; }
+        } catch (e) {
+          const err = e.message || "Không lưu được.";
+          tipOn(f, err);
+          if (msg) msg.textContent = err;
+        }
       });
     });
     el.querySelectorAll("form[data-org-pw]").forEach((f) => {

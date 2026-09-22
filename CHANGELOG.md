@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.19] - 2026-09-22
+### Sửa
+- **Tổ chức / Quản lý:** nút Bật (xanh) / Tắt (đỏ) đúng trạng thái máy; bấm có phản hồi ngay trên thẻ; lưới 3 cột desktop để bớt kéo trang.
+
 ## [0.56.18] - 2026-09-22
 ### Sửa
 - **Tổ chức (Cài đặt / Tạo mới / Quản lý):** bố cục 2 cột, form lưới gọn; thẻ người thu gọn - mở *Chỉnh cấu hình* khi cần; thanh lọc dính đầu danh sách, ít phải kéo trang.
