@@ -1,6 +1,7 @@
 ---
 name: storytelling
-description: Narrative-driven design using visuals, copy, and interaction to guide users through engaging, emotionally resonant journeys.
+description: "Thiết kế kể chuyện: visual, copy, tương tác dẫn hành trình cảm xúc."
+description_en: "Narrative-driven design using visuals, copy, and interaction to guide users through engaging, emotionally resonant journeys."
 license: MIT
 metadata:
   author: typeui.sh

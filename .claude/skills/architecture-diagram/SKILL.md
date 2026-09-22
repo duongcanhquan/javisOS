@@ -1,6 +1,7 @@
 ---
 name: "architecture-diagram"
-description: "Dark-themed SVG architecture/cloud/infra diagrams as HTML."
+description: "Vẽ sơ đồ kiến trúc/cloud/infra SVG tối màu dạng HTML."
+description_en: "Dark-themed SVG architecture/cloud/infra diagrams as HTML."
 group: "Hermes · Creative"
 version: 1.0.0
 author: Cocoon AI (hello@cocoon-ai.com), ported by Hermes Agent

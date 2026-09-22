@@ -1,6 +1,7 @@
 ---
 name: lingo
-description: Playful, minimal design with bright colors, rounded shapes, tactile 3D borders, and friendly illustrations for approachable interfaces.
+description: "Vui tối giản: màu sáng, bo tròn, viền 3D xúc giác, minh hoạ thân thiện."
+description_en: "Playful, minimal design with bright colors, rounded shapes, tactile 3D borders, and friendly illustrations for approachable interfaces."
 license: MIT
 metadata:
   author: typeui.sh

@@ -1,6 +1,7 @@
 ---
 name: "airtable"
-description: "Airtable REST API via curl. Records CRUD, filters, upserts."
+description: "Airtable qua REST/curl: CRUD bản ghi, lọc, upsert."
+description_en: "Airtable REST API via curl. Records CRUD, filters, upserts."
 group: "Hermes · Productivity"
 version: 1.1.0
 author: community

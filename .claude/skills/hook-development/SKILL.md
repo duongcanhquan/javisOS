@@ -1,6 +1,7 @@
 ---
 name: "hook-development"
-description: "Build Claude Code hooks: PreToolUse, PostToolUse, Stop, matchers, exit codes."
+description: "Viết hook Claude Code: Pre/PostToolUse, Stop, matcher, mã thoát."
+description_en: "Build Claude Code hooks: PreToolUse, PostToolUse, Stop, matchers, exit codes."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

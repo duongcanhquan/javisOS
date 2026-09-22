@@ -1,6 +1,7 @@
 ---
 name: spacious
-description: Generous whitespace, consistent padding, and grid-based layouts for clean, readable, and breathing interfaces.
+description: "Nhiều khoảng trắng, padding đều, lưới sạch để UI thở."
+description_en: "Generous whitespace, consistent padding, and grid-based layouts for clean, readable, and breathing interfaces."
 license: MIT
 metadata:
   author: typeui.sh

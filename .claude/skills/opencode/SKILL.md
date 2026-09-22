@@ -1,6 +1,7 @@
 ---
 name: "opencode"
-description: "Delegate coding to OpenCode CLI (features, PR review)."
+description: "Uỷ thác code cho OpenCode CLI (tính năng, review PR)."
+description_en: "Delegate coding to OpenCode CLI (features, PR review)."
 group: "Hermes · AI agents"
 version: 1.2.0
 author: Hermes Agent

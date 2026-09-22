@@ -1,6 +1,7 @@
 ---
 name: modern
-description: Contemporary editorial style with serif typography, minimal palettes, and clean layouts for polished digital products.
+description: "Editorial đương đại: serif, palette tối giản, layout sạch sản phẩm số."
+description_en: "Contemporary editorial style with serif typography, minimal palettes, and clean layouts for polished digital products."
 license: MIT
 metadata:
   author: typeui.sh

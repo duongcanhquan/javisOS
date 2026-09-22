@@ -1,6 +1,7 @@
 ---
 name: cosmic
-description: Futuristic sci-fi aesthetic with dark themes, vibrant neon accents, and immersive spatial elements.
+description: "Sci-fi: nền tối, neon sống, không gian đắm chìm."
+description_en: "Futuristic sci-fi aesthetic with dark themes, vibrant neon accents, and immersive spatial elements."
 license: MIT
 metadata:
   author: typeui.sh

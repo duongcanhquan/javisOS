@@ -1,6 +1,7 @@
 ---
 name: "plugin-settings"
-description: "Give a plugin user-configurable settings with a JSON schema and defaults."
+description: "Cho plugin có setting cấu hình được: JSON schema và mặc định."
+description_en: "Give a plugin user-configurable settings with a JSON schema and defaults."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

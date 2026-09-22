@@ -1,6 +1,7 @@
 ---
 name: professional
-description: Polished, business-ready design with modern typography, structured layouts, and a trustworthy visual identity.
+description: "Sẵn sàng doanh nghiệp: chữ hiện đại, layout có cấu trúc, tin cậy."
+description_en: "Polished, business-ready design with modern typography, structured layouts, and a trustworthy visual identity."
 license: MIT
 metadata:
   author: typeui.sh

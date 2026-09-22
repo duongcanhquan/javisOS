@@ -1,6 +1,7 @@
 ---
 name: "meeting-action-items"
-description: "Turn meeting notes into cited decisions, owners, tickets."
+description: "Biến ghi chú họp thành quyết định, chủ trì, ticket có trích dẫn."
+description_en: "Turn meeting notes into cited decisions, owners, tickets."
 group: "Hermes · Office"
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent

@@ -1,6 +1,7 @@
 ---
 name: "skill-development"
-description: "Write and improve SKILL.md files: naming, descriptions, progressive disclosure."
+description: "Viết/cải SKILL.md: đặt tên, mô tả, khai thác dần nội dung."
+description_en: "Write and improve SKILL.md files: naming, descriptions, progressive disclosure."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

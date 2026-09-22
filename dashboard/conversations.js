@@ -301,7 +301,7 @@
              : c.last_sender_type === "human" ? window.t("ht.ban") + ": " : "";
       return '<button type="button" class="ht-item' + (c.id === _chon ? " on" : "") +
           (c.unread_count ? " unread" : "") + '" data-id="' + c.id + '">' +
-        '<span class="ht-item-ic">' + (c.chat_type === "group" ? ic("users") : ic("user-round")) + '</span>' +
+        '<span class="ht-item-ic">' + (c.chat_type === "group" ? ic("messages-square") : ic("circle-user")) + '</span>' +
         '<span class="ht-item-text">' +
           '<span class="ht-item-top"><strong>' + esc(ten) + '</strong>' +
             '<small class="ht-item-time">' + esc(gio(c.last_message_at)) + '</small></span>' +
@@ -372,17 +372,17 @@
     var nhapDo = oCu ? oCu.value : "";
     box.innerHTML =
       '<div class="ht-head">' +
-        '<button type="button" class="s-btn-ghost ht-back">' + ic("arrow-left") + '</button>' +
+        '<button type="button" class="s-btn-ghost ht-back">' + ic("chevron-left") + '</button>' +
         '<div class="ht-head-text"><strong>' + esc(ten) + '</strong>' +
           '<small>' + chipKenh(c.channel) + (c.account_name ? ' · ' + esc(c.account_name) : "") +
           (c.chat_type === "group" ? ' · ' + esc(window.t("ht.nhom")) : "") + '</small></div>' +
         (laBot
           ? '<button type="button" class="s-btn-ghost ht-mode-btn' + (human ? " on" : "") + '">' +
-              (human ? ic("bot") + ' ' + esc(window.t("ht.tra_ai")) : ic("hand") + ' ' + esc(window.t("ht.tiep_quan"))) +
+              (human ? ic("bot") + ' ' + esc(window.t("ht.tra_ai")) : ic("headset") + ' ' + esc(window.t("ht.tiep_quan"))) +
             '</button>'
           : "") +
       '</div>' +
-      (human ? '<div class="ht-note warn">' + ic("hand") + ' ' + esc(window.t("ht.dang_tiep_quan")) + '</div>' : "") +
+      (human ? '<div class="ht-note warn">' + ic("headset") + ' ' + esc(window.t("ht.dang_tiep_quan")) + '</div>' : "") +
       '<div class="ht-msgs">' + _msgs.map(veTin).join("") + '</div>' +
       (guiDuoc ? veCompose(c, laBot, human) :
         '<div class="ht-foot">' + esc(window.t("ht.kenh_khong_gui", { kenh: nhanKenh(c.channel) })) + '</div>');
@@ -516,7 +516,7 @@
     var tt = TT_TK[a.state] || TT_TK.off;
     var nl = a.nang_luc || {};
     var chips = [];
-    if (nl.nhom) chips.push(ic("users") + " " + esc(window.t("ht.nl_nhom")));
+    if (nl.nhom) chips.push(ic("messages-square") + " " + esc(window.t("ht.nl_nhom")));
     if (nl.gui_file) chips.push(ic("paperclip") + " " + esc(window.t("ht.nl_file")));
     if (nl.tra_loi_tu_javis) chips.push(ic("send") + " " + esc(window.t("ht.nl_tra_loi")));
     var ten = a.external_id ? (a.tien_to_ten || "") + a.external_id : "";
@@ -525,7 +525,7 @@
           ? '<span>' + ic(a.bot_icon || "headset") + ' ' + esc(window.t("ht.tk_bot_truc")) + ' <b>' + esc(a.bot_name) + '</b>' +
             (a.bot_enabled ? "" : ' <span class="ht-warn">(' + esc(window.t("ht.bot_tat")) + ')</span>') + '</span>'
           : '<span class="ht-warn">' + ic("triangle-alert") + ' ' + esc(window.t("ht.tk_chua_bot")) + '</span>')
-      : '<span>' + ic("user-round") + ' ' + esc(window.t("ht.tk_cua_ban")) + '</span>';
+      : '<span>' + ic("circle-user") + ' ' + esc(window.t("ht.tk_cua_ban")) + '</span>';
     var so = '<span>' + ic("messages-square") + ' ' + esc(window.t("ht.n_hoi_thoai", { count: a.so_hoi_thoai || 0 })) +
              (a.chua_doc ? ' · <b>' + esc(window.t("ht.n_chua_doc", { count: a.chua_doc })) + '</b>' : "") + '</span>';
     var lanCuoi = a.lan_cuoi ? '<span>' + esc(window.t("ht.doc_luc", { luc: gio(a.lan_cuoi) })) + '</span>' : "";

@@ -1,6 +1,7 @@
 ---
 name: "songwriting-and-ai-music"
-description: "Songwriting craft and Suno AI music prompts."
+description: "Nghề viết bài hát và prompt nhạc AI Suno."
+description_en: "Songwriting craft and Suno AI music prompts."
 group: "Hermes · Creative"
 version: 1.0.0
 author: Teknium (teknium1), Hermes Agent

@@ -1,6 +1,7 @@
 ---
 name: dithered
-description: Dot-pattern rendering technique that simulates shades with a limited palette for nostalgic, retro, high-contrast visuals.
+description: "Kỹ thuật chấm dither: palette hẹp, cảm giác retro tương phản cao."
+description_en: "Dot-pattern rendering technique that simulates shades with a limited palette for nostalgic, retro, high-contrast visuals."
 license: MIT
 metadata:
   author: typeui.sh

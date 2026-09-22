@@ -1,6 +1,7 @@
 ---
 name: "competitor-news-monitor"
-description: "Watch named companies for material news; cited digests."
+description: "Theo dõi tin trọng yếu của công ty đã đặt tên; digest có trích dẫn."
+description_en: "Watch named companies for material news; cited digests."
 group: "Hermes · Research"
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent

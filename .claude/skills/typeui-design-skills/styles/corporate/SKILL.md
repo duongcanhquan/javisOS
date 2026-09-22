@@ -1,6 +1,7 @@
 ---
 name: corporate
-description: Professional, brand-aligned design with structured grids, minimalist layouts, and consistent enterprise patterns.
+description: "Doanh nghiệp chuyên nghiệp: lưới chặt, tối giản, pattern nhất quán."
+description_en: "Professional, brand-aligned design with structured grids, minimalist layouts, and consistent enterprise patterns."
 license: MIT
 metadata:
   author: typeui.sh

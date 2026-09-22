@@ -1,8 +1,13 @@
 # Nhật ký cập nhật
 
+## [0.56.7] - 2026-09-22
+### Sửa
+- **Mô tả skill tiếng Việt:** mọi skill hệ thống (kể TypeUI) có `description` Việt rõ ≤150 ký tự; thêm `description_en` để router tiếng Anh. Sửa 4 skill HTĐT bị YAML vỡ vì dấu `:`.
+- **Canary:** Windows không nháy console khi sync Docker; icon Hội thoại dùng bộ Lucide sẵn có; Hướng dẫn bỏ emoji/em dash; test lazy Tool APIs và model agent khớp code mới.
+
 ## [0.56.6] - 2026-09-21
 ### Mới
-- **74 skill hệ thống từ vmos-quan:** skill sách / vận hành / tích hợp (Tâm lý thuyết phục, Thôi miên ngôn từ, PMA-QMA, Kiến trúc EA, Đặt giá bán, …) đưa vào `.claude/skills/` để mọi brain nhận qua `system_sync`. Không kèm 4 gói asset nặng (open-design, htmlanything, motionanything, htmltomp4) — vẫn chỉ trên brain quan.
+- **74 skill hệ thống từ vmos-quan:** skill sách / vận hành / tích hợp (Tâm lý thuyết phục, Thôi miên ngôn từ, PMA-QMA, Kiến trúc EA, Đặt giá bán, …) đưa vào `.claude/skills/` để mọi brain nhận qua `system_sync`. Không kèm 4 gói asset nặng (open-design, htmlanything, motionanything, htmltomp4) - vẫn chỉ trên brain quan.
 
 ## [0.56.5] - 2026-09-21
 ### Sửa

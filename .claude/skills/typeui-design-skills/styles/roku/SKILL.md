@@ -1,6 +1,7 @@
 ---
 name: roku
-description: App dashboard with purple-themed aesthetic, top-bar navigation, card-based layouts, and developer-first workflows.
+description: "Dashboard app tím: nav trên, card, workflow dành cho developer."
+description_en: "App dashboard with purple-themed aesthetic, top-bar navigation, card-based layouts, and developer-first workflows."
 license: MIT
 metadata:
   author: typeui.sh

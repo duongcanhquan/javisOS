@@ -1,6 +1,7 @@
 ---
 name: neobrutalism
-description: Modern take on brutalism with bold borders, vivid accent colors, and raw, high-contrast layouts on warm surfaces.
+description: "Brutalism hiện đại: viền đậm, accent sống, layout thô trên nền ấm."
+description_en: "Modern take on brutalism with bold borders, vivid accent colors, and raw, high-contrast layouts on warm surfaces."
 license: MIT
 metadata:
   author: typeui.sh

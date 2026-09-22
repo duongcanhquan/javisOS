@@ -1,6 +1,7 @@
 ---
 name: "claude-design"
-description: "Design one-off HTML artifacts (landing, deck, prototype)."
+description: "Thiết kế HTML một lần: landing, deck, prototype."
+description_en: "Design one-off HTML artifacts (landing, deck, prototype)."
 group: "Hermes · Creative"
 version: 1.1.0
 author: BadTechBandit

@@ -276,19 +276,19 @@ body{margin:0;padding:28px 18px 64px;background:var(--bg);color:var(--fg);
  font:17px/1.7 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
  overflow-wrap:break-word}
 main{max-width:760px;margin:0 auto}
-h1,h2,h3,h4,h5,h6{line-height:1.3;margin:1.6em 0 .5em;font-weight:700}
-h1{font-size:1.75em;margin-top:0}h2{font-size:1.4em}h3{font-size:1.18em}
-p,ul,ol,blockquote,table,pre{margin:0 0 1em}
-ul,ol{padding-left:1.4em}li{margin:.3em 0}
+h1,h2,h3,h4,h5,h6{line-height:1.3;margin:1.6rem 0 .5rem;font-weight:700}
+h1{font-size:1.75rem;margin-top:0}h2{font-size:1.4rem}h3{font-size:1.18rem}
+p,ul,ol,blockquote,table,pre{margin:0 0 1rem}
+ul,ol{padding-left:1.4rem}li{margin:.3rem 0}
 a{color:var(--nhan)}
-img{max-width:100%;height:auto;border-radius:10px;display:block;margin:1em 0}
-code{background:var(--ma);padding:.15em .4em;border-radius:5px;font-size:.92em;
+img{max-width:100%;height:auto;border-radius:10px;display:block;margin:1rem 0}
+code{background:var(--ma);padding:.15rem .4rem;border-radius:5px;font-size:.92rem;
  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 pre.code{background:var(--ma);border:1px solid var(--vien);border-radius:12px;
  padding:14px 16px;overflow:auto}
-pre.code code{background:none;padding:0;font-size:.88em;line-height:1.55}
-blockquote{border-left:3px solid var(--nhan);padding:.1em 0 .1em 14px;color:var(--mo)}
-hr{border:0;border-top:1px solid var(--vien);margin:2em 0}
+pre.code code{background:none;padding:0;font-size:.88rem;line-height:1.55}
+blockquote{border-left:3px solid var(--nhan);padding:.1rem 0 .1rem 14px;color:var(--mo)}
+hr{border:0;border-top:1px solid var(--vien);margin:2rem 0}
 table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}
 th,td{border:1px solid var(--vien);padding:8px 11px;text-align:left}
 th{background:var(--ma)}

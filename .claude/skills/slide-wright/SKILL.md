@@ -2,7 +2,7 @@
 name: Slide Wright
 description: "Slide/pitch/proposal HTML đẹp: trình chiếu, PDF chiếu, pitch deck. Theme riêng, preview rồi gen. exports/slides/."
 description_en: "Polished HTML slides/pitch/proposal decks: presentation, pitch PDF, unique theme, preview then full. Writes exports/slides/."
-group: "Thiết kế & Web"
+group: "Nội dung"
 metadata:
   upstream: https://github.com/arifszn/slide-wright
   upstream_skill: slide-wright

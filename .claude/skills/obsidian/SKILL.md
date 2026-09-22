@@ -1,6 +1,7 @@
 ---
 name: "obsidian"
-description: "Read, search, create, and edit notes in the Obsidian vault."
+description: "Đọc, tìm, tạo, sửa note trong vault Obsidian."
+description_en: "Read, search, create, and edit notes in the Obsidian vault."
 group: "Hermes · Productivity"
 version: 1.0.0
 author: Teknium (teknium1), Hermes Agent

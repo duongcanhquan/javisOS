@@ -1,6 +1,7 @@
 ---
 name: "product-price-monitor"
-description: "Watch product, flight, or listing prices; alert on target."
+description: "Theo dõi giá sản phẩm/vé/listing; báo khi chạm mục tiêu."
+description_en: "Watch product, flight, or listing prices; alert on target."
 group: "Hermes · Research"
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent

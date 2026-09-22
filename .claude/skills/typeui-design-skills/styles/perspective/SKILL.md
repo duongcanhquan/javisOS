@@ -1,6 +1,7 @@
 ---
 name: perspective
-description: Spatial depth design with isometric views, vanishing points, and layered elements that guide attention through 3D-like realism.
+description: "Chiều sâu không gian: isometric, điểm tụ, lớp 3D dẫn mắt."
+description_en: "Spatial depth design with isometric views, vanishing points, and layered elements that guide attention through 3D-like realism."
 license: MIT
 metadata:
   author: typeui.sh

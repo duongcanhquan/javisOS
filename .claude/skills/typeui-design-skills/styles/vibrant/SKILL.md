@@ -1,6 +1,7 @@
 ---
 name: vibrant
-description: Lively, colorful design with bold playful typography, warm accents, and dynamic visual energy.
+description: "Sống động: chữ vui đậm, accent ấm, năng lượng thị giác."
+description_en: "Lively, colorful design with bold playful typography, warm accents, and dynamic visual energy."
 license: MIT
 metadata:
   author: typeui.sh

@@ -1,6 +1,7 @@
 ---
 name: "Xử lý cache static Javis"
 description: "Chẩn đoán cảnh báo file static cũ và bump VERSION để ép trình duyệt tải lại asset mới."
+description_en: "Diagnose stale static-asset warnings; bump VERSION to force browsers to reload assets."
 group: "AI"
 origin: javis-learned
 status: active

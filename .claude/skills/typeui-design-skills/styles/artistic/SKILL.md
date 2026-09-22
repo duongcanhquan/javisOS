@@ -1,6 +1,7 @@
 ---
 name: artistic
-description: High-contrast, expressive style with creative typography and bold color choices for visually striking interfaces.
+description: "Phong cách biểu cảm tương phản cao, typography sáng tạo, màu mạnh."
+description_en: "High-contrast, expressive style with creative typography and bold color choices for visually striking interfaces."
 license: MIT
 metadata:
   author: typeui.sh

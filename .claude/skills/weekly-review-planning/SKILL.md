@@ -1,6 +1,7 @@
 ---
 name: "weekly-review-planning"
-description: "Weekly reset: commitments, stalled work, next-week plan."
+description: "Reset tuần: cam kết, việc kẹt, kế hoạch tuần tới."
+description_en: "Weekly reset: commitments, stalled work, next-week plan."
 group: "Hermes · Productivity"
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent

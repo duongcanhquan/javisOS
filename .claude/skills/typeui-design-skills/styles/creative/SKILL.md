@@ -1,6 +1,7 @@
 ---
 name: creative
-description: Playful, character-driven design with expressive typography and bold graphics for landing pages and creative projects.
+description: "Thiết kế vui, chữ biểu cảm, đồ hoạ đậm cho landing sáng tạo."
+description_en: "Playful, character-driven design with expressive typography and bold graphics for landing pages and creative projects."
 license: MIT
 metadata:
   author: typeui.sh

@@ -1,6 +1,7 @@
 ---
 name: "youtube-content"
-description: "YouTube transcripts to summaries, threads, blogs."
+description: "Transcript YouTube → tóm tắt, thread, blog."
+description_en: "YouTube transcripts to summaries, threads, blogs."
 group: "Hermes · Media"
 version: 1.0.0
 author: Teknium (teknium1), Hermes Agent

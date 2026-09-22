@@ -1,6 +1,7 @@
 ---
 name: "baoyu-infographic"
-description: "Infographics: 21 layouts x 21 styles (信息图, 可视化)."
+description: "Infographic: 21 layout × 21 style (可視化), xuất hình minh họa."
+description_en: "Infographics: 21 layouts x 21 styles."
 group: "Hermes · Creative"
 version: 1.56.1
 author: 宝玉 (JimLiu)

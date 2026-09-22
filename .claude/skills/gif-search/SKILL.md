@@ -1,6 +1,7 @@
 ---
 name: "gif-search"
-description: "Search/download GIFs from Tenor via curl + jq."
+description: "Tìm/tải GIF Tenor bằng curl + jq."
+description_en: "Search/download GIFs from Tenor via curl + jq."
 group: "Hermes · Media"
 version: 1.1.0
 author: Hermes Agent

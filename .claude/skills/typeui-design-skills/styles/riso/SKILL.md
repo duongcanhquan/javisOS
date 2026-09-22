@@ -1,6 +1,7 @@
 ---
 name: "riso"
-description: "A playful, joyful, two-color risograph print aesthetic built on a single warm off-white paper surface running through every section"
+description: "In risograph hai màu vui trên một mặt giấy trắng ấm xuyên suốt."
+description_en: "A playful, joyful, two-color risograph print aesthetic built on a single warm off-white paper surface running through every section"
 metadata:
   author: typeui.sh
 ---

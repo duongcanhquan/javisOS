@@ -1,6 +1,7 @@
 ---
 name: "plugin-structure"
-description: "Scaffold a Claude Code plugin: plugin.json, directory layout, marketplace entry."
+description: "Scaffold plugin Claude Code: plugin.json, thư mục, marketplace."
+description_en: "Scaffold a Claude Code plugin: plugin.json, directory layout, marketplace entry."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

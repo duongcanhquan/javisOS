@@ -1,6 +1,7 @@
 ---
 name: "llm-wiki"
-description: "Karpathy's LLM Wiki: build/query interlinked markdown KB."
+description: "LLM Wiki kiểu Karpathy: dựng/truy vấn kho markdown liên kết."
+description_en: "Karpathy's LLM Wiki: build/query interlinked markdown KB."
 group: "Hermes · Research"
 version: 2.1.0
 author: Hermes Agent

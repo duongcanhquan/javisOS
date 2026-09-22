@@ -1,6 +1,7 @@
 ---
 name: neumorphism
-description: Soft, extruded UI elements with inner and outer shadows on monochromatic surfaces for a tactile, embedded look.
+description: "Neumorphism mềm: bóng trong/ngoài trên bề mặt đơn sắc, cảm giác nhúng."
+description_en: "Soft, extruded UI elements with inner and outer shadows on monochromatic surfaces for a tactile, embedded look."
 license: MIT
 metadata:
   author: typeui.sh

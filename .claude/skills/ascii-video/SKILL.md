@@ -1,6 +1,7 @@
 ---
 name: "ascii-video"
-description: "ASCII video: convert video/audio to colored ASCII MP4/GIF."
+description: "Chuyển video/audio thành ASCII MP4/GIF có màu."
+description_en: "ASCII video: convert video/audio to colored ASCII MP4/GIF."
 group: "Hermes · Creative"
 version: 1.0.0
 author: SHL0MS, Hermes Agent

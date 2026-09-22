@@ -1,6 +1,7 @@
 ---
 name: Đề xuất hợp tác quốc tế
-description: Khung đề xuất hợp tác quốc tế: inbound/outbound, điều kiện, rủi ro visa, bước tiếp xúc đối tác.
+description: "Khung đề xuất hợp tác quốc tế inbound/outbound: điều kiện, rủi ro visa, bước tiếp xúc đối tác."
+description_en: "International partnership proposal frame: inbound/outbound, conditions, visa risk, outreach steps."
 group: Vận hành
 ---
 

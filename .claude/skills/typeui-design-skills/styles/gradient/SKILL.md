@@ -1,6 +1,7 @@
 ---
 name: gradient
-description: Smooth color transitions and gradient-rich surfaces for modern, playful interfaces with visual depth.
+description: "Chuyển màu mượt, bề mặt gradient, giao diện vui có chiều sâu."
+description_en: "Smooth color transitions and gradient-rich surfaces for modern, playful interfaces with visual depth."
 license: MIT
 metadata:
   author: typeui.sh

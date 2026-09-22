@@ -1,6 +1,7 @@
 ---
 name: soan-va-tham-dinh-hop-dong
 description: "Soạn thảo, rà soát điều khoản, đánh giá rủi ro Đỏ-Vàng-Xanh và đề xuất sửa đổi hợp đồng hợp tác, đào tạo, dịch vụ công nghệ."
+description_en: "Draft/review contracts: Red-Yellow-Green risk, edits for partnership, training, tech services."
 group: Pháp chế
 ---
 

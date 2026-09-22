@@ -1,6 +1,7 @@
 ---
 name: "sketch"
-description: "A friendly, hand-drawn sketch interface inspired by pencil illustrations on warm cream paper. Soft teal brand accents, hand-written display headings, rounded pill controls."
+description: "Phác chì trên giấy cream ấm: accent teal, heading viết tay, nút pill."
+description_en: "A friendly, hand-drawn sketch interface inspired by pencil illustrations on warm cream paper. Soft teal brand accents, hand-written display headings,"
 metadata:
   author: typeui.sh
 ---

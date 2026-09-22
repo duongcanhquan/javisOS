@@ -1,6 +1,7 @@
 ---
 name: refined
-description: Carefully curated, modern minimal style with elegant serif typography and understated, sophisticated palettes.
+description: "Tối giản hiện đại chọn lọc: serif thanh, palette dịu, tinh tế."
+description_en: "Carefully curated, modern minimal style with elegant serif typography and understated, sophisticated palettes."
 license: MIT
 metadata:
   author: typeui.sh

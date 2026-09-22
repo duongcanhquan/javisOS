@@ -160,11 +160,14 @@ check("chỉ ghi nhà hợp lệ vào file agent", 'mp if mp in AGENT_PROVIDERS 
 check("agents_index trả model_provider cho giao diện",
       '"model_provider": meta.get("model_provider", "")' in src)
 check("_agent_sysprompt trả kèm nhà", 'ameta.get("model_provider")' in src)
-# Bốn chỗ bóc tuple và bốn chỗ dựng engine phải đi cùng nhau - lệch một chỗ là agent đó
-# âm thầm mất nhà đã chọn.
-check("đủ 4 chỗ bóc tuple 4 phần", src.count("= _agent_sysprompt(") + src.count("= agent_sysprompt(") == 4)
+# Năm chỗ bóc tuple và chỗ dựng engine phải đi cùng nhau - lệch một chỗ là agent đó
+# âm thầm mất nhà đã chọn. (chat trực tiếp + workflow + verify + chat agent + verify nền)
+check("đủ chỗ bóc tuple 4 phần",
+      src.count("= _agent_sysprompt(") + src.count("= agent_sysprompt(") == 5)
 check("mọi chỗ bóc tuple đều lấy cả provider",
-      src.count("agent_model, agent_prov = ") + src.count("v_model, v_prov = ") == 4)
+      (src.count("agent_model, agent_prov = ")
+       + src.count("v_model, v_prov = ")
+       + src.count("_model, _prov = ")) == 5)
 check("mọi chỗ dựng engine đều truyền provider xuống",
       src.count("mk(sysprompt, agent_model, agent_prov)") + src.count("mk(v_sys, v_model, v_prov)") == 4)
 check("router đổi model thì bỏ nhà cũ (không ép model Claude qua nhà khác)",

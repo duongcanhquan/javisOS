@@ -1,6 +1,7 @@
 ---
 name: Tổng hợp & so sánh báo cáo
-description: Đọc báo cáo/tài liệu, tổng hợp và so sánh kỳ hoặc bản A/B, nêu lệch số cùng giả định.
+description: "Đọc báo cáo/tài liệu, tổng hợp và so sánh kỳ hoặc bản A/B, nêu lệch số cùng giả định."
+description_en: "Summarize reports; compare periods or A/B; call out number gaps with assumptions."
 group: Second Brain
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: "powerpoint"
-description: "Create, read, edit .pptx decks with python-pptx."
+description: "Tạo/đọc/sửa deck .pptx bằng python-pptx."
+description_en: "Create, read, edit .pptx decks with python-pptx."
 group: "Hermes · Office"
 version: 1.1.0
 author: Nous Research

@@ -1,6 +1,7 @@
 ---
 name: friendly
-description: Approachable, intuitive design with rounded elements, ample whitespace, and soft pastel color palettes.
+description: "Thân thiện: bo tròn, nhiều khoảng trắng, pastel mềm."
+description_en: "Approachable, intuitive design with rounded elements, ample whitespace, and soft pastel color palettes."
 license: MIT
 metadata:
   author: typeui.sh

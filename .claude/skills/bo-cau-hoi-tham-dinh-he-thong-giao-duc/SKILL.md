@@ -1,6 +1,7 @@
 ---
 name: "Bộ câu hỏi thẩm định hệ thống giáo dục"
 description: "Soạn bộ câu hỏi thẩm định hệ thống giáo dục theo kỹ thuật, nghiệp vụ, dữ liệu và lộ trình phát triển."
+description_en: "Draft education-system due-diligence questionnaires: tech, ops, data, roadmap."
 group: "AI"
 origin: javis-learned
 status: active

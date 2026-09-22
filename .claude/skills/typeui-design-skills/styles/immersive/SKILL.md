@@ -1,6 +1,7 @@
 ---
 name: "immersive"
-description: "An immersive, interactive, exhibit-style interface that blends storytelling, animation, and gamified elements to create a playful, experience-driven journey. The entire app sits on a single continuous brand-colored canvas (deep green)"
+description: "Triển lãm tương tác: kể chuyện, animation, gamify trên canvas brand."
+description_en: "An immersive, interactive, exhibit-style interface that blends storytelling, animation, and gamified elements to create a playful, experience-driven j"
 metadata:
   author: typeui.sh
 ---

@@ -1,6 +1,7 @@
 ---
 name: premium
-description: Apple-inspired premium aesthetic with precise spacing, modern typography, and a refined, polished visual language.
+description: "Thẩm mỹ kiểu Apple: spacing chuẩn, chữ hiện đại, tinh tế."
+description_en: "Apple-inspired premium aesthetic with precise spacing, modern typography, and a refined, polished visual language."
 license: MIT
 metadata:
   author: typeui.sh

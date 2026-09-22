@@ -1,6 +1,7 @@
 ---
 name: cafe
-description: Cozy cafe-inspired interface with warm tones, soft typography, and clean layouts for a relaxed browsing experience.
+description: "Giao diện quán cafe ấm: tông ấm, chữ mềm, layout sạch để xem thư thái."
+description_en: "Cozy cafe-inspired interface with warm tones, soft typography, and clean layouts for a relaxed browsing experience."
 license: MIT
 metadata:
   author: typeui.sh

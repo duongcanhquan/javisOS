@@ -166,8 +166,8 @@ html = (DASHBOARD / "index.html").read_text(encoding="utf-8")
 check("rail có tool_apis", '"tool_apis"' in console and "ids: [\"mcp\"" in console)
 check("VIEW_ICON key cho tool_apis", "tool_apis: \"key\"" in console)
 check("render uỷ quyền JavisToolApis", "JavisToolApis" in console)
-check("index nạp tool-apis.js trước console.js",
-      html.index('src="/static/tool-apis.js') < html.index('src="/static/console.js'))
+check("index lazy-load tool-apis.js (PAGE_LAZY)",
+      "tool-apis.js" in html and "javis-page-lazy" in html)
 js = (DASHBOARD / "tool-apis.js").read_text(encoding="utf-8")
 check("tool-apis.js không em dash", "\u2014" not in js)
 py = (SERVER / "tool_apis.py").read_text(encoding="utf-8")

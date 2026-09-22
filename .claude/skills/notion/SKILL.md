@@ -1,6 +1,7 @@
 ---
 name: "notion"
-description: "Notion API + ntn CLI: pages, databases, markdown, Workers."
+description: "Notion qua API/ntn CLI: trang, database, markdown, Workers."
+description_en: "Notion API + ntn CLI: pages, databases, markdown, Workers."
 group: "Hermes · Productivity"
 version: 2.0.0
 author: community

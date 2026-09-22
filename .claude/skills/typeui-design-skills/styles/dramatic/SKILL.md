@@ -1,6 +1,7 @@
 ---
 name: dramatic
-description: High-contrast, theatrical design with bold layouts, immersive visuals, and unconventional compositions that command attention.
+description: "Sân khấu tương phản cao: bố cục táo bạo, visual nhấn mạnh."
+description_en: "High-contrast, theatrical design with bold layouts, immersive visuals, and unconventional compositions that command attention."
 license: MIT
 metadata:
   author: typeui.sh

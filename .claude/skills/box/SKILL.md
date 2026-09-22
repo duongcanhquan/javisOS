@@ -1,6 +1,7 @@
 ---
 name: "box"
-description: "Box manages cloud files, sharing, search, and metadata."
+description: "Box: quản lý file đám mây, chia sẻ, tìm kiếm, metadata."
+description_en: "Box manages cloud files, sharing, search, and metadata."
 group: "Hermes · Productivity"
 version: 1.0.0
 author: Chris Kim (iskysun96), Hermes Agent

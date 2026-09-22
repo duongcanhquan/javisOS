@@ -1,6 +1,7 @@
 ---
 name: "maps"
-description: "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM."
+description: "Geocode, POI, lộ trình, múi giờ qua OpenStreetMap/OSRM."
+description_en: "Geocode, POIs, routes, timezones via OpenStreetMap/OSRM."
 group: "Hermes · Productivity"
 version: 1.2.0
 author: Mibayy

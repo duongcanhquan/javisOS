@@ -1,6 +1,7 @@
 ---
 name: "popular-web-designs"
-description: "54 real design systems (Stripe, Linear, Vercel) as HTML/CSS."
+description: "54 hệ thiết kế thật (Stripe, Linear, Vercel) dạng HTML/CSS."
+description_en: "54 real design systems (Stripe, Linear, Vercel) as HTML/CSS."
 group: "Hermes · Creative"
 version: 1.0.0
 author: Hermes Agent + Teknium (design systems sourced from VoltAgent/awesome-design-md)

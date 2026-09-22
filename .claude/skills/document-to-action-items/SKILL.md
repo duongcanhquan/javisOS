@@ -1,6 +1,7 @@
 ---
 name: "document-to-action-items"
-description: "Extract cited obligations, deadlines, tasks from documents."
+description: "Rút nghĩa vụ, hạn, việc từ tài liệu kèm trích dẫn."
+description_en: "Extract cited obligations, deadlines, tasks from documents."
 group: "Hermes · Office"
 version: 0.1.0
 author: Ben Barclay (benbarclay), Hermes Agent

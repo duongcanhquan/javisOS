@@ -1,6 +1,7 @@
 ---
 name: "google-workspace"
-description: "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python."
+description: "Gmail, Calendar, Drive, Docs, Sheets qua gws CLI hoặc Python."
+description_en: "Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python."
 group: "Hermes · Productivity"
 version: 1.2.0
 author: Nous Research

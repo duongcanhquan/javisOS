@@ -1,6 +1,7 @@
 ---
 name: "pdf"
-description: "PDF files: create, read, merge, fill, OCR, edit text."
+description: "PDF: tạo, đọc, gộp, điền form, OCR, sửa chữ."
+description_en: "PDF files: create, read, merge, fill, OCR, edit text."
 group: "Hermes · Office"
 version: 1.1.0
 author: Nous Research

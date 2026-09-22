@@ -1,6 +1,7 @@
 ---
 name: "receipts"
-description: "Report your Claude Code usage and impact from local session transcripts."
+description: "Báo cáo mức dùng Claude Code và tác động từ transcript phiên local."
+description_en: "Report your Claude Code usage and impact from local session transcripts."
 group: "Claude · UI & reports"
 ---
 

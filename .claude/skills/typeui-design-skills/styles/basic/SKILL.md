@@ -1,6 +1,7 @@
 ---
 name: basic
-description: Print-inspired visual language for books, magazines, and reports with editorial grids and expressive typography.
+description: "Ngôn ngữ in ấn sách/báo/cáo cáo: lưới editorial và typography rõ."
+description_en: "Print-inspired visual language for books, magazines, and reports with editorial grids and expressive typography."
 license: MIT
 metadata:
   author: typeui.sh

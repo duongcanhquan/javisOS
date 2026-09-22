@@ -1,6 +1,7 @@
 ---
 name: "session-report"
-description: "Explorable HTML report of session usage: tokens, cache, subagents, skills, cost."
+description: "Báo cáo HTML phiên: token, cache, subagent, skill, chi phí."
+description_en: "Explorable HTML report of session usage: tokens, cache, subagents, skills, cost."
 group: "Claude · UI & reports"
 ---
 

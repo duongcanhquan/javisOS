@@ -1,6 +1,7 @@
 ---
 name: "Soạn phát biểu nhận giải"
 description: "Soạn bài phát biểu nhận giải ngắn, đúng bối cảnh, khiêm tốn và tôn vinh tập thể."
+description_en: "Draft short award acceptance speeches: context-fit, humble, team-honoring."
 group: "Nội dung"
 origin: javis-learned
 status: active

@@ -1,6 +1,7 @@
 ---
 name: minimal
-description: Stripped-back design emphasizing whitespace, clean typography, and restrained color for maximum clarity and focus.
+description: "Cắt tối đa: khoảng trắng, chữ sạch, màu kiềm chế, tập trung."
+description_en: "Stripped-back design emphasizing whitespace, clean typography, and restrained color for maximum clarity and focus."
 license: MIT
 metadata:
   author: typeui.sh

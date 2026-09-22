@@ -1,6 +1,7 @@
 ---
 name: "claude-code"
-description: "Delegate coding to Claude Code CLI (features, PRs)."
+description: "Uỷ thác code cho Claude Code CLI (tính năng, PR)."
+description_en: "Delegate coding to Claude Code CLI (features, PRs)."
 group: "Hermes · AI agents"
 version: 2.2.1
 author: Hermes Agent + Teknium

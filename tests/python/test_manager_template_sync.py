@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from _paths import ROOT, SERVER  # noqa: E402,F401
 import manager_template_sync as m
 
 

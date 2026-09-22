@@ -1,6 +1,7 @@
 ---
 name: neon
-description: Electric neon glow effects with high-contrast color pairings for bold, attention-grabbing interfaces.
+description: "Neon điện: cặp màu tương phản cao, hút mắt mạnh."
+description_en: "Electric neon glow effects with high-contrast color pairings for bold, attention-grabbing interfaces."
 license: MIT
 metadata:
   author: typeui.sh

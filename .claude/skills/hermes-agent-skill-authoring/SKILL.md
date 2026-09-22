@@ -1,6 +1,7 @@
 ---
 name: "hermes-agent-skill-authoring"
-description: "Author in-repo SKILL.md files: frontmatter and structure."
+description: "Soạn SKILL.md trong repo: frontmatter và cấu trúc."
+description_en: "Author in-repo SKILL.md files: frontmatter and structure."
 group: "Hermes · AI agents"
 version: 2.0.0
 author: Hermes Agent

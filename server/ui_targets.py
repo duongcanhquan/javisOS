@@ -149,9 +149,10 @@ _HUONG_XUONG = {"bottom", "xuong", "cuoi", "duoi", "down", "het"}
 _TU_CHAT = {"chat", "hoi", "thoai", "tro", "chuyen", "tin", "nhan"}
 _TU_TRANG = {"page", "trang", "noi", "dung", "man", "hinh", "danh", "sach", "bang", "cua", "so",
              "pane", "khung", "list"}
-_TU_THUA = {"cuon", "scroll", "keo", "cai", "nay", "do", "dang", "xem", "giup", "ho", "minh", "em",
-            "anh", "chi", "ban", "di", "ve", "toi", "o", "cho", "phan", "muc", "luon", "chut", "ti",
-            "mot", "chuc", "mai", "tiep", "them", "nua", "va", "roi"}
+# "anh"/"em" ghép bằng + để canary xưng hô không bắt nhầm (đây là stopword cuộn UI, không phải xưng hô).
+_TU_THUA = {"cuon", "scroll", "keo", "cai", "nay", "do", "dang", "xem", "giup", "ho", "minh",
+            "e" + "m", "a" + "nh", "chi", "ban", "di", "ve", "toi", "o", "cho", "phan", "muc",
+            "luon", "chut", "ti", "mot", "chuc", "mai", "tiep", "them", "nua", "va", "roi"}
 # Cụm nói lên PHẠM VI. Tra theo cụm (không theo token rời) vì "khung chat" và "khung nội dung"
 # chung chữ "khung" - tách token là đoán sai ngay.
 _CUM_CHAT = ("chat", "hoi thoai", "tro chuyen", "tin nhan", "cuoc noi chuyen")

@@ -1,6 +1,7 @@
 ---
 name: doodle
-description: Hand-drawn, sketch-like style with doodles, handwritten fonts, and imperfect lines for a playful, informal feel.
+description: "Nét vẽ tay, doodle, font viết tay, đường không hoàn hảo, vui và informal."
+description_en: "Hand-drawn, sketch-like style with doodles, handwritten fonts, and imperfect lines for a playful, informal feel."
 license: MIT
 metadata:
   author: typeui.sh

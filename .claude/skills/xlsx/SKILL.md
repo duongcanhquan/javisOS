@@ -1,6 +1,7 @@
 ---
 name: "xlsx"
-description: "Create, read, edit Excel .xlsx workbooks and CSVs."
+description: "Tạo/đọc/sửa workbook Excel .xlsx và CSV."
+description_en: "Create, read, edit Excel .xlsx workbooks and CSVs."
 group: "Hermes · Office"
 version: 1.1.0
 author: Nous Research

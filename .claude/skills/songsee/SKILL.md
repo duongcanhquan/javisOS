@@ -1,6 +1,7 @@
 ---
 name: "songsee"
-description: "Audio spectrograms/features (mel, chroma, MFCC) via CLI."
+description: "Spectrogram/đặc trưng audio (mel, chroma, MFCC) qua CLI."
+description_en: "Audio spectrograms/features (mel, chroma, MFCC) via CLI."
 group: "Hermes · Media"
 version: 1.0.0
 author: community

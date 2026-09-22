@@ -1,6 +1,7 @@
 ---
 name: "p5js"
-description: "p5.js sketches: gen art, shaders, interactive, 3D."
+description: "Sketch p5.js: gen art, shader, tương tác, 3D."
+description_en: "p5.js sketches: gen art, shaders, interactive, 3D."
 group: "Hermes · Creative"
 version: 1.0.0
 author: SHL0MS, Hermes Agent

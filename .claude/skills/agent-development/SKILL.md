@@ -1,6 +1,7 @@
 ---
 name: "agent-development"
-description: "Write Claude Code subagents: frontmatter, tool access, delegation triggers."
+description: "Viết subagent Claude Code: frontmatter, quyền tool, khi nào uỷ thác."
+description_en: "Write Claude Code subagents: frontmatter, tool access, delegation triggers."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

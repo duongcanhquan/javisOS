@@ -1,6 +1,7 @@
 ---
 name: "command-development"
-description: "Author slash commands: frontmatter, arguments, bash and file references."
+description: "Viết slash command: frontmatter, đối số, bash và tham chiếu file."
+description_en: "Author slash commands: frontmatter, arguments, bash and file references."
 group: "Claude · Plugin dev"
 version: 0.2.0
 ---

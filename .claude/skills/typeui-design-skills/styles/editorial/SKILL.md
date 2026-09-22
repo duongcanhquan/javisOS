@@ -1,6 +1,7 @@
 ---
 name: editorial
-description: Magazine-inspired editorial layout with refined serif typography, structured grids, and elegant reading experiences.
+description: "Layout tạp chí: serif tinh, lưới chặt, trải nghiệm đọc thanh lịch."
+description_en: "Magazine-inspired editorial layout with refined serif typography, structured grids, and elegant reading experiences."
 license: MIT
 metadata:
   author: typeui.sh

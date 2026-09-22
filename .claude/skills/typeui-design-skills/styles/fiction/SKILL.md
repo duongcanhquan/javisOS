@@ -1,6 +1,7 @@
 ---
 name: "fiction"
-description: "A playful, energetic, cartoonesque interface inspired by friendly children's-book illustrations — warm cream backgrounds, big bold custom display typography, saturated brand color blocks, thick black outlines, generously rounded shapes"
+description: "Giao diện sách thiếu nhi vui: cream ấm, chữ display đậm, viền đen dày."
+description_en: "A playful, energetic, cartoonesque interface inspired by friendly children's-book illustrations — warm cream backgrounds, big bold custom display typo"
 metadata:
   author: typeui.sh
 ---

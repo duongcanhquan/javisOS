@@ -1,6 +1,7 @@
 ---
 name: Đề xuất liên kết doanh nghiệp
-description: Soạn đề xuất liên kết đào tạo trường-DN: lợi ích đôi bên, mô hình, mốc, rủi ro, nội dung cần BGH duyệt.
+description: "Soạn đề xuất liên kết đào tạo trường-DN: lợi ích đôi bên, mô hình, mốc, rủi ro, nội dung BGH duyệt."
+description_en: "Draft school-enterprise training link proposals: mutual value, model, milestones, risks, board items."
 group: Vận hành
 ---
 

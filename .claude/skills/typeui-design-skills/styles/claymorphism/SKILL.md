@@ -1,6 +1,7 @@
 ---
 name: claymorphism
-description: Soft, rounded 3D-like shapes mimicking malleable clay with playful, puffy elements and colorful surfaces.
+description: "Hình 3D mềm như đất sét: bo tròn, phồng, bề mặt màu vui."
+description_en: "Soft, rounded 3D-like shapes mimicking malleable clay with playful, puffy elements and colorful surfaces."
 license: MIT
 metadata:
   author: typeui.sh

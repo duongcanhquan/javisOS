@@ -1,6 +1,7 @@
 ---
 name: enterprise
-description: Dark-themed cloud-platform aesthetic with modular grids, glass-like panels, and strong data hierarchy for productivity dashboards.
+description: "Dashboard cloud tối: panel kính, lưới module, phân cấp dữ liệu mạnh."
+description_en: "Dark-themed cloud-platform aesthetic with modular grids, glass-like panels, and strong data hierarchy for productivity dashboards."
 license: MIT
 metadata:
   author: typeui.sh

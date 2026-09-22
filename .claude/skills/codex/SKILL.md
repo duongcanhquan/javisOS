@@ -1,6 +1,7 @@
 ---
 name: "codex"
-description: "Delegate coding to OpenAI Codex CLI (features, PRs)."
+description: "Uỷ thác code cho OpenAI Codex CLI (tính năng, PR)."
+description_en: "Delegate coding to OpenAI Codex CLI (features, PRs)."
 group: "Hermes · AI agents"
 version: 1.0.1
 author: Hermes Agent

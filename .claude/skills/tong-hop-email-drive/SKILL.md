@@ -1,6 +1,7 @@
 ---
 name: Tổng hợp email & Drive
-description: Đọc Gmail + Drive, lọc tín hiệu, gửi bản tổng kết ngày/tuần kèm nguồn và việc cần làm.
+description: "Đọc Gmail + Drive, lọc tín hiệu, gửi bản tổng kết ngày/tuần kèm nguồn và việc cần làm."
+description_en: "Read Gmail+Drive, filter signals, send day/week digest with sources and next actions."
 group: Second Brain
 ---
 

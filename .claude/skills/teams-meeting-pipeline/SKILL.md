@@ -1,6 +1,7 @@
 ---
 name: "teams-meeting-pipeline"
-description: "Teams meeting summaries, job replay, Graph subscriptions."
+description: "Tóm tắt họp Teams, phát lại job, Graph subscription."
+description_en: "Teams meeting summaries, job replay, Graph subscriptions."
 group: "Hermes · Productivity"
 version: 1.1.0
 author: Hermes Agent + Teknium

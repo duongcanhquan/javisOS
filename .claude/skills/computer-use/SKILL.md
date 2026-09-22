@@ -1,6 +1,7 @@
 ---
 name: "computer-use"
-description: "Drive the desktop background-first; escalate on signal."
+description: "Điều khiển desktop ưu tiên nền; leo thang khi có tín hiệu."
+description_en: "Drive the desktop background-first; escalate on signal."
 group: "Hermes · AI agents"
 version: 2.0.0
 author: Francesco Bonacci (f-trycua), Hermes Agent

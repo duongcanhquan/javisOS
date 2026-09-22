@@ -1,6 +1,7 @@
 ---
 name: ant
-description: Structured, enterprise-focused design system emphasizing clarity, consistency, and efficiency for data-dense web applications.
+description: "Hệ Ant Design doanh nghiệp: rõ ràng, nhất quán, hiệu quả cho web dày dữ liệu."
+description_en: "Structured, enterprise-focused design system emphasizing clarity, consistency, and efficiency for data-dense web applications."
 license: MIT
 metadata:
   author: typeui.sh

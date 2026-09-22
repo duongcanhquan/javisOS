@@ -1,6 +1,7 @@
 ---
 name: "playground"
-description: "Build self-contained interactive HTML explorers with live controls and output."
+description: "Dựng HTML explorer tương tác tự chứa, có điều khiển và output live."
+description_en: "Build self-contained interactive HTML explorers with live controls and output."
 group: "Claude · UI & reports"
 ---
 

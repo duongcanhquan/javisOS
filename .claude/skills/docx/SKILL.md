@@ -1,6 +1,7 @@
 ---
 name: "docx"
-description: "Create, read, edit, template, and review Word .docx files."
+description: "Tạo/đọc/sửa/mẫu/rà soát file Word .docx."
+description_en: "Create, read, edit, template, and review Word .docx files."
 group: "Hermes · Office"
 version: 1.1.0
 author: Nous Research

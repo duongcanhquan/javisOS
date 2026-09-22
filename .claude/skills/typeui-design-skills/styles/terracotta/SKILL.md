@@ -1,6 +1,7 @@
 ---
 name: "terracotta"
-description: "A sun-baked, clay-toned editorial interface built on warm cream surfaces, ink-brown headlines set in a display serif, and a single terracotta accent."
+description: "Editorial đất nung: cream ấm, heading serif nâu mực, accent terracotta."
+description_en: "A sun-baked, clay-toned editorial interface built on warm cream surfaces, ink-brown headlines set in a display serif, and a single terracotta accent."
 metadata:
   author: typeui.sh
 ---

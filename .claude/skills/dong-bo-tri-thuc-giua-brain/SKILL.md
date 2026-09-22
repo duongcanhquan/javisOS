@@ -1,6 +1,7 @@
 ---
 name: "Đồng bộ tri thức giữa brain"
 description: "Đồng bộ có chọn lọc wiki, sources, skills và memory liên quan từ một brain sang brain khác."
+description_en: "Selectively sync wiki, sources, skills, and related memory across brains."
 group: "AI"
 origin: javis-learned
 status: active

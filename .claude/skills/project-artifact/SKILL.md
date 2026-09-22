@@ -1,6 +1,7 @@
 ---
 name: "project-artifact"
-description: "Publish a tabbed project status page: overview, workstreams, risks, decisions."
+description: "Xuất trang trạng thái dự án dạng tab: tổng quan, luồng, rủi ro, quyết định."
+description_en: "Publish a tabbed project status page: overview, workstreams, risks, decisions."
 group: "Claude · UI & reports"
 user-invocable: true
 ---

@@ -1,6 +1,7 @@
 ---
 name: glassmorphism
-description: Frosted glass effect with translucent layers, subtle blur, and luminous borders for depth and modern elegance.
+description: "Kính mờ: lớp trong suốt, blur nhẹ, viền sáng, chiều sâu hiện đại."
+description_en: "Frosted glass effect with translucent layers, subtle blur, and luminous borders for depth and modern elegance."
 license: MIT
 metadata:
   author: typeui.sh

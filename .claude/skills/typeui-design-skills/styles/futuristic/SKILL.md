@@ -1,6 +1,7 @@
 ---
 name: futuristic
-description: Forward-looking design with tech-inspired typography, modern layouts, and a sleek, innovation-driven aesthetic.
+description: "Hướng tương lai: chữ tech, layout hiện đại, cảm giác đổi mới."
+description_en: "Forward-looking design with tech-inspired typography, modern layouts, and a sleek, innovation-driven aesthetic."
 license: MIT
 metadata:
   author: typeui.sh

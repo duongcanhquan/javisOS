@@ -1,6 +1,7 @@
 ---
 name: "Tra cứu CMS sinh viên"
 description: "Tra cứu CMS sinh viên VietMyCollege theo tên, mã SV, lớp, ngành, khóa và tổng hợp trạng thái học phí."
+description_en: "Look up VietMyCollege student CMS by name/ID/class/major/cohort; summarize tuition status."
 group: "Operations"
 origin: javis-learned
 status: active

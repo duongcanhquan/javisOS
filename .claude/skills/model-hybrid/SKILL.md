@@ -1,6 +1,7 @@
 ---
 name: Hybrid Antigravity / Claude
-description: Việc nhẹ dùng Antigravity (miễn phí); việc nặng đề xuất Claude — proposal, so sánh sâu, tự động hóa rủi ro.
+description: "Việc nhẹ dùng Antigravity (miễn phí); việc nặng đề xuất Claude: proposal, so sánh sâu, tự động hóa rủi ro."
+description_en: "Light work on Antigravity (free); heavy work prefer Claude: proposals, deep compare, risky automation."
 group: Second Brain
 ---
 

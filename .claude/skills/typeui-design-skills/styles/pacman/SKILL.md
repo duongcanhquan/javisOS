@@ -1,6 +1,7 @@
 ---
 name: pacman
-description: Retro arcade-inspired design with pixel fonts, dotted borders, playful high-contrast colors, and 8-bit game aesthetics.
+description: "Arcade retro: font pixel, viền chấm, màu vui, cảm giác 8-bit."
+description_en: "Retro arcade-inspired design with pixel fonts, dotted borders, playful high-contrast colors, and 8-bit game aesthetics."
 license: MIT
 metadata:
   author: typeui.sh

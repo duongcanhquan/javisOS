@@ -1,6 +1,7 @@
 ---
 name: Đánh giá đối tác và pháp lý HTĐT
-description: Thẩm định toàn diện đối tác HTĐT: pháp lý, tiềm lực, khách hàng, vị trí địa lý, cơ hội và ma trận rủi ro liên kết đào tạo.
+description: "Thẩm định đối tác HTĐT: pháp lý, tiềm lực, khách hàng, địa lý, cơ hội và ma trận rủi ro liên kết đào tạo."
+description_en: "Partner due diligence for training links: legal, capacity, customers, location, opportunity, risk matrix."
 group: Đào tạo & HTĐT
 ---
 

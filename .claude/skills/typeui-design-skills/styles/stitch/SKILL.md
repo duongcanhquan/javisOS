@@ -1,6 +1,7 @@
 ---
 name: stitch
-description: Clean, high-contrast enterprise design for data-driven workflows with intuitive drag-and-drop patterns and structured layouts.
+description: "Enterprise tương phản cao: workflow dữ liệu, kéo-thả, layout có cấu trúc."
+description_en: "Clean, high-contrast enterprise design for data-driven workflows with intuitive drag-and-drop patterns and structured layouts."
 license: MIT
 metadata:
   author: typeui.sh

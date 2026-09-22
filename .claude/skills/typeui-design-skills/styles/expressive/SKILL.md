@@ -1,6 +1,7 @@
 ---
 name: expressive
-description: Vibrant, personality-driven design with bold colors, playful graphics, and dynamic layouts that balance creativity with structure.
+description: "Màu đậm, đồ hoạ vui, layout động cân sáng tạo và cấu trúc."
+description_en: "Vibrant, personality-driven design with bold colors, playful graphics, and dynamic layouts that balance creativity with structure."
 license: MIT
 metadata:
   author: typeui.sh

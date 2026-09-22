@@ -1,6 +1,7 @@
 ---
 name: typeui-design-skills
 description: "Kho 67 phong cách thiết kế TypeUI (Bento, Sleek, Brutalism...) định hình visual cho landing page, website và slide trình chiếu."
+description_en: "Catalog of 67 TypeUI visual styles (Bento, Sleek, Brutalism...) for landing, web, and slides."
 group: Frontend & Design
 ---
 

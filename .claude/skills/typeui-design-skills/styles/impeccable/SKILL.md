@@ -1,6 +1,7 @@
 ---
 name: "impeccable"
-description: "A modern, graphic, editorial-poster aesthetic — warm and confident — built on alternating cream and burnt orange sections, an amber brand color."
+description: "Poster editorial ấm tự tin: cream xen cam cháy, brand hổ phách."
+description_en: "A modern, graphic, editorial-poster aesthetic — warm and confident — built on alternating cream and burnt orange sections, an amber brand color."
 metadata:
   author: typeui.sh
 ---

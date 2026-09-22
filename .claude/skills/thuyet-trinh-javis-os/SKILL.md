@@ -1,6 +1,7 @@
 ---
 name: "Thuyết trình Javis OS"
 description: "Soạn bài thuyết trình Javis OS dễ hiểu, hấp dẫn đa ngành, kèm kịch bản slide, demo và Q&A."
+description_en: "Draft clear multi-audience Javis OS talks with slide script, demo, and Q&A."
 group: "Hermes · Office"
 origin: javis-learned
 status: active

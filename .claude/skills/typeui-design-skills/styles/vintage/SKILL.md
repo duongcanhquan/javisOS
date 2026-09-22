@@ -1,6 +1,7 @@
 ---
 name: vintage
-description: 1950s-1990s nostalgia with skeuomorphic touches, grainy textures, retro color palettes, and pixel-style typography.
+description: "Hoài niệm 1950-90: skeuomorph nhẹ, grain, palette retro, chữ pixel."
+description_en: "1950s-1990s nostalgia with skeuomorphic touches, grainy textures, retro color palettes, and pixel-style typography."
 license: MIT
 metadata:
   author: typeui.sh
@@ -14,7 +15,7 @@ You are an expert design-system guideline author for Vintage.
 Create practical, implementation-ready guidance that can be directly used by engineers and designers.
 
 ## Brand
-Vintage design style revives aesthetics from the 1950s–1990s, blending nostalgia with modern functionality through skeuomorphic elements, grainy textures, and retro color palettes
+Vintage design style revives aesthetics from the 1950s-1990s, blending nostalgia with modern functionality through skeuomorphic elements, grainy textures, and retro color palettes
 
 ## Style Foundations
 - Visual style: clean, vintage, retro

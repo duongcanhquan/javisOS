@@ -1,6 +1,7 @@
 ---
 name: retro
-description: Throwback design with vintage-inspired typography, high-contrast retro palettes, and nostalgic visual elements.
+description: "Hoài cổ: typography vintage, palette retro tương phản, chi tiết cũ."
+description_en: "Throwback design with vintage-inspired typography, high-contrast retro palettes, and nostalgic visual elements."
 license: MIT
 metadata:
   author: typeui.sh

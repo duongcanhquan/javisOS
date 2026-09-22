@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+import winproc
+
 MANIFEST_REL = Path(".javis") / "manager-manifest.json"
 TEMPLATE_SUBDIRS = ("agents", "workflows", "skills")
 BRAIN_NAME = os.environ.get("JAVIS_TEMPLATE_BRAIN", "Brain Default")
@@ -294,6 +296,7 @@ def docker_ok() -> bool:
         r = subprocess.run(
             [_docker_bin(), "version", "--format", "{{.Server.Version}}"],
             capture_output=True, text=True, timeout=15,
+            **winproc.kwargs_no_window(),
         )
         return r.returncode == 0
     except Exception:
@@ -306,6 +309,7 @@ def list_javis_containers(*, exclude: Optional[set[str]] = None) -> list[str]:
     r = subprocess.run(
         [_docker_bin(), "ps", "--format", "{{.Names}}"],
         capture_output=True, text=True, timeout=30, check=True,
+        **winproc.kwargs_no_window(),
     )
     names = []
     for line in r.stdout.splitlines():
@@ -323,6 +327,7 @@ def docker_exec(container: str, args: list[str], *, timeout: int = 300) -> tuple
     r = subprocess.run(
         [_docker_bin(), "exec", container, *args],
         capture_output=True, text=True, timeout=timeout,
+        **winproc.kwargs_no_window(),
     )
     out = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
     return r.returncode, out
@@ -333,6 +338,7 @@ def _docker_cp(src: str, dst: str, timeout: int = 300) -> int:
     r = subprocess.run(
         [_docker_bin(), "cp", src, dst],
         capture_output=True, text=True, timeout=timeout,
+        **winproc.kwargs_no_window(),
     )
     return r.returncode
 

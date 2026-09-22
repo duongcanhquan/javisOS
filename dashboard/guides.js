@@ -1,10 +1,10 @@
 /* Trang Hướng dẫn trong dashboard.
  *
  * Bốn mục menu (nhóm «Hướng dẫn», đặt ngay dưới «Kết nối»):
- *   guide_what    — VMOS làm được gì
- *   guide_connect — Kết nối (Models, MCP, kênh…)
- *   guide_studio  — Skill / Agent / Workflow
- *   guide_work    — Công việc & chức năng khác
+ *   guide_what    - VMOS làm được gì
+ *   guide_connect - Kết nối (Models, MCP, kênh…)
+ *   guide_studio  - Skill / Agent / Workflow
+ *   guide_work    - Công việc & chức năng khác
  *
  * Nội dung viết sẵn bằng tiếng Việt, chữ đơn giản; sơ đồ bằng HTML/CSS (không cần mạng).
  * console.js gọi window.JavisGuides.render(el, id).
@@ -130,7 +130,7 @@
       ${toc("guide_what")}
 
       <div class="jv-g-sec">
-        <h3>${ic("lightbulb")} Bản đồ nhanh — theo menu trái</h3>
+        <h3>${ic("lightbulb")} Bản đồ nhanh - theo menu trái</h3>
         <p>Mỗi nhóm trên rail có một nhiệm vụ. Nhớ thứ tự: <b>Models → Chat → Cộng sự / Skills → Kết nối</b>.</p>
         <div class="jv-g-flow">
           <div class="n hi">1. Kết nối<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Models · MCP</span></div>
@@ -164,7 +164,7 @@
         <h3>${ic("lightbulb")} Bạn dùng VMOS để làm gì?</h3>
         <div class="jv-g-map">
           <div class="m" data-ggo="chat"><div class="t">${ic("message-circle")} Trò chuyện</div><div class="d">Hỏi việc, viết email, tóm tắt tài liệu, nhờ gợi ý.</div></div>
-          <div class="m" data-ggo="kanban"><div class="t">${ic("square-kanban")} Giao việc nền</div><div class="d">Nói một goal — VMOS tự chạy task trên bảng Việc.</div></div>
+          <div class="m" data-ggo="kanban"><div class="t">${ic("square-kanban")} Giao việc nền</div><div class="d">Nói một goal - VMOS tự chạy task trên bảng Việc.</div></div>
           <div class="m" data-ggo="skills"><div class="t">${ic("puzzle")} Kỹ năng sẵn</div><div class="d">SEO, kế toán, slide, nghiên cứu… bật skill rồi gọi.</div></div>
           <div class="m" data-ggo="workspace"><div class="t">${ic("bot")} Cộng sự</div><div class="d">Trợ Lý (Agent) và Quy Trình (Workflows) trong một trang.</div></div>
           <div class="m" data-ggo="conversations"><div class="t">${ic("messages-square")} Hội thoại khách</div><div class="d">Hộp thư + bot CSKH Telegram/Zalo.</div></div>
@@ -176,12 +176,12 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("list-todo")} 15 phút đầu — làm theo thứ tự này</h3>
+        <h3>${ic("list-todo")} 15 phút đầu - làm theo thứ tự này</h3>
         <ul class="jv-g-chk">
           <li><span class="box"></span><span><b>Đăng nhập</b> và chọn đúng <b>bộ não (brain)</b> đang dùng.</span></li>
-          <li><span class="box"></span><span>Vào <b>Models</b> — kết nối ít nhất một nhà (Claude, ChatGPT, Gemini, Antigravity…).</span></li>
-          <li><span class="box"></span><span>Về <b>Chat</b> — hỏi thử một câu đơn giản để chắc model chạy.</span></li>
-          <li><span class="box"></span><span>Mở <b>Cộng sự</b> — xem Trợ Lý / Quy Trình chuẩn đã sync.</span></li>
+          <li><span class="box"></span><span>Vào <b>Models</b> - kết nối ít nhất một nhà (Claude, ChatGPT, Gemini, Antigravity…).</span></li>
+          <li><span class="box"></span><span>Về <b>Chat</b> - hỏi thử một câu đơn giản để chắc model chạy.</span></li>
+          <li><span class="box"></span><span>Mở <b>Cộng sự</b> - xem Trợ Lý / Quy Trình chuẩn đã sync.</span></li>
           <li><span class="box"></span><span>(Tuỳ chọn) <b>Kết nối</b> MCP / Kênh nếu cần Gmail · Ads · Telegram.</span></li>
         </ul>
         <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
@@ -229,7 +229,7 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("cpu")} 1) Models — chọn bộ não</h3>
+        <h3>${ic("cpu")} 1) Models - chọn bộ não</h3>
         <p>Menu <b>Kết nối → Models</b>. Mỗi «nhà» là một cách chạy AI:</p>
         <div class="jv-g-grid">
           <div class="jv-g-card">
@@ -250,16 +250,16 @@
           </div>
         </div>
         <ol class="jv-g-steps">
-          <li><b>Mở Models</b> — xem thẻ «Đã kết nối» và «Chưa kết nối».</li>
-          <li><b>Chọn một nhà</b> — login CLI hoặc dán key → bấm Kết nối / Thử.</li>
+          <li><b>Mở Models</b> - xem thẻ «Đã kết nối» và «Chưa kết nối».</li>
+          <li><b>Chọn một nhà</b> - login CLI hoặc dán key → bấm Kết nối / Thử.</li>
           <li><b>Chọn model mặc định</b> trên cùng trang (ô model chính).</li>
-          <li><b>Về Chat hỏi thử</b> — nếu trả lời được là xong bước này.</li>
+          <li><b>Về Chat hỏi thử</b> - nếu trả lời được là xong bước này.</li>
         </ol>
         <button type="button" class="jv-g-go" data-ggo="models" style="margin-top:12px">${ic("cpu")} Mở trang Models</button>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("plug")} 2) Kết nối (MCP) — dịch vụ ngoài</h3>
+        <h3>${ic("plug")} 2) Kết nối (MCP) - dịch vụ ngoài</h3>
         <p>Menu <b>Kết nối → Kết nối</b>. Đây là chỗ gắn Gmail, Facebook Ads, POS, Drive… Mỗi dịch vụ là một «ổ cắm».</p>
         <div class="jv-g-pipe">
           <div class="box"><b>Bạn</b><span>Bấm Kết nối<br>đăng nhập / dán key</span></div>
@@ -305,7 +305,7 @@
         <ul>
           <li>CLI chưa cài hoặc chưa login trên <b>đúng máy/container</b> đang chạy VMOS.</li>
           <li>Key hết hạn / sai nhà cung cấp.</li>
-          <li>Trên VPS nhiều bản: mỗi tenant có bộ não riêng — login trên quan không tự sang maihuong.</li>
+          <li>Trên VPS nhiều bản: mỗi tenant có bộ não riêng - login trên quan không tự sang maihuong.</li>
         </ul>
       </div>
     </div>`;
@@ -315,7 +315,7 @@
   function pageStudio() {
     return `<div class="jv-g">
       ${hero("puzzle", "Skill · Agent · Workflow",
-        "Ba lớp năng lực. Tạo Agent/Workflow ở trang Cộng sự (Năng lực). Hiểu đúng từng lớp rồi mới tạo — đỡ trùng và đỡ rối.")}
+        "Ba lớp năng lực. Tạo Agent/Workflow ở trang Cộng sự (Năng lực). Hiểu đúng từng lớp rồi mới tạo - đỡ trùng và đỡ rối.")}
       ${toc("guide_studio")}
 
       <div class="jv-g-sec">
@@ -338,19 +338,19 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("puzzle")} Skill — cài và dùng</h3>
+        <h3>${ic("puzzle")} Skill - cài và dùng</h3>
         <ol class="jv-g-steps">
           <li><b>Mở Skills</b> (nhóm Năng lực). Bật/tắt bằng ô tick trên từng thẻ.</li>
           <li><b>Tạo mới</b>: đặt tên nhóm + <b>mô tả tiếng Việt 2–3 dòng</b> (làm gì · cần gì · lưu ý). Tối đa 150 ký tự.</li>
           <li><b>Gọi tay</b>: trong Chat gõ <code>/</code> rồi chọn skill, hoặc nói đúng từ khóa trong mô tả.</li>
           <li><b>Xuất/nhập</b>: tải gói để mang sang máy/brain khác.</li>
         </ol>
-        <div class="jv-g-note">Mô tả tốt: «Tóm tắt biên bản họp thành việc cần làm. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.» — không mở đầu bằng «Kích hoạt khi…».</div>
+        <div class="jv-g-note">Mô tả tốt: «Tóm tắt biên bản họp thành việc cần làm. Cần file .md trong brain. Bỏ qua nếu chưa có ghi chú.» - không mở đầu bằng «Kích hoạt khi…».</div>
         <button type="button" class="jv-g-go" data-ggo="skills" style="margin-top:10px">${ic("puzzle")} Mở Skills</button>
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("bot")} Agent — tạo trợ lý (Cộng sự)</h3>
+        <h3>${ic("bot")} Agent - tạo trợ lý (Cộng sự)</h3>
         <ol class="jv-g-steps">
           <li><b>Năng lực → Cộng sự → tab Trợ Lý (Agent) → + Agent</b>.</li>
           <li>Điền <b>vai trò</b> rõ (2–3 dòng tiếng Việt): làm gì, khi nào, cần dữ liệu gì.</li>
@@ -372,7 +372,7 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("workflow")} Workflow — dây chuyền (Cộng sự)</h3>
+        <h3>${ic("workflow")} Workflow - dây chuyền (Cộng sự)</h3>
         <div class="jv-g-flow">
           <div class="n">Bước 1<br><span style="font-weight:400;font-size:12px;color:var(--text3)">Agent nghiên cứu</span></div>
           <div class="ar">→</div>
@@ -407,7 +407,7 @@
       </div>
 
       <div class="jv-g-sec">
-        <h3>${ic("toolbox")} Plugins — dùng thế nào?</h3>
+        <h3>${ic("toolbox")} Plugins - dùng thế nào?</h3>
         <p><b>Plugin</b> = mã Python chạy thật, thêm <b>tool</b> (engine gọi được) hoặc <b>hook</b>. Khác skill (chỉ là hướng dẫn chữ) và khác MCP (nguồn dữ liệu/app ngoài).</p>
         <div class="jv-g-flow">
           <div class="n">Năng lực → Plugins</div>
@@ -417,12 +417,12 @@
           <div class="n">Chat nhắc tool<br><span style="font-weight:400;font-size:12px;color:var(--text3)">vd «bây giờ mấy giờ»</span></div>
         </div>
         <ol class="jv-g-steps">
-          <li><b>Xem danh sách</b> — menu <b>Năng lực → Plugins</b>. Nhãn: Có sẵn / Toàn cục / Brain này.</li>
-          <li><b>Bật đúng cái cần</b> — chỉ thẻ «đang chạy» mới có tool. Đọc hàng chip 🔧 để biết tên tool.</li>
-          <li><b>Dùng trong Chat</b> — nói việc + tên tool nếu cần (vd «dùng javis_youtube_read tóm tắt link này»).</li>
-          <li><b>Plugin tự cài</b> — cần <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại; thả thư mục có <code>plugin.yaml</code> + <code>plugin.py</code>.</li>
+          <li><b>Xem danh sách</b> - menu <b>Năng lực → Plugins</b>. Nhãn: Có sẵn / Toàn cục / Brain này.</li>
+          <li><b>Bật đúng cái cần</b> - chỉ thẻ «đang chạy» mới có tool. Đọc hàng chip tool để biết tên tool.</li>
+          <li><b>Dùng trong Chat</b> - nói việc + tên tool nếu cần (vd «dùng javis_youtube_read tóm tắt link này»).</li>
+          <li><b>Plugin tự cài</b> - cần <code>JAVIS_ENABLE_USER_PLUGINS=true</code> rồi khởi động lại; thả thư mục có <code>plugin.yaml</code> + <code>plugin.py</code>.</li>
         </ol>
-        <div class="jv-g-note">Một số plugin cần Kết nối trước (ChatGPT OAuth cho ảnh, Meta Ads, Zalo…). Tool sẽ báo thiếu gì — đừng đoán.</div>
+        <div class="jv-g-note">Một số plugin cần Kết nối trước (ChatGPT OAuth cho ảnh, Meta Ads, Zalo…). Tool sẽ báo thiếu gì - đừng đoán.</div>
         <table class="jv-g-table">
           <thead><tr><th>Plugin có sẵn (ví dụ)</th><th>Khi nào dùng</th></tr></thead>
           <tbody>
@@ -438,7 +438,7 @@
 
       <div class="jv-g-sec">
         <h3>${ic("play")} Ví dụ bổ sung: AutoClip (cắt highlight video)</h3>
-        <p><a href="https://github.com/zhouxiaoka/autoclip" target="_blank" rel="noopener">zhouxiaoka/autoclip</a> — AI trích highlight, cắt clip từ YouTube/Bilibili/file local. <b>Chưa ship sẵn trong VMOS</b>; gắn theo 1 trong 3 cách dưới (ưu tiên MCP).</p>
+        <p><a href="https://github.com/zhouxiaoka/autoclip" target="_blank" rel="noopener">zhouxiaoka/autoclip</a> - AI trích highlight, cắt clip từ YouTube/Bilibili/file local. <b>Chưa ship sẵn trong VMOS</b>; gắn theo 1 trong 3 cách dưới (ưu tiên MCP).</p>
         <div class="jv-g-pipe">
           <div class="box"><b>1. MCP</b><span>Khuyến nghị<br>có sẵn trong AutoClip</span></div>
           <div class="ar">→</div>
@@ -448,9 +448,9 @@
         </div>
         <ol class="jv-g-steps">
           <li><b>Cài AutoClip trên máy/VPS</b> (Docker hoặc <code>pip install -e .</code>). Cần ffmpeg. Kiểm: <code>autoclip doctor</code>.</li>
-          <li><b>Cách A — MCP (nhanh nhất)</b>: AutoClip có lệnh <code>autoclip mcp</code>. Trong VMOS: <b>Kết nối → Tự thêm (nâng cao)</b>, loại stdio, lệnh trỏ tới binary trong venv, args <code>mcp</code>. Tool chính: <code>clip_video</code>, <code>get_job_status</code>, <code>export_clip</code>… Chat: «cắt highlight file này bằng AutoClip».</li>
-          <li><b>Cách B — Plugin VMOS</b>: viết plugin mỏng gọi <code>autoclip run … --json</code> hoặc HTTP <code>:8000/api/v1/…</code>, đăng ký tool kiểu <code>javis_autoclip_run</code>. Bật user plugins + thả vào thư mục plugin toàn cục/brain.</li>
-          <li><b>Cách C — Skill + Terminal</b>: skill hướng dẫn «khi nào gọi autoclip»; agent có shell chạy lệnh. Không cần plugin nếu máy đã có CLI.</li>
+          <li><b>Cách A - MCP (nhanh nhất)</b>: AutoClip có lệnh <code>autoclip mcp</code>. Trong VMOS: <b>Kết nối → Tự thêm (nâng cao)</b>, loại stdio, lệnh trỏ tới binary trong venv, args <code>mcp</code>. Tool chính: <code>clip_video</code>, <code>get_job_status</code>, <code>export_clip</code>… Chat: «cắt highlight file này bằng AutoClip».</li>
+          <li><b>Cách B - Plugin VMOS</b>: viết plugin mỏng gọi <code>autoclip run … --json</code> hoặc HTTP <code>:8000/api/v1/…</code>, đăng ký tool kiểu <code>javis_autoclip_run</code>. Bật user plugins + thả vào thư mục plugin toàn cục/brain.</li>
+          <li><b>Cách C - Skill + Terminal</b>: skill hướng dẫn «khi nào gọi autoclip»; agent có shell chạy lệnh. Không cần plugin nếu máy đã có CLI.</li>
         </ol>
         <div class="jv-g-note warn">AutoClip nặng RAM/ổ (thường ≥4–8 GB). Trên VPS nhiều tenant: cài một bản dùng chung hoặc chỉ trên máy có GPU/ffmpeg đủ mạnh. Đừng nhầm với plugin <code>youtube-read</code> (chỉ đọc phụ đề) hay <code>script-video</code> (tạo video từ chữ).</div>
         <div class="jv-g-twin" style="margin-top:12px">
@@ -472,7 +472,7 @@
 
       <div class="jv-g-sec">
         <h3>${ic("messages-square")} Chatbot (trong Hội thoại khách)</h3>
-        <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách — khác kênh chat cá nhân của bạn. Mở <b>Năng lực → Hội thoại khách → tab Chatbot</b>.</p>
+        <p>Đưa một Agent ra bot Telegram/Zalo riêng cho khách - khác kênh chat cá nhân của bạn. Mở <b>Năng lực → Hội thoại khách → tab Chatbot</b>.</p>
         <button type="button" class="jv-g-go" data-ggo="conversations" style="margin-top:10px">${ic("messages-square")} Mở Hội thoại khách</button>
       </div>
     </div>`;
@@ -500,7 +500,7 @@
         <ol class="jv-g-steps">
           <li>Mở trang <b>Việc</b>, mô tả rõ muốn gì (kèm ràng buộc: deadline, không gửi mail thật…).</li>
           <li>Theo dõi cột trên bảng: đang chạy / cần bạn / xong.</li>
-          <li>Nếu task xin quyền hành động thật (gửi tin, đăng bài…) — đọc kỹ rồi mới cho phép.</li>
+          <li>Nếu task xin quyền hành động thật (gửi tin, đăng bài…) - đọc kỹ rồi mới cho phép.</li>
         </ol>
         <div class="jv-g-note warn">Việc nền có thể tốn token. Xem trang <b>Mức dùng</b> nếu muốn theo dõi chi phí.</div>
         <button type="button" class="jv-g-go" data-ggo="kanban" style="margin-top:10px">${ic("square-kanban")} Mở bảng Việc</button>
@@ -511,7 +511,7 @@
         <p>Menu <b>Công việc → Việc định kỳ</b> (Self-improve / loops). Ví dụ: mỗi sáng tổng kết email, mỗi 2 giờ quét tin.</p>
         <ul>
           <li>Đặt lịch kiểu «mỗi 120 phút» hoặc cron.</li>
-          <li>Viết rõ nhiệm vụ trong thân loop — đừng để trống.</li>
+          <li>Viết rõ nhiệm vụ trong thân loop - đừng để trống.</li>
           <li>Có thể tắt nhanh khi không cần chạy nền.</li>
         </ul>
         <button type="button" class="jv-g-go" data-ggo="selfimprove" style="margin-top:10px">${ic("repeat")} Mở Việc định kỳ</button>
@@ -568,7 +568,7 @@
           <li>Gõ <code>/</code> để gọi skill hoặc lệnh phiên (<code>/new</code>, <code>/stop</code>…).</li>
           <li>Đính file / ảnh khi cần VMOS đọc đúng nguồn.</li>
           <li>Nói rõ ràng: mục tiêu, ràng buộc, định dạng đầu ra mong muốn.</li>
-          <li>Một brain = một «văn phòng» kiến thức — đừng lẫn dự án cá nhân vào brain công ty.</li>
+          <li>Một brain = một «văn phòng» kiến thức - đừng lẫn dự án cá nhân vào brain công ty.</li>
         </ul>
         <button type="button" class="jv-g-go" data-ggo="chat" style="margin-top:10px">${ic("message-circle")} Vào Chat</button>
       </div>
@@ -579,7 +579,7 @@
           <div class="m" data-ggo="usage"><div class="t">${ic("chart-column")} Mức dùng</div><div class="d">Token & chi phí theo ngày / nhà cung cấp.</div></div>
           <div class="m" data-ggo="settings"><div class="t">${ic("settings")} Cài đặt</div><div class="d">Giao diện, giọng nói, truy cập, đồng bộ template (manager).</div></div>
           <div class="m" data-ggo="account"><div class="t">${ic("circle-user")} Tài khoản</div><div class="d">Mật khẩu, phiên đăng nhập.</div></div>
-          <div class="m" data-ggo="logs"><div class="t">${ic("scroll-text")} Nhật ký</div><div class="d">Khi lỗi — xem log để gửi cho admin.</div></div>
+          <div class="m" data-ggo="logs"><div class="t">${ic("scroll-text")} Nhật ký</div><div class="d">Khi lỗi - xem log để gửi cho admin.</div></div>
           <div class="m" data-ggo="terminal"><div class="t">${ic("terminal")} Terminal</div><div class="d">Dòng lệnh trên máy chạy VMOS (cẩn thận).</div></div>
           <div class="m" data-ggo="guide_what"><div class="t">${ic("sparkles")} Về tổng quan</div><div class="d">Quay lại «VMOS làm được gì».</div></div>
         </div>

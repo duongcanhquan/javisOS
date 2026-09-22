@@ -1,6 +1,7 @@
 ---
 name: "grounded-citations"
-description: "Ground answers and documents in cited, verifiable sources."
+description: "Bám câu trả lời/tài liệu vào nguồn có thể kiểm chứng."
+description_en: "Ground answers and documents in cited, verifiable sources."
 group: "Hermes · Research"
 version: 1.1.0
 author: Hermes Agent + Teknium

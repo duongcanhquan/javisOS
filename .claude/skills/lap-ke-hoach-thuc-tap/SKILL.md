@@ -1,6 +1,7 @@
 ---
 name: Lập kế hoạch thực tập
-description: Lập/khớp kế hoạch thực tập SV theo Khoa-Ngành: mốc, DN, việc theo dõi, rủi ro cần duyệt.
+description: "Lập/khớp kế hoạch thực tập SV theo Khoa-Ngành: mốc, DN, việc theo dõi, rủi ro cần duyệt."
+description_en: "Build student internship plans by faculty/major: milestones, firms, tracking, risks to approve."
 group: Vận hành
 ---
 

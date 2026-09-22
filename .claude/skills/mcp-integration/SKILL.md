@@ -1,6 +1,7 @@
 ---
 name: "mcp-integration"
-description: "Wire MCP servers into a plugin via .mcp.json: stdio, SSE, HTTP, auth."
+description: "Gắn MCP vào plugin qua .mcp.json: stdio, SSE, HTTP, auth."
+description_en: "Wire MCP servers into a plugin via .mcp.json: stdio, SSE, HTTP, auth."
 group: "Claude · Plugin dev"
 version: 0.1.0
 ---

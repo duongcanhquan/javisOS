@@ -1,6 +1,7 @@
 ---
 name: shadcn
-description: Shadcn/ui-inspired design with minimal, clean components, monochrome palette, and utility-first patterns.
+description: "Shadcn/ui: component sạch tối giản, mono, utility-first."
+description_en: "Shadcn/ui-inspired design with minimal, clean components, monochrome palette, and utility-first patterns."
 license: MIT
 metadata:
   author: typeui.sh

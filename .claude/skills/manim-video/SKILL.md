@@ -1,6 +1,7 @@
 ---
 name: "manim-video"
-description: "Manim CE animations: 3Blue1Brown math/algo videos."
+description: "Hoạt hình Manim CE: video toán/thuật toán kiểu 3Blue1Brown."
+description_en: "Manim CE animations: 3Blue1Brown math/algo videos."
 group: "Hermes · Creative"
 version: 1.0.0
 author: SHL0MS, Hermes Agent

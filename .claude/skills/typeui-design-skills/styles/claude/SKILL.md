@@ -1,6 +1,7 @@
 ---
 name: "claude"
-description: "A research-journal aesthetic printed on warm stone — authoritative, editorial, almost achromatic. Pages live on warm ivory parchment (never pure white), with near-black slate as the dominant ink."
+description: "Thẩm mỹ nhật ký nghiên cứu trên giấy đá ấm, gần đơn sắc, editorial."
+description_en: "A research-journal aesthetic printed on warm stone — authoritative, editorial, almost achromatic. Pages live on warm ivory parchment (never pure white"
 metadata:
   author: typeui.sh
 ---

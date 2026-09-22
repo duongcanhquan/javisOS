@@ -1,6 +1,7 @@
 ---
 name: mono
-description: Monospace-driven, matrix-inspired design with high-contrast elements, compact density, and a hacker-chic aesthetic.
+description: "Monospace matrix: tương phản cao, dày đặc, thẩm mỹ hacker."
+description_en: "Monospace-driven, matrix-inspired design with high-contrast elements, compact density, and a hacker-chic aesthetic."
 license: MIT
 metadata:
   author: typeui.sh

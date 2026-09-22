@@ -1,6 +1,7 @@
 ---
 name: fantasy
-description: Game-inspired fantasy aesthetic with bold, premium visuals, rich color palettes, and immersive thematic elements.
+description: "Thẩm mỹ game fantasy: visual premium, palette giàu, chủ đề đắm."
+description_en: "Game-inspired fantasy aesthetic with bold, premium visuals, rich color palettes, and immersive thematic elements."
 license: MIT
 metadata:
   author: typeui.sh

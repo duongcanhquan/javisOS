@@ -1,6 +1,7 @@
 ---
 name: brutalism
-description: Raw, anti-design aesthetic inspired by concrete architecture with unadorned elements, jarring layouts, and functional minimalism.
+description: "Thô, chống thiết kế: bố cục gắt, tối giản chức năng, cảm giác bê tông."
+description_en: "Raw, anti-design aesthetic inspired by concrete architecture with unadorned elements, jarring layouts, and functional minimalism."
 license: MIT
 metadata:
   author: typeui.sh

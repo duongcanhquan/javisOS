@@ -1,6 +1,7 @@
 ---
 name: geometric
-description: Geometric, structured design with clean typography, neutral colors, precise shapes, and intuitive layouts that stay out of the way.
+description: "Hình học có cấu trúc: chữ sạch, màu trung tính, layout ít chen."
+description_en: "Geometric, structured design with clean typography, neutral colors, precise shapes, and intuitive layouts that stay out of the way."
 license: MIT
 metadata:
   author: typeui.sh

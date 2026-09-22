@@ -1,6 +1,7 @@
 ---
 name: Đánh Giá Hợp Tác & Thẩm Định Pháp Lý
-description: Khung thẩm định đối tác, khảo sát địa lý, tiềm lực, khách hàng và rà soát pháp lý liên kết đào tạo theo luật giáo dục.
+description: "Khung thẩm định đối tác, khảo sát địa lý, tiềm lực, khách hàng và rà soát pháp lý liên kết đào tạo theo luật giáo dục."
+description_en: "Partner diligence frame: location, capacity, customers, legal review for training links."
 group: Operations
 ---
 

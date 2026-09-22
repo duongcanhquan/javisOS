@@ -1,6 +1,7 @@
 ---
 name: power
-description: High-end dark aesthetic with bold headings, monochromatic palette, and premium feel for premium brand experiences.
+description: "Tối cao cấp: heading đậm, mono palette, cảm giác premium."
+description_en: "High-end dark aesthetic with bold headings, monochromatic palette, and premium feel for premium brand experiences."
 license: MIT
 metadata:
   author: typeui.sh

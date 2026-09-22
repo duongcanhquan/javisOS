@@ -1,6 +1,7 @@
 ---
 name: Xây dựng tự động hóa
-description: Thiết kế tự động hóa bằng loop/workflow/Kanban/MCP; chọn công cụ nhỏ nhất đủ chạy và ghi đúng chỗ.
+description: "Thiết kế tự động hóa bằng loop/workflow/Kanban/MCP; chọn công cụ nhỏ nhất đủ chạy và ghi đúng chỗ."
+description_en: "Design automation with loop/workflow/Kanban/MCP; pick the smallest tool that works."
 group: Second Brain
 ---
 

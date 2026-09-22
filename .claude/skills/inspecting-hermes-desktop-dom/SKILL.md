@@ -1,6 +1,7 @@
 ---
 name: "inspecting-hermes-desktop-dom"
-description: "Read the live Hermes desktop DOM/CSS over CDP."
+description: "Đọc DOM/CSS Hermes desktop đang chạy qua CDP."
+description_en: "Read the live Hermes desktop DOM/CSS over CDP."
 group: "Hermes · AI agents"
 version: 1.0.0
 author: Hermes Agent
