@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.27] - 2026-09-22
+### Kiểm tra
+- Thêm test canary wizard Kho Drive (tab Mac/Windows, 3 bước). Đã chạy test drive + terminal + lazy load trước khi ship.
+
 ## [0.56.26] - 2026-09-22
 ### Cải thiện
 - **Kho Drive:** bước 1 tách tab **Mac / Windows** rõ; chỉ hiện bước đang làm (1→2→3 tự sang khi xong). Thanh trạng thái nói bạn đang ở bước nào.
