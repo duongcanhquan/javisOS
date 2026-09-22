@@ -1,6 +1,7 @@
 """Điều phối RAM: trần chỗ theo RAM máy, idle, hàng đợi. Không đụng volume."""
 from __future__ import annotations
 
+import os
 import threading
 import time
 from pathlib import Path
@@ -21,6 +22,7 @@ _WAIT: dict[str, float] = {}
 _WLOCK = threading.Lock()
 _WAIT_LOADED = False
 DISK_CACHE_SEC = 120
+_DISK_CACHE: dict = {"t": 0.0, "total": 0, "free": 0, "path": ""}
 
 
 def _hydrate_wait() -> None:
@@ -77,6 +79,53 @@ def host_mem_mb() -> tuple[int, int]:
     return _meminfo_mb()
 
 
+def _disk_probe_path() -> str:
+    """Ưu tiên ổ chứa STATE_DIR (não / sổ tổ chức), fallback /."""
+    try:
+        import config as cfgmod
+        p = Path(cfgmod.STATE_DIR)
+        p.mkdir(parents=True, exist_ok=True)
+        return str(p.resolve())
+    except Exception:
+        return "/"
+
+
+def host_disk_bytes(path: str | None = None) -> tuple[int, int, str]:
+    """(tổng byte, còn trống byte, path đã đo). Cache ngắn để khỏi gọi statvfs mỗi request."""
+    now = time.time()
+    want = (path or "").strip() or _disk_probe_path()
+    cached_path = str(_DISK_CACHE.get("path") or "")
+    if (cached_path == want
+            and now - float(_DISK_CACHE.get("t") or 0) < DISK_CACHE_SEC
+            and int(_DISK_CACHE.get("total") or 0) > 0):
+        return int(_DISK_CACHE["total"]), int(_DISK_CACHE["free"]), cached_path
+    total = free = 0
+    used_path = want
+    for cand in (want, "/", "/data", "/brains"):
+        try:
+            st = os.statvfs(cand)
+            tot = int(st.f_blocks) * int(st.f_frsize)
+            fr = int(st.f_bavail) * int(st.f_frsize)
+            if tot > 0:
+                total, free, used_path = tot, fr, cand
+                break
+        except Exception:
+            continue
+    _DISK_CACHE["t"] = now
+    _DISK_CACHE["total"] = total
+    _DISK_CACHE["free"] = free
+    _DISK_CACHE["path"] = used_path
+    return total, free, used_path
+
+
+def host_cpus() -> int:
+    try:
+        n = int(os.cpu_count() or 0)
+    except Exception:
+        n = 0
+    return max(0, n)
+
+
 def suggest_slots(total_mb: int) -> int:
     """Số chỗ Javis người an toàn từ RAM máy. Không đếm gốc và Quan."""
     try:
@@ -116,13 +165,20 @@ def coord(data: dict | None = None) -> dict:
     s = _stored(raw)
     tot, avail = host_mem_mb()
     mx = effective_max(raw, tot if tot else None)
+    disk_tot, disk_free, disk_path = host_disk_bytes()
     return {
         "max_running": s["max_running"],
         "idle_minutes": s["idle_minutes"],
         "ram_mb": RAM_MB,
+        "reserve_mb": RESERVE_MB,
+        "keep_free_mb": KEEP_FREE_MB,
         "effective_max": mx,
         "host_ram_mb": tot,
         "host_avail_mb": avail,
+        "host_disk_total_bytes": disk_tot,
+        "host_disk_free_bytes": disk_free,
+        "host_disk_path": disk_path,
+        "host_cpus": host_cpus(),
         "suggest": suggest_slots(tot) if tot else s["max_running"],
     }
 
@@ -244,10 +300,16 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
         "running": n,
         "waiting": wait_len(),
         "ram_mb": RAM_MB,
+        "reserve_mb": RESERVE_MB,
+        "keep_free_mb": KEEP_FREE_MB,
         "ram_est_mb": n * RAM_MB,
         "slots_left": max(0, eff - n),
         "host_ram_mb": tot,
         "host_avail_mb": int(c.get("host_avail_mb") or 0),
+        "host_disk_total_bytes": int(c.get("host_disk_total_bytes") or 0),
+        "host_disk_free_bytes": int(c.get("host_disk_free_bytes") or 0),
+        "host_disk_path": str(c.get("host_disk_path") or ""),
+        "host_cpus": int(c.get("host_cpus") or 0),
         "suggest": int(c.get("suggest") or hand),
     }
 

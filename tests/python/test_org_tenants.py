@@ -47,6 +47,17 @@ check("máy 6GB gợi ý 3 chỗ người", oc.suggest_slots(6144) == 3)
 check("máy 10GB gợi ý không quá 8", oc.suggest_slots(10240) == 8)
 check("trần tay 6 trên 6GB thành 3 chỗ thật", oc.effective_max(total_mb=6144) == 3)
 check("trần tay 2 không bị đẩy lên", oc.effective_max({"coord": {"max_running": 2, "idle_minutes": 30}}, 6144) == 2)
+disk_t, disk_f, disk_p = oc.host_disk_bytes()
+check("host_disk_bytes trả tổng/trống", isinstance(disk_t, int) and isinstance(disk_f, int) and disk_t >= disk_f >= 0)
+c_host = oc.coord()
+check("coord có ổ + CPU + reserve",
+      "host_disk_total_bytes" in c_host and "host_cpus" in c_host
+      and c_host.get("reserve_mb") == oc.RESERVE_MB
+      and int(c_host.get("host_disk_total_bytes") or 0) >= 0)
+snap = oc.snapshot(2)
+check("snapshot có chỗ còn + ổ VPS",
+      snap.get("slots_left") == max(0, int(snap.get("effective_max") or 0) - 2)
+      and "host_disk_free_bytes" in snap and "suggest" in snap)
 cset = oc.put_coord(max_running=99, idle_minutes=-1)
 check("kẹp trần 20", cset["max_running"] == 20)
 check("kẹp idle 0", cset["idle_minutes"] == 0)
@@ -186,6 +197,9 @@ park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "
 check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
 check("org.js điều phối theo RAM thật", "effective_max" in org_js and "xếp hàng" in org_js)
+check("org.js hiện cấu hình VPS để phân bổ",
+      "Máy chủ VPS" in org_js and "host_disk_total_bytes" in org_js
+      and "Gợi ý chỗ người" in org_js and "Trần ổ đã cấp" in org_js)
 check("index không nạp org.js eager (lazy trong console)",
       "/static/org.js" not in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
 check("org.js có Lưu thay đổi và Xóa người", "Lưu thay đổi" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.15] - 2026-09-22
+### Mới
+- **Tổ chức:** khối Máy chủ VPS trên Tổng hợp / Cài đặt - hiện RAM, ổ đĩa, CPU, gợi ý chỗ người và trần ổ đã cấp để phân bổ.
+
 ## [0.56.14] - 2026-09-22
 ### Mới
 - **Catalog Marketing:** thêm CRO, copy, email, ads đa kênh, launch, giá, context sản phẩm, catalog công cụ, hướng dẫn advertools - sync mọi brain qua hệ thống.

@@ -102,6 +102,13 @@
     return (n / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   }
 
+  function fmtRamGb(mb) {
+    const n = Number(mb || 0);
+    if (n <= 0) return "";
+    if (n >= 1024) return (Math.round(n / 102.4) / 10) + " GB";
+    return n + " MB";
+  }
+
   function barHtml(used, cap, label) {
     if (!cap) {
       return `<div class="org-meter"><span class="dim">${esc(label)}: ${esc(String(used))} (không trần)</span></div>`;
@@ -223,11 +230,51 @@
     const ramHost = coord.host_ram_mb ? Math.round(Number(coord.host_ram_mb) / 1024 * 10) / 10 : 0;
     const ramAvail = coord.host_avail_mb ? Math.round(Number(coord.host_avail_mb) / 1024 * 10) / 10 : 0;
     const waitN = Number(coord.waiting || 0);
+    const suggestN = Number(coord.suggest || maxR || 0);
+    const slotsLeft = Number(coord.slots_left != null ? coord.slots_left : Math.max(0, maxR - runP));
+    const ramPer = Number(coord.ram_mb || 768);
+    const reserveMb = Number(coord.reserve_mb || 2800);
+    const diskTotB = Number(coord.host_disk_total_bytes || 0);
+    const diskFreeB = Number(coord.host_disk_free_bytes || 0);
+    const diskUsedB = diskTotB > 0 ? Math.max(0, diskTotB - diskFreeB) : 0;
+    const cpuN = Number(coord.host_cpus || 0);
+    const quotaSum = people.reduce((s, t) => s + Number(t.quota_gb || 0), 0);
     const sharedN = people.filter((t) => t.shared_api).length;
     const prov = d.providers || {};
     const keysOn = POOL.filter(([id]) => (prov[id] || {}).set).length;
     const flash = orgFlash;
     orgFlash = "";
+
+    const vpsRamLine = ramHost
+      ? (`${ramHost} GB tổng · ${ramAvail} GB còn`)
+      : "chưa đọc được";
+    const vpsDiskLine = diskTotB
+      ? (`${fmtGB(diskTotB)} tổng · ${fmtGB(diskFreeB)} trống`)
+      : "chưa đọc được";
+    const vpsInner = `
+      <h3>Máy chủ VPS</h3>
+      <p class="dim">Số liệu đọc từ máy đang chạy VMOS gốc - dùng để phân bổ chỗ người.</p>
+      <ul class="org-read org-vps-list">
+        <li><b>RAM</b> <span>${esc(vpsRamLine)}</span></li>
+        <li><b>Ổ đĩa</b> <span>${esc(vpsDiskLine)}</span></li>
+        <li><b>CPU</b> <span>${cpuN ? (cpuN + " lõi") : "chưa rõ"}</span></li>
+        <li><b>Chỗ người</b> <span>gợi ý <b>${esc(String(suggestN))}</b>
+          · trần tay <b>${esc(String(maxHand))}</b>
+          · đang dùng <b>${esc(String(maxR))}</b>
+          · chạy <b>${esc(String(runP))}</b>
+          · còn <b>${esc(String(slotsLeft))}</b></span></li>
+        <li><b>Mỗi máy người</b> <span>~${esc(String(ramPer))} MB RAM
+          · chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} cho gốc + Quan</span></li>
+        <li><b>Trần ổ đã cấp</b> <span>${esc(String(quotaSum))} GB cho ${esc(String(people.length))} người
+          ${diskFreeB ? (" · ổ còn " + fmtGB(diskFreeB)) : ""}</span></li>
+      </ul>
+      ${diskTotB ? `<div class="org-meter"><div class="org-meter-lbl">Ổ máy chủ: <b>${esc(fmtGB(diskUsedB))}</b> / ${esc(fmtGB(diskTotB))}</div>
+        <div class="org-bar ${diskTotB && diskFreeB / diskTotB < 0.1 ? "hot" : (diskTotB && diskFreeB / diskTotB < 0.2 ? "warn" : "")}"><i style="width:${diskTotB ? Math.max(0, Math.min(100, Math.round(100 * diskUsedB / diskTotB))) : 0}%"></i></div></div>` : ""}
+      ${ramHost ? `<div class="org-meter"><div class="org-meter-lbl">RAM máy chủ: dùng ước <b>${esc(String(ramEst))} MB</b> cho ${esc(String(runP))} máy người · máy ${esc(String(ramHost))} GB</div>
+        <div class="org-bar"><i style="width:${ramHost ? Math.max(0, Math.min(100, Math.round(100 * ramEst / (ramHost * 1024)))) : 0}%"></i></div></div>` : ""}`;
+    const vpsCard = `<div class="org-vps">${vpsInner}</div>`;
+    const vpsCardTong = `<div class="org-vps">${vpsInner}
+      <button type="button" class="btn" data-org-goto="cai">Chỉnh trần chỗ</button></div>`;
 
     const poolRows = POOL.map(([id, label]) => {
       const rec = prov[id] || {};
@@ -378,10 +425,11 @@
           <div class="org-stats">
             <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy người đang chạy</span></button>
-            <button type="button" data-org-goto="cai"><b>${ramEst} MB</b><span>Ước RAM VMOS con</span></button>
-            <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="stopped"><b>${stopped}</b><span>Tắt / chưa có</span></button>
+            <button type="button" data-org-goto="cai"><b>${ramHost ? (ramHost + " GB") : "?"} / ${diskTotB ? fmtGB(diskTotB) : "?"}</b><span>RAM / ổ VPS</span></button>
+            <button type="button" data-org-goto="cai"><b>${suggestN}</b><span>Gợi ý chỗ người</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
           </div>
+          ${vpsCardTong}
           <div class="org-snap">
             <div>
               <h3>API</h3>
@@ -414,15 +462,19 @@
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
           <h3>Điều phối máy (RAM)</h3>
-          <p>Máy 6 GB RAM: VMOS tự chừa chỗ cho gốc + Quan, còn khoảng <b>3</b> máy người chạy cùng lúc.
-          RAM thấp thì tắt máy đang nghỉ trước (não không xóa), người mới xếp hàng rồi tự bật.
-          Trần tay bên dưới là trần tối đa; máy tự hạ nếu RAM không đủ.</p>
+          <p>VPS hiện <b>${esc(ramHost ? (ramHost + " GB RAM") : "chưa đọc được RAM")}</b>
+          ${diskTotB ? (" · ổ <b>" + esc(fmtGB(diskTotB)) + "</b> (còn " + esc(fmtGB(diskFreeB)) + ")") : ""}.
+          Hệ thống chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} cho gốc + Quan + Docker,
+          mỗi máy người ~${esc(String(ramPer))} MB - gợi ý tối đa <b>${esc(String(suggestN))}</b> người chạy cùng lúc.
+          Trần tay bên dưới là trần tối đa; máy tự hạ nếu RAM không đủ.
+          RAM thấp thì tắt máy đang nghỉ trước (não không xóa), người mới xếp hàng rồi tự bật.</p>
+          ${vpsCard}
           <form id="orgCoord" class="org-form">
             <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
             <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
             <button class="btn primary" type="submit">Lưu điều phối</button>
           </form>
-          <p class="dim">Đang dùng <b>${runP}/${maxR}</b> chỗ
+          <p class="dim">Đang dùng <b>${runP}/${maxR}</b> chỗ (gợi ý ${suggestN}, trần tay ${maxHand})
             ${ramHost ? (" · máy " + ramHost + " GB, còn " + ramAvail + " GB") : ""}
             ${idleM ? (" · vắng " + idleM + " phút thì nhả RAM") : " · không tự tắt khi vắng"}.
             ${waitN ? (" Hàng đợi: " + waitN + " người.") : ""}</p>
@@ -499,6 +551,12 @@
         .org-snap{display:grid;grid-template-columns:minmax(220px,280px) 1fr;gap:22px;align-items:start}
         .org-read{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
         .org-read li{display:flex;justify-content:space-between;gap:8px;align-items:center}
+        .org-vps{margin:0 0 22px;padding:14px 16px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));max-width:760px}
+        .org-vps h3{margin:0 0 6px;font-size:16px}
+        .org-vps .org-vps-list{margin:10px 0 12px}
+        .org-vps .org-vps-list li span{text-align:right;opacity:.92}
+        .org-vps .org-meter{margin:8px 0}
+        .org-vps .btn{margin-top:8px}
         .org-table-wrap{overflow:auto;margin:0 0 12px}
         .org-table{width:100%;border-collapse:collapse;font-size:13px}
         .org-table th,.org-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--glass-brd,var(--border));vertical-align:middle}
