@@ -365,15 +365,16 @@
           ${pwBtn}
           ${delBtn}
         </div>
-        ${deleted ? "" : `<form class="org-inline org-edit-form" data-org-edit="${esc(t.slug)}">
+        ${deleted ? "" : `<details class="org-more"><summary>Chỉnh cấu hình</summary>
+        <form class="org-inline org-edit-form org-edit-grid" data-org-edit="${esc(t.slug)}">
           ${prot ? "" : `<label>Chế độ model${modeSelect("brain_mode", mode)}</label>
-          <div class="org-prov-wrap"><span class="dim">Provider kho trường (trống = mọi khóa đã dán)</span>${providerChecks("prov_" + t.slug, provs)}</div>`}
+          <div class="org-prov-wrap org-span-all"><span class="dim">Provider kho trường (trống = mọi khóa đã dán)</span>${providerChecks("prov_" + t.slug, provs)}</div>`}
           <label>Hiện tên<input name="name" value="${esc(t.name || "")}"></label>
           ${prot ? "" : `<label>Tên đăng nhập<input name="login_user" value="${esc(t.login_user || "")}" maxlength="32"></label>`}
           <label>Ổ GB (0 = không trần)<input name="quota_gb" type="number" min="0" max="20" value="${esc(String(t.quota_gb || 0))}"></label>
           <label>Token/tháng (0 = không trần)<input name="token_quota" type="number" min="0" step="1000" value="${esc(String(t.token_quota || 0))}"></label>
           <button class="btn primary org-save" type="submit">Lưu thay đổi</button>
-        </form>`}
+        </form></details>`}
         <form class="org-inline org-del-form" data-org-del="${esc(t.slug)}" ${deleted ? "" : "hidden"}>
           ${deleted
             ? `<p>Xóa <b>ngay</b> máy <code>${esc(t.slug)}</code>: não mất hết, không lấy lại. Hoặc đợi hết hạn tự xóa.</p>`
@@ -469,59 +470,60 @@
           </div>
         </section>
 
-        <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
-          <h3>Điều phối máy (RAM)</h3>
-          <p>VPS hiện <b>${esc(ramHost ? (ramHost + " GB RAM") : "chưa đọc được RAM")}</b>
-          ${diskTotB ? (" · ổ <b>" + esc(fmtGB(diskTotB)) + "</b> (còn " + esc(fmtGB(diskFreeB)) + ")") : ""}.
-          Hệ thống chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} cho gốc + Quan + Docker,
-          mỗi máy người ~${esc(String(ramPer))} MB - gợi ý tối đa <b>${esc(String(suggestN))}</b> người chạy cùng lúc.
-          Trần tay bên dưới là trần tối đa; máy tự hạ nếu RAM không đủ.
-          RAM thấp thì tắt máy đang nghỉ trước (não không xóa), người mới xếp hàng rồi tự bật.</p>
-          ${vpsCard}
-          <form id="orgCoord" class="org-form">
-            <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
-            <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
-            <button class="btn primary" type="submit">Lưu điều phối</button>
-          </form>
-          <p class="dim">Đang dùng <b>${runP}/${maxR}</b> chỗ (gợi ý ${suggestN}, trần tay ${maxHand})
-            ${ramHost ? (" · máy " + ramHost + " GB, còn " + ramAvail + " GB") : ""}
-            ${idleM ? (" · vắng " + idleM + " phút thì nhả RAM") : " · không tự tắt khi vắng"}.
-            ${waitN ? (" Hàng đợi: " + waitN + " người.") : ""}</p>
-          <p class="dim" id="orgCoordMsg"></p>
-          <h3>Kho API trường (tùy chọn)</h3>
-          <p>Mặc định <b>không dùng</b>: mỗi người tự gắn OpenRouter, Claude, Grok… trên máy họ, não và khóa ở lại volume của họ.
-          Chỉ dán khóa vào đây nếu sau này muốn một người dùng chung kho trường (bật từng người trên Quản lý).
-          Khóa ở lại VMOS gốc, không chép xuống máy con. Ô trống khi lưu thì giữ khóa cũ.</p>
-          <form id="orgPool" class="org-keys">${poolRows}
-            <button class="btn primary" type="submit">Lưu khóa API</button>
-          </form>
-          <p class="dim" id="orgPoolMsg"></p>
+        <section class="org-pane org-pane-cai" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
+          <div class="org-split">
+            <div class="org-sec">
+              <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
+                <p class="dim org-sec-sub">Gợi ý <b>${esc(String(suggestN))}</b> chỗ · đang dùng <b>${runP}/${maxR}</b>
+                  ${waitN ? (" · hàng đợi " + waitN) : ""}. Trần tay bị hạ nếu RAM không đủ.</p></div></div>
+              ${vpsKpis}
+              <form id="orgCoord" class="org-form org-form-row">
+                <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
+                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
+                <button class="btn primary" type="submit">Lưu điều phối</button>
+              </form>
+              <p class="dim org-sec-note">${idleM ? ("Vắng " + idleM + " phút thì nhả RAM (não không xóa).") : "Không tự tắt khi vắng."}
+                ${ramHost ? (" Máy " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}</p>
+              <p class="dim" id="orgCoordMsg"></p>
+            </div>
+            <div class="org-sec">
+              <div class="org-sec-h"><div><h3>Kho API trường</h3>
+                <p class="dim org-sec-sub">Tùy chọn. Mặc định mỗi người tự gắn khóa trên máy họ. Ô trống khi lưu = giữ khóa cũ.</p></div></div>
+              <form id="orgPool" class="org-keys org-keys-grid">${poolRows}
+                <div class="org-form-actions"><button class="btn primary" type="submit">Lưu khóa API</button></div>
+              </form>
+              <p class="dim" id="orgPoolMsg"></p>
+            </div>
+          </div>
         </section>
 
-        <section class="org-pane" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
-          <h3>Tạo người mới</h3>
-          <p>Mỗi người một VMOS tại <code>${esc(prefix)}-[tên].${esc(suffix)}</code>, <b>não riêng</b>.
-          Họ tự vào trang Models trên máy đó để dán API hoặc đăng nhập Claude / Grok của chính họ.
-          Mật khẩu tối thiểu 10 ký tự, có chữ và số. Gốc không lưu mật khẩu dạng đọc được, không đọc được não họ.</p>
-          <form id="orgCreate" class="org-form">
-            <label>Tên máy (slug)<input name="slug" required placeholder="Ví dụ: lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
-            <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
-            <label>Tên đăng nhập<input name="login_user" required placeholder="Ví dụ: lan" maxlength="32"></label>
-            <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
-            <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
-            <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
-            <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="Chỉ khi dùng kho trường. 0 = không trần"></label>
-            <label>Chế độ model${modeSelect("brain_mode", "byo")}</label>
-            <div class="org-prov-wrap"><span class="dim">Provider kho trường (tùy chọn)</span>${providerChecks("create_prov", [])}</div>
-            <label class="org-check"><input name="consent" type="checkbox" required> Đồng ý tạo chỗ xử lý dữ liệu cá nhân cho người này (não, chat, khóa API trên máy họ; quản trị không đọc nội dung)</label>
-            <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
-            <button class="btn primary" type="submit">Tạo VMOS</button>
-          </form>
+        <section class="org-pane org-pane-tao" data-org-pane="tao" ${orgTab === "tao" ? "" : "hidden"}>
+          <div class="org-sec">
+            <div class="org-sec-h"><div><h3>Tạo người mới</h3>
+              <p class="dim org-sec-sub">Máy <code>${esc(prefix)}-[slug].${esc(suffix)}</code> · não riêng · MK ≥10 ký tự (chữ + số).</p></div></div>
+            <form id="orgCreate" class="org-form org-form-grid">
+              <label>Tên máy (slug)<input name="slug" required placeholder="Ví dụ: lan" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="32"></label>
+              <label>Hiện tên<input name="name" placeholder="Nguyễn Văn A"></label>
+              <label>Tên đăng nhập<input name="login_user" required placeholder="Ví dụ: lan" maxlength="32"></label>
+              <label>Mật khẩu<input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
+              <label>Nhập lại MK<input name="password2" type="password" required minlength="10" autocomplete="new-password"></label>
+              <label>Trần ổ (GB)<input name="quota_gb" type="number" min="1" max="20" value="2"></label>
+              <label>Trần token/tháng<input name="token_quota" type="number" min="0" step="1000" value="0" title="Chỉ khi dùng kho trường. 0 = không trần"></label>
+              <label class="org-span-2">Chế độ model${modeSelect("brain_mode", "byo")}</label>
+              <div class="org-prov-wrap org-span-all"><span class="dim">Provider kho trường (tùy chọn)</span>${providerChecks("create_prov", [])}</div>
+              <label class="org-check org-span-all"><input name="consent" type="checkbox" required> Đồng ý tạo chỗ xử lý dữ liệu cá nhân (não, chat, khóa trên máy họ; quản trị không đọc nội dung)</label>
+              <div class="org-form-actions org-span-all">
+                <button class="btn" type="button" id="orgGenPw">Tạo mật khẩu mạnh</button>
+                <button class="btn primary" type="submit">Tạo VMOS</button>
+              </div>
+            </form>
+          </div>
         </section>
 
-        <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
-          <h3>Quản lý người</h3>
-          <p class="dim">Đổi chế độ model, provider, tên, ổ GB rồi bấm Lưu thay đổi (một nút lưu hết). Xóa giữ não 72 giờ (có thể Khôi phục). Tạm dừng thì máy tắt đến khi Chạy lại.</p>
+        <section class="org-pane org-pane-quan" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
+          <div class="org-sec-h org-quan-head"><div><h3>Quản lý người</h3>
+            <p class="dim org-sec-sub">Bật/tắt máy ở thẻ. Mở <b>Chỉnh cấu hình</b> để đổi chế độ / ổ / token. Xóa giữ não 72 giờ.</p></div>
+            <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button></div>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">
@@ -583,12 +585,33 @@
         .org-table thead th{position:sticky;top:0;background:var(--panel,var(--bg2));z-index:1;font-size:12px;opacity:.85}
         .org-table tbody tr:last-child td{border-bottom:0}
         .org-link{background:none;border:0;padding:0;color:var(--accent,inherit);cursor:pointer;font:inherit;font-weight:600;text-align:left}
-        .org-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
         .org-search{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
         .org-filter{padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
         .org-form,.org-inline,.org-keys{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0 16px}
+        .org-form-row{margin:12px 0 8px;align-items:flex-end}
+        .org-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;align-items:end;margin:4px 0 0}
+        .org-form-grid label,.org-edit-grid label{margin:0;min-width:0}
+        .org-form-grid input,.org-form-grid select,.org-edit-grid input,.org-edit-grid select{width:100%;min-width:0;box-sizing:border-box}
+        .org-span-2{grid-column:span 2}
+        .org-span-all{grid-column:1 / -1}
+        .org-form-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+        .org-keys-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}
+        .org-keys-grid .org-key{min-width:0;flex:none}
+        .org-keys-grid .org-form-actions{grid-column:1 / -1}
+        .org-split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+        .org-pane-cai,.org-pane-tao,.org-pane-quan{display:flex;flex-direction:column;gap:12px}
+        .org-quan-head{margin:0}
+        .org-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0;padding:8px 0;position:sticky;top:0;z-index:3;background:var(--bg,var(--panel));border-bottom:1px solid var(--glass-brd,transparent)}
         .org-inline[hidden]{display:none!important}
         .org-edit-form .org-save{min-height:38px}
+        .org-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;align-items:end;margin:10px 0 0;width:100%}
+        .org-edit-grid .org-save{justify-self:start}
+        .org-more{margin-top:10px;padding-top:8px;border-top:1px solid var(--glass-brd,var(--border))}
+        .org-more > summary{cursor:pointer;list-style:none;font-size:13px;font-weight:600;color:var(--text2);user-select:none}
+        .org-more > summary::-webkit-details-marker{display:none}
+        .org-more > summary::before{content:"▸ ";opacity:.55}
+        .org-more[open] > summary::before{content:"▾ "}
+        .org-more[open] > summary{margin-bottom:4px;color:var(--text)}
         .org-form label,.org-inline label,.org-key{display:flex;flex-direction:column;gap:4px;font-size:13px}
         .org-form input,.org-inline input,.org-key input{min-width:140px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
         .org-prov-wrap{width:100%;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:4px 0}
@@ -602,31 +625,36 @@
         .org-pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--glass-brd,var(--border));opacity:.85}
         .org-pill.on{border-color:#2f9e44;color:#2f9e44}
         .org-pill.hot{border-color:#e03131;color:#e03131}
-        .org-grid{display:grid;gap:14px}
-        .org-card{padding:14px 16px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2))}
+        .org-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .org-card{padding:12px 14px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));min-width:0}
         .org-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+        .org-card > p{margin:6px 0 8px;font-size:13px;overflow:hidden;text-overflow:ellipsis}
         .org-st{font-size:12px;padding:4px 8px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));white-space:nowrap}
         .org-st.running{border-color:#2f9e44;color:#2f9e44}
         .org-st.stopped,.org-st.missing{opacity:.7}
         .org-st.paused{border-color:#f59f00;color:#f59f00}
         .org-st.deleted{border-color:#e03131;color:#e03131}
-        .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+        .org-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+        .org-acts .btn{padding:6px 10px;font-size:12.5px}
         .org-del{border-color:#e03131;color:#e03131}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
         .org-meter{margin:0}
-        .org-meter-lbl{font-size:13px;margin-bottom:4px}
-        .org-bar{height:8px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden}
+        .org-meter-lbl{font-size:12.5px;margin-bottom:3px}
+        .org-bar{height:7px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden}
         .org-bar i{display:block;height:100%;background:#2f9e44}
         .org-bar.warn i{background:#f59f00}
         .org-bar.hot i{background:#e03131}
         .org-page h3{margin:8px 0 8px}
-        .org-pane-tong h3,.org-sec h3{margin:0}
+        .org-pane-tong h3,.org-sec h3,.org-quan-head h3{margin:0}
         #orgMsg{min-height:1.2em;margin:0}
         @media (max-width:1100px){
           .org-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
           .org-dash{grid-template-columns:1fr 1fr}
           .org-sec-snap{grid-column:1 / -1}
           .org-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .org-split{grid-template-columns:1fr}
+          .org-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .org-keys-grid{grid-template-columns:1fr}
         }
         @media (max-width:720px){
           .org-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -634,6 +662,10 @@
           .org-sec-snap{grid-column:auto}
           .org-kpi{grid-template-columns:1fr}
           .org-sec-h{flex-direction:column;align-items:stretch}
+          .org-grid{grid-template-columns:1fr}
+          .org-form-grid{grid-template-columns:1fr}
+          .org-span-2{grid-column:auto}
+          .org-edit-grid{grid-template-columns:1fr}
         }
       </style>`;
 

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.18] - 2026-09-22
+### Sửa
+- **Tổ chức (Cài đặt / Tạo mới / Quản lý):** bố cục 2 cột, form lưới gọn; thẻ người thu gọn - mở *Chỉnh cấu hình* khi cần; thanh lọc dính đầu danh sách, ít phải kéo trang.
+
 ## [0.56.17] - 2026-09-22
 ### Sửa
 - **Tổ chức / Tổng hợp (desktop):** layout full chiều ngang, chia rõ KPI · VPS · API/Catalog/Sổ · nhật ký; hết lưới 2 cột méo 3 khối và khung hẹp 760px.
