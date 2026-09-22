@@ -315,12 +315,9 @@
           ${pwBtn}
           ${delBtn}
         </div>
-        ${deleted || prot ? "" : `<form class="org-inline org-policy-form" data-org-policy="${esc(t.slug)}">
-          <label>Chế độ model${modeSelect("brain_mode", mode)}</label>
-          <div class="org-prov-wrap"><span class="dim">Provider kho trường (trống = mọi khóa đã dán)</span>${providerChecks("prov_" + t.slug, provs)}</div>
-          <button class="btn primary" type="submit">Lưu chính sách</button>
-        </form>`}
         ${deleted ? "" : `<form class="org-inline org-edit-form" data-org-edit="${esc(t.slug)}">
+          ${prot ? "" : `<label>Chế độ model${modeSelect("brain_mode", mode)}</label>
+          <div class="org-prov-wrap"><span class="dim">Provider kho trường (trống = mọi khóa đã dán)</span>${providerChecks("prov_" + t.slug, provs)}</div>`}
           <label>Hiện tên<input name="name" value="${esc(t.name || "")}"></label>
           ${prot ? "" : `<label>Tên đăng nhập<input name="login_user" value="${esc(t.login_user || "")}" maxlength="32"></label>`}
           <label>Ổ GB (0 = không trần)<input name="quota_gb" type="number" min="0" max="20" value="${esc(String(t.quota_gb || 0))}"></label>
@@ -460,7 +457,7 @@
 
         <section class="org-pane" data-org-pane="quan" ${orgTab === "quan" ? "" : "hidden"}>
           <h3>Quản lý người</h3>
-          <p class="dim">Đổi tên, ổ GB rồi bấm Lưu thay đổi. Xóa giữ não 72 giờ (có thể Khôi phục). Tạm dừng thì máy tắt đến khi Chạy lại.</p>
+          <p class="dim">Đổi chế độ model, provider, tên, ổ GB rồi bấm Lưu thay đổi (một nút lưu hết). Xóa giữ não 72 giờ (có thể Khôi phục). Tạm dừng thì máy tắt đến khi Chạy lại.</p>
           <div class="org-toolbar">
             <input id="orgSearch" class="org-search" type="search" placeholder="Tìm tên, máy, đăng nhập…" value="${esc(orgQ)}">
             <select id="orgSt" class="org-filter" aria-label="Lọc máy">
@@ -714,27 +711,6 @@
         } catch (e) { msg.textContent = e.message; }
       });
     });
-    el.querySelectorAll("form[data-org-policy]").forEach((f) => {
-      f.addEventListener("submit", async (ev) => {
-        ev.preventDefault();
-        const slug = f.getAttribute("data-org-policy");
-        const providers = [];
-        f.querySelectorAll('input[type="checkbox"]:checked').forEach((c) => providers.push(c.value));
-        try {
-          await api("/org/tenants/" + encodeURIComponent(slug), {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              brain_mode: String(f.brain_mode.value || "byo"),
-              providers,
-            }),
-          });
-          orgFlash = "Đã lưu chính sách cho " + slug + ".";
-          orgTab = "quan";
-          render(el);
-        } catch (e) { msg.textContent = e.message; }
-      });
-    });
     async function doCatalog(dry) {
       const box = el.querySelector("#orgCatMsg");
       if (box) box.textContent = dry ? "Đang xem trước…" : "Đang đẩy catalog…";
@@ -854,6 +830,13 @@
         };
         const login = f.login_user ? String(f.login_user.value || "").trim() : "";
         if (login) body.login_user = login;
+        const modeEl = f.querySelector('select[name="brain_mode"]');
+        if (modeEl) {
+          const providers = [];
+          f.querySelectorAll('input[name^="prov_"]:checked').forEach((c) => providers.push(c.value));
+          body.brain_mode = String(modeEl.value || "byo");
+          body.providers = providers;
+        }
         try {
           await api("/org/tenants/" + encodeURIComponent(slug), {
             method: "PATCH",
