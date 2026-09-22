@@ -1,4 +1,4 @@
-/* Kho Drive - wizard 3 bước: kết nối Google → tạo kho → dùng hàng ngày. */
+/* Kho Drive - wizard 3 bước; VPS tách tab Mac / Windows rõ ràng. */
 (function () {
   "use strict";
 
@@ -47,6 +47,16 @@
       return false;
     }
   }
+  function guessOs() {
+    try {
+      var ua = (navigator.userAgent || "").toLowerCase();
+      var p = (navigator.platform || "").toLowerCase();
+      if (/win/.test(p) || /windows/.test(ua)) return "win";
+      return "mac";
+    } catch (e) {
+      return "mac";
+    }
+  }
 
   async function loadStatus() {
     var r = await fetch("/drive-projects/status?brain=" + encodeURIComponent(brain()));
@@ -70,6 +80,9 @@
   }
 
   var _pollTimer = null;
+  var _osTab = guessOs();
+  var _pairCache = null;
+
   function stopPoll() {
     if (_pollTimer) {
       clearInterval(_pollTimer);
@@ -77,224 +90,62 @@
     }
   }
 
-  function stepBar(connected, hasProjects) {
-    function cls(n) {
-      if (n === 1) return connected ? "dp-step done" : "dp-step on";
-      if (n === 2) {
-        if (hasProjects) return "dp-step done";
-        if (connected) return "dp-step on";
-        return "dp-step";
-      }
-      return hasProjects ? "dp-step on" : "dp-step";
+  /** Bước đang làm: 1 chưa Google · 2 đã Google chưa kho · 3 đã có kho. */
+  function currentStep(connected, hasProjects, rcloneOk) {
+    if (!rcloneOk) return 1;
+    if (!connected) return 1;
+    if (!hasProjects) return 2;
+    return 3;
+  }
+
+  function stepBarHtml(step, connected, hasProjects) {
+    function item(n, label, sub) {
+      var done = (n === 1 && connected) || (n === 2 && hasProjects) || (n === 3 && hasProjects && step === 3);
+      var on = step === n;
+      var cls = "dp-step" + (done && !on ? " done" : "") + (on ? " on" : "") + (!on && !done ? " wait" : "");
+      var mark = done && !on ? "✓" : String(n);
+      return (
+        '<li class="' +
+        cls +
+        '" data-step="' +
+        n +
+        '">' +
+        '<span class="dp-n">' +
+        mark +
+        "</span>" +
+        '<span class="dp-lab"><b>' +
+        esc(label) +
+        "</b><small>" +
+        esc(sub) +
+        "</small></span></li>"
+      );
     }
     return (
-      '<ol class="dp-steps" aria-label="Các bước kết nối Kho Drive">' +
-      '<li class="' + cls(1) + '"><span class="dp-n">1</span><span class="dp-t">Kết nối Google</span></li>' +
-      '<li class="' + cls(2) + '"><span class="dp-n">2</span><span class="dp-t">Tạo kho</span></li>' +
-      '<li class="' + cls(3) + '"><span class="dp-n">3</span><span class="dp-t">Dùng hàng ngày</span></li>' +
+      '<ol class="dp-steps" aria-label="3 bước Kho Drive">' +
+      item(1, "Bước 1", "Kết nối Google") +
+      item(2, "Bước 2", "Tạo kho từ link") +
+      item(3, "Bước 3", "Đồng bộ & dùng") +
       "</ol>"
     );
   }
 
   function tipLinkDrive() {
     return (
-      '<details class="dp-tip"><summary>Làm sao lấy link thư mục Drive?</summary>' +
+      '<details class="dp-tip"><summary>Cách lấy link thư mục Drive (bấm để xem)</summary>' +
       '<ol class="dp-ol">' +
-      "<li>Mở <b>drive.google.com</b> trên trình duyệt.</li>" +
-      "<li>Vào đúng thư mục muốn đồng bộ (không phải file lẻ).</li>" +
-      "<li>Bấm chuột phải thư mục → <b>Chia sẻ</b> / <b>Sao chép liên kết</b> " +
-      "(hoặc mở thư mục rồi chép URL trên thanh địa chỉ).</li>" +
-      "<li>Dán nguyên link vào ô bên dưới. VMOS tự lấy ID thư mục.</li>" +
+      "<li>Mở <b>drive.google.com</b>.</li>" +
+      "<li>Vào đúng <b>thư mục</b> (không chọn file lẻ).</li>" +
+      "<li>Chuột phải → <b>Chia sẻ</b> → <b>Sao chép liên kết</b>, hoặc chép URL trên thanh địa chỉ.</li>" +
+      "<li>Dán nguyên link vào ô ở bước 2.</li>" +
       "</ol>" +
-      '<p class="dp-muted">Tài khoản Google vừa Allow phải <b>mở được</b> thư mục đó ' +
-      "(chủ sở hữu hoặc được chia sẻ).</p></details>"
+      '<p class="dp-muted">Tài khoản vừa Allow phải mở được thư mục đó.</p></details>'
     );
-  }
-
-  function render(el) {
-    if (!el) return;
-    stopPoll();
-    el.innerHTML =
-      '<div class="jw-page dp-page">' +
-      '<div class="jw-head"><h2>' +
-      ic("hard-drive") +
-      " " +
-      esc(t("page.drive.label", "Kho Drive")) +
-      "</h2>" +
-      '<p class="jw-lead">' +
-      esc(
-        t(
-          "page.drive.sub",
-          "Đưa một thư mục Google Drive vào bộ não - làm theo 3 bước bên dưới."
-        )
-      ) +
-      "</p></div>" +
-      '<p class="dp-diff dim">' +
-      "Trang này <b>khác</b> menu Kết nối → Google Workspace. " +
-      "Ở đây chỉ <b>đồng bộ thư mục</b> vào bộ não (rclone), không cần OAuth Workspace." +
-      "</p>" +
-      '<div id="dpSteps"></div>' +
-      '<div id="dpStatus" class="jw-hint dim">Đang kiểm tra…</div>' +
-      '<div id="dpConnect" class="jw-card dp-card" style="margin-top:12px;display:none"></div>' +
-      '<div id="dpCreateWrap" class="jw-card dp-card" style="margin-top:12px;display:none"></div>' +
-      '<div id="dpDaily" class="jw-card dp-card" style="margin-top:12px;display:none"></div>' +
-      '<div id="dpList" style="margin-top:16px"></div>' +
-      "</div>";
-
-    refresh(el);
-  }
-
-  function renderCreate(el, connected) {
-    var createWrap = el.querySelector("#dpCreateWrap");
-    if (!createWrap) return;
-    if (!connected) {
-      createWrap.style.display = "none";
-      createWrap.innerHTML = "";
-      return;
-    }
-    createWrap.style.display = "";
-    createWrap.innerHTML =
-      "<h3>Bước 2 - Tạo kho từ thư mục Drive</h3>" +
-      '<ol class="dp-ol">' +
-      "<li>Đặt <b>tên kho</b> dễ nhớ (ví dụ: Giáo trình Marketing).</li>" +
-      "<li>Dán <b>link thư mục</b> Google Drive.</li>" +
-      "<li>Bấm <b>Tạo và đồng bộ</b> - chờ xong (lần đầu có thể vài phút).</li>" +
-      "</ol>" +
-      tipLinkDrive() +
-      '<div class="jw-field"><label>Tên kho</label>' +
-      '<input id="dpName" type="text" placeholder="Ví dụ: Giáo trình Marketing" autocomplete="off"></div>' +
-      '<div class="jw-field"><label>Link thư mục Google Drive</label>' +
-      '<input id="dpFolder" type="text" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off"></div>' +
-      '<button type="button" class="jw-btn jw-btn-primary" id="dpCreate">Tạo và đồng bộ</button>';
-
-    createWrap.querySelector("#dpCreate").onclick = async function () {
-      var name = (createWrap.querySelector("#dpName").value || "").trim();
-      var folder = (createWrap.querySelector("#dpFolder").value || "").trim();
-      if (!name || !folder) {
-        alert("Cần tên kho và link thư mục Drive");
-        return;
-      }
-      var btn = createWrap.querySelector("#dpCreate");
-      btn.disabled = true;
-      btn.textContent = "Đang tạo & đồng bộ…";
-      var res = await postJson("/drive-projects", {
-        name: name,
-        drive_folder_id: folder,
-        rclone_remote: "gdrive:",
-        brain: brain(),
-        sync_now: true,
-      });
-      btn.disabled = false;
-      btn.textContent = "Tạo và đồng bộ";
-      if (!res.ok) {
-        alert(res.error || "Thất bại");
-        if (res.project) await refresh(el);
-        return;
-      }
-      createWrap.querySelector("#dpName").value = "";
-      createWrap.querySelector("#dpFolder").value = "";
-      await refresh(el);
-    };
-  }
-
-  function renderDaily(el, hasProjects) {
-    var box = el.querySelector("#dpDaily");
-    if (!box) return;
-    if (!hasProjects) {
-      box.style.display = "none";
-      return;
-    }
-    box.style.display = "";
-    box.innerHTML =
-      "<h3>Bước 3 - Dùng hàng ngày</h3>" +
-      '<ol class="dp-ol">' +
-      "<li>Sửa / thêm file trên <b>Google Drive</b> như bình thường.</li>" +
-      "<li>Quay lại trang này → bấm <b>Đồng bộ lại</b> trên kho cần cập nhật.</li>" +
-      "<li>Mở <b>Tệp tin</b> → <code>sources/drive/…</code> hoặc Dự án chat của kho.</li>" +
-      "<li>Bảo Javis: <i>đọc / ingest file … rồi viết skill …</i> " +
-      "- chọn từng file quan trọng, không nuốt cả kho một lần.</li>" +
-      "</ol>";
-  }
-
-  function renderConnect(el, d) {
-    var box = el.querySelector("#dpConnect");
-    if (!box) return;
-    var rc = d.rclone || {};
-    var connected = !!(d.google_connected || (rc && rc.google_connected));
-
-    if (!rc.rclone_installed) {
-      box.style.display = "";
-      box.innerHTML =
-        "<h3>Bước 1 - Chưa sẵn sàng</h3>" +
-        '<p class="jw-hint">Máy chạy VMOS cần <code>rclone</code> (bản Docker từ 0.55.154 đã có). ' +
-        "Cập nhật image rồi mở lại trang này.</p>";
-      return;
-    }
-
-    if (connected) {
-      box.style.display = "";
-      box.innerHTML =
-        "<h3>Bước 1 - Google đã kết nối ✓</h3>" +
-        '<p class="jw-hint"><span class="ok">Sẵn sàng tạo kho ở bước 2.</span></p>' +
-        '<button type="button" class="jw-btn jw-btn-ghost" id="dpDisconnect">Ngắt kết nối Google</button>';
-      box.querySelector("#dpDisconnect").onclick = async function () {
-        if (!confirm("Ngắt kết nối Google Drive?")) return;
-        await postJson("/drive-projects/rclone/disconnect", {});
-        await refresh(el);
-      };
-      return;
-    }
-
-    var local = isLocalHost();
-    box.style.display = "";
-    if (local) {
-      box.innerHTML =
-        "<h3>Bước 1 - Kết nối Google Drive</h3>" +
-        '<p class="jw-hint">Bạn đang mở VMOS trên <b>máy này</b>. Chỉ cần 2 thao tác:</p>' +
-        '<ol class="dp-ol">' +
-        "<li>Bấm nút bên dưới → trình duyệt mở Google.</li>" +
-        "<li>Chọn tài khoản → bấm <b>Allow / Cho phép</b> → quay lại trang này (tự nhận).</li>" +
-        "</ol>" +
-        '<button type="button" class="jw-btn jw-btn-primary" id="dpAuthLocal">1. Kết nối Google Drive</button>' +
-        '<div id="dpAuthProgress" class="jw-hint" style="display:none;margin-top:8px"></div>' +
-        advancedDetails();
-      box.querySelector("#dpAuthLocal").onclick = function () {
-        startLocalAuth(el, box);
-      };
-    } else {
-      box.innerHTML =
-        "<h3>Bước 1 - Kết nối Google Drive (máy đang trên VPS)</h3>" +
-        '<p class="jw-hint">Google phải mở trên <b>máy Mac/Windows của bạn</b>, rồi gửi quyền về VPS. ' +
-        "Chọn đúng hệ điều hành máy bạn đang ngồi:</p>" +
-        '<div class="dp-os">' +
-        '<button type="button" class="dp-os-tab on" data-os="mac">Tôi dùng Mac</button>' +
-        '<button type="button" class="dp-os-tab" data-os="win">Tôi dùng Windows</button>' +
-        "</div>" +
-        '<button type="button" class="jw-btn jw-btn-primary" id="dpPairStart">Bắt đầu kết nối</button>' +
-        '<div id="dpPairBox" style="display:none;margin-top:12px"></div>' +
-        advancedDetails();
-      box.querySelector("#dpPairStart").onclick = function () {
-        startPair(el, box);
-      };
-      box.querySelectorAll(".dp-os-tab").forEach(function (tab) {
-        tab.onclick = function () {
-          box.querySelectorAll(".dp-os-tab").forEach(function (x) {
-            x.classList.toggle("on", x === tab);
-          });
-          var pane = box.querySelector("#dpPairPane");
-          if (pane) {
-            pane.setAttribute("data-show", tab.getAttribute("data-os"));
-          }
-        };
-      });
-    }
-    wireAdvanced(el, box);
   }
 
   function advancedDetails() {
     return (
-      '<details class="dp-adv"><summary>Cách khác (chỉ khi nút trên không chạy được)</summary>' +
-      '<p class="jw-hint dim" style="margin-top:8px">Dán token JSON từ rclone, hoặc upload file <code>rclone.conf</code>.</p>' +
+      '<details class="dp-adv"><summary>Cách khác (hiếm khi cần)</summary>' +
+      '<p class="jw-hint dim" style="margin-top:8px">Dán token JSON hoặc upload <code>rclone.conf</code>.</p>' +
       '<textarea id="dpToken" rows="3" class="dp-ta" placeholder=\'{"access_token":...}\'></textarea>' +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       '<button type="button" class="jw-btn jw-btn-ghost" id="dpTokenSave">Lưu token</button>' +
@@ -303,12 +154,35 @@
     );
   }
 
-  function wireAdvanced(el, box) {
-    var save = box.querySelector("#dpTokenSave");
-    var up = box.querySelector("#dpConfUpload");
+  function render(el) {
+    if (!el) return;
+    stopPoll();
+    _pairCache = null;
+    el.innerHTML =
+      '<div class="jw-page dp-page">' +
+      '<div class="jw-head"><h2>' +
+      ic("hard-drive") +
+      " " +
+      esc(t("page.drive.label", "Kho Drive")) +
+      "</h2>" +
+      '<p class="jw-lead">' +
+      esc(t("page.drive.sub", "3 bước: kết nối Google → tạo kho → dùng hàng ngày")) +
+      "</p></div>" +
+      '<p class="dp-diff dim">Khác menu <b>Kết nối → Google</b>: trang này chỉ đồng bộ <b>một thư mục</b> vào bộ não.</p>' +
+      '<div id="dpSteps"></div>' +
+      '<div id="dpNow" class="dp-now"></div>' +
+      '<div id="dpBody"></div>' +
+      '<div id="dpList" style="margin-top:14px"></div>' +
+      "</div>";
+    refresh(el);
+  }
+
+  function wireAdvanced(el, root) {
+    var save = root.querySelector("#dpTokenSave");
+    var up = root.querySelector("#dpConfUpload");
     if (save) {
       save.onclick = async function () {
-        var token = (box.querySelector("#dpToken").value || "").trim();
+        var token = (root.querySelector("#dpToken").value || "").trim();
         if (!token) {
           alert("Dán token trước");
           return;
@@ -323,7 +197,7 @@
     }
     if (up) {
       up.onclick = async function () {
-        var inp = box.querySelector("#dpConfFile");
+        var inp = root.querySelector("#dpConfFile");
         var f = inp && inp.files && inp.files[0];
         if (!f) {
           alert("Chọn file");
@@ -340,59 +214,246 @@
     }
   }
 
-  async function startPair(el, box) {
-    stopPoll();
-    var pairBox = box.querySelector("#dpPairBox");
-    var btn = box.querySelector("#dpPairStart");
-    var os = "mac";
-    var onTab = box.querySelector(".dp-os-tab.on");
-    if (onTab) os = onTab.getAttribute("data-os") || "mac";
-    if (btn) btn.disabled = true;
-    if (pairBox) {
-      pairBox.style.display = "";
-      pairBox.textContent = "Đang tạo lệnh kết nối…";
-    }
-    var res = await postJson("/drive-projects/rclone/pair/start", {
-      base_url: location.origin,
-    });
-    if (!res.ok) {
-      if (pairBox) pairBox.innerHTML = '<span class="warn">' + esc(res.error || "Lỗi") + "</span>";
-      if (btn) btn.disabled = false;
+  function renderBody(el, d) {
+    var body = el.querySelector("#dpBody");
+    var now = el.querySelector("#dpNow");
+    if (!body || !now) return;
+    var rc = d.rclone || {};
+    var connected = !!(d.google_connected || rc.google_connected);
+    var projects = d.projects || [];
+    var rcloneOk = !!rc.rclone_installed;
+    var step = currentStep(connected, projects.length > 0, rcloneOk);
+
+    if (!rcloneOk) {
+      now.innerHTML = '<span class="warn">Đang ở bước 1</span> - máy chưa có rclone. Cập nhật image Docker rồi mở lại.';
+      body.innerHTML =
+        '<div class="jw-card dp-panel on">' +
+        "<h3>Bước 1 - Chưa sẵn sàng</h3>" +
+        '<p class="jw-hint">Cần <code>rclone</code> trên máy VMOS (Docker từ 0.55.154 đã có).</p></div>';
       return;
     }
-    if (pairBox) {
-      pairBox.innerHTML =
-        '<div id="dpPairPane" data-show="' +
-        esc(os) +
-        '">' +
-        '<div class="dp-pane" data-os="mac">' +
-        "<h4>Trên Mac - làm đúng 3 bước</h4>" +
-        '<ol class="dp-ol">' +
-        "<li>Mở app <b>Terminal</b> (Spotlight → gõ Terminal → Enter).</li>" +
-        "<li>Bấm <b>Sao chép lệnh</b> bên dưới → trong Terminal dán (Cmd+V) → Enter.</li>" +
-        "<li>Trình duyệt mở Google → Allow → <b>quay lại trang Kho Drive này</b> (chờ vài giây).</li>" +
+
+    if (step === 1) {
+      now.innerHTML =
+        '<span class="warn">Đang làm bước 1</span> - kết nối tài khoản Google. Xong sẽ tự sang bước 2.';
+      body.innerHTML = htmlStep1(el, d);
+      wireStep1(el, body);
+      return;
+    }
+
+    if (step === 2) {
+      now.innerHTML =
+        '<span class="ok">Bước 1 xong</span> · <span class="warn">Đang làm bước 2</span> - đặt tên kho và dán link thư mục Drive.';
+      body.innerHTML =
+        htmlStep1Done(el) +
+        '<div class="jw-card dp-panel on" id="dpCreateWrap">' +
+        "<h3>Bước 2 - Tạo kho từ thư mục Drive</h3>" +
+        '<ol class="dp-ol dp-ol-big">' +
+        "<li><b>Đặt tên kho</b> dễ nhớ (ví dụ: Giáo trình Marketing).</li>" +
+        "<li><b>Dán link thư mục</b> Google Drive vào ô dưới.</li>" +
+        "<li>Bấm <b>Tạo và đồng bộ</b> - lần đầu có thể mất vài phút.</li>" +
         "</ol>" +
+        tipLinkDrive() +
+        '<div class="jw-field"><label>1. Tên kho</label>' +
+        '<input id="dpName" type="text" placeholder="Ví dụ: Giáo trình Marketing" autocomplete="off"></div>' +
+        '<div class="jw-field"><label>2. Link thư mục Google Drive</label>' +
+        '<input id="dpFolder" type="text" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off"></div>' +
+        '<button type="button" class="jw-btn jw-btn-primary" id="dpCreate">3. Tạo và đồng bộ</button>' +
+        "</div>" +
+        '<div class="jw-card dp-panel wait"><h3>Bước 3 - Dùng hàng ngày</h3>' +
+        '<p class="dp-muted">Sẽ mở sau khi bạn tạo kho xong ở bước 2.</p></div>';
+      wireStep1Done(el);
+      wireCreate(el);
+      return;
+    }
+
+    // step 3
+    now.innerHTML =
+      '<span class="ok">Đã sẵn sàng</span> - sửa file trên Drive rồi bấm <b>Đồng bộ lại</b> bên dưới khi cần.';
+    body.innerHTML =
+      htmlStep1Done(el) +
+      '<div class="jw-card dp-panel done-sum">' +
+      "<h3>Bước 2 - Đã có kho ✓</h3>" +
+      '<p class="jw-hint">Có <b>' +
+      projects.length +
+      "</b> kho. Muốn thêm kho nữa? " +
+      '<button type="button" class="jw-btn jw-btn-ghost" id="dpAddMore">Thêm kho mới</button></p>' +
+      '<div id="dpCreateWrap" style="display:none;margin-top:10px"></div></div>' +
+      '<div class="jw-card dp-panel on">' +
+      "<h3>Bước 3 - Dùng hàng ngày</h3>" +
+      '<ol class="dp-ol dp-ol-big">' +
+      "<li>Sửa / thêm file trên <b>Google Drive</b>.</li>" +
+      "<li>Quay lại đây → bấm <b>Đồng bộ lại</b> trên đúng kho.</li>" +
+      "<li>Mở <b>Tệp tin</b> → <code>sources/drive/…</code> (hoặc Dự án chat của kho).</li>" +
+      "<li>Nhờ Javis đọc / ingest <b>từng file quan trọng</b> - đừng nuốt cả kho một lần.</li>" +
+      "</ol></div>";
+    wireStep1Done(el);
+    var addBtn = body.querySelector("#dpAddMore");
+    if (addBtn) {
+      addBtn.onclick = function () {
+        var wrap = body.querySelector("#dpCreateWrap");
+        if (!wrap) return;
+        wrap.style.display = "";
+        wrap.innerHTML =
+          tipLinkDrive() +
+          '<div class="jw-field"><label>Tên kho</label>' +
+          '<input id="dpName" type="text" placeholder="Tên kho mới" autocomplete="off"></div>' +
+          '<div class="jw-field"><label>Link thư mục Drive</label>' +
+          '<input id="dpFolder" type="text" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off"></div>' +
+          '<button type="button" class="jw-btn jw-btn-primary" id="dpCreate">Tạo và đồng bộ</button>';
+        wireCreate(el);
+      };
+    }
+  }
+
+  function htmlStep1Done(el) {
+    return (
+      '<div class="jw-card dp-panel done-sum">' +
+      "<h3>Bước 1 - Google đã kết nối ✓</h3>" +
+      '<p class="jw-hint"><span class="ok">Sẵn sàng.</span> ' +
+      '<button type="button" class="jw-btn jw-btn-ghost" id="dpDisconnect">Ngắt kết nối</button></p></div>'
+    );
+  }
+
+  function wireStep1Done(el) {
+    var btn = el.querySelector("#dpDisconnect");
+    if (!btn) return;
+    btn.onclick = async function () {
+      if (!confirm("Ngắt kết nối Google Drive?")) return;
+      await postJson("/drive-projects/rclone/disconnect", {});
+      _pairCache = null;
+      await refresh(el);
+    };
+  }
+
+  function htmlStep1(el, d) {
+    if (isLocalHost()) {
+      return (
+        '<div class="jw-card dp-panel on">' +
+        "<h3>Bước 1 - Kết nối Google (máy này)</h3>" +
+        '<ol class="dp-ol dp-ol-big">' +
+        "<li>Bấm nút bên dưới - trình duyệt mở Google.</li>" +
+        "<li>Chọn tài khoản → <b>Allow / Cho phép</b>.</li>" +
+        "<li>Quay lại trang này - tự nhận và sang bước 2.</li>" +
+        "</ol>" +
+        '<button type="button" class="jw-btn jw-btn-primary" id="dpAuthLocal">Kết nối Google Drive</button>' +
+        '<div id="dpAuthProgress" class="jw-hint" style="display:none;margin-top:10px"></div>' +
+        advancedDetails() +
+        "</div>"
+      );
+    }
+    var os = _osTab === "win" ? "win" : "mac";
+    return (
+      '<div class="jw-card dp-panel on">' +
+      "<h3>Bước 1 - Kết nối Google (VMOS trên VPS)</h3>" +
+      '<p class="jw-hint">Google mở trên <b>máy bạn đang ngồi</b>, rồi gửi quyền về VPS. Chọn đúng hệ điều hành:</p>' +
+      '<div class="dp-os-tabs" role="tablist">' +
+      '<button type="button" role="tab" class="dp-os-tab' +
+      (os === "mac" ? " on" : "") +
+      '" data-os="mac" aria-selected="' +
+      (os === "mac" ? "true" : "false") +
+      '">Mac</button>' +
+      '<button type="button" role="tab" class="dp-os-tab' +
+      (os === "win" ? " on" : "") +
+      '" data-os="win" aria-selected="' +
+      (os === "win" ? "true" : "false") +
+      '">Windows</button>' +
+      "</div>" +
+      '<div id="dpOsBody" class="dp-os-body" data-show="' +
+      esc(os) +
+      '">' +
+      htmlOsMac() +
+      htmlOsWin() +
+      "</div>" +
+      '<p class="jw-hint" id="dpPairWait" style="display:none;margin-top:12px"></p>' +
+      advancedDetails() +
+      "</div>"
+    );
+  }
+
+  function htmlOsMac() {
+    return (
+      '<div class="dp-os-pane" data-os="mac" role="tabpanel">' +
+      '<div class="dp-os-title">Hướng dẫn cho Mac</div>' +
+      '<ol class="dp-ol dp-ol-big">' +
+      "<li>Bấm <b>Bắt đầu trên Mac</b> bên dưới (một lần là đủ).</li>" +
+      "<li>Bấm <b>Sao chép lệnh</b> → mở app <b>Terminal</b> → dán (Cmd+V) → Enter.</li>" +
+      "<li>Trình duyệt mở Google → Allow → quay lại trang này.</li>" +
+      "</ol>" +
+      '<button type="button" class="jw-btn jw-btn-primary" id="dpStartMac">Bắt đầu trên Mac</button>' +
+      '<div id="dpMacTools" class="dp-os-tools" style="display:none"></div>' +
+      "</div>"
+    );
+  }
+
+  function htmlOsWin() {
+    return (
+      '<div class="dp-os-pane" data-os="win" role="tabpanel">' +
+      '<div class="dp-os-title">Hướng dẫn cho Windows</div>' +
+      '<ol class="dp-ol dp-ol-big">' +
+      "<li>Bấm <b>Bắt đầu trên Windows</b> bên dưới.</li>" +
+      "<li>Bấm <b>Tải file .bat</b> → double-click file vừa tải (Run anyway nếu Windows hỏi).</li>" +
+      "<li>Trình duyệt mở Google → Allow → quay lại trang này.</li>" +
+      "</ol>" +
+      '<button type="button" class="jw-btn jw-btn-primary" id="dpStartWin">Bắt đầu trên Windows</button>' +
+      '<div id="dpWinTools" class="dp-os-tools" style="display:none"></div>' +
+      "</div>"
+    );
+  }
+
+  function wireStep1(el, body) {
+    wireAdvanced(el, body);
+    var localBtn = body.querySelector("#dpAuthLocal");
+    if (localBtn) {
+      localBtn.onclick = function () {
+        startLocalAuth(el, body);
+      };
+      return;
+    }
+    body.querySelectorAll(".dp-os-tab").forEach(function (tab) {
+      tab.onclick = function () {
+        _osTab = tab.getAttribute("data-os") || "mac";
+        body.querySelectorAll(".dp-os-tab").forEach(function (x) {
+          var on = x === tab;
+          x.classList.toggle("on", on);
+          x.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        var wrap = body.querySelector("#dpOsBody");
+        if (wrap) wrap.setAttribute("data-show", _osTab);
+        fillOsTools(body);
+      };
+    });
+    var mac = body.querySelector("#dpStartMac");
+    var win = body.querySelector("#dpStartWin");
+    if (mac) {
+      mac.onclick = async function () {
+        _osTab = "mac";
+        await ensurePair(el, body);
+      };
+    }
+    if (win) {
+      win.onclick = async function () {
+        _osTab = "win";
+        await ensurePair(el, body);
+      };
+    }
+    if (_pairCache) fillOsTools(body);
+  }
+
+  function fillOsTools(body) {
+    if (!_pairCache || !_pairCache.ok) return;
+    var res = _pairCache;
+    var macTools = body.querySelector("#dpMacTools");
+    var winTools = body.querySelector("#dpWinTools");
+    if (macTools) {
+      macTools.style.display = "";
+      macTools.innerHTML =
         '<button type="button" class="jw-btn jw-btn-primary" id="dpCopyMac">Sao chép lệnh Terminal</button>' +
-        '<pre class="dp-pre" id="dpMacCmd">' +
+        '<pre class="dp-pre">' +
         esc(res.mac_terminal || "") +
         "</pre>" +
-        '<p class="dp-muted">Không tải file <code>.command</code> nếu không cần - macOS hay chặn. ' +
-        "Lệnh Terminal là cách ổn định nhất.</p>" +
-        "</div>" +
-        '<div class="dp-pane" data-os="win">' +
-        "<h4>Trên Windows - làm đúng 3 bước</h4>" +
-        '<ol class="dp-ol">' +
-        "<li>Bấm <b>Tải file .bat</b> bên dưới → lưu vào Máy tính.</li>" +
-        "<li>Double-click file vừa tải (nếu Windows hỏi, chọn <b>Run anyway</b>).</li>" +
-        "<li>Trình duyệt mở Google → Allow → <b>quay lại trang Kho Drive này</b>.</li>" +
-        "</ol>" +
-        '<a class="jw-btn jw-btn-primary" href="' +
-        esc(res.win_url) +
-        '">Tải cho Windows (.bat)</a>' +
-        "</div></div>" +
-        '<p class="jw-hint" id="dpPairWait" style="margin-top:12px">Đang chờ bạn Allow Google trên máy… (còn ~15 phút)</p>';
-
-      var copyBtn = pairBox.querySelector("#dpCopyMac");
+        '<p class="dp-muted">Dùng lệnh Terminal - đừng tải file <code>.command</code> (macOS hay chặn).</p>';
+      var copyBtn = macTools.querySelector("#dpCopyMac");
       if (copyBtn && res.mac_terminal) {
         copyBtn.onclick = async function () {
           try {
@@ -402,29 +463,66 @@
               copyBtn.textContent = "Sao chép lệnh Terminal";
             }, 2800);
           } catch (e) {
-            alert("Không sao chép được. Hãy bôi đen lệnh bên dưới rồi Cmd+C.");
+            alert("Không sao chép được. Bôi đen lệnh bên dưới rồi Cmd+C.");
           }
         };
       }
-      box.querySelectorAll(".dp-os-tab").forEach(function (tab) {
-        tab.onclick = function () {
-          box.querySelectorAll(".dp-os-tab").forEach(function (x) {
-            x.classList.toggle("on", x === tab);
-          });
-          var pane = pairBox.querySelector("#dpPairPane");
-          if (pane) pane.setAttribute("data-show", tab.getAttribute("data-os"));
-        };
-      });
     }
-    var pairId = res.pair_id;
+    if (winTools) {
+      winTools.style.display = "";
+      winTools.innerHTML =
+        '<a class="jw-btn jw-btn-primary" href="' +
+        esc(res.win_url) +
+        '">Tải file .bat cho Windows</a>' +
+        '<p class="dp-muted" style="margin-top:8px">Double-click file vừa tải. Nếu Windows cảnh báo: More info → Run anyway.</p>';
+    }
+  }
+
+  async function ensurePair(el, body) {
+    var wait = body.querySelector("#dpPairWait");
+    var macBtn = body.querySelector("#dpStartMac");
+    var winBtn = body.querySelector("#dpStartWin");
+    if (macBtn) macBtn.disabled = true;
+    if (winBtn) winBtn.disabled = true;
+    if (wait) {
+      wait.style.display = "";
+      wait.textContent = "Đang tạo lệnh kết nối…";
+    }
+    if (!_pairCache || !_pairCache.ok) {
+      var res = await postJson("/drive-projects/rclone/pair/start", {
+        base_url: location.origin,
+      });
+      _pairCache = res;
+      if (!res.ok) {
+        if (wait) wait.innerHTML = '<span class="warn">' + esc(res.error || "Lỗi") + "</span>";
+        if (macBtn) macBtn.disabled = false;
+        if (winBtn) winBtn.disabled = false;
+        return;
+      }
+    }
+    fillOsTools(body);
+    if (wait) {
+      wait.innerHTML =
+        '<span class="ok">Đang chờ bạn Allow Google trên máy…</span> ' +
+        "<span class=\"dim\">(còn khoảng 15 phút - không đóng trang này)</span>";
+    }
+    startPairPoll(el, body, _pairCache.pair_id);
+  }
+
+  function startPairPoll(el, body, pairId) {
+    stopPoll();
     var n = 0;
     _pollTimer = setInterval(async function () {
       n += 1;
       if (n > 150) {
         stopPoll();
-        var w = box.querySelector("#dpPairWait");
-        if (w) w.innerHTML = '<span class="warn">Hết thời gian. Bấm «Bắt đầu kết nối» lại.</span>';
-        if (btn) btn.disabled = false;
+        var w = body.querySelector("#dpPairWait");
+        if (w) w.innerHTML = '<span class="warn">Hết thời gian. Bấm Bắt đầu lại.</span>';
+        var macBtn = body.querySelector("#dpStartMac");
+        var winBtn = body.querySelector("#dpStartWin");
+        if (macBtn) macBtn.disabled = false;
+        if (winBtn) winBtn.disabled = false;
+        _pairCache = null;
         return;
       }
       try {
@@ -433,15 +531,51 @@
         ).json();
         if (p.status === "done") {
           stopPoll();
+          _pairCache = null;
           await refresh(el);
         } else if (p.status === "error") {
           stopPoll();
-          var w2 = box.querySelector("#dpPairWait");
+          var w2 = body.querySelector("#dpPairWait");
           if (w2) w2.innerHTML = '<span class="warn">' + esc(p.error || "Lỗi") + "</span>";
-          if (btn) btn.disabled = false;
+          _pairCache = null;
+          var m2 = body.querySelector("#dpStartMac");
+          var wBtn = body.querySelector("#dpStartWin");
+          if (m2) m2.disabled = false;
+          if (wBtn) wBtn.disabled = false;
         }
       } catch (e) {}
     }, 2000);
+  }
+
+  function wireCreate(el) {
+    var root = el.querySelector("#dpCreateWrap") || el;
+    var btn = root.querySelector("#dpCreate");
+    if (!btn) return;
+    btn.onclick = async function () {
+      var name = (root.querySelector("#dpName").value || "").trim();
+      var folder = (root.querySelector("#dpFolder").value || "").trim();
+      if (!name || !folder) {
+        alert("Cần tên kho và link thư mục Drive");
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Đang tạo & đồng bộ…";
+      var res = await postJson("/drive-projects", {
+        name: name,
+        drive_folder_id: folder,
+        rclone_remote: "gdrive:",
+        brain: brain(),
+        sync_now: true,
+      });
+      btn.disabled = false;
+      btn.textContent = "Tạo và đồng bộ";
+      if (!res.ok) {
+        alert(res.error || "Thất bại");
+        if (res.project) await refresh(el);
+        return;
+      }
+      await refresh(el);
+    };
   }
 
   async function startLocalAuth(el, box) {
@@ -507,35 +641,23 @@
   }
 
   async function refresh(el) {
-    var stEl = el.querySelector("#dpStatus");
-    var listEl = el.querySelector("#dpList");
     var stepsEl = el.querySelector("#dpSteps");
+    var listEl = el.querySelector("#dpList");
     try {
       var d = await loadStatus();
       var rc = d.rclone || {};
       var connected = !!(d.google_connected || rc.google_connected);
       var projects = d.projects || [];
-      if (stepsEl) stepsEl.innerHTML = stepBar(connected, projects.length > 0);
-
-      stEl.innerHTML = !rc.rclone_installed
-        ? '<span class="warn">Chưa có rclone trên máy VMOS</span>'
-        : connected
-          ? '<span class="ok">Google đã kết nối</span>' +
-            (projects.length
-              ? ' · <span class="dim">' + projects.length + " kho</span>"
-              : ' · <span class="dim">chưa có kho - làm bước 2</span>')
-          : '<span class="warn">Chưa kết nối Google - bắt đầu từ bước 1</span>';
-
-      renderConnect(el, d);
-      renderCreate(el, connected && rc.rclone_installed);
-      renderDaily(el, projects.length > 0);
+      var step = currentStep(connected, projects.length > 0, !!rc.rclone_installed);
+      if (stepsEl) stepsEl.innerHTML = stepBarHtml(step, connected, projects.length > 0);
+      renderBody(el, d);
 
       if (!projects.length) {
         listEl.innerHTML = "";
         return;
       }
       listEl.innerHTML =
-        "<h3>Kho của bạn</h3>" +
+        '<h3 class="dp-list-h">Kho của bạn</h3>' +
         projects
           .map(function (p) {
             var syncBadge =
@@ -592,7 +714,8 @@
         };
       });
     } catch (e) {
-      stEl.textContent = "Lỗi: " + ((e && e.message) || e);
+      var now = el.querySelector("#dpNow");
+      if (now) now.textContent = "Lỗi: " + ((e && e.message) || e);
     }
   }
 

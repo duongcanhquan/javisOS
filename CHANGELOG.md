@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.26] - 2026-09-22
+### Cải thiện
+- **Kho Drive:** bước 1 tách tab **Mac / Windows** rõ; chỉ hiện bước đang làm (1→2→3 tự sang khi xong). Thanh trạng thái nói bạn đang ở bước nào.
+
 ## [0.56.25] - 2026-09-22
 ### Cải thiện
 - **Kho Drive:** hướng dẫn 3 bước rõ trên trang (kết nối Google → tạo kho → dùng hàng ngày). VPS tách Mac/Windows; có mẹo lấy link thư mục. Phân biệt với thẻ Google ở menu Kết nối.
