@@ -1,6 +1,8 @@
 """API tổ chức (/org/*). Manager: cookie admin. Pool tenant: Bearer vé."""
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -231,68 +233,74 @@ def _make_router() -> APIRouter:
         return {"ok": True, "coord": _coord_public()}
 
     @router.get("/org/ram_live")
-    def org_ram_live(request: Request):
+    async def org_ram_live(request: Request):
         """Chỉ số RAM Docker thật — poll nhẹ cho dashboard, không kèm cả sổ tenants."""
         if (deny := _need_manager(request)) is not None:
             return deny
-        import org_coord as oc
-        running: list = []
-        try:
-            if org_docker.docker_available():
-                running = org_docker.people_running()
-        except Exception:
-            running = []
-        live: dict = {}
-        try:
-            if org_docker.docker_available():
-                live = org_docker.ram_live_report(running) or {}
-        except Exception:
-            live = {}
-        if not isinstance(live, dict):
-            live = {}
-        c = oc.coord()
-        return {
-            "ok": True,
-            "running": len(running),
-            "ram_mb": int(oc.RAM_MB),
-            "host_ram_mb": int(c.get("host_ram_mb") or 0),
-            "host_avail_mb": int(c.get("host_avail_mb") or 0),
-            "machines": list(live.get("machines") or []),
-            "people_used_mb": int(live.get("people_used_mb") or 0),
-            "people_idle_mb": int(live.get("people_idle_mb") or 0),
-            "people_active_n": int(live.get("people_active_n") or 0),
-            "people_idle_n": int(live.get("people_idle_n") or 0),
-            "ram_limit_mb": int(live.get("ram_limit_mb") or oc.RAM_MB),
-            "fit_more_est": int(live.get("fit_more_est") or 0),
-            "note": live.get("note") or "",
-        }
+
+        def _run():
+            import org_coord as oc
+            running: list = []
+            try:
+                if org_docker.docker_available():
+                    running = org_docker.people_running()
+            except Exception:
+                running = []
+            live: dict = {}
+            try:
+                if org_docker.docker_available():
+                    live = org_docker.ram_live_report(running) or {}
+            except Exception:
+                live = {}
+            if not isinstance(live, dict):
+                live = {}
+            c = oc.coord()
+            return {
+                "ok": True,
+                "running": len(running),
+                "ram_mb": int(oc.RAM_MB),
+                "host_ram_mb": int(c.get("host_ram_mb") or 0),
+                "host_avail_mb": int(c.get("host_avail_mb") or 0),
+                "machines": list(live.get("machines") or []),
+                "people_used_mb": int(live.get("people_used_mb") or 0),
+                "people_idle_mb": int(live.get("people_idle_mb") or 0),
+                "people_active_n": int(live.get("people_active_n") or 0),
+                "people_idle_n": int(live.get("people_idle_n") or 0),
+                "ram_limit_mb": int(live.get("ram_limit_mb") or oc.RAM_MB),
+                "fit_more_est": int(live.get("fit_more_est") or 0),
+                "note": live.get("note") or "",
+            }
+
+        return await asyncio.to_thread(_run)
 
     @router.get("/org/tenants")
-    def org_list(request: Request):
+    async def org_list(request: Request):
         if (deny := _need_manager(request)) is not None:
             return deny
-        data = ot.load()
-        out = []
-        dk_ok = org_docker.docker_available()
-        names = [str(t.get("container") or "") for t in data["tenants"] if t.get("container")]
-        st_map = org_docker.containers_status_map(names) if (dk_ok and names) else {}
-        for t in data["tenants"]:
-            rec = op.public_tenant(t)
-            cname = str(t.get("container") or "")
-            if cname and dk_ok:
-                rec["status"] = st_map.get(cname, "missing")
-            if ot.is_soft_deleted(t):
-                rec["status"] = "deleted"
-                rec["paused"] = True
-            elif rec.get("paused"):
-                rec["status"] = "paused"
-            # Không inspect image trên đường list (N Docker round-trip). Digest đã có
-            # trên sổ thì dùng; thiếu thì để trống - lấy sau ở usage/tick nếu cần.
-            out.append(rec)
-        return {"ok": True, "tenants": out, "docker": dk_ok,
-                "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
-                "coord": _coord_public(),
-                **op.pool_public()}
+
+        def _run():
+            data = ot.load()
+            out = []
+            dk_ok = org_docker.docker_available()
+            names = [str(t.get("container") or "") for t in data["tenants"] if t.get("container")]
+            st_map = org_docker.containers_status_map(names) if (dk_ok and names) else {}
+            for t in data["tenants"]:
+                rec = op.public_tenant(t)
+                cname = str(t.get("container") or "")
+                if cname and dk_ok:
+                    rec["status"] = st_map.get(cname, "missing")
+                if ot.is_soft_deleted(t):
+                    rec["status"] = "deleted"
+                    rec["paused"] = True
+                elif rec.get("paused"):
+                    rec["status"] = "paused"
+                out.append(rec)
+            return {"ok": True, "tenants": out, "docker": dk_ok,
+                    "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),
+                    "coord": _coord_public(),
+                    **op.pool_public()}
+
+        return await asyncio.to_thread(_run)
 
     @router.post("/org/tenants")
     async def org_create(request: Request):
@@ -483,7 +491,7 @@ def _make_router() -> APIRouter:
         op.reset_month_if_needed(rec)
         disk = 0
         try:
-            disk = org_docker.cache_disk_usage(slug, force=True)
+            disk = org_docker.cache_disk_usage(slug, force=False)
             rec = ot.get(slug) or rec
         except Exception:
             disk = int(rec.get("disk_bytes") or 0)
@@ -502,7 +510,7 @@ def _make_router() -> APIRouter:
         }
 
     @router.post("/org/tenants/{slug}/start")
-    def org_start(slug: str, request: Request):
+    async def org_start(slug: str, request: Request):
         if (deny := _need_manager(request)) is not None:
             return deny
         rec = ot.get(slug)
@@ -515,7 +523,8 @@ def _make_router() -> APIRouter:
             rec["paused"] = False
             ot.upsert(rec)
         try:
-            org_docker.start_with_capacity(slug)
+            # Docker start + điều phối có thể vài giây; chạy thread để /health không 502.
+            await asyncio.to_thread(org_docker.start_with_capacity, slug)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         return {"ok": True, "coord": _coord_public()}

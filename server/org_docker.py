@@ -553,7 +553,12 @@ def write_quota(cname: str, quota_gb: int) -> None:
                   f"Path('/data/state/org-quota').write_text('{gb}')"])
 
 
-def start(slug: str) -> None:
+def start(slug: str, *, wait_ready: bool = False) -> None:
+    """Bật container. Mặc định KHÔNG chờ /health (tránh treo manager ~1 phút).
+
+    Admin bấm Bật máy / wake link: trả lời ngay khi Docker start xong; máy còn
+    khởi động vài giây. create_and_start vẫn wait_ready=True.
+    """
     rec = ot.get(slug)
     if not rec:
         raise RuntimeError("Không có bản này.")
@@ -562,8 +567,12 @@ def start(slug: str) -> None:
     if r.status_code not in (204, 200, 304):
         raise RuntimeError(f"start HTTP {r.status_code}: {(r.text or '')[:300]}")
     invalidate_status_cache(cname)
+    if wait_ready:
+        try:
+            wait_health(cname, tries=20)
+        except Exception:
+            pass
     try:
-        wait_health(cname)
         write_quota(cname, int(rec.get("quota_gb") or 0))
     except Exception:
         pass

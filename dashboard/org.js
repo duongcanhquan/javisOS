@@ -49,7 +49,7 @@
   let orgKind = "all";
   let orgFlash = "";
   let ramPollTimer = null;
-  const RAM_POLL_MS = 4000;
+    const RAM_POLL_MS = 12000;
 
   function stopRamPoll() {
     if (ramPollTimer) {

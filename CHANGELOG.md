@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.34] - 2026-09-22
+### Sửa
+- **Tổ chức · 502 / Đang bật máy mãi:** `start()` chờ `/health` tới ~80s trên thread uvicorn → manager đơ, Caddy trả 502. Nay bật máy trả ngay khi Docker start; `/org/start` + list/ram_live chạy `asyncio.to_thread`; poll RAM 12s; usage đĩa không force mỗi lần.
+
 ## [0.56.33] - 2026-09-22
 ### Sửa
 - **Tổ chức · sổ tenant:** lỗi đọc/parse `org-tenants.json` trước đây ghi đè sổ bằng chỉ còn `quan` → mất danh sách người dù Docker/volume còn. Nay không ghi đè khi JSON hỏng; `save` từ chối thu nhỏ sổ ≥3 người xuống ≤1. Đã khôi phục sổ từ container trên VPS.
