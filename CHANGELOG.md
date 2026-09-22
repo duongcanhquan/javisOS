@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.8] - 2026-09-22
+### Sửa
+- **Cộng sự:** nhóm Trợ lý / Quy trình mặc định thu gọn, bấm tiêu đề mới xổ (ô tìm vẫn xổ tạm để thấy kết quả).
+- **Sửa bước quy trình:** nối lại `editWorkflow` / `exportItem` / `importItems` ra Cộng sự; bấm bước hoặc nút Sửa mở modal; Xuất / Xoá hoạt động lại.
+
 ## [0.56.7] - 2026-09-22
 ### Sửa
 - **Mô tả skill tiếng Việt:** mọi skill hệ thống (kể TypeUI) có `description` Việt rõ ≤150 ký tự; thêm `description_en` để router tiếng Anh. Sửa 4 skill HTĐT bị YAML vỡ vì dấu `:`.

@@ -62,22 +62,25 @@
   // danh sách chia thành từng nhóm có tiêu đề bấm thu gọn/mở, số người bên phải, và nút
   // "..." để đổi tên cả nhóm. Dữ liệu vẫn là field `group` sẵn có trong frontmatter, nên
   // Studio, ô lọc và menu "Chuyển sang nhóm" đều nhìn thấy cùng một thứ.
+  //
+  // Mặc định THU GỌN (chủ repo 22/09): sổ nhớ nhóm ĐANG MỞ. Danh sách trống = mọi nhóm gập;
+  // bấm tiêu đề mới xổ. Khi đang gõ ô tìm thì tạm xổ hết để kết quả lọc không bị giấu.
   var NHOM_MD = "Chung";
-  var KHOA_THU = "javis_ws_thu";                 // localStorage: nhóm đang THU GỌN, theo loại
+  var KHOA_MO = "javis_ws_mo";                   // localStorage: nhóm đang MỞ, theo loại
   function nhomCua(x) { return (String((x && x.group) || "").trim()) || NHOM_MD; }
-  function docThu() {
-    try { return JSON.parse(localStorage.getItem(KHOA_THU) || "{}") || {}; }
+  function docMo() {
+    try { return JSON.parse(localStorage.getItem(KHOA_MO) || "{}") || {}; }
     catch (e) { return {}; }
   }
-  function luuThu() { try { localStorage.setItem(KHOA_THU, JSON.stringify(S.thu)); } catch (e) {} }
-  // Khoá theo BRAIN + loại (như sổ nhóm trống): hai brain có nhóm trùng tên mà dùng chung sổ thu
-  // gọn thì thu ở brain này là bên kia cũng thu theo.
+  function luuMo() { try { localStorage.setItem(KHOA_MO, JSON.stringify(S.mo)); } catch (e) {} }
+  // Khoá theo BRAIN + loại (như sổ nhóm trống): hai brain có nhóm trùng tên mà dùng chung sổ mở
+  // thì mở ở brain này là bên kia cũng mở theo.
   function khoaThu() { return brain() + "|" + S.loai; }
-  function daThu(g) { return (S.thu[khoaThu()] || []).indexOf(g) >= 0; }
+  function daThu(g) { return (S.mo[khoaThu()] || []).indexOf(g) < 0; }
   function latThu(g) {
-    var ds = S.thu[khoaThu()] || (S.thu[khoaThu()] = []);
+    var ds = S.mo[khoaThu()] || (S.mo[khoaThu()] = []);
     var i = ds.indexOf(g); if (i >= 0) ds.splice(i, 1); else ds.push(g);
-    luuThu();
+    luuMo();
   }
   // Chia danh sách (đã lọc, đã sắp) thành các KHỐI theo thứ tự vẽ. Hàm thuần, test được:
   //   - khối "Đã ghim" đứng đầu nếu có mục ghim;
@@ -194,7 +197,7 @@
   // vài chục trợ lý, vẽ hết một lượt là một cột cuộn dài dằng dặc mà chín phần mười số hàng
   // chẳng ai nhìn tới.
   var TRANG = 20;
-  var S = { loai: "agent", q: "", nhom: "", thu: docThu(), agents: [], workflows: [], chon: { agent: null, workflow: null },
+  var S = { loai: "agent", q: "", nhom: "", mo: docMo(), agents: [], workflows: [], chon: { agent: null, workflow: null },
             el: null, tienDo: {}, sessionCuaPhien: {}, tabPhai: "lichsu",
             // Tab cột phải NHỚ RIÊNG theo loại. Trợ lý mở ở Lịch sử (chốt 16/09, xem TAB_PHAI);
             // quy trình mở ở Cài đặt vì nút Chạy nằm ở đó (chủ dự án chốt 17/09). Dùng chung
@@ -579,7 +582,9 @@
     // trang; phân trang đếm MỤC đã vẽ chứ không đếm tiêu đề.
     var html = "", daVe = 0, tong = 0;
     gomNhom(ds, S.nhom, trong).forEach(function (n) {
-      var thu = n.theoNhom && daThu(n.nhom);
+      // Đang tìm kiếm thì xổ tạm mọi nhóm: nếu vẫn thu thì hàng khớp nằm sau tiêu đề gập và
+      // người dùng tưởng "không có kết quả" dù bộ lọc đã tìm ra.
+      var thu = n.theoNhom && daThu(n.nhom) && !S.q;
       if (n.ghim) html += '<div class="ws-glabel">' + esc(t("ws.grp_pinned")) + '</div>';
       else if (n.theoNhom) html += nhomHtml(n.nhom, n.items.length, thu);
       else if (n.tieuDe) html += '<div class="ws-glabel">' + esc(t("ws.grp_rest")) + '</div>';
@@ -1099,11 +1104,22 @@
       var task = (step.name || step.title || step.task || "").replace(/\{\{input\}\}/g, t("ws.input_label")).replace(/\{\{prev\}\}/g, t("ws.previous_result"));
       var agent = agentOf(step.agent || b.agent);
       var nhan = { cho: t("ws.step_wait"), dang: t("ws.step_doing"), xong: t("ws.step_done"), loi: t("ws.step_err") }[b.trang_thai];
-      return '<div class="ws-step ' + b.trang_thai + '"><span class="ws-num">' + (b.trang_thai === "xong" ? ic("check") : (i + 1)) + '</span>' +
+      return '<button type="button" class="ws-step ' + b.trang_thai + '" data-si="' + i + '" title="' + esc(t("ws.edit_steps")) + '"><span class="ws-num">' + (b.trang_thai === "xong" ? ic("check") : (i + 1)) + '</span>' +
         '<strong>' + esc(task.slice(0, 80) || t("ws.step_n", { n: i + 1 })) + '</strong><small>' + esc(nhan) + (b.loi ? ": " + esc(b.loi) : "") + '</small>' +
-        '<div class="ws-who">' + avatar(agent, 26, b.trang_thai === "dang" ? "thinking" : "idle") + ' ' + esc(agent.name || b.agent || step.agent) + '</div></div>';
+        '<div class="ws-who">' + avatar(agent, 26, b.trang_thai === "dang" ? "thinking" : "idle") + ' ' + esc(agent.name || b.agent || step.agent) + '</div></button>';
     }).join("") + (td.cho_duyet ? '<div class="ws-wait">' + esc(t("studio.wait1")) + ' "' + esc(td.cho_duyet.node) + '"' + (td.cho_duyet.prompt ? ": " + esc(td.cho_duyet.prompt) : "") +
       '<div><button type="button" class="ws-btn primary" id="wsApprove">' + esc(t("studio.approve")) + ' ' + esc(td.cho_duyet.code) + '</button><small>' + esc(t("studio.wait_warn")) + '</small></div></div>' : "");
+    host.querySelectorAll(".ws-step[data-si]").forEach(function (el) {
+      el.onclick = function () {
+        var moi = dangChon() || item;
+        var si = parseInt(el.getAttribute("data-si"), 10);
+        if (!window.JavisStudio || !window.JavisStudio.editWorkflow) return;
+        window.JavisStudio.editWorkflow(moi, {
+          openIdx: isFinite(si) ? si : 0,
+          onSaved: async function () { await sauLuu(moi, "workflow"); }
+        });
+      };
+    });
     var ap = host.querySelector("#wsApprove");
     if (ap) ap.onclick = function () {
       ap.disabled = true;

@@ -2542,7 +2542,9 @@ body.on-mcp .cview-body > .cview-placeholder {
 .ws-status { font-size: 12.5px; color: var(--text2); margin: 6px 0 10px; }
 .ws-steps { display: flex; flex-direction: column; gap: 6px; }
 .ws-step { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px;
-  align-items: start; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--glass-brd); }
+  align-items: start; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--glass-brd);
+  width: 100%; text-align: left; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.ws-step:hover { border-color: var(--accent-line, #7d532d); background: var(--surface-1, rgba(255,255,255,.03)); }
 .ws-step .ws-num { grid-row: 1 / span 3; width: 22px; height: 22px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
   border: 1px solid var(--border); color: var(--text3); }

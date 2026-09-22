@@ -73,9 +73,8 @@
   // Studio đã tách thành các trang sidebar riêng. openStudio = điều hướng rail (giữ tương thích
   // cho nút header & dải số liệu .bstat ở đáy graph). Console gọi loader qua window.JavisStudio.
   window.openStudio = (tab) => { if (window.Alpine) Alpine.store("nav").go(tab || "workflows"); };
-  window.JavisStudio = {
-    workflows: loadWorkflows, agents: loadAgents, skills: loadSkills,
-  };
+  // JavisStudio gắn đủ API ở CUỐI file (sau khi khai editAgent/editWorkflow), tránh
+  // tham chiếu hàm chưa sẵn khi gán sớm.
   const _studioBtn = document.getElementById("studioOpenBtn");
   if (_studioBtn) _studioBtn.addEventListener("click", () => window.openStudio("workflows"));
 
@@ -948,17 +947,24 @@
   }
 
   // ===== Workflow editor =====
+  // opts (tuỳ chọn, Cộng sự truyền vào):
+  //   host    - DOM node: vẽ form tại chỗ (cột phải). Không có → bung modal #studioEditor.
+  //   onSaved - callback(ket_qua) sau khi Lưu thành công; ket_qua có `slug`.
+  //   openIdx - chỉ số bước mở sẵn (mặc định: tạo mới = 0, sửa = đóng hết).
   let agentsCache = [];
-  async function editWorkflow(w) {
+  async function editWorkflow(w, opts) {
+    opts = opts || {};
+    const embed = !!(opts.host);
     const [ad, st] = await Promise.all([
       api(`/agents?brain=${encodeURIComponent(brain())}`),
       api("/settings"),
     ]);
     agentsCache = ad.agents || [];
     if (!agentsCache.length) { alert(t("studio.no_agents")); return; }
-    const box = document.getElementById("editorBox");
+    const box = opts.host || document.getElementById("editorBox");
+    if (!box) return;
     const steps = w ? JSON.parse(JSON.stringify(w.steps || [])) : [{ agent: agentsCache[0].slug, task: "" }];
-    const opts = (sel) => agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
+    const optsA = (sel) => agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const optsV = (sel) => `<option value="">${esc(t("studio.no_verify"))}</option>` + agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const agentName = (slug) => { const a = agentsCache.find(x => x.slug === slug); return a ? a.name : (slug || "?"); };
     const MODEL_SEP = "::";
@@ -975,7 +981,7 @@
       ...nhomM.map(g => `<optgroup label="${esc(g.label)}">${g.models.map(m =>
         `<option value="${esc(mVal(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`),
     ].join("");
-    let openIdx = w ? null : 0;
+    let openIdx = (opts.openIdx != null) ? opts.openIdx : (w ? null : 0);
     let ten = w ? (w.name || "") : "";
     let mota = w ? (w.description || "") : "";
     let nhom = w ? nhomCua(w) : NHOM_MD;
@@ -986,9 +992,15 @@
       const j = i + d;
       if (j < 0 || j >= steps.length) return;
       captureSteps();
-      const t = steps[i]; steps[i] = steps[j]; steps[j] = t;
+      const tmp = steps[i]; steps[i] = steps[j]; steps[j] = tmp;
       if (openIdx === i) openIdx = j; else if (openIdx === j) openIdx = i;
       render();
+    }
+    function dongForm() {
+      if (embed) {
+        if (typeof opts.onCancel === "function") opts.onCancel();
+        else box.innerHTML = "";
+      } else if (editor) editor.classList.remove("open");
     }
     function render() {
       box.innerHTML = `
@@ -1003,8 +1015,8 @@
         <div class="dim" style="font-size:12px;margin-top:4px">${esc(t("studio.wf_model_note"))}</div>
         <label>${esc(t("studio.steps_label"))}</label>
         <div id="stepList"></div>
-        <button class="s-btn-ghost" id="addStep">${esc(t("studio.add_step"))}</button>
-        <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveWf">${esc(t("common.save"))}</button></div>`;
+        <button type="button" class="s-btn-ghost" id="addStep">${esc(t("studio.add_step"))}</button>
+        <div class="editor-actions"><button type="button" class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button type="button" class="s-btn" id="saveWf">${esc(t("common.save"))}</button></div>`;
       const selM = box.querySelector("#wfModel");
       if (selM) {
         selM.value = wfModelVal;
@@ -1022,10 +1034,10 @@
           <div class="step-header">
             <span class="step-num">${i + 1}</span>
             <span class="step-sum">${esc(agentName(st.agent))}${sum ? ` · ${esc(sum)}` : ""}</span>
-            <select class="st-agent">${opts(st.agent)}</select>
-            <button class="st-move" data-d="-1" title="${esc(t("studio.up"))}" ${i === 0 ? "disabled" : ""}>↑</button>
-            <button class="st-move" data-d="1" title="${esc(t("studio.down"))}" ${i === steps.length - 1 ? "disabled" : ""}>↓</button>
-            <button class="st-del" title="${esc(t("studio.del_step"))}">${ic("x")}</button>
+            <select class="st-agent">${optsA(st.agent)}</select>
+            <button type="button" class="st-move" data-d="-1" title="${esc(t("studio.up"))}" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button type="button" class="st-move" data-d="1" title="${esc(t("studio.down"))}" ${i === steps.length - 1 ? "disabled" : ""}>↓</button>
+            <button type="button" class="st-del" title="${esc(t("studio.del_step"))}">${ic("x")}</button>
           </div>
           <div class="step-body">
             <textarea class="st-task" rows="3" placeholder="${esc(t("studio.task_ph"))}">${esc(st.task)}</textarea>
@@ -1037,11 +1049,12 @@
             </div>
           </div>`;
         row.querySelector(".step-header").onclick = (e) => {
-          if (e.target.closest("button, select")) return;
+          if (e.target.closest("button, select, textarea, input")) return;
           captureSteps(); openIdx = open ? null : i; render();
         };
-        row.querySelectorAll(".st-move").forEach(b => { b.onclick = () => move(i, parseInt(b.dataset.d, 10)); });
-        row.querySelector(".st-del").onclick = () => {
+        row.querySelectorAll(".st-move").forEach(b => { b.onclick = (e) => { e.stopPropagation(); move(i, parseInt(b.dataset.d, 10)); }; });
+        row.querySelector(".st-del").onclick = (e) => {
+          e.stopPropagation();
           captureSteps();
           steps.splice(i, 1);
           if (!steps.length) steps.push({ agent: agentsCache[0].slug, task: "" });
@@ -1051,7 +1064,7 @@
         sl.appendChild(row);
       });
       box.querySelector("#addStep").onclick = () => { captureSteps(); steps.push({ agent: agentsCache[0].slug, task: "" }); openIdx = steps.length - 1; render(); };
-      box.querySelector("#cancelEd").onclick = () => editor.classList.remove("open");
+      box.querySelector("#cancelEd").onclick = () => dongForm();
       box.querySelector("#saveWf").onclick = async () => {
         captureSteps();
         if (!ten.trim()) return alert(t("studio.need_name"));
@@ -1061,11 +1074,19 @@
           const i = raw.indexOf(MODEL_SEP);
           mProv = raw.slice(0, i); mName = raw.slice(i + MODEL_SEP.length);
         }
-        await api("/workflows", { method: "POST", body: fd({ name: ten.trim(), description: mota,
+        const r = await api("/workflows", { method: "POST", body: fd({ name: ten.trim(), description: mota,
           group: nhom.trim() || NHOM_MD, steps: JSON.stringify(steps),
           status: w ? w.status : "active", slug: w ? w.slug : "", brain: brain(),
           model: mName, model_provider: mProv }) });
-        editor.classList.remove("open"); loadWorkflows();
+        if (r && r.error) { alert(r.error); return; }
+        const ket = { slug: (r && r.slug) || (w && w.slug) || "", ok: true };
+        if (embed) {
+          if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+        } else {
+          if (editor) editor.classList.remove("open");
+          loadWorkflows();
+          if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+        }
       };
     }
     function captureSteps() {
@@ -1081,7 +1102,8 @@
         if (va) { steps[i].verify_agent = va; steps[i].max_retries = parseInt(r.querySelector(".st-retries").value, 10) || 0; }
       });
     }
-    render(); editor.classList.add("open");
+    render();
+    if (!embed && editor) editor.classList.add("open");
   }
 
   // ===== Agents =====
@@ -1146,7 +1168,12 @@
   // đoán, mà đoán sai thì chạy nhầm nhà và nhầm cả hoá đơn.
   const MODEL_SEP = "::";
 
-  async function editAgent(a) {
+  // opts (tuỳ chọn, Cộng sự truyền vào):
+  //   host    - DOM node: vẽ form tại chỗ (cột phải Cài đặt). Không có → bung modal.
+  //   onSaved - callback(ket_qua) sau Lưu; ket_qua có `slug`.
+  async function editAgent(a, opts) {
+    opts = opts || {};
+    const embed = !!(opts.host);
     const [sd, st] = await Promise.all([
       api(`/skills?brain=${encodeURIComponent(brain())}`),
       api("/settings"),
@@ -1173,7 +1200,8 @@
       ? `<optgroup label="${esc(t("studio.model_saved"))}"><option value="${esc(val(a.model_provider || "", a.model))}">${esc(a.model)} ${esc(t("studio.saved_suffix"))}</option></optgroup>` : "";
     const modelOptions = (g) =>
       `<optgroup label="${esc(g.label)}">${g.models.map(m => `<option value="${esc(val(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`;
-    const box = document.getElementById("editorBox");
+    const box = opts.host || document.getElementById("editorBox");
+    if (!box) return;
     box.innerHTML = `<div class="agent-editor">
       <h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
@@ -1206,7 +1234,7 @@
           ? `<span class="ag-assets-hint">${esc(t("studio.assets_hint"))}</span>`
           : `<span class="dim ag-assets-hint">${esc(t("studio.assets_new"))}</span>`}
       </div>
-      <div class="editor-actions"><button class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>
+      <div class="editor-actions"><button type="button" class="s-btn-ghost" id="cancelEd"${embed ? " hidden" : ""}>${esc(t("common.cancel"))}</button><button type="button" class="s-btn" id="saveAg">${esc(t("common.save"))}</button></div>
     </div>`;
     if (a && a.model) {
       const sel = box.querySelector("#agModel");
@@ -1232,7 +1260,8 @@
         }
       };
     }
-    box.querySelector("#cancelEd").onclick = () => editor.classList.remove("open");
+    const cancel = box.querySelector("#cancelEd");
+    if (cancel) cancel.onclick = () => { if (editor) editor.classList.remove("open"); };
     box.querySelector("#saveAg").onclick = async () => {
       const name = box.querySelector("#agName").value.trim(); if (!name) return alert(t("studio.need_name"));
       const sk = [...chosen].join(",");
@@ -1240,13 +1269,21 @@
       const cut = raw.indexOf(MODEL_SEP);
       const mProv = cut === -1 ? "" : raw.slice(0, cut);
       const mName = cut === -1 ? raw : raw.slice(cut + MODEL_SEP.length);
-      await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value,
+      const r = await api("/agents", { method: "POST", body: fd({ name, role: box.querySelector("#agRole").value,
         group: box.querySelector("#agGroup").value.trim() || NHOM_MD,
         prompt: box.querySelector("#agPrompt").value, skills: sk, model: mName, model_provider: mProv,
         slug: a ? a.slug : "", brain: brain() }) });
-      editor.classList.remove("open"); loadAgents();
+      if (r && r.error) { alert(r.error); return; }
+      const ket = { slug: (r && r.slug) || (a && a.slug) || "", ok: true };
+      if (embed) {
+        if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+      } else {
+        if (editor) editor.classList.remove("open");
+        loadAgents();
+        if (typeof opts.onSaved === "function") await opts.onSaved(ket);
+      }
     };
-    editor.classList.add("open");
+    if (!embed && editor) editor.classList.add("open");
   }
 
   // ===== Khung chọn skill trong màn sửa Agent =====
@@ -1528,4 +1565,18 @@
     await api("/skills/delete", { method: "POST", body: fd({ slug, brain: brain() }) });
     loadSkills();
   }
+
+  // Bấm nền mờ của modal (không phải hộp form) → đóng. Nút Huỷ vẫn đóng như cũ.
+  if (editor) {
+    editor.addEventListener("click", (e) => {
+      if (e.target === editor) editor.classList.remove("open");
+    });
+  }
+
+  // Phơi API cho Cộng sự / rail: phải gắn SAU khi khai editAgent/editWorkflow.
+  // Thiếu export thì nút Sửa bước / Xuất / Nhập bấm không chạy gì (lỗi im lặng - chủ repo 22/09).
+  window.JavisStudio = {
+    workflows: loadWorkflows, agents: loadAgents, skills: loadSkills,
+    editAgent, editWorkflow, exportItem, importItems,
+  };
 })();

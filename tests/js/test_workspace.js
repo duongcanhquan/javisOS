@@ -462,7 +462,12 @@ check("index.html lazy-load workspace.js qua PAGE_LAZY",
 const con = fs.readFileSync(path.join(root, "dashboard", "console.js"), "utf8");
 check("console.js co renderWorkspace muon khung chat", /function renderWorkspace\(el\)/.test(con) && /JavisWorkspace\.render\(el, \{ borrow:/.test(con));
 const studio = fs.readFileSync(path.join(root, "dashboard", "studio.js"), "utf8");
-check("studio.js co editAgent de sua tro ly", /async function editAgent\(a\)/.test(studio));
+check("studio.js co editAgent de sua tro ly", /async function editAgent\(a/.test(studio));
+check("studio.js xuat editWorkflow/exportItem cho Cong su",
+  /JavisStudio\s*=\s*\{[\s\S]*?editWorkflow[\s\S]*?exportItem/.test(studio));
+check("editWorkflow nhan opts host/onSaved", /async function editWorkflow\(w,\s*opts\)/.test(studio));
+check("editAgent nhan opts host/onSaved", /async function editAgent\(a,\s*opts\)/.test(studio));
+check("nhom Cong su mac dinh thu gon (so mo)", /javis_ws_mo/.test(fs.readFileSync(path.join(root, "dashboard", "workspace.js"), "utf8")));
 // Bảng chạy của Studio: bước đã báo lỗi thì TẮT vòng quay của chính nó. Trước đây chỉ
 // `step_done` mới thay được .rs-spin, mà bước hỏng thì không bao giờ có step_done nữa (server
 // dừng ngay), nên bước ấy quay mãi trong khi cả lần chạy đã kết thúc.
