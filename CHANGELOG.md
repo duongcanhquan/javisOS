@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.17] - 2026-09-22
+### Sửa
+- **Tổ chức / Tổng hợp (desktop):** layout full chiều ngang, chia rõ KPI · VPS · API/Catalog/Sổ · nhật ký; hết lưới 2 cột méo 3 khối và khung hẹp 760px.
+
 ## [0.56.16] - 2026-09-22
 ### Sửa
 - **Tổ chức / Tạo người:** máy khởi động chậm hoặc timeout không còn báo tạo hỏng dù đã có trong sổ - hiện ghi chú rõ và vẫn mở tab Quản lý.

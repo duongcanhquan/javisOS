@@ -251,30 +251,33 @@
     const vpsDiskLine = diskTotB
       ? (`${fmtGB(diskTotB)} tổng · ${fmtGB(diskFreeB)} trống`)
       : "chưa đọc được";
-    const vpsInner = `
-      <h3>Máy chủ VPS</h3>
-      <p class="dim">Số liệu đọc từ máy đang chạy VMOS gốc - dùng để phân bổ chỗ người.</p>
-      <ul class="org-read org-vps-list">
-        <li><b>RAM</b> <span>${esc(vpsRamLine)}</span></li>
-        <li><b>Ổ đĩa</b> <span>${esc(vpsDiskLine)}</span></li>
-        <li><b>CPU</b> <span>${cpuN ? (cpuN + " lõi") : "chưa rõ"}</span></li>
-        <li><b>Chỗ người</b> <span>gợi ý <b>${esc(String(suggestN))}</b>
-          · trần tay <b>${esc(String(maxHand))}</b>
-          · đang dùng <b>${esc(String(maxR))}</b>
-          · chạy <b>${esc(String(runP))}</b>
-          · còn <b>${esc(String(slotsLeft))}</b></span></li>
-        <li><b>Mỗi máy người</b> <span>~${esc(String(ramPer))} MB RAM
-          · chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} cho gốc + Quan</span></li>
-        <li><b>Trần ổ đã cấp</b> <span>${esc(String(quotaSum))} GB cho ${esc(String(people.length))} người
-          ${diskFreeB ? (" · ổ còn " + fmtGB(diskFreeB)) : ""}</span></li>
-      </ul>
+    const vpsMeters = `
       ${diskTotB ? `<div class="org-meter"><div class="org-meter-lbl">Ổ máy chủ: <b>${esc(fmtGB(diskUsedB))}</b> / ${esc(fmtGB(diskTotB))}</div>
         <div class="org-bar ${diskTotB && diskFreeB / diskTotB < 0.1 ? "hot" : (diskTotB && diskFreeB / diskTotB < 0.2 ? "warn" : "")}"><i style="width:${diskTotB ? Math.max(0, Math.min(100, Math.round(100 * diskUsedB / diskTotB))) : 0}%"></i></div></div>` : ""}
-      ${ramHost ? `<div class="org-meter"><div class="org-meter-lbl">RAM máy chủ: dùng ước <b>${esc(String(ramEst))} MB</b> cho ${esc(String(runP))} máy người · máy ${esc(String(ramHost))} GB</div>
+      ${ramHost ? `<div class="org-meter"><div class="org-meter-lbl">RAM ước cho ${esc(String(runP))} máy người: <b>${esc(String(ramEst))} MB</b> / ${esc(String(ramHost))} GB máy</div>
         <div class="org-bar"><i style="width:${ramHost ? Math.max(0, Math.min(100, Math.round(100 * ramEst / (ramHost * 1024)))) : 0}%"></i></div></div>` : ""}`;
-    const vpsCard = `<div class="org-vps">${vpsInner}</div>`;
-    const vpsCardTong = `<div class="org-vps">${vpsInner}
-      <button type="button" class="btn" data-org-goto="cai">Chỉnh trần chỗ</button></div>`;
+    const vpsKpis = `
+      <div class="org-kpi">
+        <div class="org-kpi-i"><span class="org-kpi-l">RAM</span><strong class="org-kpi-v">${esc(vpsRamLine)}</strong></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Ổ đĩa</span><strong class="org-kpi-v">${esc(vpsDiskLine)}</strong></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">CPU</span><strong class="org-kpi-v">${cpuN ? (cpuN + " lõi") : "chưa rõ"}</strong></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Chỗ người</span><strong class="org-kpi-v">gợi ý ${esc(String(suggestN))} · trần ${esc(String(maxHand))} · hiệu lực ${esc(String(maxR))}</strong>
+          <span class="org-kpi-s">đang chạy ${esc(String(runP))} · còn ${esc(String(slotsLeft))} chỗ</span></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy người</span><strong class="org-kpi-v">~${esc(String(ramPer))} MB RAM</strong>
+          <span class="org-kpi-s">chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} gốc + Quan</span></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Trần ổ đã cấp</span><strong class="org-kpi-v">${esc(String(quotaSum))} GB · ${esc(String(people.length))} người</strong>
+          ${diskFreeB ? `<span class="org-kpi-s">ổ còn ${esc(fmtGB(diskFreeB))}</span>` : ""}</div>
+      </div>
+      <div class="org-meters">${vpsMeters}</div>`;
+    const vpsCard = `<div class="org-sec org-vps">
+      <div class="org-sec-h"><div><h3>Máy chủ VPS</h3>
+        <p class="dim org-sec-sub">Số liệu máy đang chạy VMOS gốc - dùng để phân bổ chỗ người.</p></div></div>
+      ${vpsKpis}</div>`;
+    const vpsCardTong = `<div class="org-sec org-vps">
+      <div class="org-sec-h"><div><h3>Máy chủ VPS</h3>
+        <p class="dim org-sec-sub">Số liệu máy đang chạy VMOS gốc - dùng để phân bổ chỗ người.</p></div>
+        <button type="button" class="btn" data-org-goto="cai">Chỉnh trần chỗ</button></div>
+      ${vpsKpis}</div>`;
 
     const poolRows = POOL.map(([id, label]) => {
       const rec = prov[id] || {};
@@ -417,44 +420,53 @@
         </nav>
         <p class="dim" id="orgMsg">${esc(flash)}</p>
 
-        <section class="org-pane" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
+        <section class="org-pane org-pane-tong" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
           <p class="org-lead">Chỉ admin VMOS gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
-          <div class="org-stats">
+          <div class="org-stats" role="group" aria-label="Chỉ số nhanh">
             <button type="button" data-org-goto="quan" data-org-reset="1"><b>${tenants.length}</b><span>Người / máy</span></button>
             <button type="button" data-org-goto="quan" data-org-reset="1" data-org-st="running"><b>${runP}/${maxR}</b><span>Máy người đang chạy</span></button>
-            <button type="button" data-org-goto="cai"><b>${ramHost ? (ramHost + " GB") : "?"} / ${diskTotB ? fmtGB(diskTotB) : "?"}</b><span>RAM / ổ VPS</span></button>
+            <button type="button" data-org-goto="cai"><b>${ramHost ? (ramHost + " GB") : "?"} · ${diskTotB ? fmtGB(diskTotB) : "?"}</b><span>RAM · ổ VPS</span></button>
             <button type="button" data-org-goto="cai"><b>${suggestN}</b><span>Gợi ý chỗ người</span></button>
             <button type="button" data-org-goto="cai"><b>${keysOn}/${POOL.length}</b><span>Khóa API đã dán</span></button>
           </div>
+
           ${vpsCardTong}
-          <div class="org-snap">
-            <div>
-              <h3>API</h3>
+
+          <div class="org-dash">
+            <div class="org-sec">
+              <div class="org-sec-h"><div><h3>API</h3>
+                <p class="dim org-sec-sub">Trạng thái khóa trong kho trường (tùy chọn).</p></div></div>
               <ul class="org-read">${poolRead}</ul>
-              <p>Mặc định mỗi người tự dán khóa / đăng nhập trên trang Models của máy họ.
-              Kho trường: ${sharedN}/${people.length || 0} người đang bật (không bắt buộc).</p>
-              <button type="button" class="btn" data-org-goto="cai">Kho API trường (tùy chọn)</button>
+              <p class="org-sec-note">Mặc định mỗi người tự dán khóa trên trang Models của máy họ.
+                Kho trường: <b>${sharedN}/${people.length || 0}</b> người đang bật.</p>
+              <div class="org-sec-acts">
+                <button type="button" class="btn" data-org-goto="cai">Kho API trường</button>
+              </div>
             </div>
-            <div>
-              <h3>Catalog trường</h3>
-              <p class="dim">Đẩy skill / agent / workflow từ Brain Default của VMOS gốc xuống mọi máy người. Không đè file họ đã sửa.</p>
-              <div class="org-acts">
+            <div class="org-sec">
+              <div class="org-sec-h"><div><h3>Catalog trường</h3>
+                <p class="dim org-sec-sub">Đẩy skill / agent / workflow từ Brain Default xuống máy người. Không đè file họ đã sửa.</p></div></div>
+              <div class="org-sec-acts org-acts">
                 <button type="button" class="btn" id="orgCatDry">Xem trước</button>
                 <button type="button" class="btn primary" id="orgCatPush">Đẩy catalog</button>
               </div>
               <p class="dim" id="orgCatMsg"></p>
             </div>
-            <div>
-              <h3>Sổ nhanh</h3>
+            <div class="org-sec org-sec-snap">
+              <div class="org-sec-h"><div><h3>Sổ nhanh</h3>
+                <p class="dim org-sec-sub">Bấm tên để mở Quản lý.</p></div>
+                <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button></div>
               ${tenants.length
                 ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Người</th><th>Máy</th><th>Chế độ</th><th>Link</th></tr></thead><tbody>${snapRows}</tbody></table></div>`
                 : '<p class="dim">Chưa có người mới, chỉ còn bản cũ của bạn.</p>'}
-              <button type="button" class="btn primary" data-org-goto="tao">Tạo người mới</button>
             </div>
           </div>
-          <h3>Nhật ký tổ chức</h3>
-          <p class="dim">Tạo, chính sách, tạm dừng, xóa, đẩy catalog…</p>
-          <div class="org-table-wrap"><table class="org-table" id="orgAuditTable"><thead><tr><th>Lúc</th><th>Việc</th><th>Máy</th><th>Chi tiết</th></tr></thead><tbody id="orgAuditBody"><tr><td colspan="4" class="dim">Đang tải…</td></tr></tbody></table></div>
+
+          <div class="org-sec org-sec-log">
+            <div class="org-sec-h"><div><h3>Nhật ký tổ chức</h3>
+              <p class="dim org-sec-sub">Tạo, chính sách, tạm dừng, xóa, đẩy catalog…</p></div></div>
+            <div class="org-table-wrap org-table-wrap-log"><table class="org-table" id="orgAuditTable"><thead><tr><th>Lúc</th><th>Việc</th><th>Máy</th><th>Chi tiết</th></tr></thead><tbody id="orgAuditBody"><tr><td colspan="4" class="dim">Đang tải…</td></tr></tbody></table></div>
+          </div>
         </section>
 
         <section class="org-pane" data-org-pane="cai" ${orgTab === "cai" ? "" : "hidden"}>
@@ -536,27 +548,40 @@
         </section>
       </div>
       <style>
-        .org-tabs.jx-tabs{max-width:760px;width:100%;flex-wrap:wrap}
+        .org-page{width:100%;max-width:none;box-sizing:border-box}
+        .org-tabs.jx-tabs{max-width:none;width:100%;flex-wrap:wrap}
         .org-pane[hidden]{display:none!important}
-        .org-lead{margin:0 0 16px}
-        .org-warn{padding:10px 12px;border-radius:10px;border:1px solid #e03131;color:#e03131;margin:0 0 16px}
-        .org-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:0 0 22px}
-        .org-stats button{display:block;width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit;cursor:pointer;font:inherit}
+        .org-pane-tong{display:flex;flex-direction:column;gap:18px}
+        .org-lead{margin:0;max-width:72ch}
+        .org-warn{padding:10px 12px;border-radius:10px;border:1px solid #e03131;color:#e03131;margin:0 0 4px}
+        .org-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:0}
+        .org-stats button{display:flex;flex-direction:column;justify-content:center;gap:4px;width:100%;min-height:76px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit;cursor:pointer;font:inherit}
         .org-stats button:hover{border-color:var(--accent,var(--border))}
-        .org-stats b{display:block;font-size:22px;line-height:1.2}
+        .org-stats b{display:block;font-size:clamp(16px,1.4vw,22px);line-height:1.2;word-break:break-word}
         .org-stats span{font-size:12px;opacity:.75}
-        .org-snap{display:grid;grid-template-columns:minmax(220px,280px) 1fr;gap:22px;align-items:start}
+        .org-sec{padding:16px 18px;border-radius:14px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));min-width:0}
+        .org-sec-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:0 0 12px}
+        .org-sec-h h3{margin:0;font-size:16px;line-height:1.3}
+        .org-sec-sub{margin:4px 0 0;font-size:12.5px;line-height:1.4}
+        .org-sec-note{margin:0 0 12px;font-size:13px;line-height:1.45}
+        .org-sec-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+        .org-dash{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+        .org-dash > .org-sec{display:flex;flex-direction:column;height:100%}
+        .org-sec-snap .org-table-wrap{flex:1;max-height:min(42vh,360px)}
+        .org-sec-log .org-table-wrap-log{max-height:min(48vh,420px)}
+        .org-kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 12px}
+        .org-kpi-i{padding:10px 12px;border-radius:10px;border:1px solid var(--glass-brd,var(--border));background:var(--surface-1,rgba(127,127,127,.06));min-width:0}
+        .org-kpi-l{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.7;margin-bottom:4px}
+        .org-kpi-v{display:block;font-size:14px;font-weight:650;line-height:1.35;word-break:break-word}
+        .org-kpi-s{display:block;margin-top:4px;font-size:12px;opacity:.75;line-height:1.35}
+        .org-meters{display:grid;gap:8px}
         .org-read{list-style:none;padding:0;margin:0 0 12px;display:grid;gap:8px}
-        .org-read li{display:flex;justify-content:space-between;gap:8px;align-items:center}
-        .org-vps{margin:0 0 22px;padding:14px 16px;border-radius:12px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));max-width:760px}
-        .org-vps h3{margin:0 0 6px;font-size:16px}
-        .org-vps .org-vps-list{margin:10px 0 12px}
-        .org-vps .org-vps-list li span{text-align:right;opacity:.92}
-        .org-vps .org-meter{margin:8px 0}
-        .org-vps .btn{margin-top:8px}
-        .org-table-wrap{overflow:auto;margin:0 0 12px}
+        .org-read li{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+        .org-table-wrap{overflow:auto;margin:0;border-radius:10px;border:1px solid var(--glass-brd,var(--border))}
         .org-table{width:100%;border-collapse:collapse;font-size:13px}
-        .org-table th,.org-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--glass-brd,var(--border));vertical-align:middle}
+        .org-table th,.org-table td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--glass-brd,var(--border));vertical-align:middle}
+        .org-table thead th{position:sticky;top:0;background:var(--panel,var(--bg2));z-index:1;font-size:12px;opacity:.85}
+        .org-table tbody tr:last-child td{border-bottom:0}
         .org-link{background:none;border:0;padding:0;color:var(--accent,inherit);cursor:pointer;font:inherit;font-weight:600;text-align:left}
         .org-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
         .org-search{flex:1;min-width:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--glass-brd,var(--border));background:var(--panel,var(--bg2));color:inherit}
@@ -588,15 +613,28 @@
         .org-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
         .org-del{border-color:#e03131;color:#e03131}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
-        .org-meter{margin:8px 0}
+        .org-meter{margin:0}
         .org-meter-lbl{font-size:13px;margin-bottom:4px}
         .org-bar{height:8px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden}
         .org-bar i{display:block;height:100%;background:#2f9e44}
         .org-bar.warn i{background:#f59f00}
         .org-bar.hot i{background:#e03131}
         .org-page h3{margin:8px 0 8px}
-        #orgMsg{min-height:1.2em;margin:0 0 12px}
-        @media (max-width:720px){.org-snap{grid-template-columns:1fr}}
+        .org-pane-tong h3,.org-sec h3{margin:0}
+        #orgMsg{min-height:1.2em;margin:0}
+        @media (max-width:1100px){
+          .org-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+          .org-dash{grid-template-columns:1fr 1fr}
+          .org-sec-snap{grid-column:1 / -1}
+          .org-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}
+        }
+        @media (max-width:720px){
+          .org-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+          .org-dash{grid-template-columns:1fr}
+          .org-sec-snap{grid-column:auto}
+          .org-kpi{grid-template-columns:1fr}
+          .org-sec-h{flex-direction:column;align-items:stretch}
+        }
       </style>`;
 
     const msg = el.querySelector("#orgMsg");
