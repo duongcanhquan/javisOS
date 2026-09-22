@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.14] - 2026-09-22
+### Mới
+- **Catalog Marketing:** thêm CRO, copy, email, ads đa kênh, launch, giá, context sản phẩm, catalog công cụ, hướng dẫn advertools - sync mọi brain qua hệ thống.
+- **Bộ Cộng sự Marketing:** trợ lý + quy trình CRO / copy / email / launch; hub Marketing có menu đủ các việc mới.
+
 ## [0.56.13] - 2026-09-22
 ### Sửa
 - **Cuộc họp:** bắt đầu ghi không còn lỗi JSON rỗng khó hiểu; nút **Bắt đầu / Dừng** to, dính đầu trang; ô ghi chú ngắn lại, transcript cuộn trong khung.

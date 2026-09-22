@@ -1,7 +1,7 @@
 ---
 name: Marketing (điều phối)
-description: "Điều phối Marketing: SEO+SEO GPT, nghiên cứu, Page Facebook, Ads, lắng nghe MXH/trend."
-description_en: "Marketing hub: SEO+SEO GPT, research, Facebook Page, Ads, social listening/trends."
+description: "Điều phối Marketing: SEO+SEO GPT, CRO, copy, email, ads, launch, nghiên cứu, FB."
+description_en: "Marketing hub: SEO+SEO GPT, CRO, copy, email, ads, launch, research, Facebook."
 group: Marketing
 ---
 
@@ -9,20 +9,29 @@ group: Marketing
 
 ## Khi nào dùng
 
-Trang **Công việc → Marketing**, hoặc chat/Telegram/Zalo: kiểm SEO, viết SEO, nghiên cứu, Page FB, báo cáo Ads.
+Trang **Công việc → Marketing**, hoặc chat/Telegram/Zalo: kiểm SEO, viết SEO, CRO, copy, email, ads, launch, nghiên cứu, Page FB, báo cáo Ads.
 
 ## Menu chọn
 
-| Chọn | Khi nào | Ví dụ | Workflow |
-|------|---------|-------|----------|
+| Chọn | Khi nào | Ví dụ | Workflow / skill |
+|------|---------|-------|------------------|
 | **Kiểm SEO** | URL/bản nháp: SEO web + **SEO GPT** (LLM trích dẫn) | Landing thiếu lead trả lời thẳng + meta | `bo-marketing-kiem-seo` |
 | **Viết bài SEO** | Bài web + meta + FAQ/chunk cho chat AI | «học vẽ online Hà Nội» có lead + FAQ | `bo-marketing-viet-seo` |
+| **CRO chuyển đổi** | Trang/form không convert; audit CTA/ma sát | Landing ads yếu | `bo-marketing-cro` / `toi-uu-chuyen-doi-cro` |
+| **Copy marketing** | Hero, CTA, value prop homepage/landing | Rewrite value prop | `bo-marketing-copy` / `viet-copy-marketing` |
+| **Email marketing** | Chuỗi nurture/welcome/cold B2B (chỉ soạn) | Welcome 5 lá | `bo-marketing-email` / `viet-email-marketing` |
+| **Quảng cáo đa kênh** | Khung Google/Meta/LinkedIn + creative | Plan ads + 10 góc | Agent `mkt-quang-cao` / `quang-cao-da-kenh` |
+| **Ra mắt sản phẩm** | Launch/GTM timeline ORB | Feature release | `bo-marketing-launch` / `ra-mat-san-pham` |
+| **Chiến lược giá** | Tier, trial, packaging | Đổi pricing page | `chien-luoc-gia` |
+| **Context sản phẩm** | ICP / định vị trước khi viết MKT | Hồ sơ dùng chung | `product-marketing-context` |
 | **Landing page** | Trang giới thiệu / sales HTML từ brief hoặc chủ đề | SaaS, khoá học, waitlist → `exports/landing/` | Skill **`landing-page`** (không workflow riêng) |
 | **Lắng nghe MXH / trend** | Chủ đề đang nói trên XHS/X/Reddit…; ý tưởng content | Voice khách, lịch bài từ trend | **`lang-nghe-mxh`**, **`y-tuong-noi-dung-tu-trend`** (+ `agent-reach`) |
 | **Nghiên cứu thị trường** | Trước ads/content | Phân khúc + đối thủ | `bo-marketing-nghien-cuu` |
 | **Pitch / slide đẹp** | Chiếu proposal, GTM, báo cáo | Deck HTML 16:9 | Skill **`slide-wright`** (+ `proposal-chien-luoc` nếu chưa có nội dung) |
 | **Page Facebook** | Bài đăng organic, lịch nội dung | Tuần này Page đăng gì | `bo-marketing-facebook` |
 | **Báo cáo Ads** | Số đo spend/CTR/CPC + bảng campaign | Ads 7 hoặc 30 ngày | `bo-marketing-ads` |
+| **Catalog công cụ** | Chọn nhóm tool SEO/email/ads/analytics | Stack MKT mới | `marketing-cong-cu` |
+| **Advertools SEO/SEM** | Keyword/sitemap/crawl khi host đã `pip install advertools` | Xuất CSV crawl | `advertools-seo-sem` |
 
 Skills SEO: luôn nạp **`seo-gpt`** cùng `kiem-tra-seo` / `viet-bai-seo`. Không chỉ tối ưu Google.
 Landing xong cần SEO audit URL/file → **Kiểm SEO**; cần `.pke` → **`html-to-webcake`**.
@@ -34,9 +43,9 @@ Chat: nếu user nói chung «Facebook» → hỏi Page hay Ads (JAVIS_ASK, ≤4
 ## Chuẩn bị
 
 - Seed **Bộ Marketing** / Chuẩn bị lần đầu.
-- Agents: Gemini. Ads: `meta-ads-graph`. Page: `facebook-pages`.
-- File: `exports/marketing/`.
+- Agents: Gemini. Ads số thật: `meta-ads-graph`. Page: `facebook-pages`.
+- File: `exports/marketing/`. Context dùng chung: `wiki/product-marketing.md` hoặc `exports/marketing/product-marketing.md`.
 
 ## Bẫy
 
-Không bịa số ads/ranking. Không tự sửa chiến dịch. Không em dash.
+Không bịa số ads/ranking. Không tự sửa chiến dịch / gửi blast email. Không em dash.

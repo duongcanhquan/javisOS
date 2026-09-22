@@ -16,7 +16,8 @@ Vẫn làm **SEO cổ điển** (title, meta, H1, từ khóa) nhưng **bắt bu�
 ## Khi nào dùng
 
 - Kiểm SEO hoặc viết bài SEO trên trang Marketing / chat.
-- User nói «SEO GPT», «tối ưu cho AI», «để ChatGPT nhắc tới», «GEO».
+- User nói «SEO GPT», «tối ưu cho AI», «để ChatGPT nhắc tới», «GEO», «AEO», «LLMO», «AI SEO», «dễ trích dẫn».
+- Cần cấu trúc citation / FAQ / entity rõ cho câu trả lời chat (không tạo skill trùng `ai-seo`).
 
 ## Tiêu chí SEO GPT (chấm / viết theo đây)
 
