@@ -213,6 +213,32 @@ check("mode blocked từ chối pool", op.quota_ok({"brain_mode": "blocked", "sh
 check("mode byo không pool", op.quota_ok({"brain_mode": "byo", "shared_api": False})[0] is False)
 m = op.apply_policy({}, brain_mode="school", providers=["openrouter", "nope"])
 check("apply_policy school + lọc provider", m["brain_mode"] == "school" and m["shared_api"] is True and m["providers"] == ["openrouter"])
+ot.upsert({
+    "slug": "policy-lan", "name": "Policy Lan", "protected": False,
+    "brain_mode": "school", "shared_api": True, "providers": ["openrouter"],
+    "container": "javis-policy-lan", "status": "stopped",
+})
+patched = c2.patch("/org/tenants/policy-lan", json={
+    "brain_mode": "byo", "providers": ["openai", "gemini"],
+})
+rec_pol = ot.get("policy-lan")
+check("PATCH chính sách byo + providers",
+      patched.status_code == 200
+      and (patched.json().get("tenant") or {}).get("brain_mode") == "byo"
+      and (patched.json().get("tenant") or {}).get("shared_api") is False
+      and (patched.json().get("tenant") or {}).get("providers") == ["openai", "gemini"]
+      and rec_pol.get("brain_mode") == "byo"
+      and rec_pol.get("providers") == ["openai", "gemini"])
+listed = next((t for t in (c2.get("/org/tenants").json().get("tenants") or [])
+               if t.get("slug") == "policy-lan"), {})
+check("list giữ brain_mode/providers sau PATCH",
+      listed.get("brain_mode") == "byo" and listed.get("providers") == ["openai", "gemini"])
+ot.remove("policy-lan")
+check("org.js một form Lưu gồm brain_mode (không tách Lưu chính sách)",
+      'select[name="brain_mode"]' in org_js
+      and "Lưu chính sách" not in org_js
+      and "data-org-policy" not in org_js
+      and 'input[name^="prov_"]' in org_js)
 check("audit_tail tồn tại", callable(ot.audit_tail))
 ot.audit("policy", "lan", "test")
 check("audit_tail đọc được", any(r.get("action") == "policy" for r in ot.audit_tail(20)))
