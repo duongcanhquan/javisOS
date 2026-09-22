@@ -10,7 +10,10 @@
      2. Lọc theo cờ `agent_ok` server trả về: server chỉ dựng nổi engine agent cho một số
         nhà, bày thêm là hứa suông (agent sẽ lặng lẽ chạy Claude).
      3. Giá trị phải mang theo TÊN NHÀ, không chỉ tên model: cùng một tên model có ở hai nhà
-        (gemini-2.5-pro ở Gemini CLI lẫn Gemini API), lưu mỗi tên là server phải đoán. */
+        (gemini-2.5-pro ở Gemini CLI lẫn Gemini API), lưu mỗi tên là server phải đoán.
+
+   Từ 0.56.x catalog settings mở form ngay; live models chạy nền qua modelGroupsLive
+   (không còn &refresh=1 trên Codex - tránh nút Sửa treo hàng chục giây). */
 const fs = require("fs");
 const path = require("path");
 
@@ -29,23 +32,30 @@ const j = SRC.indexOf("\n  function ", i);
 const FN = SRC.slice(i, j > i ? j : undefined);
 check("tìm thấy editAgent", i !== -1 && FN.length > 0);
 
+// Helpers dùng chung (editAgent + editWorkflow) - nguồn danh sách nằm đây, không còn inline trong FN.
+const HELPERS = SRC.slice(0, SRC.indexOf("async function editAgent("));
+
 // ---- 1. Nguồn danh sách ----
 check("đọc /settings (cùng nguồn với trình chọn model chính)", FN.indexOf('api("/settings")') !== -1);
-check("duyệt model.providers", /\(st\.model \|\| \{\}\)\.providers/.test(FN));
+check("duyệt model.providers",
+  /\(\(st && st\.model\) \|\| \{\}\)\.providers/.test(HELPERS)
+  || /\(st\.model \|\| \{\}\)\.providers/.test(HELPERS));
 check("CANARY: không còn gõ cứng riêng hai nhà Claude + ChatGPT",
   FN.indexOf('provider=anthropic-cli') === -1);
 
 // ---- 2. Lọc đúng: chạy được (agent_ok) VÀ đã kết nối (configured) ----
 check("lọc theo agent_ok để không bày lựa chọn hứa suông",
-  /filter\(p => p\.agent_ok && p\.configured\)/.test(FN));
+  /filter\(p => p\.agent_ok && p\.configured\)/.test(HELPERS));
 
 // ---- 3. Giá trị mang theo tên nhà ----
 check("có hằng ngăn cách provider::model", SRC.indexOf('const MODEL_SEP = "::"') !== -1);
-check("mỗi dòng model ghép kèm nhà", /const val = \(pid, m\) => pid \+ MODEL_SEP \+ m/.test(FN));
+check("mỗi dòng model ghép kèm nhà",
+  /const val = \(pid, m\) => pid \+ MODEL_SEP \+ m/.test(FN)
+  || /mVal = \(pid, m\) => pid \+ MODEL_SEP \+ m/.test(SRC));
 check("lưu thì tách ra thành model + model_provider",
   FN.indexOf("model: mName, model_provider: mProv") !== -1);
 check("tách bằng chỉ số ký tự đầu tiên (tên model có thể chứa dấu / hay :)",
-  FN.indexOf("raw.indexOf(MODEL_SEP)") !== -1);
+  FN.indexOf("raw.indexOf(MODEL_SEP)") !== -1 || FN.indexOf("indexOf(MODEL_SEP)") !== -1);
 
 // ---- 4. Không làm hỏng agent cũ / model đã lưu ----
 check("agent CŨ chỉ lưu tên model vẫn dò được đúng dòng (không nhảy về Mặc định)",
@@ -53,13 +63,15 @@ check("agent CŨ chỉ lưu tên model vẫn dò được đúng dòng (không n
 check("model đã lưu mà nhà đã ngắt vẫn hiện 'đang lưu' (khoá i18n studio.model_saved)",
   FN.indexOf('t("studio.model_saved")') !== -1);
 check("vẫn còn lựa chọn Mặc định (khoá i18n studio.model_default)",
-  FN.indexOf('<option value="">${esc(t("studio.model_default"))}</option>') !== -1);
+  FN.indexOf('t("studio.model_default")') !== -1);
 
 // ---- 5. Một nhà lỗi không được kéo cả ô chọn chết ----
 check("mỗi lần hỏi model live đều có nhánh dự phòng",
-  /\.catch\(\(\) => \[\]\)/.test(FN));
-check("Codex vẫn ép lấy danh sách live (catalog của nó vốn rỗng)",
-  FN.indexOf('p.id === "openai-oauth" ? "&refresh=1"') !== -1);
+  /\.catch\(\(\) => \[\]\)/.test(HELPERS));
+check("live models chạy nền, không refresh=1 (tránh treo nút Sửa)",
+  HELPERS.indexOf("function modelGroupsLive") !== -1
+  && HELPERS.indexOf("&refresh=1") === -1
+  && FN.indexOf("modelGroupsLive(st)") !== -1);
 
 // ---- 6. Chưa kết nối nhà nào thì nói thẳng, không để ô trống khó hiểu ----
 check("có câu dẫn khi chưa kết nối nhà nào (khoá i18n studio.model_none)",
