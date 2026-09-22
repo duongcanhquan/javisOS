@@ -810,5 +810,16 @@ check("CSS st-grip + drag-over",
     /try \{ tt = hamTrangTri\(s\) \|\| \{\}; \} catch \(e\) \{ tt = \{\}; \}/.test(ss));
 }
 
+{
+  const ws = fs.readFileSync(path.join(root, "dashboard", "workspace.js"), "utf8");
+  const css = fs.readFileSync(path.join(root, "dashboard", "console.css"), "utf8");
+  check("tieu de danh sach Cong su nho 1 co (13px)",
+    /\.ws-item-text strong\s*\{[^}]*font-size:\s*13px/.test(css));
+  check("mo ta danh sach Cong su giu 12px",
+    /\.ws-item-text small\s*\{[^}]*font-size:\s*12px/.test(css));
+  check("Cong su co popup tip khi hover muc",
+    /wsItemTip|ws-item-tip/.test(ws) && /function moTipMuc\(/.test(ws) && /\.ws-item-tip\s*\{/.test(css));
+}
+
 if (fails.length) { console.log("\nFAIL:", fails.length, fails); process.exit(1); }
 console.log("\nOK - workspace");

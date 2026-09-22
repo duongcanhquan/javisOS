@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.12] - 2026-09-22
+### Sửa
+- **Cộng sự:** tiêu đề Trợ lý / Quy trình nhỏ hơn một cỡ cho vừa cột hẹp; rê chuột vào hàng hiện popup đủ tên + mô tả để đọc nhanh.
+
 ## [0.56.11] - 2026-09-22
 ### Mới
 - **Sửa quy trình:** kéo tay cầm bên trái từng bước để đổi thứ tự; ↑↓ vẫn giữ. Nhớ bấm Lưu sau khi xếp xong.

@@ -2495,10 +2495,27 @@ body.on-mcp .cview-body > .cview-placeholder {
 .ws-item-ic .agent-avatar, .ws-item-ic svg, .ws-item-ic .ic { width: 36px; height: 36px; }
 .ws-item-ic > svg, .ws-item-ic > .ic { width: 18px; height: 18px; opacity: .8; }
 .ws-item-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ws-item-text strong { font-size: 14px; font-weight: 650; overflow: hidden;
+.ws-item-text strong { font-size: 13px; font-weight: 650; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .ws-item-text small { font-size: 12px; color: var(--text3); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+/* Popup đọc nhanh khi chữ bị cắt trong cột danh sách hẹp. */
+.ws-item-tip {
+  position: fixed; z-index: 9100; max-width: min(320px, 72vw);
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--panel-solid, var(--bg2)); color: var(--text);
+  border: 1px solid var(--glass-brd, var(--border));
+  box-shadow: var(--shadow-2, 0 10px 28px rgba(0, 0, 0, .28));
+  font-family: var(--font-ui, var(--font)); pointer-events: none;
+  opacity: 0; transform: translateY(4px);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.ws-item-tip.show { opacity: 1; transform: translateY(0); }
+.ws-item-tip strong { display: block; font-size: 13.5px; font-weight: 700;
+  color: var(--text); line-height: 1.35; margin: 0 0 4px; }
+.ws-item-tip span { display: block; font-size: 12.5px; color: var(--text2);
+  line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ws-item-tip .ws-tip-meta { margin-top: 6px; font-size: 11.5px; color: var(--text3); }
 .ws-left-foot { display: flex; flex-direction: column; gap: 6px; flex: none;
   padding-top: 4px; border-top: 1px solid var(--glass-brd); }
 .ws-left-foot .ws-btn { justify-content: center; white-space: nowrap; overflow: hidden; }

@@ -568,6 +568,7 @@
   // 3. Nhãn nhóm chỉ hiện khi CÓ mục ghim: danh sách không ghim gì mà vẫn đội hai dòng nhãn
   //    thì chỉ tổ chật cột.
   function veDanhSach() {
+    anTipMuc();
     var el = S.el; if (!el) return;
     var ds = loc(danhSach(), S.q, S.nhom), chon = S.chon[S.loai];
     var host = el.querySelector("#wsList");
@@ -606,6 +607,10 @@
       var lai = S.el && S.el.querySelector("#wsList"); if (lai) lai.scrollTop = cuon;
     };
     noiDanhSach(host);
+    if (host && typeof host.addEventListener === "function" && !host._wsTipScroll) {
+      host._wsTipScroll = true;
+      host.addEventListener("scroll", anTipMuc, { passive: true });
+    }
   }
   // Hàng tiêu đề của MỘT nhóm: nút thu gọn/mở (tên + số người) và nút "..." quản lý.
   // Hai nút ngang hàng trong một khối, không lồng nhau (button trong button là HTML sai).
@@ -643,20 +648,89 @@
         esc(t("ws.manage")) + '" aria-label="' + esc(t("ws.manage")) + '">' + ic("ellipsis-vertical") + '</button>' +
       '</div>';
   }
+  // Popup đọc nhanh: cột hẹp cắt chữ - rê chuột vào hàng là thấy đủ tên + mô tả.
+  var _tipTimer = null, _tipEl = null, _tipCur = null;
+  function tipEl() {
+    try {
+      if (typeof document === "undefined" || !document.body) return null;
+      if (_tipEl && _tipEl.isConnected && typeof _tipEl.setAttribute === "function") return _tipEl;
+      _tipEl = document.getElementById && document.getElementById("wsItemTip");
+      if (!_tipEl || typeof _tipEl.setAttribute !== "function") {
+        if (typeof document.createElement !== "function") return null;
+        _tipEl = document.createElement("div");
+        if (!_tipEl || typeof _tipEl.setAttribute !== "function") { _tipEl = null; return null; }
+        _tipEl.id = "wsItemTip";
+        _tipEl.className = "ws-item-tip";
+        _tipEl.setAttribute("role", "tooltip");
+        if (document.body.appendChild) document.body.appendChild(_tipEl);
+      }
+      return _tipEl;
+    } catch (e) { _tipEl = null; return null; }
+  }
+  function moTaMuc(x) {
+    if (S.loai === "agent") return String(x.role || x.description || "").trim();
+    return String(x.description || "").trim();
+  }
+  function metaMuc(x) {
+    if (S.loai === "agent") return (x.group || "Chung") + (x.model ? " · " + x.model : "");
+    return (x.group || "Chung") + " · " + cacBuoc(x).length + " " + t("studio.steps");
+  }
+  function anTipMuc() {
+    if (typeof clearTimeout === "function") clearTimeout(_tipTimer);
+    _tipCur = null;
+    var tip = tipEl(); if (!tip) return;
+    tip.classList.remove("show"); tip.innerHTML = "";
+  }
+  function datChoTip(neo, tip) {
+    var r = neo.getBoundingClientRect();
+    var pad = 8, w = tip.offsetWidth || 280, h = tip.offsetHeight || 80;
+    var x = r.right + pad;
+    if (x + w > window.innerWidth - pad) x = Math.max(pad, r.left - w - pad);
+    var y = r.top;
+    if (y + h > window.innerHeight - pad) y = Math.max(pad, window.innerHeight - h - pad);
+    tip.style.left = Math.round(x) + "px";
+    tip.style.top = Math.round(y) + "px";
+  }
+  function moTipMuc(neo, x) {
+    if (typeof clearTimeout === "function") clearTimeout(_tipTimer);
+    _tipCur = neo;
+    var ve = function () {
+      if (_tipCur !== neo || !neo.isConnected) return;
+      var tip = tipEl(); if (!tip) return;
+      var mo = moTaMuc(x);
+      tip.innerHTML = "<strong>" + esc(x.name || x.slug || "") + "</strong>" +
+        (mo ? "<span>" + esc(mo) + "</span>" : "") +
+        '<span class="ws-tip-meta">' + esc(metaMuc(x)) + "</span>";
+      tip.classList.add("show");
+      datChoTip(neo, tip);
+    };
+    if (typeof setTimeout === "function") _tipTimer = setTimeout(ve, 120);
+    else ve();
+  }
   // Nối dây cho các nút vừa vẽ. Gọi lại sau MỖI lần vẽ: innerHTML mới là node mới, handler cũ
   // chết theo node cũ.
   function noiDanhSach(host) {
     host.querySelectorAll("[data-slug]").forEach(function (b) {
       b.onclick = function () {
+        anTipMuc();
         S.chon[S.loai] = b.dataset.slug; luuChon(); veDanhSach(); moPhien(dangChon(), false);
         // Chọn xong thì đóng ngăn kéo - nhưng CHỈ ở khổ màn hình có ngăn kéo. Màn rộng lớp này
         // mang nghĩa ngược (đang ẩn cột), gỡ nó là bày lại cột người dùng vừa cố ý ẩn đi.
         if (heptLai()) S.el.querySelector("#wsPage").classList.remove("left-open");
       };
+      b.onmouseenter = function () {
+        var x = danhSach().find(function (m) { return m.slug === b.dataset.slug; });
+        if (x) moTipMuc(b, x);
+      };
+      b.onmouseleave = function (e) {
+        if (e.relatedTarget && b.contains(e.relatedTarget)) return;
+        anTipMuc();
+      };
     });
     host.querySelectorAll("[data-more]").forEach(function (b) {
       b.onclick = function (e) {
         e.stopPropagation();          // đừng để cú bấm chạy tiếp thành "chọn mục"
+        anTipMuc();
         var x = danhSach().find(function (m) { return m.slug === b.dataset.more; });
         if (x) moMenuMuc(x, b);
       };
@@ -1323,7 +1397,7 @@
   // Hàm trả kiểm _vaultSlot trước nên gọi hai lần vẫn vô hại.
   function roi() {
     active = false; opening++; chatReady(true);
-    dongMenu(); traCayThuMuc(); traKhungChat();
+    anTipMuc(); dongMenu(); traCayThuMuc(); traKhungChat();
     // XOÁ câu đang tìm. S.q sống ở mức module còn ô nhập chết theo DOM của trang, nên giữ lại
     // là lần sau quay vào danh sách đã bị lọc mà ô tìm thì rỗng và đang thu: người dùng thấy
     // cộng sự của mình biến mất, không có gì trên màn hình nói vì sao.
