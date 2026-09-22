@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.9] - 2026-09-22
+### Sửa
+- **Cộng sự / quy trình:** bấm Sửa các bước hoặc từng bước mở modal ngay (không chờ API xong mới hiện). Xuất dùng link tải trực tiếp, không phụ thuộc popup.
+- **Nút sửa / xuất / tạo:** hết im lặng khi Studio lỗi - báo rõ; modal nổi trên mọi lớp phủ.
+
 ## [0.56.8] - 2026-09-22
 ### Sửa
 - **Cộng sự:** nhóm Trợ lý / Quy trình mặc định thu gọn, bấm tiêu đề mới xổ (ô tìm vẫn xổ tạm để thấy kết quả).

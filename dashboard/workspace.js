@@ -841,8 +841,30 @@
   // Sửa = mở TRÌNH SỬA CỦA STUDIO dạng hộp thoại. Gọi không truyền `host` nên studio.js tự
   // bung modal của nó (xem editAgent: chỉ khi CÓ host nó mới vẽ tại chỗ) - đúng thứ một động
   // tác "Sửa" cần, và cùng đường với nút Sửa quy trình ở cột phải.
+  function canStudio(fn) {
+    if (window.JavisStudio && typeof window.JavisStudio[fn] === "function") return true;
+    alert(t("ws.studio_missing") || "Studio chưa sẵn sàng. Tải lại trang rồi thử lại.");
+    return false;
+  }
+  // Xuất độc lập khỏi JavisStudio (cùng URL /export) - nút Xuất không còn chết khi
+  // studio.js lỗi giữa chừng hoặc chưa gắn exportItem.
+  function xuatMuc(kind, slug) {
+    if (!kind || !slug) return;
+    if (window.JavisStudio && typeof window.JavisStudio.exportItem === "function") {
+      window.JavisStudio.exportItem(kind, slug);
+      return;
+    }
+    var a = document.createElement("a");
+    a.href = "/export?kind=" + encodeURIComponent(kind) + "&slug=" + encodeURIComponent(slug) +
+      "&brain=" + encodeURIComponent(brain()) + "&deps=1";
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
   function suaMuc(item) {
-    if (!window.JavisStudio) return;
+    if (!canStudio(S.loai === "agent" ? "editAgent" : "editWorkflow")) return;
     var xong = { onSaved: async function () { await sauLuu(item, S.loai); } };
     if (S.loai === "agent") window.JavisStudio.editAgent(item, xong);
     else window.JavisStudio.editWorkflow(item, xong);
@@ -1048,7 +1070,7 @@
         window.JavisStudio.editAgent(item, { host: host.querySelector("#wsAgentForm"),
           onSaved: async function () { await sauLuu(item, "agent"); } });
       }
-      host.querySelector("#wsExport").onclick = function () { window.JavisStudio && window.JavisStudio.exportItem("agent", item.slug); };
+      host.querySelector("#wsExport").onclick = function () { xuatMuc("agent", item.slug); };
       host.querySelector("#wsDel").onclick = async function () {
         if (!confirm(t("studio.del_ag", { ten: item.name }))) return;
         await api("/agents/delete", { method: "POST", body: fd({ slug: item.slug, brain: brain() }) });
@@ -1066,8 +1088,12 @@
         '<button type="button" class="ws-btn danger" id="wsDel">' + esc(t("common.delete")) + '</button></div>';
       host.querySelector("#wsRun").onclick = chayQuyTrinh;
       veBuoc(item, td);
-      host.querySelector("#wsEditWf").onclick = function () { var moi = dangChon() || item; window.JavisStudio && window.JavisStudio.editWorkflow(moi, { onSaved: async function () { await sauLuu(moi, "workflow"); } }); };
-      host.querySelector("#wsExport").onclick = function () { window.JavisStudio && window.JavisStudio.exportItem("workflow", item.slug); };
+      host.querySelector("#wsEditWf").onclick = function () {
+        if (!canStudio("editWorkflow")) return;
+        var moi = dangChon() || item;
+        window.JavisStudio.editWorkflow(moi, { onSaved: async function () { await sauLuu(moi, "workflow"); } });
+      };
+      host.querySelector("#wsExport").onclick = function () { xuatMuc("workflow", item.slug); };
       host.querySelector("#wsDel").onclick = async function () {
         if (!confirm(t("studio.del_wf", { ten: item.name }))) return;
         await api("/workflows/delete", { method: "POST", body: fd({ slug: item.slug, brain: brain() }) });
@@ -1111,9 +1137,9 @@
       '<div><button type="button" class="ws-btn primary" id="wsApprove">' + esc(t("studio.approve")) + ' ' + esc(td.cho_duyet.code) + '</button><small>' + esc(t("studio.wait_warn")) + '</small></div></div>' : "");
     host.querySelectorAll(".ws-step[data-si]").forEach(function (el) {
       el.onclick = function () {
+        if (!canStudio("editWorkflow")) return;
         var moi = dangChon() || item;
         var si = parseInt(el.getAttribute("data-si"), 10);
-        if (!window.JavisStudio || !window.JavisStudio.editWorkflow) return;
         window.JavisStudio.editWorkflow(moi, {
           openIdx: isFinite(si) ? si : 0,
           onSaved: async function () { await sauLuu(moi, "workflow"); }
@@ -1242,8 +1268,8 @@
   // `loai` chỉ rõ tạo TRỢ LÝ hay QUY TRÌNH: màn khởi đầu bày cả hai nút nên nút được bấm mới
   // là thứ quyết định, không phải tab đang đứng. Bỏ trống thì theo tab (nút Tạo mới cột trái).
   function taoMoi(loai) {
-    if (!window.JavisStudio) return;
     loai = loai === "agent" || loai === "workflow" ? loai : S.loai;
+    if (!canStudio(loai === "agent" ? "editAgent" : "editWorkflow")) return;
     var sau = async function (saved) {
       await taiDanhSach(); if (!active) return;
       // Tạo XONG thì chuyển hẳn sang tab của thứ vừa tạo. Bấm "Tạo quy trình" từ màn khởi đầu

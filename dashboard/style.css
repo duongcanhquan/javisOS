@@ -2104,7 +2104,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 }
 
 /* Editor modal */
-.studio-editor { position: fixed; inset: 0; z-index: 440; background: var(--scrim); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; }
+.studio-editor { position: fixed; inset: 0; z-index: 9200; background: var(--scrim); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; }
 .studio-editor.open { display: flex; animation: fadeIn 0.15s ease; }
 .editor-box { width: 560px; max-width: 92vw; max-height: 86vh; overflow-y: auto; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
 .editor-box h3 { font-size: 16px; margin-bottom: 14px; color: var(--text); }

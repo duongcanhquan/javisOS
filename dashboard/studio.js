@@ -23,7 +23,18 @@
   // ===== Xuất / Nhập năng lực (chia sẻ agent/skill/workflow qua file .zip) =====
   // slug nhận 1 chuỗi hoặc mảng (chọn nhiều) - server gói tất cả vào MỘT file .zip.
   const exportUrl = (kind, slug) => `/export?kind=${kind}&slug=${encodeURIComponent(Array.isArray(slug) ? slug.join(",") : slug)}&brain=${encodeURIComponent(brain())}&deps=1`;
-  function exportItem(kind, slug) { window.open(exportUrl(kind, slug), "_blank"); }
+  // Dùng <a> click thay window.open: một số trình duyệt chặn popup khi gọi từ handler
+  // bất đồng bộ / sau await; thẻ a cùng gesture vẫn tải được.
+  function exportItem(kind, slug) {
+    if (!kind || !slug) { alert(t("studio.export_need") || "Thiếu mục để xuất."); return; }
+    const a = document.createElement("a");
+    a.href = exportUrl(kind, slug);
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
   // ===== Chọn nhiều để tải về (16/08): tick từng thẻ hoặc Chọn tất cả, tải MỘT gói =====
   const _sel = { workflow: new Set(), agent: new Set(), skill: new Set() };
@@ -955,14 +966,27 @@
   async function editWorkflow(w, opts) {
     opts = opts || {};
     const embed = !!(opts.host);
+    // Mở modal NGAY khi bấm - trước đây chờ /agents + /settings + từng /provider/models
+    // (mỗi cái timeout 12s) rồi mới .open → trên VPS chậm nút "Sửa các bước" nhìn như chết.
+    const box = opts.host || document.getElementById("editorBox");
+    if (!box) {
+      alert(t("studio.err_editor") || "Không mở được trình sửa.");
+      return;
+    }
+    const dangTai = `<div class="dim" style="padding:28px;text-align:center">${esc(t("common.loading"))}</div>`;
+    box.innerHTML = dangTai;
+    if (!embed && editor) editor.classList.add("open");
     const [ad, st] = await Promise.all([
       api(`/agents?brain=${encodeURIComponent(brain())}`),
       api("/settings"),
     ]);
     agentsCache = ad.agents || [];
-    if (!agentsCache.length) { alert(t("studio.no_agents")); return; }
-    const box = opts.host || document.getElementById("editorBox");
-    if (!box) return;
+    if (!agentsCache.length) {
+      if (!embed && editor) editor.classList.remove("open");
+      box.innerHTML = "";
+      alert(t("studio.no_agents"));
+      return;
+    }
     const steps = w ? JSON.parse(JSON.stringify(w.steps || [])) : [{ agent: agentsCache[0].slug, task: "" }];
     const optsA = (sel) => agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
     const optsV = (sel) => `<option value="">${esc(t("studio.no_verify"))}</option>` + agentsCache.map(a => `<option value="${a.slug}" ${a.slug === sel ? "selected" : ""}>${esc(a.name)}</option>`).join("");
@@ -1174,6 +1198,18 @@
   async function editAgent(a, opts) {
     opts = opts || {};
     const embed = !!(opts.host);
+    const box = opts.host || document.getElementById("editorBox");
+    if (!box) {
+      alert(t("studio.err_editor") || "Không mở được trình sửa.");
+      return;
+    }
+    // Modal/form hiện NGAY (cùng lý do với editWorkflow) - tránh nút Sửa/Tạo nhìn như chết.
+    if (!embed && editor) {
+      box.innerHTML = `<div class="dim" style="padding:28px;text-align:center">${esc(t("common.loading"))}</div>`;
+      editor.classList.add("open");
+    } else if (embed) {
+      box.innerHTML = `<div class="dim" style="padding:12px;text-align:center">${esc(t("common.loading"))}</div>`;
+    }
     const [sd, st] = await Promise.all([
       api(`/skills?brain=${encodeURIComponent(brain())}`),
       api("/settings"),
@@ -1200,8 +1236,6 @@
       ? `<optgroup label="${esc(t("studio.model_saved"))}"><option value="${esc(val(a.model_provider || "", a.model))}">${esc(a.model)} ${esc(t("studio.saved_suffix"))}</option></optgroup>` : "";
     const modelOptions = (g) =>
       `<optgroup label="${esc(g.label)}">${g.models.map(m => `<option value="${esc(val(g.id, m))}">${esc(m)}</option>`).join("")}</optgroup>`;
-    const box = opts.host || document.getElementById("editorBox");
-    if (!box) return;
     box.innerHTML = `<div class="agent-editor">
       <h3>${esc(a ? t("studio.edit") : t("studio.create"))} Agent</h3>
       <label>${esc(t("studio.name"))}</label><input id="agName" value="${esc(a ? a.name : "")}">
