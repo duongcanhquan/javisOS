@@ -169,6 +169,18 @@ check("terminal chiếm hết chiều cao khung (không thì xterm tính hụt s
       /\.code-page \{[^}]*height: 100%/.test(CSS));
 check("bảng màu terminal có cả tông sáng lẫn tối", /javisTheme && window\.javisTheme\.isLight/.test(CODE_CODE));
 
+// ============================================================
+// 7. Sao chép mã/link đăng nhập (agy OAuth) - không dùng Ctrl+C (SIGINT)
+// ============================================================
+check("có nút Sao chép trên thanh terminal", /termCopy/.test(CODE_CODE) && /Sao chép/.test(CODE));
+check("copyOnSelect bật (kéo chọn là copy, không cần Ctrl+C)", /copyOnSelect:\s*true/.test(CODE_CODE));
+check("Ctrl/Cmd+Shift+C copy chứ không gửi SIGINT",
+      /attachCustomKeyEventHandler/.test(CODE_CODE) && /shiftKey/.test(CODE_CODE));
+check("không chọn thì vẫn lấy được link/mã OAuth từ vài chục dòng cuối",
+      /function layDoanCopy\(/.test(CODE_CODE) && /https\?:\\\/\\\//.test(CODE_CODE));
+check("nhắc Ctrl+C là huỷ lệnh (tránh giết agy lúc đăng nhập)",
+      /huỷ lệnh/.test(CODE) || /hủy lệnh/.test(CODE));
+
 console.log();
 if (fails.length) { console.log(fails.length + " test HỎNG: " + fails.join(", ")); process.exit(1); }
 console.log("Tất cả test code_terminal đã qua.");

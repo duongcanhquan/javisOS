@@ -338,6 +338,8 @@ def create_and_start(
             f"TZ={tz}",
             f"JAVIS_ADMIN_USER={login}",
             f"JAVIS_ADMIN_PASSWORD={bootstrap}",
+            "GEMINI_FORCE_FILE_STORAGE=true",
+            "JAVIS_TERMINAL_REMOTE=1",
             "JAVIS_ENABLE_USER_PLUGINS=false",
             "JAVIS_KANBAN_MAX_WORKERS=1",
             "JAVIS_ENABLE_PIXELLE=false",
@@ -488,6 +490,11 @@ def apply_public_hosts(slug: str) -> None:
            if not str(e).startswith("DOMAIN_NAME=") and not str(e).startswith("WORKSPACE_NAME=")]
     env.append("DOMAIN_NAME=" + wanted)
     env.append("WORKSPACE_NAME=VietMy OS")
+    # Đăng nhập agy trên VPS: lưu token ra file + terminal khai phiên từ xa (SSH_CONNECTION).
+    if not any(str(e).startswith("GEMINI_FORCE_FILE_STORAGE=") for e in env):
+        env.append("GEMINI_FORCE_FILE_STORAGE=true")
+    if not any(str(e).startswith("JAVIS_TERMINAL_REMOTE=") for e in env):
+        env.append("JAVIS_TERMINAL_REMOTE=1")
     labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
     try:

@@ -191,8 +191,15 @@
           '<span class="term-st" id="termSt">Đang nối...</span>' +
           '<span class="term-cwd" title="Thư mục làm việc">' + ic("folder-tree") + " " + esc(st.cwd) + "</span>" +
           '<span class="term-sp"></span>' +
+          '<button class="term-btn" id="termCopy" title="Sao chép vùng chọn, hoặc link/mã đăng nhập vừa in (agy / OAuth)">' +
+            ic("copy") + " Sao chép</button>" +
           '<button class="term-btn" id="termClear" title="Xoá màn hình (Ctrl+L)">' + ic("eraser") + " Xoá</button>" +
           '<button class="term-btn" id="termNew" title="Đóng phiên của tab này rồi mở phiên sạch">' + ic("rotate-cw") + " Khởi động lại</button>" +
+        "</div>" +
+        '<div class="term-note" id="termOAuthHint">' + ic("info") +
+          " Đăng nhập <code>agy</code>: chọn chữ hoặc bấm <b>Sao chép</b> lấy link/mã → mở trên máy bạn → " +
+          "copy địa chỉ <code>localhost</code> báo lỗi rồi dán lại đây (Ctrl+Shift+V / chuột phải). " +
+          "Ctrl+C trong terminal là <b>huỷ lệnh</b>, không phải copy." +
         "</div>" +
         (ong ? '<div class="term-note">' + ic("triangle-alert", { cls: "ic-warn" }) +
           " <b>Chế độ đơn giản (Windows).</b> Gõ nguyên một dòng rồi Enter. Không có gợi ý Tab, " +
@@ -288,6 +295,47 @@
       ws.onerror = function () { try { ws.close(); } catch (e) {} };
     }
 
+    /** Lấy chữ để copy: vùng chọn trước; không thì quét vài chục dòng cuối tìm link/mã OAuth (agy). */
+    function layDoanCopy(term) {
+      var sel = "";
+      try { sel = (term.getSelection() || "").trim(); } catch (e) {}
+      if (sel) return sel;
+      var text = "";
+      try {
+        var buf = term.buffer.active;
+        var end = buf.baseY + buf.cursorY;
+        var start = Math.max(0, end - 48);
+        var lines = [];
+        for (var y = start; y <= end; y++) {
+          var line = buf.getLine(y);
+          if (line) lines.push(line.translateToString(true));
+        }
+        text = lines.join("\n");
+      } catch (e) { return ""; }
+      var urls = text.match(/https?:\/\/[^\s"'<>\]\)]+/g) || [];
+      for (var i = urls.length - 1; i >= 0; i--) {
+        var u = urls[i].replace(/[.,;:]+$/, "");
+        if (/google|antigravity|localhost|oauth|device|accounts\.|gemini/i.test(u)) return u;
+      }
+      if (urls.length) return urls[urls.length - 1].replace(/[.,;:]+$/, "");
+      var code = text.match(/\b[A-Z0-9]{4,5}-[A-Z0-9]{4,5}\b/);
+      return code ? code[0] : "";
+    }
+
+    function chepClipboard(s) {
+      if (!s) return Promise.reject(new Error("empty"));
+      if (typeof window.copyText === "function") return window.copyText(s);
+      if (navigator.clipboard && window.isSecureContext)
+        return navigator.clipboard.writeText(s);
+      return new Promise(function (res) {
+        var ta = document.createElement("textarea");
+        ta.value = s; ta.style.cssText = "position:fixed;opacity:0";
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        ta.remove(); res();
+      });
+    }
+
     /** Dựng một tab mới (chưa nối): khung xterm riêng + bàn phím riêng + bộ đệm dòng riêng. */
     function taoTab(sid) {
       var tb = {
@@ -319,11 +367,27 @@
         convertEol: ong,
         // Chuột lăn cuộn màn hình chứ không gửi xuống shell trừ khi chương trình xin.
         macOptionIsMeta: true,
+        // Kéo chọn là copy ngay - đỡ phải Ctrl+C (Ctrl+C trong shell = huỷ lệnh đang chạy,
+        // dễ giết `agy` giữa lúc đăng nhập).
+        copyOnSelect: true,
+        rightClickSelectsWord: true,
       });
       tb.fit = new window.FitAddon.FitAddon();
       tb.term.loadAddon(tb.fit);
       tb.term.open(tb.host);
       try { tb.fit.fit(); } catch (e) {}
+
+      // Ctrl/Cmd+Shift+C = copy (không gửi SIGINT). Ctrl+C thuần vẫn là huỷ lệnh.
+      tb.term.attachCustomKeyEventHandler(function (ev) {
+        if (ev.type !== "keydown") return true;
+        var chuC = ev.key === "c" || ev.key === "C";
+        if (!chuC) return true;
+        if (!(ev.ctrlKey || ev.metaKey) || !ev.shiftKey) return true;
+        var doan = layDoanCopy(tb.term);
+        if (!doan) return false;
+        chepClipboard(doan).catch(function () {});
+        return false;
+      });
 
       // ---- bàn phím ----
       if (!ong) {
@@ -432,6 +496,27 @@
     window.addEventListener("javis-theme-change", doiTong);
 
     // ---- nút ----
+    panel.querySelector("#termCopy").onclick = function () {
+      var tb = tabs[chon];
+      var btn = panel.querySelector("#termCopy");
+      if (!tb) return;
+      var doan = layDoanCopy(tb.term);
+      if (!doan) {
+        if (oSt) oSt.textContent = "Chưa có chữ để copy - kéo chọn hoặc chạy agy trước";
+        return;
+      }
+      chepClipboard(doan).then(function () {
+        var cu = btn ? btn.innerHTML : "";
+        if (btn) btn.innerHTML = ic("check", { cls: "ic-ok" }) + " Đã copy";
+        if (oSt) oSt.textContent = "Đã copy " + (doan.length > 48 ? doan.slice(0, 45) + "…" : doan);
+        setTimeout(function () {
+          if (btn) btn.innerHTML = cu || (ic("copy") + " Sao chép");
+        }, 1400);
+      }).catch(function () {
+        if (oSt) oSt.textContent = "Không copy được - hãy kéo chọn rồi Ctrl/Cmd+C của trình duyệt";
+      });
+      tb.term.focus();
+    };
     panel.querySelector("#termClear").onclick = function () {
       var tb = tabs[chon];
       if (tb) { tb.term.clear(); tb.term.focus(); }

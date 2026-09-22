@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.23] - 2026-09-22
+### Sửa
+- **Terminal / đăng nhập Antigravity:** nút **Sao chép** lấy link hoặc mã vừa in (kéo chọn cũng copy). Ctrl+C vẫn là huỷ lệnh - dùng Ctrl/Cmd+Shift+C hoặc nút để copy, khỏi giết `agy` giữa chừng.
+
 ## [0.56.22] - 2026-09-22
 ### Mới
 - **Tổ chức / RAM thật:** bảng đo từng máy đang mở (MB đang dùng, đang dùng hay nghỉ vẫn tốn RAM); điều phối nhìn RAM trống + nhả máy nghỉ, không chỉ đếm chỗ.
