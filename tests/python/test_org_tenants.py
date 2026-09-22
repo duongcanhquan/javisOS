@@ -331,6 +331,32 @@ html = (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
 check("index không nạp org.js trước console (PAGE_LAZY)",
       "/static/org.js" not in html and "/static/console.js" in html)
 
+# Chống xóa sổ: parse lỗi không save; save không cho 3+ → ≤1
+ot_path = ot.store_path()
+many = {"tenants": [
+    {"slug": "quan", "protected": True, "container": "javis-quan"},
+    {"slug": "a", "container": "javis-a"},
+    {"slug": "b", "container": "javis-b"},
+    {"slug": "c", "container": "javis-c"},
+]}
+ot_path.write_text(json.dumps(many), encoding="utf-8")
+ot_path.write_text("{bad-json", encoding="utf-8")
+got = ot.load()
+check("JSON hỏng không ghi đè sổ (file vẫn bad hoặc được giữ)",
+      ot_path.is_file() and ("bad-json" in ot_path.read_text(encoding="utf-8")
+                             or any(ot_path.parent.glob("org-tenants.bad-*"))))
+check("JSON hỏng không trả sổ đầy đủ từ đĩa nhưng cũng không xóa đĩa",
+      len(got.get("tenants") or []) <= 1)
+# khôi phục sổ nhiều người rồi thử save thu nhỏ
+ot_path.write_text(json.dumps(many), encoding="utf-8")
+blocked = False
+try:
+    ot.save({"tenants": [{"slug": "quan", "protected": True}]})
+except RuntimeError as e:
+    blocked = "Từ chối ghi" in str(e)
+check("chặn ghi đè sổ nhiều người thành chỉ quan", blocked and len(json.loads(ot_path.read_text())["tenants"]) >= 3)
+check("mã nguồn có chống wipe sổ", "Từ chối ghi org-tenants" in (ROOT / "server" / "org_tenants.py").read_text(encoding="utf-8"))
+
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))
     raise SystemExit(1)

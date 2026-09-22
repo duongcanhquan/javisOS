@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import uuid
 from pathlib import Path
 
@@ -95,19 +96,48 @@ def _empty() -> dict:
 
 
 def load() -> dict:
+    """Đọc sổ. Lỗi JSON / thiếu file KHÔNG được ghi đè sổ cũ bằng chỉ quan.
+
+    Trước đây parse lỗi → `_empty()` + `ensure_quan` + `save` → xóa sạch mọi tenant
+    dù volume/container vẫn còn (sự cố 2026-09-22).
+    """
     p = store_path()
     if not p.is_file():
         data = _empty()
         ensure_quan(data)
         save(data)
         return data
+    raw = ""
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
+        raw = p.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except Exception as e:
+        # Giữ file hỏng, không save sổ rỗng lên đè.
+        bad = p.with_name(f"org-tenants.bad-{int(time.time())}.json")
+        try:
+            if raw:
+                bad.write_text(raw, encoding="utf-8")
+            else:
+                p.replace(bad)
+        except Exception:
+            pass
+        print(f"[org-tenants] đọc lỗi ({type(e).__name__}: {e}); giữ {bad}; không ghi đè sổ.", flush=True)
         data = _empty()
+        ensure_quan(data)
+        return data
     if not isinstance(data, dict):
+        bad = p.with_name(f"org-tenants.bad-{int(time.time())}.json")
+        try:
+            bad.write_text(raw if raw else json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+        print("[org-tenants] sổ không phải object JSON; không ghi đè.", flush=True)
         data = _empty()
+        ensure_quan(data)
+        return data
     data.setdefault("tenants", [])
+    if not isinstance(data["tenants"], list):
+        data["tenants"] = []
     changed = ensure_quan(data)
     if _sync_domains(data):
         changed = True
@@ -117,8 +147,30 @@ def load() -> dict:
 
 
 def save(data: dict) -> None:
+    """Ghi sổ atomic. Từ chối ghi đè sổ nhiều người bằng sổ chỉ còn quan (trừ khi cố ý)."""
     p = store_path()
     p.parent.mkdir(parents=True, exist_ok=True)
+    new_tenants = data.get("tenants") if isinstance(data, dict) else None
+    if not isinstance(new_tenants, list):
+        raise ValueError("org-tenants: tenants phải là list")
+    if p.is_file():
+        try:
+            old = json.loads(p.read_text(encoding="utf-8"))
+            old_n = len(old.get("tenants") or []) if isinstance(old, dict) else 0
+        except Exception:
+            old_n = 0
+        new_n = len(new_tenants)
+        # Chặn ghi đè sổ ≥3 người thành ≤1 (thường chỉ còn quan sau lỗi parse).
+        if old_n >= 3 and new_n <= 1:
+            bak = p.with_name(f"org-tenants.blocked-{int(time.time())}.json")
+            try:
+                bak.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"Từ chối ghi org-tenants: sổ cũ {old_n} người → mới {new_n}. "
+                f"Đã giữ bản cũ tại {bak.name}."
+            )
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(p)

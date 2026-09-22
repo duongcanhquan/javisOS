@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.33] - 2026-09-22
+### Sửa
+- **Tổ chức · sổ tenant:** lỗi đọc/parse `org-tenants.json` trước đây ghi đè sổ bằng chỉ còn `quan` → mất danh sách người dù Docker/volume còn. Nay không ghi đè khi JSON hỏng; `save` từ chối thu nhỏ sổ ≥3 người xuống ≤1. Đã khôi phục sổ từ container trên VPS.
+
 ## [0.56.32] - 2026-09-22
 ### Thêm / Làm rõ
 - **Tổ chức · RAM realtime:** `GET /org/ram_live` + poll ~4 giây trên dashboard (không reload cả sổ). Thanh VPS dùng **RAM đang dùng (Docker)** thật thay cho «RAM ước» = N×trần. Trần mỗi máy mới **1024 MB** (trước 768); máy đã tạo giữ trần cũ đến khi tạo lại container.
