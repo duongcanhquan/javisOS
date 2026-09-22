@@ -486,6 +486,14 @@ check("editWorkflow dung catalog model truoc, live sau",
   /opts\.agents && opts\.agents\.length/.test(studio));
 check("editWorkflow KHONG cho refresh=1 truoc khi ve form",
   !/async function editWorkflow[\s\S]*?refresh=1[\s\S]*?function render\(/.test(studio));
+check("workflow editor co keo tha buoc (st-grip)",
+  /st-grip/.test(studio) && /function moveTo\(from, to\)/.test(studio) &&
+  /dragstart/.test(studio) && /studio\.drag_step/.test(studio));
+check("i18n co khoa studio.drag_step",
+  /"studio\.drag_step"/.test(fs.readFileSync(path.join(root, "dashboard", "i18n", "vi.json"), "utf8")));
+check("CSS st-grip + drag-over",
+  /\.st-grip\s*\{/.test(fs.readFileSync(path.join(root, "dashboard", "style.css"), "utf8")) &&
+  /\.step-row\.drag-over/.test(fs.readFileSync(path.join(root, "dashboard", "style.css"), "utf8")));
 // Bảng chạy của Studio: bước đã báo lỗi thì TẮT vòng quay của chính nó. Trước đây chỉ
 // `step_done` mới thay được .rs-spin, mà bước hỏng thì không bao giờ có step_done nữa (server
 // dừng ngay), nên bước ấy quay mãi trong khi cả lần chạy đã kết thúc.

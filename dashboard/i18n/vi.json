@@ -635,6 +635,8 @@
   "studio.name": "Tên",
   "studio.desc": "Mô tả",
   "studio.steps_label": "Các bước (mỗi bước = 1 agent · dùng {{input}} và {{prev}})",
+  "studio.drag_hint": "Kéo tay cầm ⠿ bên trái để đổi thứ tự bước. ↑↓ vẫn dùng được.",
+  "studio.drag_step": "Kéo để đổi thứ tự",
   "studio.add_step": "+ Bước",
   "studio.no_verify": "- không kiểm chứng -",
   "studio.up": "Lên",

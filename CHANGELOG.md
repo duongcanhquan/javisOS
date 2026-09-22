@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.11] - 2026-09-22
+### Mới
+- **Sửa quy trình:** kéo tay cầm bên trái từng bước để đổi thứ tự; ↑↓ vẫn giữ. Nhớ bấm Lưu sau khi xếp xong.
+
 ## [0.56.10] - 2026-09-22
 ### Sửa
 - **Nút phản hồi ngay:** bấm là mờ + con trỏ chờ, biết đã nhận lệnh trước khi việc nặng xong.

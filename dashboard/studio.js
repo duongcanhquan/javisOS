@@ -1068,9 +1068,19 @@
     function move(i, d) {
       const j = i + d;
       if (j < 0 || j >= steps.length) return;
+      moveTo(i, j);
+    }
+    // Đưa bước `from` vào đúng chỉ số `to` (sau khi đã rút ra). Dùng chung cho ↑↓ và kéo-thả.
+    function moveTo(from, to) {
+      if (from === to || from < 0 || to < 0 || from >= steps.length || to >= steps.length) return;
       captureSteps();
-      const tmp = steps[i]; steps[i] = steps[j]; steps[j] = tmp;
-      if (openIdx === i) openIdx = j; else if (openIdx === j) openIdx = i;
+      const item = steps.splice(from, 1)[0];
+      steps.splice(to, 0, item);
+      if (openIdx != null) {
+        if (openIdx === from) openIdx = to;
+        else if (from < openIdx && to >= openIdx) openIdx--;
+        else if (from > openIdx && to <= openIdx) openIdx++;
+      }
       render();
     }
     function dongForm() {
@@ -1091,17 +1101,22 @@
         <select id="wfModel">${modelOptsHtml}</select>
         <div class="dim" style="font-size:12px;margin-top:4px">${esc(t("studio.wf_model_note"))}</div>
         <label>${esc(t("studio.steps_label"))}</label>
-        <div id="stepList"></div>
+        <div class="dim st-drag-hint">${esc(t("studio.drag_hint"))}</div>
+        <div id="stepList" class="step-list"></div>
         <button type="button" class="s-btn-ghost" id="addStep">${esc(t("studio.add_step"))}</button>
         <div class="editor-actions"><button type="button" class="s-btn-ghost" id="cancelEd">${esc(t("common.cancel"))}</button><button type="button" class="s-btn" id="saveWf">${esc(t("common.save"))}</button></div>`;
       applyModelSelect(box.querySelector("#wfModel"));
       const sl = box.querySelector("#stepList"); sl.innerHTML = "";
+      let dragFrom = -1;
       steps.forEach((st, i) => {
         const open = i === openIdx;
-        const row = document.createElement("div"); row.className = "step-row" + (open ? " open" : "");
+        const row = document.createElement("div");
+        row.className = "step-row" + (open ? " open" : "");
+        row.dataset.si = String(i);
         const sum = (st.task || "").replace(/\s+/g, " ").trim();
         row.innerHTML = `
           <div class="step-header">
+            <button type="button" class="st-grip" draggable="true" title="${esc(t("studio.drag_step"))}" aria-label="${esc(t("studio.drag_step"))}"></button>
             <span class="step-num">${i + 1}</span>
             <span class="step-sum">${esc(agentName(st.agent))}${sum ? ` · ${esc(sum)}` : ""}</span>
             <select class="st-agent">${optsA(st.agent)}</select>
@@ -1119,7 +1134,7 @@
             </div>
           </div>`;
         row.querySelector(".step-header").onclick = (e) => {
-          if (e.target.closest("button, select, textarea, input")) return;
+          if (e.target.closest("button, select, textarea, input, .st-grip")) return;
           captureSteps(); openIdx = open ? null : i; render();
         };
         row.querySelectorAll(".st-move").forEach(b => { b.onclick = (e) => { e.stopPropagation(); move(i, parseInt(b.dataset.d, 10)); }; });
@@ -1131,6 +1146,44 @@
           if (openIdx !== null) { if (openIdx === i) openIdx = null; else if (openIdx > i) openIdx--; }
           render();
         };
+        // Kéo-thả: chỉ tay cầm .st-grip mới bắt đầu kéo (ô chữ/select vẫn sửa bình thường).
+        const grip = row.querySelector(".st-grip");
+        grip.addEventListener("dragstart", (e) => {
+          e.stopPropagation();
+          dragFrom = i;
+          captureSteps();
+          try { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; } catch (err) {}
+          row.classList.add("dragging");
+          sl.classList.add("is-sorting");
+        });
+        grip.addEventListener("dragend", () => {
+          dragFrom = -1;
+          row.classList.remove("dragging");
+          sl.classList.remove("is-sorting");
+          sl.querySelectorAll(".step-row.drag-over").forEach((r) => r.classList.remove("drag-over"));
+        });
+        row.addEventListener("dragover", (e) => {
+          if (dragFrom < 0 || dragFrom === i) return;
+          e.preventDefault();
+          try { e.dataTransfer.dropEffect = "move"; } catch (err) {}
+          sl.querySelectorAll(".step-row.drag-over").forEach((r) => { if (r !== row) r.classList.remove("drag-over"); });
+          row.classList.add("drag-over");
+        });
+        row.addEventListener("dragleave", (e) => {
+          if (!row.contains(e.relatedTarget)) row.classList.remove("drag-over");
+        });
+        row.addEventListener("drop", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          row.classList.remove("drag-over");
+          let from = dragFrom;
+          try {
+            const raw = e.dataTransfer.getData("text/plain");
+            if (raw !== "") from = parseInt(raw, 10);
+          } catch (err) {}
+          if (!isFinite(from) || from < 0 || from === i) return;
+          moveTo(from, i);
+        });
         sl.appendChild(row);
       });
       box.querySelector("#addStep").onclick = () => { captureSteps(); steps.push({ agent: agentsCache[0].slug, task: "" }); openIdx = steps.length - 1; render(); };

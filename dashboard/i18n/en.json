@@ -635,6 +635,8 @@
   "studio.name": "Name",
   "studio.desc": "Description",
   "studio.steps_label": "Steps (each step = 1 agent · use {{input}} and {{prev}})",
+  "studio.drag_hint": "Drag the ⠿ handle on the left to reorder steps. ↑↓ still work.",
+  "studio.drag_step": "Drag to reorder",
   "studio.add_step": "+ Step",
   "studio.no_verify": "- no verification -",
   "studio.up": "Up",

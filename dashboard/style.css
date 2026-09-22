@@ -2144,6 +2144,19 @@ button.jv-busy, .ws-btn.jv-busy, .ws-step.jv-busy, .s-btn.jv-busy, .s-btn-ghost.
 .st-move:disabled { opacity: 0.3; cursor: default; }
 .step-header { display: flex; align-items: center; gap: 8px; }
 .step-num { background: var(--accent2); color: var(--on-accent); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+/* Tay cầm kéo-thả bước workflow (6 chấm CSS, không thêm icon Lucide). */
+.st-grip {
+  flex: none; width: 18px; height: 28px; padding: 0; margin: 0 -2px 0 0;
+  border: none; border-radius: 6px; background:
+    radial-gradient(circle, var(--text3) 1.15px, transparent 1.25px) 3px 6px / 6px 6px repeat;
+  cursor: grab; opacity: .55; touch-action: none;
+}
+.st-grip:hover { opacity: 1; background-color: var(--surface-2, transparent); }
+.st-grip:active, .step-row.dragging .st-grip { cursor: grabbing; opacity: 1; }
+.step-row.dragging { opacity: .55; border-style: dashed; }
+.step-row.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.step-list.is-sorting .step-row:not(.dragging) { transition: transform .12s ease, box-shadow .12s ease; }
+.st-drag-hint { font-size: 12px; margin: -2px 0 8px; line-height: 1.4; }
 .st-agent { flex: 1; }
 .st-del { background: none; border: 1px solid var(--border); color: var(--text3); border-radius: 6px; cursor: pointer; height: 28px; width: 28px; flex-shrink: 0; font-size: 14px; }
 .st-del:hover { border-color: var(--red); color: var(--red); }
