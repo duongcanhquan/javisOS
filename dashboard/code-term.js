@@ -193,13 +193,22 @@
           '<span class="term-sp"></span>' +
           '<button class="term-btn" id="termCopy" title="Sao chép vùng chọn, hoặc link/mã đăng nhập vừa in (agy / OAuth)">' +
             ic("copy") + " Sao chép</button>" +
+          '<button class="term-btn" id="termPaste" title="Dán clipboard vào terminal (Cmd/Ctrl+V thường không vào shell)">' +
+            ic("type") + " Dán</button>" +
           '<button class="term-btn" id="termClear" title="Xoá màn hình (Ctrl+L)">' + ic("eraser") + " Xoá</button>" +
           '<button class="term-btn" id="termNew" title="Đóng phiên của tab này rồi mở phiên sạch">' + ic("rotate-cw") + " Khởi động lại</button>" +
         "</div>" +
         '<div class="term-note" id="termOAuthHint">' + ic("info") +
-          " Đăng nhập <code>agy</code>: chọn chữ hoặc bấm <b>Sao chép</b> lấy link/mã → mở trên máy bạn → " +
-          "copy địa chỉ <code>localhost</code> báo lỗi rồi dán lại đây (Ctrl+Shift+V / chuột phải). " +
-          "Ctrl+C trong terminal là <b>huỷ lệnh</b>, không phải copy." +
+          " Đăng nhập <code>agy</code>: copy địa chỉ <code>localhost</code> trên trình duyệt → bấm <b>Dán</b> " +
+          "(hoặc Ctrl/Cmd+Shift+V) vào terminal rồi Enter. Ctrl+C là <b>huỷ lệnh</b>, không phải copy." +
+        "</div>" +
+        '<div class="term-paste-box" id="termPasteBox" hidden>' +
+          '<label class="term-paste-lab">Dán mã / link vào ô này rồi bấm Gửi vào terminal</label>' +
+          '<textarea class="term-paste-ta" id="termPasteTa" rows="3" placeholder="http://localhost:... hoặc mã đăng nhập"></textarea>' +
+          '<div class="term-paste-acts">' +
+            '<button type="button" class="term-btn" id="termPasteSend">' + ic("send") + " Gửi vào terminal</button>" +
+            '<button type="button" class="term-btn" id="termPasteHuy">Huỷ</button>' +
+          "</div>" +
         "</div>" +
         (ong ? '<div class="term-note">' + ic("triangle-alert", { cls: "ic-warn" }) +
           " <b>Chế độ đơn giản (Windows).</b> Gõ nguyên một dòng rồi Enter. Không có gợi ý Tab, " +
@@ -336,6 +345,62 @@
       });
     }
 
+    function docClipboard() {
+      if (navigator.clipboard && window.isSecureContext && navigator.clipboard.readText)
+        return navigator.clipboard.readText();
+      return Promise.reject(new Error("no-read"));
+    }
+
+    /** Gửi chữ vào shell như người dán (term.paste → onData). Thêm Enter nếu là một dòng URL/mã. */
+    function danVaoTerm(tb, text) {
+      if (!tb || !tb.term || text == null) return false;
+      var s = String(text);
+      if (!s) return false;
+      // URL/mã OAuth một dòng: tự thêm Enter để agy nhận luôn, khỏi phải bấm Enter thêm.
+      var motDong = s.indexOf("\n") < 0 && s.indexOf("\r") < 0;
+      var urlHoacMa = motDong && (
+        /^https?:\/\//i.test(s.trim()) ||
+        /^[A-Z0-9]{4,5}-[A-Z0-9]{4,5}$/.test(s.trim())
+      );
+      try {
+        if (typeof tb.term.paste === "function") tb.term.paste(s);
+        else gui(tb, { type: "in", data: s.replace(/\r?\n/g, "\r") });
+      } catch (e) {
+        gui(tb, { type: "in", data: s.replace(/\r?\n/g, "\r") });
+      }
+      if (urlHoacMa) {
+        try { gui(tb, { type: "in", data: "\r" }); } catch (e2) {}
+      }
+      try { tb.term.focus(); } catch (e3) {}
+      return true;
+    }
+
+    function moHopDan(tb) {
+      var box = panel.querySelector("#termPasteBox");
+      var ta = panel.querySelector("#termPasteTa");
+      if (!box || !ta) return;
+      box.hidden = false;
+      ta.value = "";
+      setTimeout(function () { ta.focus(); }, 30);
+      if (oSt) oSt.textContent = "Dán vào ô bên dưới (trình duyệt cho phép), rồi Gửi";
+    }
+
+    function dongHopDan() {
+      var box = panel.querySelector("#termPasteBox");
+      if (box) box.hidden = true;
+    }
+
+    /** Thử đọc clipboard; nếu trình duyệt chặn thì mở ô dán tay. */
+    function thuDan(tb) {
+      if (!tb) return;
+      docClipboard().then(function (t) {
+        var s = (t || "").trim();
+        if (!s) { moHopDan(tb); return; }
+        danVaoTerm(tb, s);
+        if (oSt) oSt.textContent = "Đã dán " + (s.length > 40 ? s.slice(0, 37) + "…" : s);
+      }).catch(function () { moHopDan(tb); });
+    }
+
     /** Dựng một tab mới (chưa nối): khung xterm riêng + bàn phím riêng + bộ đệm dòng riêng. */
     function taoTab(sid) {
       var tb = {
@@ -377,16 +442,30 @@
       tb.term.open(tb.host);
       try { tb.fit.fit(); } catch (e) {}
 
-      // Ctrl/Cmd+Shift+C = copy (không gửi SIGINT). Ctrl+C thuần vẫn là huỷ lệnh.
+      // Copy: Ctrl/Cmd+Shift+C. Dán: Ctrl/Cmd+Shift+V hoặc Cmd+V / Ctrl+V (nhả cho trình duyệt).
+      // Ctrl+C thuần vẫn là huỷ lệnh (SIGINT) - không đổi.
       tb.term.attachCustomKeyEventHandler(function (ev) {
         if (ev.type !== "keydown") return true;
         var chuC = ev.key === "c" || ev.key === "C";
-        if (!chuC) return true;
-        if (!(ev.ctrlKey || ev.metaKey) || !ev.shiftKey) return true;
-        var doan = layDoanCopy(tb.term);
-        if (!doan) return false;
-        chepClipboard(doan).catch(function () {});
-        return false;
+        var chuV = ev.key === "v" || ev.key === "V";
+        var mod = ev.ctrlKey || ev.metaKey;
+        if (!mod) return true;
+        if (chuC && ev.shiftKey) {
+          var doan = layDoanCopy(tb.term);
+          if (!doan) return false;
+          chepClipboard(doan).catch(function () {});
+          return false;
+        }
+        if (chuV && ev.shiftKey) {
+          thuDan(tb);
+          return false;
+        }
+        // Cmd+V (Mac) / Ctrl+V: để trình duyệt phát sự kiện paste vào textarea của xterm.
+        // Nếu vẫn không vào (Safari chặn...), người dùng bấm nút Dán.
+        if (chuV && !ev.shiftKey && !ev.altKey) {
+          return false;
+        }
+        return true;
       });
 
       // ---- bàn phím ----
@@ -517,6 +596,33 @@
       });
       tb.term.focus();
     };
+    panel.querySelector("#termPaste").onclick = function () {
+      var tb = tabs[chon];
+      if (!tb) return;
+      thuDan(tb);
+    };
+    var pasteSend = panel.querySelector("#termPasteSend");
+    var pasteHuy = panel.querySelector("#termPasteHuy");
+    var pasteTa = panel.querySelector("#termPasteTa");
+    if (pasteSend) pasteSend.onclick = function () {
+      var tb = tabs[chon];
+      var s = pasteTa ? pasteTa.value : "";
+      if (!s || !String(s).trim()) {
+        if (oSt) oSt.textContent = "Ô còn trống - dán link/mã vào rồi Gửi";
+        if (pasteTa) pasteTa.focus();
+        return;
+      }
+      danVaoTerm(tb, s);
+      dongHopDan();
+      if (oSt) oSt.textContent = "Đã gửi vào terminal";
+    };
+    if (pasteHuy) pasteHuy.onclick = function () { dongHopDan(); };
+    if (pasteTa) pasteTa.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) {
+        ev.preventDefault();
+        if (pasteSend) pasteSend.click();
+      }
+    });
     panel.querySelector("#termClear").onclick = function () {
       var tb = tabs[chon];
       if (tb) { tb.term.clear(); tb.term.focus(); }

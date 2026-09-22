@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.24] - 2026-09-22
+### Sửa
+- **Terminal / dán mã đăng nhập:** nút **Dán** + Ctrl/Cmd+Shift+V đưa clipboard vào shell. Nếu trình duyệt chặn clipboard thì hiện ô dán tay rồi Gửi - hết cảnh copy được mã mà không dán vào `agy` được.
+
 ## [0.56.23] - 2026-09-22
 ### Sửa
 - **Terminal / đăng nhập Antigravity:** nút **Sao chép** lấy link hoặc mã vừa in (kéo chọn cũng copy). Ctrl+C vẫn là huỷ lệnh - dùng Ctrl/Cmd+Shift+C hoặc nút để copy, khỏi giết `agy` giữa chừng.

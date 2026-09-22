@@ -173,9 +173,14 @@ check("bảng màu terminal có cả tông sáng lẫn tối", /javisTheme && wi
 // 7. Sao chép mã/link đăng nhập (agy OAuth) - không dùng Ctrl+C (SIGINT)
 // ============================================================
 check("có nút Sao chép trên thanh terminal", /termCopy/.test(CODE_CODE) && /Sao chép/.test(CODE));
+check("có nút Dán trên thanh terminal", /termPaste/.test(CODE_CODE) && / Dán</.test(CODE));
 check("copyOnSelect bật (kéo chọn là copy, không cần Ctrl+C)", /copyOnSelect:\s*true/.test(CODE_CODE));
 check("Ctrl/Cmd+Shift+C copy chứ không gửi SIGINT",
       /attachCustomKeyEventHandler/.test(CODE_CODE) && /shiftKey/.test(CODE_CODE));
+check("Ctrl/Cmd+V hoặc Shift+V dán được (nhả phím cho trình duyệt / đọc clipboard)",
+      /chuV/.test(CODE_CODE) && /function thuDan\(/.test(CODE_CODE) && /function danVaoTerm\(/.test(CODE_CODE));
+check("có ô dán tay khi clipboard API bị chặn",
+      /termPasteBox/.test(CODE_CODE) && /term-paste-ta/.test(CSS));
 check("không chọn thì vẫn lấy được link/mã OAuth từ vài chục dòng cuối",
       /function layDoanCopy\(/.test(CODE_CODE) && /https\?:\\\/\\\//.test(CODE_CODE));
 check("nhắc Ctrl+C là huỷ lệnh (tránh giết agy lúc đăng nhập)",
