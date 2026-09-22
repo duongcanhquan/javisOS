@@ -768,6 +768,12 @@ def cache_disk_usage(slug: str, force: bool = False) -> int:
 
 
 def read_last_active(cname: str, rec: dict | None = None) -> int:
+    """Thời điểm hoạt động gần nhất của người (để tắt máy nghỉ / nhả chỗ).
+
+    Chỉ tin file org-last-active trong máy (mỗi request có người ghi) hoặc last_active
+    trên sổ. KHÔNG dùng StartedAt của Docker: giờ bật container ≠ người đang dùng -
+    sau deploy cả đám máy «vừa bật» sẽ không ai bị tắt → xếp hàng oan.
+    """
     if cname and docker_available() and container_status(cname) == "running":
         try:
             out = _exec(cname, ["python", "-c",
@@ -779,11 +785,6 @@ def read_last_active(cname: str, rec: dict | None = None) -> int:
                     return int(line)
         except Exception:
             pass
-        data = inspect_name(cname)
-        started = str(((data.get("State") or {}) if isinstance(data.get("State"), dict) else {}).get("StartedAt") or "")
-        ts = _started_unix(started)
-        if ts:
-            return ts
     try:
         return int((rec or {}).get("last_active") or 0)
     except (TypeError, ValueError):
@@ -849,9 +850,14 @@ def _acquire_slot(slug: str) -> None:
         return
     victim = _pick_evict(slug)
     if not victim:
+        names = [str(t.get("slug") or "?") for t in running[:8]]
+        more = f" (+{len(running) - 8})" if len(running) > 8 else ""
         raise RuntimeError(
-            "Đang có nhiều máy mở cùng lúc. Máy của bạn xếp hàng — "
-            "não và file giữ nguyên, trang sẽ tự mở khi tới lượt."
+            f"Hết chỗ máy người: đang mở {len(running)}/{cap}. "
+            f"Đang chạy: {', '.join(names)}{more}. "
+            "Máy mở nhưng không ai vào vẫn chiếm RAM. "
+            "Trên Tổ chức → Quản lý: tắt máy nghỉ, hoặc Cài đặt → bật «Tự tắt sau (phút)». "
+            "Não và file giữ nguyên - trang tự mở khi có chỗ."
         )
     stop(victim, park=False)
 
@@ -1078,10 +1084,12 @@ def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
         start_with_capacity(slug)
     except Exception as e:
         pos = oc.enqueue_wait(slug)
+        detail = str(e).strip()
+        if len(detail) > 280:
+            detail = detail[:277] + "…"
         return oc.wake_html(
             host, "Đang xếp lượt mở máy",
-            f"Hiện nhiều người đang dùng cùng lúc. Bạn đứng hàng thứ {pos}. "
-            "Não và file không mất. Trang tự thử lại khi tới lượt — không phải lỗi.",
+            f"{detail} Bạn đứng hàng thứ {pos}. Não và file không mất - không phải lỗi.",
             8,
         ), 503
     return oc.wake_html(

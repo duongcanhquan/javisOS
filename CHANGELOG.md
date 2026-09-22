@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.20] - 2026-09-22
+### Sửa
+- **Tổ chức / xếp hàng máy:** máy mở nhưng không ai vào được nhả chỗ đúng (không còn lấy giờ bật Docker làm «đang dùng»). Thông báo xếp hàng ghi rõ đang mở bao nhiêu / trần bao nhiêu.
+
 ## [0.56.19] - 2026-09-22
 ### Sửa
 - **Tổ chức / Quản lý:** nút Bật (xanh) / Tắt (đỏ) đúng trạng thái máy; bấm có phản hồi ngay trên thẻ; lưới 3 cột desktop để bớt kéo trang.

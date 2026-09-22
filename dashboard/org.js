@@ -501,8 +501,9 @@
                 <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
-              <p class="dim org-sec-note">${idleM ? ("Vắng " + idleM + " phút thì nhả RAM (não không xóa).") : "Không tự tắt khi vắng."}
-                ${ramHost ? (" Máy " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}</p>
+              <p class="dim org-sec-note">${idleM ? ("Vắng " + idleM + " phút thì nhả RAM (não không xóa).") : "Không tự tắt khi vắng - nên tắt tay máy school/người không dùng."}
+                ${ramHost ? (" Máy " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
+                Chỗ người = máy đang mở (kể cả không ai chat), không chỉ số tài khoản trong sổ.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">
