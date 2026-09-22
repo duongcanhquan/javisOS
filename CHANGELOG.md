@@ -6,6 +6,7 @@
 ### Sửa
 - **Tổ chức / Quản lý:** chọn chế độ model (API riêng / kho trường…) và provider rồi bấm Lưu thay đổi là ghi được - trước đó hai nút Lưu tách nhau nên hay tưởng đã lưu.
 - **Studio / i18n:** bổ sung khoá xuất/sửa còn thiếu; test ô model agent khớp catalog mở form ngay (không còn bắt refresh=1).
+- **Giọng nói:** `/voice/options` import `nghe_sua` trước khi trả từ vựng gốc (hết lỗi tên toàn cục).
 
 ## [0.56.14] - 2026-09-22
 ### Mới

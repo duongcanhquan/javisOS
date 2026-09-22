@@ -12756,6 +12756,7 @@ org_routes.register(app)
 @app.get("/voice/options")
 async def voice_options():
     """Cho thẻ 'Chế độ và bộ não giọng nói' ở trang Cài đặt: cái gì đang sẵn, key nào đã có."""
+    import nghe_sua
     cfg = cfgmod.read_settings()
     m = cfg.get("model", {}) or {}
     v = cfg.get("voice", {}) or {}
