@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.29] - 2026-09-22
+### Sửa
+- **Tổ chức · Tính RAM thật:** Docker healthcheck `/health` (mỗi 30s) trước đây ghi `org-last-active` → mọi máy luôn «đang dùng» và không bao giờ tự tắt dù không có người. Nay health/static/asset không còn tính là tín hiệu; bảng đổi nhãn «có tín hiệu / nghỉ · Docker vẫn bật» + tuổi tín hiệu. Cột RAM vẫn là Docker stats thật khi container còn mở.
+
 ## [0.56.28] - 2026-09-22
 ### Làm rõ
 - **Tổ chức:** tách «Người trong sổ» và «Máy đang mở». Trần chỗ chỉ giới hạn máy Docker bật cùng lúc - **không xóa** tài khoản khi vượt trần; tạo thêm người vẫn được (máy mới có thể tắt sẵn). Tạm dừng/tắt tay giữ não.

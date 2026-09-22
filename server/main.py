@@ -226,12 +226,13 @@ async def _csrf_guard(request: Request, call_next):
 
 @app.middleware("http")
 async def _org_coord_http(request: Request, call_next):
-    """Tenant: ghi last-active. Javis gốc: Host máy con đang tắt thì tự bật (trần RAM)."""
+    """Tenant: ghi last-active (bỏ /health + static). Javis gốc: Host máy con tắt thì tự bật."""
     try:
         import org_policy as _opx
         if _opx.tenant_side():
             import org_coord as _ocx
-            _ocx.touch_last_active()
+            if _ocx.should_touch_last_active(request.url.path):
+                _ocx.touch_last_active()
             return await call_next(request)
         import org_tenants as _otx
         if not _otx.manager_enabled():

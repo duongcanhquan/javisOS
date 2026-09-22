@@ -279,17 +279,29 @@
       const mb = Number(m.mem_mb || 0);
       const lim = Number(m.limit_mb || ramPer || 768);
       const pct = lim ? Math.min(100, Math.round(100 * mb / lim)) : 0;
-      const tag = m.idle ? '<span class="org-pill">nghỉ - đang tốn RAM</span>' : '<span class="org-pill on">đang dùng</span>';
+      const idleSec = Number(m.idle_sec);
+      let ago = "";
+      if (Number.isFinite(idleSec) && idleSec >= 0 && idleSec < 1e9) {
+        if (idleSec < 90) ago = "vừa xong";
+        else if (idleSec < 3600) ago = Math.floor(idleSec / 60) + " phút trước";
+        else ago = Math.floor(idleSec / 3600) + " giờ trước";
+      } else if (m.idle) {
+        ago = "không thấy tín hiệu";
+      }
+      const tag = m.idle
+        ? '<span class="org-pill">nghỉ · Docker vẫn bật</span>'
+        : '<span class="org-pill on">có tín hiệu gần đây</span>';
       return `<tr>
         <td><code>${esc(m.slug || "")}</code></td>
         <td>${esc(String(mb))} / ${esc(String(lim))} MB (${pct}%)</td>
-        <td>${tag}</td>
+        <td>${tag}${ago ? `<div class="dim" style="font-size:12px;margin-top:2px">${esc(ago)}</div>` : ""}</td>
       </tr>`;
     }).join("");
     const ramCalc = `
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
-          <p class="dim org-sec-sub">Máy Docker <b>bật</b> = đang chiếm RAM (kể cả không chat). Chỉ khi <b>tắt</b> mới nhả RAM.</p></div></div>
+          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Chỉ khi <b>tắt container</b> mới nhả RAM.
+            Nhãn tín hiệu = người/API gần đây — không phải «đang chat». Healthcheck Docker không tính là tín hiệu.</p></div></div>
         <div class="org-kpi">
           <div class="org-kpi-i"><span class="org-kpi-l">Ngân sách máy người</span>
             <strong class="org-kpi-v">${budgetMb ? (esc(String(budgetMb)) + " MB") : "?"}</strong>
@@ -299,12 +311,12 @@
             <span class="org-kpi-s">gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Đang đo trên VPS</span>
             <strong class="org-kpi-v">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
-            <span class="org-kpi-s">${esc(String(activeN))} đang dùng · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
+            <span class="org-kpi-s">${esc(String(activeN))} có tín hiệu · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
               ${slotsByRam ? (" · ước mở thêm ~" + slotsByRam + " nếu nhả máy nghỉ") : ""}</span></div>
         </div>
         ${formula ? `<p class="dim org-sec-note">${esc(formula)}</p>` : ""}
         ${liveRows
-          ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Máy</th><th>RAM đang dùng</th><th>Trạng thái</th></tr></thead><tbody>${liveRows}</tbody></table></div>`
+          ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Máy</th><th>RAM Docker (máy bật)</th><th>Tín hiệu người</th></tr></thead><tbody>${liveRows}</tbody></table></div>`
           : '<p class="dim">Chưa đo được máy người đang mở (hoặc chưa có máy chạy).</p>'}
       </div>`;
     const vpsMeters = `
@@ -549,7 +561,7 @@
               </form>
               <p class="dim org-sec-note"><b>Tự tắt sau ${idleM || "0"} phút</b>:
                 ${idleM
-                  ? ("không ai mở/chat trên máy đó trong " + idleM + " phút → tắt container, não giữ. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
+                  ? ("không ai mở dashboard/API trên máy đó trong " + idleM + " phút → tắt container, não giữ. Healthcheck Docker không tính. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
                   : "đang tắt - máy mở sẽ chiếm chỗ đến khi tắt tay hoặc RAM thấp."}
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
                 Gợi ý RAM khoảng <b>${esc(String(suggestN))}</b> máy mở. Trần tay đang <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>.</p>

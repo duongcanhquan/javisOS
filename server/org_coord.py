@@ -327,6 +327,31 @@ def touch_last_active() -> None:
         pass
 
 
+# Request nền (Docker healthcheck mỗi 30s, probe nội bộ…) không được coi là «người đang dùng»
+# - nếu ghi last-active thì máy không bao giờ đủ tuổi để tự tắt / hiện «nghỉ».
+_TOUCH_SKIP_EXACT = frozenset({
+    "/health",
+    "/ready",
+    "/favicon.ico",
+})
+
+
+def should_touch_last_active(path: str) -> bool:
+    """True = request này là tín hiệu người/dịch vụ thật → ghi org-last-active."""
+    p = (path or "").split("?", 1)[0]
+    if len(p) > 1 and p.endswith("/"):
+        p = p.rstrip("/")
+    if not p:
+        p = "/"
+    if p in _TOUCH_SKIP_EXACT:
+        return False
+    if p == "/static" or p.startswith("/static/"):
+        return False
+    if p == "/asset" or p.startswith("/asset/"):
+        return False
+    return True
+
+
 def snapshot(running: int, max_running: int | None = None, idle_minutes: int | None = None,
              ram_live: dict | None = None) -> dict:
     c = coord()
