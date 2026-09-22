@@ -1,0 +1,62 @@
+# Xác nhận skill/agent/workflow Marketing 0.56.14 đã sync vào brain trên VPS.
+name: Verify Marketing catalog on VPS
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check skills/agents/workflows on VPS brains
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            echo "==> containers"
+            docker ps --format '{{.Names}} {{.Image}}' | grep -E 'javis' || true
+            for c in javis-quan javis-manager javis; do
+              if docker ps --format '{{.Names}}' | grep -qx "$c"; then
+                echo "==> VERSION in $c"
+                docker exec "$c" sh -c 'cat /app/VERSION 2>/dev/null || cat VERSION 2>/dev/null || true'
+                echo "==> image skills present?"
+                docker exec "$c" sh -c 'ls /app/.claude/skills/toi-uu-chuyen-doi-cro/SKILL.md /app/.claude/skills/product-marketing-context/SKILL.md /app/system/agents/mkt-cro.md /app/system/workflows/bo-marketing-cro.md'
+                echo "==> brains sample sync"
+                docker exec "$c" sh -c '
+                  set -e
+                  for b in /brains/*; do
+                    [ -d "$b" ] || continue
+                    n=$(basename "$b")
+                    case "$n" in quan|default|Default|school*|vietmy*|manager*) ;; *) continue ;; esac
+                    echo "BRAIN $n"
+                    for s in product-marketing-context toi-uu-chuyen-doi-cro viet-copy-marketing viet-email-marketing quang-cao-da-kenh ra-mat-san-pham chien-luoc-gia advertools-seo-sem marketing-cong-cu; do
+                      if [ -f "$b/skills/$s/SKILL.md" ]; then echo "  OK skill $s"; else echo "  MISS skill $s"; fi
+                    done
+                    for a in mkt-cro mkt-copy mkt-email mkt-quang-cao mkt-launch; do
+                      if [ -f "$b/agents/$a.md" ]; then echo "  OK agent $a"; else echo "  MISS agent $a"; fi
+                    done
+                    for w in bo-marketing-cro bo-marketing-copy bo-marketing-email bo-marketing-launch; do
+                      if [ -f "$b/workflows/$w.md" ]; then echo "  OK wf $w"; else echo "  MISS wf $w"; fi
+                    done
+                  done
+                  # nếu không khớp tên brain ở trên, kiểm tra tối đa 3 brain đầu
+                  n=0
+                  for b in /brains/*; do
+                    [ -d "$b" ] || continue
+                    n=$((n+1))
+                    [ "$n" -le 3 ] || break
+                    echo "SAMPLE $(basename "$b")"
+                    ls "$b/skills/toi-uu-chuyen-doi-cro/SKILL.md" "$b/agents/mkt-cro.md" "$b/workflows/bo-marketing-cro.md" 2>&1 || true
+                  done
+                '
+              fi
+            done
+            echo VERIFY_MKT_DONE
