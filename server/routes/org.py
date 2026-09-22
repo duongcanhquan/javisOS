@@ -230,6 +230,43 @@ def _make_router() -> APIRouter:
             pass
         return {"ok": True, "coord": _coord_public()}
 
+    @router.get("/org/ram_live")
+    def org_ram_live(request: Request):
+        """Chỉ số RAM Docker thật — poll nhẹ cho dashboard, không kèm cả sổ tenants."""
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        import org_coord as oc
+        running: list = []
+        try:
+            if org_docker.docker_available():
+                running = org_docker.people_running()
+        except Exception:
+            running = []
+        live: dict = {}
+        try:
+            if org_docker.docker_available():
+                live = org_docker.ram_live_report(running) or {}
+        except Exception:
+            live = {}
+        if not isinstance(live, dict):
+            live = {}
+        c = oc.coord()
+        return {
+            "ok": True,
+            "running": len(running),
+            "ram_mb": int(oc.RAM_MB),
+            "host_ram_mb": int(c.get("host_ram_mb") or 0),
+            "host_avail_mb": int(c.get("host_avail_mb") or 0),
+            "machines": list(live.get("machines") or []),
+            "people_used_mb": int(live.get("people_used_mb") or 0),
+            "people_idle_mb": int(live.get("people_idle_mb") or 0),
+            "people_active_n": int(live.get("people_active_n") or 0),
+            "people_idle_n": int(live.get("people_idle_n") or 0),
+            "ram_limit_mb": int(live.get("ram_limit_mb") or oc.RAM_MB),
+            "fit_more_est": int(live.get("fit_more_est") or 0),
+            "note": live.get("note") or "",
+        }
+
     @router.get("/org/tenants")
     def org_list(request: Request):
         if (deny := _need_manager(request)) is not None:

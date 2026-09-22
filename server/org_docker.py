@@ -12,7 +12,7 @@ import org_coord as oc
 import org_policy as op
 import org_tenants as ot
 
-_MEM = 768 * 1024 * 1024
+_MEM = 1024 * 1024 * 1024
 _NANO_CPUS = 750_000_000
 _PIDS = 256
 _LOCK = threading.Lock()

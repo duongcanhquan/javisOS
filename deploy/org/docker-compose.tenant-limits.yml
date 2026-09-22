@@ -7,8 +7,8 @@
 # Không xóa volume. Không khai lại volumes.
 services:
   javis:
-    mem_limit: ${JAVIS_MEM_LIMIT:-768m}
-    memswap_limit: ${JAVIS_MEM_LIMIT:-768m}
+    mem_limit: ${JAVIS_MEM_LIMIT:-1024m}
+    memswap_limit: ${JAVIS_MEM_LIMIT:-1024m}
     cpus: ${JAVIS_CPUS:-0.75}
     pids_limit: ${JAVIS_PIDS_LIMIT:-256}
     environment:

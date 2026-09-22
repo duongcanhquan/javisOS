@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.32] - 2026-09-22
+### Thêm / Làm rõ
+- **Tổ chức · RAM realtime:** `GET /org/ram_live` + poll ~4 giây trên dashboard (không reload cả sổ). Thanh VPS dùng **RAM đang dùng (Docker)** thật thay cho «RAM ước» = N×trần. Trần mỗi máy mới **1024 MB** (trước 768); máy đã tạo giữ trần cũ đến khi tạo lại container. Chưa ship — chờ yêu cầu commit/deploy.
+
 ## [0.56.31] - 2026-09-22
 ### Sửa
 - **Tổ chức · tải sổ sau Lưu/bật-tắt:** `GET /org/tenants` trước đây đo RAM từng máy bằng Docker stats (không one-shot, ~1s/máy) + `docker exec` đọc last-active nối tiếp → cả trang trắng «Đang tải sổ tổ chức…» 5–10 giây. Nay stats `one-shot`, đọc last-active có cache + song song, bỏ inspect image trên đường list; UI giữ trang cũ và chỉ mờ nhẹ khi cập nhật.

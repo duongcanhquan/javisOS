@@ -48,6 +48,115 @@
   let orgApi = "all";
   let orgKind = "all";
   let orgFlash = "";
+  let ramPollTimer = null;
+  const RAM_POLL_MS = 4000;
+
+  function stopRamPoll() {
+    if (ramPollTimer) {
+      clearInterval(ramPollTimer);
+      ramPollTimer = null;
+    }
+  }
+
+  function ramAgo(idleSec, idle) {
+    if (Number.isFinite(idleSec) && idleSec >= 0 && idleSec < 1e9) {
+      if (idleSec < 90) return "vừa xong";
+      if (idleSec < 3600) return Math.floor(idleSec / 60) + " phút trước";
+      return Math.floor(idleSec / 3600) + " giờ trước";
+    }
+    if (idle) return "không thấy tín hiệu";
+    return "";
+  }
+
+  function liveMachineRowsHtml(machines, ramPer) {
+    const list = Array.isArray(machines) ? machines : [];
+    return list.map((m) => {
+      const mb = Number(m.mem_mb || 0);
+      const lim = Number(m.limit_mb || ramPer || 1024);
+      const pct = lim ? Math.min(100, Math.round(100 * mb / lim)) : 0;
+      const ago = ramAgo(Number(m.idle_sec), m.idle);
+      const tag = m.idle
+        ? '<span class="org-pill">nghỉ · Docker vẫn bật</span>'
+        : '<span class="org-pill on">có tín hiệu gần đây</span>';
+      return `<tr data-org-ram-slug="${esc(m.slug || "")}">
+        <td><code>${esc(m.slug || "")}</code></td>
+        <td data-org-ram="row-mem">${esc(String(mb))} / ${esc(String(lim))} MB (${pct}%)</td>
+        <td data-org-ram="row-sig">${tag}${ago ? `<div class="dim" style="font-size:12px;margin-top:2px">${esc(ago)}</div>` : ""}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function patchRamLive(el, d) {
+    if (!el || !d) return;
+    const ramPer = Number(d.ram_mb || d.ram_limit_mb || 1024);
+    const peopleUsed = Number(d.people_used_mb || 0);
+    const peopleIdleMb = Number(d.people_idle_mb || 0);
+    const activeN = Number(d.people_active_n || 0);
+    const idleN = Number(d.people_idle_n || 0);
+    const slotsByRam = Number(d.fit_more_est || 0);
+    const runP = Number(d.running != null ? d.running : (d.machines || []).length);
+    const ramHostMb = Number(d.host_ram_mb || 0);
+    const ramHostGb = ramHostMb ? Math.round(ramHostMb / 1024 * 10) / 10 : 0;
+    const avg = runP > 0 ? Math.round(peopleUsed / runP) : 0;
+
+    el.querySelectorAll("[data-org-ram='people-used']").forEach((n) => {
+      n.textContent = peopleUsed ? (peopleUsed + " MB") : "…";
+    });
+    el.querySelectorAll("[data-org-ram='people-used-sub']").forEach((n) => {
+      n.textContent = activeN + " có tín hiệu · " + idleN + " nghỉ vẫn tốn " + peopleIdleMb + " MB"
+        + (slotsByRam ? (" · ước mở thêm ~" + slotsByRam + " nếu nhả máy nghỉ") : "");
+    });
+    el.querySelectorAll("[data-org-ram='per-ceil']").forEach((n) => {
+      n.textContent = "~" + ramPer + " MB RAM";
+    });
+    el.querySelectorAll("[data-org-ram='per-ceil-kpi']").forEach((n) => {
+      n.textContent = ramPer + " MB";
+    });
+    el.querySelectorAll("[data-org-ram='per-avg']").forEach((n) => {
+      n.textContent = runP
+        ? ("đang dùng TB ~" + avg + " MB/máy · trần Docker " + ramPer + " MB (máy cũ có thể còn 768 đến khi tạo lại)")
+        : ("trần Docker " + ramPer + " MB · máy mới; máy cũ có thể còn 768 đến khi tạo lại");
+    });
+    el.querySelectorAll("[data-org-ram='host-meter-lbl']").forEach((n) => {
+      n.innerHTML = "RAM đang dùng (Docker): <b>" + esc(String(peopleUsed)) + " MB</b>"
+        + (ramHostGb ? (" / " + esc(String(ramHostGb)) + " GB máy") : "")
+        + " · " + esc(String(runP)) + " máy mở";
+    });
+    const pctHost = ramHostMb
+      ? Math.max(0, Math.min(100, Math.round(100 * peopleUsed / ramHostMb)))
+      : 0;
+    el.querySelectorAll("[data-org-ram='host-meter-bar']").forEach((n) => {
+      n.style.width = pctHost + "%";
+    });
+    const rows = liveMachineRowsHtml(d.machines, ramPer);
+    el.querySelectorAll("[data-org-ram='machines-body']").forEach((tb) => {
+      if (rows) tb.innerHTML = rows;
+      else tb.innerHTML = '<tr><td colspan="3" class="dim">Chưa có máy người đang mở.</td></tr>';
+    });
+    el.querySelectorAll("[data-org-ram='live-empty']").forEach((p) => {
+      p.hidden = !!rows;
+    });
+    el.querySelectorAll("[data-org-ram='live-table']").forEach((w) => {
+      w.hidden = !rows;
+    });
+  }
+
+  function startRamPoll(el) {
+    stopRamPoll();
+    if (!el) return;
+    const tick = async () => {
+      if (!el.isConnected || !el.querySelector(".org-page")) {
+        stopRamPoll();
+        return;
+      }
+      if (document.hidden) return;
+      try {
+        const d = await api("/org/ram_live");
+        patchRamLive(el, d);
+      } catch (e) { /* im lặng: lần sau thử lại */ }
+    };
+    ramPollTimer = setInterval(tick, RAM_POLL_MS);
+  }
 
   async function api(path, opt) {
     const r = await fetch(path, Object.assign({
@@ -250,13 +359,13 @@
     const maxR = Number(coord.effective_max || maxHand);
     const idleM = Number(coord.idle_minutes || 0);
     const runP = Number(coord.running != null ? coord.running : people.filter((t) => t.status === "running").length);
-    const ramEst = Number(coord.ram_est_mb != null ? coord.ram_est_mb : runP * 768);
+    const ramPer = Number(coord.ram_mb || 1024);
+    const ramEst = Number(coord.ram_est_mb != null ? coord.ram_est_mb : runP * ramPer);
     const ramHost = coord.host_ram_mb ? Math.round(Number(coord.host_ram_mb) / 1024 * 10) / 10 : 0;
     const ramAvail = coord.host_avail_mb ? Math.round(Number(coord.host_avail_mb) / 1024 * 10) / 10 : 0;
     const waitN = Number(coord.waiting || 0);
     const suggestN = Number(coord.suggest || maxR || 0);
     const slotsLeft = Number(coord.slots_left != null ? coord.slots_left : Math.max(0, maxR - runP));
-    const ramPer = Number(coord.ram_mb || 768);
     const reserveMb = Number(coord.reserve_mb || 2800);
     const diskTotB = Number(coord.host_disk_total_bytes || 0);
     const diskFreeB = Number(coord.host_disk_free_bytes || 0);
@@ -284,55 +393,41 @@
     const activeN = Number((coord.people_active_n != null ? coord.people_active_n : ramLive.people_active_n) || 0);
     const idleN = Number((coord.people_idle_n != null ? coord.people_idle_n : ramLive.people_idle_n) || 0);
     const slotsByRam = Number((coord.slots_by_ram != null ? coord.slots_by_ram : ramLive.fit_more_est) || 0);
-    const liveRows = liveMachines.map((m) => {
-      const mb = Number(m.mem_mb || 0);
-      const lim = Number(m.limit_mb || ramPer || 768);
-      const pct = lim ? Math.min(100, Math.round(100 * mb / lim)) : 0;
-      const idleSec = Number(m.idle_sec);
-      let ago = "";
-      if (Number.isFinite(idleSec) && idleSec >= 0 && idleSec < 1e9) {
-        if (idleSec < 90) ago = "vừa xong";
-        else if (idleSec < 3600) ago = Math.floor(idleSec / 60) + " phút trước";
-        else ago = Math.floor(idleSec / 3600) + " giờ trước";
-      } else if (m.idle) {
-        ago = "không thấy tín hiệu";
-      }
-      const tag = m.idle
-        ? '<span class="org-pill">nghỉ · Docker vẫn bật</span>'
-        : '<span class="org-pill on">có tín hiệu gần đây</span>';
-      return `<tr>
-        <td><code>${esc(m.slug || "")}</code></td>
-        <td>${esc(String(mb))} / ${esc(String(lim))} MB (${pct}%)</td>
-        <td>${tag}${ago ? `<div class="dim" style="font-size:12px;margin-top:2px">${esc(ago)}</div>` : ""}</td>
-      </tr>`;
-    }).join("");
+    const avgUsed = runP > 0 ? Math.round(peopleUsed / runP) : 0;
+    const liveRows = liveMachineRowsHtml(liveMachines, ramPer);
+    const hostUsedPct = (ramHost && peopleUsed)
+      ? Math.max(0, Math.min(100, Math.round(100 * peopleUsed / (ramHost * 1024))))
+      : 0;
     const ramCalc = `
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
           <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Chỉ khi <b>tắt container</b> mới nhả RAM.
-            Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck Docker và poll nền (dải việc, kết nối, WebSocket) không tính.</p></div></div>
+            Cập nhật mỗi ~4 giây. Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck và poll nền không tính.
+            Máy đã tạo trước khi nâng trần có thể vẫn 768 MB đến khi tắt/bật tạo lại.</p></div></div>
         <div class="org-kpi">
           <div class="org-kpi-i"><span class="org-kpi-l">Ngân sách máy người</span>
             <strong class="org-kpi-v">${budgetMb ? (esc(String(budgetMb)) + " MB") : "?"}</strong>
             <span class="org-kpi-s">host ${esc(String(ramHost || "?"))} GB - chừa ${esc(String(reserveMb))} MB - giữ ${esc(String(Number(coord.keep_free_mb || 400)))} MB</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy (trần)</span>
-            <strong class="org-kpi-v">${esc(String(ramPer))} MB</strong>
+            <strong class="org-kpi-v" data-org-ram="per-ceil-kpi">${esc(String(ramPer))} MB</strong>
             <span class="org-kpi-s">gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Đang đo trên VPS</span>
-            <strong class="org-kpi-v">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
-            <span class="org-kpi-s">${esc(String(activeN))} có tín hiệu · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
+            <strong class="org-kpi-v" data-org-ram="people-used">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
+            <span class="org-kpi-s" data-org-ram="people-used-sub">${esc(String(activeN))} có tín hiệu · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
               ${slotsByRam ? (" · ước mở thêm ~" + slotsByRam + " nếu nhả máy nghỉ") : ""}</span></div>
         </div>
         ${formula ? `<p class="dim org-sec-note">${esc(formula)}</p>` : ""}
-        ${liveRows
-          ? `<div class="org-table-wrap"><table class="org-table"><thead><tr><th>Máy</th><th>RAM Docker (máy bật)</th><th>Tín hiệu người</th></tr></thead><tbody>${liveRows}</tbody></table></div>`
-          : '<p class="dim">Chưa đo được máy người đang mở (hoặc chưa có máy chạy).</p>'}
+        <div class="org-table-wrap" data-org-ram="live-table"${liveRows ? "" : " hidden"}>
+          <table class="org-table"><thead><tr><th>Máy</th><th>RAM Docker (máy bật)</th><th>Tín hiệu người</th></tr></thead>
+          <tbody data-org-ram="machines-body">${liveRows || ""}</tbody></table></div>
+        <p class="dim" data-org-ram="live-empty"${liveRows ? " hidden" : ""}>Chưa đo được máy người đang mở (hoặc chưa có máy chạy).</p>
       </div>`;
     const vpsMeters = `
       ${diskTotB ? `<div class="org-meter"><div class="org-meter-lbl">Ổ máy chủ: <b>${esc(fmtGB(diskUsedB))}</b> / ${esc(fmtGB(diskTotB))}</div>
         <div class="org-bar ${diskTotB && diskFreeB / diskTotB < 0.1 ? "hot" : (diskTotB && diskFreeB / diskTotB < 0.2 ? "warn" : "")}"><i style="width:${diskTotB ? Math.max(0, Math.min(100, Math.round(100 * diskUsedB / diskTotB))) : 0}%"></i></div></div>` : ""}
-      ${ramHost ? `<div class="org-meter"><div class="org-meter-lbl">RAM ước cho ${esc(String(runP))} máy người: <b>${esc(String(ramEst))} MB</b> / ${esc(String(ramHost))} GB máy</div>
-        <div class="org-bar"><i style="width:${ramHost ? Math.max(0, Math.min(100, Math.round(100 * ramEst / (ramHost * 1024)))) : 0}%"></i></div></div>` : ""}`;
+      ${ramHost ? `<div class="org-meter" data-org-ram="host-meter"><div class="org-meter-lbl" data-org-ram="host-meter-lbl">RAM đang dùng (Docker): <b>${esc(String(peopleUsed))}</b> MB / ${esc(String(ramHost))} GB máy · ${esc(String(runP))} máy mở</div>
+        <div class="org-bar"><i data-org-ram="host-meter-bar" style="width:${hostUsedPct}%"></i></div>
+        <p class="dim org-sec-note" style="margin:6px 0 0">Trần lý thuyết nếu đầy: ${esc(String(ramEst))} MB (${esc(String(runP))}×${esc(String(ramPer))}). Thanh trên là <b>đang dùng thật</b>.</p></div>` : ""}`;
     const vpsKpis = `
       <div class="org-kpi">
         <div class="org-kpi-i"><span class="org-kpi-l">RAM</span><strong class="org-kpi-v">${esc(vpsRamLine)}</strong></div>
@@ -342,8 +437,10 @@
           <span class="org-kpi-s">đã tạo · tắt / tạm dừng vẫn còn · không bị trần chỗ xóa</span></div>
         <div class="org-kpi-i"><span class="org-kpi-l">Máy đang mở (Docker)</span><strong class="org-kpi-v">${esc(String(runP))}/${esc(String(maxR))}</strong>
           <span class="org-kpi-s">cùng lúc · còn ${esc(String(slotsLeft))} · gợi ý RAM ${esc(String(suggestN))} · trần tay ${esc(String(maxHand))}</span></div>
-        <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy khi mở</span><strong class="org-kpi-v">~${esc(String(ramPer))} MB RAM</strong>
-          <span class="org-kpi-s">chừa ~${esc(fmtRamGb(reserveMb) || (reserveMb + " MB"))} gốc + Quan</span></div>
+        <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy (trần Docker)</span><strong class="org-kpi-v" data-org-ram="per-ceil">~${esc(String(ramPer))} MB RAM</strong>
+          <span class="org-kpi-s" data-org-ram="per-avg">${runP
+            ? ("đang dùng TB ~" + avgUsed + " MB/máy · chừa ~" + (fmtRamGb(reserveMb) || (reserveMb + " MB")) + " gốc + Quan")
+            : ("chừa ~" + (fmtRamGb(reserveMb) || (reserveMb + " MB")) + " gốc + Quan")}</span></div>
         <div class="org-kpi-i"><span class="org-kpi-l">Trần ổ đã cấp</span><strong class="org-kpi-v">${esc(String(quotaSum))} GB · ${esc(String(people.length))} người</strong>
           ${diskFreeB ? `<span class="org-kpi-s">ổ còn ${esc(fmtGB(diskFreeB))}</span>` : ""}</div>
       </div>
@@ -1163,7 +1260,8 @@
         } catch (e) { msg.textContent = e.message; }
       });
     });
+    startRamPoll(el);
   }
 
-  window.JavisOrg = { render };
+  window.JavisOrg = { render, stopRamPoll };
 })();

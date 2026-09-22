@@ -8,11 +8,11 @@ from pathlib import Path
 
 import org_tenants as ot
 
-RAM_MB = 768
+RAM_MB = 1024
 MAX_RUNNING_DEFAULT = 6
 IDLE_MINUTES_DEFAULT = 30
 PARK_NAME = "javis-park"
-# Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~3 Javis người.
+# Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~2 Javis người (trần 1024).
 RESERVE_MB = 2800
 KEEP_FREE_MB = 400
 AUTO_CAP = 8

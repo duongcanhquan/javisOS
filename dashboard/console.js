@@ -655,6 +655,11 @@
     }
     if (id === "org") {
       return withLazyPage("org", el, (node) => {
+        const prev = _pageLeave;
+        _pageLeave = () => {
+          try { if (window.JavisOrg && window.JavisOrg.stopRamPoll) window.JavisOrg.stopRamPoll(); } catch (e) {}
+          if (prev) try { prev(); } catch (e) {}
+        };
         if (window.JavisOrg) return window.JavisOrg.render(node);
         node.innerHTML = placeholder("org", "org.js chưa sẵn sàng.");
       });
