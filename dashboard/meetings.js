@@ -14,6 +14,35 @@
   var MOONSHINE_WASM_TIMEOUT_MS = 25000;
   // Transcriber.load: máy khỏe vài giây; 180s cũ = ngồi chờ pthread treo. 40s rồi fallback.
   var MOONSHINE_INIT_TIMEOUT_MS = 40000;
+
+  // fetch().json() nổ "Unexpected end of JSON input" khi body rỗng (502/timeout/HTML).
+  async function readJsonRes(resp) {
+    var text = "";
+    try {
+      text = await resp.text();
+    } catch (e) {
+      throw new Error("Không đọc được phản hồi server (" + (resp && resp.status) + ").");
+    }
+    if (!resp.ok) {
+      var snip = (text || "").replace(/\s+/g, " ").trim().slice(0, 160);
+      throw new Error(
+        "HTTP " + resp.status + (snip ? ": " + snip : " (không có nội dung)")
+      );
+    }
+    if (!(text || "").trim()) {
+      throw new Error(
+        "Server không trả dữ liệu (HTTP " + resp.status + "). Thử lại hoặc kiểm tra kết nối."
+      );
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(
+        "Phản hồi không phải JSON: " + text.replace(/\s+/g, " ").trim().slice(0, 120)
+      );
+    }
+  }
+
   var state = {
     meetingId: null,
     path: "",
@@ -1497,6 +1526,25 @@
       var n = root.querySelector(sel);
       if (n) n.disabled = phase === "live";
     });
+    // Thanh nút dính đầu trang: Bắt đầu lúc setup, Dừng lúc đang ghi - không bị transcript đẩy mất.
+    var topStart = root.querySelector("#mtTopStart");
+    var topStop = root.querySelector("#mtTopStop");
+    var formStart = root.querySelector("#mtStart");
+    var headStop = root.querySelector("#mtStop");
+    if (topStart) {
+      topStart.hidden = phase === "live";
+      topStart.disabled = phase === "live" || state.loading;
+    }
+    if (formStart) {
+      formStart.disabled = phase === "live" || state.loading;
+    }
+    if (topStop) {
+      topStop.hidden = phase !== "live";
+      topStop.disabled = phase !== "live";
+    }
+    if (headStop) {
+      headStop.disabled = phase !== "live";
+    }
     if ((phase === "stopped" || phase === "done") && state.path) {
       var kh = root.querySelector("#mtKnowHost");
       if (kh && kh.hidden) showKnowledgePanel(root, state.path);
@@ -3329,9 +3377,17 @@
     var langSelLock = root.querySelector("#mtLang");
     if (langSelLock) langSelLock.disabled = true;
     var startBtn = root.querySelector("#mtStart");
+    var topStart = root.querySelector("#mtTopStart");
     var stopBtnEarly = root.querySelector("#mtStop");
+    var topStop = root.querySelector("#mtTopStop");
     if (startBtn) startBtn.disabled = true;
+    if (topStart) topStart.disabled = true;
     if (stopBtnEarly) stopBtnEarly.disabled = false;
+    if (topStop) {
+      topStop.hidden = false;
+      topStop.disabled = false;
+    }
+    if (topStart) topStart.hidden = true;
 
     releaseMicConflicts();
     unlockAudioForMeeting();
@@ -3388,7 +3444,12 @@
       f.append("attendees", people);
       f.append("language", langAtStart);
       f.append("brain", fbrain());
-      var r = await (await fetch("/meetings/start", { method: "POST", body: f })).json();
+      var startRes = await fetch("/meetings/start", {
+        method: "POST",
+        body: f,
+        credentials: "same-origin",
+      });
+      var r = await readJsonRes(startRes);
       if (!r.ok) throw new Error(r.error || "Không tạo được phiên");
       if (state.abortRequested) throw new Error("Đã hủy");
       state.meetingId = r.id;
@@ -3465,12 +3526,22 @@
         state.abortRequested ? "ok" : "err"
       );
       if (startBtn) startBtn.disabled = false;
+      var ts = root.querySelector("#mtTopStart");
+      if (ts) {
+        ts.hidden = false;
+        ts.disabled = false;
+      }
       if (!state.abortRequested) state.meetingId = null;
       setPhase(root, state.abortRequested && state.meetingId ? "stopped" : "setup");
     } finally {
       state.loading = false;
       var stopBtnFin = root.querySelector("#mtStop");
+      var topStopFin = root.querySelector("#mtTopStop");
       if (stopBtnFin && !state.running && !state.stopped) stopBtnFin.disabled = true;
+      if (topStopFin && !state.running && !state.stopped) {
+        topStopFin.disabled = true;
+        if (!state.running) topStopFin.hidden = true;
+      }
       if (!state.running) {
         var ls = root.querySelector("#mtLang");
         if (ls) ls.disabled = false;
@@ -4135,6 +4206,8 @@
     }
     var wrap = root.querySelector(".mt-wrap") || root;
     wrap.classList.toggle("mt-on-archive", tab === "archive" || tab === "fathom");
+    var topBar = root.querySelector("#mtTopActions");
+    if (topBar) topBar.hidden = tab !== "new";
     if (tab === "archive") loadArchive(root);
     if (tab === "fathom") loadFathom(root);
   }
@@ -4472,7 +4545,7 @@
       "#mtPanelNew:not([hidden]){flex:1;min-height:0;display:grid;" +
       "grid-template-columns:minmax(0,0.9fr) minmax(0,1.25fr) minmax(0,1.15fr);gap:10px;align-items:stretch;overflow:hidden}" +
       ".mt-hint{font-size:13px;color:var(--text3);line-height:1.45;margin:0 0 8px}" +
-      ".mt-tabs{display:flex;gap:6px;margin:0 0 14px;padding:4px;flex:none;align-self:flex-start;" +
+      ".mt-tabs{display:flex;gap:6px;margin:0 0 10px;padding:4px;flex:none;align-self:flex-start;" +
       "border:1px solid var(--border);border-radius:10px;background:var(--surface-1,var(--bg))}" +
       ".mt-tab{appearance:none;border:1px solid transparent;background:transparent;color:var(--text3);" +
       "font:inherit;font-size:13.5px;font-weight:500;padding:8px 16px;margin:0;cursor:pointer;" +
@@ -4483,6 +4556,15 @@
       ".mt-tab-badge{display:inline-block;margin-left:2px;padding:1px 7px;border-radius:999px;font-size:11px;" +
       "background:var(--surface-2,var(--border));color:var(--text3);font-weight:600}" +
       ".mt-tab-active .mt-tab-badge{background:var(--surface-2,var(--border));color:var(--text2)}" +
+      /* Thanh nút dính đầu trang - Dừng/Bắt đầu luôn thấy, không bị transcript đẩy xuống đáy */
+      ".mt-top-actions{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 10px;" +
+      "padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-1);" +
+      "position:sticky;top:0;z-index:6}" +
+      ".mt-top-actions .s-btn,.mt-top-actions .s-btn-ghost{font-size:14.5px;font-weight:700;padding:10px 18px;min-height:42px}" +
+      ".mt-top-actions .mt-btn-stop{background:color-mix(in srgb,#e11d48 88%,#000);border-color:#e11d48;color:#fff}" +
+      ".mt-top-actions .mt-btn-stop:hover:not(:disabled){filter:brightness(1.08)}" +
+      ".mt-top-actions .mt-btn-stop:disabled{opacity:.45}" +
+      ".mt-top-status{flex:1;min-width:140px;font-size:12.5px;color:var(--text3);line-height:1.35}" +
       /* —— Split: trái thông tin (~1/4) | phải transcript (~3/4) —— */
       ".mt-stage{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.25fr) minmax(0,1.15fr);gap:10px;flex:1;min-height:0;overflow:hidden;align-items:stretch}" +
       ".mt-col-info{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;overflow:auto;padding-right:2px}" +
@@ -4492,11 +4574,12 @@
       ".mt-live-title{font-size:13px;font-weight:600;color:var(--text2)}" +
       ".mt-col-live .mt-meta{margin:0;font-size:12px;gap:8px}" +
       ".mt-col-live #mtSpeakers{margin:0 0 6px;flex:none;max-height:40px;overflow:auto}" +
-      ".mt-live{flex:1;min-height:0;max-height:none;overflow:auto;border:none;border-radius:0;background:transparent;padding:4px 2px;font-size:13.5px;line-height:1.5}" +
-      "#mtLiveNotes{flex:1;min-height:0;width:100%;box-sizing:border-box;resize:none;border:none;background:transparent;color:var(--text);font:inherit;font-size:13.5px;line-height:1.5;padding:4px 2px;outline:none}" +
+      ".mt-live{flex:1;min-height:0;max-height:min(42vh,420px);overflow:auto;border:none;border-radius:0;background:transparent;padding:4px 2px;font-size:13.5px;line-height:1.5}" +
+      /* Ô ghi chú tay ngắn - không chiếm hết cột đẩy nút mất dưới màn hình */
+      "#mtLiveNotes{flex:none;height:140px;max-height:28vh;min-height:96px;width:100%;box-sizing:border-box;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--bg,var(--surface-0,#111));color:var(--text);font:inherit;font-size:13.5px;line-height:1.5;padding:8px 10px;outline:none}" +
       ".mt-notes-hint{flex:none;font-size:11.5px;color:var(--text3);margin:0 0 4px;line-height:1.35}" +
       ".mt-partial{flex:none;min-height:1.2em;margin-top:4px;padding-top:6px;font-size:13px}" +
-      ".mt-live-actions{flex:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}" +
+      ".mt-live-actions{display:none}" +
       ".mt-live-placeholder{display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--text3);font-size:13.5px;line-height:1.5}" +
       ".mt-phase-setup .mt-live-placeholder{display:flex}" +
       ".mt-phase-setup .mt-live-body{display:none}" +
@@ -4585,10 +4668,11 @@
       ".mt-wrap{height:auto;max-height:none;overflow:visible}" +
       "#mtPanelNew:not([hidden]),.mt-stage{grid-template-columns:1fr;overflow:visible;height:auto}" +
       ".mt-col-info{overflow:visible;max-height:none}" +
-      ".mt-col-live,.mt-col-notes{min-height:200px}" +
-      ".mt-live-shell{min-height:200px}" +
-      ".mt-live{max-height:36vh}" +
-      "#mtLiveNotes{min-height:160px}" +
+      ".mt-col-live,.mt-col-notes{min-height:160px}" +
+      ".mt-live-shell{min-height:160px}" +
+      ".mt-live{max-height:32vh}" +
+      "#mtLiveNotes{height:120px;max-height:22vh;min-height:88px}" +
+      ".mt-top-actions{position:sticky;top:0}" +
       "}";
   }
 
@@ -4615,6 +4699,15 @@
       ic("folder-open") +
       ' Lưu trữ <span class="mt-tab-badge" id="mtArchiveBadge"></span></button>' +
       "</nav>" +
+      '<div class="mt-top-actions" id="mtTopActions">' +
+      '<button class="s-btn" id="mtTopStart" type="button">' +
+      ic("play") +
+      " Bắt đầu ghi</button>" +
+      '<button class="s-btn mt-btn-stop" id="mtTopStop" type="button" hidden disabled>' +
+      ic("circle-stop") +
+      " Dừng / Hủy</button>" +
+      '<span class="mt-top-status" id="mtTopStatusHint">Nhập tiêu đề rồi bấm <b>Bắt đầu ghi</b>. Khi đang họp, nút <b>Dừng</b> luôn ở đây.</span>' +
+      "</div>" +
       '<div id="mtPanelNew" class="mt-stage mt-phase-setup" role="tabpanel" aria-labelledby="mtTabNew">' +
       '<aside class="mt-col mt-col-info">' +
       '<div class="mt-card" id="mtSetup">' +
@@ -4682,15 +4775,14 @@
       '<div class="mt-live-head">' +
       '<span class="mt-live-title">Transcript</span>' +
       '<div class="mt-meta"><span><code id="mtPath">—</code></span><span>Đoạn <b id="mtCount">0</b></span></div>' +
+      '<button class="s-btn mt-btn-stop" id="mtStop" type="button" disabled>' +
+      ic("circle-stop") +
+      " Dừng</button>" +
       "</div>" +
       '<div id="mtSpeakers"></div>' +
       '<div class="mt-live" id="mtLines"><div class="mt-empty dim">Đang nghe… mỗi câu sẽ hiện tại đây.</div></div>' +
       '<div class="mt-partial" id="mtPartial"></div>' +
-      '<div class="mt-toolbar mt-live-actions">' +
-      '<button class="s-btn-ghost" id="mtStop" type="button" disabled>' +
-      ic("circle-stop") +
-      " Dừng / Hủy</button>" +
-      "</div></div></div>" +
+      "</div></div>" +
       "</section>" +
       '<section class="mt-col mt-col-notes" aria-label="Ghi chú tay">' +
       '<div class="mt-live-shell">' +
@@ -4732,9 +4824,21 @@
     el.querySelector("#mtStart").onclick = function () {
       startMeeting(el);
     };
-    el.querySelector("#mtStop").onclick = function () {
-      stopRecording(el);
-    };
+    var topStart = el.querySelector("#mtTopStart");
+    if (topStart) {
+      topStart.onclick = function () {
+        startMeeting(el);
+      };
+    }
+    function wireStop(btn) {
+      if (!btn) return;
+      btn.onclick = function () {
+        stopRecording(el);
+      };
+    }
+    wireStop(el.querySelector("#mtStop"));
+    wireStop(el.querySelector("#mtTopStop"));
+    setPhase(el, "setup");
     el.querySelector("#mtAnalyze").onclick = function () {
       runAnalyze(el);
     };

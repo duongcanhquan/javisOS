@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.13] - 2026-09-22
+### Sửa
+- **Cuộc họp:** bắt đầu ghi không còn lỗi JSON rỗng khó hiểu; nút **Bắt đầu / Dừng** to, dính đầu trang; ô ghi chú ngắn lại, transcript cuộn trong khung.
+
 ## [0.56.12] - 2026-09-22
 ### Sửa
 - **Cộng sự:** tiêu đề Trợ lý / Quy trình nhỏ hơn một cỡ cho vừa cột hẹp; rê chuột vào hàng hiện popup đủ tên + mô tả để đọc nhanh.

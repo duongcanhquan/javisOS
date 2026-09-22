@@ -59,6 +59,15 @@ const con = fs.readFileSync(path.join(ROOT, "dashboard", "console.js"), "utf8");
 check("meetings.js lazy trong PAGE_LAZY",
   /file:\s*"meetings\.js"/.test(con) && /ensurePageScript/.test(con));
 check("index không nạp meetings.js eager", !/\/static\/meetings\.js/.test(html));
+check("parse JSON an toan (tranh Unexpected end of JSON input)",
+  /function readJsonRes\(/.test(src) && /readJsonRes\(startRes\)/.test(src));
+check("nut Dung / Bat dau o thanh dau trang",
+  /id="mtTopStart"/.test(src) && /id="mtTopStop"/.test(src) && /mt-top-actions/.test(src));
+check("nut Dung nam o dau cot transcript (khong day xuong day)",
+  /mt-live-head[\s\S]{0,400}id="mtStop"/.test(src) &&
+  !/mt-live-actions[\s\S]{0,200}id="mtStop"/.test(src));
+check("o ghi chu tay co chieu cao gioi han",
+  /#mtLiveNotes\{[^}]*max-height:28vh/.test(src) || /#mtLiveNotes\{[^}]*height:140px/.test(src));
 
 if (fails.length) {
   console.log("THAT BAI " + fails.length + ": " + fails.join(", "));
