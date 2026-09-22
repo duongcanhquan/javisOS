@@ -332,14 +332,31 @@ def _make_router() -> APIRouter:
         except Exception:
             pass
         started = str(rec.get("status") or "") == "running"
+        boot_warn = str(rec.pop("boot_warn", "") or "").strip()
+        if boot_warn:
+            try:
+                ot.upsert(rec)
+            except Exception:
+                pass
         note = ""
-        if not started:
+        if boot_warn:
+            note = (
+                f"Đã tạo máy «{slug}». Khởi động chưa xong ({boot_warn}). "
+                "Não còn trong sổ. Đợi thêm hoặc bấm Bật máy / mở link khi sẵn sàng."
+            )
+        elif not started:
             cap = _coord_public()
             note = (
                 f"Máy đã tạo, đang tắt vì đủ trần {cap.get('effective_max') or cap.get('max_running')} máy chạy. "
                 "Não còn. Họ mở link là tự bật, hoặc bấm Bật máy khi có chỗ."
             )
-        return {"ok": True, "tenant": op.public_tenant(rec), "started": started, "note": note}
+        return {
+            "ok": True,
+            "tenant": op.public_tenant(rec),
+            "started": started and not boot_warn,
+            "note": note,
+            "boot_warn": boot_warn,
+        }
 
     @router.patch("/org/tenants/{slug}")
     async def org_patch(slug: str, request: Request):

@@ -409,6 +409,7 @@ def create_and_start(
     op.apply_policy(rec, brain_mode=mode, providers=providers if providers is not None else [],
                     shared_api=shared_api if not brain_mode else None)
     ot.upsert(rec)
+    boot_warn = ""
     try:
         wait_health(cname)
         if password:
@@ -428,10 +429,35 @@ def create_and_start(
         rec = ot.get(slug) or rec
         rec["status"] = container_status(cname)
         return ot.upsert(rec)
-    except Exception:
+    except Exception as e:
+        # Máy đã ghi sổ + container thường đã tạo. Health/mật khẩu chậm không được
+        # trả 400 làm UI báo "tạo hỏng" trong khi tenant vẫn nằm trong sổ.
         rec["status"] = container_status(cname)
         ot.upsert(rec)
-        raise
+        if not inspect_name(cname):
+            raise
+        boot_warn = str(e)[:240].strip() or "khởi động chậm"
+        if password:
+            try:
+                set_admin(cname, login, password)
+                write_quota(cname, int(quota_gb))
+            except Exception as e2:
+                boot_warn = str(e2)[:240].strip() or boot_warn
+        rec = ot.get(slug) or rec
+        rec["status"] = container_status(cname)
+        rec["boot_warn"] = boot_warn
+        try:
+            _park_new_if_over_cap(slug)
+        except Exception:
+            pass
+        try:
+            sync_park()
+        except Exception:
+            pass
+        rec = ot.get(slug) or rec
+        rec["status"] = container_status(cname)
+        rec["boot_warn"] = boot_warn
+        return ot.upsert(rec)
 
 
 def apply_public_hosts(slug: str) -> None:

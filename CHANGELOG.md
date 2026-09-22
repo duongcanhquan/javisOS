@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.16] - 2026-09-22
+### Sửa
+- **Tổ chức / Tạo người:** máy khởi động chậm hoặc timeout không còn báo tạo hỏng dù đã có trong sổ - hiện ghi chú rõ và vẫn mở tab Quản lý.
+
 ## [0.56.15] - 2026-09-22
 ### Mới
 - **Tổ chức:** khối Máy chủ VPS trên Tổng hợp / Cài đặt - hiện RAM, ổ đĩa, CPU, gợi ý chỗ người và trần ổ đã cấp để phân bổ.

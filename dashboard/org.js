@@ -718,7 +718,24 @@
         orgFlash = created.note || "Đã tạo. Gửi tên đăng nhập và mật khẩu. Họ mở link là vào máy mình.";
         render(el);
       } catch (e) {
-        msg.textContent = e.message || "Không tạo được.";
+        const slugTry = String(fd.get("slug") || "").trim().toLowerCase();
+        // Proxy/timeout lúc chờ /health hay báo fail dù máy đã ghi sổ - kiểm tra lại danh sách.
+        let existed = null;
+        if (slugTry) {
+          try {
+            const lst = await api("/org/tenants");
+            existed = (lst.tenants || []).find((t) => t.slug === slugTry) || null;
+          } catch (e2) { existed = null; }
+        }
+        if (existed) {
+          orgQ = slugTry;
+          orgTab = "quan";
+          orgFlash = "Máy «" + slugTry + "» đã có trong sổ dù phản hồi tạo bị lỗi mạng/timeout. "
+            + "Kiểm tra trạng thái bên Quản lý; bấm Bật máy nếu chưa chạy.";
+          render(el);
+        } else {
+          msg.textContent = e.message || "Không tạo được.";
+        }
       }
     });
     el.querySelectorAll("[data-org-start]").forEach((b) => {

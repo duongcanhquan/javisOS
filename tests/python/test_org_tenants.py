@@ -200,6 +200,14 @@ check("org.js điều phối theo RAM thật", "effective_max" in org_js and "x�
 check("org.js hiện cấu hình VPS để phân bổ",
       "Máy chủ VPS" in org_js and "host_disk_total_bytes" in org_js
       and "Gợi ý chỗ người" in org_js and "Trần ổ đã cấp" in org_js)
+create_fn = src.split("def create_and_start", 1)[-1].split("\ndef apply_public_hosts", 1)[0]
+check("tạo tenant: health chậm không nuốt máy đã ghi sổ",
+      "boot_warn" in create_fn and "inspect_name(cname)" in create_fn
+      and create_fn.find("ot.upsert(rec)") < create_fn.find("wait_health"))
+org_py = (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8")
+check("API tạo trả note khi boot_warn", "boot_warn" in org_py and "Khởi động chưa xong" in org_py)
+check("org.js sau lỗi tạo vẫn kiểm tra sổ",
+      "đã có trong sổ" in org_js and 'api("/org/tenants")' in org_js)
 check("index không nạp org.js eager (lazy trong console)",
       "/static/org.js" not in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
 check("org.js có Lưu thay đổi và Xóa người", "Lưu thay đổi" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)
