@@ -493,17 +493,21 @@
           <div class="org-split">
             <div class="org-sec">
               <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
-                <p class="dim org-sec-sub">Gợi ý <b>${esc(String(suggestN))}</b> chỗ · đang dùng <b>${runP}/${maxR}</b>
-                  ${waitN ? (" · hàng đợi " + waitN) : ""}. Trần tay bị hạ nếu RAM không đủ; người mới xếp hàng rồi tự bật.</p></div></div>
+                <p class="dim org-sec-sub">Gợi ý <b>${esc(String(suggestN))}</b> chỗ · đang mở <b>${runP}/${maxR}</b>
+                  ${waitN ? (" · xếp hàng " + waitN) : ""}.
+                  Ưu tiên người đang dùng; máy nghỉ nhường chỗ cho người sau.</p></div></div>
               ${vpsKpis}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần tối đa<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}"></label>
-                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng; RAM thấp vẫn nhả chỗ"></label>
+                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng. Ví dụ 5 = không ai vào 5 phút thì tắt máy (não giữ), nhường RAM cho người xếp hàng."></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
-              <p class="dim org-sec-note">${idleM ? ("Vắng " + idleM + " phút thì nhả RAM (não không xóa).") : "Không tự tắt khi vắng - nên tắt tay máy school/người không dùng."}
-                ${ramHost ? (" Máy " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
-                Chỗ người = máy đang mở (kể cả không ai chat), không chỉ số tài khoản trong sổ.</p>
+              <p class="dim org-sec-note"><b>Tự tắt sau ${idleM || "0"} phút</b>:
+                ${idleM
+                  ? ("không ai mở/chat trên máy đó trong " + idleM + " phút → tắt container, não giữ. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
+                  : "đang tắt - máy mở sẽ chiếm chỗ đến khi tắt tay hoặc RAM thấp."}
+                ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
+                Chỗ = số máy Docker đang mở (kể cả không chat), không phải số tài khoản trong sổ.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">

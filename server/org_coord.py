@@ -17,6 +17,50 @@ RESERVE_MB = 2800
 KEEP_FREE_MB = 400
 AUTO_CAP = 8
 PRESSURE_IDLE_SEC = 90
+# Khi có người xếp hàng: máy nghỉ tối thiểu lâu thế này mới bị nhường chỗ (giây).
+HANDOFF_MIN_SEC = 90
+HANDOFF_CAP_SEC = 120
+
+
+def idle_sec(idle_minutes: int | None = None) -> int:
+    """Số giây vắng theo cài đặt «Tự tắt sau». 0 = không tự tắt định kỳ. Sàn 1 phút nếu >0."""
+    if idle_minutes is None:
+        idle_minutes = int(_stored()["idle_minutes"])
+    try:
+        m = int(idle_minutes or 0)
+    except (TypeError, ValueError):
+        m = 0
+    if m <= 0:
+        return 0
+    return max(60, m * 60)
+
+
+def evict_grace_sec(pressure: bool = False, idle_minutes: int | None = None) -> int:
+    """Thời gian vắng tối thiểu trước khi tắt máy để nhường chỗ / hạ trần.
+
+    Tôn trọng phút user cài (sàn 1 phút). Trước đây sàn cứng 5 phút nên để 5
+    phút vẫn đúng, nhưng để 1-4 phút thì bị bỏ qua.
+    """
+    if pressure:
+        return PRESSURE_IDLE_SEC
+    sec = idle_sec(idle_minutes)
+    if sec <= 0:
+        # Không tự tắt định kỳ: khi hết chỗ vẫn có thể nhường máy nghỉ lâu (>15 phút).
+        return 15 * 60
+    return sec
+
+
+def handoff_grace_sec(idle_minutes: int | None = None) -> int:
+    """Khi có người xếp hàng hoặc cần nhường chỗ gấp: máy nghỉ sớm hơn vẫn được nhả.
+
+    Ưu tiên người đang/vừa dùng (không đá dưới HANDOFF_MIN_SEC). Máy nghỉ lâu hơn
+    mức này nhường cho người trong hàng đợi - linh hoạt RAM.
+    """
+    sec = idle_sec(idle_minutes)
+    if sec <= 0:
+        return PRESSURE_IDLE_SEC
+    return max(HANDOFF_MIN_SEC, min(sec, HANDOFF_CAP_SEC))
+
 
 _WAIT: dict[str, float] = {}
 _WLOCK = threading.Lock()

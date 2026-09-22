@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.21] - 2026-09-22
+### Sửa
+- **Tự tắt sau N phút:** đúng số phút bạn cài (5 phút = 5 phút). Hết chỗ thì ưu tiên người đang dùng; máy nghỉ nhường chỗ cho người xếp hàng (nhường sớm hơn khi có hàng đợi).
+
 ## [0.56.20] - 2026-09-22
 ### Sửa
 - **Tổ chức / xếp hàng máy:** máy mở nhưng không ai vào được nhả chỗ đúng (không còn lấy giờ bật Docker làm «đang dùng»). Thông báo xếp hàng ghi rõ đang mở bao nhiêu / trần bao nhiêu.

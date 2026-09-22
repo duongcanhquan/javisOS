@@ -812,12 +812,11 @@ def _started_unix(raw: str) -> int:
 
 
 def _evict_grace_sec(pressure: bool = False) -> int:
-    if pressure:
-        return oc.PRESSURE_IDLE_SEC
-    idle = int(oc.coord().get("idle_minutes") or 0)
-    if idle <= 0:
-        return 15 * 60
-    return max(5 * 60, idle * 60)
+    return oc.evict_grace_sec(pressure=pressure)
+
+
+def _handoff_grace_sec() -> int:
+    return oc.handoff_grace_sec()
 
 
 def _pick_evict(except_slug: str, grace_sec: int | None = None) -> str:
@@ -842,6 +841,11 @@ def _pick_evict(except_slug: str, grace_sec: int | None = None) -> str:
 
 
 def _acquire_slot(slug: str) -> None:
+    """Lấy 1 chỗ chạy: còn trống thì thôi; hết chỗ thì nhường máy nghỉ lâu nhất.
+
+    Người đang/vừa dùng được ưu tiên. Có xếp hàng thì nhường máy nghỉ sớm hơn
+    (handoff) để người sau vào được - não máy bị tắt giữ nguyên.
+    """
     cap = int(oc.effective_max())
     running = people_running()
     if any(str(t.get("slug") or "") == slug for t in running):
@@ -850,13 +854,20 @@ def _acquire_slot(slug: str) -> None:
         return
     victim = _pick_evict(slug)
     if not victim:
+        victim = _pick_evict(slug, grace_sec=_handoff_grace_sec())
+    if not victim:
         names = [str(t.get("slug") or "?") for t in running[:8]]
         more = f" (+{len(running) - 8})" if len(running) > 8 else ""
+        idle_m = int(oc.coord().get("idle_minutes") or 0)
+        tip = (
+            f"Máy nghỉ ≥{idle_m} phút sẽ tự nhả chỗ."
+            if idle_m > 0
+            else "Bật «Tự tắt sau (phút)» hoặc tắt tay máy không dùng trên Tổ chức."
+        )
         raise RuntimeError(
             f"Hết chỗ máy người: đang mở {len(running)}/{cap}. "
             f"Đang chạy: {', '.join(names)}{more}. "
-            "Máy mở nhưng không ai vào vẫn chiếm RAM. "
-            "Trên Tổ chức → Quản lý: tắt máy nghỉ, hoặc Cài đặt → bật «Tự tắt sau (phút)». "
+            f"Ưu tiên người đang dùng; {tip} "
             "Não và file giữ nguyên - trang tự mở khi có chỗ."
         )
     stop(victim, park=False)
@@ -957,6 +968,15 @@ def tick_coord() -> None:
                     running = [x for x in running if str(x.get("slug") or "") != slug]
                 except Exception as e:
                     print(f"[org coord] tắt {slug}: {e}", flush=True)
+    # Có người xếp hàng mà hết chỗ: nhường máy nghỉ (handoff) rồi bật người đầu hàng.
+    if oc.wait_len() > 0 and len(running) >= cap:
+        victim = _pick_evict("", grace_sec=_handoff_grace_sec())
+        if victim:
+            try:
+                stop(victim, park=False)
+                running = [t for t in running if str(t.get("slug") or "") != victim]
+            except Exception as e:
+                print(f"[org coord] nhường chỗ {victim}: {e}", flush=True)
     if len(running) < cap:
         w = oc.peek_waiter()
         if w:
