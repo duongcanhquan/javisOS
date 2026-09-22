@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.31] - 2026-09-22
+### Sửa
+- **Tổ chức · tải sổ sau Lưu/bật-tắt:** `GET /org/tenants` trước đây đo RAM từng máy bằng Docker stats (không one-shot, ~1s/máy) + `docker exec` đọc last-active nối tiếp → cả trang trắng «Đang tải sổ tổ chức…» 5–10 giây. Nay stats `one-shot`, đọc last-active có cache + song song, bỏ inspect image trên đường list; UI giữ trang cũ và chỉ mờ nhẹ khi cập nhật.
+
 ## [0.56.30] - 2026-09-22
 ### Sửa
 - **Tổ chức · idle:** tab dashboard bỏ quên vẫn poll `/background`, `/connect/health` và giữ `/ws` → `org-last-active` không bao giờ già → máy «có tín hiệu» mãi và không tự tắt. Nay các poll/WebSocket đó không còn tính là tín hiệu người (cùng nhóm với `/health`).

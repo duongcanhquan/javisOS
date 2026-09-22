@@ -23,6 +23,10 @@ _STATUS_TTL = 2.5
 _STATUS_CACHE: dict[str, Any] = {"at": 0.0, "by_name": {}}
 _MEM_TTL = 12.0
 _MEM_CACHE: dict[str, Any] = {"at": 0.0, "by_name": {}}
+# Đọc org-last-active bằng docker exec ~0.25s/máy; cache ngắn để GET /org/tenants
+# (sau Lưu/bật-tắt) không đợi N lần exec nối tiếp.
+_LAST_ACTIVE_TTL = 20.0
+_LAST_ACTIVE_CACHE: dict[str, tuple[float, int]] = {}
 
 
 def _docker_api(method: str, path: str, json_body: Any = None, timeout: float = 60.0):
@@ -717,7 +721,10 @@ def people_running() -> list[dict]:
 
 
 def container_mem_mb(cname: str) -> tuple[int, int]:
-    """(usage_mb, limit_mb) từ Docker stats. (0,0) nếu lỗi."""
+    """(usage_mb, limit_mb) từ Docker stats. (0,0) nếu lỗi.
+
+    Dùng one-shot=true (API ≥1.41): một mẫu ngay, không đợi ~1s/máy như stream=false.
+    """
     name = (cname or "").strip()
     if not name or not docker_available():
         return 0, 0
@@ -727,7 +734,11 @@ def container_mem_mb(cname: str) -> tuple[int, int]:
         u, lim = by[name]
         return int(u), int(lim)
     try:
-        r = _docker_api("GET", f"/containers/{quote(name)}/stats?stream=false", timeout=8.0)
+        path = f"/containers/{quote(name)}/stats?stream=false&one-shot=true"
+        r = _docker_api("GET", path, timeout=4.0)
+        if r.status_code != 200:
+            # Docker cũ không biết one-shot → thử lại không one-shot (chậm hơn).
+            r = _docker_api("GET", f"/containers/{quote(name)}/stats?stream=false", timeout=8.0)
         if r.status_code != 200:
             return 0, 0
         data = r.json() or {}
@@ -752,35 +763,70 @@ def container_mem_mb(cname: str) -> tuple[int, int]:
     return u_mb, lim_mb
 
 
-def ram_live_report() -> dict:
-    """RAM thật các máy người đang mở; tách máy đang dùng / đang nghỉ."""
+def ram_live_report(running: list[dict] | None = None) -> dict:
+    """RAM thật các máy người đang mở; tách máy đang dùng / đang nghỉ.
+
+    `running`: danh sách đã lọc (tránh gọi lại people_running). Đo mem + last-active
+    song song để GET sổ tổ chức không xếp hàng N Docker round-trip.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     now = int(time.time())
     idle_m = int(oc.coord().get("idle_minutes") or 0)
     grace = oc.idle_sec(idle_m) if idle_m > 0 else oc.HANDOFF_CAP_SEC
+    tenants = list(running) if running is not None else people_running()
     machines = []
     used = 0
     idle_used = 0
     active_n = idle_n = 0
-    for t in people_running():
+
+    def _row(t: dict) -> dict:
         slug = str(t.get("slug") or "")
         cname = str(t.get("container") or "")
         u, lim = container_mem_mb(cname) if cname else (0, 0)
-        ts = read_last_active(cname, t)
+        ts = read_last_active(cname, t, assume_running=True) if cname else 0
         age = (now - ts) if ts > 0 else 10**9
         is_idle = age >= grace
+        return {
+            "slug": slug,
+            "mem_mb": u,
+            "limit_mb": lim or oc.RAM_MB,
+            "idle": is_idle,
+            "idle_sec": int(age) if age < 10**9 else None,
+            "_u": u,
+            "_idle": is_idle,
+        }
+
+    rows: list[dict] = []
+    if tenants:
+        workers = min(8, len(tenants))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futs = {pool.submit(_row, t): t for t in tenants}
+            for fut in as_completed(futs):
+                try:
+                    rows.append(fut.result())
+                except Exception:
+                    t = futs[fut]
+                    rows.append({
+                        "slug": str(t.get("slug") or ""),
+                        "mem_mb": 0,
+                        "limit_mb": oc.RAM_MB,
+                        "idle": True,
+                        "idle_sec": None,
+                        "_u": 0,
+                        "_idle": True,
+                    })
+        rows.sort(key=lambda m: str(m.get("slug") or ""))
+    for m in rows:
+        u = int(m.pop("_u", 0) or 0)
+        is_idle = bool(m.pop("_idle", False))
         if is_idle:
             idle_n += 1
             idle_used += u
         else:
             active_n += 1
         used += u
-        machines.append({
-            "slug": slug,
-            "mem_mb": u,
-            "limit_mb": lim or oc.RAM_MB,
-            "idle": is_idle,
-            "idle_sec": int(age) if age < 10**9 else None,
-        })
+        machines.append(m)
     _tot, avail = oc.host_mem_mb()
     budget = max(0, int(avail or 0) + idle_used - oc.KEEP_FREE_MB)
     fit_more = budget // max(1, oc.RAM_MB)
@@ -856,28 +902,48 @@ def cache_disk_usage(slug: str, force: bool = False) -> int:
     return int(disk or 0)
 
 
-def read_last_active(cname: str, rec: dict | None = None) -> int:
+def read_last_active(cname: str, rec: dict | None = None, *,
+                     force: bool = False, assume_running: bool = False) -> int:
     """Thời điểm hoạt động gần nhất của người (để tắt máy nghỉ / nhả chỗ).
 
     Chỉ tin file org-last-active trong máy (mỗi request có người ghi) hoặc last_active
     trên sổ. KHÔNG dùng StartedAt của Docker: giờ bật container ≠ người đang dùng -
     sau deploy cả đám máy «vừa bật» sẽ không ai bị tắt → xếp hàng oan.
+
+    `assume_running`: bỏ inspect lại khi caller đã biết máy đang chạy (ram_live_report).
     """
-    if cname and docker_available() and container_status(cname) == "running":
+    name = (cname or "").strip()
+    now = time.time()
+    if name and not force:
+        hit = _LAST_ACTIVE_CACHE.get(name)
+        if hit and now - float(hit[0]) < _LAST_ACTIVE_TTL:
+            return int(hit[1])
+    ts = 0
+    if name and docker_available() and (
+        assume_running or container_status(name) == "running"
+    ):
         try:
-            out = _exec(cname, ["python", "-c",
-                                "from pathlib import Path; p=Path('/data/state/org-last-active'); "
-                                "print(p.read_text(encoding='utf-8').strip() if p.is_file() else '')"])
+            # cat nhanh hơn python -c; file thiếu → stdout rỗng.
+            out = _exec(
+                name,
+                ["sh", "-c", "cat /data/state/org-last-active 2>/dev/null || true"],
+                timeout=8.0,
+            )
             for line in reversed((out or "").splitlines()):
                 line = line.strip()
                 if line.isdigit():
-                    return int(line)
+                    ts = int(line)
+                    break
         except Exception:
-            pass
-    try:
-        return int((rec or {}).get("last_active") or 0)
-    except (TypeError, ValueError):
-        return 0
+            ts = 0
+    if ts <= 0:
+        try:
+            ts = int((rec or {}).get("last_active") or 0)
+        except (TypeError, ValueError):
+            ts = 0
+    if name:
+        _LAST_ACTIVE_CACHE[name] = (now, int(ts or 0))
+    return int(ts or 0)
 
 
 def _started_unix(raw: str) -> int:

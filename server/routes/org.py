@@ -43,14 +43,18 @@ def _int(v, default=0, lo=0, hi=10_000_000):
 
 def _coord_public():
     import org_coord as oc
+    running: list = []
     try:
-        n = len(org_docker.people_running()) if org_docker.docker_available() else 0
+        if org_docker.docker_available():
+            running = org_docker.people_running()
     except Exception:
-        n = 0
+        running = []
+    n = len(running)
     live = None
     try:
         if org_docker.docker_available():
-            live = org_docker.ram_live_report()
+            # Truyền sẵn danh sách: tránh people_running() lần 2 + đo RAM song song.
+            live = org_docker.ram_live_report(running)
     except Exception:
         live = None
     return oc.snapshot(n, ram_live=live)
@@ -245,17 +249,8 @@ def _make_router() -> APIRouter:
                 rec["paused"] = True
             elif rec.get("paused"):
                 rec["status"] = "paused"
-            # Digest image: chỉ khi đang chạy và sổ chưa có - tránh inspect hàng loạt.
-            if cname and dk_ok and rec.get("status") == "running" and not rec.get("image_digest"):
-                try:
-                    dig = org_docker.image_short(cname)
-                    if dig:
-                        rec["image_digest"] = dig
-                        t2 = ot.get(str(t.get("slug") or "")) or t
-                        t2["image_digest"] = dig
-                        ot.upsert(t2)
-                except Exception:
-                    pass
+            # Không inspect image trên đường list (N Docker round-trip). Digest đã có
+            # trên sổ thì dùng; thiếu thì để trống - lấy sau ở usage/tick nếu cần.
             out.append(rec)
         return {"ok": True, "tenants": out, "docker": dk_ok,
                 "host_prefix": ot.host_prefix(), "domain_suffix": ot.domain_suffix(),

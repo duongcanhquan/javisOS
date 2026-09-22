@@ -220,15 +220,24 @@
   }
 
   async function render(el) {
-    el.innerHTML = '<p class="dim">Đang tải sổ tổ chức…</p>';
+    const soft = !!el.querySelector(".org-page");
+    if (!soft) {
+      el.innerHTML = '<p class="dim">Đang tải sổ tổ chức…</p>';
+    } else {
+      el.classList.add("org-busy");
+      const flashEl = el.querySelector("[data-org-flash]");
+      if (flashEl) flashEl.textContent = "Đang cập nhật sổ…";
+    }
     let d;
     try {
       d = await api("/org/tenants");
     } catch (e) {
+      el.classList.remove("org-busy");
       el.innerHTML = '<p class="dim">Trang này chỉ có trên VMOS gốc, dành cho admin đăng nhập tại '
         + '<code>javis.vietmycollege.com</code>. VMOS con không có mục Tổ chức.</p>';
       return;
     }
+    el.classList.remove("org-busy");
     const tenants = d.tenants || [];
     const prefix = d.host_prefix || "javis";
     const suffix = d.domain_suffix || "vietmycollege.com";
@@ -493,7 +502,7 @@
             data-org-tab="quan" aria-selected="${orgTab === "quan"}">Quản lý
             <span class="jx-tab-n">${tenants.length}</span></button>
         </nav>
-        <p class="dim" id="orgMsg">${esc(flash)}</p>
+        <p class="dim" id="orgMsg" data-org-flash>${esc(flash)}</p>
 
         <section class="org-pane org-pane-tong" data-org-pane="tong" ${orgTab === "tong" ? "" : "hidden"}>
           <p class="org-lead">Chỉ admin VMOS gốc thấy trang này. Mỗi người một não riêng, tự gắn API trên máy họ. Gốc không đọc được chat hay khóa của họ.</p>
@@ -634,6 +643,7 @@
       </div>
       <style>
         .org-page{width:100%;max-width:none;box-sizing:border-box}
+        .org-busy .org-page{opacity:.72;pointer-events:none;transition:opacity .15s ease}
         .org-tabs.jx-tabs{max-width:none;width:100%;flex-wrap:wrap}
         .org-pane[hidden]{display:none!important}
         .org-pane-tong{display:flex;flex-direction:column;gap:18px}
