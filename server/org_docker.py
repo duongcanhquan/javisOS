@@ -67,6 +67,86 @@ def docker_available() -> bool:
     return ok
 
 
+def memory_should_raise(current: int, target: int = _MEM) -> bool:
+    """Trần đang thấp hơn mức máy người (hoặc chưa đặt) thì cần nâng."""
+    try:
+        cur = int(current or 0)
+    except (TypeError, ValueError):
+        cur = 0
+    return cur != int(target)
+
+
+_MEM_DONE: set[str] = set()
+_MEM_BAO: set[str] = set()
+
+
+def ensure_people_memory() -> int:
+    """Nâng trần RAM mọi máy người lên 1024 MB. Không đụng manager, quan, proxy, park."""
+    if not docker_available():
+        return 0
+    raised = 0
+    try:
+        r = _docker_api("GET", "/containers/json?all=true", timeout=15.0)
+    except Exception as e:
+        print(f"[org ram] list: {e}", flush=True)
+        return 0
+    if r.status_code != 200:
+        return 0
+    for item in (r.json() or []):
+        if not isinstance(item, dict):
+            continue
+        name = ""
+        for raw in item.get("Names") or []:
+            n = str(raw or "").strip().lstrip("/")
+            if n.startswith("javis-"):
+                name = n
+                break
+        if not name or name in _MEM_DONE:
+            continue
+        slug = name[len("javis-"):].strip().lower()
+        if (not slug or slug in ("manager", "proxy", "park")
+                or slug in ot.PROTECTED_SLUGS or ot.validate_slug(slug)):
+            _MEM_DONE.add(name)
+            continue
+        cid = str(item.get("Id") or name)
+        try:
+            ins = _docker_api("GET", f"/containers/{quote(cid)}/json", timeout=15.0)
+        except Exception as e:
+            print(f"[org ram] {name}: {e}", flush=True)
+            continue
+        if ins.status_code != 200:
+            continue
+        try:
+            body = ins.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        hc = body.get("HostConfig") if isinstance(body.get("HostConfig"), dict) else {}
+        mem = int(hc.get("Memory") or 0)
+        if not memory_should_raise(mem):
+            _MEM_DONE.add(name)
+            continue
+        try:
+            upd = _docker_api(
+                "POST", f"/containers/{quote(cid)}/update",
+                json_body={"Memory": _MEM, "MemorySwap": _MEM}, timeout=30.0,
+            )
+        except Exception as e:
+            if name not in _MEM_BAO:
+                print(f"[org ram] {name}: {e}", flush=True)
+                _MEM_BAO.add(name)
+            continue
+        if upd.status_code in (200, 204):
+            _MEM_DONE.add(name)
+            raised += 1
+            print(f"[org ram] {name} trần {mem // (1024 * 1024)} -> 1024 MB", flush=True)
+        elif name not in _MEM_BAO:
+            print(f"[org ram] {name} HTTP {upd.status_code} {(upd.text or '')[:180]}", flush=True)
+            _MEM_BAO.add(name)
+    return raised
+
+
 def heal_ledger() -> int:
     """Người còn container hoặc volume mà mất khỏi sổ thì thêm lại. Không xóa ai."""
     if not docker_available():
@@ -551,8 +631,8 @@ def apply_public_hosts(slug: str) -> None:
         "Env": env,
         "Labels": labels,
         "HostConfig": {
-            "Memory": hc.get("Memory") or _MEM,
-            "MemorySwap": hc.get("MemorySwap") or _MEM,
+            "Memory": _MEM,
+            "MemorySwap": _MEM,
             "NanoCpus": hc.get("NanoCpus") or _NANO_CPUS,
             "PidsLimit": hc.get("PidsLimit") or _PIDS,
             "RestartPolicy": hc.get("RestartPolicy") or {"Name": "unless-stopped"},
@@ -1089,6 +1169,10 @@ def tick_coord() -> None:
             print(f"[org heal] gắn lại {n} người còn máy hoặc ổ não", flush=True)
     except Exception as e:
         print(f"[org heal] {e}", flush=True)
+    try:
+        ensure_people_memory()
+    except Exception as e:
+        print(f"[org ram] {e}", flush=True)
     try:
         purge_soft_deleted()
     except Exception as e:

@@ -2136,8 +2136,51 @@ function clearAttachments() {
   renderChips();
 }
 
+const CHAT_DOC_MAX = 3;
+const CHAT_IMG_MAX = 4;
+const CHAT_DOC_BYTES = 15 * 1024 * 1024;
+const CHAT_IMG_BYTES = 8 * 1024 * 1024;
+const CHAT_IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
+
+function fileLaAnh(file) {
+  const mime = String(file.type || "");
+  if (mime.startsWith("image/")) return true;
+  return CHAT_IMG_EXT.test(file.name || "");
+}
+function _chuFile(key, macDinh) {
+  try { if (typeof t === "function") return t(key); } catch (e) {}
+  return macDinh;
+}
+function chanFileChat(file, dangThem) {
+  const anh = fileLaAnh(file);
+  const da = pendingAttachments.filter(a => (a.kind === "image") === anh).length
+    + dangThem.filter(f => fileLaAnh(f) === anh).length;
+  if (anh) {
+    if (da >= CHAT_IMG_MAX) return _chuFile("bar.file_img_count", "Đã đủ 4 ảnh mỗi lượt.");
+    if (file.size > CHAT_IMG_BYTES) return _chuFile("bar.file_img_size", "Ảnh này nặng hơn 8 MB.");
+  } else {
+    if (da >= CHAT_DOC_MAX) return _chuFile("bar.file_doc_count", "Đã đủ 3 file tài liệu mỗi lượt.");
+    if (file.size > CHAT_DOC_BYTES) return _chuFile("bar.file_doc_size", "File này nặng hơn 15 MB.");
+  }
+  return "";
+}
+function nhanFileChat(files) {
+  const nhan = [];
+  let loi = "";
+  for (const f of files || []) {
+    if (!f) continue;
+    const mot = chanFileChat(f, nhan);
+    if (mot) loi = mot;
+    else nhan.push(f);
+  }
+  if (loi) attachNote = loi;
+  else if (nhan.length) attachNote = "";
+  nhan.forEach(uploadFile);
+  renderChips();
+}
+
 async function uploadFile(file) {
-  const isImg = file.type.startsWith("image/");
+  const isImg = fileLaAnh(file);
   let _xong = null;
   const att = {
     name: file.name || "paste.png",
@@ -2149,7 +2192,6 @@ async function uploadFile(file) {
   // Lời hứa "tải xong" (thành hay hỏng đều xong) để sendMessage đợi được thay vì gửi thiếu.
   att.xong = new Promise(r => { _xong = r; });
   pendingAttachments.push(att);
-  attachNote = "";
   renderChips();
   try {
     await _taiLen(file, att);
@@ -2190,7 +2232,7 @@ async function _taiLen(file, att) {
 
 document.getElementById("attachBtn").addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => {
-  [...fileInput.files].forEach(uploadFile);
+  nhanFileChat(fileInput.files);
   fileInput.value = "";
 });
 
@@ -2203,7 +2245,7 @@ function pasteAsTxt(text) {
   const d = new Date(), p = n => String(n).padStart(2, "0");
   const name = `van-ban-dan-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.txt`;
   const f = new File([new Blob([text], { type: "text/plain" })], name, { type: "text/plain" });
-  uploadFile(f);
+  nhanFileChat([f]);
 }
 document.addEventListener("paste", (e) => {
   const items = e.clipboardData?.items;
@@ -2211,7 +2253,7 @@ document.addEventListener("paste", (e) => {
   for (const it of items) {
     if (it.kind === "file") {
       const f = it.getAsFile();
-      if (f) { uploadFile(f); e.preventDefault(); }
+      if (f) { nhanFileChat([f]); e.preventDefault(); }
     }
   }
   // Văn bản dài: CHỈ khi đang dán vào ô chat - không cướp paste của các ô khác
@@ -2247,7 +2289,7 @@ window.addEventListener("drop", (e) => {
   dragDepth = 0; dropOverlay.classList.remove("show");
   if (inLocalDrop(e)) return;   // chỗ kia đã preventDefault + chặn bọt, không đụng vào
   e.preventDefault();
-  if (e.dataTransfer?.files) [...e.dataTransfer.files].forEach(uploadFile);
+  if (e.dataTransfer?.files) nhanFileChat(e.dataTransfer.files);
 });
 
 // ============================================

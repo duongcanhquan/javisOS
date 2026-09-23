@@ -314,6 +314,12 @@ check("stats one-shot trong org_docker", "one-shot=true" in (ROOT / "server" / "
 check("ram_live nhận danh sách running", "def ram_live_report(running" in (ROOT / "server" / "org_docker.py").read_text(encoding="utf-8"))
 check("org soft refresh không xóa UI", "org-busy" in org_js and "Đang cập nhật sổ" in org_js)
 check("RAM_MB trần 1024", oc.RAM_MB == 1024)
+import org_docker as od_mem  # noqa: E402
+check("768 MB thì nâng trần", od_mem.memory_should_raise(768 * 1024 * 1024) is True)
+check("1024 MB thì giữ", od_mem.memory_should_raise(1024 * 1024 * 1024) is False)
+check("gắn lại máy luôn đặt trần 1024",
+      '"Memory": _MEM' in src and 'hc.get("Memory") or _MEM' not in src)
+check("tick nâng trần máy người", "def ensure_people_memory" in src)
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
 check("org.js poll ram_live", 'api("/org/ram_live")' in org_js and "startRamPoll" in org_js)
 check("org.js meter RAM đang dùng thật", "RAM đang dùng (Docker)" in org_js and "RAM ước cho" not in org_js)

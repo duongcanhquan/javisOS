@@ -5198,15 +5198,21 @@ def _resolve_subfolder(root: str, name_regex: str, default_name: str) -> str:
     os.makedirs(dest, exist_ok=True)
     return dest
 
-async def _save_upload_stream(upload: UploadFile, dest: str, chunk: int = 1024 * 1024):
+async def _save_upload_stream(upload: UploadFile, dest: str, chunk: int = 1024 * 1024,
+                              max_bytes: int | None = None):
     """Ghi file upload xuống đĩa theo từng chunk 1MB - KHÔNG nạp cả file vào RAM và nhường
     event-loop giữa các chunk. Tránh worker treo khi file lớn → reverse proxy (Caddy/Hostinger)
-    reset kết nối, khiến client thấy 'lỗi mạng'."""
+    reset kết nối, khiến client thấy 'lỗi mạng'. max_bytes chỉ dùng cho file đính kèm chat."""
+    import chat_upload_limits as _cul
+    total = 0
     with open(dest, "wb") as f:
         while True:
             part = await upload.read(chunk)
             if not part:
                 break
+            total += len(part)
+            if max_bytes is not None and total > max_bytes:
+                raise _cul.QuaTran(_cul.loi_qua_tran(upload.filename or ""))
             f.write(part)
 
 
@@ -5225,8 +5231,23 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
             ext = os.path.splitext(raw)[1] or ".png"
             raw = f"paste-{int(time.time())}{ext}"
         name = _sanitize_filename(raw)
+        import chat_upload_limits as _cul
+        try:
+            hint = int(file.size) if file.size is not None else None
+        except (TypeError, ValueError):
+            hint = None
+        loi = _cul.loi_kich_thuoc(name, hint)
+        if loi:
+            return {"ok": False, "error": loi}
         staged = _unique_path(str(STAGING), name)
-        await _save_upload_stream(file, staged)
+        try:
+            await _save_upload_stream(file, staged, max_bytes=_cul.tran_byte(name))
+        except _cul.QuaTran as e:
+            try:
+                os.remove(staged)
+            except OSError:
+                pass
+            return {"ok": False, "error": str(e)}
         ext = os.path.splitext(staged)[1].lower()
         kind = "image" if ext in IMG_EXTS else "file"
         root = _brain_root(brain)

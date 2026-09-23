@@ -1615,8 +1615,14 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   /* flex-end chứ không center: ô nhập LỚN DẦN theo chữ (kiểu claude.ai), các nút mic/gửi
      phải neo ở đáy thay vì trôi lơ lửng giữa một ô nhập cao. */
   display: flex; align-items: flex-end; gap: 12px;
-  margin: 4px 16px 16px; padding: 8px 12px;
+  margin: 4px 16px 4px; padding: 8px 12px;
   border: 1px solid var(--border); border-radius: 18px; background: var(--bg2);
+}
+.chat-limit-note {
+  margin: 0 22px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text3);
 }
 .mic-big {
   background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
@@ -1661,7 +1667,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
 /* ===== Mobile: ô nhập thành viên pill lớn (chat là chính) ===== */
 @media (max-width: 860px) {
   .hud-voice {
-    margin: 6px 10px 8px; padding: 5px 6px 5px 8px; gap: 4px;
+    margin: 6px 10px 2px; padding: 5px 6px 5px 8px; gap: 4px;
     border: 1px solid var(--border); border-radius: 24px; background: var(--bg2);
     align-items: flex-end;
   }
@@ -1673,6 +1679,7 @@ li.task-done > .dv-ttext { text-decoration: line-through; text-decoration-color:
   .hud-voice .voice-input:focus { border: none; }
   .hud-voice .mic-big { order: 3; width: 34px; height: 34px; border: none; background: transparent; }
   .hud-voice .stop-btn, .hud-voice .send-btn { order: 4; width: 36px; height: 36px; border-radius: 50%; }
+  .chat-limit-note { margin: 0 14px 8px; }
 }
 
 .stop-btn {

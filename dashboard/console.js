@@ -6878,7 +6878,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
   // (giữ nguyên mọi handler + WebSocket + streaming đã gắn trong app.js) rồi TRẢ về HUD khi
   // rời trang. Cùng một cuộc trò chuyện hiển thị ở cả màn VMOS lẫn tab này.
   // ============================================
-  const CHAT_NODE_IDS = ["chatArea", "bgStrip", "attachBar", "modelBar", "hudVoice"];
+  const CHAT_NODE_IDS = ["chatArea", "bgStrip", "attachBar", "modelBar", "hudVoice", "chatLimitNote"];
   let _chatSlots = [];        // vị trí gốc từng node để trả về đúng chỗ trong HUD
 
   function _injectChatCss() {
@@ -6950,7 +6950,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
          nó tự nhận ô grid riêng. Cột hội thoại 476px khớp màn VMOS (340×1,4). */
       .chatpage-main.edit-on{ display:grid; column-gap:14px;
         grid-template-columns:minmax(0,1fr) 476px;
-        grid-template-rows:auto minmax(0,1fr) auto auto auto auto; }
+        grid-template-rows:auto minmax(0,1fr) auto auto auto auto auto; }
       .chatpage-main.edit-on > .chatpage-bar{ grid-row:1; grid-column:1 / -1; }
       .chatpage-main.edit-on > .chatpage-edit{ grid-row:2; grid-column:1; min-width:0; }
       .chatpage-main.edit-on > .chatpage-slot{ display:contents; }
@@ -6961,6 +6961,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       .chatpage-main.edit-on > .chatpage-slot > .attach-bar{ grid-row:4; grid-column:1 / -1; }
       .chatpage-main.edit-on > .chatpage-slot > .model-bar{ grid-row:5; grid-column:1 / -1; }
       .chatpage-main.edit-on > .chatpage-slot > .hud-voice{ grid-row:6; grid-column:1 / -1; }
+      .chatpage-main.edit-on > .chatpage-slot > .chat-limit-note{ grid-row:7; grid-column:1 / -1; margin:0 6px 4px; }
       /* Nút thu khung hội thoại phải - đè lên góc trên-phải cột hội thoại (grid cho phép
          hai item cùng ô; slot display:contents nên không dùng position:absolute được). */
       .chatpage-main.edit-on > .chatpage-slot > .cedit-thu-btn{ display:flex; grid-row:2;

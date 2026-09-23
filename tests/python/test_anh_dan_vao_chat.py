@@ -131,6 +131,22 @@ check("CANARY: /upload còn trả trường url", '"url": "/upload/raw?name="' i
 check("CANARY: /upload/raw còn kiểm lại thư mục cha sau khi resolve",
       "if f.parent != goc:" in _src)
 
+import chat_upload_limits as cul  # noqa: E402
+check("pdf 15MB+1 bị chặn", "15 MB" in (cul.loi_kich_thuoc("a.pdf", 15 * 1024 * 1024 + 1) or ""))
+check("ảnh 8MB+1 bị chặn", "8 MB" in (cul.loi_kich_thuoc("a.png", 8 * 1024 * 1024 + 1) or ""))
+check("pdf nhỏ được nhận", cul.loi_kich_thuoc("bai.pdf", 2000) is None)
+_cu = cul.tran_byte
+cul.tran_byte = lambda name: 8
+try:
+    r_nang = client.post("/upload", files={"file": ("nang.pdf", b"x" * 20, "application/pdf")})
+    check("/upload từ chối file quá trần",
+          r_nang.status_code == 200 and r_nang.json().get("ok") is False
+          and "15 MB" in (r_nang.json().get("error") or ""), r_nang.json())
+finally:
+    cul.tran_byte = _cu
+r_nho = client.post("/upload", files={"file": ("nho.pdf", b"%PDF-1.1", "application/pdf")})
+check("/upload vẫn nhận pdf nhỏ", r_nho.json().get("ok") is True, r_nho.json())
+
 print()
 if _fails:
     print(f"FAIL {len(_fails)}: " + "; ".join(_fails))

@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.39] - 2026-09-23
+### Sửa
+- **Tổ chức:** mọi máy người lên trần RAM **1024 MB**. Não giữ nguyên. Máy đang chạy được nâng tại chỗ, không cần tạo lại.
+- **Chat:** mỗi lượt tối đa 3 file tài liệu (15 MB mỗi file) và 4 ảnh (8 MB mỗi ảnh). Dòng giới hạn hiện ngay dưới ô nhập.
+
 ## [0.56.38] - 2026-09-23
 ### Sửa
 - **Tổ chức:** sổ người không còn bị ghi đè mất người chưa xóa. Mở trang Tổ chức hoặc để máy tự kiểm tra sẽ gắn lại người còn container hoặc còn ổ não.
