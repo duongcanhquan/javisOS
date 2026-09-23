@@ -37,4 +37,21 @@ jobs:
             if [ -n "$t" ]; then
               docker exec "$t" sh -c 'echo brains:; ls -1 /brains; echo skills Brain Default:; find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | xargs -n1 basename'
             fi
+            echo "=== QUAN VS MANAGER ==="
+            echo "-- brains manager --"
+            docker exec javis-manager sh -c 'ls -1 /brains'
+            echo "-- brains quan --"
+            docker exec javis-quan sh -c 'ls -1 /brains'
+            echo "-- skill count --"
+            docker exec javis-manager sh -c 'find "/brains/Brain Default/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l' || true
+            docker exec javis-quan sh -c 'find "/brains/Brain Default/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l' || true
+            echo "-- only on manager --"
+            docker exec javis-manager sh -c 'find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"' | sort > /tmp/mgr-skills.txt || true
+            docker exec javis-quan sh -c 'find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"' | sort > /tmp/quan-skills.txt || true
+            echo "manager_only:"
+            comm -23 /tmp/mgr-skills.txt /tmp/quan-skills.txt | head -40
+            echo "quan_only:"
+            comm -13 /tmp/mgr-skills.txt /tmp/quan-skills.txt | head -20
+            echo "-- luan / academic --"
+            docker exec javis-quan sh -c 'ls -d "/brains/Brain Default/skills/soan-thao-luan-van" "/brains/Brain Default/skills/academic-research-agent" "/brains/Brain Default/skills/paper-qa-evidence" "/brains/Brain Default/skills/xuat-goi-nghien-cuu" 2>&1 || true'
             echo PROBE_SKILL_DONE
