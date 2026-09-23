@@ -21,37 +21,69 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            echo "=== DOCKER CLI IN MANAGER ==="
-            docker exec javis-manager sh -c 'ls -la /usr/bin/docker /var/run/docker.sock; id; docker version --format "{{.Server.Version}}" || echo DOCKER_CLI_FAIL'
-            echo "=== CONTAINERS ==="
-            docker ps -a --format '{{.Names}} {{.Status}}' | grep '^javis-' || true
-            echo "=== MANAGER BRAINS ==="
-            docker exec javis-manager sh -c 'ls -1 /brains'
-            echo "=== MANAGER SKILL SLUGS ==="
-            docker exec javis-manager sh -c 'for b in /brains/*; do echo "## $(basename "$b")"; find "$b/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | xargs -n1 basename; done'
-            echo "=== MATCH khoa hoc / luan an ==="
-            docker exec javis-manager sh -c 'find /brains -iname "*khoa*" -o -iname "*luan*" -o -iname "*tien-si*" -o -iname "*nghien*" | head -80'
-            echo "=== ONE RUNNING TENANT ==="
-            t=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -v -E 'manager|proxy|park|quan' | head -1 || true)
-            echo "tenant=$t"
-            if [ -n "$t" ]; then
-              docker exec "$t" sh -c 'echo brains:; ls -1 /brains; echo skills Brain Default:; find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | xargs -n1 basename'
-            fi
-            echo "=== QUAN VS MANAGER ==="
-            echo "-- brains manager --"
-            docker exec javis-manager sh -c 'ls -1 /brains'
-            echo "-- brains quan --"
-            docker exec javis-quan sh -c 'ls -1 /brains'
-            echo "-- skill count --"
-            docker exec javis-manager sh -c 'find "/brains/Brain Default/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l' || true
-            docker exec javis-quan sh -c 'find "/brains/Brain Default/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l' || true
-            echo "-- only on manager --"
-            docker exec javis-manager sh -c 'find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"' | sort > /tmp/mgr-skills.txt || true
-            docker exec javis-quan sh -c 'find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"' | sort > /tmp/quan-skills.txt || true
-            echo "manager_only:"
-            comm -23 /tmp/mgr-skills.txt /tmp/quan-skills.txt | head -40
-            echo "quan_only:"
-            comm -13 /tmp/mgr-skills.txt /tmp/quan-skills.txt | head -20
-            echo "-- luan / academic --"
-            docker exec javis-quan sh -c 'ls -d "/brains/Brain Default/skills/soan-thao-luan-van" "/brains/Brain Default/skills/academic-research-agent" "/brains/Brain Default/skills/paper-qa-evidence" "/brains/Brain Default/skills/xuat-goi-nghien-cuu" 2>&1 || true'
-            echo PROBE_SKILL_DONE
+            SLUGS="soan-thao-luan-van academic-research-agent paper-qa-evidence xuat-goi-nghien-cuu"
+            echo "=== HANG STATUS ==="
+            docker ps -a --filter name=^javis-hang$ --format '{{.Names}} {{.Status}}'
+            echo "=== HANG BRAINS ==="
+            docker exec javis-hang ls -1 /brains
+            echo "=== MANAGER SOURCE ==="
+            for s in $SLUGS; do
+              if docker exec javis-manager test -f "/brains/Brain Default/skills/$s/SKILL.md"; then
+                echo "SRC $s"
+              else
+                echo "NO_SRC $s"
+              fi
+            done
+            list_hang() {
+              docker exec javis-hang sh -c '
+                for b in /brains/*; do
+                  [ -d "$b" ] || continue
+                  echo "## $(basename "$b")"
+                  for s in soan-thao-luan-van academic-research-agent paper-qa-evidence xuat-goi-nghien-cuu; do
+                    if [ -f "$b/skills/$s/SKILL.md" ]; then echo "HAS $s"
+                    elif [ -d "$b/skills/.disabled/$s" ]; then echo "DISABLED $s"
+                    else echo "MISS $s"; fi
+                  done
+                done
+              '
+            }
+            echo "=== BEFORE ==="
+            list_hang
+            echo "=== COPY ==="
+            docker exec javis-hang sh -c 'for b in /brains/*; do [ -d "$b" ] && basename "$b"; done' > /tmp/hang-brains.txt
+            while IFS= read -r b; do
+              [ -n "$b" ] || continue
+              echo "brain=$b"
+              docker exec -u root javis-hang mkdir -p "/brains/$b/skills" "/brains/$b/.claude/skills"
+              for s in $SLUGS; do
+                if ! docker exec javis-manager test -f "/brains/Brain Default/skills/$s/SKILL.md"; then
+                  echo "NO_SRC $s"
+                  continue
+                fi
+                if docker exec javis-hang test -d "/brains/$b/skills/.disabled/$s"; then
+                  echo "SKIP_DISABLED $b / $s"
+                  continue
+                fi
+                need=1
+                if docker exec javis-hang test -f "/brains/$b/skills/$s/SKILL.md"; then
+                  h1=$(docker exec javis-manager sha256sum "/brains/Brain Default/skills/$s/SKILL.md" | awk '{print $1}')
+                  h2=$(docker exec javis-hang sha256sum "/brains/$b/skills/$s/SKILL.md" | awk '{print $1}')
+                  if [ "$h1" = "$h2" ]; then
+                    echo "SAME $b / $s"
+                    need=0
+                  else
+                    echo "DIFF $b / $s"
+                  fi
+                else
+                  echo "INSTALL $b / $s"
+                fi
+                if [ "$need" = 1 ]; then
+                  docker exec javis-manager tar -C "/brains/Brain Default/skills" -cf - "$s" | docker exec -i -u root javis-hang tar -C "/brains/$b/skills" -xf -
+                  docker exec -u root javis-hang sh -c "rm -rf \"/brains/$b/.claude/skills/$s\" && cp -a \"/brains/$b/skills/$s\" \"/brains/$b/.claude/skills/$s\" && chown -R --reference=\"/brains/$b\" \"/brains/$b/skills/$s\" \"/brains/$b/.claude/skills/$s\""
+                  echo "COPIED $b / $s"
+                fi
+              done
+            done < /tmp/hang-brains.txt
+            echo "=== AFTER ==="
+            list_hang
+            echo HANG_SKILL_DONE
