@@ -86,3 +86,20 @@ def test_is_manager_role(monkeypatch):
     assert m.is_manager_role() is False
     monkeypatch.setenv("JAVIS_ROLE", "manager")
     assert m.is_manager_role() is True
+
+
+def test_filter_sync_targets_includes_stopped_names():
+    names = [
+        "javis-manager", "javis-proxy", "javis-park", "javis-quan",
+        "javis-lananh", "javis-thuy", "javis-long",
+    ]
+    got = m.filter_sync_targets(names, manager="javis-manager")
+    assert got == ["javis-lananh", "javis-long", "javis-quan", "javis-thuy"]
+
+
+_got = m.filter_sync_targets(
+    ["javis-manager", "javis-proxy", "javis-park", "javis-quan", "javis-thuy"],
+    manager="javis-manager",
+)
+assert _got == ["javis-quan", "javis-thuy"], _got
+print("ok - filter_sync_targets")

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.36] - 2026-09-23
+### Sửa
+- **Đồng bộ skill:** máy đang tắt cũng nhận skill từ manager. Trước đó chỉ máy đang mở được copy, nên bấm Đồng bộ xong nhiều tenant vẫn thiếu skill mới.
+
 ## [0.56.35] - 2026-09-23
 ### Cải thiện
 - **Câu chờ khi trả lời:** bỏ «anh chờ em» (sai khi người dùng là nữ). Chip xoay `Em làm ngay đây ạ!` → tìm trong não → sắp xong → cảm ơn đã chờ.

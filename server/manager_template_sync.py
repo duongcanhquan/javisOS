@@ -303,11 +303,33 @@ def docker_ok() -> bool:
         return False
 
 
-def list_javis_containers(*, exclude: Optional[set[str]] = None) -> list[str]:
+# Máy giữ chỗ / proxy không có brain để nhận skill.
+_SKIP_SYNC_NAMES = frozenset({"javis-proxy", "javis-park"})
+
+
+def filter_sync_targets(names: list[str], *, manager: str = "") -> list[str]:
+    """Giữ container javis người (kể cả đang tắt). Bỏ manager, proxy, park."""
+    mgr = (manager or "").strip()
+    out: list[str] = []
+    for raw in names:
+        n = str(raw or "").strip()
+        if not n.startswith("javis-"):
+            continue
+        if n == mgr or n in _SKIP_SYNC_NAMES or "proxy" in n or n.endswith("-park"):
+            continue
+        out.append(n)
+    return sorted(set(out))
+
+
+def list_javis_containers(*, exclude: Optional[set[str]] = None, all_states: bool = False) -> list[str]:
     import subprocess
     exclude = exclude or set()
+    cmd = [_docker_bin(), "ps"]
+    if all_states:
+        cmd.append("-a")
+    cmd.extend(["--format", "{{.Names}}"])
     r = subprocess.run(
-        [_docker_bin(), "ps", "--format", "{{.Names}}"],
+        cmd,
         capture_output=True, text=True, timeout=30, check=True,
         **winproc.kwargs_no_window(),
     )
@@ -316,10 +338,72 @@ def list_javis_containers(*, exclude: Optional[set[str]] = None) -> list[str]:
         n = line.strip()
         if not n.startswith("javis-"):
             continue
-        if n in exclude or n == "javis-proxy" or "proxy" in n:
+        if n in exclude or n in _SKIP_SYNC_NAMES or "proxy" in n or n.endswith("-park"):
             continue
         names.append(n)
     return sorted(names)
+
+
+def _container_running(container: str) -> bool:
+    import subprocess
+    r = subprocess.run(
+        [_docker_bin(), "inspect", "-f", "{{.State.Running}}", container],
+        capture_output=True, text=True, timeout=20,
+        **winproc.kwargs_no_window(),
+    )
+    return r.returncode == 0 and (r.stdout or "").strip().lower() == "true"
+
+
+def _container_image(container: str) -> str:
+    import subprocess
+    r = subprocess.run(
+        [_docker_bin(), "inspect", "-f", "{{.Config.Image}}", container],
+        capture_output=True, text=True, timeout=20,
+        **winproc.kwargs_no_window(),
+    )
+    return (r.stdout or "").strip() if r.returncode == 0 else ""
+
+
+def mirror_skills_in_container(container: str, brain: str) -> tuple[int, str]:
+    """Mirror skills/ → .claude/skills. Máy tắt thì chạy python qua volumes-from."""
+    import subprocess
+    code = (
+        "import sys; sys.path.insert(0,'/app/server'); "
+        "from pathlib import Path; import manager_template_sync as m; "
+        f"m._mirror_skills_light(Path('/brains/{brain}'))"
+    )
+    if _container_running(container):
+        return docker_exec(container, ["python", "-c", code], timeout=60)
+    image = _container_image(container)
+    if not image:
+        return 1, "no image"
+    r = subprocess.run(
+        [_docker_bin(), "run", "--rm", "--volumes-from", container,
+         "--entrypoint", "python", image, "-c", code],
+        capture_output=True, text=True, timeout=90,
+        **winproc.kwargs_no_window(),
+    )
+    out = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
+    return r.returncode, out
+
+
+def ensure_brain_dirs(container: str, brain: str) -> tuple[int, str]:
+    """Tạo thư mục brain kể cả khi container đang tắt (volumes-from)."""
+    import subprocess
+    paths = [f"/brains/{brain}/{sub}" for sub in (*TEMPLATE_SUBDIRS, ".javis")]
+    if _container_running(container):
+        return docker_exec(container, ["mkdir", "-p", *paths], timeout=30)
+    image = _container_image(container)
+    if not image:
+        return 1, "no image"
+    r = subprocess.run(
+        [_docker_bin(), "run", "--rm", "--volumes-from", container,
+         "--entrypoint", "mkdir", image, "-p", *paths],
+        capture_output=True, text=True, timeout=60,
+        **winproc.kwargs_no_window(),
+    )
+    out = (r.stdout or "") + (("\n" + r.stderr) if r.stderr else "")
+    return r.returncode, out
 
 
 def docker_exec(container: str, args: list[str], *, timeout: int = 300) -> tuple[int, str]:
@@ -354,9 +438,10 @@ def sync_via_docker(
     if not docker_ok():
         return {"ok": False, "error": "docker không dùng được trên máy này"}
 
-    targets = tenants or [
-        n for n in list_javis_containers(exclude={manager, "javis-proxy"}) if n != manager
-    ]
+    targets = tenants or filter_sync_targets(
+        list_javis_containers(all_states=True),
+        manager=manager,
+    )
     report: dict[str, Any] = {
         "ok": True, "manager": manager, "brain": brain, "tenants": {}, "dry_run": dry_run,
     }
@@ -409,30 +494,16 @@ def sync_via_docker(
                     _docker_cp(f"{name}:/brains/{brain}/{sub}", str(t_root / sub))
                 t_stats = sync_brain(src_unpacked, t_root, dry_run=dry_run, force=False)
                 if not dry_run:
+                    ensure_brain_dirs(name, brain)
                     for sub in TEMPLATE_SUBDIRS:
                         local_sub = t_root / sub
                         if not local_sub.exists():
                             continue
-                        docker_exec(name, ["mkdir", "-p", f"/brains/{brain}/{sub}"], timeout=30)
                         _docker_cp(f"{local_sub}/.", f"{name}:/brains/{brain}/{sub}/")
                     javis_dir = t_root / ".javis"
                     if javis_dir.exists():
-                        docker_exec(name, ["mkdir", "-p", f"/brains/{brain}/.javis"], timeout=30)
                         _docker_cp(f"{javis_dir}/.", f"{name}:/brains/{brain}/.javis/")
-                    docker_exec(
-                        name,
-                        [
-                            "python", "-c",
-                            "import sys; sys.path.insert(0,'/app/server');\n"
-                            "from pathlib import Path\n"
-                            "try:\n"
-                            " import manager_template_sync as m\n"
-                            f" m._mirror_skills_light(Path('/brains/{brain}'))\n"
-                            "except Exception as e:\n"
-                            " print('mirror skip', e)\n",
-                        ],
-                        timeout=60,
-                    )
+                    mirror_skills_in_container(name, brain)
                 report["tenants"][name] = t_stats
             except Exception as e:
                 report["tenants"][name] = {"errors": [f"{type(e).__name__}: {e}"]}
