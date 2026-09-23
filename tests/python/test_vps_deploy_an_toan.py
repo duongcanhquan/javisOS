@@ -237,6 +237,10 @@ check(
     "javis-manager" in script and "JAVIS_MANAGER_DIR" in script,
 )
 check(
+    "vps-deploy.sh: manager gắn docker CLI để nút Đồng bộ chạy trong container",
+    "docker-compose.manager.yml" in script and "JAVIS_ROLE manager" in script,
+)
+check(
     "vps-deploy.sh: cập nhật gốc không mượn tên máy javis-quan",
     "unset JAVIS_NAME" in script,
 )

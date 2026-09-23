@@ -12,13 +12,20 @@
   "use strict";
 
   var WAIT_LINES = [
+    "Em làm ngay đây ạ!",
+    "Em đang tìm thông tin trong não và sớm trả lời...",
+    "Chờ em một chút, sắp xong rồi ạ...",
+    "Cảm ơn vì đã chờ em...",
+  ];
+  // Mốc giây (kể từ lúc gửi) khi đổi sang câu tương ứng. Câu cuối giữ nguyên.
+  var WAIT_AT_SEC = [0, 8, 20, 35];
+  // Câu đời trước (vẫn nhận để TTS/chip không đọc lại khi WS gửi cũ).
+  var WAIT_LINES_LEGACY = [
     "Em đang soạn câu trả lời...",
     "Thời gian đọc dữ liệu có thể hơi lâu, anh chờ em nhé...",
     "Sắp xong rồi, em cần chuẩn hóa dữ liệu...",
     "Dữ liệu khá nhiều, em sẽ không bốc phét đâu...",
   ];
-  // Mốc giây (kể từ lúc gửi) khi đổi sang câu tương ứng. Câu cuối giữ nguyên.
-  var WAIT_AT_SEC = [0, 8, 20, 35];
 
   function waitIndexAt(elapsedSec) {
     var s = Number(elapsedSec);
@@ -38,6 +45,7 @@
     var t = String(s || "").trim();
     if (!t) return false;
     if (WAIT_LINES.indexOf(t) !== -1) return true;
+    if (WAIT_LINES_LEGACY.indexOf(t) !== -1) return true;
     if (t === "wait") return true;
     // Câu chờ đời trước: WS vẫn có thể gửi, rotator trên dashboard giữ quyền.
     if (t.indexOf("Anh cho em thời gian") === 0) return true;

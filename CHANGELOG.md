@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.35] - 2026-09-23
+### Cải thiện
+- **Câu chờ khi trả lời:** bỏ «anh chờ em» (sai khi người dùng là nữ). Chip xoay `Em làm ngay đây ạ!` → tìm trong não → sắp xong → cảm ơn đã chờ.
+- **Đồng bộ skill từ manager:** lần deploy sau gắn lệnh Docker vào Javis gốc, nút Đồng bộ chạy ngay trên trang, không cần SSH vào máy chủ.
+
 ## [0.56.34] - 2026-09-22
 ### Sửa
 - **Tổ chức · 502 / Đang bật máy mãi:** `start()` chờ `/health` tới ~80s trên thread uvicorn → manager đơ, Caddy trả 502. Nay bật máy trả ngay khi Docker start; `/org/start` + list/ram_live chạy `asyncio.to_thread`; poll RAM 12s; usage đĩa không force mỗi lần.

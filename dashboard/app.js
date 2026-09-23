@@ -266,7 +266,7 @@ function handleMessage(data) {
         // không thì loa cứ đọc filler trong lúc chữ đã hiện, rồi lượt cuối dễ bị nuốt.
         if (t.waitFiller) { try { voice.stopSpeaking({ resumeMic: false }); } catch (e) {} t.waitFiller = false; }
         t.bubble = createStreamingBubble();
-        const soan = (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời...";
+        const soan = (window.JavisWait && window.JavisWait.first) || "Em làm ngay đây ạ!";
         showActivity(Icons.msg("pen-line", soan));
       }
       t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
@@ -681,7 +681,7 @@ async function openStoredSession(id) {
     if (t && t.running) {
       t.bubble = createStreamingBubble();
       if (t.text) t.bubble.querySelector(".bubble").innerHTML = markdownToHtml(t.text);
-      showActivity(Icons.msg("pen-line", (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời..."));
+      showActivity(Icons.msg("pen-line", (window.JavisWait && window.JavisWait.first) || "Em làm ngay đây ạ!"));
       setOrbState("thinking", "KÍCH HOẠT SUY NGHĨ NÃO");
     }
     // Phiên này đang chờ gói thuê bao mở lại hạn mức → gắn thẻ "tự chạy lại" dưới tin cuối.
@@ -997,7 +997,7 @@ function showActivity(html) {
 }
 function startWaitRotate() {
   stopWaitRotate();
-  const first = (window.JavisWait && window.JavisWait.first) || "Em đang soạn câu trả lời...";
+  const first = (window.JavisWait && window.JavisWait.first) || "Em làm ngay đây ạ!";
   showActivity(escapeHtml(first));
   const tick = function () {
     if (!activityEl || !window.JavisWait) return;

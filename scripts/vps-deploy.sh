@@ -265,6 +265,10 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   if [ -f "$ROOT/docker-compose.multi.yml" ]; then
     cp -f "$ROOT/docker-compose.multi.yml" "$MGR_DIR/"
   fi
+  # Gắn docker CLI + socket để nút Đồng bộ skill chạy trong container, không cần SSH.
+  if [ -f "$ROOT/docker-compose.manager.yml" ]; then
+    cp -f "$ROOT/docker-compose.manager.yml" "$MGR_DIR/"
+  fi
   touch "$MGR_DIR/.env"
   chmod 600 "$MGR_DIR/.env"
   _mgr_set() {
@@ -276,6 +280,7 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
     fi
   }
   _mgr_set JAVIS_ORG_MANAGER true
+  _mgr_set JAVIS_ROLE manager
   _mgr_set JAVIS_ORG_TENANT false
   _mgr_set JAVIS_NAME javis-manager
   _mgr_set DOMAIN_NAME javis.vietmycollege.com
@@ -293,6 +298,9 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
     MGR_FILES=(-f docker-compose.yml)
     if [ -f docker-compose.multi.yml ]; then
       MGR_FILES+=(-f docker-compose.multi.yml)
+    fi
+    if [ -f docker-compose.manager.yml ]; then
+      MGR_FILES+=(-f docker-compose.manager.yml)
     fi
     docker compose "${MGR_FILES[@]}" pull javis || echo "WARN: pull Javis gốc thất bại"
     docker compose "${MGR_FILES[@]}" up -d --no-build --force-recreate javis

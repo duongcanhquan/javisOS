@@ -12,11 +12,12 @@ function check(name, cond) {
 
 const LINES = W.LINES;
 check("đủ 4 câu chờ", Array.isArray(LINES) && LINES.length === 4);
-check("câu 1: Em đang soạn câu trả lời...", LINES[0] === "Em đang soạn câu trả lời...");
-check("câu 2: Thời gian đọc dữ liệu...", LINES[1] === "Thời gian đọc dữ liệu có thể hơi lâu, anh chờ em nhé...");
-check("câu 3: chuẩn hóa (không phải chuẩn háo)", LINES[2] === "Sắp xong rồi, em cần chuẩn hóa dữ liệu...");
-check("câu 4: không bốc phét", LINES[3] === "Dữ liệu khá nhiều, em sẽ không bốc phét đâu...");
+check("câu 1: Em làm ngay đây ạ!", LINES[0] === "Em làm ngay đây ạ!");
+check("câu 2: tìm trong não...", LINES[1] === "Em đang tìm thông tin trong não và sớm trả lời...");
+check("câu 3: sắp xong rồi ạ", LINES[2] === "Chờ em một chút, sắp xong rồi ạ...");
+check("câu 4: cảm ơn vì đã chờ", LINES[3] === "Cảm ơn vì đã chờ em...");
 check("first trùng câu 1", W.first === LINES[0]);
+check("không còn xưng anh trong câu chờ", !LINES.join("").includes("anh chờ"));
 
 check("0s -> câu 1", W.waitLineAt(0) === LINES[0]);
 check("7s vẫn câu 1", W.waitLineAt(7) === LINES[0]);
@@ -30,6 +31,9 @@ check("số âm coi như 0", W.waitLineAt(-3) === LINES[0]);
 check("NaN coi như 0", W.waitLineAt("x") === LINES[0]);
 
 check("isWaitFiller nhận 4 câu mới", LINES.every(W.isWaitFiller));
+check("isWaitFiller nhận bộ 0.55.x (legacy)",
+  W.isWaitFiller("Em đang soạn câu trả lời...")
+  && W.isWaitFiller("Thời gian đọc dữ liệu có thể hơi lâu, anh chờ em nhé..."));
 check("isWaitFiller nhận câu 0.55.218", W.isWaitFiller("Anh cho em thời gian để thực hiện, thời gian có thể lâu một chút vì cần kết nối và so sánh dữ liệu thật..."));
 check("isWaitFiller nhận câu cũ", W.isWaitFiller("Cho em chút thời gian để trả lời."));
 check("isWaitFiller bỏ tool status", !W.isWaitFiller("Nhận data - đang phân tích..."));
