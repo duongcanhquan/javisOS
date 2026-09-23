@@ -355,7 +355,37 @@ try:
 except RuntimeError as e:
     blocked = "Từ chối ghi" in str(e)
 check("chặn ghi đè sổ nhiều người thành chỉ quan", blocked and len(json.loads(ot_path.read_text())["tenants"]) >= 3)
+shrink_blocked = False
+try:
+    ot.save({"tenants": many["tenants"][:2]})
+except RuntimeError as e:
+    shrink_blocked = "Từ chối ghi" in str(e)
+check("chặn ghi đè sổ 4 người thành 2",
+      shrink_blocked and len(json.loads(ot_path.read_text())["tenants"]) == 4)
+added = ot.adopt_missing(["lananh", "thuy"])
+check("thêm lại người mất khỏi sổ, không xóa người cũ",
+      added == 2 and {t["slug"] for t in json.loads(ot_path.read_text())["tenants"]} >= {"quan", "a", "b", "c", "lananh", "thuy"})
+bak = ot_path.with_name("org-tenants.blocked-1.json")
+bak.write_text(json.dumps({"tenants": [{"slug": "hang", "name": "Hằng", "login_user": "hang"}]}), encoding="utf-8")
+added_bak = ot.adopt_missing(["hang"])
+hang = next(t for t in json.loads(ot_path.read_text())["tenants"] if t["slug"] == "hang")
+check("gắn lại lấy tên từ bản bị chặn ghi",
+      added_bak == 1 and hang.get("name") == "Hằng" and hang.get("login_user") == "hang")
 check("mã nguồn có chống wipe sổ", "Từ chối ghi org-tenants" in (ROOT / "server" / "org_tenants.py").read_text(encoding="utf-8"))
+check("nhận lại slug từ container và volume",
+      ot.slugs_from_infra(
+          ["javis-lananh", "javis-manager", "javis-proxy", "javis-park"],
+          ["javis-thuy_javis-brains", "javis_javis-brains"],
+      ) == ["lananh", "thuy"])
+ot_path.write_text("", encoding="utf-8")
+empty_view = ot.load()
+check("file sổ rỗng không bị ghi thành chỉ quan",
+      ot_path.read_text(encoding="utf-8") == "" and empty_view.get("_do_not_save") is True)
+ot_path.unlink()
+restored = ot.load()
+restored_slugs = {t["slug"] for t in json.loads(ot_path.read_text())["tenants"]}
+check("mất file sổ thì dựng lại từ bản giữ nhiều người nhất",
+      restored.get("_do_not_save") is not True and restored_slugs >= {"quan", "a", "b", "c"})
 
 if FAIL:
     print("\nFAILED:", ", ".join(FAIL))

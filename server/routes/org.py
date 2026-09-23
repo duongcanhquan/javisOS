@@ -279,6 +279,10 @@ def _make_router() -> APIRouter:
             return deny
 
         def _run():
+            try:
+                org_docker.heal_ledger()
+            except Exception:
+                pass
             data = ot.load()
             out = []
             dk_ok = org_docker.docker_available()

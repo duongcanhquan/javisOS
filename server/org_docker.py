@@ -67,6 +67,38 @@ def docker_available() -> bool:
     return ok
 
 
+def heal_ledger() -> int:
+    """Người còn container hoặc volume mà mất khỏi sổ thì thêm lại. Không xóa ai."""
+    if not docker_available():
+        return 0
+    names: list[str] = []
+    vols: list[str] = []
+    try:
+        r = _docker_api("GET", "/containers/json?all=true", timeout=15.0)
+        if r.status_code == 200:
+            for item in (r.json() or []):
+                if not isinstance(item, dict):
+                    continue
+                for n in item.get("Names") or []:
+                    names.append(str(n or ""))
+    except Exception as e:
+        print(f"[org heal] containers: {e}", flush=True)
+    try:
+        r = _docker_api("GET", "/volumes", timeout=20.0)
+        if r.status_code == 200:
+            body = r.json() or {}
+            for v in body.get("Volumes") or []:
+                if isinstance(v, dict):
+                    vols.append(str(v.get("Name") or ""))
+    except Exception as e:
+        print(f"[org heal] volumes: {e}", flush=True)
+    try:
+        return ot.adopt_missing(ot.slugs_from_infra(names, vols))
+    except Exception as e:
+        print(f"[org heal] sổ: {e}", flush=True)
+        return 0
+
+
 def invalidate_status_cache(*names: str) -> None:
     """Gọi sau start/stop/remove để lần list kế không ăn trạng thái cũ."""
     if not names:
@@ -1051,6 +1083,12 @@ def start_with_capacity(slug: str) -> dict:
 def tick_coord() -> None:
     if not ot.manager_enabled() or not docker_available():
         return
+    try:
+        n = heal_ledger()
+        if n:
+            print(f"[org heal] gắn lại {n} người còn máy hoặc ổ não", flush=True)
+    except Exception as e:
+        print(f"[org heal] {e}", flush=True)
     try:
         purge_soft_deleted()
     except Exception as e:

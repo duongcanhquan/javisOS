@@ -103,7 +103,10 @@ def load() -> dict:
     """
     p = store_path()
     if not p.is_file():
-        data = _empty()
+        restored = _best_backup_doc()
+        data = restored if restored is not None else _empty()
+        if not isinstance(data.get("tenants"), list):
+            data = _empty()
         ensure_quan(data)
         save(data)
         return data
@@ -112,18 +115,17 @@ def load() -> dict:
         raw = p.read_text(encoding="utf-8")
         data = json.loads(raw)
     except Exception as e:
-        # Giữ file hỏng, không save sổ rỗng lên đè.
+        # Giữ nguyên file hỏng. Không chuyển file đi, không ghi đè bằng chỉ quan.
         bad = p.with_name(f"org-tenants.bad-{int(time.time())}.json")
         try:
-            if raw:
+            if raw and not bad.exists():
                 bad.write_text(raw, encoding="utf-8")
-            else:
-                p.replace(bad)
         except Exception:
             pass
-        print(f"[org-tenants] đọc lỗi ({type(e).__name__}: {e}); giữ {bad}; không ghi đè sổ.", flush=True)
+        print(f"[org-tenants] đọc lỗi ({type(e).__name__}: {e}); giữ sổ cũ; không ghi đè.", flush=True)
         data = _empty()
         ensure_quan(data)
+        data["_do_not_save"] = True
         return data
     if not isinstance(data, dict):
         bad = p.with_name(f"org-tenants.bad-{int(time.time())}.json")
@@ -134,10 +136,15 @@ def load() -> dict:
         print("[org-tenants] sổ không phải object JSON; không ghi đè.", flush=True)
         data = _empty()
         ensure_quan(data)
+        data["_do_not_save"] = True
         return data
     data.setdefault("tenants", [])
     if not isinstance(data["tenants"], list):
-        data["tenants"] = []
+        print("[org-tenants] trường tenants không phải list; không ghi đè sổ.", flush=True)
+        empty = _empty()
+        ensure_quan(empty)
+        empty["_do_not_save"] = True
+        return empty
     changed = ensure_quan(data)
     if _sync_domains(data):
         changed = True
@@ -146,8 +153,21 @@ def load() -> dict:
     return data
 
 
-def save(data: dict) -> None:
-    """Ghi sổ atomic. Từ chối ghi đè sổ nhiều người bằng sổ chỉ còn quan (trừ khi cố ý)."""
+def _slugs(tenants: list) -> set[str]:
+    out = set()
+    for t in tenants:
+        if not isinstance(t, dict):
+            continue
+        s = str(t.get("slug") or "").strip().lower()
+        if s:
+            out.add(s)
+    return out
+
+
+def save(data: dict, *, allow_drop: set[str] | None = None, allow_rebuild: bool = False) -> None:
+    """Ghi sổ atomic. Không được làm mất slug đang có, trừ khi allow_drop nêu đúng tên xóa."""
+    if isinstance(data, dict) and data.get("_do_not_save") and not allow_rebuild:
+        raise RuntimeError("Sổ đọc lỗi, từ chối ghi để không xóa người.")
     p = store_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     new_tenants = data.get("tenants") if isinstance(data, dict) else None
@@ -156,23 +176,43 @@ def save(data: dict) -> None:
     if p.is_file():
         try:
             old = json.loads(p.read_text(encoding="utf-8"))
-            old_n = len(old.get("tenants") or []) if isinstance(old, dict) else 0
+            if not isinstance(old, dict):
+                raise ValueError("sổ cũ không phải object")
+            if "tenants" not in old:
+                old_tenants = []
+            else:
+                old_tenants = old.get("tenants")
+                if not isinstance(old_tenants, list):
+                    raise ValueError("tenants cũ không phải list")
         except Exception:
-            old_n = 0
-        new_n = len(new_tenants)
-        # Chặn ghi đè sổ ≥3 người thành ≤1 (thường chỉ còn quan sau lỗi parse).
-        if old_n >= 3 and new_n <= 1:
+            if not allow_rebuild:
+                raise RuntimeError(
+                    "Sổ org-tenants hiện không đọc được, từ chối ghi đè. "
+                    "Giữ file cũ để còn khôi phục."
+                )
+            bak = p.with_name(f"org-tenants.bad-{int(time.time())}.json")
+            try:
+                if not bak.exists():
+                    bak.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+            except Exception:
+                pass
+            old_tenants = []
+        dropped = _slugs(old_tenants) - _slugs(new_tenants)
+        allowed = {str(s or "").strip().lower() for s in (allow_drop or set()) if str(s or "").strip()}
+        extra = dropped - allowed
+        if extra:
             bak = p.with_name(f"org-tenants.blocked-{int(time.time())}.json")
             try:
                 bak.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
             except Exception:
                 pass
             raise RuntimeError(
-                f"Từ chối ghi org-tenants: sổ cũ {old_n} người → mới {new_n}. "
+                f"Từ chối ghi org-tenants: sắp mất {', '.join(sorted(extra))}. "
                 f"Đã giữ bản cũ tại {bak.name}."
             )
+    clean = {k: v for k, v in data.items() if k != "_do_not_save"}
     tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(p)
 
 
@@ -208,6 +248,142 @@ def ensure_quan(data: dict) -> bool:
     return True
 
 
+_INFRA_SKIP = frozenset({"manager", "proxy", "park", "javis"})
+
+
+def slugs_from_infra(container_names: list[str], volume_names_in: list[str]) -> list[str]:
+    """Slug còn container javis-<slug> hoặc volume javis-<slug>_javis-brains."""
+    found: set[str] = set()
+    for raw in container_names:
+        n = str(raw or "").strip().lstrip("/")
+        if not n.startswith("javis-"):
+            continue
+        slug = n[len("javis-"):].strip().lower()
+        if not slug or slug in _INFRA_SKIP or slug in PROTECTED_SLUGS or validate_slug(slug):
+            continue
+        found.add(slug)
+    suffix = "_javis-brains"
+    for raw in volume_names_in:
+        v = str(raw or "").strip()
+        if not (v.startswith("javis-") and v.endswith(suffix)):
+            continue
+        slug = v[len("javis-"):-len(suffix)].strip().lower()
+        if not slug or slug in _INFRA_SKIP or slug in PROTECTED_SLUGS or validate_slug(slug):
+            continue
+        found.add(slug)
+    return sorted(found)
+
+
+def _backup_files() -> list[Path]:
+    parent = store_path().parent
+    return list(parent.glob("org-tenants.bad-*.json")) + list(parent.glob("org-tenants.blocked-*.json"))
+
+
+def _best_backup_doc() -> dict | None:
+    """Bản sao nhiều người nhất. Hòa nhau thì lấy file mới hơn."""
+    best: dict | None = None
+    best_key = (-1, -1.0)
+    for f in _backup_files():
+        try:
+            parsed = json.loads(f.read_text(encoding="utf-8"))
+            tenants = parsed.get("tenants") if isinstance(parsed, dict) else None
+            if not isinstance(tenants, list) or not tenants:
+                continue
+            key = (len(_slugs(tenants)), f.stat().st_mtime)
+            if key > best_key:
+                best_key = key
+                best = parsed
+        except Exception:
+            continue
+    return best
+
+
+def _backup_by_slug() -> dict[str, dict]:
+    """Bản ghi trong file bad/blocked. File mới hơn thắng trên cùng một slug."""
+    ranked: list[tuple[float, list]] = []
+    for f in _backup_files():
+        try:
+            parsed = json.loads(f.read_text(encoding="utf-8"))
+            tenants = parsed.get("tenants") if isinstance(parsed, dict) else None
+            if not isinstance(tenants, list):
+                continue
+            ranked.append((f.stat().st_mtime, tenants))
+        except Exception:
+            continue
+    ranked.sort()
+    out: dict[str, dict] = {}
+    for _mtime, tenants in ranked:
+        for t in tenants:
+            if not isinstance(t, dict):
+                continue
+            s = str(t.get("slug") or "").strip().lower()
+            if s:
+                out[s] = t
+    return out
+
+
+def _stub_tenant(slug: str) -> dict:
+    return {
+        "id": uuid.uuid4().hex[:12],
+        "slug": slug,
+        "name": slug,
+        "domain": tenant_domain(slug),
+        "container": f"javis-{slug}",
+        "volumes": volume_names(slug),
+        "quota_gb": 2,
+        "protected": False,
+        "status": "unknown",
+    }
+
+
+def adopt_missing(slugs: list[str]) -> int:
+    """Thêm người còn máy hoặc volume nhưng mất khỏi sổ. Không xóa ai đang có."""
+    p = store_path()
+    readable = False
+    data: dict = _empty()
+    if p.is_file():
+        try:
+            parsed = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(parsed, dict) and isinstance(parsed.get("tenants"), list):
+                data = parsed
+                readable = True
+        except Exception:
+            readable = False
+    if not isinstance(data.get("tenants"), list):
+        data = _empty()
+        readable = False
+    ensure_quan(data)
+    known = _slugs(data["tenants"])
+    backups = _backup_by_slug()
+    added = 0
+    for slug in slugs:
+        s = str(slug or "").strip().lower()
+        if not s or s in known or s in PROTECTED_SLUGS or validate_slug(s):
+            continue
+        src = backups.get(s)
+        if isinstance(src, dict):
+            rec = dict(src)
+            rec["slug"] = s
+            rec["container"] = rec.get("container") or f"javis-{s}"
+            rec["domain"] = tenant_domain(s)
+            rec["volumes"] = rec.get("volumes") or volume_names(s)
+            rec["protected"] = False
+        else:
+            rec = _stub_tenant(s)
+        data["tenants"].append(rec)
+        known.add(s)
+        added += 1
+    if added == 0 and readable:
+        return 0
+    if not readable:
+        if added == 0:
+            return 0
+        save(data, allow_rebuild=True)
+        return added
+    save(data)
+    return added
+
+
 def get(slug: str) -> dict | None:
     s = (slug or "").strip().lower()
     for t in load()["tenants"]:
@@ -238,7 +414,7 @@ def remove(slug: str) -> None:
         raise ValueError("Không xóa tên hệ thống.")
     data = load()
     data["tenants"] = [t for t in (data.get("tenants") or []) if str(t.get("slug") or "") != s]
-    save(data)
+    save(data, allow_drop={s})
 
 
 def is_soft_deleted(rec: dict | None) -> bool:

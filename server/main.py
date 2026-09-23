@@ -11444,6 +11444,10 @@ async def _start_scheduler():
             def _org_public_hosts():
                 try:
                     import org_docker as _od
+                    try:
+                        _od.heal_ledger()
+                    except Exception as _he:
+                        print(f"[org heal] {_he}", file=_sys.stderr)
                     for t in (_otboot.load().get("tenants") or []):
                         if t.get("protected"):
                             continue

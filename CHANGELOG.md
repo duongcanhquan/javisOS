@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.38] - 2026-09-23
+### Sửa
+- **Tổ chức:** sổ người không còn bị ghi đè mất người chưa xóa. Mở trang Tổ chức hoặc để máy tự kiểm tra sẽ gắn lại người còn container hoặc còn ổ não.
+
 ## [0.56.37] - 2026-09-23
 ### Sửa
 - **Tổ chức:** máy người không còn tự tắt theo giờ hay vì hết chỗ. Muốn tắt thì bấm Tắt hoặc Tạm dừng.
