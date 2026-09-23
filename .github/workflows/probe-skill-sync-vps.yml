@@ -1,0 +1,40 @@
+# Đo skill manager vs tenant (workflow_dispatch). Không deploy.
+name: Probe skill sync on VPS
+
+"on":
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe skills over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            echo "=== DOCKER CLI IN MANAGER ==="
+            docker exec javis-manager sh -c 'ls -la /usr/bin/docker /var/run/docker.sock; id; docker version --format "{{.Server.Version}}" || echo DOCKER_CLI_FAIL'
+            echo "=== CONTAINERS ==="
+            docker ps -a --format '{{.Names}} {{.Status}}' | grep '^javis-' || true
+            echo "=== MANAGER BRAINS ==="
+            docker exec javis-manager sh -c 'ls -1 /brains'
+            echo "=== MANAGER SKILL SLUGS ==="
+            docker exec javis-manager sh -c 'for b in /brains/*; do echo "## $(basename "$b")"; find "$b/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | xargs -n1 basename; done'
+            echo "=== MATCH khoa hoc / luan an ==="
+            docker exec javis-manager sh -c 'find /brains -iname "*khoa*" -o -iname "*luan*" -o -iname "*tien-si*" -o -iname "*nghien*" | head -80'
+            echo "=== ONE RUNNING TENANT ==="
+            t=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -v -E 'manager|proxy|park|quan' | head -1 || true)
+            echo "tenant=$t"
+            if [ -n "$t" ]; then
+              docker exec "$t" sh -c 'echo brains:; ls -1 /brains; echo skills Brain Default:; find "/brains/Brain Default/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | xargs -n1 basename'
+            fi
+            echo PROBE_SKILL_DONE
