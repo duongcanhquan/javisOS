@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.40] - 2026-09-23
+### Sửa
+- **Cuộc họp:** mọi tenant ghi giọng bằng cùng model với máy quan. Sơ đồ, font và phần đổi ghi chú sang Markdown cũng dùng chung file đó.
+- **Tổ chức:** máy người nghỉ khoảng 15 phút thì tự nhả cache file, app vẫn chạy. Muốn trả hết RAM thì bấm Tắt máy.
+- **Telegram:** không lưu Chat ID là số của chính bot. Nếu bị chặn quyền, tin nhắn hiện số của bạn để dán vào ô Chat ID. Lời chào không còn ra ô trống.
+
 ## [0.56.39] - 2026-09-23
 ### Sửa
 - **Tổ chức:** mọi máy người lên trần RAM **1024 MB**. Não giữ nguyên. Máy đang chạy được nâng tại chỗ, không cần tạo lại.

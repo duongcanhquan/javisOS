@@ -55,7 +55,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 15m
+          command_timeout: 25m
           envs: GHCR_TOKEN,GHCR_USER,JAVIS_IMAGE,WANT_SHA,JAVIS_SKIP_GIT,JAVIS_DEPLOY_EXTRAS
           script: |
             set -euo pipefail

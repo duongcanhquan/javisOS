@@ -533,7 +533,7 @@ class ZaloBot(HangLuot):
             if isinstance(reply, dict):
                 files = reply.get("files") or []
                 im_lang = bool(reply.get("im_lang"))
-                reply = reply.get("text") or ""
+                reply = reply.get("text") or reply.get("reply") or ""
             if im_lang and not str(reply or "").strip() and not files:
                 return
             # Không còn ghép dòng vết ⚙ tool/shell vào tin trả lời (0.55.238).

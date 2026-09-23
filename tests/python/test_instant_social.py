@@ -27,5 +27,9 @@ check("không nuốt câu có việc", S.try_reply("xin chào, hôm nay doanh th
 check("không nuốt câu hỏi", S.try_reply("chào bạn, bạn làm được gì?", "Javis") is None)
 check("rỗng", S.try_reply("", "Javis") is None)
 check("dài", S.try_reply("xin chào " + ("a" * 80), "Javis") is None)
+_tg = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
+_khoi = _tg.split("không spawn Antigravity/CLI.", 1)[1].split("async def _p", 1)[0]
+check("Telegram nhận câu chào ở khóa text",
+      '{"text": _social, "files": []}' in _khoi and '{"reply": _social' not in _khoi)
 
 print("\nOK - test_instant_social")

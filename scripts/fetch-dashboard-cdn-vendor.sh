@@ -60,12 +60,26 @@ rsync -a --delete "$VENDOR/fonts/" "$PERSIST/fonts/" 2>/dev/null \
   || { mkdir -p "$PERSIST/fonts" && cp -a "$VENDOR/fonts/." "$PERSIST/fonts/"; }
 echo "==> persist → $PERSIST"
 
-if docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-  echo "==> docker cp vào $CONTAINER"
-  docker exec -u root "$CONTAINER" mkdir -p /app/dashboard/vendor
-  docker cp "$PERSIST/mermaid" "$CONTAINER:/app/dashboard/vendor/"
-  docker cp "$PERSIST/turndown" "$CONTAINER:/app/dashboard/vendor/"
-  docker cp "$PERSIST/fonts" "$CONTAINER:/app/dashboard/vendor/"
-  docker exec -u root "$CONTAINER" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts
-fi
+copy_vendor_into() {
+  local name="$1"
+  if ! docker ps --format '{{.Names}}' | grep -qx "$name"; then
+    echo "WARN: container $name chưa chạy, bỏ qua vendor"
+    return 0
+  fi
+  echo "==> docker cp vendor vào $name"
+  docker exec -u root "$name" mkdir -p /app/dashboard/vendor
+  docker cp "$PERSIST/mermaid" "$name:/app/dashboard/vendor/"
+  docker cp "$PERSIST/turndown" "$name:/app/dashboard/vendor/"
+  docker cp "$PERSIST/fonts" "$name:/app/dashboard/vendor/"
+  docker exec -u root "$name" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts
+}
+
+copy_vendor_into "$CONTAINER"
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  case "$name" in
+    javis-proxy|javis-park|"$CONTAINER") continue ;;
+  esac
+  copy_vendor_into "$name" || echo "WARN: vendor chưa vào $name"
+done < <(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^javis-' || true)
 echo "OK vendor CDN đã local"

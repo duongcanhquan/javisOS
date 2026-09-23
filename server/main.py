@@ -119,7 +119,7 @@ import model_router           # Phase 12: chọn model theo từng bước, lọ
 import workflow_graph          # Phase 10: workflow -> capability graph (thuần dữ liệu)
 import workflow_runtime        # Phase 10: chạy graph có checkpoint/resume
 import write_path_runtime    # Phase 9: write có xác nhận, idempotency và reconcile
-from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids
+from telegram_bot import TelegramBot, parse_chat_ids as tg_parse_ids, loi_chat_id_la_bot
 import zalo_bot   # kênh Zalo Bot của chủ (API chính thức) - cùng khế ước với TelegramBot
 import channel_context   # metadata kênh + gom file trả về kênh chat (port gateway hermes-agent)
 import lang as lang_mod   # chốt ngôn ngữ trả lời cho một lượt
@@ -4451,11 +4451,17 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
                 m[k] = patch[k]
     elif section == "telegram":
         t = cfg["telegram"]
+        token_moi = str(patch.get("token") or t.get("token") or "")
+        ids_moi = (tg_parse_ids(patch["chat_id"]) if "chat_id" in patch
+                   else tg_parse_ids(t.get("chat_id")))
+        loi_id = loi_chat_id_la_bot(token_moi, ids_moi)
+        if loi_id:
+            return JSONResponse({"ok": False, "error": loi_id}, status_code=400)
         if "enabled" in patch:
             t["enabled"] = bool(patch["enabled"])
         if "chat_id" in patch:
             # Nhận MỘT hoặc NHIỀU ID ("id1, id2" / list) → chuẩn hoá lưu "id1,id2".
-            t["chat_id"] = ",".join(tg_parse_ids(patch["chat_id"]))
+            t["chat_id"] = ",".join(ids_moi)
         if patch.get("token"):
             t["token"] = patch["token"]
     elif section == "zalo_bot":
@@ -17828,9 +17834,10 @@ async def _tg_answer_engine(text, meta, progress, *, chat_id, sess, brain, mcfg,
         _ten = (_cfg_tg.get("workspace_name") or "Javis OS").split()[0] or "VMOS"
         _social = instant_social.try_reply(text, _ten)
         if _social:
-            return {"reply": _social, "engine": "instant", "model": "social"}
+            # Kênh Telegram/Zalo đọc khóa "text". Trả "reply" thì lượt 0 giây và hiện "(không có nội dung)".
+            return {"text": _social, "files": []}
         if lenh_dung_viec.la_lenh_dung_viec(text):
-            return {"reply": lenh_dung_viec.thu_huy(brain), "engine": "instant", "model": "stop-job"}
+            return {"text": lenh_dung_viec.thu_huy(brain), "files": []}
 
     async def _p(s):
         # Báo trạng thái trung gian về kênh (Telegram) cho user đỡ lo khi chờ. Bỏ qua nếu lỗi.
@@ -19602,6 +19609,9 @@ async def telegram_test():
     ids = tg_parse_ids(t.get("chat_id"))
     if not t.get("token") or not ids:
         return {"ok": False, "error": "Thiếu token hoặc chat ID (lưu trước đã)"}
+    loi_id = loi_chat_id_la_bot(t.get("token"), ids)
+    if loi_id:
+        return {"ok": False, "error": loi_id}
     import httpx
     sent, errs = 0, []
     try:
@@ -19614,7 +19624,11 @@ async def telegram_test():
                     if d.get("ok"):
                         sent += 1
                     else:
-                        errs.append(f"{cid}: {d.get('description', 'lỗi')}")
+                        desc = str(d.get("description") or "lỗi")
+                        if "can't send messages to the bot" in desc:
+                            desc = ("id này là của một bot. Bot không nhắn được cho bot. "
+                                    "Dán số người nhận lấy từ @userinfobot.")
+                        errs.append(f"{cid}: {desc}")
                 except Exception as e:
                     errs.append(f"{cid}: {type(e).__name__}")
         return {"ok": sent > 0, "sent": sent, "total": len(ids),

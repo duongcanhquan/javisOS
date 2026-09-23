@@ -5990,6 +5990,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
               <input class="js-input" id="tgToken" type="password" placeholder="${tg.token_set ? "Để trống nếu không đổi" : "123456:ABC..."}">
               <label class="js-lbl">Chat ID được phép <span class="dim">(cách nhau dấu phẩy)</span></label>
               <input class="js-input" id="tgChat" value="${esc(tg.chat_id || "")}" placeholder="Ví dụ: 123456789, 987654321">
+              <div class="gcard-meta dim">Số của người nhận, không phải số đứng trước dấu : trong token. Lấy bằng cách nhắn /start cho @userinfobot.</div>
               <div class="js-actions"><button class="gcard-btn" id="tgSave">Lưu & bật</button><button class="gcard-btn ghost" id="tgTest">Gửi test</button></div>
               <div class="gcard-meta" id="tgStatus"></div>
             </div>
@@ -6035,7 +6036,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       if (tok) data.token = tok;
       st.textContent = "Đang lưu...";
       const r = await saveSetting("telegram", data);
-      st.innerHTML = r.ok ? OK_ICON + " Đã lưu, đang khởi động bot…" : WARN_ICON + " Lỗi lưu.";
+      st.innerHTML = r.ok ? OK_ICON + " Đã lưu, đang khởi động bot…" : WARN_ICON + " " + esc(r.error || "Lỗi lưu.");
       if (r.ok) setTimeout(refreshTgStatus, 1800);
     };
     document.getElementById("tgTest").onclick = async () => {

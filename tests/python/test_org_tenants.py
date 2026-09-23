@@ -320,6 +320,15 @@ check("1024 MB thì giữ", od_mem.memory_should_raise(1024 * 1024 * 1024) is Fa
 check("gắn lại máy luôn đặt trần 1024",
       '"Memory": _MEM' in src and 'hc.get("Memory") or _MEM' not in src)
 check("tick nâng trần máy người", "def ensure_people_memory" in src)
+check("tick nhả cache file máy nghỉ", "def reclaim_idle_file_cache" in src and "reclaim_idle_file_cache()" in src)
+check("cache file 10MB thì không nhả", od_mem.file_cache_reclaim_bytes({"file": 10 * 1024 * 1024}) == 0)
+check("cache file 200MB thì nhả đúng số",
+      od_mem.file_cache_reclaim_bytes({"file": 200 * 1024 * 1024}) == 200 * 1024 * 1024)
+check("nghỉ 10 phút chưa nhả cache", od_mem.cache_reclaim_due(10 * 60, 0, 10_000) is False)
+check("nghỉ 16 phút thì đến lượt nhả", od_mem.cache_reclaim_due(16 * 60, 0, 10_000) is True)
+check("vừa nhả thì chưa nhả lại", od_mem.cache_reclaim_due(20 * 60, 10_000, 10_000 + 60) is False)
+check("đọc memory.stat", od_mem.parse_cgroup_memory_stat("file 123\r\nanon 4\n")["file"] == 123)
+check("org.js nói máy nghỉ tự nhả cache", "tự nhả cache file" in org_js)
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
 check("org.js poll ram_live", 'api("/org/ram_live")' in org_js and "startRamPoll" in org_js)
 check("org.js meter RAM đang dùng thật", "RAM đang dùng (Docker)" in org_js and "RAM ước cho" not in org_js)
@@ -328,6 +337,23 @@ check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _heal
 check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
 moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")
 check("Moonshine lấy tên máy từ JAVIS_NAME", "JAVIS_NAME:-javis" in moon)
+check("deploy chép Moonshine vào mọi máy người", "def copy_moonshine_everywhere" in moon or "copy_moonshine_everywhere()" in moon)
+check("bỏ qua manager khi chép model họp", "javis-manager" in moon and "javis-proxy" in moon)
+check("máy người gắn model họp chỉ đọc", od_mem.moonshine_bind().endswith(":ro"))
+check("bind model họp đúng đường trong container",
+      "/app/dashboard/vendor/moonshine-models" in od_mem.moonshine_bind())
+check("gắn bind không nhân đôi",
+      len(od_mem.attach_moonshine_bind([od_mem.moonshine_bind(), "/a:/data"])) == 2)
+check("tạo máy gắn phần chạy chung", "attach_shared_runtime_binds(" in create_fn)
+check("gắn lại máy gắn phần chạy chung",
+      "attach_shared_runtime_binds(binds)" in src.split("def apply_public_hosts", 1)[-1].split("def write_quota", 1)[0])
+check("tick chép phần chạy chung khi máy thiếu",
+      "def ensure_shared_runtime" in src and "ensure_shared_runtime()" in src)
+_ids = {s["id"] for s in od_mem.shared_runtime_specs()}
+check("bộ chung có họp, sơ đồ, font", {"moonshine", "mermaid", "turndown", "fonts"} <= _ids)
+_share = od_mem.attach_shared_runtime_binds(["/a:/data"])
+check("bốn thư mục chung chỉ đọc", sum(1 for b in _share if str(b).endswith(":ro")) == 4)
+check("gắn phần chung không đè ổ não", "/a:/data" in _share)
 check("không em dash org.js", "\u2014" not in org_js)
 con = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 check("rail có nhóm Tổ chức riêng", 'nav.group.quan_tri' in con and 'ids: ["org"]' in con)

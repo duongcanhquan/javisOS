@@ -116,6 +116,25 @@ for spec in "${SPECS[@]}"; do
   download_one "$lang" "$sub" "$files_csv"
 done
 
-echo "==> copy vào container $CONTAINER"
-copy_into_container
+copy_moonshine_everywhere() {
+  # Máy cá nhân nhận bản đầy đủ (thiếu VI thì fail deploy).
+  # Mọi container javis-* đang chạy khác manager/proxy/park cũng nhận cùng model,
+  # kẻo tenant chỉ có image trống và cuộc họp 404.
+  local primary="$CONTAINER"
+  copy_into_container
+  local name
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    case "$name" in
+      javis-manager|javis-proxy|javis-park|"$primary") continue ;;
+    esac
+    echo "==> copy Moonshine vào $name"
+    if ! CONTAINER="$name" copy_into_container; then
+      echo "WARN: Moonshine chưa vào được $name"
+    fi
+  done < <(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^javis-' || true)
+}
+
+echo "==> copy vào container $CONTAINER và mọi máy người đang chạy"
+copy_moonshine_everywhere
 echo "OK — browser: /static/vendor/moonshine-models/<lang>/*"

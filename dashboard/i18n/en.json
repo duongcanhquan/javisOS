@@ -278,7 +278,7 @@
   "setm.tg_token_ph": "e.g. 123456:ABC... (leave blank to keep)",
   "setm.tg_chat": "Allowed chat IDs",
   "setm.tg_chat_dim": "(separate multiple IDs with commas)",
-  "setm.tg_note": "Message VMOS over Telegram. Uses the engine you picked (the CLI one includes MCP, so you can ask about revenue/ads from your phone). A Morning Briefing bot token works too.",
+  "setm.tg_note": "Message VMOS over Telegram. The chat ID is your id, not the number before the colon in the bot token. Message /start to @userinfobot to get it.",
   "setm.tg_save": "Save & enable",
   "setm.tg_test": "Send test",
   "setm.auth": "Sign-in account",

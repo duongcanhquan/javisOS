@@ -234,6 +234,19 @@ check("CANARY: cả claude lẫn codex đều dùng đường tìm mở rộng",
 check("CANARY: không còn shutil.which trần cho hai binary đó",
       'shutil.which("claude")' not in _src_cli and 'shutil.which("codex")' not in _src_cli)
 
+check("số đầu token là id bot", telegram_bot.id_bot_tu_token("8813210964:AAEsecret") == "8813210964")
+check("từ chối whitelist nói số người nhắn",
+      "Chat ID của bạn là 42" in telegram_bot.loi_tu_choi_whitelist("42", ["8813210964"], "8813210964:AAE")
+      and "chính bot" in telegram_bot.loi_tu_choi_whitelist("42", ["8813210964"], "8813210964:AAE"))
+check("chat id trùng bot thì nói rõ, không gửi",
+      "chính con bot" in telegram_bot.loi_chat_id_la_bot("8813210964:AAE", ["8813210964"])
+      and telegram_bot.loi_chat_id_la_bot("8813210964:AAE", ["555"]) == "")
+_src_main = (SERVER / "main.py").read_text(encoding="utf-8")
+check("test Telegram chặn id của chính bot", "loi_chat_id_la_bot" in _src_main)
+_src_loop = _src_tg.split("async def _loop", 1)[-1].split("async def ", 1)[0]
+check("trạng thái nhận tin đặt trước getMe, không kẹt đang khởi động",
+      _src_loop.find('self.status = "polling"') < _src_loop.find("await self._hoi_danh_tinh"))
+
 print()
 if _fails:
     print(f"{len(_fails)} test HỎNG: " + ", ".join(_fails))

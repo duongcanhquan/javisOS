@@ -400,7 +400,7 @@
     const ramCalc = `
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
-          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Chỉ khi <b>tắt container</b> mới nhả RAM.
+          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Máy nghỉ từ 15 phút thì tự nhả cache file, app vẫn chạy. <b>Tắt máy</b> mới trả hết RAM.
             Cập nhật mỗi ~4 giây. Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck và poll nền không tính.
             Máy đã tạo trước khi nâng trần có thể vẫn 768 MB đến khi tắt/bật tạo lại.</p></div></div>
         <div class="org-kpi">

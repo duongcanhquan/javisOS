@@ -197,6 +197,8 @@ fi
 
 # Model Moonshine + vendor CDN đã persist trên host → copy lại vào container (nhanh, không tải lại).
 # Sau org-split máy cá nhân tên javis-quan, không còn container tên javis.
+# Script cũng chép model vào mọi container javis-* đang chạy. Máy người gắn lại từ image
+# thì đọc thẳng thư mục persist (bind chỉ đọc), không phụ thuộc lần copy này.
 export JAVIS_CONTAINER="${JAVIS_CONTAINER:-${JAVIS_NAME:-javis}}"
 if [ -f "$ROOT/scripts/fetch-moonshine-models.sh" ]; then
   echo "==> restore Moonshine models (copy-only)"
@@ -209,19 +211,32 @@ else
   echo "WARN: thiếu scripts/fetch-moonshine-models.sh"
 fi
 if [ -f "$ROOT/scripts/patch-moonshine-wasm-threads.sh" ]; then
-  echo "==> patch Moonshine WASM pthread pool (max 2)"
+  echo "==> patch Moonshine WASM pthread pool (max 2) trên mọi máy"
   chmod +x "$ROOT/scripts/patch-moonshine-wasm-threads.sh"
   bash "$ROOT/scripts/patch-moonshine-wasm-threads.sh" || echo "WARN: moonshine pthread patch skipped"
 fi
 if [ -d /root/javis-data/dashboard-vendor ]; then
-  echo "==> restore dashboard CDN vendor"
-  docker exec -u root "${JAVIS_CONTAINER}" mkdir -p /app/dashboard/vendor
-  for d in mermaid turndown fonts; do
-    if [ -d "/root/javis-data/dashboard-vendor/$d" ]; then
-      docker cp "/root/javis-data/dashboard-vendor/$d" "${JAVIS_CONTAINER}:/app/dashboard/vendor/" || true
-    fi
-  done
-  docker exec -u root "${JAVIS_CONTAINER}" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts 2>/dev/null || true
+  echo "==> restore dashboard CDN vendor cho mọi máy người"
+  _share_vendor() {
+    local name="$1"
+    docker exec -u root "$name" mkdir -p /app/dashboard/vendor
+    local d
+    for d in mermaid turndown fonts; do
+      if [ -d "/root/javis-data/dashboard-vendor/$d" ]; then
+        docker cp "/root/javis-data/dashboard-vendor/$d" "$name:/app/dashboard/vendor/" || true
+      fi
+    done
+    docker exec -u root "$name" chmod -R a+rX /app/dashboard/vendor/mermaid /app/dashboard/vendor/turndown /app/dashboard/vendor/fonts 2>/dev/null || true
+  }
+  _share_vendor "${JAVIS_CONTAINER}"
+  while IFS= read -r _vn; do
+    [ -n "$_vn" ] || continue
+    case "$_vn" in
+      javis-proxy|javis-park|"${JAVIS_CONTAINER}") continue ;;
+    esac
+    echo "==> vendor → $_vn"
+    _share_vendor "$_vn"
+  done < <(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^javis-' || true)
 fi
 
 # Seed / optimize: TẮT mặc định (trước đây làm deploy chậm + prune image + health 2 lần).
@@ -290,6 +305,8 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   if [ -n "${DOCKER_GID:-}" ]; then
     _mgr_set DOCKER_GID "$DOCKER_GID"
   fi
+  # Máy đang chạy trước khi Javis gốc gắn lại. Sau gắn lại, máy người phải có model họp.
+  _MEET_PEOPLE=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE '^(javis-manager|javis-proxy|javis-park)$' || true)
   (
     cd "$MGR_DIR"
     unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT JAVIS_ORG_HOST_PREFIX
@@ -320,6 +337,46 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
   if [ "$_mgr_ok" != 1 ]; then
     echo "WARN: Javis gốc chưa trả /health sau recreate - thử https://javis.vietmycollege.com"
   fi
+  echo "==> đợi mọi máy người ghi cuộc họp được (model VI)"
+  _moon_ok=0
+  _miss=""
+  for i in $(seq 1 48); do
+    _miss=""
+    _down=""
+    for name in $_MEET_PEOPLE; do
+      [ -n "$name" ] || continue
+      st=$(docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null || echo missing)
+      if [ "$st" != "true" ]; then
+        _down="$_down $name"
+        continue
+      fi
+      if ! docker exec "$name" test -s /app/dashboard/vendor/moonshine-models/vi/decoder_model_merged.ort; then
+        _miss="$_miss $name"
+        continue
+      fi
+      case "$name" in
+        javis-quan|javis) ;;
+        *)
+          mounts=$(docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$name" 2>/dev/null || true)
+          case "$mounts" in
+            *"/app/dashboard/vendor/moonshine-models"*) ;;
+            *) _miss="$_miss $name" ;;
+          esac
+          ;;
+      esac
+    done
+    if [ -z "$_miss" ] && [ -z "$_down" ]; then
+      _moon_ok=1
+      break
+    fi
+    echo "đợi model họp ($i) thiếu:${_miss:-không} chưa chạy:${_down:-không}"
+    sleep 5
+  done
+  if [ "$_moon_ok" != 1 ]; then
+    echo "ERROR: máy người chưa ghi cuộc họp được như máy quan. Thiếu:${_miss:-} chưa chạy:${_down:-}"
+    exit 1
+  fi
+  echo "OK model họp VI trên mọi máy đã chạy trước deploy"
 else
   echo "==> không có $MGR_DIR - bỏ cập nhật Javis gốc"
 fi

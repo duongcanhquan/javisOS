@@ -45,6 +45,41 @@ def parse_chat_ids(raw):
     return out
 
 
+def id_bot_tu_token(token) -> str:
+    """Số đứng trước dấu : trong token. Đó là id của chính con bot, không phải chat của người."""
+    dau = str(token or "").strip().split(":", 1)[0]
+    return dau if dau.isdigit() else ""
+
+
+def loi_tu_choi_whitelist(chat, chat_ids, token="", bot_id=0) -> str:
+    """Người nhắn không nằm trong danh sách được phép. Nói số của họ để họ dán lại."""
+    cid = str(chat or "").strip()
+    ids = [str(x).strip() for x in (chat_ids or []) if str(x).strip()]
+    me = str(bot_id or id_bot_tu_token(token) or "")
+    if me and ids and all(x == me for x in ids):
+        return (
+            "Bot đang chặn vì ô Chat ID đang là số của chính bot (" + me + "). "
+            "Chat ID của bạn là " + cid + ". Dán số đó vào ô Chat ID trên VMOS rồi Lưu."
+        )
+    return (
+        "Bạn không có quyền dùng bot Javis này. Chat ID của bạn là " + cid
+        + ". Dán số này vào ô Chat ID được phép rồi Lưu."
+    )
+
+
+def loi_chat_id_la_bot(token, chat_ids) -> str:
+    """Bot không gửi được tin cho chính nó. Trả câu nói cho người dùng, hoặc chuỗi rỗng."""
+    me = id_bot_tu_token(token)
+    ids = [str(x).strip() for x in (chat_ids or [])]
+    if not me or me not in ids:
+        return ""
+    return (
+        me + " là số của chính con bot (đoạn đứng trước dấu : trong token). "
+        "Bot không gửi tin cho bot được. Ô Chat ID phải là số của người nhận: "
+        "trên Telegram mở @userinfobot, nhắn /start, rồi dán số nó trả về."
+    )
+
+
 TG_API = "https://api.telegram.org/bot{token}/{method}"
 
 # Lệnh hiện trong menu Telegram (gõ "/" hoặc nút Menu). Tên chỉ a-z0-9_ (skill có dấu "-" gõ tay).
@@ -726,7 +761,7 @@ class TelegramBot(HangLuot):
                 # rỗng vì hỏng. Không phân biệt thì cả hai cùng ra "(không có nội dung)" - vừa lộ
                 # với người ngoài, vừa che mất lượt hỏng thật.
                 im_lang = bool(reply.get("im_lang"))
-                reply = reply.get("text") or ""
+                reply = reply.get("text") or reply.get("reply") or ""
             # Chốt tin trạng thái gọn (thời gian), KHÔNG liệt kê shell/tool - trước đây dòng
             # "⚙ /bin/sh -lc … · 1m16s" nằm lại chat và trông như lỗi encoding.
             await self._edit_status(client, chat, status_mid,
@@ -751,6 +786,10 @@ class TelegramBot(HangLuot):
                 giu.cancel()
 
     async def _loop(self):
+        # Báo đang nhận ngay. getMe và menu lệnh có thể chậm; để status kẹt "starting"
+        # thì trang Cài đặt đứng ở "Đang khởi động bot" cả phút.
+        self.status = "polling"
+        print(f"[telegram] bot started (chat_id={','.join(self.chat_ids) or 'mọi người'})", file=sys.stderr)
         async with httpx.AsyncClient(timeout=httpx.Timeout(40.0)) as client:
             try:
                 r = await client.get(self._url("getUpdates"), params={"offset": -1, "timeout": 0})
@@ -766,8 +805,6 @@ class TelegramBot(HangLuot):
                 print(f"[telegram deleteWebhook] {e}", file=sys.stderr)
             await self._hoi_danh_tinh(client)
             await self._day_menu_lenh(client)
-            print(f"[telegram] bot started (chat_id={','.join(self.chat_ids) or 'mọi người'})", file=sys.stderr)
-            self.status = "polling"
             while not self._stop:
                 try:
                     r = await client.get(self._url("getUpdates"), params={"offset": self.offset, "timeout": 25})
@@ -804,7 +841,11 @@ class TelegramBot(HangLuot):
                         # chuyện phải biết kể cả (nhất là) khi nhóm đó chưa được cho phép.
                         await self._bao_su_kien(msg)
                         if self.chat_ids and chat not in self.chat_ids:
-                            await self._send(client, chat, "Bạn không có quyền dùng bot Javis này.")
+                            await self._send(
+                                client, chat,
+                                loi_tu_choi_whitelist(
+                                    chat, self.chat_ids, self.token, self.bot_id),
+                            )
                             continue
                         text = (msg.get("text") or "").strip()
                         caption = (msg.get("caption") or "")

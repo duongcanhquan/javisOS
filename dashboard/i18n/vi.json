@@ -278,7 +278,7 @@
   "setm.tg_token_ph": "Ví dụ: 123456:ABC... (để trống nếu không đổi)",
   "setm.tg_chat": "Chat ID được phép dùng",
   "setm.tg_chat_dim": "(nhiều ID cách nhau dấu phẩy)",
-  "setm.tg_note": "Nhắn Telegram ↔ VMOS. Dùng đúng engine đang chọn (CLI thì có cả MCP để hỏi doanh thu/ads qua điện thoại). Có thể dùng lại token bot Morning Briefing.",
+  "setm.tg_note": "Nhắn Telegram ↔ VMOS. Chat ID là số của bạn, không phải số đứng trước dấu : trong token. Lấy số bằng cách nhắn /start cho @userinfobot.",
   "setm.tg_save": "Lưu & bật",
   "setm.tg_test": "Gửi test",
   "setm.auth": "Tài khoản đăng nhập",

@@ -293,13 +293,16 @@ def _ensure_volume(name: str) -> None:
         raise RuntimeError(f"volume {name}: HTTP {r.status_code} {(r.text or '')[:200]}")
 
 
-def _exec(cname: str, cmd: list[str], extra_env: list[str] | None = None, timeout: float = 45.0) -> str:
+def _exec(cname: str, cmd: list[str], extra_env: list[str] | None = None, timeout: float = 45.0,
+         user: str | None = None, exit_box: list | None = None) -> str:
     body = {
         "AttachStdout": True,
         "AttachStderr": True,
         "Tty": True,
         "Cmd": cmd,
     }
+    if user:
+        body["User"] = user
     if extra_env:
         body["Env"] = list(extra_env)
     cr = _docker_api("POST", f"/containers/{quote(cname)}/exec", json_body=body, timeout=20.0)
@@ -316,6 +319,15 @@ def _exec(cname: str, cmd: list[str], extra_env: list[str] | None = None, timeou
     )
     if st.status_code not in (200, 201, 204):
         raise RuntimeError(f"exec start HTTP {st.status_code}: {(st.text or '')[:200]}")
+    if exit_box is not None:
+        code = 0
+        try:
+            info = _docker_api("GET", f"/exec/{quote(eid)}/json", timeout=10.0)
+            if info.status_code == 200:
+                code = int((info.json() or {}).get("ExitCode") or 0)
+        except Exception:
+            code = 1
+        exit_box[:] = [code]
     return (st.text or "")[-2000:]
 
 
@@ -414,6 +426,275 @@ def disk_usage_bytes(cname: str) -> int:
     return 0
 
 
+# Phần chạy trên máy chủ, không nằm trong image. Trước đây deploy chỉ chép vào máy cá nhân
+# (javis-quan). Máy người bị gắn lại từ image nên mất file. Javis gốc gắn cùng bộ, chỉ đọc,
+# để mọi tenant chạy họp, sơ đồ và font như bản quan.
+MOONSHINE_HOST = (os.getenv("JAVIS_MOONSHINE_DIR") or "/root/javis-data/moonshine-models").strip() or "/root/javis-data/moonshine-models"
+MOONSHINE_DEST = "/app/dashboard/vendor/moonshine-models"
+MOONSHINE_MARK = MOONSHINE_DEST + "/vi/decoder_model_merged.ort"
+_SHARE_OK: set[str] = set()
+_SHARE_NEXT = 0
+_SHARE_COPYING = False
+_SHARE_LOCK = threading.Lock()
+_SHARE_COOL: dict[str, float] = {}
+
+
+def dashboard_vendor_host() -> str:
+    raw = (os.getenv("JAVIS_DASHBOARD_VENDOR_DIR") or "/root/javis-data/dashboard-vendor").strip()
+    return raw or "/root/javis-data/dashboard-vendor"
+
+
+def shared_runtime_specs() -> list[dict[str, str]]:
+    """Những thư mục máy quan đang có để trang chạy tốt. Tenant phải có đúng các đường này."""
+    vendor = dashboard_vendor_host()
+    return [
+        {
+            "id": "moonshine",
+            "host": MOONSHINE_HOST,
+            "dest": MOONSHINE_DEST,
+            "mark": MOONSHINE_MARK,
+        },
+        {
+            "id": "mermaid",
+            "host": vendor + "/mermaid",
+            "dest": "/app/dashboard/vendor/mermaid",
+            "mark": "/app/dashboard/vendor/mermaid/mermaid.min.js",
+        },
+        {
+            "id": "turndown",
+            "host": vendor + "/turndown",
+            "dest": "/app/dashboard/vendor/turndown",
+            "mark": "/app/dashboard/vendor/turndown/turndown.js",
+        },
+        {
+            "id": "fonts",
+            "host": vendor + "/fonts",
+            "dest": "/app/dashboard/vendor/fonts",
+            "mark": "/app/dashboard/vendor/fonts/montserrat.css",
+        },
+    ]
+
+
+def moonshine_bind() -> str:
+    """Thư mục model trên máy chủ, chỉ đọc, mọi tenant dùng chung."""
+    return f"{MOONSHINE_HOST}:{MOONSHINE_DEST}:ro"
+
+
+def _bind_dest(bind: str) -> str:
+    parts = str(bind or "").split(":")
+    if len(parts) >= 3:
+        return parts[-2]
+    if len(parts) == 2:
+        return parts[-1]
+    return ""
+
+
+def attach_moonshine_bind(binds: list) -> list:
+    out = [b for b in binds if _bind_dest(str(b)) != MOONSHINE_DEST]
+    out.append(moonshine_bind())
+    return out
+
+
+def attach_shared_runtime_binds(binds: list) -> list:
+    dests = {s["dest"] for s in shared_runtime_specs()}
+    out = [b for b in binds if _bind_dest(str(b)) not in dests]
+    for spec in shared_runtime_specs():
+        out.append(f"{spec['host']}:{spec['dest']}:ro")
+    return out
+
+
+def _person_slug(name: str) -> str:
+    if not str(name or "").startswith("javis-"):
+        return ""
+    slug = str(name)[len("javis-"):].strip().lower()
+    if (not slug or slug in ("manager", "proxy", "park")
+            or slug in ot.PROTECTED_SLUGS or ot.validate_slug(slug)):
+        return ""
+    return slug
+
+
+def _dest_mounted(cname: str, dest: str) -> bool:
+    data = inspect_name(cname)
+    for m in data.get("Mounts") or []:
+        if isinstance(m, dict) and str(m.get("Destination") or "") == dest:
+            return True
+    return False
+
+
+def moonshine_mounted(cname: str) -> bool:
+    return _dest_mounted(cname, MOONSHINE_DEST)
+
+
+def _mark_present(cname: str, mark: str) -> bool:
+    box: list = []
+    try:
+        _exec(cname, ["test", "-s", mark], user="0", exit_box=box, timeout=20.0)
+    except Exception:
+        return False
+    return bool(box) and int(box[0]) == 0
+
+
+def moonshine_present(cname: str) -> bool:
+    return _mark_present(cname, MOONSHINE_MARK)
+
+
+def _running_person_names() -> list[str]:
+    try:
+        r = _docker_api("GET", "/containers/json", timeout=15.0)
+    except Exception:
+        return []
+    if r.status_code != 200:
+        return []
+    out: list[str] = []
+    for item in (r.json() or []):
+        if not isinstance(item, dict):
+            continue
+        name = ""
+        for raw in item.get("Names") or []:
+            n = str(raw or "").strip().lstrip("/")
+            if _person_slug(n):
+                name = n
+                break
+        if name:
+            out.append(name)
+    return out
+
+
+def _runtime_donor(dst: str, mark: str, asset_id: str) -> str:
+    for name in ("javis-quan", "javis"):
+        if name == dst:
+            continue
+        if _mark_present(name, mark):
+            return name
+    prefix = "|" + asset_id
+    for key in _SHARE_OK:
+        if not key.endswith(prefix):
+            continue
+        name = key.split("|", 1)[0]
+        if name != dst and _mark_present(name, mark):
+            return name
+    return ""
+
+
+def _stream_tree(src: str, src_path: str, dst: str, parent: str) -> bool:
+    """Chép một thư mục từ container nguồn sang máy thiếu, qua Docker archive."""
+    import tempfile
+
+    import httpx
+
+    sock = "/var/run/docker.sock"
+    if not Path(sock).exists():
+        sock = "/run/docker.sock"
+    transport = httpx.HTTPTransport(uds=sock)
+    tmp = ""
+    try:
+        with httpx.Client(transport=transport, base_url="http://localhost", timeout=600.0) as client:
+            with client.stream(
+                "GET",
+                f"/containers/{quote(src)}/archive",
+                params={"path": src_path},
+            ) as resp:
+                if resp.status_code != 200:
+                    return False
+                fd, tmp = tempfile.mkstemp(prefix="javis-share-", suffix=".tar")
+                with os.fdopen(fd, "wb") as out:
+                    for chunk in resp.iter_bytes(1024 * 1024):
+                        if chunk:
+                            out.write(chunk)
+
+            def _chunks():
+                with open(tmp, "rb") as inp:
+                    while True:
+                        blob = inp.read(1024 * 1024)
+                        if not blob:
+                            break
+                        yield blob
+
+            put = client.put(
+                f"/containers/{quote(dst)}/archive",
+                params={"path": parent},
+                content=_chunks(),
+            )
+            if put.status_code not in (200, 201):
+                return False
+        _exec(dst, ["chmod", "-R", "a+rX", src_path], user="0", timeout=60.0)
+        return True
+    finally:
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def _copy_runtime_worker(dst: str, spec: dict[str, str]) -> None:
+    global _SHARE_COPYING
+    key = dst + "|" + spec["id"]
+    try:
+        if _dest_mounted(dst, spec["dest"]):
+            print(
+                f"[org share] {dst} đã gắn {spec['host']} nhưng thiếu file. "
+                "Thư mục trên máy chủ đang trống.",
+                flush=True,
+            )
+            _SHARE_COOL[key] = time.time() + 3600
+            return
+        src = _runtime_donor(dst, spec["mark"], spec["id"])
+        if not src:
+            print(f"[org share] không có máy nào đang giữ {spec['id']} để chép cho {dst}", flush=True)
+            _SHARE_COOL[key] = time.time() + 600
+            return
+        parent = str(Path(spec["dest"]).parent)
+        if _stream_tree(src, spec["dest"], dst, parent) and _mark_present(dst, spec["mark"]):
+            _SHARE_OK.add(key)
+            print(f"[org share] đã chép {spec['id']} vào {dst}", flush=True)
+        else:
+            print(f"[org share] chép {spec['id']} vào {dst} thất bại", flush=True)
+            _SHARE_COOL[key] = time.time() + 600
+    except Exception as e:
+        print(f"[org share] {dst} {spec['id']}: {e}", flush=True)
+        _SHARE_COOL[key] = time.time() + 600
+    finally:
+        with _SHARE_LOCK:
+            _SHARE_COPYING = False
+
+
+def ensure_shared_runtime() -> None:
+    """Mỗi nhịp kiểm một phần (model họp, sơ đồ, font) trên một máy người.
+
+    Thiếu thì chép nền từ máy đang có, ưu tiên javis-quan. Máy đã gắn thư mục máy chủ
+    thì không ghi đè.
+    """
+    global _SHARE_NEXT, _SHARE_COPYING
+    specs = shared_runtime_specs()
+    pending: list[tuple[str, dict[str, str]]] = []
+    for name in _running_person_names():
+        for spec in specs:
+            if (name + "|" + spec["id"]) not in _SHARE_OK:
+                pending.append((name, spec))
+    if not pending:
+        return
+    _SHARE_NEXT = _SHARE_NEXT % len(pending)
+    name, spec = pending[_SHARE_NEXT]
+    _SHARE_NEXT += 1
+    key = name + "|" + spec["id"]
+    if time.time() < float(_SHARE_COOL.get(key) or 0):
+        return
+    if _mark_present(name, spec["mark"]):
+        _SHARE_OK.add(key)
+        return
+    with _SHARE_LOCK:
+        if _SHARE_COPYING:
+            return
+        _SHARE_COPYING = True
+    threading.Thread(target=_copy_runtime_worker, args=(name, spec), daemon=True).start()
+
+
+def ensure_moonshine_models() -> None:
+    """Tên cũ. Javis gốc nay rà cả bộ phần chạy chung, không chỉ model họp."""
+    ensure_shared_runtime()
+
+
 def create_and_start(
     slug: str,
     quota_gb: int = 2,
@@ -482,12 +763,12 @@ def create_and_start(
                 "NanoCpus": _NANO_CPUS,
                 "PidsLimit": _PIDS,
                 "RestartPolicy": {"Name": "unless-stopped"},
-                "Binds": [
+                "Binds": attach_shared_runtime_binds([
                     f"{vols[0]}:/data",
                     f"{vols[1]}:/brains",
                     f"{vols[2]}:/home/javis/.claude",
                     f"{vols[3]}:/home/javis/.codex",
-                ],
+                ]),
                 "NetworkMode": "javis-web",
             },
         }
@@ -625,6 +906,7 @@ def apply_public_hosts(slug: str) -> None:
         binds = list(hc.get("Binds") or [])
     if not binds:
         raise RuntimeError("Từ chối gắn lại máy không có ổ não.")
+    binds = attach_shared_runtime_binds(binds)
     body = {
         "Image": img,
         "Hostname": cfg.get("Hostname") or cname,
@@ -959,7 +1241,7 @@ def ram_live_report(running: list[dict] | None = None) -> dict:
         "people_idle_n": idle_n,
         "ram_limit_mb": oc.RAM_MB,
         "fit_more_est": int(fit_more),
-        "note": "Máy bật (Docker) luôn tốn RAM thật - nghỉ vẫn chiếm đến khi tắt.",
+        "note": "Máy bật vẫn tốn RAM app. Nghỉ từ 15 phút thì tự nhả cache file. Tắt máy mới trả hết.",
     }
 
 
@@ -1160,6 +1442,114 @@ def start_with_capacity(slug: str) -> dict:
     return rec
 
 
+# Máy nghỉ lâu thì nhả cache file (cgroup memory.reclaim). Không tắt app, không đụng RAM tiến trình.
+_CACHE_IDLE_SEC = 15 * 60
+_CACHE_MIN_BYTES = 64 * 1024 * 1024
+_CACHE_EVERY_SEC = 30 * 60
+_CACHE_LAST: dict[str, float] = {}
+_CACHE_CURSOR = 0
+_CACHE_BAO: set[str] = set()
+
+
+def parse_cgroup_memory_stat(text: str) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for raw in (text or "").replace("\r", "\n").splitlines():
+        parts = raw.split()
+        if len(parts) != 2 or not parts[1].isdigit():
+            continue
+        out[parts[0]] = int(parts[1])
+    return out
+
+
+def file_cache_reclaim_bytes(stat: dict | None, *, min_bytes: int = _CACHE_MIN_BYTES) -> int:
+    """Byte cache file nên nhả. 0 nếu dưới ngưỡng (khỏi quét máy gần như trống)."""
+    try:
+        file_b = int((stat or {}).get("file") or 0)
+    except (TypeError, ValueError):
+        return 0
+    if file_b < int(min_bytes):
+        return 0
+    return file_b
+
+
+def cache_reclaim_due(idle_age_sec: int, last_reclaim: float, now: float,
+                      *, idle_need: int = _CACHE_IDLE_SEC,
+                      every: int = _CACHE_EVERY_SEC) -> bool:
+    """Chỉ nhả khi người đã vắng đủ lâu và lần nhả trước đã qua."""
+    try:
+        age = int(idle_age_sec)
+    except (TypeError, ValueError):
+        return False
+    if age < int(idle_need):
+        return False
+    try:
+        last = float(last_reclaim or 0)
+    except (TypeError, ValueError):
+        last = 0.0
+    return (float(now) - last) >= int(every)
+
+
+def reclaim_idle_file_cache() -> int:
+    """Mỗi nhịp xét một máy người đang bật. Nghỉ >= 15 phút và cache file >= 64 MB thì nhả.
+
+    Không restart, không tắt. Kernel lấy lại trang file; lần đọc sau có thể cache lại.
+    """
+    global _CACHE_CURSOR
+    tenants = people_running()
+    if not tenants:
+        return 0
+    t = tenants[_CACHE_CURSOR % len(tenants)]
+    _CACHE_CURSOR += 1
+    slug = str(t.get("slug") or "")
+    cname = str(t.get("container") or "")
+    if not cname or not slug:
+        return 0
+    now = time.time()
+    ts = read_last_active(cname, t, assume_running=True)
+    age = int(now - ts) if ts > 0 else 10**9
+    if not cache_reclaim_due(age, _CACHE_LAST.get(cname, 0.0), now):
+        return 0
+    try:
+        raw = _exec(cname, ["cat", "/sys/fs/cgroup/memory.stat"], timeout=12.0)
+    except Exception as e:
+        if cname not in _CACHE_BAO:
+            print(f"[org cache] {slug}: {e}", flush=True)
+            _CACHE_BAO.add(cname)
+        _CACHE_LAST[cname] = now
+        return 0
+    nbytes = file_cache_reclaim_bytes(parse_cgroup_memory_stat(raw))
+    if nbytes <= 0:
+        return 0
+    box: list[int] = []
+    try:
+        _exec(
+            cname,
+            ["sh", "-c", f"echo {int(nbytes)} > /sys/fs/cgroup/memory.reclaim"],
+            timeout=20.0,
+            user="0",
+            exit_box=box,
+        )
+    except Exception as e:
+        if cname not in _CACHE_BAO:
+            print(f"[org cache] {slug}: {e}", flush=True)
+            _CACHE_BAO.add(cname)
+        _CACHE_LAST[cname] = now
+        return 0
+    if box and box[0] != 0:
+        if cname not in _CACHE_BAO:
+            print(f"[org cache] {slug}: nhả cache lỗi {box[0]}", flush=True)
+            _CACHE_BAO.add(cname)
+        _CACHE_LAST[cname] = now
+        return 0
+    _CACHE_LAST[cname] = now
+    _CACHE_BAO.discard(cname)
+    _MEM_CACHE["at"] = 0.0
+    _MEM_CACHE["by_name"] = {}
+    mb = nbytes // (1024 * 1024)
+    print(f"[org cache] {slug} nhả {mb} MB cache file", flush=True)
+    return 1
+
+
 def tick_coord() -> None:
     if not ot.manager_enabled() or not docker_available():
         return
@@ -1173,6 +1563,14 @@ def tick_coord() -> None:
         ensure_people_memory()
     except Exception as e:
         print(f"[org ram] {e}", flush=True)
+    try:
+        ensure_shared_runtime()
+    except Exception as e:
+        print(f"[org moon] {e}", flush=True)
+    try:
+        reclaim_idle_file_cache()
+    except Exception as e:
+        print(f"[org cache] {e}", flush=True)
     try:
         purge_soft_deleted()
     except Exception as e:

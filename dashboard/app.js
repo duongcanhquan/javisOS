@@ -2844,7 +2844,15 @@ if (document.getElementById("settingsBtn")) {
     document.getElementById("setTgEnabled").checked = true;   // "Lưu & bật" = luôn bật
     const d = { enabled: true, chat_id: document.getElementById("setTgChat").value.trim() };
     const t = document.getElementById("setTgToken").value.trim(); if (t) d.token = t;
-    _saveSetting("telegram", d, e.target).then(() => { document.getElementById("setTgToken").value = ""; setTimeout(() => { openSettings(); refreshTgStatus(); }, 600); });
+    _saveSetting("telegram", d, e.target).then((res) => {
+      if (res && res.ok === false) {
+        const st = document.getElementById("setTgStatus");
+        if (st && res.error) st.textContent = res.error;
+        return;
+      }
+      document.getElementById("setTgToken").value = "";
+      setTimeout(() => { openSettings(); refreshTgStatus(); }, 600);
+    });
   });
   // Toggle bật/tắt tức thì (off → dừng bot, on → chạy lại)
   document.getElementById("setTgEnabled").addEventListener("change", async (ev) => {
