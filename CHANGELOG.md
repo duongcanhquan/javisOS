@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.37] - 2026-09-23
+### Sửa
+- **Tổ chức:** máy người không còn tự tắt theo giờ hay vì hết chỗ. Muốn tắt thì bấm Tắt hoặc Tạm dừng.
+- **Mở tenant đang tắt:** trang chờ đứng yên đến khi cổng đăng nhập mở, không còn tự tải lại sau 4 giây rồi báo trang không hoạt động.
+
 ## [0.56.36] - 2026-09-23
 ### Sửa
 - **Đồng bộ skill:** máy đang tắt cũng nhận skill từ manager. Trước đó chỉ máy đang mở được copy, nên bấm Đồng bộ xong nhiều tenant vẫn thiếu skill mới.

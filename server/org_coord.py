@@ -10,7 +10,7 @@ import org_tenants as ot
 
 RAM_MB = 1024
 MAX_RUNNING_DEFAULT = 6
-IDLE_MINUTES_DEFAULT = 30
+IDLE_MINUTES_DEFAULT = 0
 PARK_NAME = "javis-park"
 # Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~2 Javis người (trần 1024).
 RESERVE_MB = 2800
@@ -420,19 +420,40 @@ def wake_html(host: str, title: str, body: str, refresh: int = 4) -> str:
         r = int(refresh)
     except (TypeError, ValueError):
         r = 4
-    meta = ""
-    more = f'<p><a href="https://{h}/">Thử mở lại</a></p>'
+    note = ""
+    script = ""
     if r > 0:
-        r = max(2, min(15, r))
-        meta = f'<meta http-equiv="refresh" content="{r};url=https://{h}/">'
-        more = f"<p>Trang tự mở lại sau {r} giây. <a href=\"https://{h}/\">Mở ngay</a></p>"
+        note = (
+            "<p id=\"javis-wake-note\">Trang này đứng chờ tại đây. "
+            "Khi máy sẵn sàng, bạn được đưa vào cổng đăng nhập. "
+            "Không cần bấm tải lại.</p>"
+        )
+        script = (
+            "<script>(function(){"
+            "function tick(){"
+            "fetch(location.pathname+location.search,{cache:'no-store',credentials:'same-origin'})"
+            ".then(function(res){return res.text().then(function(txt){"
+            "return {ok:res.ok,status:res.status,txt:txt};});})"
+            ".then(function(x){"
+            "if((x.ok||x.status===401)&&x.txt.indexOf('javis-wake-hold')<0){location.reload();return;}"
+            "setTimeout(tick,2000);})"
+            ".catch(function(){setTimeout(tick,2000);});}"
+            "setTimeout(tick,2000);"
+            "})();</script>"
+        )
     return (
         "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\">"
-        f"{meta}"
-        f"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-        f"<title>{t}</title></head>"
-        "<body style=\"font-family:sans-serif;max-width:36rem;margin:15vh auto;padding:0 16px;line-height:1.45\">"
-        f"<h1 style=\"font-size:1.35rem\">{t}</h1><p>{b}</p>"
-        f"{more}"
-        "</body></html>"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>{t}</title>"
+        "<style>"
+        "body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;"
+        "background:#12151a;color:#f3efe6;font-family:system-ui,sans-serif}"
+        "main{max-width:32rem;padding:28px 22px}"
+        "h1{font-size:1.45rem;font-weight:600;margin:0 0 12px}"
+        "p{line-height:1.5;margin:0 0 12px;color:#d9d3c7}"
+        "a{color:#f0d48a}"
+        "</style></head><body>"
+        f"<main id=\"javis-wake-hold\"><h1>{t}</h1><p>{b}</p>{note}"
+        f"<p><a href=\"https://{h}/\">Mở lại cổng đăng nhập</a></p></main>"
+        f"{script}</body></html>"
     )

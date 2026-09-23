@@ -357,7 +357,6 @@
     const coord = d.coord || {};
     const maxHand = Number(coord.max_running || 6);
     const maxR = Number(coord.effective_max || maxHand);
-    const idleM = Number(coord.idle_minutes || 0);
     const runP = Number(coord.running != null ? coord.running : people.filter((t) => t.status === "running").length);
     const ramPer = Number(coord.ram_mb || 1024);
     const ramEst = Number(coord.ram_est_mb != null ? coord.ram_est_mb : runP * ramPer);
@@ -655,20 +654,16 @@
           <div class="org-split">
             <div class="org-sec">
               <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
-                <p class="dim org-sec-sub"><b>Không giới hạn số tài khoản.</b> Chỉ giới hạn số máy <b>đang mở cùng lúc</b>
-                  (hiện ${runP}/${maxR}). Tạo thêm người thoải mái - máy mới tắt sẵn nếu hết chỗ; não vẫn giữ.
-                  Tạm dừng / tắt tay không xóa. Chỉ xóa khi bạn bấm Xóa (giữ 72 giờ).</p></div></div>
+                <p class="dim org-sec-sub"><b>Không giới hạn số tài khoản.</b> Máy người <b>giữ chạy</b>, không tự tắt theo giờ.
+                  Tắt chỉ khi bạn bấm Tắt hoặc Tạm dừng. Não vẫn giữ.</p></div></div>
               ${vpsKpis}
               ${ramCalc}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần máy mở cùng lúc<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}" title="Không phải số người trong sổ. Chỉ số container Docker đang chạy."></label>
-                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleM))}" title="0 = không tự tắt khi vắng. Ví dụ 5 = không ai vào 5 phút thì tắt máy (não giữ), nhường RAM."></label>
+                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="0" title="Để 0. Máy không tự tắt."></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
-              <p class="dim org-sec-note"><b>Tự tắt sau ${idleM || "0"} phút</b>:
-                ${idleM
-                  ? ("không ai mở trang / chat / API thật trên máy đó trong " + idleM + " phút → tắt container, não giữ. Healthcheck Docker, poll dải việc nền, chip kết nối và WebSocket giữ tab không tính. Có người xếp hàng thì máy nghỉ từ khoảng 1.5-2 phút cũng có thể nhường chỗ sớm hơn.")
-                  : "đang tắt - máy mở sẽ chiếm chỗ đến khi tắt tay hoặc RAM thấp."}
+              <p class="dim org-sec-note"><b>Không tự tắt.</b> Máy đang mở giữ chạy đến khi bạn bấm Tắt hoặc Tạm dừng. Não không mất.
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
                 Gợi ý RAM khoảng <b>${esc(String(suggestN))}</b> máy mở. Trần tay đang <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>.</p>
               <p class="dim" id="orgCoordMsg"></p>

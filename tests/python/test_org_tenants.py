@@ -42,7 +42,7 @@ check("bóc alias javis-lan khi prefix vmos", oc.slug_from_host("javis-lan.vietm
 check("không bóc javis gốc", oc.slug_from_host("javis.vietmycollege.com") == "")
 os.environ.pop("JAVIS_ORG_HOST_PREFIX", None)
 check("trần máy mặc định 6", oc.coord()["max_running"] == 6)
-check("idle mặc định 30", oc.coord()["idle_minutes"] == 30)
+check("idle mặc định 0 (không tự tắt)", oc.coord()["idle_minutes"] == 0)
 check("idle 5 phút = 300 giây grace", oc.evict_grace_sec(idle_minutes=5) == 300)
 check("idle 1 phút tôn trọng (không sàn cứng 5)", oc.evict_grace_sec(idle_minutes=1) == 60)
 check("idle 0 → grace nhường chỗ 15 phút", oc.evict_grace_sec(idle_minutes=0) == 15 * 60)
