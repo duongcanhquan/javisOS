@@ -201,7 +201,7 @@
   "mb.no_tools": "Chưa gọi tool nào",
   "bar.mic": "Bấm để nói (hoặc giữ Space)",
   "bar.attach": "Đính kèm file (ảnh, text, tài liệu) → lưu vào Sources",
-  "bar.file_limit": "Mỗi lượt: tối đa 3 file tài liệu (15 MB mỗi file) và 4 ảnh (8 MB mỗi ảnh).",
+  "bar.file_limit": "Mỗi lượt: tối đa 3 file tài liệu (15 MB) và 4 ảnh (8 MB). Thư mục: tối đa 50 file / 100 MB.",
   "bar.file_doc_count": "Đã đủ 3 file tài liệu mỗi lượt.",
   "bar.file_doc_size": "File này nặng hơn 15 MB.",
   "bar.file_img_count": "Đã đủ 4 ảnh mỗi lượt.",
@@ -2122,5 +2122,11 @@
   "ws.tab_workflow_sub": "Workflows",
   "ws.empty": "Không có kết quả khớp.",
   "ws.group_empty_hint": "Nhóm trống - tạo Trợ Lý / Quy Trình mới, hoặc xoá nhóm.",
-  "ws.upload_workflow": "Tải lên Quy Trình"
+  "ws.upload_workflow": "Tải lên Quy Trình",
+  "bar.folder": "Chọn thư mục trên máy → đọc / thao tác trong chat",
+  "bar.folder_limit": "Thư mục: tối đa 50 file, tổng 100 MB (tài liệu ≤15 MB, ảnh ≤8 MB mỗi file).",
+  "bar.folder_empty": "Thư mục trống hoặc không đọc được file nào.",
+  "bar.folder_unsupported": "Trình duyệt không hỗ trợ chọn thư mục. Dùng Chrome/Edge hoặc cập nhật trình duyệt.",
+  "bar.folder_too_many": "Thư mục quá nhiều file (tối đa 50).",
+  "app.folder_chip": "thư mục · {n} file"
 }

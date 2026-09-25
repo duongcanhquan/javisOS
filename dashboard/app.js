@@ -429,20 +429,42 @@ function sendMessage(text) {
   const _isSkill = _slash.type === "skill";
   let outMsg = _isSkill ? _slash.message : msg;
   if (atts.length) {
-    const lines = atts.map(a => `- ${a.path}`).join("\n");
+    const folders = atts.filter(a => a.kind === "folder");
+    const filesOnly = atts.filter(a => a.kind !== "folder");
     const src = atts[0].sources || "", attDir = atts[0].attachments || "";
     if (_isSkill) {
-      // Với lệnh skill (vd /notes): đưa path như dữ liệu, để chính skill quyết định lưu.
-      outMsg = `[File đính kèm (đường dẫn), Sources="${src}", Attachments="${attDir}":\n${lines}]\n\n${_slash.message}`;
+      const lines = atts.map(a => a.kind === "folder"
+        ? `- [folder] ${a.path}`
+        : `- ${a.path}`).join("\n");
+      outMsg = `[File/thư mục đính kèm (đường dẫn), Sources="${src}", Attachments="${attDir}":\n${lines}]\n\n${_slash.message}`;
     } else {
-      const ctx =
-        `[File đính kèm để ĐỌC (đường dẫn):\n${lines}\n` +
-        `Mặc định: chỉ đọc file rồi trả lời, KHÔNG tự lưu đi đâu.\n` +
-        `CHỈ khi user yêu cầu rõ (vd "lưu vào source", "ingest", "ghi vào second brain") thì mới: ` +
-        `chuyển thành .md (ảnh thì đọc hiểu + mô tả) lưu vào Sources="${src}" (ảnh gốc chuyển vào Attachments="${attDir}"), kèm frontmatter source.]`;
+      let parts = [];
+      if (folders.length) {
+        for (const f of folders) {
+          const tree = (f.files || []).map(x => `  - ${x.rel}  →  ${x.staged}`).join("\n");
+          parts.push(
+            `[Thư mục đính kèm để ĐỌC / THAO TÁC:\n` +
+            `Tên: ${f.name}\nGốc stage: ${f.path}\n` +
+            `Cây file (${(f.files || []).length}):\n${tree}\n` +
+            `Mặc định: đọc và làm theo lệnh user trên thư mục này (đọc hết, tóm tắt, tìm, so sánh…).\n` +
+            `CHỈ khi user yêu cầu rõ (vd "lưu vào source", "ingest", "chưng cất", "ghi vào second brain") ` +
+            `thì mới chuyển vào Sources="${src}" / wiki. Không tự mass-ingest nếu user không nói.]`
+          );
+        }
+      }
+      if (filesOnly.length) {
+        const lines = filesOnly.map(a => `- ${a.path}`).join("\n");
+        parts.push(
+          `[File đính kèm để ĐỌC (đường dẫn):\n${lines}\n` +
+          `Mặc định: chỉ đọc file rồi trả lời, KHÔNG tự lưu đi đâu.\n` +
+          `CHỈ khi user yêu cầu rõ (vd "lưu vào source", "ingest", "ghi vào second brain") thì mới: ` +
+          `chuyển thành .md (ảnh thì đọc hiểu + mô tả) lưu vào Sources="${src}" (ảnh gốc chuyển vào Attachments="${attDir}"), kèm frontmatter source.]`
+        );
+      }
+      const ctx = parts.join("\n\n");
       outMsg = msg
         ? `${ctx}\n\n${msg}`
-        : `${ctx}\n\nHãy đọc (các) file trên và phản hồi / tóm tắt nội dung chính.`;
+        : `${ctx}\n\nHãy đọc toàn bộ nội dung đính kèm và phản hồi / tóm tắt nội dung chính.`;
     }
   }
   // File đang ghim chỉ đi vào ĐÚNG cuộc đã mở file đó. Gửi vào mọi cuộc trên trang
@@ -2055,21 +2077,27 @@ function renderChips() {
   }
   pendingAttachments.forEach((a, i) => {
     const chip = document.createElement("div");
-    chip.className = "attach-chip" + (a.uploading ? " uploading" : "");
+    chip.className = "attach-chip" + (a.uploading ? " uploading" : "") + (a.kind === "folder" ? " folder" : "");
     // Ảnh vừa dán/chọn cũng phải BẤM PHÓNG TO được ngay ở thanh đính kèm - trước đây ô này
     // là ảnh chết, muốn xem cho rõ phải gửi đi rồi mở lại. Ưu tiên URL trên máy chủ (tải xong),
     // lúc còn đang tải thì tạm dùng blob để không phải chờ mới thấy hình.
     const _tUrl = a.kind === "image" ? (a.url || a.preview || "") : "";
+    const _ico = a.kind === "folder" ? "folder-open" : "file-text";
     const thumb = _tUrl
       ? `<a class="jv-img-link chip-thumb" href="${escapeHtml(_tUrl)}"`
         + ` data-img-ten="${escapeHtml(a.name || "")}" target="_blank"`
         + ` rel="noopener" data-i18n-title="chat.att_zoom"`
         + ` title="${escapeHtml(t("chat.att_zoom"))}">`
         + `<img src="${escapeHtml(_tUrl)}" alt=""></a>`
-      : `<div class="chip-ico">${a.uploading ? ic("loader", { cls: "ic-spin" }) : ic("file-text")}</div>`;
-    const meta = a.uploading
-      ? (a.statusText || "đang xử lý...")
-      : (a.statusText ? a.statusText : (fmtSize(a.size) + (a.folder ? ` → ${escapeHtml(a.folder)}` : "")));
+      : `<div class="chip-ico">${a.uploading ? ic("loader", { cls: "ic-spin" }) : ic(_ico)}</div>`;
+    let meta;
+    if (a.uploading) meta = a.statusText || "đang xử lý...";
+    else if (a.statusText) meta = a.statusText;
+    else if (a.kind === "folder") {
+      const n = (a.files && a.files.length) || a.fileCount || 0;
+      let chipTxt = _chuFile("app.folder_chip", "thư mục · {n} file");
+      meta = chipTxt.replace("{n}", String(n)) + (a.size ? (" · " + fmtSize(a.size)) : "");
+    } else meta = fmtSize(a.size) + (a.folder ? ` → ${escapeHtml(a.folder)}` : "");
     chip.innerHTML = `${thumb}<div class="chip-info"><span class="chip-name">${escapeHtml(a.name)}</span><span class="chip-meta">${meta}</span></div><button class="chip-x" data-i="${i}">${ic("x")}</button>`;
     attachBar.appendChild(chip);
   });
@@ -2235,6 +2263,175 @@ fileInput.addEventListener("change", () => {
   nhanFileChat(fileInput.files);
   fileInput.value = "";
 });
+
+// ---- Chọn THƯ MỤC trên máy (cạnh nút đính kèm) ----
+const FOLDER_MAX_FILES = 50;
+const FOLDER_MAX_TOTAL = 100 * 1024 * 1024;
+const folderInput = document.getElementById("folderInput");
+const folderBtn = document.getElementById("folderBtn");
+
+async function _walkDirHandle(dirHandle, prefix, out) {
+  for await (const [name, handle] of dirHandle.entries()) {
+    const rel = prefix ? (prefix + "/" + name) : name;
+    if (handle.kind === "file") {
+      const file = await handle.getFile();
+      out.push({ file, rel });
+    } else if (handle.kind === "directory") {
+      await _walkDirHandle(handle, rel, out);
+    }
+  }
+}
+
+function _filesFromFolderInput(fileList) {
+  const out = [];
+  for (const f of fileList || []) {
+    const rel = (f.webkitRelativePath || f.name || "").replace(/\\/g, "/");
+    if (!rel) continue;
+    out.push({ file: f, rel });
+  }
+  return out;
+}
+
+async function chonFolderChat() {
+  let items = [];
+  let folderName = "folder";
+  try {
+    if (window.showDirectoryPicker) {
+      const handle = await window.showDirectoryPicker({ mode: "read" });
+      folderName = handle.name || folderName;
+      await _walkDirHandle(handle, "", items);
+      items = items.map(it => ({ file: it.file, rel: folderName + "/" + it.rel }));
+    } else if (folderInput) {
+      folderInput.value = "";
+      folderInput.click();
+      return;
+    } else {
+      attachNote = _chuFile("bar.folder_unsupported", "Trình duyệt không hỗ trợ chọn thư mục.");
+      renderChips();
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+    if (folderInput) { folderInput.value = ""; folderInput.click(); return; }
+    attachNote = (e && e.message) || _chuFile("bar.folder_unsupported", "Trình duyệt không hỗ trợ chọn thư mục.");
+    renderChips();
+    return;
+  }
+  await taiFolderChat(items, folderName);
+}
+
+async function taiFolderChat(items, folderName) {
+  if (!items || !items.length) {
+    attachNote = _chuFile("bar.folder_empty", "Thư mục trống hoặc không đọc được file nào.");
+    renderChips();
+    return;
+  }
+  if (items.length > FOLDER_MAX_FILES) {
+    attachNote = _chuFile("bar.folder_too_many", "Thư mục quá nhiều file (tối đa 50).");
+    renderChips();
+    return;
+  }
+  let total = 0;
+  const accepted = [];
+  const skipNotes = [];
+  for (const it of items) {
+    const f = it.file;
+    const rel = it.rel;
+    if (!f) continue;
+    const anh = fileLaAnh(f);
+    if (anh && f.size > CHAT_IMG_BYTES) { skipNotes.push(rel + ": ảnh > 8MB"); continue; }
+    if (!anh && f.size > CHAT_DOC_BYTES) { skipNotes.push(rel + ": file > 15MB"); continue; }
+    total += f.size;
+    if (total > FOLDER_MAX_TOTAL) {
+      attachNote = "Thư mục vượt tổng 100 MB.";
+      renderChips();
+      return;
+    }
+    accepted.push(it);
+  }
+  if (!accepted.length) {
+    attachNote = skipNotes.slice(0, 3).join("; ") || _chuFile("bar.folder_empty", "Thư mục trống hoặc không đọc được file nào.");
+    renderChips();
+    return;
+  }
+  let _xong = null;
+  const att = {
+    name: folderName || "folder",
+    kind: "folder",
+    uploading: true,
+    statusText: "đang tải thư mục...",
+    path: null,
+    size: total,
+    files: [],
+    fileCount: accepted.length,
+    sources: null,
+    attachments: null,
+    preview: null,
+  };
+  att.xong = new Promise(r => { _xong = r; });
+  pendingAttachments.push(att);
+  attachNote = skipNotes.length ? ("Bỏ qua " + skipNotes.length + " file quá nặng") : "";
+  renderChips();
+  try {
+    const fd = new FormData();
+    for (const it of accepted) {
+      fd.append("files", it.file, it.file.name || "file");
+      fd.append("relpaths", it.rel);
+    }
+    fd.append("brain", currentBrainPath());
+    fd.append("folder_name", folderName || "folder");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 300000);
+    let resp;
+    try {
+      resp = await fetch("/upload/folder", { method: "POST", body: fd, signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!resp.ok) {
+      att.uploading = false;
+      att.statusText = "lỗi máy chủ (" + resp.status + ")";
+      renderChips();
+      return;
+    }
+    const up = await resp.json();
+    if (!up.ok) {
+      att.uploading = false;
+      att.statusText = up.error ? ("lỗi: " + up.error) : "lỗi upload thư mục";
+      renderChips();
+      return;
+    }
+    att.path = up.root;
+    att.name = up.name || folderName;
+    att.size = up.size || total;
+    att.files = up.files || [];
+    att.fileCount = att.files.length;
+    att.sources = up.sources;
+    att.attachments = up.attachments;
+    att.uploading = false;
+    att.statusText = "";
+    if (up.skipped && up.skipped.length) {
+      attachNote = "Bỏ qua " + up.skipped.length + " file trên máy chủ";
+    }
+  } catch (e) {
+    att.uploading = false;
+    att.statusText = (e && e.name === "AbortError") ? "quá thời gian tải" : "lỗi mạng";
+  } finally {
+    renderChips();
+    if (_xong) _xong();
+  }
+}
+
+if (folderBtn) folderBtn.addEventListener("click", () => { chonFolderChat(); });
+if (folderInput) {
+  folderInput.addEventListener("change", () => {
+    const items = _filesFromFolderInput(folderInput.files);
+    let folderName = "folder";
+    if (items[0] && items[0].rel.includes("/")) folderName = items[0].rel.split("/")[0];
+    taiFolderChat(items, folderName);
+    folderInput.value = "";
+  });
+}
 
 // Dán ảnh (Ctrl+V) + dán VĂN BẢN SIÊU DÀI thành file .txt đính kèm (kiểu Claude):
 // bài dài nhồi thẳng vào ô chat vừa khó đọc vừa nặng khung hội thoại - biến thành

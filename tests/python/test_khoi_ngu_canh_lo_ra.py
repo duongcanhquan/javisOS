@@ -3,7 +3,7 @@
     python tests/run.py khoi_ngu_canh      (KHÔNG mạng)
 
 Chủ repo chụp màn hình (2026-08-12): hội thoại dài, mở thanh mốc hội thoại ra thì thấy hai chục
-dòng giống hệt nhau, dòng nào cũng bắt đầu bằng "[FILE ĐANG MỞ trong trình sửa của Javis: ..."
+dòng giống hệt nhau, dòng nào cũng bắt đầu bằng "[FILE ĐANG MỞ trong trình sửa của VMOS: ..."
 - không nhìn ra câu nào với câu nào. Chỉ mỗi dòng cuối (câu vừa gõ) là đọc được.
 
 Đúng cái chi tiết "chỉ dòng cuối đọc được" chỉ thẳng vào nguyên nhân: lúc GÕ, app.js dựng bong
@@ -35,7 +35,7 @@ def check(name, cond, them=""):
 
 
 # Nguyên văn hai khối mà app.js chèn (chép rút gọn từ dashboard/app.js).
-GHIM = ("[FILE ĐANG MỞ trong trình sửa của Javis: /home/user/brain/Wiki/checkout.md\n"
+GHIM = ("[FILE ĐANG MỞ trong trình sửa của VMOS: /home/user/brain/Wiki/checkout.md\n"
         "Đây là file người dùng ĐANG LÀM VIỆC TRÊN ĐÓ - coi như đầu vào của cuộc trò chuyện "
         "này. Đọc nó trước khi trả lời.]\n\n")
 DINH_KEM = ("[File đính kèm để ĐỌC (đường dẫn):\n- /home/user/brain/sources/bao-gia.pdf\n"
@@ -89,7 +89,7 @@ check("CANARY: dataset.text cũng sạch - thanh mốc, gửi lại, sửa câu 
 check("lượt nạp hội thoại cũ ghi bản SẠCH vào convo (localStorage), không để lỗi sống qua F5",
       'convo.push({ role: "user", text: _sach' in APP)
 check("nhận cả hai loại khối",
-      "[FILE ĐANG MỞ trong trình sửa của Javis:" in APP and '"[File đính kèm"' in APP)
+      "[FILE ĐANG MỞ trong trình sửa của VMOS:" in APP and '"[File đính kèm"' in APP)
 
 # Hành vi THẬT của hàm, chạy bằng node nếu có; không có node thì đọc hợp đồng là đủ.
 import shutil          # noqa: E402
@@ -101,7 +101,7 @@ if shutil.which("node"):
     _js = APP[_i:_j] + "\nconst ca = JSON.parse(process.argv[1]);" \
           "\nconsole.log(JSON.stringify(ca.map(chuNguoiGo)));"
     _ca = [GHIM + CAU_THAT, GHIM + DINH_KEM + "tóm tắt giúp anh", DINH_KEM + "đọc giúp em",
-           "chào em", "[FILE ĐANG MỞ trong trình sửa của Javis: a.md chưa đóng khối",
+           "chào em", "[FILE ĐANG MỞ trong trình sửa của VMOS: a.md chưa đóng khối",
            "[ghi chú] nhớ mua sữa", ""]
     _ra = _json.loads(subprocess.run(["node", "-e", _js, _json.dumps(_ca)],
                                      capture_output=True, text=True, timeout=30).stdout)

@@ -9,6 +9,9 @@ __pycache__/
 
 # Runtime / temp
 .staging/
+.tmp-folder-upload-test/
+.tmp-*-test/
+
 server/*.pid
 *.mp3
 test_output*.mp3

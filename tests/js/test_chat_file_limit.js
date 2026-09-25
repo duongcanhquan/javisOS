@@ -17,6 +17,9 @@ check("dòng đi theo sang trang Trò chuyện", CON.includes('"chatLimitNote"')
 check("chặn trước khi tải", APP.includes("function nhanFileChat") && APP.includes("function chanFileChat"));
 check("kéo thả đi qua nhanFileChat", APP.includes("nhanFileChat(e.dataTransfer.files)"));
 check("câu tiếng Việt", VI.includes("Đã đủ 3 file tài liệu mỗi lượt."));
+check("nút chọn folder", HTML.includes('id="folderBtn"') && HTML.includes('id="folderInput"'));
+check("logic chonFolderChat", APP.includes("function chonFolderChat") && APP.includes("/upload/folder"));
+check("i18n folder", VI.includes("bar.folder") || VI.includes("Chọn thư mục trên máy"));
 if (fails.length) {
   console.log("FAIL " + fails.join(", "));
   process.exit(1);

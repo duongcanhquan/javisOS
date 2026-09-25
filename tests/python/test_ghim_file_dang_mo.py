@@ -82,7 +82,7 @@ check("clearAttachments() KHÔNG đụng tới ghim", "pinnedNote" not in _clear
 
 # Khối ngữ cảnh phải nằm TRƯỚC câu của user và mang đường dẫn thật.
 _send = APP.split("function sendMessage(", 1)[1].split("\nfunction ", 1)[0]
-check("gửi kèm khối FILE ĐANG MỞ", "[FILE ĐANG MỞ trong trình sửa của Javis: ${pinnedNote.abs}" in _send)
+check("gửi kèm khối FILE ĐANG MỞ", "[FILE ĐANG MỞ trong trình sửa của VMOS: ${pinnedNote.abs}" in _send)
 check("CANARY: khối ghim chỉ đi vào đúng cuộc đã mở file (không trộn hai hội thoại)",
       "pinnedNote.sessionId === sid" in _send)
 check("set() gắn sessionId của cuộc đang mở",
