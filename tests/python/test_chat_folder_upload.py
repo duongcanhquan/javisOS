@@ -26,7 +26,11 @@ check("reject nested ..", cul.sanitize_relpath("a/../b") is None)
 check("folder caps", cul.FOLDER_MAX_FILES == 50 and cul.FOLDER_MAX_TOTAL_BYTES == 100 * 1024 * 1024)
 
 # API
-os.environ.setdefault("JAVIS_STATE_DIR", str(ROOT / ".tmp-folder-upload-test"))
+import atexit
+import shutil
+_TMP = ROOT / ".tmp-folder-upload-test"
+os.environ.setdefault("JAVIS_STATE_DIR", str(_TMP))
+atexit.register(lambda: shutil.rmtree(_TMP, ignore_errors=True))
 from fastapi.testclient import TestClient
 import main as m
 
