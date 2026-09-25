@@ -30,7 +30,7 @@ jobs:
               docker exec "$c" sh -c 'ls -d "/brains/Brain Default/skills/soan-thao-luan-van" "/brains/Brain Default/skills/academic-research-agent" "/brains/Brain Default/skills/paper-qa-evidence" 2>&1' 2>/dev/null || echo "$c: missing or off"
             done
             echo "=== SYNC ==="
-            docker exec javis-manager python - <<'PY'
+            docker exec -i javis-manager python - <<'PY'
             import json, os, sys
             sys.path.insert(0, "/app/server")
             import manager_template_sync as m
