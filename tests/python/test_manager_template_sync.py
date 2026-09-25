@@ -103,3 +103,32 @@ _got = m.filter_sync_targets(
 )
 assert _got == ["javis-quan", "javis-thuy"], _got
 print("ok - filter_sync_targets")
+
+
+def test_summarize_sync_report_counts_dict_tenants():
+    report = {
+        "ok": True,
+        "tenants": {
+            "javis-thuy": {"installed": 3, "updated": 0, "errors": []},
+            "javis-hang": {"installed": 0, "updated": 1, "errors": ["boom"]},
+        },
+    }
+    s = m.summarize_sync_report(report)
+    assert s["tenant_count"] == 2
+    assert s["installed"] == 3
+    assert s["updated"] == 1
+    assert any("javis-hang" in e for e in s["errors"])
+    assert "javis-thuy" in s["tenant_names"]
+
+
+def test_schedule_catalog_push_skipped_when_not_manager(monkeypatch):
+    monkeypatch.setenv("JAVIS_ROLE", "tenant")
+    monkeypatch.delenv("JAVIS_TEMPLATE_SOURCE", raising=False)
+    assert m.schedule_catalog_push(reason="test") is False
+
+
+_sum = m.summarize_sync_report({
+    "tenants": {"javis-thuy": {"installed": 3, "updated": 0, "errors": []}},
+})
+assert _sum["tenant_count"] == 1 and _sum["installed"] == 3, _sum
+print("ok - summarize_sync_report")

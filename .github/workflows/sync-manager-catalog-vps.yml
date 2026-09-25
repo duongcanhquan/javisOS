@@ -1,0 +1,62 @@
+# One-shot: đẩy catalog manager → mọi tenant (kể cả máy tắt) để vá skill thiếu.
+name: Sync manager catalog VPS
+
+on:
+  push:
+    branches: [cursor/tenant-skill-sync-gap-53c1]
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Sync manager template to all tenants
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 25m
+          script: |
+            set -euo pipefail
+            echo "=== BEFORE: soan-thao-luan-van on hang vs thuy ==="
+            for c in javis-hang javis-thuy javis-manager javis-quan javis-giang javis-hanh; do
+              docker ps -a --filter name=^${c}$ --format '{{.Names}} {{.Status}}' || true
+              docker exec "$c" sh -c 'ls -d "/brains/Brain Default/skills/soan-thao-luan-van" "/brains/Brain Default/skills/academic-research-agent" "/brains/Brain Default/skills/paper-qa-evidence" 2>&1' 2>/dev/null || echo "$c: missing or off"
+            done
+            echo "=== SYNC ==="
+            docker exec javis-manager python - <<'PY'
+            import json, os, sys
+            sys.path.insert(0, "/app/server")
+            import manager_template_sync as m
+            mgr = os.environ.get("JAVIS_MANAGER_NAME") or os.environ.get("JAVIS_NAME") or "javis-manager"
+            print("docker_ok", m.docker_ok(), "role", m.is_manager_role(), "manager", mgr)
+            names = m.filter_sync_targets(m.list_javis_containers(all_states=True), manager=mgr)
+            print("targets", names)
+            report = m.sync_via_docker(manager=mgr, dry_run=False)
+            tenants = report.get("tenants") or {}
+            summary = {"tenant_count": len(tenants), "installed": 0, "updated": 0, "errors": []}
+            slim = {}
+            for k, v in tenants.items():
+                v = v or {}
+                summary["installed"] += int(v.get("installed") or 0)
+                summary["updated"] += int(v.get("updated") or 0)
+                for err in (v.get("errors") or []):
+                    summary["errors"].append(f"{k}: {err}")
+                slim[k] = {kk: v.get(kk) for kk in ("installed", "updated", "skipped_same", "skipped_user", "errors")}
+            print(json.dumps({"ok": report.get("ok"), "summary": summary, "tenants": slim},
+                             ensure_ascii=False, indent=2))
+            if not report.get("ok"):
+                sys.exit(1)
+            PY
+            echo "=== AFTER ==="
+            for c in javis-hang javis-thuy javis-giang javis-hanh javis-long javis-thunga javis-thuha javis-thanhha; do
+              echo "-- $c --"
+              docker exec "$c" sh -c 'for s in soan-thao-luan-van academic-research-agent paper-qa-evidence; do if [ -f "/brains/Brain Default/skills/$s/SKILL.md" ]; then echo OK $s; else echo MISS $s; fi; done' 2>/dev/null || echo "$c: cannot exec"
+            done
+            echo SYNC_CATALOG_DONE

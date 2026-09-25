@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.41] - 2026-09-25
+### Sửa
+- **Đồng bộ skill xuống tenant:** lưu skill/agent/workflow trên máy gốc sẽ tự đẩy xuống mọi máy người (kể cả đang tắt), sau vài giây. Trước đó phải bấm Đồng bộ tay; nhiều máy (vd thuy) thiếu skill luận văn dù hang/manager đã có.
+- **Tổ chức · Đẩy catalog:** báo đúng số máy nhận được và số skill mới; danh sách máy gồm cả máy đang tắt.
+
 ## [0.56.40] - 2026-09-23
 ### Sửa
 - **Cuộc họp:** mọi tenant ghi giọng bằng cùng model với máy quan. Sơ đồ, font và phần đổi ghi chú sang Markdown cũng dùng chung file đó.
