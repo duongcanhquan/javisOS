@@ -931,9 +931,13 @@ def _readme_body(item: dict, *, mirrored: list, stubs: list, note: str = "") -> 
         "",
         "1. Đồng bộ từ trang **Kho Drive** (hoặc API sync).",
         "2. Mở Dự án chat gắn kho này.",
-        "3. Bảo Javis: *ingest-source file …* rồi *viết skill từ wiki*.",
+        "3. Bảo Javis: **đọc hết / chưng cất / ingest cả kho** — hoặc chỉ định từng file.",
         "",
-        "Không mass-ingest cả kho trong một lượt. Chọn file quan trọng.",
+        "Khi user yêu cầu chưng cất cả kho: lần lượt `ingest-source` mọi file `status: unprocessed` "
+        "trong `sources/drive/<slug>/` (bỏ README). Kho lớn (>8 file) thì xếp Kanban từng batch, "
+        "báo tiến độ; không từ chối với lý do «không mass-ingest».",
+        "",
+        "PDF chưa extract được text thì nói rõ file nào thiếu chữ, không giả đã đọc.",
         "",
     ]
     if note:
@@ -957,13 +961,18 @@ def _ensure_chat_project(item: dict) -> str:
         return str(item.get("chat_project_id") or "")
     store = _sessions_fn()
     name = f"Kho Drive · {item.get('name') or item.get('slug')}"
+    slug = item.get("slug") or ""
     instructions = (
         f"Đây là Dự án Kho Drive «{item.get('name')}».\n"
-        f"Nguồn làm việc: sources/drive/{item.get('slug')}/ (README + file đã mirror).\n"
+        f"Nguồn làm việc: sources/drive/{slug}/ (README + file đã mirror).\n"
         f"Corpus nhị phân (PDF gốc) nằm ngoài brain: drive-corpus — không sửa tay.\n"
         f"Folder Drive ID: {item.get('drive_folder_id')}.\n"
-        "Khi user muốn học/tri thức: đọc sources đã mirror, dùng ingest-source cho file quan trọng, "
-        "rồi viết skill. Không bịa nội dung không có trong kho. Không em dash."
+        f"Khi user bảo đọc hết / tóm tắt cả kho / chưng cất / ghi nhớ / ingest: "
+        f"LIỆT KÊ file trong sources/drive/{slug}/ (trừ README), rồi chạy ingest-source "
+        "cho từng file status unprocessed. Kho lớn thì xếp việc nền theo batch và báo "
+        "tiến độ — KHÔNG từ chối với lý do cấm mass-ingest. "
+        "PDF chỉ có stub trống thì nói rõ chưa extract được chữ. "
+        "Không bịa nội dung không có trong kho. Không em dash."
     )
     pid = (item.get("chat_project_id") or "").strip()
     if pid and store.get_project(pid):
@@ -1041,10 +1050,21 @@ def mirror_corpus_to_sources(item: dict) -> dict:
                 continue
             if not text.lstrip().startswith("---"):
                 fm = (
-                    f"---\ntype: source\ndrive_slug: {item.get('slug')}\n"
+                    f"---\ntype: source\nsource_kind: drive\nstatus: unprocessed\n"
+                    f"drive_slug: {item.get('slug')}\n"
                     f"corpus_rel: {rel_s}\nupdated: {time.strftime('%Y-%m-%d')}\n---\n\n"
                 )
                 text = fm + text
+            else:
+                # Đã có frontmatter: gắn unprocessed nếu chưa processed/skipped.
+                try:
+                    _head, _fm, _rest = text.split("---", 2)
+                    if "status: processed" not in _fm and "status: skipped" not in _fm:
+                        if "status: unprocessed" not in _fm:
+                            _fm = "\nstatus: unprocessed" + _fm
+                        text = f"---{_fm}---{_rest}"
+                except ValueError:
+                    pass
             out.write_text(text, encoding="utf-8")
             mirrored.append(str(out.relative_to(dest)).replace("\\", "/"))
         elif ext in _DOC_EXT:
@@ -1058,13 +1078,15 @@ def mirror_corpus_to_sources(item: dict) -> dict:
                 if body.strip():
                     status = "extracted"
             fm = (
-                f"---\ntype: source\ndrive_slug: {item.get('slug')}\n"
+                f"---\ntype: source\nsource_kind: drive\ndrive_slug: {item.get('slug')}\n"
                 f"corpus_rel: {rel_s}\nstatus: {status}\n"
                 f"updated: {time.strftime('%Y-%m-%d')}\n---\n\n"
                 f"# {src.name}\n\n"
                 f"Bản gốc trong corpus: `{corpus / rel}`\n\n"
             )
             if body.strip():
+                # Đã có chữ → sẵn sàng chưng cất (ingest-source).
+                fm = fm.replace(f"status: {status}\n", "status: unprocessed\n", 1)
                 fm += "## Nội dung đã extract\n\n" + body + "\n"
             else:
                 fm += (

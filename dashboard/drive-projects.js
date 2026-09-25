@@ -681,6 +681,7 @@
               "</div>" +
               '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
               '<button type="button" class="jw-btn jw-btn-primary" data-act="sync">Đồng bộ lại</button>' +
+              '<button type="button" class="jw-btn jw-btn-ghost" data-act="distill">Chưng cất kho</button>' +
               '<button type="button" class="jw-btn jw-btn-ghost" data-act="files">Mở tệp</button>' +
               '<button type="button" class="jw-btn jw-btn-ghost" data-act="del">Xoá</button>' +
               "</div></div>"
@@ -690,6 +691,9 @@
 
       listEl.querySelectorAll("[data-id]").forEach(function (card) {
         var id = card.getAttribute("data-id");
+        var proj = projects.find(function (x) {
+          return x.id === id;
+        }) || {};
         card.querySelector('[data-act="sync"]').onclick = async function () {
           var b = this;
           b.disabled = true;
@@ -700,10 +704,25 @@
           if (!res.ok) alert(res.error || "Sync thất bại");
           await refresh(el);
         };
+        card.querySelector('[data-act="distill"]').onclick = function () {
+          var slug = proj.slug || "";
+          var msg =
+            "Đọc và chưng cất toàn bộ kho Drive trong sources/drive/" +
+            slug +
+            "/ (trừ README). " +
+            "Liệt kê file unprocessed rồi chạy ingest-source từng file; " +
+            "kho lớn thì xếp việc nền theo batch và báo tiến độ. " +
+            "PDF chưa có chữ thì nói rõ file nào thiếu.";
+          try {
+            if (window.Alpine && Alpine.store && Alpine.store("nav")) {
+              Alpine.store("nav").page = "chat";
+            }
+          } catch (e) {}
+          if (typeof window.JavisSend === "function") window.JavisSend(msg);
+          else alert("Mở chat rồi gửi: " + msg);
+        };
         card.querySelector('[data-act="files"]').onclick = function () {
-          var slug = (projects.find(function (x) {
-            return x.id === id;
-          }) || {}).slug;
+          var slug = proj.slug;
           if (window.JavisOpenFiles && slug) window.JavisOpenFiles("sources/drive/" + slug + "/");
           else alert("Tệp tin → sources/drive/" + (slug || ""));
         };

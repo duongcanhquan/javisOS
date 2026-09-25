@@ -33,7 +33,7 @@
 1. Sửa file trên Google Drive.  
 2. Trang Kho Drive → **Đồng bộ lại**.  
 3. Tệp tin → `sources/drive/…` hoặc Dự án chat của kho.  
-4. Bảo Javis đọc / ingest từng file quan trọng (không nuốt cả kho một lần).
+4. Bấm **Chưng cất kho** (hoặc bảo Javis «đọc hết / chưng cất») để ingest lên wiki. Đồng bộ chỉ kéo file về - chưa phải đã hiểu nội dung.
 
 Config rclone lưu tại `/data/state/rclone.conf` (Docker).
 
