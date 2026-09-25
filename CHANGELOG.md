@@ -3,6 +3,7 @@
 ## [0.56.41] - 2026-09-25
 ### Thêm
 - **Chat · chọn thư mục máy:** nút folder cạnh đính kèm. Chọn folder trên máy → Javis đọc hết hoặc làm theo lệnh (tóm tắt, tìm, chưng cất khi bạn nói). Tối đa 50 file / 100 MB.
+- **Kho Drive · Chưng cất:** nút **Chưng cất kho** + file sync mang `status: unprocessed`. Bảo đọc hết/chưng cất thì Javis ingest lần lượt (không còn từ chối «không mass-ingest»). PDF chưa ra chữ thì báo rõ.
 
 ## [0.56.40] - 2026-09-23
 ### Sửa

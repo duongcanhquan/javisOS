@@ -20,6 +20,6 @@ Name the library → paste the Drive **folder** link → **Create and sync**.
 
 ### Step 3 - Daily use
 
-Edit files on Drive → **Sync again** on this page → open `sources/drive/…` or the chat project → ask Javis to ingest important files (not the whole library at once).
+Edit files on Drive → **Sync again** on this page → open `sources/drive/…` or the chat project. Click **Distill library** (or ask Javis to read/distill everything) to ingest into the wiki. Sync only pulls files - it does not mean the content is understood yet.
 
 rclone config lives at `/data/state/rclone.conf` (Docker).
