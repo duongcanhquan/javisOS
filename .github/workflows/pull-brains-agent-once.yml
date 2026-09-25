@@ -1,0 +1,105 @@
+# One-shot: cloud agent không dispatch được workflow_dispatch (403).
+# Trigger bằng push nhánh cursor/pull-brains-latest-53c1 rồi xoá file này sau khi lấy artifact.
+name: Pull brains agent once
+
+on:
+  push:
+    branches: [cursor/pull-brains-latest-53c1]
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Pack agents/workflows/skills/memory from VPS brains
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -i ~/.ssh/id_ed25519 "$USER@$HOST")
+
+          # Pack từ mọi container javis-* có /brains (quan, manager, gốc…)
+          "${SSH[@]}" 'set -euo pipefail
+            rm -rf /tmp/brains-light /tmp/javis-brains.tgz
+            mkdir -p /tmp/brains-light
+            mapfile -t CONTAINERS < <(docker ps --format "{{.Names}}" | grep -E "^javis" | sort || true)
+            echo "containers=${CONTAINERS[*]}"
+            test "${#CONTAINERS[@]}" -gt 0
+            for CONTAINER in "${CONTAINERS[@]}"; do
+              echo "=== pack from $CONTAINER ==="
+              docker exec "$CONTAINER" sh -c "ls -la /brains" || continue
+              docker exec "$CONTAINER" sh -c "
+                set -e
+                rm -rf /tmp/brains-pack && mkdir -p /tmp/brains-pack
+                for b in /brains/*; do
+                  [ -d \"\$b\" ] || continue
+                  name=\$(basename \"\$b\")
+                  echo \"pack \$name\"
+                  mkdir -p \"/tmp/brains-pack/\$name\"
+                  for sub in agents workflows skills memory Javis; do
+                    if [ -d \"\$b/\$sub\" ]; then
+                      if [ \"\$sub\" = skills ]; then
+                        mkdir -p \"/tmp/brains-pack/\$name/skills\"
+                        for sk in \"\$b/skills\"/*; do
+                          [ -d \"\$sk\" ] || continue
+                          sn=\$(basename \"\$sk\")
+                          mkdir -p \"/tmp/brains-pack/\$name/skills/\$sn\"
+                          cp -f \"\$sk\"/SKILL.md \"/tmp/brains-pack/\$name/skills/\$sn/\" 2>/dev/null || true
+                          cp -f \"\$sk\"/*.yaml \"/tmp/brains-pack/\$name/skills/\$sn/\" 2>/dev/null || true
+                          cp -f \"\$sk\"/*.yml \"/tmp/brains-pack/\$name/skills/\$sn/\" 2>/dev/null || true
+                          if [ -d \"\$sk/scripts\" ] && [ \"\$sn\" = xuat-goi-nghien-cuu ]; then
+                            cp -a \"\$sk/scripts\" \"/tmp/brains-pack/\$name/skills/\$sn/\"
+                          fi
+                        done
+                      else
+                        cp -a \"\$b/\$sub\" \"/tmp/brains-pack/\$name/\"
+                      fi
+                    fi
+                  done
+                done
+              "
+              # Gộp vào host /tmp/brains-light; prefix tên container nếu trùng brain
+              mkdir -p "/tmp/from-$CONTAINER"
+              docker cp "$CONTAINER:/tmp/brains-pack/." "/tmp/from-$CONTAINER/"
+              for brain_dir in "/tmp/from-$CONTAINER"/*; do
+                [ -d "$brain_dir" ] || continue
+                bname=$(basename "$brain_dir")
+                dest="/tmp/brains-light/$bname"
+                if [ -d "$dest" ]; then
+                  dest="/tmp/brains-light/${CONTAINER}__${bname}"
+                fi
+                cp -a "$brain_dir" "$dest"
+                echo "merged -> $(basename "$dest")"
+              done
+              rm -rf "/tmp/from-$CONTAINER"
+            done
+            cd /tmp/brains-light && tar -czf /tmp/javis-brains.tgz .
+            ls -lh /tmp/javis-brains.tgz
+            echo "=== top entries ==="
+            tar -tzf /tmp/javis-brains.tgz | head -120 || true
+            echo "BRAIN_DIRS=$(tar -tzf /tmp/javis-brains.tgz | awk -F/ \"NF>=1{print \$1}\" | sort -u | grep -v \"^\\.$\" | wc -l)"
+            echo "SKILL_MD=$(tar -tzf /tmp/javis-brains.tgz | grep -c \"/SKILL.md$\" || true)"
+          '
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 \
+            "$USER@$HOST:/tmp/javis-brains.tgz" ./javis-brains.tgz
+          ls -lh ./javis-brains.tgz
+          tar -tzf ./javis-brains.tgz | head -120 || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: javis-brains-from-vps
+          path: javis-brains.tgz
+          if-no-files-found: error
+          retention-days: 14
