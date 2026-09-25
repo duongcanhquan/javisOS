@@ -1092,14 +1092,26 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ dry_run: !!dry }),
         });
-        const tenants = (r.tenants || r.results || []);
-        const n = Array.isArray(tenants) ? tenants.length : 0;
+        const sum = r.summary || {};
+        const tenantsObj = r.tenants && !Array.isArray(r.tenants) ? r.tenants : null;
+        const n = Number(sum.tenant_count) || (tenantsObj ? Object.keys(tenantsObj).length
+          : (Array.isArray(r.tenants) ? r.tenants.length : 0));
+        const inst = Number(sum.installed) || 0;
+        const upd = Number(sum.updated) || 0;
+        const errN = (sum.errors && sum.errors.length) || 0;
+        const detail = n
+          ? (` · ${n} máy` + (inst || upd ? ` · +${inst} mới / ${upd} cập nhật` : "")
+            + (errN ? ` · ${errN} lỗi` : ""))
+          : (r.error ? (" · " + r.error) : "");
         if (box) {
           box.textContent = dry
-            ? ("Xem trước xong" + (n ? (" · " + n + " máy") : "") + (r.error ? (" · " + r.error) : ""))
-            : (r.ok ? ("Đã đẩy catalog" + (n ? (" · " + n + " máy") : "")) : (r.error || "Lỗi đẩy catalog"));
+            ? ("Xem trước xong" + detail)
+            : (r.ok ? ("Đã đẩy catalog" + detail) : (r.error || "Lỗi đẩy catalog" + detail));
         }
-        if (!dry && r.ok) orgFlash = "Đã đẩy catalog xuống máy người.";
+        if (!dry && r.ok) {
+          orgFlash = "Đã đẩy catalog xuống " + (n || "các") + " máy người"
+            + (inst ? (" (+" + inst + " skill/agent mới).") : ".");
+        }
       } catch (e) {
         if (box) box.textContent = e.message || "Không đẩy được.";
       }

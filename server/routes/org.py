@@ -686,6 +686,7 @@ def _make_router() -> APIRouter:
             return deny
         try:
             import manager_template_sync as mts
+            import os as _os
         except Exception as e:
             return {"ok": False, "error": str(e), "docker": False, "tenants": []}
         docker = False
@@ -693,11 +694,15 @@ def _make_router() -> APIRouter:
         try:
             docker = mts.docker_ok()
             if docker:
-                tenants = [
-                    n for n in mts.list_javis_containers(
-                        exclude={"javis-manager", "javis-proxy", "javis-park"}
-                    )
-                ]
+                mgr = (
+                    _os.environ.get("JAVIS_MANAGER_NAME")
+                    or _os.environ.get("JAVIS_NAME")
+                    or "javis-manager"
+                )
+                tenants = mts.filter_sync_targets(
+                    mts.list_javis_containers(all_states=True),
+                    manager=mgr,
+                )
         except Exception as e:
             return {"ok": True, "docker": False, "error": str(e), "tenants": [],
                     "brain": getattr(mts, "BRAIN_NAME", "Brain Default"),
@@ -742,6 +747,8 @@ def _make_router() -> APIRouter:
             manager=manager_name,
             dry_run=dry,
         )
+        if isinstance(report, dict):
+            report["summary"] = mts.summarize_sync_report(report)
         try:
             ot.audit("catalog_push", "", "dry" if dry else "sync")
         except Exception:

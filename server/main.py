@@ -1103,12 +1103,11 @@ async def ops_template_status():
     tenants = []
     if docker:
         try:
-            tenants = [
-                n for n in manager_template_sync.list_javis_containers(
-                    exclude={"javis-manager", "javis-proxy"}
-                )
-                if n != (os.environ.get("JAVIS_MANAGER_NAME") or "javis-manager")
-            ]
+            mgr = os.environ.get("JAVIS_MANAGER_NAME") or "javis-manager"
+            tenants = manager_template_sync.filter_sync_targets(
+                manager_template_sync.list_javis_containers(all_states=True),
+                manager=mgr,
+            )
         except Exception as e:
             return {"ok": True, "role": "manager", "docker": False, "error": str(e), "tenants": []}
     return {
@@ -1144,6 +1143,8 @@ async def ops_sync_template(dry_run: str = Form("0")):
         manager=manager_name,
         dry_run=want_dry,
     )
+    if isinstance(report, dict):
+        report["summary"] = manager_template_sync.summarize_sync_report(report)
     code = 200 if report.get("ok") else 500
     return JSONResponse(report, status_code=code)
 
@@ -6327,6 +6328,10 @@ async def save_agent(name: str = Form(...), role: str = Form(""), skills: str = 
                  "model_provider": mp if mp in AGENT_PROVIDERS else "",
                  "updated": _today()})  # "" = mặc định theo CLI
     _write_md(path, meta, (prompt.strip() or role))
+    try:
+        manager_template_sync.schedule_catalog_push(reason=f"agent:{slug}")
+    except Exception:
+        pass
     return {"ok": True, "slug": slug}
 
 @app.post("/agents/delete")
@@ -6579,6 +6584,10 @@ async def save_skill(name: str = Form(...), description: str = Form(""), group: 
     _write_md(d / "SKILL.md", meta, body or f"# {name}\n\n{description}")
     try:
         system_sync.mirror_skills(root)   # bật → cập nhật mirror; tắt (.disabled) → mirror bỏ qua
+    except Exception:
+        pass
+    try:
+        manager_template_sync.schedule_catalog_push(reason=f"skill:{slug}")
     except Exception:
         pass
     return {"ok": True, "slug": slug}
@@ -8007,6 +8016,10 @@ async def save_workflow(name: str = Form(...), description: str = Form(""), step
             "model": (model or "").strip(),
             "model_provider": mp if mp in AGENT_PROVIDERS else ""}
     _write_md(_workflows_dir(brain) / f"{slug}.md", meta, description)
+    try:
+        manager_template_sync.schedule_catalog_push(reason=f"workflow:{slug}")
+    except Exception:
+        pass
     return {"ok": True, "slug": slug}
 
 @app.post("/workflows/toggle")

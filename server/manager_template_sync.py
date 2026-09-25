@@ -569,6 +569,98 @@ def is_manager_role() -> bool:
     return flag in ("1", "true", "yes", "on")
 
 
+# Debounce đẩy catalog sau khi manager sửa skill/agent/workflow (tránh docker x10 khi lưu liên tục).
+_PUSH_LOCK = None
+_PUSH_TIMER = None
+_PUSH_PENDING = False
+_PUSH_DEBOUNCE_SEC = float(os.environ.get("JAVIS_CATALOG_PUSH_DEBOUNCE", "8") or "8")
+
+
+def _push_lock():
+    global _PUSH_LOCK
+    if _PUSH_LOCK is None:
+        import threading
+        _PUSH_LOCK = threading.Lock()
+    return _PUSH_LOCK
+
+
+def schedule_catalog_push(*, reason: str = "") -> bool:
+    """Hàng đợi đẩy catalog manager → mọi tenant (kể cả máy tắt).
+
+    Chỉ chạy trên bản manager + docker OK. Trả True nếu đã xếp lịch.
+    Tắt bằng JAVIS_CATALOG_AUTO_PUSH=0.
+    """
+    flag = (os.environ.get("JAVIS_CATALOG_AUTO_PUSH") or "1").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return False
+    if not is_manager_role() or not docker_ok():
+        return False
+
+    import threading
+
+    global _PUSH_TIMER, _PUSH_PENDING
+    delay = max(2.0, _PUSH_DEBOUNCE_SEC)
+
+    def _run():
+        global _PUSH_TIMER, _PUSH_PENDING
+        with _push_lock():
+            _PUSH_TIMER = None
+            _PUSH_PENDING = False
+        manager_name = (
+            os.environ.get("JAVIS_MANAGER_NAME")
+            or os.environ.get("JAVIS_NAME")
+            or "javis-manager"
+        )
+        try:
+            report = sync_via_docker(manager=manager_name, dry_run=False)
+            ok = bool(report.get("ok"))
+            n = len(report.get("tenants") or {})
+            print(
+                f"[manager_template_sync] auto-push reason={reason or '-'} "
+                f"ok={ok} tenants={n}",
+                flush=True,
+            )
+        except Exception as e:
+            print(f"[manager_template_sync] auto-push failed: {type(e).__name__}: {e}", flush=True)
+
+    with _push_lock():
+        _PUSH_PENDING = True
+        if _PUSH_TIMER is not None:
+            try:
+                _PUSH_TIMER.cancel()
+            except Exception:
+                pass
+        t = threading.Timer(delay, _run)
+        t.daemon = True
+        _PUSH_TIMER = t
+        t.start()
+    return True
+
+
+def summarize_sync_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Rút gọn báo cáo sync cho UI (đếm máy / cài mới / lỗi)."""
+    tenants = report.get("tenants") if isinstance(report, dict) else None
+    if not isinstance(tenants, dict):
+        return {"tenant_count": 0, "installed": 0, "updated": 0, "errors": []}
+    installed = updated = 0
+    errors: list[str] = []
+    missing_skill_hint = 0
+    for name, st in tenants.items():
+        if not isinstance(st, dict):
+            continue
+        installed += int(st.get("installed") or 0)
+        updated += int(st.get("updated") or 0)
+        for err in (st.get("errors") or []):
+            errors.append(f"{name}: {err}")
+    return {
+        "tenant_count": len(tenants),
+        "installed": installed,
+        "updated": updated,
+        "errors": errors[:12],
+        "tenant_names": sorted(tenants.keys()),
+    }
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     import argparse
 
