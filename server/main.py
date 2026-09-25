@@ -5269,6 +5269,127 @@ async def upload(file: UploadFile = File(...), brain: str = Form("")):
         return {"ok": False, "error": f"Không lưu được file tạm: {e}"}
 
 
+@app.post("/upload/folder")
+async def upload_folder(
+    files: list[UploadFile] = File(...),
+    relpaths: list[str] = Form(...),
+    brain: str = Form(""),
+    folder_name: str = Form(""),
+):
+    """Nhận cả thư mục máy (nút folder cạnh đính kèm) → stage dưới .staging/folders/<id>/.
+
+    Giữ cây tương đối; Javis đọc qua staging. Không tự ghi Sources / không auto-ingest.
+    """
+    import uuid
+    import chat_upload_limits as _cul
+
+    try:
+        if not isinstance(files, list):
+            files = [files]
+        if not isinstance(relpaths, list):
+            relpaths = [relpaths]
+        if len(files) != len(relpaths):
+            return {"ok": False, "error": "Số file và đường dẫn tương đối không khớp."}
+        if len(files) == 0:
+            return {"ok": False, "error": "Thư mục trống."}
+        if len(files) > _cul.FOLDER_MAX_FILES:
+            return {
+                "ok": False,
+                "error": f"Thư mục quá nhiều file (tối đa {_cul.FOLDER_MAX_FILES}). "
+                         "Chọn thư mục nhỏ hơn hoặc bỏ bớt.",
+            }
+
+        folder_id = uuid.uuid4().hex[:12]
+        root_dir = Path(STAGING) / "folders" / folder_id
+        root_dir.mkdir(parents=True, exist_ok=True)
+
+        saved = []
+        skipped = []
+        total = 0
+        for up, rel_raw in zip(files, relpaths):
+            rel = _cul.sanitize_relpath(str(rel_raw or up.filename or ""))
+            if not rel:
+                skipped.append({"rel": str(rel_raw or ""), "reason": "đường dẫn không hợp lệ"})
+                continue
+            base = os.path.basename(rel)
+            loi = _cul.loi_kich_thuoc(base, getattr(up, "size", None))
+            if loi:
+                skipped.append({"rel": rel, "reason": loi})
+                continue
+            dest = (root_dir / Path(rel)).resolve()
+            root_res = root_dir.resolve()
+            try:
+                dest.relative_to(root_res)
+            except ValueError:
+                skipped.append({"rel": rel, "reason": "đường dẫn không an toàn"})
+                continue
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                await _save_upload_stream(up, str(dest), max_bytes=_cul.tran_byte(base))
+            except _cul.QuaTran as e:
+                try:
+                    dest.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                skipped.append({"rel": rel, "reason": str(e)})
+                continue
+            size = dest.stat().st_size
+            total += size
+            if total > _cul.FOLDER_MAX_TOTAL_BYTES:
+                try:
+                    dest.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                return {
+                    "ok": False,
+                    "error": f"Thư mục vượt tổng 100 MB (đã dừng ở «{rel}»).",
+                    "folder_id": folder_id,
+                    "files": saved,
+                    "skipped": skipped,
+                }
+            ext = os.path.splitext(base)[1].lower()
+            kind = "image" if ext in IMG_EXTS else "file"
+            saved.append({
+                "rel": rel,
+                "staged": str(dest),
+                "name": base,
+                "size": size,
+                "kind": kind,
+            })
+
+        if not saved:
+            return {
+                "ok": False,
+                "error": "Không nhận được file nào hợp lệ từ thư mục.",
+                "skipped": skipped,
+            }
+
+        brain_root = _brain_root(brain)
+        sources = _resolve_subfolder(brain_root, r"^(\d+\s*[-_.]\s*)?sources$", "Sources")
+        attachments = _resolve_subfolder(brain_root, r"^(\d+\s*[-_.]\s*)?attachments$", "Attachments")
+        display = _sanitize_filename(folder_name) if folder_name else ""
+        if not display:
+            # Lấy tên folder từ phần đầu relpath (a/b.txt → a)
+            first = (saved[0].get("rel") or "").split("/", 1)[0]
+            display = first if "/" in (saved[0].get("rel") or "") else "folder"
+            display = _sanitize_filename(display) or "folder"
+        return {
+            "ok": True,
+            "folder_id": folder_id,
+            "root": str(root_dir),
+            "name": display,
+            "files": saved,
+            "skipped": skipped,
+            "size": total,
+            "sources": sources,
+            "attachments": attachments,
+        }
+    except Exception as e:
+        import sys, traceback
+        traceback.print_exc(file=sys.stderr)
+        return {"ok": False, "error": f"Không lưu được thư mục: {e}"}
+
+
 
 # ============================================================
 # STT dashboard (mic chat + Cuộc họp): Gemini (ưu tiên) / OpenAI / Groq tuỳ chọn

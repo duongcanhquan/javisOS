@@ -201,7 +201,7 @@
   "mb.no_tools": "No tools called yet",
   "bar.mic": "Click to talk (or hold Space)",
   "bar.attach": "Attach files (images, text, documents) → saved to Sources",
-  "bar.file_limit": "Each message: up to 3 documents (15 MB each) and 4 images (8 MB each).",
+  "bar.file_limit": "Each message: up to 3 documents (15 MB) and 4 images (8 MB). Folder: up to 50 files / 100 MB.",
   "bar.file_doc_count": "This message already has 3 documents.",
   "bar.file_doc_size": "This file is over 15 MB.",
   "bar.file_img_count": "This message already has 4 images.",
@@ -2122,5 +2122,11 @@
   "ws.tab_workflow_sub": "Workflow",
   "ws.empty": "No matching results.",
   "ws.group_empty_hint": "Empty group - create an agent/workflow, or delete the group.",
-  "ws.upload_workflow": "Upload workflow"
+  "ws.upload_workflow": "Upload workflow",
+  "bar.folder": "Pick a folder on this computer → read / work on it in chat",
+  "bar.folder_limit": "Folder: up to 50 files, 100 MB total (docs ≤15 MB, images ≤8 MB each).",
+  "bar.folder_empty": "Folder is empty or no readable files.",
+  "bar.folder_unsupported": "This browser cannot pick folders. Use Chrome/Edge or update the browser.",
+  "bar.folder_too_many": "Too many files in the folder (max 50).",
+  "app.folder_chip": "folder · {n} files"
 }

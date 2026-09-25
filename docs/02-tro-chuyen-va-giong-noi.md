@@ -153,11 +153,12 @@ Chỉ hàng nút **mới nhất** bấm được. Khi bạn trả lời (bấm n
 
 ## Gửi file kèm trong chat
 
-Bạn có thể đưa file hoặc ảnh vào tin nhắn để Javis đọc. Ba cách:
+Bạn có thể đưa file hoặc ảnh vào tin nhắn để Javis đọc. Bốn cách:
 
 1. Bấm nút **kẹp giấy** (bên cạnh nút mic) rồi chọn file. Có thể chọn nhiều file.
-2. **Kéo - thả** file từ máy vào cửa sổ Javis (một lớp phủ hiện lên báo chỗ thả).
-3. **Dán** trực tiếp bằng Ctrl + V.
+2. Bấm nút **thư mục** (cạnh kẹp giấy) rồi chọn một folder trên máy. Javis nhận cả cây file (tối đa 50 file / 100 MB) để đọc hết hoặc làm theo lệnh trong chat.
+3. **Kéo - thả** file từ máy vào cửa sổ Javis (một lớp phủ hiện lên báo chỗ thả).
+4. **Dán** trực tiếp bằng Ctrl + V.
 
 Chuyện dán có một mẹo riêng: dán **ảnh** thì thành file đính kèm như thường, còn dán **văn bản quá dài** (trên 1500 ký tự hoặc trên 25 dòng) vào ô chat thì Javis tự đóng gói thành file `.txt` đính kèm thay vì nhồi nguyên bài vào ô gõ. Javis vẫn đọc trọn vẹn, còn màn hình chỉ hiện một thẻ gọn. Việc này chỉ áp dụng cho ô chat; dán vào các ô nhập khác vẫn ra chữ bình thường.
 
@@ -386,6 +387,7 @@ Nút quanh khung chat:
 |---|---|---|
 | Mic to | Trái thanh nhập | Bật/tắt chế độ rảnh tay (luôn nghe) |
 | Kẹp giấy | Cạnh nút mic | Chọn file đính kèm |
+| Thư mục | Cạnh kẹp giấy | Chọn folder trên máy để đọc / thao tác |
 | Loa | Cạnh nút kẹp giấy | Bật/tắt đọc trả lời (ẩn trên điện thoại) |
 | Mũi tên | Phải thanh nhập | Gửi tin nhắn |
 | Ô vuông | Thay nút gửi khi đang chạy | Dừng lượt đang trả lời + dừng đọc |
