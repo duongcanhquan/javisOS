@@ -153,11 +153,13 @@ Only the **newest** button row is clickable. Once you answer (by clicking or typ
 
 ## Attaching files in chat
 
-You can put files or images into a message for Javis to read. Three ways:
+You can put files or images into a message for Javis to read. Ways:
 
 1. Click the **paperclip** button (next to the mic) and pick files. Multiple files are allowed.
-2. **Drag and drop** files from your computer onto the Javis window (an overlay shows the drop zone).
-3. **Paste** directly with Ctrl + V.
+2. Click the **folder** button (next to the paperclip) to pick a local folder (max 50 files / 100 MB).
+3. Click the **?** button (next to the folder) for a popup of standard prompts to import / save / retrieve later (chat files, Drive, local folder, web search) - copy or paste into the chat box. The same help control appears on **Drive Library**.
+4. **Drag and drop** files from your computer onto the Javis window (an overlay shows the drop zone).
+5. **Paste** directly with Ctrl + V.
 
 Pasting has one trick of its own: pasting an **image** attaches it as a file as usual, while pasting **very long text** (over 1500 characters or over 25 lines) into the chat box makes Javis package it as an attached `.txt` file instead of stuffing the whole thing into the input. Javis still reads all of it, and the screen only shows a tidy chip. This applies to the chat box only; other inputs still take plain text.
 
@@ -384,6 +386,8 @@ Buttons around the chat frame:
 |---|---|---|
 | Large mic | Left of the input | Toggle hands-free (always listening) mode |
 | Paperclip | Next to the mic | Pick files to attach |
+| Folder | Next to the paperclip | Pick a local folder to read / act on in chat |
+| ? | Next to the folder | Prompt tips for import / save / retrieve |
 | Speaker | Next to the paperclip | Toggle reading answers aloud (hidden on phones) |
 | Arrow | Right of the input | Send the message |
 | Square | Replaces send while running | Stop the running turn and stop speaking |

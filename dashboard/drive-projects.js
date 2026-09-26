@@ -160,7 +160,7 @@
     _pairCache = null;
     el.innerHTML =
       '<div class="jw-page dp-page">' +
-      '<div class="jw-head"><h2>' +
+      '<div class="jw-head"><h2 id="dpHeadTitle">' +
       ic("hard-drive") +
       " " +
       esc(t("page.drive.label", "Kho Drive")) +
@@ -174,6 +174,11 @@
       '<div id="dpBody"></div>' +
       '<div id="dpList" style="margin-top:14px"></div>' +
       "</div>";
+    try {
+      if (window.JavisPromptHelp && typeof window.JavisPromptHelp.mountInline === "function") {
+        window.JavisPromptHelp.mountInline(el.querySelector("#dpHeadTitle"));
+      }
+    } catch (ePh) {}
     refresh(el);
   }
 

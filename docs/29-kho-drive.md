@@ -1,4 +1,4 @@
-# Kho Drive — tri thức Google Drive trên VPS
+# Kho Drive - tri thức Google Drive trên VPS
 
 ***Tiếng Việt** · [English](en/29-drive-library.md)*
 
@@ -34,6 +34,7 @@
 2. Trang Kho Drive → **Đồng bộ lại**.  
 3. Tệp tin → `sources/drive/…` hoặc Dự án chat của kho.  
 4. Bấm **Chưng cất kho** (hoặc bảo Javis «đọc hết / chưng cất») để ingest lên wiki. Đồng bộ chỉ kéo file về - chưa phải đã hiểu nội dung.
+5. Nút **?** cạnh tiêu đề trang (và cạnh ô chat) mở popup prompt chuẩn để chép / dán lệnh lưu và tra cứu.
 
 Config rclone lưu tại `/data/state/rclone.conf` (Docker).
 
