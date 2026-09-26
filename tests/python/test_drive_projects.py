@@ -161,6 +161,30 @@ def main():
     dp.delete_project(item["id"])
     check("deleted", dp.get_project(item["id"]) is None)
 
+    # Windows pair .bat: không one-liner quoting / không redirect trùng file
+    import base64
+    import re
+
+    bat = dp.win_pair_script(
+        pair_id="pair1", secret="sekrit", base_url="https://javis.example"
+    )
+    check("win bat CRLF", "\r\n" in bat)
+    check("win bat pause", "pause" in bat)
+    check("win bat not EncodedCommand", "EncodedCommand" not in bat)
+    chunks = re.findall(r'^echo ([A-Za-z0-9+/=]+)>{1,2}"%B64%"', bat, re.M)
+    check("win bat base64 chunks", len(chunks) >= 3)
+    ps1 = base64.b64decode("".join(chunks)).decode("utf-8")
+    check("win ps1 has base url", "https://javis.example" in ps1)
+    check("win ps1 has pair id", "pair1" in ps1)
+    out_m = re.search(r"RedirectStandardOutput\s+(\$\w+)", ps1)
+    err_m = re.search(r"RedirectStandardError\s+(\$\w+)", ps1)
+    check("win ps1 two redirects", bool(out_m and err_m))
+    check(
+        "win ps1 redirects differ",
+        bool(out_m and err_m and out_m.group(1) != err_m.group(1)),
+    )
+    check("win bat no access_token in cmd surface", '"access_token"' not in bat)
+
     print(f"\n{ok} passed, {fail} failed")
     return 0 if fail == 0 else 1
 

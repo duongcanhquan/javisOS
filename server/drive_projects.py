@@ -6,6 +6,7 @@ Brain làm việc: <brain>/sources/drive/<slug>/
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -832,59 +833,147 @@ read -r -p "Nhan Enter de dong..."
     )
 
 
+def _ps_single_quote(value: str) -> str:
+    """Escape for PowerShell single-quoted string literals."""
+    return (value or "").replace("'", "''")
+
+
 def win_pair_script(*, pair_id: str, secret: str, base_url: str) -> str:
-    """Script .bat: double-click trên Windows → đăng nhập Google → gửi về Javis."""
-    base = base_url.rstrip("/")
-    tpl = r'''@echo off
-chcp 65001 >nul
-title Ket noi Google Drive - Javis
-echo ==========================================
-echo   Ket noi Google Drive voi Javis
-echo ==========================================
-echo.
-set "JAVIS_URL=__BASE__"
-set "PAIR_ID=__PAIR__"
-set "SECRET=__SECRET__"
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-"$ErrorActionPreference='Stop'; ^
-$javis=$env:JAVIS_URL.TrimEnd('/'); $pair=$env:PAIR_ID; $secret=$env:SECRET; ^
-$rclone=(Get-Command rclone -ErrorAction SilentlyContinue).Source; ^
-if(-not $rclone){ ^
-  Write-Host 'Dang tai rclone...'; ^
-  $dir=Join-Path $env:TEMP 'javis-rclone'; New-Item -ItemType Directory -Force -Path $dir|Out-Null; ^
-  $zip=Join-Path $dir 'rclone.zip'; ^
-  $rel=Invoke-RestMethod https://api.github.com/repos/rclone/rclone/releases/latest; ^
-  $asset=$rel.assets | Where-Object { $_.name -match 'windows-amd64.zip$' } | Select-Object -First 1; ^
-  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip; ^
-  Expand-Archive -Path $zip -DestinationPath $dir -Force; ^
-  $rclone=(Get-ChildItem -Path $dir -Recurse -Filter rclone.exe | Select-Object -First 1).FullName; ^
-}; ^
-Write-Host '1) Mo trinh duyet dang nhap Google'; Write-Host '2) Bam Allow'; ^
-$conf=Join-Path $env:TEMP ('rclone-javis-'+[guid]::NewGuid()+'.conf'); ^
-$env:RCLONE_CONFIG=$conf; ^
-$log=Join-Path $env:TEMP ('rclone-auth-'+[guid]::NewGuid()+'.log'); ^
-$p=Start-Process -FilePath $rclone -ArgumentList @('authorize','drive','--auth-no-open-browser') -RedirectStandardOutput $log -RedirectStandardError $log -PassThru -WindowStyle Hidden; ^
-Start-Sleep 2; ^
-for($i=0;$i -lt 15;$i++){ Start-Sleep 1; if(Test-Path $log){ $txt=Get-Content -Raw $log; if($txt -match 'https://\S+'){ Start-Process $Matches[0]; break } } }; ^
-Write-Host 'Dang cho ban Allow...'; ^
-Wait-Process -Id $p.Id -Timeout 180 -ErrorAction SilentlyContinue; Start-Sleep 1; ^
-$txt=Get-Content -Raw $log; ^
-$idx=$txt.IndexOf('"access_token"'); if($idx -lt 0){ throw 'Khong thay token. Chay lai.' }; ^
-$start=$txt.LastIndexOf('{',$idx); $depth=0; $end=-1; ^
-for($i=$start;$i -lt $txt.Length;$i++){ if($txt[$i] -eq '{'){$depth++} elseif($txt[$i] -eq '}'){ $depth--; if($depth -eq 0){$end=$i; break} } }; ^
-$token=$txt.Substring($start,$end-$start+1); ^
-$body=@{secret=$secret; token=$token} | ConvertTo-Json -Compress; ^
-$resp=Invoke-RestMethod -Method Post -Uri ($javis+'/drive-projects/rclone/pair/'+$pair+'/complete') -ContentType 'application/json; charset=utf-8' -Body $body; ^
-if($resp.ok){ Write-Host 'OK - quay lai Javis, trang Kho Drive.' } else { throw ($resp.error) }; ^
-Remove-Item $conf,$log -ErrorAction SilentlyContinue"
-echo.
-pause
-'''
-    return (
-        tpl.replace("__BASE__", base.replace('"', ""))
-        .replace("__PAIR__", pair_id.replace('"', ""))
-        .replace("__SECRET__", secret.replace('"', ""))
-    )
+    """Script .bat: double-click trên Windows → đăng nhập Google → gửi về Javis.
+
+    Ghi PowerShell ra file tạm (base64) rồi chạy -File — tránh:
+    - CMD cắt chuỗi vì dấu \" trong one-liner cũ (cửa sổ nháy tắt)
+    - giới hạn độ dài -EncodedCommand
+    - Start-Process redirect stdout/stderr cùng một file
+    """
+    base = base_url.rstrip("/").replace('"', "").replace("\r", "").replace("\n", "")
+    pair = (pair_id or "").replace('"', "").replace("\r", "").replace("\n", "")
+    sec = (secret or "").replace('"', "").replace("\r", "").replace("\n", "")
+    b, p, s = _ps_single_quote(base), _ps_single_quote(pair), _ps_single_quote(sec)
+    ps1 = f"""$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$javis = '{b}'.TrimEnd('/')
+$pair = '{p}'
+$secret = '{s}'
+Write-Host '=========================================='
+Write-Host '  Ket noi Google Drive voi Javis'
+Write-Host '=========================================='
+Write-Host ''
+try {{
+  $rclone = (Get-Command rclone -ErrorAction SilentlyContinue).Source
+  if (-not $rclone) {{
+    Write-Host 'Dang tai rclone (mot lan)...'
+    $dir = Join-Path $env:TEMP 'javis-rclone'
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $zip = Join-Path $dir 'rclone.zip'
+    $rel = Invoke-RestMethod 'https://api.github.com/repos/rclone/rclone/releases/latest'
+    $asset = $rel.assets | Where-Object {{ $_.name -match 'windows-amd64\\.zip$' }} | Select-Object -First 1
+    if (-not $asset) {{ throw 'Khong tim thay ban rclone Windows. Kiem tra mang / GitHub.' }}
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip
+    Expand-Archive -Path $zip -DestinationPath $dir -Force
+    $rclone = (Get-ChildItem -Path $dir -Recurse -Filter rclone.exe | Select-Object -First 1).FullName
+    if (-not $rclone) {{ throw 'Tai rclone that bai.' }}
+  }}
+  Write-Host '1) Mo trinh duyet dang nhap Google'
+  Write-Host '2) Bam Allow'
+  Write-Host ''
+  $conf = Join-Path $env:TEMP ('rclone-javis-' + [guid]::NewGuid().ToString() + '.conf')
+  $env:RCLONE_CONFIG = $conf
+  $logOut = Join-Path $env:TEMP ('rclone-auth-' + [guid]::NewGuid().ToString() + '.out.log')
+  $logErr = Join-Path $env:TEMP ('rclone-auth-' + [guid]::NewGuid().ToString() + '.err.log')
+  $proc = Start-Process -FilePath $rclone -ArgumentList @('authorize','drive','--auth-no-open-browser') `
+    -RedirectStandardOutput $logOut -RedirectStandardError $logErr -PassThru -WindowStyle Hidden
+  Start-Sleep -Seconds 2
+  for ($i = 0; $i -lt 20; $i++) {{
+    Start-Sleep -Seconds 1
+    $txt = ''
+    if (Test-Path -LiteralPath $logOut) {{ $txt += [string](Get-Content -LiteralPath $logOut -Raw -ErrorAction SilentlyContinue) }}
+    if (Test-Path -LiteralPath $logErr) {{ $txt += [string](Get-Content -LiteralPath $logErr -Raw -ErrorAction SilentlyContinue) }}
+    if ($txt -match 'https://\\S+') {{
+      Start-Process $Matches[0]
+      Write-Host 'Da mo dang nhap Google.'
+      break
+    }}
+  }}
+  Write-Host 'Dang cho ban Allow...'
+  Wait-Process -Id $proc.Id -Timeout 180 -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 1
+  $txt = ''
+  if (Test-Path -LiteralPath $logOut) {{ $txt += [string](Get-Content -LiteralPath $logOut -Raw -ErrorAction SilentlyContinue) }}
+  if (Test-Path -LiteralPath $logErr) {{ $txt += [string](Get-Content -LiteralPath $logErr -Raw -ErrorAction SilentlyContinue) }}
+  $needle = [string][char]34 + 'access_token' + [char]34
+  $idx = $txt.IndexOf($needle)
+  if ($idx -lt 0) {{ throw 'Khong thay token. Bam Allow trong trinh duyet roi chay lai file .bat.' }}
+  $start = $txt.LastIndexOf([char]123, $idx)
+  $depth = 0
+  $end = -1
+  for ($i = $start; $i -lt $txt.Length; $i++) {{
+    if ($txt[$i] -eq [char]123) {{ $depth++ }}
+    elseif ($txt[$i] -eq [char]125) {{
+      $depth--
+      if ($depth -eq 0) {{ $end = $i; break }}
+    }}
+  }}
+  if ($end -lt 0) {{ throw 'Token JSON khong hop le.' }}
+  $token = $txt.Substring($start, $end - $start + 1)
+  $bodyObj = @{{ secret = $secret; token = $token }}
+  $body = $bodyObj | ConvertTo-Json -Compress
+  $uri = $javis + '/drive-projects/rclone/pair/' + $pair + '/complete'
+  $resp = Invoke-RestMethod -Method Post -Uri $uri -ContentType 'application/json; charset=utf-8' -Body $body
+  if ($resp.ok) {{
+    Write-Host ''
+    Write-Host 'OK - quay lai Javis, trang Kho Drive (F5 neu can).'
+  }} else {{
+    throw [string]($resp.error)
+  }}
+  Remove-Item -LiteralPath $conf, $logOut, $logErr -ErrorAction SilentlyContinue
+}} catch {{
+  Write-Host ''
+  Write-Host ('LOI: ' + $_.Exception.Message) -ForegroundColor Red
+  Write-Host 'Quay lai Javis > Kho Drive > Bat dau tren Windows, tai lai .bat roi chay.'
+  exit 1
+}}
+"""
+    b64 = base64.b64encode(ps1.encode("utf-8")).decode("ascii")
+    lines = [
+        "@echo off",
+        "chcp 65001 >nul",
+        "title Ket noi Google Drive - Javis",
+        "setlocal",
+        "echo Dang mo ket noi Google Drive...",
+        "echo.",
+        "set \"PS1=%TEMP%\\javis-drive-pair-%RANDOM%.ps1\"",
+        "set \"B64=%TEMP%\\javis-drive-pair-%RANDOM%.b64\"",
+        "del \"%B64%\" 2>nul",
+    ]
+    # Base64 chỉ A–Z a–z 0–9 + / = — an toàn với echo của CMD.
+    chunk = 72
+    for i in range(0, len(b64), chunk):
+        part = b64[i : i + chunk]
+        if i == 0:
+            lines.append(f'echo {part}>"%B64%"')
+        else:
+            lines.append(f'echo {part}>>"%B64%"')
+    # UTF-8 BOM để Windows PowerShell 5.1 đọc đúng file .ps1
+    lines += [
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command '
+        '"$p=$env:PS1; $b=$env:B64; '
+        "$raw=((Get-Content -LiteralPath $b -Raw) -replace '\\s',''); "
+        "$utf8=New-Object System.Text.UTF8Encoding $true; "
+        "[IO.File]::WriteAllText($p, $utf8.GetString([Convert]::FromBase64String($raw)), $utf8); "
+        "$rc=0; try { & $p; if (-not $?) { $rc=1 } } catch { Write-Host $_; $rc=1 }; "
+        'Remove-Item -LiteralPath $p,$b -ErrorAction SilentlyContinue; exit $rc"',
+        "set ERR=%ERRORLEVEL%",
+        "echo.",
+        "if not \"%ERR%\"==\"0\" (",
+        "  echo Neu cua so tat nhanh: chuot phai file .bat -^> Properties -^> Unblock,",
+        "  echo hoac More info -^> Run anyway. Roi chay lai.",
+        ")",
+        "pause",
+        "endlocal",
+        "",
+    ]
+    return "\r\n".join(lines)
 
 
 def status_payload(brain: str | None = None) -> dict:

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.45] - 2026-09-26
+### Sửa
+- **Kho Drive · Windows .bat:** cửa sổ nháy rồi tắt vì CMD cắt chuỗi PowerShell (dấu ngoặc kép) và `Start-Process` không được redirect stdout/stderr cùng một file. File tải về giờ ghi script tạm + `pause` rõ lỗi.
+
 ## [0.56.44] - 2026-09-26
 ### Bảo mật
 - **Bịt lỗ Host header lách đăng nhập** (backport gốc 0.59.16): auth đọc `scope["path"]` qua `duong_dan_router`; Host méo bị chặn 400.

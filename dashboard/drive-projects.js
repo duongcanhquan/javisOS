@@ -397,7 +397,7 @@
       '<div class="dp-os-title">Hướng dẫn cho Windows</div>' +
       '<ol class="dp-ol dp-ol-big">' +
       "<li>Bấm <b>Bắt đầu trên Windows</b> bên dưới.</li>" +
-      "<li>Bấm <b>Tải file .bat</b> → double-click file vừa tải (Run anyway nếu Windows hỏi).</li>" +
+      "<li>Bấm <b>Tải file .bat</b> → double-click file vừa tải (Run anyway nếu Windows hỏi). Cửa sổ đen sẽ hiện hướng dẫn và chờ bạn Allow.</li>" +
       "<li>Trình duyệt mở Google → Allow → quay lại trang này.</li>" +
       "</ol>" +
       '<button type="button" class="jw-btn jw-btn-primary" id="dpStartWin">Bắt đầu trên Windows</button>' +
@@ -479,7 +479,7 @@
         '<a class="jw-btn jw-btn-primary" href="' +
         esc(res.win_url) +
         '">Tải file .bat cho Windows</a>' +
-        '<p class="dp-muted" style="margin-top:8px">Double-click file vừa tải. Nếu Windows cảnh báo: More info → Run anyway.</p>';
+        '<p class="dp-muted" style="margin-top:8px">Double-click file vừa tải. Nếu Windows cảnh báo: More info → Run anyway. Cửa sổ phải hiện chữ và chờ bạn Allow Google — nếu tắt ngay, tải lại sau khi bấm Bắt đầu trên Windows.</p>';
     }
   }
 
