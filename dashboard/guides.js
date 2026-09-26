@@ -549,6 +549,7 @@
           <div class="jv-g-card">
             <h4>${ic("folder-tree")} Tệp tin & Drive</h4>
             <p><b>Kho Drive</b> = đồng bộ một thư mục Google vào bộ não (3 bước trên trang). Khác thẻ Google ở menu Kết nối.</p>
+            <p style="margin-top:8px">Nút <b>?</b> cạnh tiêu đề Kho Drive (và cạnh ô chat) mở popup <b>prompt chuẩn</b> nhập / lưu / tra cứu - chép hoặc dán vào chat.</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <button type="button" class="jv-g-go" data-ggo="files">Tệp tin</button>
               <button type="button" class="jv-g-go" data-ggo="drive">Kho Drive</button>
@@ -566,7 +567,8 @@
         <h3>${ic("message-circle")} Chat hiệu quả hơn</h3>
         <ul>
           <li>Gõ <code>/</code> để gọi skill hoặc lệnh phiên (<code>/new</code>, <code>/stop</code>…).</li>
-          <li>Đính file / ảnh khi cần VMOS đọc đúng nguồn.</li>
+          <li>Đính file / ảnh / folder khi cần VMOS đọc đúng nguồn. Mặc định chỉ đọc - nói «lưu sources + ingest» mới ghi vào bộ não.</li>
+          <li>Bấm nút <b>?</b> cạnh kẹp giấy để xem prompt chuẩn (file, Drive, folder máy, search mạng) rồi <b>Dán vào chat</b>.</li>
           <li>Nói rõ ràng: mục tiêu, ràng buộc, định dạng đầu ra mong muốn.</li>
           <li>Một brain = một «văn phòng» kiến thức - đừng lẫn dự án cá nhân vào brain công ty.</li>
         </ul>

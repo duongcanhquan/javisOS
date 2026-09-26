@@ -1,0 +1,61 @@
+# One-shot: đồng bộ image mới lên mọi máy người + verify prompt-help.js.
+# Chạy khi push file này / script sync (tránh phụ thuộc workflow_dispatch 403).
+name: Sync tenant images once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/sync-tenant-images-once.yml"
+      - "scripts/sync-tenant-images-vps.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload sync script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/sync-tenant-images-vps.sh"
+          target: "/tmp/javis-sync-tenant/"
+
+      - name: Sync tenant images over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          JAVIS_IMAGE: ghcr.io/duongcanhquan/javisos:latest
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 40m
+          envs: JAVIS_IMAGE
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR/scripts"
+            if [ -f /tmp/javis-sync-tenant/sync-tenant-images-vps.sh ]; then
+              cp -f /tmp/javis-sync-tenant/sync-tenant-images-vps.sh "$DIR/scripts/sync-tenant-images-vps.sh"
+            elif [ -f /tmp/javis-sync-tenant/scripts/sync-tenant-images-vps.sh ]; then
+              cp -f /tmp/javis-sync-tenant/scripts/sync-tenant-images-vps.sh "$DIR/scripts/sync-tenant-images-vps.sh"
+            fi
+            if [ ! -f "$DIR/scripts/sync-tenant-images-vps.sh" ]; then
+              echo "ERROR: thiếu sync-tenant-images-vps.sh"
+              exit 1
+            fi
+            chmod +x "$DIR/scripts/sync-tenant-images-vps.sh"
+            export JAVIS_IMAGE
+            bash "$DIR/scripts/sync-tenant-images-vps.sh"
