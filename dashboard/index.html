@@ -493,6 +493,17 @@
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
       </button>
+      <button type="button" class="attach-btn ph-help-btn" id="promptHelpBtn"
+              title="Gợi ý prompt nhập / lưu dữ liệu"
+              data-i18n-title="prompt_help.btn"
+              aria-label="Gợi ý prompt nhập / lưu dữ liệu"
+              data-i18n-aria="prompt_help.btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
       <input type="file" id="fileInput" multiple style="display:none">
       <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
       <textarea id="chatInput" class="voice-input" placeholder="Nói với VMOS, gõ ở đây, hoặc kéo/dán file vào..." data-i18n-ph="bar.input_ph" rows="1"></textarea>
@@ -864,6 +875,7 @@
   <script src="/static/brain-flow.js?v=2"></script>
   <script src="/static/push.js?v=2"></script>
   <script src="/static/install-nudge.js?v=1"></script>
+  <script src="/static/prompt-help.js?v=1"></script>
   <script src="/static/notifications.js?v=3"></script>
   <script src="/static/mascot.js?v=2"></script>
   <!-- (Nút đổi tông Tối / Neon / Sáng: theme.js đã nạp ở đầu khối script phía trên) -->
