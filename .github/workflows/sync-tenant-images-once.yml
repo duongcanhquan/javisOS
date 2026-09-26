@@ -9,6 +9,7 @@ on:
       - "scripts/sync-tenant-images-vps.sh"
   workflow_dispatch:
 
+# Hàng SSH riêng. Chạy SAU khi Deploy xong (tránh 409 đua apply_public_hosts).
 concurrency:
   group: vps-ssh
   cancel-in-progress: false
