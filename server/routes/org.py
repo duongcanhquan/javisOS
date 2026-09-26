@@ -528,10 +528,15 @@ def _make_router() -> APIRouter:
             ot.upsert(rec)
         try:
             # Docker start + điều phối có thể vài giây; chạy thread để /health không 502.
-            await asyncio.to_thread(org_docker.start_with_capacity, slug)
+            # handoff=False: admin bật máy không đá máy khác chỉ vì nghỉ ~90s.
+            await asyncio.to_thread(
+                lambda: org_docker.start_with_capacity(slug, handoff=False)
+            )
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-        return {"ok": True, "coord": _coord_public()}
+        # Không gọi _coord_public() trên event loop (people_running + ram_live → đơ/502).
+        # UI reload sổ qua GET /org/tenants (đã to_thread).
+        return {"ok": True}
 
     @router.post("/org/tenants/{slug}/pause")
     def org_pause(slug: str, request: Request):

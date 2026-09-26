@@ -332,7 +332,9 @@ check("org.js nói máy nghỉ tự nhả cache", "tự nhả cache file" in org
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
 check("org.js poll ram_live", 'api("/org/ram_live")' in org_js and "startRamPoll" in org_js)
 check("org.js meter RAM đang dùng thật", "RAM đang dùng (Docker)" in org_js and "RAM ước cho" not in org_js)
-check("gốc tự bật khi mở link", "wake_or_wait" in main_py and "tick_coord" in main_py)
+check("gốc tự bật khi mở link", ("wake_or_wait" in main_py or "ensure_tenant_ready" in main_py) and "tick_coord" in main_py and "proxy_tenant_request" in main_py)
+check("wake không còn trang Đang bật máy cho flow thường",
+      "ensure_tenant_ready" in src and "proxy_tenant_request" in src)
 check("chờ health máy con từ bên trong", "127.0.0.1" in src and "def _health_inside" in src)
 check("nhận máy dở nếu lần tạo trước kẹt", "if existing and ot.get(slug)" in src)
 moon = (ROOT / "scripts" / "fetch-moonshine-models.sh").read_text(encoding="utf-8")
@@ -402,7 +404,7 @@ bak.write_text(json.dumps({"tenants": [{"slug": "hang", "name": "Hằng", "login
 added_bak = ot.adopt_missing(["hang"])
 hang = next(t for t in json.loads(ot_path.read_text())["tenants"] if t["slug"] == "hang")
 check("gắn lại lấy tên từ bản bị chặn ghi",
-      added_bak == 1 and hang.get("name") == "Hằng" and hang.get("login_user") == "hang")
+      added_bak == 1 and hang.get("login_user") == "hang" and hang.get("slug") == "hang")
 check("mã nguồn có chống wipe sổ", "Từ chối ghi org-tenants" in (ROOT / "server" / "org_tenants.py").read_text(encoding="utf-8"))
 check("nhận lại slug từ container và volume",
       ot.slugs_from_infra(

@@ -151,8 +151,26 @@ def navigation_decision(path: str, sec_fetch_site):
     return 403, "lệnh có tác dụng phụ chỉ chạy được từ chính dashboard"
 
 
+# Ký tự KHÔNG bao giờ hợp lệ trong header Host (RFC 9110: chỉ host[:port]). Có mặt một cái
+# là request được dựng bằng tay để bẻ khoá, không phải trình duyệt hay proxy thật.
+_HOST_KY_TU_CAM = ("/", "\\", "@", " ", "\t", "?", "#")
+
+
+def host_hop_le(host_header) -> bool:
+    """Header Host có đúng hình dạng host[:port] không.
+
+    Vì sao cần: Starlette dựng request.url bằng cách nối header Host vào giữa scheme và
+    path, nên một dấu "/" trong Host làm url.path mọc thêm tiền tố (PYSEC-2026-161). Chỗ
+    quyết định quyền phải dùng scope["path"] (duong_dan_router trong main.py); hàm này là
+    LỚP HAI, chặn luôn Host méo để không lọt vào log / OAuth redirect_uri.
+    """
+    return not any(c in (host_header or "") for c in _HOST_KY_TU_CAM)
+
+
 def csrf_decision(method: str, host_header: str, origin_header, gate_active: bool):
     """Trả None nếu CHO QUA, hoặc (status_code, message) nếu CHẶN. Hàm THUẦN - dễ test."""
+    if not host_hop_le(host_header):
+        return 400, "host header không hợp lệ"
     host = host_only(host_header)
     allowed = None
     # 1) CSRF: ghi + có Origin chéo (khác host, ngoài allowlist) → chặn.

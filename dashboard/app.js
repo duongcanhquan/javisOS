@@ -2077,7 +2077,7 @@ function renderChips() {
   }
   pendingAttachments.forEach((a, i) => {
     const chip = document.createElement("div");
-    chip.className = "attach-chip" + (a.uploading ? " uploading" : "") + (a.kind === "folder" ? " folder" : "");
+    chip.className = "attach-chip" + (a.uploading ? " uploading" : "") + (a.kind === "folder" ? " folder" : "") + (a.loi ? " loi" : "");
     // Ảnh vừa dán/chọn cũng phải BẤM PHÓNG TO được ngay ở thanh đính kèm - trước đây ô này
     // là ảnh chết, muốn xem cho rõ phải gửi đi rồi mở lại. Ưu tiên URL trên máy chủ (tải xong),
     // lúc còn đang tải thì tạm dùng blob để không phải chờ mới thấy hình.
@@ -2098,7 +2098,10 @@ function renderChips() {
       let chipTxt = _chuFile("app.folder_chip", "thư mục · {n} file");
       meta = chipTxt.replace("{n}", String(n)) + (a.size ? (" · " + fmtSize(a.size)) : "");
     } else meta = fmtSize(a.size) + (a.folder ? ` → ${escapeHtml(a.folder)}` : "");
-    chip.innerHTML = `${thumb}<div class="chip-info"><span class="chip-name">${escapeHtml(a.name)}</span><span class="chip-meta">${meta}</span></div><button class="chip-x" data-i="${i}">${ic("x")}</button>`;
+    const _nutTaiLai = (a.loi && a.file && !a.uploading)
+      ? `<button class="chip-retry" data-i="${i}" title="Tải lại" aria-label="Tải lại">${ic("rotate-cw")}</button>`
+      : "";
+    chip.innerHTML = `${thumb}<div class="chip-info"><span class="chip-name">${escapeHtml(a.name)}</span><span class="chip-meta">${meta}</span></div>${_nutTaiLai}<button class="chip-x" data-i="${i}">${ic("x")}</button>`;
     attachBar.appendChild(chip);
   });
   if (attachNote) {
@@ -2107,6 +2110,8 @@ function renderChips() {
     note.textContent = attachNote;
     attachBar.appendChild(note);
   }
+  attachBar.querySelectorAll(".chip-retry").forEach(b =>
+    b.addEventListener("click", () => taiLaiDinhKem(+b.dataset.i)));
   attachBar.querySelectorAll(".chip-x").forEach(b =>
     b.addEventListener("click", () => {
       if (b.dataset.unpin) JavisPin.clear();
@@ -2203,24 +2208,70 @@ function nhanFileChat(files) {
   }
   if (loi) attachNote = loi;
   else if (nhan.length) attachNote = "";
-  nhan.forEach(uploadFile);
+  nhan.forEach(f => uploadFile(f));
   renderChips();
 }
 
-async function uploadFile(file) {
-  const isImg = fileLaAnh(file);
-  let _xong = null;
-  const att = {
-    name: file.name || "paste.png",
-    kind: isImg ? "image" : "file",
-    preview: isImg ? URL.createObjectURL(file) : null,
-    uploading: true, statusText: "đang tải...", path: null, size: file.size,
-    sources: null, attachments: null,
+// Tải file lên khung chat (backport từ gốc 0.64.43/0.64.51):
+// chip hiện % đã gửi, canh kẹt thay trần 3 phút, tự thử lại khi mạng đứng, nút tải lại.
+const TAI_KET_MS = 30000;
+const TAI_CHO_MAY_CHU_MS = 90000;
+const TAI_THU_LAI = 2;
+
+function guiUpload(fd, onTien, opt) {
+  opt = opt || {};
+  const XHR = opt.XHR || XMLHttpRequest;
+  // PHẢI bọc bằng hàm mũi tên (gốc 0.64.51). `{ setInterval, clearInterval }` rồi gọi
+  // dongHo.setInterval(...) → trình duyệt ném "Illegal invocation", mọi file báo "lỗi mạng".
+  const dongHo = opt.dongHo || {
+    now: () => Date.now(),
+    setInterval: (fn, ms) => setInterval(fn, ms),
+    clearInterval: (id) => clearInterval(id),
   };
-  // Lời hứa "tải xong" (thành hay hỏng đều xong) để sendMessage đợi được thay vì gửi thiếu.
+  const ketMs = opt.ketMs || TAI_KET_MS, choMs = opt.choMs || TAI_CHO_MAY_CHU_MS;
+  return new Promise((resolve, reject) => {
+    const xhr = new XHR();
+    let moc = dongHo.now(), guiXong = false, xong = false, ly = null;
+    const ket = (loai) => { if (xong) return; ly = loai; try { xhr.abort(); } catch (e) {} };
+    const canh = dongHo.setInterval(() => {
+      const im = dongHo.now() - moc;
+      if (!guiXong && im > ketMs) ket("stall");
+      else if (guiXong && im > choMs) ket("server");
+    }, 2000);
+    const het = (fn, v) => { if (xong) return; xong = true; dongHo.clearInterval(canh); fn(v); };
+    const loi = (loai) => { const e = new Error(loai); e.kind = loai; return e; };
+    xhr.upload.onprogress = (e) => {
+      moc = dongHo.now();
+      if (onTien && e.lengthComputable) onTien(e.loaded, e.total);
+    };
+    xhr.upload.onload = () => { guiXong = true; moc = dongHo.now(); if (onTien) onTien(-1, -1); };
+    xhr.onload = () => het(resolve, { status: xhr.status, text: xhr.responseText });
+    xhr.onerror = () => het(reject, loi("net"));
+    xhr.onabort = () => het(reject, loi(ly || "net"));
+    try {
+      xhr.open("POST", "/upload");
+      xhr.send(fd);
+    } catch (e) {
+      het(reject, Object.assign(loi("client"), { chiTiet: (e && e.message) || String(e) }));
+    }
+  });
+}
+
+async function uploadFile(file, att) {
+  const isImg = (typeof fileLaAnh === "function") ? fileLaAnh(file) : file.type.startsWith("image/");  let _xong = null;
+  const moi = !att;
+  if (moi) {
+    att = {
+      name: file.name || "paste.png",
+      kind: isImg ? "image" : "file",
+      preview: isImg ? URL.createObjectURL(file) : null,
+      path: null, size: file.size, sources: null, attachments: null,
+    };
+  }
+  att.file = file;
+  att.uploading = true; att.loi = false; att.statusText = "đang tải...";
   att.xong = new Promise(r => { _xong = r; });
-  pendingAttachments.push(att);
-  renderChips();
+  if (moi) pendingAttachments.push(att);  renderChips();
   try {
     await _taiLen(file, att);
   } finally {
@@ -2229,39 +2280,86 @@ async function uploadFile(file) {
     if (_xong) _xong();
   }
 }
+function _mb(b) { return (b / 1048576).toFixed(1).replace(/\.0$/, ""); }
 async function _taiLen(file, att) {
-  try {
-    // Chỉ STAGE để VMOS đọc - KHÔNG tự convert/lưu. Lưu Sources chỉ khi user yêu cầu.
+  let ve = 0;
+  const onTien = (daGui, tong) => {
+    if (daGui < 0) att.statusText = "máy chủ đang lưu";
+    else {
+      const pct = tong ? Math.min(99, Math.floor(daGui * 100 / tong)) : 0;
+      att.statusText = tong >= 1048576
+        ? ("đang gửi " + pct + "% · " + _mb(daGui) + "/" + _mb(tong) + " MB")
+        : ("đang gửi " + pct + "%");
+    }
+    const bay = Date.now();
+    if (daGui < 0 || bay - ve > 250) { ve = bay; renderChips(); }
+  };
+  for (let lan = 0; ; lan++) {
     const fd = new FormData();
     fd.append("file", file, att.name);
     fd.append("brain", currentBrainPath());
-    // Timeout rộng (3 phút) cho file lớn/mạng chậm; báo lỗi CỤ THỂ để dễ chẩn đoán trên VPS.
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 180000);
     let resp;
     try {
-      resp = await fetch("/upload", { method: "POST", body: fd, signal: ctrl.signal });
-    } finally {
-      clearTimeout(timer);
+      resp = await guiUpload(fd, onTien);
+    } catch (e) {
+      const kind = (e && e.kind) || (e && e.name === "TypeError" ? "client" : "net");
+      if (kind === "client") {
+        try { console.error("[upload] lỗi phía trình duyệt:", e); } catch (_e) {}
+        att.loi = true;
+        att.statusText = "lỗi trình duyệt: " + String((e && (e.chiTiet || e.message)) || e).slice(0, 80);
+        renderChips();
+        return;
+      }
+      if (kind !== "server" && lan < TAI_THU_LAI) {
+        att.statusText = "thử lại lần " + (lan + 2) + "...";
+        renderChips();
+        await new Promise(r => setTimeout(r, 1500 * (lan + 1)));
+        continue;
+      }
+      att.loi = true;
+      att.statusText = kind === "stall" ? "mạng đứng - bấm tải lại"
+        : kind === "server" ? "máy chủ im - bấm tải lại"
+        : "lỗi mạng - bấm tải lại";
+      renderChips();
+      return;
     }
-    if (!resp.ok) { att.uploading = false; att.statusText = "lỗi máy chủ (" + resp.status + ")"; renderChips(); return; }
-    const up = await resp.json();
-    if (!up.ok) { att.uploading = false; att.statusText = up.error ? ("lỗi: " + up.error) : "lỗi upload"; renderChips(); return; }
+    if (resp.status < 200 || resp.status >= 300) {
+      att.loi = true;
+      att.statusText = "lỗi máy chủ (" + resp.status + ")";
+      renderChips();
+      return;
+    }
+    let up;
+    try { up = JSON.parse(resp.text || "{}"); }
+    catch (e) {
+      att.loi = true;
+      att.statusText = "lỗi phản hồi máy chủ";
+      renderChips();
+      return;
+    }
+    if (!up.ok) {
+      att.loi = true;
+      att.statusText = up.error ? ("lỗi: " + up.error) : "lỗi upload";
+      renderChips();
+      return;
+    }
     att.path = up.staged; att.name = up.name; att.size = up.size; att.kind = up.kind;
-    att.url = up.url || "";   // đường xem lại trên máy chủ (bong bóng chat dùng, không phải blob)
+    att.url = up.url || "";
     att.sources = up.sources; att.attachments = up.attachments;
-    att.uploading = false; att.statusText = "";
-  } catch (e) {
-    att.uploading = false;
-    att.statusText = (e && e.name === "AbortError") ? "quá thời gian tải" : "lỗi mạng";
+    att.loi = false; att.statusText = "";
+    renderChips();
+    return;
   }
-  renderChips();
+}
+function taiLaiDinhKem(i) {
+  const a = pendingAttachments[i];
+  if (!a || !a.file || a.uploading) return;
+  uploadFile(a.file, a);
 }
 
 document.getElementById("attachBtn").addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => {
-  nhanFileChat(fileInput.files);
-  fileInput.value = "";
+  nhanFileChat(fileInput.files);  fileInput.value = "";
 });
 
 // ---- Chọn THƯ MỤC trên máy (cạnh nút đính kèm) ----
@@ -2486,8 +2584,7 @@ window.addEventListener("drop", (e) => {
   dragDepth = 0; dropOverlay.classList.remove("show");
   if (inLocalDrop(e)) return;   // chỗ kia đã preventDefault + chặn bọt, không đụng vào
   e.preventDefault();
-  if (e.dataTransfer?.files) nhanFileChat(e.dataTransfer.files);
-});
+  if (e.dataTransfer?.files) nhanFileChat(e.dataTransfer.files);});
 
 // ============================================
 // Events

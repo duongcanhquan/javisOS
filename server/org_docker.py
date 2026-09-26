@@ -1663,6 +1663,196 @@ def sync_park() -> None:
         raise RuntimeError(f"bật park HTTP {st.status_code}: {(st.text or '')[:200]}")
 
 
+def ensure_tenant_ready(slug: str, wait_sec: int = 90) -> dict:
+    """Bật máy (nếu cần) và chờ /health — không trả HTML chờ interstitial.
+
+    Trả {"ok": True} khi sẵn sàng để proxy; hoặc {"ok": False, "status", "html"} khi
+    lỗi cố định (không có máy / tạm dừng / hết chỗ).
+    """
+    s = (slug or "").strip().lower()
+    rec = ot.get(s)
+    if not rec or rec.get("protected"):
+        return {
+            "ok": False,
+            "status": 404,
+            "html": oc.wake_html(
+                ot.tenant_domain(s),
+                "Không có Javis này",
+                "Tên máy không có trên tổ chức. Hỏi quản trị tạo lại trên Javis gốc.",
+                0,
+            ),
+        }
+    if ot.is_soft_deleted(rec):
+        try:
+            left = max(0, int(rec.get("deleted_at") or 0) + ot.SOFT_DELETE_SEC - int(time.time()))
+            hrs = max(1, (left + 3599) // 3600)
+        except Exception:
+            hrs = 72
+        return {
+            "ok": False,
+            "status": 403,
+            "html": oc.wake_html(
+                ot.tenant_domain(s),
+                "Máy đang chờ xóa",
+                f"Quản trị đã đánh dấu xóa. Não còn khoảng {hrs} giờ nữa rồi mới xóa hẳn. "
+                "Bấm Khôi phục trên Tổ chức nếu cần giữ lại.",
+                0,
+            ),
+        }
+    if rec.get("paused"):
+        return {
+            "ok": False,
+            "status": 403,
+            "html": oc.wake_html(
+                ot.tenant_domain(s),
+                "Tài khoản tạm dừng",
+                "Quản trị đã tạm dừng máy này. Não và file còn, không xóa. "
+                "Bấm Chạy lại trên Tổ chức mới vào được.",
+                0,
+            ),
+        }
+    cname = str(rec.get("container") or f"javis-{s}")
+    host = ot.tenant_domain(s)
+    with _ensure_lock(s):
+        if not docker_available():
+            return {
+                "ok": False,
+                "status": 503,
+                "html": oc.wake_html(
+                    host, "Chưa kết nối Docker",
+                    "Javis gốc chưa nói chuyện được với Docker. Báo quản trị.",
+                    0,
+                ),
+            }
+        if container_serving_ready(cname):
+            try:
+                sync_park()
+            except Exception:
+                pass
+            return {"ok": True, "slug": s, "container": cname}
+        # Gắn nhãn Caddy khi đang tắt (không recreate máy đang chạy).
+        if container_status(cname) != "running":
+            try:
+                publish_tenant_route(s, enabled=True)
+            except Exception:
+                pass
+            try:
+                start_with_capacity(s)
+            except Exception as e:
+                pos = oc.enqueue_wait(s)
+                detail = str(e).strip()
+                if len(detail) > 280:
+                    detail = detail[:277] + "…"
+                return {
+                    "ok": False,
+                    "status": 503,
+                    "html": oc.wake_html(
+                        host,
+                        "Đang xếp lượt mở máy",
+                        f"{detail} Bạn đứng hàng thứ {pos}. Não và file không mất.",
+                        8,
+                    ),
+                }
+        # Chờ healthy — trình duyệt chỉ thấy loading, không trang chờ giả.
+        deadline = time.time() + max(15, int(wait_sec))
+        last = "chưa sẵn sàng"
+        while time.time() < deadline:
+            if container_serving_ready(cname):
+                try:
+                    sync_park()
+                except Exception:
+                    pass
+                return {"ok": True, "slug": s, "container": cname}
+            st = container_status(cname)
+            if st != "running":
+                last = f"máy {st}"
+                try:
+                    start_with_capacity(s)
+                except Exception as e:
+                    last = str(e)[:120]
+            else:
+                last = _health_status(cname) or "starting"
+            time.sleep(1.2)
+        return {
+            "ok": False,
+            "status": 503,
+            "html": oc.wake_html(
+                host,
+                "Máy mở chậm",
+                f"Đã chờ nhưng Javis con chưa trả lời ({last}). Thử mở lại sau vài giây — não không mất.",
+                5,
+            ),
+        }
+
+
+_ENSURE_LOCKS: dict[str, threading.Lock] = {}
+_ENSURE_META = threading.Lock()
+
+
+async def proxy_tenant_request(request, slug: str):
+    """Proxy HTTP sang máy tenant — user thấy dashboard thật (không HTML chờ)."""
+    import httpx
+    from fastapi.responses import StreamingResponse, Response
+    from starlette.background import BackgroundTask
+
+    s = (slug or "").strip().lower()
+    cname = f"javis-{s}"
+    host = ot.tenant_domain(s)
+    # Dùng scope["path"] — cùng lý do duong_dan_router (Host méo không được bẻ path proxy).
+    path = (request.scope.get("path") if getattr(request, "scope", None) else None) or request.url.path or "/"
+    q = request.url.query
+    url = f"http://{cname}:7777{path}"
+    if q:
+        url = url + "?" + q
+    skip = {
+        "host", "content-length", "transfer-encoding", "connection",
+        "keep-alive", "proxy-authenticate", "proxy-authorization",
+        "te", "trailers", "upgrade",
+    }
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in skip
+    }
+    headers["host"] = host
+    # Giữ scheme công khai để tenant sinh link https đúng.
+    if request.headers.get("x-forwarded-proto"):
+        headers["x-forwarded-proto"] = request.headers.get("x-forwarded-proto")
+    else:
+        headers["x-forwarded-proto"] = "https"
+    headers["x-forwarded-host"] = host
+    body = await request.body()
+    timeout = httpx.Timeout(180.0, connect=15.0)
+    client = httpx.AsyncClient(timeout=timeout)
+    try:
+        req = client.build_request(request.method, url, headers=headers, content=body or None)
+        r = await client.send(req, stream=True)
+    except Exception as e:
+        await client.aclose()
+        return Response(
+            content=(
+                f"Không nối được máy «{s}» ({type(e).__name__}). "
+                "Thử mở lại — não và file vẫn còn."
+            ),
+            status_code=502,
+            media_type="text/plain; charset=utf-8",
+        )
+    out_headers = {
+        k: v for k, v in r.headers.items()
+        if k.lower() not in skip and k.lower() != "content-encoding"
+    }
+
+    async def _close():
+        await r.aclose()
+        await client.aclose()
+
+    return StreamingResponse(
+        r.aiter_raw(),
+        status_code=r.status_code,
+        headers=out_headers,
+        background=BackgroundTask(_close),
+    )
+
+
 def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
     rec = ot.get(slug)
     if not rec or rec.get("protected"):

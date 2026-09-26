@@ -90,9 +90,10 @@ check("index.html vẫn trả no-store (điểm tựa phải luôn mới)",
 # ============================================================
 # 2. Người gác cổng không được phép cũ theo
 # ============================================================
+# So với PHÉP so path freshness (không bám request.url.path — sau 0.56.40 dùng duong_dan_router).
 check("CANARY: freshness.js được đóng dấu no-cache",
-      'request.url.path == "/static/freshness.js"' in MAIN
-      and MAIN.split('request.url.path == "/static/freshness.js"', 1)[1][:200].count("no-cache") >= 1)
+      '== "/static/freshness.js"' in MAIN
+      and MAIN.split('== "/static/freshness.js"', 1)[1][:200].count("no-cache") >= 1)
 check("CANARY: index.html nạp freshness.js KHÔNG kèm ?v=",
       '<script src="/static/freshness.js"></script>' in INDEX)
 # Nạp sau các file khác thì một file phía trên hỏng vì chạy bản cũ là nó chết theo, đúng

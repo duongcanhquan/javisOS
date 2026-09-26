@@ -6752,7 +6752,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         document.getElementById("vpOpenai").style.display = p === "openai" ? "block" : "none";
         document.getElementById("vpEleven").style.display = p === "elevenlabs" ? "block" : "none";
         document.getElementById("vpZerotts").style.display = p === "zerotts" ? "block" : "none";
-        // Giọng Ngọc Thu/Nam Minh chỉ áp dụng cho Edge. Provider khác chọn giọng ngay trong khối trên
+        // Giọng Hoài My/Nam Minh (+ đa ngôn ngữ) chỉ áp dụng cho Edge. Provider khác chọn giọng ngay trong khối trên
         // (vpOaVoice / vpElVoice / vpZtVoice) nên ẩn khối này cho gọn. Radio vẫn nằm trong DOM + giữ 'checked'
         // để app.js đọc input[name=voice] không lỗi; server dùng provider đã lưu nên giá trị này vô hại.
         const edgeVoice = document.getElementById("edgeVoiceSection");

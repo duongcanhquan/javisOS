@@ -1,5 +1,14 @@
 # Nhật ký cập nhật
 
+## [0.56.44] - 2026-09-26
+### Bảo mật
+- **Bịt lỗ Host header lách đăng nhập** (backport gốc 0.59.16): auth đọc `scope["path"]` qua `duong_dan_router`; Host méo bị chặn 400.
+- **Nâng FastAPI 0.141.1 + Starlette 1.6.0**, python-multipart 0.0.31, python-dotenv 1.2.2. Giữ mã thiết lập lần đầu.
+### Cải thiện
+- **Tải ảnh/file chat:** hiện %, canh kẹt, tự thử lại, nút tải lại; vá Illegal invocation («lỗi mạng»).
+- **Be Vietnam Pro** toàn UI; prompt trả lời dễ đọc hơn; giọng **Hoài My** + 5 giọng Edge đa ngôn ngữ.
+- **Tổ chức · mở link:** chờ `/health` rồi proxy thẳng dashboard khi có thể (kết hợp trang chờ hold của 0.56.37).
+
 ## [0.56.43] - 2026-09-26
 ### Thêm
 - **Hướng dẫn · prompt ?:** trang Hướng dẫn nhắc nút ? (chat + Kho Drive). Script đồng bộ image mọi máy người trên VPS + kiểm tra `prompt-help.js`.
@@ -41,7 +50,6 @@
 ### Cải thiện
 - **Câu chờ khi trả lời:** bỏ «anh chờ em» (sai khi người dùng là nữ). Chip xoay `Em làm ngay đây ạ!` → tìm trong não → sắp xong → cảm ơn đã chờ.
 - **Đồng bộ skill từ manager:** lần deploy sau gắn lệnh Docker vào Javis gốc, nút Đồng bộ chạy ngay trên trang, không cần SSH vào máy chủ.
-
 ## [0.56.34] - 2026-09-22
 ### Sửa
 - **Tổ chức · 502 / Đang bật máy mãi:** `start()` chờ `/health` tới ~80s trên thread uvicorn → manager đơ, Caddy trả 502. Nay bật máy trả ngay khi Docker start; `/org/start` + list/ram_live chạy `asyncio.to_thread`; poll RAM 12s; usage đĩa không force mỗi lần.

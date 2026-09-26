@@ -665,7 +665,9 @@
               </form>
               <p class="dim org-sec-note"><b>Không tự tắt.</b> Máy đang mở giữ chạy đến khi bạn bấm Tắt hoặc Tạm dừng. Não không mất.
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
-                Gợi ý RAM khoảng <b>${esc(String(suggestN))}</b> máy mở. Trần tay đang <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>.</p>
+                Gợi ý RAM an toàn khoảng <b>${esc(String(suggestN))}</b> máy (ước theo trần Docker ${esc(String(ramPer))} MB).
+                Trần tay bạn đặt <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>
+                (không còn bị kẹp xuống gợi ý RAM). Khi RAM host thấp, máy nghỉ vẫn bị tắt nhường chỗ.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">

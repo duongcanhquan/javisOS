@@ -5,23 +5,25 @@
 # tiếng Việt bên dưới làm `pip install -r requirements.txt` NỔ UnicodeDecodeError ngay bước
 # cài đặt (setup.bat [2/3]). chcp 65001 KHÔNG cứu được: nó đổi codepage của console, còn
 # locale.getpreferredencoding() đọc ANSI codepage của hệ thống.
-# QUAN TRỌNG: fastapi và starlette bị KHOÁ CẶP. fastapi 0.115.0 cần starlette<0.39;
-# fastapi 0.115.6 cần starlette>=0.40. Engine Agent SDK yêu cầu giữ starlette<0.39
-# (pin bên dưới), nên fastapi PHẢI ở 0.115.0 - đừng bump lên 0.115.6 nếu chưa gỡ pin
-# starlette, kẻo pip resolve gãy (CI đỏ ở bước cài deps). Bộ này khớp .venv đang chạy thật.
-fastapi==0.115.0
+# fastapi + starlette: từ backport bảo mật 0.56.40 (gốc 0.59.19) KHÔNG CÒN KHOÁ CẶP.
+# fastapi 0.141.1 khai starlette>=0.46.0 (không trần). Ghim starlette==1.6.0 để lần cài
+# nào cũng cùng bản. claude-agent-sdk 0.2.116 không ràng starlette; đã kiểm dry-run.
+# Lý do nâng: PYSEC-2026-1943 (form đệm không giới hạn → hết RAM), PYSEC-2026-2281 (Windows
+# StaticFiles UNC). PYSEC-2026-161 (Host lách auth) đã tự vá bằng duong_dan_router + host_hop_le.
+fastapi==0.141.1
 uvicorn[standard]==0.51.0
 httpx==0.27.2
 claude-agent-sdk==0.2.116
-# mcp (dep của claude-agent-sdk) chấp nhận starlette>=0.27; giữ <0.39 cho khớp fastapi 0.115.0.
-starlette>=0.37.2,<0.39
+starlette==1.6.0
 sse-starlette>=1.6.1,<3
-python-dotenv==1.0.1
+# python-dotenv 1.0.1 có PYSEC-2026-2270, vá ở 1.2.2.
+python-dotenv==1.2.2
 websockets==13.1
 edge-tts>=7.0.0
 # Pillow: vẽ khung chữ cho plugin script-video (render mp4 không cần Pixelle).
 Pillow>=10.0,<12
-python-multipart==0.0.18
+# python-multipart: 0.0.18 có CVE path traversal; vá ở 0.0.31.
+python-multipart==0.0.31
 pyyaml>=6.0
 cryptography>=42.0
 jsonschema>=4.20,<5
@@ -50,9 +52,8 @@ gpsoauth>=1.0
 # nhật Javis từ trước 0.41.1 nên chạy thẳng: pip install -U yt-dlp
 yt-dlp>=2026.8.19
 
-# KHÔNG thêm pipecat-ai vào file này. Extra websocket của họ đòi fastapi>=0.115.6, trong khi
-# Javis ghim fastapi==0.115.0 / starlette<0.39 vì claude-agent-sdk. Fast-path giọng nói nằm ở
-# server/pipecat_voice.py (smart turn + /tts?stream=1), không import gói đó.
+# KHÔNG thêm pipecat-ai vào file này. Extra websocket của họ từng đòi fastapi>=0.115.6;
+# Fast-path giọng nói nằm ở server/pipecat_voice.py (smart turn + /tts?stream=1), không import gói đó.
 
 # ZeroTTS (tuỳ chọn): TTS tiếng Việt local ONNX. KHÔNG thêm vào đây - kéo onnxruntime +
 # tải ~900MB weights lần đầu. Cài khi cần: pip install zerotts
