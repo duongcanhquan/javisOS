@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.43] - 2026-09-26
+### Thêm
+- **Hướng dẫn · prompt ?:** trang Hướng dẫn nhắc nút ? (chat + Kho Drive). Script đồng bộ image mọi máy người trên VPS + kiểm tra `prompt-help.js`.
+
 ## [0.56.42] - 2026-09-26
 ### Thêm
 - **Chat · nút ? prompt:** cạnh đính kèm/folder. Mở popup hướng dẫn prompt nhập & lưu (file chat, Drive, folder máy, search mạng) - chép hoặc dán vào ô chat. Cùng nút trên trang Kho Drive. Quan và mọi tenant dùng chung sau cập nhật.
