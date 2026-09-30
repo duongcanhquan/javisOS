@@ -1,6 +1,7 @@
 # One-shot: cloud agent không dispatch được workflow_dispatch (403).
 # Trigger bằng push nhánh cursor/pull-brains-latest-53c1 rồi xoá file này sau khi lấy artifact.
 name: Pull brains agent once
+# last-trigger: 2026-09-30T00:21:02Z
 
 on:
   push:
