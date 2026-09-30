@@ -61,7 +61,7 @@ check("CA THẬT: sau việc nền, phiên KHÔNG còn bị coi là đang chạy
 check("CANARY: bỏ hẳn kiểu nuốt lặng `if (turns[sid].running) return;`",
   !/if \(turns\[sid\] && turns\[sid\]\.running\) return;/.test(app));
 check("gõ lúc rảnh tay thì DỪNG lượt cũ rồi gửi",
-  /if \(!handsFree\) return;[\s\S]{0,80}stopCurrent\(\);/.test(app));
+  /if \(!handsFree && !_lenhLaGoal\)[\s\S]{0,160}stopCurrent\(/.test(app));
 
 console.log(fails.length ? "\n" + fails.length + " FAIL" : "\nTat ca OK");
 process.exit(fails.length ? 1 : 0);
