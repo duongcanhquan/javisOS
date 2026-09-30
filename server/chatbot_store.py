@@ -64,7 +64,7 @@ KENH_DEFAULT = "telegram" if "telegram" in KENH else (KENH[0] if KENH else "tele
 KENH_NHAN = {k: channels.nhan(k) for k in KENH}
 KENH_NGUON_TOKEN = {k: (channels.spec(k).lay_token if channels.spec(k) else "") for k in KENH}
 
-REPLY_WHEN = ("mention", "always")
+REPLY_WHEN = ("mention", "always", "auto")
 RATE_MIN, RATE_MAX, RATE_DEFAULT = 1, 200, 20
 
 # Bot lấy câu trả lời từ đâu khi tài liệu không phủ được câu hỏi.
@@ -224,6 +224,13 @@ def _clean_name(v: Any) -> str:
 def _clean_icon(v: Any) -> Optional[str]:
     s = str(v or "").strip().lower()
     return s if _ICON_RE.match(s) else None
+
+
+def _bat(v: Any) -> bool:
+    """Công tắc. Thiếu hoặc 0 là tắt. Mặc định tắt để bot không tự chen vào nhóm Zalo."""
+    if isinstance(v, bool):
+        return v
+    return str(v or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _clean_groups(v: Any) -> List[str]:
@@ -492,6 +499,8 @@ def create_bot(data: dict) -> tuple[Optional[str], str]:
             "bot_username": str(data.get("bot_username") or "").strip().lstrip("@"),
             "groups": _clean_groups(data.get("groups")),
             "reply_when": (data.get("reply_when") if data.get("reply_when") in REPLY_WHEN else "mention"),
+            # Zalo cá nhân trong nhóm. Tắt sẵn: bật lên thì nhóm nick đang ở sẽ được trả lời.
+            "tra_loi_nhom": _bat(data.get("tra_loi_nhom")),
             "nguon_tra_loi": (data.get("nguon_tra_loi") if data.get("nguon_tra_loi") in NGUON
                               else NGUON_DEFAULT),
             "muc_quyen": _clean_muc(data.get("muc_quyen")) or MUC_QUYEN_DEFAULT,
@@ -508,7 +517,7 @@ def create_bot(data: dict) -> tuple[Optional[str], str]:
 
 # Trường giao diện được phép sửa. Danh sách TRẮNG chứ không phải "nhận hết trừ vài cái":
 # thêm trường mới vào bản ghi mà quên loại khỏi danh sách đen là mở một đường ghi không ai ngờ.
-_PATCHABLE = ("name", "icon", "groups", "reply_when", "handoff_to", "rate_limit",
+_PATCHABLE = ("name", "icon", "groups", "reply_when", "tra_loi_nhom", "handoff_to", "rate_limit",
               "agent_slug", "agent_brain", "brain", "bot_username", "token", "enabled",
               "nguon_tra_loi", "muc_quyen", "ngon_ngu", "account_ids")
 # `channel` CỐ Ý đứng ngoài danh sách trắng. Đổi kênh của một bot đã tạo là đổi sang một CON
@@ -558,6 +567,8 @@ def update_bot(bot_id: str, patch: dict) -> tuple[bool, str]:
                 elif k == "reply_when":
                     if v in REPLY_WHEN:
                         b["reply_when"] = v
+                elif k == "tra_loi_nhom":
+                    b["tra_loi_nhom"] = _bat(v)
                 elif k == "nguon_tra_loi":
                     if v in NGUON:
                         b["nguon_tra_loi"] = v

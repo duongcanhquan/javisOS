@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.46] - 2026-09-30
+### Mới
+- **Khung chat:** gõ `/` có thêm lệnh hệ thống (`/status`, `/model`, `/usage`, `/tasks`, `/memory`, `/compact`, `/plan`, `/goal`...). `/plan` chỉ lập kế hoạch. `/goal` tự làm tiếp, tối đa 8 vòng, gõ tin mới hoặc bấm Dừng là dừng.
+- **Telegram:** thêm `/usage`, `/tasks`, `/memory`, `/plan`. Não nào đã có skill trùng tên thì skill chạy, không bị lệnh mới nuốt.
+- **Zalo nhóm:** mặc định tắt. Bật "Trả lời trong nhóm Zalo" thì nhóm nick đang ở được trả lời khi tag hoặc reply. Chế độ Tự đánh giá chỉ lên tiếng khi tài liệu trả lời được, và có trần số lần mỗi giờ.
+
 ## [0.56.45] - 2026-09-26
 ### Sửa
 - **Kho Drive · Windows .bat:** cửa sổ nháy rồi tắt vì CMD cắt chuỗi PowerShell (dấu ngoặc kép) và `Start-Process` không được redirect stdout/stderr cùng một file. File tải về giờ ghi script tạm + `pause` rõ lỗi.

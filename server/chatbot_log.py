@@ -74,6 +74,9 @@ def ghi(bot_id: str, rec: dict) -> None:
             # người đang hỏi vẫn nhận được câu trả lời tử tế - chỉ chủ mới cần biết là nó chạy
             # thiếu quyền. Tách hẳn hai trường vì `loi` còn kéo theo bộ đếm bí và gọi người trực.
             "canh_bao": str(rec.get("canh_bao") or "")[:500],
+            # Lượt tự đánh giá bị bỏ (không phải câu hỏi, hết hạn mức, không có tài liệu).
+            # Không tính vào số lượt.
+            "bo_qua": str(rec.get("bo_qua") or "")[:40],
         }
         p = _path(bot_id)
         with _lock:
@@ -171,14 +174,21 @@ def tom_tat(bot_id: str) -> dict:
     """Vài con số cho thẻ bot. Đọc cả file nên đừng gọi trong vòng lặp danh sách."""
     rs = _nap(bot_id)
     if not rs:
-        return {"luot": 0, "bi": 0, "chuyen_nguoi": 0, "ty_le_bi": 0.0, "lan_cuoi": 0.0}
-    bi = sum(1 for r in rs if r.get("bi"))
+        return {"luot": 0, "bi": 0, "chuyen_nguoi": 0, "ty_le_bi": 0.0,
+                "lan_cuoi": 0.0, "bo_qua": 0}
+    that = [r for r in rs if not r.get("bo_qua")]
+    bo = len(rs) - len(that)
+    if not that:
+        return {"luot": 0, "bi": 0, "chuyen_nguoi": 0, "ty_le_bi": 0.0,
+                "lan_cuoi": max((r.get("ts") or 0) for r in rs), "bo_qua": bo}
+    bi = sum(1 for r in that if r.get("bi"))
     return {
-        "luot": len(rs),
+        "luot": len(that),
         "bi": bi,
-        "chuyen_nguoi": sum(1 for r in rs if r.get("chuyen_nguoi")),
-        "ty_le_bi": round(100.0 * bi / len(rs), 1),
-        "lan_cuoi": max((r.get("ts") or 0) for r in rs),
+        "chuyen_nguoi": sum(1 for r in that if r.get("chuyen_nguoi")),
+        "ty_le_bi": round(100.0 * bi / len(that), 1),
+        "lan_cuoi": max((r.get("ts") or 0) for r in that),
+        "bo_qua": bo,
     }
 
 

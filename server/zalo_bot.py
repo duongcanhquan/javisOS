@@ -343,7 +343,7 @@ class ZaloBot(HangLuot):
             "message_id": msg.get("message_id"),
             "bot_username": self.bot_username,
             "mentioned": self._co_nhac_ten(msg),
-            "reply_to_bot": False,   # Zalo không cho biết tin này trả lời vào tin nào
+            "reply_to_bot": self._reply_vao_bot(msg),
         }
 
     def _co_nhac_ten(self, msg):
@@ -366,6 +366,18 @@ class ZaloBot(HangLuot):
             return False
         s = str(msg.get("text") or msg.get("caption") or "")
         return bool(re.search(re.escape(ten) + r"(?![A-Za-zÀ-ỹ0-9_])", s, re.I))
+
+    def _reply_vao_bot(self, msg):
+        """Reply vào tin của bot thì tính là được gọi, cùng luật với tag tên."""
+        q = msg.get("quote") or msg.get("reply_to") or msg.get("reply") or {}
+        if not isinstance(q, dict):
+            return False
+        ten = str(self.bot_username or "").strip().lower()
+        who = str(q.get("sender_name") or q.get("from_display_name")
+                  or q.get("display_name") or q.get("senderName") or "").strip().lower()
+        if ten and who and who == ten:
+            return True
+        return False
 
     # ---- File người dùng gửi lên ------------------------------------------------------
     async def _nghe_tin_thoai(self, client, msg, caption):

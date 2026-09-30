@@ -134,6 +134,7 @@ import channel_accounts  # tài khoản kênh dạng token (0.61.0), bot chỉ t
 import channels          # sổ đăng ký kênh của Hộp thư hội thoại (0.61.0)
 import conversations     # Hộp thư hội thoại khách: kho khách -> hội thoại -> tin (Chatbot V2)
 import zalo_personal_channel   # Hộp thư hội thoại: đọc tin Zalo cá nhân từ MCP theo cursor
+import lenh_he_thong
 import deploy_info              # Javis đang đứng ở đâu (docker/native) - xem _deploy_mode
 import ollama_catalog           # danh mục model để gợi ý + tìm kiếm
 import ollama_local             # dò/tải/gỡ model trên máy chạy Ollama
@@ -15602,6 +15603,65 @@ async def sessions_get(session_id: str):
     return sess
 
 
+@app.post("/sessions/{session_id}/compact")
+async def sessions_compact(session_id: str):
+    """Nén phần cũ của hội thoại ngay. Không gọi model."""
+    kq = get_store().nen_phan_cu(session_id)
+    if kq.get("missing"):
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    return kq
+
+
+@app.get("/slash/status")
+async def slash_status(session_id: str = "", brain: str = "brain"):
+    s = cfgmod.read_settings()
+    em = _effective_main(s)
+    n = 0
+    if session_id:
+        try:
+            n = get_store().count_messages(session_id)
+        except Exception:
+            n = 0
+    try:
+        ver = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    except Exception:
+        ver = ""
+    return {
+        "provider": em.get("provider") or "",
+        "model": em.get("model") or "",
+        "brain": Path(_brain_root(brain)).name,
+        "msg_count": n,
+        "version": ver,
+    }
+
+
+@app.get("/slash/memory")
+async def slash_memory(brain: str = "brain"):
+    root = Path(_brain_root(brain))
+    p = root / "memory" / "MEMORY.md"
+    try:
+        text = p.read_text(encoding="utf-8") if p.is_file() else ""
+    except OSError:
+        text = ""
+    if len(text) > 6000:
+        text = text[:6000].rstrip() + "\n…"
+    facts = 0
+    try:
+        facts = len(list((root / "memory" / "facts").glob("*.md")))
+    except OSError:
+        facts = 0
+    return {"brain": root.name, "text": text, "facts": facts}
+
+
+@app.post("/slash/block")
+async def slash_block(kind: str = Form(""), dk: str = Form(""),
+                      vong: int = Form(1), toi_da: int = Form(8)):
+    block = lenh_he_thong.khoi_chi_dan(kind, dk, vong, toi_da)
+    if not block:
+        return JSONResponse({"ok": False, "error": "kind"}, status_code=400)
+    return {"ok": True, "block": block}
+
+
 # ============================================================
 # TÀI SẢN CỦA MỘT CUỘC TRÒ CHUYỆN: file đã tạo + link đã nhắc
 # ============================================================
@@ -18519,7 +18579,9 @@ async def _tg_help_text(brain):
         "/cli - engine Claude (có MCP/skill)\n"
         "/or - engine OpenRouter (chat + MCP đa-model)\n"
         "/retry - gửi lại câu gần nhất\n"
-        "/reset - hội thoại mới · /stop - dừng chat hoặc workflow đang chạy\n\n"
+        "/reset - hội thoại mới · /stop - dừng chat hoặc workflow đang chạy\n"
+        "/usage - token đã dùng · /tasks - việc nền · /memory - bộ nhớ · /plan <việc> - chỉ lập kế hoạch\n"
+        "(nếu não có skill trùng tên thì skill chạy, không phải lệnh này)\n\n"
         "Gửi tin thường để hỏi Javis. Mọi engine dùng được MCP Hub của Javis.\n"
         "Gõ /tên-skill [yêu cầu] để gọi skill.\n"
         "Gửi file/ảnh vào đây để Javis đọc. File Javis tạo ra sẽ tự gửi lại cho bạn ở đây."
@@ -19100,6 +19162,71 @@ async def _tg_callback(data, chat=None):
     return None
 
 
+def _tg_co_skill(brain, cmd) -> bool:
+    """Não này có skill trùng tên lệnh hệ thống mới không. Có thì skill thắng."""
+    try:
+        slugs = [s.get("slug") for s in skills_index(brain)]
+    except Exception:
+        slugs = []
+    return lenh_he_thong.skill_thang(cmd, slugs)
+
+
+async def _tg_lenh_moi(cmd, arg, brain):
+    """/usage /tasks /memory /plan trên Telegram. Chỉ tới đây khi không có skill trùng tên."""
+    if cmd == "usage":
+        d = usage_store.summary()
+        hn = (d.get("today") or {}).get("total") or {}
+        tc = (d.get("all_time") or {}).get("total") or {}
+
+        def _dong(nhan, tot):
+            if not tot.get("turns"):
+                return f"{nhan}: chưa có lượt nào"
+            return (f"{nhan}: {tot.get('turns', 0)} lượt, "
+                    f"vào {tot.get('in', 0)}, ra {tot.get('out', 0)}")
+
+        return {"reply": "Mức dùng\n" + _dong("Hôm nay", hn) + "\n" + _dong("Tổng", tc)}
+    if cmd == "tasks":
+        try:
+            view = tasks_feature.board_view(brain)
+        except Exception as e:
+            return {"reply": f"Không đọc được việc nền: {type(e).__name__}"}
+        cot = view.get("columns") or {}
+        dong = ["Việc nền"]
+        if view.get("orchestration") == "off":
+            dong.append("AI tự vận hành đang tắt. Việc chỉ nằm trong hàng chờ.")
+        co = False
+        for khoa, nhan in (("running", "Đang chạy"), ("blocked", "Bị chặn"),
+                           ("review", "Chờ duyệt"), ("ready", "Sẵn sàng"),
+                           ("todo", "Việc"), ("triage", "Mới vào")):
+            ds = cot.get(khoa) or []
+            if not ds:
+                continue
+            co = True
+            dong.append(f"{nhan} ({len(ds)})")
+            for t in ds[:5]:
+                dong.append("- " + str(t.get("title") or t.get("id") or "?")[:70])
+        if not co:
+            dong.append("Không có việc đang mở.")
+        return {"reply": "\n".join(dong)}
+    if cmd == "memory":
+        p = Path(_brain_root(brain)) / "memory" / "MEMORY.md"
+        try:
+            text = p.read_text(encoding="utf-8").strip() if p.is_file() else ""
+        except OSError:
+            text = ""
+        if not text:
+            return {"reply": "Não này chưa có MEMORY.md."}
+        if len(text) > 3500:
+            text = text[:3500].rstrip() + "\n…"
+        return {"reply": "Bộ nhớ\n\n" + text}
+    if cmd == "plan":
+        viec = (arg or "").strip()
+        if not viec:
+            return {"reply": "Cú pháp: /plan việc cần làm"}
+        return {"ask": lenh_he_thong.khoi_chi_dan("plan") + viec}
+    return {"reply": "Không rõ lệnh."}
+
+
 async def _tg_command(cmd, arg, chat=None, meta=None):
     """Xử lý lệnh Telegram cho 1 chat. Trả {'reply':...} hoặc {'ask':...} hoặc None.
     chat = chat_id của người gõ lệnh → reset/stop/retry/brain chỉ tác động PHIÊN của họ."""
@@ -19260,6 +19387,8 @@ async def _tg_command(cmd, arg, chat=None, meta=None):
                              "(hội thoại reset để nạp đúng bộ nhớ/skill của brain mới)"}
         # Không tham số → menu nút bấm chọn brain
         return {"reply": _tg_brain_header(chat_key), "reply_markup": _tg_brain_kb(brains, chat_key)}
+    if cmd in lenh_he_thong.LENH_MOI and not _tg_co_skill(brain, cmd):
+        return await _tg_lenh_moi(cmd, arg, brain)
     # /<slug> khác → coi là gọi skill (mọi engine có tool hub)
     ask = (f"Hãy dùng skill `{cmd}`" + (f" với yêu cầu: {arg}" if arg else "")
            + ". Nếu không có skill tên này thì cứ xử lý yêu cầu của tôi bình thường.")
@@ -19606,6 +19735,7 @@ async def chatbots_create(name: str = Form(...), agent_slug: str = Form(...),
                           bot_username: str = Form(""), handoff_to: str = Form(""),
                           nguon_tra_loi: str = Form(""), muc_quyen: str = Form(""),
                           groups: str = Form(""), reply_when: str = Form(""),
+                          tra_loi_nhom: str = Form(""),
                           channel: str = Form(""), xac_nhan_rui_ro: str = Form(""),
                           ngon_ngu: str = Form("")):
     # Bot sống TRONG một brain: Agent nó dùng và tài liệu nó đọc là cùng một chỗ. Nhận cả hai
@@ -19623,6 +19753,7 @@ async def chatbots_create(name: str = Form(...), agent_slug: str = Form(...),
         # Nhóm khai được NGAY LÚC TẠO. Bản trước chỉ cho khai ở form Sửa, nên đường đi tự nhiên
         # nhất ("tạo bot, thả vào nhóm, gọi tên") luôn kết thúc bằng một con bot im lặng.
         "groups": groups, "reply_when": reply_when,
+        "tra_loi_nhom": tra_loi_nhom,
         # Ngôn ngữ bot trả lời KHÁCH. "auto" = bám theo khách; ghim một mã khi khách của chủ
         # nói cùng một thứ tiếng. Cố ý KHÔNG thừa hưởng ngôn ngữ của chủ, xem chatbot_store.
         "ngon_ngu": ngon_ngu,

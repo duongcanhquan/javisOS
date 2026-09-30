@@ -28,6 +28,7 @@ Xem docs/dev/2026-08-bot-chuyen-trach-spec.md.
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 
 import lang_registry
@@ -41,6 +42,7 @@ import channels
 import chatbot_grounding
 import chatbot_log
 import chatbot_store
+import chatbot_tu_dong
 import conversations
 
 # Kênh -> lớp vận chuyển: tra SỔ ĐĂNG KÝ KÊNH (server/channels). Trước 0.61.0 là một bảng chép
@@ -204,6 +206,12 @@ def build_bot_prompt(bot: dict) -> str:
     # Tài liệu đã tra sẵn cho ĐÚNG câu hỏi này, do _make_answer_fn gắn vào. Không có khoá này
     # nghĩa là prompt đang được dựng ngoài luồng một lượt thật (vd để xem trước), lúc đó không
     # bịa ra khối tài liệu nào cả.
+    if (bot or {}).get("_tu_danh_gia"):
+        phan.append(
+            "\nĐây là tin trong nhóm, không ai gọi tên bạn. Chỉ trả lời nếu tài liệu dưới đây "
+            "trả lời đúng câu hỏi. Nếu không nên chen vào, trả lời đúng một dòng [IM_LANG] "
+            "và không nói gì khác."
+        )
     tl = (bot or {}).get("_tai_lieu")
     if isinstance(tl, dict):
         if tl.get("co"):
@@ -281,7 +289,12 @@ def _ly_do_im(bot_cfg: dict, meta: dict) -> str:
     # khai nhưng không phải nhóm này, nên cùng một mã: cả hai đều sửa bằng cách cho phép nhóm.
     if not nhom or not _khop_nhom(nhom, (meta or {}).get("chat_id")):
         return "nhom_chua_bat"
-    if bot_cfg.get("reply_when") == "always":
+    rw = bot_cfg.get("reply_when")
+    if rw == "always":
+        return ""
+    # "auto" = Tự đánh giá. Nhóm đã cho phép thì cho đi tiếp, bộ đánh giá quyết sau.
+    # Giá trị lạ không mở: rơi về "chỉ khi được gọi tên".
+    if rw == "auto":
         return ""
     if (meta or {}).get("mentioned") or (meta or {}).get("reply_to_bot"):
         return ""
@@ -625,6 +638,156 @@ def ghi_tin_bot(cfg: dict, meta: dict, text: str, loi: str = "", files=None) -> 
         print(f"[chatbot conversations] {type(e).__name__}: {e}", file=sys.stderr)
 
 
+def _ghi_bo_qua(bot_id: str, meta: dict, text: str, ma: str) -> None:
+    """Lượt tự đánh giá bị bỏ. Không tính vào số lượt trả lời."""
+    chatbot_log.ghi(bot_id, {
+        "chat_id": (meta or {}).get("chat_id"),
+        "chat_type": (meta or {}).get("chat_type"),
+        "user_name": (meta or {}).get("user_name"),
+        "hoi": text,
+        "dap": chatbot_tu_dong.ly_do_de_doc(ma),
+        "bo_qua": ma,
+        "bi": False,
+    })
+
+
+_ZALO_TAY: Dict[tuple, float] = {}
+_ZALO_VUA_NOI: Dict[tuple, str] = {}
+_NHUONG_ZALO = 20.0
+
+
+def _khop_ten(ten: str, text: str) -> bool:
+    """Tên đứng thành một cụm trong chữ, không dính vào giữa một từ khác."""
+    ten = str(ten or "").strip()
+    if len(ten) < 2 or not text:
+        return False
+    return bool(re.search(re.escape(ten) + r"(?![A-Za-zÀ-ỹ0-9_])", text, re.I))
+
+
+def _ten_zalo(bot: dict, ev: dict) -> list:
+    """Tên người ta tag trong nhóm: tên nick Zalo (nhãn tài khoản), rồi tên bot."""
+    ra = []
+    for ten in (ev.get("account_name"), bot.get("name")):
+        ten = str(ten or "").strip()
+        if ten and ten not in ra and ten.lower() != "zalo":
+            ra.append(ten)
+    aid = str(ev.get("account_id") or "")
+    for a in bot.get("accounts") or []:
+        if not isinstance(a, dict):
+            continue
+        if aid and str(a.get("id") or "") != aid:
+            continue
+        ten = str(a.get("label") or a.get("name") or "").strip()
+        if ten and ten not in ra and ten.lower() != "zalo":
+            ra.append(ten)
+    return ra
+
+
+def _nhan_zalo(bot: dict, ev: dict) -> tuple:
+    """(được tag, reply vào tin của bot). So với tên nick Zalo, không chỉ tên bot trong form."""
+    text = str(ev.get("text") or "")
+    tens = _ten_zalo(bot, ev)
+    mentioned = any(_khop_ten(ten, text) for ten in tens)
+    md = ev.get("metadata") or {}
+    mentions = md.get("mentions") or []
+    if isinstance(mentions, list):
+        for m in mentions:
+            if isinstance(m, str):
+                if any(_khop_ten(ten, m) or m.strip().lower() == ten.lower() for ten in tens):
+                    mentioned = True
+            elif isinstance(m, dict):
+                blob = " ".join(str(m.get(k) or "") for k in
+                                ("dName", "name", "displayName", "senderName"))
+                if any(_khop_ten(ten, blob) for ten in tens):
+                    mentioned = True
+                uid = str(m.get("uid") or m.get("id") or "")
+                if uid and any(uid == str(a.get("external_id") or "")
+                               for a in (bot.get("accounts") or []) if isinstance(a, dict)):
+                    mentioned = True
+    reply = md.get("replyTo") if isinstance(md.get("replyTo"), dict) else {}
+    sn = str(reply.get("senderName") or reply.get("sender_name") or "").strip()
+    reply_to_bot = bool(sn) and any(sn.lower() == ten.lower() for ten in tens)
+    return mentioned, reply_to_bot
+
+
+def lang_nghe_zalo(ev: dict) -> None:
+    """Tin Zalo cá nhân vừa vào kho. Nhóm chỉ được trả lời khi bot bật `tra_loi_nhom`."""
+    if not isinstance(ev, dict):
+        return
+    aid = str(ev.get("account_id") or "")
+    cid = str(ev.get("external_chat_id") or "")
+    if ev.get("sender_type") == "human":
+        _ZALO_TAY[(aid, cid)] = time.time()
+        return
+    if ev.get("sender_type") != "customer" or ev.get("chat_type") != "group":
+        return
+    if str(ev.get("message_type") or "text") != "text":
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    for bot in chatbot_store.list_bots():
+        if not bot.get("enabled") or not bot.get("tra_loi_nhom"):
+            continue
+        ids = []
+        for a in bot.get("accounts") or []:
+            ids.append(str(a.get("id") if isinstance(a, dict) else a))
+        if aid and ids and aid not in ids:
+            continue
+        loop.create_task(_tra_loi_zalo_nhom(bot["id"], ev))
+
+
+async def _tra_loi_zalo_nhom(bot_id: str, ev: dict) -> None:
+    cfg = chatbot_store.get_bot(bot_id)
+    if not cfg or not cfg.get("enabled") or not cfg.get("tra_loi_nhom"):
+        return
+    aid = str(ev.get("account_id") or "")
+    cid = str(ev.get("external_chat_id") or "")
+    if time.time() - _ZALO_TAY.get((aid, cid), 0) < _NHUONG_ZALO:
+        return
+    text = str(ev.get("text") or "")
+    if text and text == _ZALO_VUA_NOI.get((bot_id, cid)):
+        return
+    mentioned, reply_to_bot = _nhan_zalo(cfg, ev)
+    meta = {
+        "platform": "zalo_personal",
+        "chat_id": cid,
+        "chat_type": "group",
+        "chat_title": ev.get("chat_title") or "",
+        "user_id": ev.get("sender_id") or "",
+        "user_name": ev.get("sender_name") or "",
+        "message_id": ev.get("external_message_id") or "",
+        "account_id": aid,
+        "mentioned": mentioned,
+        "reply_to_bot": reply_to_bot,
+        "da_vao_kho": True,
+    }
+    nhom = [str(x) for x in (cfg.get("groups") or [])]
+    if nhom and not _khop_nhom(nhom, cid):
+        if mentioned or reply_to_bot:
+            _ghi_nhom_cho(bot_id, meta, text)
+        return
+    if cfg.get("reply_when") != "auto" and not mentioned and not reply_to_bot:
+        return
+    if not _deps.get("answer"):
+        return
+    out = await _make_answer_fn(bot_id)(text, meta, None)
+    if not isinstance(out, dict):
+        return
+    cau = str(out.get("text") or "").strip()
+    if out.get("im_lang") or not cau or "[IM_LANG]" in cau:
+        return
+    _ZALO_VUA_NOI[(bot_id, cid)] = cau
+    try:
+        import channels
+        m = channels.module("zalo_personal")
+        if m:
+            await m.gui({"id": aid}, cid, cau, "group")
+    except Exception as e:
+        print(f"[zalo nhóm {bot_id}] gửi lỗi: {type(e).__name__}: {e}", file=sys.stderr)
+
+
 def _make_answer_fn(bot_id: str):
     async def _answer(text, meta=None, progress=None):
         cfg = chatbot_store.get_bot(bot_id)
@@ -636,11 +799,34 @@ def _make_answer_fn(bot_id: str):
         if not _nen_tra_loi(cfg, meta or {}):
             return {"text": "", "files": [], "im_lang": True}
         chat_id = str((meta or {}).get("chat_id") or "")
+        tu = chatbot_tu_dong.can_danh_gia(cfg, meta or {})
+        if tu:
+            hop, _ly = chatbot_tu_dong.nhin_nhu_cau_hoi(text)
+            if not hop:
+                return {"text": "", "files": [], "im_lang": True}
+            tl_som = {"co": False, "khoi": "", "nguon": []}
+            try:
+                root = _deps["brain_root"](cfg["brain"])
+                tl_som = await asyncio.to_thread(chatbot_grounding.thu_thap, root, text)
+            except Exception as e:
+                print(f"[chatbot {bot_id}] tra tài liệu lỗi: {e}", file=sys.stderr)
+            if not tl_som.get("co"):
+                _ghi_bo_qua(bot_id, meta or {}, text, "khong_co_tai_lieu")
+                return {"text": "", "files": [], "im_lang": True}
+            ly_hm = chatbot_tu_dong.duoc_tra_loi(
+                bot_id, chat_id, str((meta or {}).get("user_id") or ""))
+            if ly_hm:
+                _ghi_bo_qua(bot_id, meta or {}, text, ly_hm)
+                return {"text": "", "files": [], "im_lang": True}
+            cfg = dict(cfg)
+            cfg["_tu_danh_gia"] = True
+            cfg["_tai_lieu"] = tl_som
         if _qua_han_muc(bot_id, chat_id, cfg.get("rate_limit")):
             return {"text": "Anh chị nhắn hơi nhanh, em xin phép trả lời lại sau ít phút ạ.",
                     "files": []}
         # Hộp thư hội thoại: ghi tin khách TRƯỚC khi gọi engine, để lượt gãy vẫn còn tin khách.
-        ghi_tin_khach(cfg, meta or {}, text)
+        if not (meta or {}).get("da_vao_kho"):
+            ghi_tin_khach(cfg, meta or {}, text)
         # Người thật đã TIẾP QUẢN cuộc chat này ở trang Hội thoại thì bot im: tin khách vẫn vào
         # kho (dòng trên), chỉ không gọi engine. Lượt đang chạy dở lúc bấm Tiếp quản vẫn trả
         # lời nốt - chấp nhận ở V1, vì cắt ngang một câu đang gửi còn khó hiểu hơn với khách.
@@ -651,13 +837,15 @@ def _make_answer_fn(bot_id: str):
         # Tra tài liệu TRƯỚC rồi nhét vào prompt, thay vì trông vào việc model tự chịu mở file.
         # Quét đĩa + chấm điểm là việc CHẶN, đẩy sang thread để không chẹn event loop (poller
         # của các bot khác và của cả Javis đều chạy chung một loop).
-        tl = {"co": False, "khoi": "", "nguon": []}
-        try:
-            root = _deps["brain_root"](cfg["brain"])
-            tl = await asyncio.to_thread(chatbot_grounding.thu_thap, root, text)
-        except Exception as e:
-            print(f"[chatbot {bot_id}] tra tài liệu lỗi: {e}", file=sys.stderr)
-        cfg["_tai_lieu"] = tl
+        tl = cfg.get("_tai_lieu") if isinstance(cfg.get("_tai_lieu"), dict) else None
+        if tl is None:
+            tl = {"co": False, "khoi": "", "nguon": []}
+            try:
+                root = _deps["brain_root"](cfg["brain"])
+                tl = await asyncio.to_thread(chatbot_grounding.thu_thap, root, text)
+            except Exception as e:
+                print(f"[chatbot {bot_id}] tra tài liệu lỗi: {e}", file=sys.stderr)
+            cfg["_tai_lieu"] = tl
 
         # Bản ghi truyền xuống lõi phải có brain và slug - lõi dựa vào đó để đổi brain, đổi
         # khoá phiên và đổi nhãn kênh.
@@ -685,6 +873,11 @@ def _make_answer_fn(bot_id: str):
                    "files": []}
 
         dap = (out or {}).get("text") or ""
+        if tu and "[IM_LANG]" in dap:
+            return {"text": "", "files": [], "im_lang": True}
+        if tu and str(dap).strip():
+            chatbot_tu_dong.ghi_da_tra_loi(
+                bot_id, chat_id, str((meta or {}).get("user_id") or ""))
         # "Bí" đo bằng chính CÂU BOT VỪA NÓI, không bằng việc có tìm ra tài liệu hay không.
         #
         # Ở chế độ theo Agent thì không có tài liệu là chuyện thường - bot vẫn trả lời tốt bằng

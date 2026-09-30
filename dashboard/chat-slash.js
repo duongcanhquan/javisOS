@@ -2,6 +2,23 @@
 // phan menu DOM o cuoi file chi chay trong trinh duyet. Pattern giong chat-ask.js.
 (function () {
   var SESSION_COMMANDS = ["new", "reset", "stop"];
+  // Lệnh hệ thống chạy tại chỗ (chat-lenh.js). needArg: chọn từ menu chỉ điền "/plan " để gõ tiếp.
+  // Chỉ chạy khi đứng ĐẦU tin. Skill trùng tên thì skill thắng (cả menu lẫn lúc gửi).
+  var SYSTEM_COMMANDS = [
+    { cmd: "help", name: "Trợ giúp", desc: "Liệt kê lệnh hệ thống" },
+    { cmd: "status", name: "Trạng thái", desc: "Model, não và hội thoại đang mở" },
+    { cmd: "model", name: "Đổi model", desc: "Xem hoặc đổi model chính" },
+    { cmd: "brain", name: "Đổi não", desc: "Xem hoặc chuyển brain" },
+    { cmd: "retry", name: "Gửi lại", desc: "Gửi lại câu vừa gõ" },
+    { cmd: "usage", name: "Mức dùng", desc: "Token và chi phí đã dùng" },
+    { cmd: "tasks", name: "Việc nền", desc: "Việc đang chờ và đang chạy" },
+    { cmd: "compact", name: "Nén hội thoại", desc: "Nén phần cũ của hội thoại này ngay" },
+    { cmd: "plan", name: "Lập kế hoạch", desc: "Chỉ lập kế hoạch, chưa làm ra ngoài", needArg: true },
+    { cmd: "memory", name: "Bộ nhớ", desc: "Xem MEMORY.md của não đang mở" },
+    { cmd: "export", name: "Tải hội thoại", desc: "Tải hội thoại đang mở về file markdown" },
+    { cmd: "goal", name: "Mục tiêu", desc: "Tự làm tiếp tối đa 8 vòng cho tới khi đạt", needArg: true },
+  ];
+  var SYSTEM_NAMES = SYSTEM_COMMANDS.map(function (x) { return x.cmd; });
 
   // Danh sach slug skill dang co (menu nap tu /skills rot vao). Chi dung cho lenh GIUA cau:
   // o giua cau ma bat bua theo hinh dang thi '/home/user/x' hay '3/4 cai' cung thanh lenh.
@@ -47,7 +64,10 @@
   }
 
   function classify(cmd) {
-    return SESSION_COMMANDS.indexOf(cmd) !== -1 ? "session" : "skill";
+    if (SESSION_COMMANDS.indexOf(cmd) !== -1) return "session";
+    // Skill trùng tên lệnh hệ thống thì skill thắng. Lệnh phiên (new/reset/stop) giữ nguyên.
+    if (SYSTEM_NAMES.indexOf(cmd) !== -1 && !isKnownSkill(cmd)) return "system";
+    return "skill";
   }
 
   // Khop DUNG mau fallback cua Telegram (server/main.py) de 2 kenh nhat quan.
@@ -61,6 +81,10 @@
     var p = parseSlashAnywhere(text);
     if (!p) return { type: "passthrough" };
     if (classify(p.cmd) === "session") return { type: "session", cmd: p.cmd };
+    // Lệnh hệ thống chỉ ở đầu tin. Giữa câu thì không chạy (tránh "hãy /compact lại" nuốt hội thoại).
+    // parseSlashAnywhere chỉ nhận skill có thật ở giữa câu, nên lệnh hệ thống giữa câu không tới đây
+    // trừ khi nó cũng là skill. Skill trùng tên đã bị classify trả về "skill".
+    if (classify(p.cmd) === "system") return { type: "system", cmd: p.cmd, arg: p.arg };
     return { type: "skill", cmd: p.cmd, message: buildSkillInvocation(p.cmd, p.arg) };
   }
 
@@ -71,7 +95,15 @@
   ];
 
   function buildMenu(skills) {
+    var skillSlugs = {};
+    (skills || []).forEach(function (s) {
+      if (s && s.slug) skillSlugs[String(s.slug).toLowerCase()] = true;
+    });
     var out = SESSION_ITEMS.slice();
+    SYSTEM_COMMANDS.forEach(function (x) {
+      if (skillSlugs[x.cmd]) return;
+      out.push({ kind: "system", cmd: x.cmd, needArg: !!x.needArg, name: x.name, desc: x.desc });
+    });
     (skills || []).forEach(function (s) {
       if (!s || !s.slug) return;
       out.push({ kind: "skill", cmd: s.slug, name: s.name || s.slug, desc: s.description || "" });
@@ -187,7 +219,16 @@
       var input = document.getElementById("chatInput");
       var t = tok;
       hide();
-      if (it.kind === "skill") {
+      if (it.kind === "system" && it.needArg) {
+        var valN = input.value;
+        var endN = t ? t.start + 1 + t.query.length : valN.length;
+        var insN = "/" + it.cmd + " ";
+        input.value = t ? (valN.slice(0, t.start) + insN + valN.slice(endN)) : insN;
+        var caretN = (t ? t.start : 0) + insN.length;
+        input.focus();
+        try { input.setSelectionRange(caretN, caretN); } catch (e) {}
+        input.dispatchEvent(new Event("input"));
+      } else if (it.kind === "skill") {
         // Thay DUNG token dang go, giu nguyen chu hai ben - go lenh giua cau khong duoc
         // xoa cau dang viet. Khong ro token thi rot ve hanh vi cu (thay ca o).
         var val = input.value;

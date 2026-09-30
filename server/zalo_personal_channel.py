@@ -314,6 +314,12 @@ async def doc_mot_lan(conn: dict) -> dict:
                 trung += 1
             else:
                 moi += 1
+                try:
+                    import chatbot_runtime
+                    chatbot_runtime.lang_nghe_zalo(ev)
+                except Exception as e:
+                    print(f"[zalo-personal] nghe nhóm: {type(e).__name__}: {e}",
+                          file=sys.stderr)
     nc = _lay(d, "nextCursor", "next_cursor", "cursor", mac_dinh="")
     if nc:
         conversations.ghi_trang_thai(khoa_cursor, str(nc))

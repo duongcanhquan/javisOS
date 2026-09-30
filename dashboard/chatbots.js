@@ -344,7 +344,9 @@
         '<div class="cb-meta">' +
           '<span>' + esc(!coNhom(b) ? window.t("cb.chi_rieng") : (b.groups || []).length
             ? (window.t("cb.n_nhom", { count: b.groups.length }) + ", " +
-               (b.reply_when === "always" ? window.t("cb.tl_moi_tin") : window.t("cb.tl_goi_ten")))
+               (b.reply_when === "always" ? window.t("cb.tl_moi_tin")
+                 : b.reply_when === "auto" ? window.t("cb.tl_tu_danh_gia")
+                 : window.t("cb.tl_goi_ten")))
             : window.t("cb.chi_rieng")) + '</span>' +
           '<span>' + esc(b.nguon_tra_loi === "tai_lieu" ? window.t("cb.nguon_tl_ngan")
                                                         : window.t("cb.nguon_ag_ngan")) + '</span>' +
@@ -750,11 +752,17 @@
 
               '<label>' + esc(window.t("cb.lb_reply_when")) + '</label>' +
               '<select id="cbReplyWhen">' +
-                '<option value="mention"' + (!b || b.reply_when !== "always" ? " selected" : "") + '>' +
+                '<option value="mention"' + (!b || (b.reply_when !== "always" && b.reply_when !== "auto") ? " selected" : "") + '>' +
                   esc(window.t("cb.rw_mention")) + '</option>' +
                 '<option value="always"' + (b && b.reply_when === "always" ? " selected" : "") + '>' +
                   esc(window.t("cb.rw_always")) + '</option>' +
+                '<option value="auto"' + (b && b.reply_when === "auto" ? " selected" : "") + '>' +
+                  esc(window.t("cb.rw_auto")) + '</option>' +
               '</select>' +
+              '<label class="cb-hint"><input type="checkbox" id="cbZaloNhom"' +
+                (b && b.tra_loi_nhom ? " checked" : "") + '> ' +
+                esc(window.t("cb.zalo_nhom")) + '</label>' +
+              '<div class="cb-hint">' + esc(window.t("cb.zalo_nhom_hint")) + '</div>' +
               '<div class="cb-hint"><b>' + esc(window.t("cb.rw_moi_tin")) + '</b> ' +
               esc(window.t("cb.hint_rw_1")) + '<b>/setprivacy</b> ' +
               esc(window.t("cb.hint_rw_2")) + '</div>' +
@@ -901,10 +909,11 @@
       var coNhomLuu = coNhomForm();
       var gr = coNhomLuu ? box.querySelector("#cbGroups").value : "";
       var rw = coNhomLuu ? box.querySelector("#cbReplyWhen").value : "mention";
+      var zaloNhom = (box.querySelector("#cbZaloNhom") && box.querySelector("#cbZaloNhom").checked) ? "1" : "0";
       var chung = { name: ten, agent_slug: ag, agent_brain: br, brain: br,
                     handoff_to: ho, nguon_tra_loi: ngu, muc_quyen: muc, xac_nhan_rui_ro: "1",
                     ngon_ngu: (document.getElementById("cbNgonNgu") || {}).value || "auto",
-                    groups: gr, reply_when: rw, account_ids: ids.join(",") };
+                    groups: gr, reply_when: rw, tra_loi_nhom: zaloNhom, account_ids: ids.join(",") };
       try {
         if (sua) {
           await api("/chatbots/" + encodeURIComponent(b.id) + "/update", { method: "POST", body: fd(chung) });

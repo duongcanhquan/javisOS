@@ -40,7 +40,10 @@ function syncActiveUI() {
   updateStopBtn();
 }
 
-function stopCurrent() {
+function stopCurrent(opts) {
+  if (!(opts && opts.giuMucTieu)) {
+    try { if (window.JavisLenh) window.JavisLenh.dungMucTieu(); } catch (e) {}
+  }
   voice.stopSpeaking();
   const sid = savedSessionId;
   // Dừng ĐÚNG phiên đang xem (phiên nền khác vẫn chạy). Server huỷ lượt + gửi turn_done về.
@@ -291,7 +294,14 @@ function handleMessage(data) {
       return;
     }
     const { clean: askClean, ask } = window.JavisAsk.extract(data.content || "");
-    const finalText = askClean || (t && t.text) || "";
+    let finalText = askClean || (t && t.text) || "";
+    let goalMarker = null;
+    if (window.JavisLenh && finalText.indexOf("JAVIS_GOAL") >= 0) {
+      const g = window.JavisLenh.tachMucTieu(finalText);
+      finalText = g.clean || finalText;
+      goalMarker = g.goal;
+    }
+    try { if (window.JavisLenh) window.JavisLenh.ghiNhan(sid, goalMarker, !!ask); } catch (e) {}
     const shownText = finalText || "_(không có nội dung trả về - thử lại hoặc đổi model)_";
     if (t) t.text = shownText;
     if (isActive) {
@@ -321,6 +331,7 @@ function handleMessage(data) {
     }
     refreshUsage();     // cập nhật panel Mức dùng sau mỗi lượt
   } else if (data.type === "error") {
+    try { if (window.JavisLenh) window.JavisLenh.baoLoi(sid); } catch (e) {}
     if (t && data.limit) t.limit = data.limit;
     if (isActive) {
       hideActivity();
@@ -349,6 +360,7 @@ function handleMessage(data) {
     // Lượt vừa xong có thể đã giao việc nền. Đây là ĐÚNG khoảnh khắc người dùng đọc câu trả
     // lời "em đã giao 3 việc" và tự hỏi nó có chạy thật không - dải phải trả lời được ngay.
     try { if (window.JavisBackground) window.JavisBackground.refresh(); } catch (e) {}
+    try { if (window.JavisLenh) window.JavisLenh.hetLuot(sid); } catch (e) {}
   }
 }
 
@@ -358,6 +370,12 @@ function handleMessage(data) {
 // Lượt Enter đang ĐỢI file tải lên xong. Chỉ giữ một lượt: bấm Enter hai lần trong lúc chờ
 // không được thành hai tin.
 let _choTaiLen = null;
+let _lenhPrefix = "";
+let _lenhLaGoal = false;
+function huyTienToLenh() {
+  _lenhPrefix = "";
+  _lenhLaGoal = false;
+}
 function sendMessage(text) {
   const msg = (text || chatInput.value).trim();
   // Lệnh / : session-command chạy tại chỗ; skill-command bung thành lời gọi skill.
@@ -368,7 +386,15 @@ function sendMessage(text) {
     else { try { newChat(); } catch (e) {} }   // new | reset -> hội thoại mới trên web
     return;
   }
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (_slash.type === "system") {
+    chatInput.value = ""; chatInput.style.height = "auto";
+    if (window.JavisLenh) window.JavisLenh.chay(_slash.cmd, _slash.arg);
+    return;
+  }
+  if (window.JavisLenh && window.JavisLenh.dangCoMucTieu() && !_lenhLaGoal) {
+    try { window.JavisLenh.chenNgang(savedSessionId); } catch (e) {}
+  }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { huyTienToLenh(); return false; }
   // File còn ĐANG TẢI LÊN thì đợi nó xong rồi gửi, KHÔNG gửi thiếu. Trước đây dòng lọc
   // `a.path` bên dưới lặng lẽ bỏ file chưa tải xong: dán ảnh hay một đoạn văn dài rồi gõ câu
   // hỏi và Enter ngay là tin bay đi tay không, bong bóng không có ảnh, VMOS cũng không nhận
@@ -392,10 +418,11 @@ function sendMessage(text) {
   if (pendingAttachments.some(a => !a.uploading && !a.path)) {
     attachNote = window.t("app.att_failed_send");
     renderChips();
-    return;
+    huyTienToLenh();
+    return false;
   }
   const atts = pendingAttachments.filter(a => a.path);
-  if (!msg && atts.length === 0) return;
+  if (!msg && atts.length === 0) { huyTienToLenh(); return false; }
   if (!savedSessionId) {
     savedSessionId = newSid();                           // hội thoại mới → mint id để định tuyến
     // Đang mở một project ở cột Lịch sử thì hội thoại mới rơi thẳng vào project đó, khỏi phải
@@ -409,8 +436,8 @@ function sendMessage(text) {
   // là người dùng CHEN NGANG: dừng lượt cũ rồi gửi. Nuốt lặng là kẹt cứng vì không có turn_done
   // để hạ cờ processing.
   if (turns[sid] && turns[sid].running) {
-    if (!handsFree) return;   // gõ chữ lúc không rảnh tay: giữ chốt cũ
-    stopCurrent();
+    if (!handsFree && !_lenhLaGoal) { huyTienToLenh(); return false; }
+    stopCurrent({ giuMucTieu: !!_lenhLaGoal });
   }
   // Đang BUNG NÃO toàn màn (mobile) mà gửi tin thì thu lại: ở trạng thái đó khung chat bị
   // ẩn hẳn, không thu thì người dùng gõ xong không thấy câu trả lời hiện ở đâu cả. Bấm hộ
@@ -492,10 +519,31 @@ function sendMessage(text) {
   syncActiveUI();
   // Server đóng dấu model đang chạy cho phiên ngay từ tin đầu -> bar hiện "ghim" tại chỗ.
   try { if (window.JavisModelBar) window.JavisModelBar.noteStamped(sid); } catch (e) {}
+  if (_lenhPrefix) {
+    outMsg = _lenhPrefix + outMsg;
+    _lenhPrefix = "";
+  }
+  if (_lenhLaGoal && window.JavisLenh) {
+    try { window.JavisLenh.daGui(sid, { goal: true }); } catch (e) {}
+    _lenhLaGoal = false;
+  }
   ws.send(JSON.stringify({ message: outMsg, brain: currentBrainPath(), session_id: sid }));
+  return true;
 }
 // Chip lựa chọn (chat-ask.js) gửi đáp án qua đây: bấm chip = y như người dùng gõ tay nhãn đó.
 window.JavisSend = sendMessage;
+window.JavisChatApi = {
+  note: function (md) { try { appendJavisMessage(md); } catch (e) {} },
+  sid: function () { return savedSessionId || ""; },
+  brain: function () { try { return currentBrainPath(); } catch (e) { return "brain"; } },
+  send: function (text, opts) {
+    _lenhPrefix = (opts && opts.prefix) || "";
+    _lenhLaGoal = !!(opts && opts.goal);
+    return sendMessage(text) !== false;
+  },
+  lastUserText: function () { try { return lastUserText(); } catch (e) { return ""; } },
+  dangChay: function (sid) { return !!(sid && turns[sid] && turns[sid].running); },
+};
 // Module ngoài (limit-resume.js) gửi một khung điều khiển thô lên server. true = đã gửi.
 window.JavisWsSend = function (obj) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;

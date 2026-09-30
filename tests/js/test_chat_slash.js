@@ -86,5 +86,27 @@ check("token: dinh lien chu thi KHONG mo menu", S.tokenAtCaret("abc/no", 6) === 
 check("token: con tro dung truoc token thi khong tinh", S.tokenAtCaret("chao /notes", 5) === null);
 check("token: chi tinh phan TRUOC con tro", (() => { const t = S.tokenAtCaret("/notes them chu", 3); return t && t.query === "no"; })());
 
+// ---- Lệnh hệ thống (0.56.46). Skill trùng tên thì skill thắng. ----
+check("classify: compact = system", S.classify("compact") === "system");
+check("classify: goal = system", S.classify("goal") === "system");
+check("route: /compact", (() => { const r = S.route("/compact"); return r.type === "system" && r.cmd === "compact"; })());
+check("route: /goal kem noi dung", (() => { const r = S.route("/goal xong bai"); return r.type === "system" && r.arg === "xong bai"; })());
+check("giua cau: /compact khong chay", S.route("hay /compact lai").type === "passthrough");
+S.setKnownSkills([{ slug: "usage" }]);
+check("skill trung ten usage thi skill thang", (() => {
+  const r = S.route("/usage hom nay");
+  return r.type === "skill" && r.cmd === "usage";
+})());
+const menuSkill = S.buildMenu([{ slug: "usage", name: "Usage", description: "skill" }]);
+check("menu an lenh he thong khi skill trung ten",
+  !menuSkill.some(i => i.kind === "system" && i.cmd === "usage")
+  && menuSkill.some(i => i.kind === "skill" && i.cmd === "usage"));
+S.setKnownSkills([]);
+const menuLenh = S.buildMenu([]);
+check("menu co compact va goal",
+  menuLenh.some(i => i.kind === "system" && i.cmd === "compact")
+  && menuLenh.some(i => i.cmd === "goal" && i.needArg));
+check("khong co skill thi /usage la lenh he thong", S.route("/usage").type === "system");
+
 if (fails.length) { console.log("\nFAIL - test_chat_slash: " + fails.length + " loi"); process.exit(1); }
 console.log("\nOK - test_chat_slash: tat ca pass");

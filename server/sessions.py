@@ -612,6 +612,46 @@ class SessionStore:
         d.pop("tool_calls_json", None)
         return d
 
+    def nen_phan_cu(self, session_id: str, giu: int = 4) -> dict:
+        """Gộp tin cũ thành một đoạn tóm tắt, giữ `giu` tin mới nhất.
+
+        Không gọi model. Hội thoại dưới 8 tin thì chưa nén.
+        """
+        if not self.get_session(session_id):
+            return {"ok": False, "missing": True}
+        msgs = [m for m in self.get_messages(session_id)
+                if m.get("role") in ("user", "assistant")]
+        if len(msgs) < 8:
+            return {"ok": False, "ly_do": "ngan", "so_tin": len(msgs)}
+        giu = max(1, int(giu or 4))
+        cu = msgs[:-giu]
+        dong = []
+        for m in cu:
+            vai = "Người" if m.get("role") == "user" else "Javis"
+            chu = " ".join(str(m.get("content") or "").split())
+            if chu:
+                dong.append(f"- {vai}: {chu[:180]}")
+        tom = "Tóm tắt phần hội thoại đã nén:\n" + "\n".join(dong[:40])
+        ids = [m["id"] for m in cu if m.get("id") is not None]
+        if len(ids) < 2:
+            return {"ok": False, "ly_do": "ngan", "so_tin": len(msgs)}
+
+        def _do(conn):
+            conn.execute("UPDATE messages SET role = ?, content = ? WHERE id = ?",
+                         ("assistant", tom, ids[0]))
+            xoa = ids[1:]
+            q = ",".join("?" * len(xoa))
+            conn.execute(f"DELETE FROM messages WHERE id IN ({q})", xoa)
+            conn.execute(
+                "UPDATE sessions SET msg_count = "
+                "(SELECT COUNT(*) FROM messages WHERE session_id = ?), updated_at = ? "
+                "WHERE id = ?",
+                (session_id, time.time(), session_id))
+            return len(ids)
+
+        da_nen = self._write(_do)
+        return {"ok": True, "cach": "tom_tat", "da_nen": da_nen}
+
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
         rows = self._read(
             "SELECT id, role, content, ts, tool_calls_json FROM messages "
