@@ -116,11 +116,44 @@ def loc_ao_giac(text) -> str:
     return out if _CO_CHU.search(out) else ""
 
 
+# Đối chiếu chữ tai với bản nháp trình duyệt. Tai sửa đúng thì hai bản vẫn gần nhau về âm;
+# tai bịa câu (im lặng, outro video) thì lệch hẳn và chỗ gọi giữ bản nháp.
+NGUONG_KHOP_AM = 0.6
+NGUONG_KHOP_TU = 0.4
+_CHU_THUONG = re.compile(r"[^\W_]+", re.U)
+
+
+def khop_ban_nhap(nhap, nghe) -> tuple:
+    """(có dùng được chữ tai không, độ giống theo chữ, độ giống theo âm).
+
+    Bản nháp rỗng thì không có gì để đối chiếu: dùng chữ tai như cũ.
+    """
+    import difflib
+    a, b = str(nhap or "").strip(), str(nghe or "").strip()
+    if not a or not b:
+        return True, 1.0, 1.0
+    wa = [w.casefold() for w in _CHU_THUONG.findall(a)]
+    wb = [w.casefold() for w in _CHU_THUONG.findall(b)]
+    tu = difflib.SequenceMatcher(None, wa, wb, autojunk=False).ratio() if wa and wb else 0.0
+    am = 0.0
+    try:
+        import nghe_sua
+        import phien_am
+        ka = nghe_sua.khoa_am("".join(phien_am.doc_cum(a).split()))
+        kb = nghe_sua.khoa_am("".join(phien_am.doc_cum(b).split()))
+        am = difflib.SequenceMatcher(None, ka, kb, autojunk=False).ratio() if ka and kb else 0.0
+    except Exception:
+        pass
+    return (tu >= NGUONG_KHOP_TU or am >= NGUONG_KHOP_AM), round(tu, 2), round(am, 2)
+
+
 GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 STT_MAC_DINH = "vi"   # gợi ý khi chỗ gọi không chốt gì; "" ở chỗ gọi = để Whisper tự dò
 
-# Model rẻ và nhanh nhất trong họ Whisper của Groq, tiếng Việt nghe được. Đổi được qua tham số.
+# Model rẻ và nhanh nhất trong họ Whisper của Groq. Tin thoại Zalo/Telegram vẫn dùng bản này.
 STT_MODEL_MAC_DINH = "whisper-large-v3-turbo"
+# Bản đầy đủ cho tai mic chat: câu Việt xen tiếng Anh nghe đúng hơn turbo, độ trễ gần như nhau.
+STT_MODEL_CHUAN = "whisper-large-v3"
 MAX_STT_MB = 24          # Groq chặn ở 25MB; chừa biên cho phần multipart bọc ngoài
 STT_TIMEOUT = 120.0      # tin thoại dài vài phút vẫn phải kịp, mạng VPS có lúc chậm
 

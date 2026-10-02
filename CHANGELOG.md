@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.47] - 2026-10-02
+### Cải thiện
+- **Mic chat nghe câu tiếng Việt xen tiếng Anh đúng hơn.** Có key Groq thì Javis nghe lại bằng Whisper trước khi gửi. Không có key, hoặc tắt Tai nghe lại trong Cài đặt nhanh, thì vẫn dùng chữ trình duyệt. Cuộc họp và tin thoại Zalo/Telegram không đổi.
+
 ## [0.56.46] - 2026-09-30
 ### Mới
 - **Khung chat:** gõ `/` có thêm lệnh hệ thống (`/status`, `/model`, `/usage`, `/tasks`, `/memory`, `/compact`, `/plan`, `/goal`...). `/plan` chỉ lập kế hoạch. `/goal` tự làm tiếp, tối đa 8 vòng, gõ tin mới hoặc bấm Dừng là dừng.

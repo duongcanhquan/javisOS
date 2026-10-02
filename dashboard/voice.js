@@ -112,7 +112,7 @@ class JavisVoice {
     // Web Speech vẫn cho chữ tạm và điểm dừng câu; song song đó MediaRecorder ghi âm, hết câu
     // thì gửi file lên /stt và chữ Groq THAY chữ Chrome. Groq lỗi thì giữ chữ Chrome. Bọc
     // onTranscript ở đây để onend của recognition không phải biết gì về chuyện này.
-    this.sttUpload = false;                            // app.js bật khi cài đặt stt_provider = groq
+    this.sttUpload = false;                            // app.js bật khi /voice/ear báo kind = upload
     this.sttUrl = "/stt";
     this._rec = null;
     this._recChunks = [];
@@ -196,21 +196,35 @@ class JavisVoice {
 
   async _quaStt(text, cb) {
     const blob = await this._stopRecorder();
-    if (!this.sttUpload || !blob || blob.size < 2000) { cb(text); return; }
-    let better = "";
+    // Rảnh tay nghe tiếp câu sau: mở lại bản ghi ngay, không chờ tai trả lời.
+    if (this.isListening || this._starting) this._startRecorder();
+    if (!this.sttUpload) { cb(text); return; }
+    const better = await this._taiNghe(blob, text);
+    cb(better || text);
+  }
+
+  // Gửi một câu đã ghi cho tai. Lỗi, quá 8 giây, bản ghi quá ngắn, hoặc tai tắt thì giữ chữ
+  // trình duyệt. nguon=mic để cuộc họp (cũng POST /stt, không gửi nguon) không đi chung đường này.
+  async _taiNghe(blob, text) {
+    if (!blob || blob.size < 2000) return text;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
     try {
       const fd = new FormData();
-      fd.append("file", blob, "voice.webm");
-      // "auto" = bảo máy chủ ĐỪNG gợi ý tiếng cho Whisper, để nó tự dò (xem /stt trong main.py).
+      const ext = (blob.type || "").includes("mp4") ? "m4a" : (blob.type || "").includes("ogg") ? "ogg" : "webm";
+      fd.append("file", blob, "voice." + ext);
       fd.append("lang", this.langAuto ? "auto" : (this.lang || ""));
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 8000);
+      fd.append("draft", text || "");
+      fd.append("nguon", "mic");
       const r = await fetch(this.sttUrl, { method: "POST", body: fd, signal: ctl.signal });
-      clearTimeout(timer);
       const d = await r.json();
-      if (d && d.ok && d.text) better = String(d.text).trim();
-    } catch (e) { better = ""; }
-    cb(better || text);
+      if (r.ok && d && d.ok && String(d.text || "").trim()) return String(d.text).trim();
+      return text;
+    } catch (e) {
+      return text;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   getInputLevel() {

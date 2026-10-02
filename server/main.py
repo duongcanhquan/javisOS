@@ -4538,6 +4538,9 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             v["brain_provider"] = str(patch["brain_provider"] or "")
         if patch.get("stt_provider") in voice_brain.STT_PROVIDERS:
             v["stt_provider"] = patch["stt_provider"]
+        # Tai nghe lại mic chat: auto | groq | off. Giá trị lạ bỏ qua, giữ lựa chọn cũ.
+        if patch.get("ear") in ("auto", "groq", "off"):
+            v["ear"] = patch["ear"]
         if patch.get("live_provider") in voice_live.PROVIDERS:
             v["live_provider"] = patch["live_provider"]
         # Lọc tạp âm (ô gạt, mặc định bật). Bật thì bộ não giọng cắt phần không nói với Javis
@@ -5430,9 +5433,35 @@ async def stt_status():
     return stt.status_from_settings(mcfg)
 
 
+@app.get("/voice/ear")
+async def voice_ear_route():
+    """Tai nghe lại đang dùng cho mic chat. Nhẹ, không hỏi mạng."""
+    import voice_ear
+    cfg = cfgmod.read_settings()
+    return {"ok": True, **voice_ear.select_ear(cfg, _effective_main(cfg).get("provider", ""))}
+
+
 @app.post("/stt")
-async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi")):
-    """Nhận đoạn âm thanh ngắn từ browser → chữ (Gemini multimodal hoặc Whisper)."""
+async def stt_transcribe(file: UploadFile = File(...), lang: str = Form("vi"),
+                         draft: str = Form(""), nguon: str = Form("")):
+    """Nhận đoạn âm thanh ngắn từ browser → chữ.
+
+    nguon=mic là tai nghe lại của khung chat (voice_ear). Cuộc họp không gửi nguon nên vẫn
+    đi đường cloud STT cũ, không bị tai tắt làm rơi dòng ghi.
+    """
+    if nguon == "mic":
+        import voice_ear
+        try:
+            data = await file.read()
+        except Exception as e:
+            return {"ok": False, "text": "", "ly_do": "loi", "error": f"Đọc file lỗi: {e}"}
+        cfg = cfgmod.read_settings()
+        ear = voice_ear.select_ear(cfg, _effective_main(cfg).get("provider", ""))
+        if ear["kind"] != "upload":
+            return {"ok": False, "text": "", "model": "",
+                    "ly_do": "tai_tat" if ear["reason"] == voice_ear.REASON_OFF else "thieu_key"}
+        return await voice_ear.transcribe_upload(
+            cfg, data, file.filename or "voice.webm", lang, draft)
     try:
         data = await file.read()
     except Exception as e:

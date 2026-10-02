@@ -136,6 +136,34 @@ const voice = new JavisVoice({
   }
 });
 
+// Tai nghe lại: có key Groq thì mic chat gửi âm thanh lên Whisper, chữ trình duyệt chỉ là bản nháp.
+// /voice/ear lỗi hoặc tai tắt thì giữ chữ trình duyệt như trước. Không đụng cuộc họp.
+async function napTaiNghe() {
+  try {
+    const ear = await (await fetch("/voice/ear")).json();
+    voice.sttUpload = !!(ear && ear.kind === "upload");
+    const sel = document.getElementById("qsEar");
+    const st = document.getElementById("qsEarStatus");
+    if (sel && ear && ear.setting && sel.value !== ear.setting) sel.value = ear.setting;
+    if (st) {
+      const why = {
+        off: "qs.ear_reason_off", chosen: "qs.ear_reason_chosen",
+        chosen_unavailable: "qs.ear_reason_chosen_unavailable",
+        same_vendor: "qs.ear_reason_same_vendor", best: "qs.ear_reason_best",
+        none: "qs.ear_reason_none",
+      }[ear && ear.reason] || "qs.ear_reason_none";
+      const line = ear && ear.provider
+        ? (window.t ? window.t("qs.ear_using", { ear: ear.label || ear.provider }) : ("Đang dùng " + (ear.label || ear.provider)))
+        : "";
+      const reason = window.t ? window.t(why) : "";
+      st.textContent = (line ? line + " " : "") + reason;
+    }
+  } catch (e) {
+    voice.sttUpload = false;
+  }
+}
+napTaiNghe();
+
 // ============================================
 // WebSocket
 // ============================================
@@ -2797,6 +2825,14 @@ const recLangInput = document.querySelector(`input[name="recognitionLang"][value
 if (recLangInput) recLangInput.checked = true;
 voice.setRecognitionLang(savedRecLang);
 document.querySelectorAll('input[name="recognitionLang"]').forEach(r => r.addEventListener("change", () => { voice.setRecognitionLang(r.value); localStorage.setItem("javis.recLang", r.value); }));
+const qsEar = document.getElementById("qsEar");
+if (qsEar) qsEar.addEventListener("change", async () => {
+  const fd = new FormData();
+  fd.append("section", "voice");
+  fd.append("data", JSON.stringify({ ear: qsEar.value }));
+  try { await fetch("/settings", { method: "POST", body: fd }); } catch (e) {}
+  napTaiNghe();
+});
 
 async function refreshSttHint() {
   await voice.refreshSttStatus();
