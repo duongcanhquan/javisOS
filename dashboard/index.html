@@ -30,8 +30,8 @@
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=101">
-  <link rel="stylesheet" href="/static/console.css?v=82">
+  <link rel="stylesheet" href="/static/style.css?v=103">
+  <link rel="stylesheet" href="/static/console.css?v=84">
   <link rel="stylesheet" href="/static/workbench.css?v=9">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng/neon.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
@@ -231,7 +231,48 @@
         <div class="brain-nebula" aria-hidden="true"></div>
         <canvas id="brainWaves" aria-hidden="true"></canvas>
         <canvas id="starfield"></canvas>
+        <div class="brain-shell" aria-hidden="true">
+          <svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="brainVol" x1="0.12" y1="0" x2="0.88" y2="1">
+                <stop offset="0" stop-color="currentColor" stop-opacity="0.42"/>
+                <stop offset="0.42" stop-color="currentColor" stop-opacity="0.12"/>
+                <stop offset="1" stop-color="currentColor" stop-opacity="0.03"/>
+              </linearGradient>
+              <radialGradient id="brainCore" cx="50%" cy="50%" r="50%">
+                <stop offset="0" stop-color="#fff6d8"/>
+                <stop offset="0.34" stop-color="#ffb15a" stop-opacity="0.9"/>
+                <stop offset="1" stop-color="#ff6a22" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <path class="brain-depth" transform="translate(16 18)" d="M168 318 C128 255 138 168 198 112 C255 58 350 36 455 34 C575 30 690 58 775 112 C855 164 905 240 892 312 C882 362 838 398 782 408 C735 416 705 388 682 358 C640 398 575 392 528 352 C500 420 430 458 345 448 C255 436 175 392 150 348 C132 318 148 300 168 318Z"/>
+            <path class="brain-volume" d="M168 318 C128 255 138 168 198 112 C255 58 350 36 455 34 C575 30 690 58 775 112 C855 164 905 240 892 312 C882 362 838 398 782 408 C735 416 705 388 682 358 C640 398 575 392 528 352 C500 420 430 458 345 448 C255 436 175 392 150 348 C132 318 148 300 168 318Z"/>
+            <path class="brain-volume" d="M620 378 C700 348 820 358 862 418 C896 472 858 540 762 548 C676 556 590 512 588 456 C586 412 592 392 620 378Z"/>
+            <path class="brain-volume" d="M548 378 C530 445 505 510 478 568 C458 608 448 632 468 648 C498 642 522 608 540 568 C562 512 582 448 596 392 C575 368 558 366 548 378Z"/>
+            <ellipse class="brain-core" cx="560" cy="392" rx="78" ry="52"/>
+            <path class="brain-sulci" d="M250 200 C350 158 470 188 580 152 C680 118 750 152 820 205 M215 268 C340 230 470 268 590 238 C690 212 770 245 835 292 M225 338 C340 305 450 342 545 318 M310 108 C420 78 540 108 660 88 C740 74 790 108 830 148 M655 430 C735 410 810 430 848 465 M640 470 C730 452 810 478 845 515 M650 510 C735 500 800 524 835 548"/>
+            <path class="brain-dendrite" d="M555 395 C490 330 430 270 385 215 M430 270 C380 230 340 185 305 145 M430 270 C470 220 500 160 485 110 M555 395 C630 325 710 250 775 185 M710 250 C760 215 810 195 855 215 M555 395 C470 375 360 365 265 330 M360 365 C320 400 275 418 230 405 M555 395 C610 435 700 455 790 478 M555 395 C525 465 495 530 478 600"/>
+            <g class="brain-node">
+              <circle cx="385" cy="215" r="3.2"/>
+              <circle cx="305" cy="145" r="2.8"/>
+              <circle cx="485" cy="110" r="2.8"/>
+              <circle cx="775" cy="185" r="3.2"/>
+              <circle cx="855" cy="215" r="2.6"/>
+              <circle cx="265" cy="330" r="2.6"/>
+              <circle cx="230" cy="405" r="2.4"/>
+              <circle cx="790" cy="478" r="2.6"/>
+            </g>
+          </svg>
+        </div>
         <div id="graph2d"></div>
+        <div class="brain-shell brain-rim" aria-hidden="true">
+          <svg viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet">
+            <path class="brain-outline" d="M168 318 C128 255 138 168 198 112 C255 58 350 36 455 34 C575 30 690 58 775 112 C855 164 905 240 892 312 C882 362 838 398 782 408 C735 416 705 388 682 358 C640 398 575 392 528 352 C500 420 430 458 345 448 C255 436 175 392 150 348 C132 318 148 300 168 318Z"/>
+            <path class="brain-lobe" d="M620 378 C700 348 820 358 862 418 C896 472 858 540 762 548 C676 556 590 512 588 456 C586 412 592 392 620 378Z"/>
+            <path class="brain-lobe" d="M548 378 C530 445 505 510 478 568 C458 608 448 632 468 648 C498 642 522 608 540 568 C562 512 582 448 596 392 C575 368 558 366 548 378Z"/>
+            <path class="brain-sheen" d="M210 128 C285 62 400 38 530 40"/>
+          </svg>
+        </div>
         <div class="concept-labels" id="conceptLabels"></div>
         <div class="orb-overlay">
           <div class="orb-state" id="orbState" data-i18n="orb.ready">SẴN SÀNG</div>

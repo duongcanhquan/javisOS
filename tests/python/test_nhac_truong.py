@@ -133,6 +133,7 @@ def test_truong_khong_gat_ho_phong_khac():
 
     xong = asyncio.run(nt.chay(kho, viec["id"], noi))
     check("hết vòng thì lệch", xong["trang_thai"] == "lech")
+    check("lệch vẫn có kết quả", bool((xong.get("ket_qua") or "").strip()))
     check("pháp chế vẫn đạt phần mình", xong["dat"]["phap-che"] is True)
     check("nội dung không được gật hộ", xong["dat"]["noi-dung"] is False)
     hop_ha = [r for r in xong["loi"] if r["lop"] == "hop" and r["slug"] == "ha"]
@@ -171,7 +172,8 @@ def test_api():
     md = Path(goc) / "nhac-truong" / "viec" / f"{vid}.md"
     check("api ghi file md", md.is_file() and "Kết quả" in md.read_text(encoding="utf-8"))
     trang = c.get(f"/nhac-truong/viec/{vid}/ket-qua")
-    check("api mở được trang kết quả", trang.status_code == 200 and "Lưu PDF" in trang.text and "Kết quả cuối" in trang.text)
+    check("api mở được trang kết quả", trang.status_code == 200 and "Lưu PDF" in trang.text and "Kết quả cuối" in trang.text and "Trạng thái" in trang.text and "ngắn" in trang.text)
+    check("link trong kết quả bấm được", 'href="https://vi-du.test/a"' in nt.html_lien("Xem https://vi-du.test/a."))
     sua = c.post("/nhac-truong/phong/noi-dung", json={"tieu_chi": "Đúng brief"})
     check("api sửa tiêu chí", sua.status_code == 200 and sua.json()["phong"]["tieu_chi"] == "Đúng brief")
     trong = c.post("/nhac-truong/phong/noi-dung", json={"tieu_chi": " "})
@@ -415,6 +417,62 @@ def test_phong_trao_doi():
     check("họp vẫn chốt sau khi đã nói", xong["trang_thai"] == "xong" and lops.index("chia") < lops.index("hop"))
 
 
+def test_file_dung_va_chay_them():
+    kho = nt.Kho(tempfile.mkdtemp())
+    asyncio.run(dung_phong(kho))
+    nt.sua_phong(kho, "noi-dung", ten="Nội dung mới", cach_lam="lan_luot")
+    check("đổi tên phòng", kho.doc_phong("noi-dung")["ten"] == "Nội dung mới")
+    viec = nt.tao_viec(kho, "Co file", "brief ngắn", ["noi-dung"], 1, tai_lieu=[
+        {"ten": "a.md", "noi_dung": "nội dung A"},
+        {"ten": "b.md", "noi_dung": "nội dung B"},
+        {"ten": "c.md", "noi_dung": "nội dung C"},
+        {"ten": "d.md", "noi_dung": "bỏ file thứ tư"},
+    ], xep={"noi-dung": ["lan"]})
+    check("tối đa 3 file", len(viec["tai_lieu"]) == 3 and viec["xep_khoa"] is True)
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "KET":
+            return "Kết quả cuối đủ để dùng."
+        if kind == "GIAO":
+            return "THU_TU: minh > lan"
+        return "Bản đầu đủ ý cho bước này."
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    check("có kết quả cuối", "Kết quả cuối" in (xong.get("ket_qua") or ""))
+    giao = [r for r in xong["loi"] if r["lop"] == "giao"]
+    check("giữ thứ tự đã khóa", giao and "Lan" in (giao[0].get("giao_cho") or ""))
+
+    thay = []
+
+    async def them(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "THEM":
+            thay.append("COMMENT MUỐN SỬA" in prompt and "Kết quả cuối" in prompt)
+            return "Điểm 1. Câu mở ngắn hơn."
+        if kind == "KET":
+            return "Kết quả đã sửa theo comment."
+        return "ngắn"
+
+    lai = asyncio.run(nt.chay_them(kho, viec["id"], them, "Sửa câu mở cho ngắn."))
+    check("chạy thêm xong", lai["trang_thai"] == "xong" and lai["ket_qua"] == "Kết quả đã sửa theo comment.")
+    check("prompt giữ kết quả cũ", any(thay))
+
+    viec2 = nt.tao_viec(kho, "Dung giua", "brief", ["noi-dung"], 1)
+
+    async def noi_dung(nguoi, prompt):
+        ban = kho.doc_viec(viec2["id"])
+        ban["huy"] = True
+        kho.luu_viec(ban)
+        return "bản dở"
+
+    dung = asyncio.run(nt.chay(kho, viec2["id"], noi_dung))
+    check("dừng giữa chừng", dung["trang_thai"] == "dung")
+    check("dừng vẫn để bản nhìn được", "bản dở" in (dung.get("ket_qua") or "") or "Bản dở" in (dung.get("ket_qua") or ""))
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -432,6 +490,7 @@ if __name__ == "__main__":
     test_het_lan_cai_thi_truong_phan()
     test_gon_khong_dan_ca_bai()
     test_phong_trao_doi()
+    test_file_dung_va_chay_them()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)

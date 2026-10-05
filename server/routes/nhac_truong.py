@@ -75,6 +75,7 @@ async def sua_phong(slug: str, request: Request):
             kho, slug,
             tieu_chi=body.get("tieu_chi") if "tieu_chi" in body else None,
             cach_lam=body.get("cach_lam") if "cach_lam" in body else None,
+            ten=body.get("ten") if "ten" in body else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -147,6 +148,7 @@ async def tao_viec(request: Request):
             _kho(body.get("brain") or "brain"),
             body.get("tieu_de") or "", body.get("brief") or "",
             body.get("phong") or [], body.get("vong") or nt.VONG_MAC_DINH,
+            tai_lieu=body.get("tai_lieu"), xep=body.get("xep") if isinstance(body.get("xep"), dict) else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -159,7 +161,10 @@ async def doc_viec(vid: str, brain: str = "brain"):
         viec = _kho(brain).doc_viec(vid)
     except nt.LoiNhacTruong as e:
         return _err(e, 404)
-    return {"ok": True, "viec": viec}
+    out = dict(viec)
+    dang = _DANG.get(f"{brain}:{vid}")
+    out["song"] = bool(dang is not None and not dang.done())
+    return {"ok": True, "viec": out}
 
 
 def _html(s: str) -> str:
@@ -174,15 +179,18 @@ async def trang_ket_qua(vid: str, brain: str = "brain"):
     except nt.LoiNhacTruong as e:
         return HTMLResponse(f"<p>{_html(str(e))}</p>", status_code=404)
     tieu = viec.get("tieu_de") or "Kết quả"
-    than = viec.get("ket_qua") or "Chưa có kết quả. Chạy việc xong rồi mở lại trang này."
+    than = nt.bien_ban(viec)
+    vid_h = _html(vid)
     page = (
         "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\">"
         f"<title>{_html(tieu)}</title><style>"
         "body{font:15px/1.5 system-ui,sans-serif;margin:32px auto;max-width:720px;color:#111}"
         "h1{font-size:22px}pre{white-space:pre-wrap;font:inherit}"
-        ".nut{margin-top:16px}@media print{.nut{display:none}}"
+        "a{color:#0b57d0}.nut{margin-top:16px}@media print{.nut{display:none}}"
         "</style></head><body>"
-        f"<h1>{_html(tieu)}</h1><pre>{_html(than)}</pre>"
+        f"<h1>{_html(tieu)}</h1>"
+        f"<p>Biên bản trong brain: nhac-truong/viec/{vid_h}.md</p>"
+        f"<pre>{nt.html_lien(than)}</pre>"
         "<p class=\"nut\"><button onclick=\"print()\">Lưu PDF</button></p>"
         "<script>addEventListener('load',function(){setTimeout(function(){print()},300)})</script>"
         "</body></html>"
@@ -237,6 +245,90 @@ async def chay_viec(vid: str, request: Request):
 
     _DANG[khoa] = asyncio.create_task(_nen())
     return {"ok": True, "trang_thai": "dang_chay"}
+
+
+@router.post("/nhac-truong/viec/{vid}/dung")
+async def dung_viec(vid: str, request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    brain = (body or {}).get("brain") or "brain"
+    kho = _kho(brain)
+    try:
+        viec = kho.doc_viec(vid)
+    except nt.LoiNhacTruong as e:
+        return _err(e, 404)
+    viec["huy"] = True
+    kho.luu_viec(viec)
+    khoa = f"{brain}:{vid}"
+    task = _DANG.get(khoa)
+    if task is not None and not task.done():
+        task.cancel()
+        return {"ok": True, "trang_thai": "dang_dung"}
+    viec["trang_thai"] = "dung"
+    viec["huy"] = False
+    viec["dang_lam"] = None
+    if not (viec.get("ket_qua") or "").strip():
+        viec["ket_qua"] = nt.ket_phan(viec)
+    kho.luu_viec(viec)
+    return {"ok": True, "viec": viec}
+
+
+@router.post("/nhac-truong/viec/{vid}/chay-them")
+async def chay_them(vid: str, request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    brain = body.get("brain") or "brain"
+    khoa = f"{brain}:{vid}"
+    dang = _DANG.get(khoa)
+    if dang is not None and not dang.done():
+        return JSONResponse({"ok": False, "error": "Việc đang chạy."}, status_code=409)
+    kho = _kho(brain)
+    thu = bool(body.get("thu"))
+    comment = body.get("comment") or ""
+    thu_tu = body.get("thu_tu") if isinstance(body.get("thu_tu"), list) else None
+    if thu:
+        try:
+            viec = await nt.chay_them(kho, vid, nt.noi_thu, comment, thu_tu)
+        except nt.LoiNhacTruong as e:
+            return _err(e)
+        return {"ok": True, "viec": viec}
+
+    async def _nen():
+        try:
+            await nt.chay_them(kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt), comment, thu_tu)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            _danh_loi(kho, vid, e)
+
+    _DANG[khoa] = asyncio.create_task(_nen())
+    return {"ok": True, "trang_thai": "dang_chay"}
+
+
+@router.post("/nhac-truong/viec/{vid}/thu-tu")
+async def thu_tu_viec(vid: str, request: Request):
+    body = await request.json()
+    try:
+        viec = nt.dat_thu_tu_phong(_kho(body.get("brain") or "brain"), vid, body.get("phong") or [])
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "viec": viec}
+
+
+@router.post("/nhac-truong/phong/{slug}/icon")
+async def icon_phong(slug: str, request: Request):
+    body = await request.json()
+    try:
+        phong = nt.luu_icon(_kho(body.get("brain") or "brain"), slug, body.get("data") or "")
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "phong": phong}
 
 
 def _danh_loi(kho, vid: str, e: Exception) -> None:

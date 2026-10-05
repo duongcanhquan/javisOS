@@ -1,5 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.56.55] - 2026-10-05
+### Mới
+- **Não giữa thiên hà:** hình não nghiêng phát sáng. Luồng vault nằm trong đại não, tiểu não và cuống. Thiên hà vẫn ở phía ngoài.
+- **Nhạc trưởng · Theo dõi:** icon luồng phòng thu nhỏ thành một dải mô phỏng. Phần giao tiếp chiếm gần hết chiều cao để đọc lời trao đổi.
+- **Kết quả cuối** có link trang in/PDF và nút mở biên bản trong brain. Chữ có địa chỉ web thì bấm được. Kèm trạng thái, bản từng phòng, tài liệu đã đưa và chỗ còn mở. Dừng giữa chừng vẫn để lại bản này.
+- Giao việc nhận tối đa 3 file chữ. Đang chạy thì bấm Dừng, treo thì Khởi động lại. Chạy lại với comment giữ bản cũ. Thứ tự phòng và thứ tự người đặt ở Setup được giữ khi chạy.
+
 ## [0.56.54] - 2026-10-05
 ### Mới
 - Việc xong thì có khối **Kết quả** ngay trên phòng và trang theo dõi. Bấm **Xuất PDF** để lưu file. Bản chữ cũng nằm trong brain, thư mục nhac-truong/viec.

@@ -8,6 +8,7 @@ Phần này không gọi model. `noi(nguoi, prompt)` do chỗ gọi đưa vào, 
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import unicodedata
@@ -25,6 +26,10 @@ class LoiNhacTruong(ValueError):
 
 class LoiNoi(RuntimeError):
     """Model không trả lời được. Việc dừng, không bịa bản đạt."""
+
+
+class LoiDung(Exception):
+    """Người bấm Dừng. Không phải lỗi model."""
 
 
 def slugify(s: str) -> str:
@@ -183,9 +188,16 @@ class Kho:
             raise LoiNhacTruong("Không có việc này.")
         return json.loads(p.read_text(encoding="utf-8"))
 
-    def luu_viec(self, viec: dict) -> None:
+    def luu_viec(self, viec: dict, *, tha_huy: bool = False) -> None:
         p = self._viec_path(viec["id"])
         p.parent.mkdir(parents=True, exist_ok=True)
+        if p.is_file() and not tha_huy and not viec.get("huy"):
+            try:
+                cu = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                cu = {}
+            if cu.get("huy"):
+                viec["huy"] = True
         p.write_text(json.dumps(viec, ensure_ascii=False, indent=2), encoding="utf-8")
         md = self.goc / "viec" / f"{viec['id']}.md"
         md.write_text(bien_ban(viec), encoding="utf-8")
@@ -278,8 +290,14 @@ def _tach_skill(skills) -> list:
     return sk
 
 
-def sua_phong(kho: Kho, slug: str, tieu_chi: str | None = None, cach_lam: str | None = None) -> dict:
+def sua_phong(kho: Kho, slug: str, tieu_chi: str | None = None, cach_lam: str | None = None,
+              ten: str | None = None) -> dict:
     phong = kho.doc_phong(slug)
+    if ten is not None:
+        ten = (ten or "").strip()
+        if not ten:
+            raise LoiNhacTruong("Tên phòng không được trống.")
+        phong["ten"] = ten[:80]
     if tieu_chi is not None:
         tieu = (tieu_chi or "").strip()
         if not tieu:
@@ -359,7 +377,87 @@ def _thanh_vien(phong: dict) -> list:
     return [n for n in phong.get("nguoi") or [] if n.get("vai") != "truong"]
 
 
-def tao_viec(kho: Kho, tieu_de: str, brief: str, phong_slugs: list, vong: int = VONG_MAC_DINH) -> dict:
+def chuan_tai_lieu(raw) -> list:
+    """Tối đa 3 file chữ. Phần dài cắt để lượt sau không nuốt cả tài liệu."""
+    out = []
+    for item in raw or []:
+        if len(out) >= 3:
+            break
+        if not isinstance(item, dict):
+            continue
+        nd = str(item.get("noi_dung") or "").strip()
+        if not nd:
+            continue
+        ten = str(item.get("ten") or "tai-lieu").strip()[:80] or "tai-lieu"
+        out.append({"ten": ten, "noi_dung": nd[:6000]})
+    return out
+
+
+def luu_icon(kho: Kho, slug: str, data: str) -> dict:
+    phong = kho.doc_phong(slug)
+    raw = (data or "").strip()
+    if not raw:
+        phong.pop("icon", None)
+        kho.luu_phong(phong)
+        return phong
+    if not raw.startswith("data:image/") or ";base64," not in raw:
+        raise LoiNhacTruong("Icon cần là ảnh PNG, JPG hoặc WebP.")
+    if len(raw) > 180000:
+        raise LoiNhacTruong("Ảnh icon quá lớn. Chọn ảnh nhỏ hơn.")
+    phong["icon"] = raw
+    kho.luu_phong(phong)
+    return phong
+
+
+def dat_thu_tu_phong(kho: Kho, vid: str, slugs: list) -> dict:
+    viec = kho.doc_viec(vid)
+    if viec.get("trang_thai") == "dang_chay":
+        raise LoiNhacTruong("Dừng việc trước khi đổi thứ tự phòng.")
+    hop = []
+    co = list(viec.get("phong") or [])
+    for s in slugs or []:
+        s = str(s or "").strip()
+        if s in co and s not in hop:
+            hop.append(s)
+    for s in co:
+        if s not in hop:
+            hop.append(s)
+    if not hop:
+        raise LoiNhacTruong("Việc cần ít nhất một phòng.")
+    viec["phong"] = hop
+    viec["thu_tu_phong"] = hop
+    kho.luu_viec(viec)
+    return viec
+
+
+def ket_phan(viec: dict) -> str:
+    """Bản nhìn thấy được khi dừng giữa chừng hoặc chưa viết kết quả."""
+    co = (viec.get("ket_qua") or "").strip()
+    if co:
+        return co
+    parts = []
+    for slug, text in (viec.get("ban") or {}).items():
+        t = (text or "").strip()
+        if t:
+            parts.append(f"## {slug}\n{t}")
+    if not parts:
+        loi = [str(r.get("loi") or "").strip() for r in (viec.get("loi") or [])]
+        loi = [x for x in loi if x]
+        if loi:
+            return "Bản dở, lời cuối đã có.\n\n" + loi[-1]
+        return "Chưa có bản kết. Việc dừng trước khi viết xong."
+    return "Bản dở, ghép từ phần đã làm.\n\n" + "\n\n".join(parts)
+
+
+def _bi_huy(kho: Kho, vid: str) -> bool:
+    try:
+        return bool(kho.doc_viec(vid).get("huy"))
+    except LoiNhacTruong:
+        return False
+
+
+def tao_viec(kho: Kho, tieu_de: str, brief: str, phong_slugs: list, vong: int = VONG_MAC_DINH,
+             tai_lieu=None, xep: dict | None = None) -> dict:
     tieu_de = (tieu_de or "").strip()
     brief = (brief or "").strip()
     if not tieu_de or not brief:
@@ -397,7 +495,18 @@ def tao_viec(kho: Kho, tieu_de: str, brief: str, phong_slugs: list, vong: int = 
         "khoa": {s: False for s in slugs},
         "mo": [],
         "loi_chay": "",
+        "tai_lieu": chuan_tai_lieu(tai_lieu),
+        "huy": False,
     }
+    if isinstance(xep, dict) and xep:
+        sach = {}
+        for slug, day in xep.items():
+            if slug not in slugs or not isinstance(day, list):
+                continue
+            sach[slug] = [str(s) for s in day if str(s).strip()][:12]
+        if sach:
+            viec["xep"] = {k: [{"slug": s, "ten": s, "vi_tri": ""} for s in v] for k, v in sach.items()}
+            viec["xep_khoa"] = True
     kho.luu_viec(viec)
     return viec
 
@@ -455,6 +564,8 @@ def _them(viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, loi: str,
 
 def _bao(kho: Kho, viec: dict, phong: dict, nguoi: dict, buoc: str, giao: dict | None = None) -> None:
     """Ghi người đang nói trước khi model trả lời, để trang theo dõi không đứng trống."""
+    if _bi_huy(kho, viec["id"]):
+        raise LoiDung("Đã dừng.")
     viec["dang_lam"] = {
         "phong": phong.get("slug") or "",
         "phong_ten": phong.get("ten") or "",
@@ -495,12 +606,24 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
         f"Brief: {viec.get('brief')}",
         "Chỉ trả lời trong lượt này. Không gửi tin, không đăng bài, không chi tiền.",
     ]
+    if viec.get("lenh_them"):
+        dong.append("COMMENT MUỐN SỬA: " + str(viec.get("lenh_them"))[:500])
+    if viec.get("ket_cu") and loai in ("KET", "THEM", "SUA", "LAM"):
+        cu = str(viec.get("ket_cu") or "")
+        dong.append("KẾT QUẢ CŨ, giữ phần comment không đụng:")
+        dong.append(cu[:6000] if loai == "KET" else _gon(cu, 900))
+    tl = viec.get("tai_lieu") or []
+    if tl and loai in ("LAM", "KET", "GIAO", "THEM"):
+        dong.append("TÀI LIỆU THAM KHẢO, tối đa 3 file:")
+        tran_tl = 1400 if loai == "KET" else 700
+        for f in tl[:3]:
+            dong.append(str(f.get("ten") or "file") + ":\n" + _gon(f.get("noi_dung") or "", tran_tl))
     if loai == "KET":
         dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói.")
     elif loai == "LAM" and not ban_day:
         dong.append("Đây là bản đầu. Viết đủ phần của bạn để người sau chỉ sửa từng điểm.")
     else:
-        dong.append("Viết ngắn, chỉ trọng tâm. Không chép lại bài đã có. Chỗ cần sửa ghi điểm 1, điểm 2. Không viết hết.")
+        dong.append("Viết ngắn, gạch đầu dòng, tối đa 4 dòng. Không chép lại bài đã có. Chỗ cần sửa ghi điểm 1, điểm 2.")
     if loai == "GIAO":
         dong.append("Vài dòng: ai làm gì. Không viết bài.")
         if thanh_vien:
@@ -619,7 +742,15 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN PHÒNG BẠN:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Một hoặc hai câu. Điểm nào giữ, điểm nào sửa. Không viết lại bài. Không viết QUYET.",
+            "Một hoặc hai câu. Điểm nào giữ, điểm nào sửa. Gạch đầu dòng. Không viết lại bài. Không viết QUYET.",
+        ]
+    elif loai == "THEM":
+        dong += [
+            "Chạy thêm trên kết quả cũ, theo comment. Không kể lại cuộc nói.",
+            "BẢN PHÒNG HIỆN TẠI:",
+            ban or "(trống)",
+            "HẾT BẢN",
+            "Viết lại phần phòng bạn sau khi sửa. Giữ chỗ không bị comment đụng. Gạch đầu dòng những chỗ vừa đổi.",
         ]
     elif loai == "GOP":
         dong += [
@@ -663,13 +794,14 @@ async def chay(kho: Kho, vid: str, noi) -> dict:
         kho.luu_viec(viec)
         return viec
     viec["trang_thai"] = "dang_chay"
+    viec["huy"] = False
     viec["loi"] = []
     viec["ban"] = {p["slug"]: "" for p in phongs}
     viec["dat"] = {p["slug"]: False for p in phongs}
     viec["khoa"] = {p["slug"]: False for p in phongs}
     viec["mo"] = []
     viec["loi_chay"] = ""
-    kho.luu_viec(viec)
+    kho.luu_viec(viec, tha_huy=True)
     vmax = int(viec.get("vong_toi_da") or VONG_MAC_DINH)
     try:
         for phong in phongs:
@@ -679,6 +811,11 @@ async def chay(kho: Kho, vid: str, noi) -> dict:
         else:
             await _hop(kho, viec, phongs, noi, vmax)
         await _ket(kho, viec, phongs, noi)
+    except LoiDung:
+        return _cham(kho, viec, "dung")
+    except asyncio.CancelledError:
+        _cham(kho, viec, "dung")
+        raise
     except LoiNoi as e:
         viec["trang_thai"] = "loi"
         viec["loi_chay"] = str(e)
@@ -691,6 +828,8 @@ async def chay(kho: Kho, vid: str, noi) -> dict:
         viec["dang_lam"] = None
         kho.luu_viec(viec)
         return viec
+    if not (viec.get("ket_qua") or "").strip():
+        viec["ket_qua"] = ket_phan(viec)
     if all(viec["dat"].get(p["slug"]) for p in phongs):
         viec["trang_thai"] = "xong"
         viec["mo"] = []
@@ -804,9 +943,13 @@ async def _noi_bo_lan(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None
         giao = await _goi(noi, truong, lap_prompt(
             "GIAO", truong, phong, viec, lenh=lenh, thanh_vien=mems))
         day = doc_thu_tu(giao, mems)
-        viec.setdefault("xep", {})[phong["slug"]] = [
-            {"slug": m["slug"], "ten": m["ten"], "vi_tri": (m.get("vi_tri") or "").strip()} for m in day
-        ]
+        ep = bool(viec.get("xep_khoa") and (viec.get("xep") or {}).get(phong["slug"]))
+        if ep:
+            day = _theo_xep(viec, phong, mems)
+        else:
+            viec.setdefault("xep", {})[phong["slug"]] = [
+                {"slug": m["slug"], "ten": m["ten"], "vi_tri": (m.get("vi_tri") or "").strip()} for m in day
+            ]
         _ghi(kho, viec, phong, truong, "giao", vong, giao, giao_cho=_nhan(day[0]))
         viec["ban"][phong["slug"]] = await _chuoi(kho, viec, phong, noi, day, lenh, vong)
         _bao(kho, viec, phong, truong, "kiem")
@@ -919,6 +1062,92 @@ async def _ket(kho: Kho, viec: dict, phongs: list, noi) -> None:
     text = await _goi(noi, truong, lap_prompt("KET", truong, phong, viec, cac_ban=nguon))
     viec["ket_qua"] = text
     kho.luu_viec(viec)
+
+
+def _cham(kho: Kho, viec: dict, trang: str) -> dict:
+    """Chốt trạng thái khi dừng hoặc lỗi giữa chừng, vẫn để lại bản nhìn được."""
+    viec["trang_thai"] = trang
+    viec["huy"] = False
+    viec["dang_lam"] = None
+    if trang == "dung" and not (viec.get("ket_qua") or "").strip():
+        viec["ket_qua"] = ket_phan(viec)
+    kho.luu_viec(viec, tha_huy=True)
+    return viec
+
+
+async def chay_them(kho: Kho, vid: str, noi, comment: str, thu_tu: list | None = None) -> dict:
+    """Lấy kết quả cũ, sửa theo comment, viết lại kết quả. Không xoá biên bản."""
+    comment = (comment or "").strip()
+    if not comment:
+        raise LoiNhacTruong("Cần một câu muốn sửa thêm.")
+    viec = kho.doc_viec(vid)
+    if viec.get("trang_thai") == "dang_chay":
+        raise LoiNhacTruong("Việc đang chạy. Dừng trước khi chạy thêm.")
+    if thu_tu:
+        viec = dat_thu_tu_phong(kho, vid, thu_tu)
+    viec["ket_cu"] = (viec.get("ket_qua") or "").strip()
+    viec["lenh_them"] = comment[:500]
+    viec["trang_thai"] = "dang_chay"
+    viec["huy"] = False
+    viec["loi_chay"] = ""
+    kho.luu_viec(viec, tha_huy=True)
+    try:
+        phongs = [kho.doc_phong(s) for s in viec["phong"]]
+        for p in phongs:
+            _truong(p)
+    except LoiNhacTruong as e:
+        viec["trang_thai"] = "loi"
+        viec["loi_chay"] = str(e)
+        kho.luu_viec(viec)
+        return viec
+    try:
+        for phong in phongs:
+            truong = _truong(phong)
+            ban = (viec.get("ban") or {}).get(phong["slug"]) or viec.get("ket_cu") or ""
+            _bao(kho, viec, phong, truong, "sua")
+            text = await _goi(noi, truong, lap_prompt(
+                "THEM", truong, phong, viec, ban=ban, lenh=comment))
+            viec["ban"][phong["slug"]] = text
+            _ghi(kho, viec, phong, truong, "sua", 1, text)
+        await _ket(kho, viec, phongs, noi)
+    except LoiDung:
+        return _cham(kho, viec, "dung")
+    except asyncio.CancelledError:
+        _cham(kho, viec, "dung")
+        raise
+    except LoiNoi as e:
+        viec["trang_thai"] = "loi"
+        viec["loi_chay"] = str(e)
+        viec["dang_lam"] = None
+        kho.luu_viec(viec)
+        return viec
+    except Exception as e:
+        viec["trang_thai"] = "loi"
+        viec["loi_chay"] = str(e) or "Chạy thêm dừng giữa chừng."
+        viec["dang_lam"] = None
+        kho.luu_viec(viec)
+        return viec
+    if not (viec.get("ket_qua") or "").strip():
+        viec["ket_qua"] = ket_phan(viec)
+    viec["trang_thai"] = "xong"
+    viec["dang_lam"] = None
+    viec["lenh_them"] = ""
+    kho.luu_viec(viec, tha_huy=True)
+    return viec
+
+
+def html_lien(text: str) -> str:
+    """Chữ an toàn để in, URL thành link bấm được."""
+    esc = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def mot(m):
+        raw = m.group(0)
+        u = raw.rstrip(".,;:)")
+        if not u:
+            return raw
+        return f'<a href="{u}">{u}</a>{raw[len(u):]}'
+
+    return re.sub(r"https?://[^\s<&]+", mot, esc)
 
 
 def bien_ban(viec: dict) -> str:
