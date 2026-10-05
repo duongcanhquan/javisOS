@@ -1,5 +1,6 @@
-# One-shot: đồng bộ image mới lên mọi máy người + verify prompt-help.js.
+# One-shot: đồng bộ image mới lên mọi máy người + verify skill hubs.
 # Chạy khi push file này / script sync (tránh phụ thuộc workflow_dispatch 403).
+# bump: 0.56.48 marketingskills + openmontage
 name: Sync tenant images once
 
 on:

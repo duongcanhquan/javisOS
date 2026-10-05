@@ -26,7 +26,11 @@ check("có Chép + Dán vào chat", JS.includes('data-ph="copy"') && JS.includes
 check("4 kênh nhập + tra cứu", JS.includes("s1_h") && JS.includes("s2_h") && JS.includes("s3_h") && JS.includes("s4_h") && JS.includes("s5_h"));
 check("Kho Drive gắn nút ?", DRIVE.includes("JavisPromptHelp.mountInline"));
 check("Hướng dẫn nhắc nút ?", GUIDES.includes("prompt chuẩn") && GUIDES.includes("Dán vào chat"));
-check("script sync tenant images", SYNC.includes("apply_public_hosts") && SYNC.includes("prompt-help.js"));
+check(
+  "script sync tenant images",
+  SYNC.includes("apply_public_hosts") &&
+    (SYNC.includes("marketingskills") || SYNC.includes("prompt-help.js"))
+);
 check("i18n vi title", typeof VI["prompt_help.title"] === "string" && VI["prompt_help.title"].length > 5);
 check("i18n en title", typeof EN["prompt_help.title"] === "string" && EN["prompt_help.title"].length > 5);
 check("i18n vi có prompt lưu file", VI["prompt_help.s1_save"].includes("ingest-source"));
