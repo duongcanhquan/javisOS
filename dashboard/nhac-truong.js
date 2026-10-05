@@ -29,7 +29,8 @@
     lech: ["Còn lệch", "warn"],
     loi: ["Lỗi", "warn"]
   };
-  var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử" };
+  var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi" };
+  var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
   var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null };
 
   function phongChon() {
@@ -560,7 +561,8 @@
       var ab = d.ten === a.ten && d.giao_cho && d.giao_cho.indexOf(b.ten) >= 0;
       var ba = d.ten === b.ten && d.giao_cho && d.giao_cho.indexOf(a.ten) >= 0;
       if (!ab && !ba) return "";
-      return (d.buoc === "nhan" || d.buoc === "doi") ? "talk" : "go";
+      var doiThoai = d.buoc === "nhan" || d.buoc === "doi" || d.buoc === "chia" || d.buoc === "dap" || d.buoc === "gop";
+      return doiThoai ? "talk" : "go";
     }
     function mui(loai) {
       var nhan = loai === "talk" ? "Đang trao đổi" : "Đưa tới";
@@ -587,7 +589,9 @@
     var v = viecHien();
     if (!p) return "";
     if (!v) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chưa có lời. Khi chạy, hỏi đáp và bàn giao hiện ở đây.</p>';
-    var rows = (v.loi || []).filter(function (r) { return r.phong === p.slug || r.lop === "hop"; });
+    var rows = (v.loi || []).filter(function (r) {
+      return r.phong === p.slug || r.lop === "hop" || r.lop === "chia" || r.lop === "dap";
+    });
     return "<h3>Giao tiếp</h3>" +
       '<p class="nt-hint">' + esc(v.tieu_de || "") + " · " + esc((TRANG[v.trang_thai] || [v.trang_thai || ""])[0]) + "</p>" +
       dangLam(v) +
@@ -715,7 +719,7 @@
   function dangLam(v) {
     var d = v && v.dang_lam;
     if (!d || v.trang_thai !== "dang_chay") return "";
-    var tenBuoc = { giao: "đang xem việc để xếp bước", lam: "đang làm", kiem: "đang phản hồi", hop: "đang họp", sua: "đang mang lệnh về", nhan: "đang xem bàn giao", doi: "đang trả lời", xu: "đang xử lý chỗ chưa thống nhất" };
+    var tenBuoc = { giao: "đang xem việc để xếp bước", lam: "đang làm", kiem: "đang phản hồi", hop: "đang họp", sua: "đang mang lệnh về", nhan: "đang xem bàn giao", doi: "đang trả lời", xu: "đang xử lý chỗ chưa thống nhất", chia: "đang góp ý phòng khác", dap: "đang đáp lại", gop: "đang trao đổi trong phòng" };
     var ai = d.ten + (d.vi_tri ? " · " + d.vi_tri : "");
     var cau = ai + " " + (tenBuoc[d.buoc] || "đang làm");
     if (d.phong_ten) cau += " · phòng " + d.phong_ten;
@@ -794,19 +798,31 @@
     }).join("\n").trim();
   }
 
+  function mauTen(slug) {
+    var n = 0;
+    var s = String(slug || "x");
+    for (var i = 0; i < s.length; i++) n = (n + s.charCodeAt(i) * (i + 3)) % MAU_TEN.length;
+    return MAU_TEN[n];
+  }
+
+  function veGiao(row) {
+    if (!row.giao_cho) return "";
+    var ngan = { nhan: "xem bài của", doi: "trả lời", chia: "góp ý", dap: "đáp", gop: "trao đổi với" };
+    return '<span class="nt-to">' + (ngan[row.lop] || "với") + " " + esc(row.giao_cho) + "</span>";
+  }
+
   function nhomLoi(rows) {
     var out = "";
     var khoa = "";
     rows.forEach(function (row) {
-      var pha = (row.lop === "hop" ? "Họp trưởng" : "Trong phòng · " + (row.phong_ten || "")) + " · vòng " + row.vong;
+      var pha = (row.lop === "hop" || row.lop === "chia" || row.lop === "dap" ? "Giữa các phòng" : "Trong phòng · " + (row.phong_ten || "")) + " · vòng " + row.vong;
       if (pha !== khoa) { khoa = pha; out += '<div class="nt-phase">' + esc(pha) + "</div>"; }
-      var vai = row.vai === "truong" ? "Trưởng" : "Thành viên";
-      out += '<article class="nt-say"><header><b>' + esc(row.ten) + "</b> " +
-        (row.vi_tri ? '<span class="nt-pill">' + esc(row.vi_tri) + "</span> " : "") +
-        '<span class="nt-pill">' + esc(vai) + "</span> " +
-        '<span class="nt-pill">' + esc(LOP[row.lop] || row.lop) + "</span> " +
-        pillQuyet(row.quyet, row.lop) + "</header>" +
-        (row.giao_cho ? '<p class="nt-hint">' + (row.lop === "nhan" ? "Xem bài của " : row.lop === "doi" ? "Trả lời " : "Bàn giao cho ") + esc(row.giao_cho) + ".</p>" : "") +
+      var ben = mauTen(row.slug).charCodeAt(1) % 2 ? "phai" : "trai";
+      out += '<div class="nt-gap" aria-hidden="true">-----</div>' +
+        '<article class="nt-say ' + ben + '"><header><b style="color:' + mauTen(row.slug) + '">' + esc(row.ten) + "</b>" +
+        '<span class="nt-meta">' + esc(row.vi_tri || (row.vai === "truong" ? "Trưởng" : "Thành viên")) +
+        " · " + esc(LOP[row.lop] || row.lop) + "</span>" +
+        pillQuyet(row.quyet, row.lop) + veGiao(row) + "</header>" +
         (loiSach(row.loi) ? "<p>" + esc(loiSach(row.loi)) + "</p>" : "") + "</article>";
     });
     return out;

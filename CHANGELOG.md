@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.53] - 2026-10-05
+### Mới
+- Cột giao tiếp nhìn như đoạn chat. Tên mỗi người một màu, lệch trái hoặc phải. Chữ nhỏ hơn. Các lời cách nhau bằng -----.
+- Lượt nhận đầu phải nêu một chỗ chưa chắc, rồi người trước trả lời. Nhận rồi mới làm tiếp.
+- Hai phòng trở lên thì trưởng góp ý bản phòng kia và được đáp lại, trước khi họp chốt. Người cùng phòng cũng trao đổi với nhau trước khi trưởng phản hồi.
+
 ## [0.56.52] - 2026-10-05
 ### Mới
 - Bấm một phòng thấy sơ đồ bàn làm việc full ngang. Bàn đang làm viền đỏ. Mũi tên ghi Đưa tới, hoặc Đang trao đổi khi hai người đang hỏi đáp.

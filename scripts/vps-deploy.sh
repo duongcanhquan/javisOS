@@ -381,4 +381,61 @@ else
   echo "==> không có $MGR_DIR - bỏ cập nhật Javis gốc"
 fi
 
+# Bản cài riêng trên cùng máy, không phải tenant và không phải máy quan / manager.
+# Không đọc được danh sách tenant thì bỏ, để khỏi kéo nhầm máy người.
+echo "==> bản Javis cài riêng (không tenant)"
+_tenant_names=""
+_tenant_ok=0
+if docker inspect javis-manager >/dev/null 2>&1; then
+  if _tenant_names=$(docker exec javis-manager python -c '
+import sys
+sys.path.insert(0, "/app/server")
+import org_tenants as ot
+for t in (ot.load().get("tenants") or []):
+    if t.get("deleted_at"):
+        continue
+    slug = str(t.get("slug") or "").strip()
+    if not slug:
+        continue
+    print(str(t.get("container") or ("javis-" + slug)))
+' 2>/dev/null); then
+    _tenant_ok=1
+  fi
+else
+  _tenant_ok=1
+fi
+if [ "$_tenant_ok" != 1 ]; then
+  echo "WARN: không đọc được danh sách tenant, bỏ bản riêng"
+else
+  while read -r name; do
+    [ -n "$name" ] || continue
+    case "$name" in
+      javis-manager|javis-proxy|javis-park|javis-quan|javis|javis-pixelle-api|javis-pixelle-web) continue ;;
+    esac
+    if printf '%s\n' "$_tenant_names" | grep -qx "$name"; then
+      continue
+    fi
+    img=$(docker inspect -f '{{.Config.Image}}' "$name" 2>/dev/null || true)
+    case "$img" in
+      *javisos*|*javis-os*) ;;
+      *) continue ;;
+    esac
+    wd=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$name" 2>/dev/null || true)
+    svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$name" 2>/dev/null || true)
+    proj=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$name" 2>/dev/null || true)
+    if [ -z "$wd" ] || [ ! -f "$wd/docker-compose.yml" ] || [ -z "$svc" ]; then
+      echo "WARN: $name không có compose, bỏ"
+      continue
+    fi
+    echo "==> cập nhật bản riêng $name ($wd)"
+    (
+      cd "$wd"
+      export COMPOSE_PROJECT_NAME="${proj:-javis}"
+      export JAVIS_IMAGE
+      docker compose pull "$svc" || echo "WARN: pull $name thất bại"
+      docker compose up -d --no-build --force-recreate "$svc" || echo "WARN: up $name thất bại"
+    )
+  done < <(docker ps --format '{{.Names}}' | grep -E 'javis' || true)
+fi
+
 echo "==> done"

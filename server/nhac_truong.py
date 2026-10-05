@@ -454,7 +454,7 @@ def _ghi(kho: Kho, viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, lo
 
 def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
                lenh: str = "", cac_ban: dict | None = None, giao_cho: dict | None = None,
-               thanh_vien: list | None = None) -> str:
+               thanh_vien: list | None = None, luot: int = 0) -> str:
     sk = ", ".join(nguoi.get("skills") or []) or "(chưa gán)"
     vai = "trưởng phòng" if nguoi.get("vai") == "truong" else "thành viên"
     vi_tri = (nguoi.get("vi_tri") or "").strip()
@@ -486,6 +486,13 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             ban or "(trống)",
             "HẾT BẢN",
             "Chưa hiểu hoặc thấy sai thì nói thẳng. Chưa nhận thì chưa làm phần của bạn.",
+        ]
+        if luot == 1:
+            dong += [
+                "Lượt nhận: 1",
+                "Đây là lượt nhận đầu. Phải nêu một chỗ chưa chắc. Chưa được NHAN: OK ở lượt này.",
+            ]
+        dong += [
             "Kết thúc bằng đúng một trong hai:",
             "NHAN: OK",
             "hoặc",
@@ -552,6 +559,32 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "QUYET: CHUA",
             "SUA: một câu",
             "TRA: slug phòng phải sửa",
+        ]
+    elif loai == "CHIA":
+        dong += [
+            "Bạn đang nói với trưởng phòng " + (_nhan(giao_cho) if giao_cho else "bên cạnh") + ".",
+            "Đọc bản phòng họ. Góp một chỗ chưa chắc, hoặc một ý phòng bạn có mà họ cần.",
+            "BẢN PHÒNG HỌ:",
+            ban or "(trống)",
+            "HẾT BẢN",
+            "Viết 2 đến 4 câu. Không viết QUYET. Không viết hộ bài của họ.",
+        ]
+    elif loai == "DAP":
+        dong += [
+            (_nhan(giao_cho) if giao_cho else "Phòng kia") + " vừa góp ý phòng bạn.",
+            "Họ nói: " + (lenh or "chưa rõ."),
+            "BẢN PHÒNG BẠN:",
+            ban or "(trống)",
+            "HẾT BẢN",
+            "Đáp đúng chỗ họ bắt. Giữ phần đúng. Nói bạn sẽ sửa chỗ nào. Không viết QUYET.",
+        ]
+    elif loai == "GOP":
+        dong += [
+            "Đọc bản mọi người trong phòng vừa viết. Nêu một chỗ chưa chắc hoặc một ý cần người kia chỉnh.",
+            "BẢN CẢ PHÒNG:",
+            ban or "(trống)",
+            "HẾT BẢN",
+            "Viết ngắn. Không viết lại cả bài.",
         ]
     elif loai == "SUA":
         dong.append("Mang lệnh này về team. Nhắc đúng chỗ phải sửa, không viết hộ.")
@@ -628,10 +661,15 @@ async def _chan(kho: Kho, viec: dict, phong: dict, noi, truoc: dict, sau: dict, 
     """Bước sau cãi với bước trước. Nhận rồi mới được làm. Hết lần thì trưởng phán."""
     truong = _truong(phong)
     vmax = min(VONG_TRAN, max(1, int(viec.get("vong_toi_da") or VONG_MAC_DINH)))
-    for _ in range(vmax):
+    for i in range(vmax):
         _bao(kho, viec, phong, sau, "nhan", truoc)
-        text = await _goi(noi, sau, lap_prompt("NHAN", sau, phong, viec, ban=ban, giao_cho=truoc))
+        text = await _goi(noi, sau, lap_prompt(
+            "NHAN", sau, phong, viec, ban=ban, giao_cho=truoc, luot=i + 1))
         nhan = doc_nhan(text) or "CHUA"
+        if i == 0 and nhan == "OK":
+            nhan = "CHUA"
+            if "SUA:" not in text.upper() and "SỬA:" not in text.upper():
+                text = text.rstrip() + "\nSUA: Làm rõ một chỗ chưa chắc trước khi nhận."
         _ghi(kho, viec, phong, sau, "nhan", vong, text, nhan, _nhan(truoc))
         if nhan == "OK":
             return ban
@@ -692,6 +730,13 @@ async def _noi_bo(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None:
                 _ghi(kho, viec, phong, mem, "lam", vong, loi)
                 manh.append(loi)
             viec["ban"][phong["slug"]] = "\n\n".join(manh)
+            if len(mems) > 1:
+                for mem in mems:
+                    khac = next((m for m in mems if m["slug"] != mem["slug"]), None)
+                    _bao(kho, viec, phong, mem, "gop", khac)
+                    gop = await _goi(noi, mem, lap_prompt(
+                        "GOP", mem, phong, viec, ban=viec["ban"][phong["slug"]], giao_cho=khac))
+                    _ghi(kho, viec, phong, mem, "gop", vong, gop, giao_cho=_nhan(khac) if khac else "")
         _bao(kho, viec, phong, truong, "kiem")
         kiem = await _goi(noi, truong, lap_prompt(
             "KIEM", truong, phong, viec, ban=viec["ban"][phong["slug"]]))
@@ -758,10 +803,31 @@ async def _sua_phong(kho: Kho, viec: dict, phong: dict, noi, lenh: str, vong: in
     kho.luu_viec(viec)
 
 
+async def _trao(kho: Kho, viec: dict, phongs: list, noi, vong: int) -> None:
+    """Trưởng phòng góp ý bản phòng kia, trưởng kia đáp. Rồi mới họp chốt."""
+    if len(phongs) < 2:
+        return
+    for i, phong in enumerate(phongs):
+        khac = phongs[(i + 1) % len(phongs)]
+        truong = _truong(phong)
+        kia = _truong(khac)
+        ban_khac = (viec.get("ban") or {}).get(khac["slug"]) or ""
+        _bao(kho, viec, phong, truong, "chia", kia)
+        y = await _goi(noi, truong, lap_prompt(
+            "CHIA", truong, phong, viec, ban=ban_khac, giao_cho=kia))
+        _ghi(kho, viec, phong, truong, "chia", vong, y, giao_cho=_nhan(kia))
+        _bao(kho, viec, khac, kia, "dap", truong)
+        d = await _goi(noi, kia, lap_prompt(
+            "DAP", kia, khac, viec, ban=(viec.get("ban") or {}).get(khac["slug"]) or "",
+            lenh=y, giao_cho=truong))
+        _ghi(kho, viec, khac, kia, "dap", vong, d, giao_cho=_nhan(truong))
+
+
 async def _hop(kho: Kho, viec: dict, phongs: list, noi, vmax: int) -> None:
     by = {p["slug"]: p for p in phongs}
     slugs = [p["slug"] for p in phongs]
     for vong in range(1, vmax + 1):
+        await _trao(kho, viec, phongs, noi, vong)
         orders = []
         for phong in phongs:
             truong = _truong(phong)
@@ -811,6 +877,9 @@ def bien_ban(viec: dict) -> str:
         "nhan": "nhận bàn giao",
         "doi": "trả lời",
         "xu": "trưởng xử",
+        "chia": "góp ý phòng khác",
+        "dap": "đáp lại",
+        "gop": "trao đổi trong phòng",
     }
     for row in viec.get("loi") or []:
         vai = "trưởng phòng" if row.get("vai") == "truong" else "thành viên"
@@ -849,9 +918,15 @@ async def noi_thu(nguoi: dict, prompt: str) -> str:
     if loai == "GIAO":
         return "Lấy đúng brief. Cấm câu hứa kết quả. Mỗi người một việc đúng skill."
     if loai == "NHAN":
-        if "cam kết" in prompt or "cam ket" in _khong_dau(prompt).lower():
-            return "Còn câu hứa, chưa dùng được.\nNHAN: CHUA\nSUA: Bỏ câu cam kết."
+        if "Lượt nhận: 1" in prompt or "cam kết" in prompt or "cam ket" in _khong_dau(prompt).lower():
+            return "Còn một chỗ chưa chắc.\nNHAN: CHUA\nSUA: Làm rõ chỗ này trước khi nhận."
         return "Phần này dùng được.\nNHAN: OK"
+    if loai == "CHIA":
+        return "Phòng bên: còn một chỗ chưa chắc. Cần nói rõ căn cứ, không giữ câu hứa."
+    if loai == "DAP":
+        return "Đã nghe phòng bên. Giữ phần đúng brief. Chỗ chưa chắc thì sửa."
+    if loai == "GOP":
+        return "Phần người cùng phòng còn chỗ chưa chắc. Nên sửa trước khi trưởng chốt."
     if loai == "DOI":
         return "Đã bỏ câu hứa. Giữ phần còn lại."
     if loai == "XU":

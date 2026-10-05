@@ -370,6 +370,31 @@ def test_het_lan_cai_thi_truong_phan():
     ])
 
 
+def test_phong_trao_doi():
+    kho = nt.Kho(tempfile.mkdtemp())
+    asyncio.run(dung_phong(kho))
+    nt.them_nguoi(kho, "noi-dung", "Bình", "ngắn", "soat", "thanh_vien")
+    viec = nt.tao_viec(kho, "Đối thoại", "một brief", ["noi-dung", "phap-che"], 1)
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "HOP":
+            return "QUYET: DAT"
+        if kind == "CHIA":
+            return "Bản phòng kia còn một câu chưa có căn cứ."
+        if kind == "DAP":
+            return "Giữ phần đúng brief. Câu đó sẽ bỏ."
+        return "bản ổn"
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    lops = [r["lop"] for r in xong["loi"]]
+    check("trưởng góp ý phòng kia", "chia" in lops and "dap" in lops)
+    check("người cùng phòng trao đổi trước khi chốt", "gop" in lops)
+    check("họp vẫn chốt sau khi đã nói", xong["trang_thai"] == "xong" and lops.index("chia") < lops.index("hop"))
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -385,6 +410,7 @@ if __name__ == "__main__":
     test_doc_thu_tu()
     test_lan_luot_ban_giao()
     test_het_lan_cai_thi_truong_phan()
+    test_phong_trao_doi()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)
