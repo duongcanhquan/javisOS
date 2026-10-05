@@ -21,10 +21,6 @@ check("có pause/wake/setLite/setMode", /pause:\s*function/.test(WAVES) && /wake
 check("tôn trọng prefers-reduced-motion", /prefers-reduced-motion/.test(WAVES));
 check("đổi nhịp theo javis-flow-mode", /javis-flow-mode/.test(WAVES));
 check("HTML có canvas #brainWaves", /id="brainWaves"/.test(HTML));
-check("HTML có viền não phát sáng", /class="brain-shell"/.test(HTML) && /class="brain-outline"/.test(HTML));
-check("CSS viền não dưới đồ thị, không chặn chuột",
-  /\.brain-shell[\s\S]{0,280}z-index:\s*1/.test(CSS) &&
-  /\.brain-shell[\s\S]{0,280}pointer-events:\s*none/.test(CSS));
 check("HTML nạp brain-waves.js", /brain-waves\.js/.test(HTML));
 check("CSS #brainWaves pointer-events none", /#brainWaves[\s\S]{0,160}pointer-events:\s*none/.test(CSS));
 check("CSS #brainWaves trên starfield (z-index 1)", /#brainWaves[\s\S]{0,200}z-index:\s*1/.test(CSS));

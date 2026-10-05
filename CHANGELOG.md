@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.56] - 2026-10-05
+### Sửa
+- Vault giữa màn hình trở lại thiên hà như cũ. Bỏ hình não vẽ đè lên đồ thị.
+
 ## [0.56.55] - 2026-10-05
 ### Mới
 - **Não giữa thiên hà:** hình não nghiêng phát sáng. Luồng vault nằm trong đại não, tiểu não và cuống. Thiên hà vẫn ở phía ngoài.
