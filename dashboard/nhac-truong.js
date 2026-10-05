@@ -32,7 +32,7 @@
   };
   var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi", ket: "Kết quả" };
   var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
-  var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null };
+  var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {} };
 
   function phongChon() {
     return S.phong.filter(function (p) { return p.slug === S.chonPhong; })[0] || null;
@@ -584,11 +584,44 @@
 
   function gheBan(n, slug, d, so) {
     var bat = laDang(d, n, slug);
-    return '<div class="nt-seatrow' + (bat ? " on" : " wait") + (n.vai === "truong" ? " head" : "") + '">' +
+    var head = n.vai === "truong";
+    return '<div class="nt-seatrow' + (bat ? " on" : " wait") + (head ? " head" : "") + '">' +
       '<span class="nt-qno">' + so + "</span>" +
       '<span class="nt-deskico">' + iconBan() + "</span>" +
-      "<span><b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (n.vai === "truong" ? "Trưởng phòng" : "Thành viên")) + "</small>" +
+      '<span class="nt-who">' +
+      (head ? '<span class="nt-role">Trưởng</span>' : "") +
+      "<b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (head ? "Trưởng phòng" : "Thành viên")) + "</small>" +
       (bat ? "<em>đang làm</em>" : "") + "</span></div>";
+  }
+
+  function hangGhe(list, slug, d, them) {
+    if (!list.length) return "";
+    return '<div class="nt-hang' + (them || "") + '">' + list.map(function (t) {
+      return gheBan(t.n, slug, d, t.so);
+    }).join("") + "</div>";
+  }
+
+  function matBang(truong, day, slug, d) {
+    var the = [];
+    var so = 0;
+    if (truong) { so += 1; the.push({ n: truong, so: so }); }
+    day.forEach(function (n) { so += 1; the.push({ n: n, so: so }); });
+    if (!the.length) return '<p class="nt-hint">Chưa có người.</p>';
+    var head = the.filter(function (t) { return t.n.vai === "truong"; })[0];
+    var mem = the.filter(function (t) { return t !== head; });
+    if (!head) return '<div class="nt-room">' + hangGhe(mem, slug, d) + "</div>";
+    if (!mem.length) return '<div class="nt-room">' + hangGhe([head], slug, d, " nt-hang-truong") + "</div>";
+    if (mem.length === 1) {
+      return '<div class="nt-room nt-room-doi">' + hangGhe([mem[0], head], slug, d) + "</div>";
+    }
+    if (mem.length === 2) {
+      return '<div class="nt-room">' + hangGhe([mem[0], head, mem[1]], slug, d, " nt-hang-mot") + "</div>";
+    }
+    var nua = Math.ceil(mem.length / 2);
+    return '<div class="nt-room">' +
+      hangGhe(mem.slice(0, nua), slug, d) +
+      hangGhe([head], slug, d, " nt-hang-truong") +
+      hangGhe(mem.slice(nua), slug, d) + "</div>";
   }
 
   function htmlMap() {
@@ -598,17 +631,11 @@
     var tang = (v.phong || []).map(function (slug, i) {
       var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
       if (!p) return "";
-      var truong = truongCua(p);
-      var day = dayViec(p, v);
-      var ghe = [];
-      var so = 0;
-      if (truong) { so += 1; ghe.push(gheBan(truong, slug, d, so)); }
-      day.forEach(function (n) { so += 1; ghe.push(gheBan(n, slug, d, so)); });
       var run = d && d.phong === slug;
       return '<section class="nt-floor' + (run ? " on" : "") + '"><header><span class="nt-qno">' + (i + 1) + "</span>" +
         (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : '<span class="nt-ava">' + esc((p.ten || "?").slice(0, 1)) + "</span>") +
         "<span><b>" + esc(p.ten) + "</b><small>" + (p.cach_lam === "lan_luot" ? "Lần lượt" : "Làm cùng") + "</small></span></header>" +
-        '<div class="nt-desks">' + (ghe.join("") || '<p class="nt-hint">Chưa có người.</p>') + "</div></section>";
+        matBang(truongCua(p), dayViec(p, v), slug, d) + "</section>";
     }).join('<div class="nt-qsep">↓</div>');
     return tang || '<p class="nt-hint">Việc chưa gắn phòng.</p>';
   }
@@ -851,8 +878,32 @@
       ((v.mo || []).length ? "<ul class=\"nt-mo\">" + v.mo.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
       htmlBanPhong(v) +
+      htmlHang(v) +
       (tl ? '<p class="nt-hint">Tài liệu đã đưa</p><ul class="nt-mo">' + tl + "</ul>" : "") +
       "</section>";
+  }
+
+  function htmlHang(v) {
+    var hang = (v && v.hang) || {};
+    var slugs = (v && v.phong) || Object.keys(hang);
+    var html = "";
+    slugs.forEach(function (slug) {
+      (hang[slug] || []).forEach(function (it) {
+        var ten = esc((it && it.ten) || "Món");
+        if (it && it.file) {
+          var src = "/nhac-truong/viec/" + encodeURIComponent(v.id) + "/tep?brain=" +
+            encodeURIComponent(brain()) + "&p=" + encodeURIComponent(it.file);
+          if (it.loai === "video") {
+            html += '<figure class="nt-hang-file"><video controls src="' + esc(src) + '"></video><figcaption>' + ten + "</figcaption></figure>";
+          } else {
+            html += '<figure class="nt-hang-file"><img alt="' + ten + '" src="' + esc(src) + '"><figcaption>' + ten + "</figcaption></figure>";
+          }
+        } else if (it && it.loi) {
+          html += '<p class="nt-err">' + ten + ": " + esc(it.loi) + "</p>";
+        }
+      });
+    });
+    return html ? '<div class="nt-hang-files"><h4>Hàng đã nộp</h4>' + html + "</div>" : "";
   }
 
   function moSuaViec(v) {
@@ -886,11 +937,15 @@
 
   function htmlSuaThem(v) {
     if (!v || (v.trang_thai !== "xong" && v.trang_thai !== "lech" && v.trang_thai !== "dung")) return "";
+    var opts = (v.phong || []).map(function (s) {
+      return '<option value="' + esc(s) + '">' + esc(tenPhong(s)) + "</option>";
+    }).join("");
     return '<form id="ntThem" class="nt-form nt-sua-them">' +
       "<h3>Sửa kết quả</h3>" +
-      '<label>Comment<textarea name="comment" placeholder="Giữ kết quả cũ, chỉ sửa chỗ này"></textarea></label>' +
+      '<label>Phòng làm lại<select name="phong_lai"><option value="">Giữ mọi phòng, chỉ sửa bản kết</option>' + opts + "</select></label>" +
+      '<label>Comment<textarea name="comment" placeholder="Phòng này sửa chỗ này. Phòng trước giữ nguyên."></textarea></label>' +
       '<div class="nt-row"><button class="nt-btn pri" type="submit">Chạy lại từ kết quả cũ</button></div>' +
-      '<p class="nt-hint">Giữ bản vừa chạy, chỉ sửa theo comment mới.</p></form>';
+      '<p class="nt-hint">Chọn một phòng thì phòng đó làm lại. Các phòng đứng trước giữ bản và file đã chuyển. Phòng đứng sau chỉ cập nhật phần mình.</p></form>';
   }
 
   function moPdf() {
@@ -964,11 +1019,34 @@
     return "";
   }
 
+  function loiDai(text) {
+    var t = String(text || "");
+    var dong = t.split("\n").filter(function (x) { return x.trim(); });
+    return t.length > 180 || dong.length > 2;
+  }
+
+  function rutLoi(text) {
+    var dau = String(text || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
+    if (dau.length > 140) dau = dau.slice(0, 137) + "…";
+    return dau;
+  }
+
+  function htmlLoi(row, tom, i) {
+    if (!tom) return "";
+    if (!loiDai(tom)) return "<p>" + esc(tom) + "</p>";
+    var k = [row.phong || "", row.slug || "", row.lop || "", row.vong || 0, i, tom.length].join("|");
+    var mo = S._moLoi && S._moLoi[k] ? " open" : "";
+    return '<p class="nt-rut">' + esc(rutLoi(tom)) + "</p>" +
+      '<details class="nt-day" data-k="' + esc(k) + '"' + mo + ">" +
+      '<summary><span class="khi-dong">Xem đủ</span><span class="khi-mo">Thu gọn</span></summary>' +
+      "<p>" + esc(tom) + "</p></details>";
+  }
+
   function nhomLoi(rows) {
     var out = "";
     var khoa = "";
     var bao = { giao: 1, kiem: 1, hop: 1, xu: 1, sua: 1, ket: 1 };
-    rows.forEach(function (row) {
+    rows.forEach(function (row, i) {
       var pha = (row.lop === "hop" || row.lop === "chia" || row.lop === "dap" ? "Giữa phòng" : (row.phong_ten || "Trong phòng")) + " · vòng " + row.vong;
       if (pha !== khoa) { khoa = pha; out += '<div class="nt-phase">' + esc(pha) + "</div>"; }
       var kieu = bao[row.lop] ? "bao" : "trao";
@@ -977,7 +1055,7 @@
         '<span class="nt-meta">' + esc(row.vi_tri || (row.vai === "truong" ? "Trưởng" : "")) +
         " · " + esc(LOP[row.lop] || row.lop) + "</span>" +
         pillQuyet(row.quyet, row.lop) + veGiao(row) + "</header>" +
-        (tom ? "<p>" + esc(tom) + "</p>" : "") + "</article>";
+        htmlLoi(row, tom, i) + "</article>";
     });
     return out;
   }
@@ -1354,7 +1432,7 @@
     batPoll();
   }
 
-  async function chayThem(comment) {
+  async function chayThem(comment, phongLai) {
     comment = String(comment || "").trim();
     if (!comment) return hienLoi("Viết comment muốn sửa.");
     if (!S.chonViec || S.ban) return;
@@ -1363,7 +1441,8 @@
     var j;
     try {
       j = await post("/nhac-truong/viec/" + encodeURIComponent(S.chonViec) + "/chay-them", {
-        brain: brain(), comment: comment, thu_tu: (S._viecDay && S._viecDay.phong) || [],
+        brain: brain(), comment: comment, phong_lai: phongLai || "",
+        thu_tu: (S._viecDay && S._viecDay.phong) || [],
       });
     } catch (e) {
       j = { ok: false, error: "Không kết nối được." };
@@ -1434,7 +1513,7 @@
     if (them) them.onsubmit = function (ev) {
       ev.preventDefault();
       var fd = new FormData(them);
-      chayThem(fd.get("comment") || "");
+      chayThem(fd.get("comment") || "", fd.get("phong_lai") || "");
     };
     if (!S.root) return;
     S.root.querySelectorAll("[data-phong-len],[data-phong-xuong]").forEach(function (b) {
@@ -1464,6 +1543,7 @@
     };
     ganPdf();
     ganGon();
+    ganLoi();
   }
 
   function ganGon() {
@@ -1530,6 +1610,20 @@
     if (log2 && sat) log2.scrollTop = 0;
   }
 
+  function ganLoi() {
+    var log = document.getElementById("ntLogPhong");
+    if (!log) return;
+    log.querySelectorAll("details.nt-day").forEach(function (d) {
+      d.ontoggle = function () {
+        var k = d.getAttribute("data-k") || "";
+        if (!k) return;
+        if (!S._moLoi) S._moLoi = {};
+        if (d.open) S._moLoi[k] = 1;
+        else delete S._moLoi[k];
+      };
+    });
+  }
+
   function ganNhan() {
     var map = document.getElementById("ntMap");
     if (!map) return;
@@ -1554,6 +1648,7 @@
         ve(true);
       };
     });
+    ganLoi();
     map.querySelectorAll("[data-sua]").forEach(function (b) {
       b.onclick = function () {
         S.sua = b.getAttribute("data-sua") || "";

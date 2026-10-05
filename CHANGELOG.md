@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.59] - 2026-10-05
+### Sửa
+- **Nhạc trưởng** phòng thiết kế nộp bộ ảnh, phòng video nộp file video, phòng chữ vẫn nộp bản chữ. Giao tiếp dài thì thu gọn, bấm mới xổ. Sơ đồ phòng: trưởng ngồi giữa.
+- Một phòng làm lại thì các phòng đứng trước giữ nguyên bản và file đã chuyển. Phòng đứng sau chỉ cập nhật phần mình.
+
 ## [0.56.58] - 2026-10-05
 ### Sửa
 - **Nhạc trưởng · Giao tiếp** hiện đủ lời đã trao đổi, không cắt còn một câu hay 180 ký tự. Cách nói vẫn ngắn. Việc đang soạn sửa lại được. Tab Setup, Giao việc, Theo dõi dính khi cuộn. Việc xong thì comment chạy lại nằm ngay trên sơ đồ bàn.

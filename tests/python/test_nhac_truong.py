@@ -397,6 +397,62 @@ def test_sua_viec_dang_soan():
         check("việc đã chạy không soạn lại", True)
 
 
+def test_hang_thiet_ke_va_lam_lai_mot_phong():
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Nội dung", "Rõ")
+    nt.them_nguoi(kho, "noi-dung", "An", "", "", "truong")
+    nt.tao_phong(kho, "Thiết kế", "Đúng bộ")
+    nt.them_nguoi(kho, "thiet-ke", "Bình", "", "thiết kế", "truong")
+    check("phòng chữ không bị coi là thiết kế", nt.loai_hang(kho.doc_phong("noi-dung")) == "")
+    check("phòng thiết kế nộp ảnh", nt.loai_hang(kho.doc_phong("thiet-ke")) == "thiet_ke")
+    nt.tao_phong(kho, "Video", "Đúng nhịp")
+    nt.them_nguoi(kho, "video", "Chi", "", "làm video", "truong")
+    check("phòng video nộp video", nt.loai_hang(kho.doc_phong("video")) == "video")
+    viec = nt.tao_viec(kho, "Bộ nhận diện", "Thiết kế theo bộ cho chiến dịch.", ["noi-dung", "thiet-ke"], 1)
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind in ("KIEM", "HOP"):
+            return "QUYET: DAT"
+        if "nộp thiết kế" in prompt:
+            return "MON: Bìa | landscape | nền xanh chữ trắng\nMON: Poster | portrait | cùng xanh\nMON: Icon | square | cùng xanh"
+        if kind == "KET":
+            return "Kết quả gồm nội dung và bộ thiết kế."
+        return "Bản nội dung đã chốt, không đụng tới."
+
+    async def ra(viec_id, phong, loai_f, ten, mo_ta, ti_le, script):
+        p = Path(kho.goc) / "nhac-truong" / "viec" / viec_id / "hang" / phong
+        p.mkdir(parents=True, exist_ok=True)
+        f = p / ((nt.slugify(ten) or "mon") + ".txt")
+        f.write_text(mo_ta or "", encoding="utf-8")
+        return {"ok": True, "file": f.relative_to(Path(kho.goc)).as_posix(), "ten": ten}
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi, ra))
+    bo = (xong.get("hang") or {}).get("thiet-ke") or []
+    check("bộ có đủ món", len(bo) >= 3 and all(it.get("file") for it in bo))
+    check("kết quả dẫn file", "Hàng đã nộp" in (xong.get("ket_qua") or "") and "thiet-ke/" in (xong.get("ket_qua") or ""))
+    check("phòng chữ không sinh file", "noi-dung" not in (xong.get("hang") or {}))
+    ban_nd = xong["ban"]["noi-dung"]
+    thay = []
+
+    async def noi2(nguoi, prompt):
+        kind = loai(prompt)
+        if kind in ("KIEM", "HOP"):
+            return "QUYET: DAT"
+        if "nộp thiết kế" in prompt:
+            thay.append("HÀNG PHÒNG TRƯỚC" in prompt and "Bản nội dung đã chốt" in prompt)
+            return "MON: Bìa | landscape | nền đỏ\nMON: Poster | portrait | cùng đỏ\nMON: Icon | square | cùng đỏ"
+        if kind == "KET":
+            return "Kết quả sau khi thiết kế làm lại."
+        return "không được đụng phòng trước"
+
+    lai = asyncio.run(nt.chay_them(kho, xong["id"], noi2, "Đổi bộ sang màu đỏ.", phong_lai="thiet-ke", ra_file=ra))
+    check("làm lại một phòng vẫn xong", lai["trang_thai"] == "xong")
+    check("phòng trước giữ nguyên bản", lai["ban"]["noi-dung"] == ban_nd)
+    check("thiết kế thấy hàng phòng trước", any(thay))
+    check("bộ mới theo comment", "đỏ" in " ".join(it.get("mo_ta") or "" for it in (lai.get("hang") or {}).get("thiet-ke") or []))
+
+
 def test_het_lan_cai_thi_truong_phan():
     kho = nt.Kho(tempfile.mkdtemp())
     nt.tao_phong(kho, "Marketing", "Đúng brief", "lan_luot")
@@ -537,6 +593,7 @@ if __name__ == "__main__":
     test_lan_luot_ban_giao()
     test_tran_muoi_va_dung_som()
     test_sua_viec_dang_soan()
+    test_hang_thiet_ke_va_lam_lai_mot_phong()
     test_het_lan_cai_thi_truong_phan()
     test_gon_khong_dan_ca_bai()
     test_phong_trao_doi()

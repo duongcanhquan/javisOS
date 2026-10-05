@@ -5,11 +5,14 @@ Không import main. Não thật đi qua deps.noi. Chạy thử dùng người gi
 from __future__ import annotations
 
 import asyncio
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 import nhac_truong as nt
 
@@ -35,6 +38,67 @@ def register(app, deps: Deps) -> None:
 
 def _kho(brain: str) -> nt.Kho:
     return nt.Kho(_DEPS.brain_root(brain or "brain"))
+
+
+def _ra_file_cho(brain: str):
+    """Ảnh hoặc video thật, cất trong việc. Lỗi trả về cho trang, không nuốt im."""
+
+    async def ra(viec_id, phong_slug, loai, ten, mo_ta, ti_le, script):
+        import script_video
+        goc = Path(_kho(brain).goc)
+        thu = goc / "nhac-truong" / "viec" / viec_id / "hang" / phong_slug
+        thu.mkdir(parents=True, exist_ok=True)
+        ten_tep = nt.slugify(ten) or "mon"
+        if loai == "video":
+            res = await script_video.render_script_video(
+                script=script or mo_ta or ten,
+                title=ten or "Video",
+                vault_root=str(goc),
+                aspect="landscape",
+                with_images=True,
+                image_quality="low",
+                require_images=False,
+                filename=f"nt-{viec_id}-{phong_slug}"[:40],
+            )
+            if not res.get("ok") or not res.get("path"):
+                return {"ok": False, "error": res.get("error") or "Không ra video."}
+            dest = thu / f"{ten_tep}.mp4"
+            shutil.copy2(res["path"], dest)
+            return {"ok": True, "file": dest.relative_to(goc).as_posix(), "ten": ten}
+        path, _nguon = await script_video._gen_anh_canh(
+            mo_ta or ten, str(goc), ti_le or "landscape", "low", "", thu, 1,
+        )
+        if not path:
+            return {"ok": False, "error": "Không tạo được ảnh."}
+        src = Path(path)
+        dest = thu / f"{ten_tep}{src.suffix.lower() or '.jpg'}"
+        if src.resolve() != dest.resolve():
+            shutil.copy2(src, dest)
+        return {"ok": True, "file": dest.relative_to(goc).as_posix(), "ten": ten}
+
+    return ra
+
+
+def _html_hang(viec: dict, brain: str) -> str:
+    hang = viec.get("hang") or {}
+    khoi = []
+    for slug in viec.get("phong") or list(hang):
+        for it in hang.get(slug) or []:
+            ten = _html(it.get("ten") or "Món")
+            if it.get("file"):
+                src = (
+                    "/nhac-truong/viec/" + quote(viec.get("id") or "")
+                    + "/tep?brain=" + quote(brain) + "&p=" + quote(it["file"])
+                )
+                if it.get("loai") == "video":
+                    khoi.append(f'<figure><video controls src="{src}"></video><figcaption>{ten}</figcaption></figure>')
+                else:
+                    khoi.append(f'<figure><img alt="{ten}" src="{src}"><figcaption>{ten}</figcaption></figure>')
+            elif it.get("loi"):
+                khoi.append(f"<p>{ten}: {_html(it.get('loi') or '')}</p>")
+    if not khoi:
+        return ""
+    return '<h2>Hàng đã nộp</h2>' + "".join(khoi)
 
 
 def _err(e: Exception, code: int = 400):
@@ -204,16 +268,28 @@ async def trang_ket_qua(vid: str, brain: str = "brain"):
         f"<title>{_html(tieu)}</title><style>"
         "body{font:15px/1.5 system-ui,sans-serif;margin:32px auto;max-width:720px;color:#111}"
         "h1{font-size:22px}pre{white-space:pre-wrap;font:inherit}"
-        "a{color:#0b57d0}.nut{margin-top:16px}@media print{.nut{display:none}}"
+        "a{color:#0b57d0}.nut{margin-top:16px}img,video{max-width:100%;height:auto;border-radius:8px}"
+        "figure{margin:12px 0}figcaption{font-size:13px;color:#444}@media print{.nut{display:none}}"
         "</style></head><body>"
         f"<h1>{_html(tieu)}</h1>"
         f"<p>Biên bản trong brain: nhac-truong/viec/{vid_h}.md</p>"
+        f"{_html_hang(viec, brain)}"
         f"<pre>{nt.html_lien(than)}</pre>"
         "<p class=\"nut\"><button onclick=\"print()\">Lưu PDF</button></p>"
         "<script>addEventListener('load',function(){setTimeout(function(){print()},300)})</script>"
         "</body></html>"
     )
     return HTMLResponse(page)
+
+
+@router.get("/nhac-truong/viec/{vid}/tep")
+async def tep_hang(vid: str, p: str = "", brain: str = "brain"):
+    goc = Path(_kho(brain).goc).resolve()
+    thu = (goc / "nhac-truong" / "viec" / vid / "hang").resolve()
+    duong = (goc / (p or "")).resolve()
+    if thu not in duong.parents or not duong.is_file():
+        return JSONResponse({"ok": False, "error": "Không có file."}, status_code=404)
+    return FileResponse(duong)
 
 
 @router.delete("/nhac-truong/viec/{vid}")
@@ -250,14 +326,14 @@ async def chay_viec(vid: str, request: Request):
 
     if thu:
         try:
-            viec = await nt.chay(kho, vid, nt.noi_thu)
+            viec = await nt.chay(kho, vid, nt.noi_thu, ra_file=_ra_file_cho(brain))
         except nt.LoiNhacTruong as e:
             return _err(e)
         return {"ok": True, "viec": viec}
 
     async def _nen():
         try:
-            await nt.chay(kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt))
+            await nt.chay(kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt), ra_file=_ra_file_cho(brain))
         except Exception as e:
             _danh_loi(kho, vid, e)
 
@@ -312,14 +388,20 @@ async def chay_them(vid: str, request: Request):
     thu_tu = body.get("thu_tu") if isinstance(body.get("thu_tu"), list) else None
     if thu:
         try:
-            viec = await nt.chay_them(kho, vid, nt.noi_thu, comment, thu_tu)
+            viec = await nt.chay_them(
+                kho, vid, nt.noi_thu, comment, thu_tu,
+                body.get("phong_lai") or "", _ra_file_cho(brain),
+            )
         except nt.LoiNhacTruong as e:
             return _err(e)
         return {"ok": True, "viec": viec}
 
     async def _nen():
         try:
-            await nt.chay_them(kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt), comment, thu_tu)
+            await nt.chay_them(
+                kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt),
+                comment, thu_tu, body.get("phong_lai") or "", _ra_file_cho(brain),
+            )
         except asyncio.CancelledError:
             raise
         except Exception as e:
