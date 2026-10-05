@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.61] - 2026-10-05
+### Sửa
+- **Nhạc trưởng** câu trên màn hình vẫn ngắn, nhưng bản làm, tài liệu và kết quả cũ đưa cho bước sau đi nguyên văn. Bước sau không còn thấy bản cụt rồi kết luận là bị cắt ngắn.
+
 ## [0.56.60] - 2026-10-05
 ### Sửa
 - **Nhạc trưởng** nút Chạy, Chạy lại, Chạy thử và Dừng đổi trạng thái ngay khi bấm, không vẽ lại cả màn mỗi tin nhắn.

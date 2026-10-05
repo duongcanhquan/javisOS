@@ -16,8 +16,7 @@ from pathlib import Path
 
 VONG_MAC_DINH = 6
 VONG_TRAN = 10
-LOI_TRAN = 8000
-GON = 480
+LOI_TRAN = 64000
 
 
 class LoiNhacTruong(ValueError):
@@ -399,7 +398,7 @@ def _thanh_vien(phong: dict) -> list:
 
 
 def chuan_tai_lieu(raw) -> list:
-    """Tối đa 3 file chữ. Phần dài cắt để lượt sau không nuốt cả tài liệu."""
+    """Tối đa 3 file chữ. Giữ gần nguyên văn để bước sau còn dữ liệu mà làm."""
     out = []
     for item in raw or []:
         if len(out) >= 3:
@@ -410,7 +409,7 @@ def chuan_tai_lieu(raw) -> list:
         if not nd:
             continue
         ten = str(item.get("ten") or "tai-lieu").strip()[:80] or "tai-lieu"
-        out.append({"ten": ten, "noi_dung": nd[:6000]})
+        out.append({"ten": ten, "noi_dung": nd[:LOI_TRAN]})
     return out
 
 
@@ -618,25 +617,6 @@ def _cat(text: str) -> str:
     return t
 
 
-def _gon(text: str, tran: int = GON) -> str:
-    """Chỉ giữ trọng tâm và các điểm đánh số, để lượt sau không nuốt cả bài."""
-    t = (text or "").strip()
-    if len(t) <= tran:
-        return t
-    diem = []
-    for ln in t.splitlines():
-        s = ln.strip()
-        if re.match(r"^(?:\d+[\).\]]|điểm\s+\d+|diem\s+\d+)\s+", s, re.I):
-            diem.append(s)
-    dau = t[:tran].rstrip()
-    if " " in dau:
-        dau = dau.rsplit(" ", 1)[0]
-    them = [d for d in diem if d not in dau][:6]
-    if not them:
-        return dau + "…"
-    return dau + "…\nĐiểm giữ lại:\n" + "\n".join(them)
-
-
 def _nhan(nguoi: dict) -> str:
     ten = nguoi.get("ten") or ""
     vt = (nguoi.get("vi_tri") or "").strip()
@@ -725,7 +705,7 @@ def _truoc(viec: dict, slug: str) -> list:
             dong.append("HÀNG PHÒNG TRƯỚC ĐÃ CHỐT. Dùng làm đầu vào. Không viết lại, không xoá.")
         dong.append(f"[{s}]")
         if str(ban).strip():
-            dong.append(_gon(str(ban), 700))
+            dong.append(str(ban).strip())
         for it in files[:6]:
             dong.append("- " + str(it.get("ten") or "món") + ": " + str(it.get("file") or it.get("loi") or ""))
     return dong
@@ -814,11 +794,11 @@ async def _nop_hang(kho: Kho, viec: dict, phong: dict, ra_file) -> None:
     nop = []
     if kind == "video":
         script = "\n".join(it.get("mo_ta") or "" for it in items).strip()
-        kq = await _goi_ra(ra_file, viec["id"], phong["slug"], "video", viec.get("tieu_de") or "Video", script[:500], "landscape", script)
+        kq = await _goi_ra(ra_file, viec["id"], phong["slug"], "video", viec.get("tieu_de") or "Video", script, "landscape", script)
         nop.append({
             "ten": viec.get("tieu_de") or "Video",
             "loai": "video",
-            "mo_ta": script[:500],
+            "mo_ta": script,
             "file": kq.get("file") or "",
             "loi": "" if kq.get("ok") else (kq.get("error") or "Không ra video."),
         })
@@ -872,12 +852,8 @@ def _gan_ket(viec: dict) -> None:
 def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
                lenh: str = "", cac_ban: dict | None = None, giao_cho: dict | None = None,
                thanh_vien: list | None = None, luot: int = 0) -> str:
+    """Câu chat thì ngắn. Bản việc, tài liệu và kết quả cũ đi nguyên văn cho bước sau."""
     ban_day = ban or ""
-    if loai != "KET":
-        ban = _gon(ban)
-        lenh = _gon(lenh, 240)
-        if cac_ban:
-            cac_ban = {k: _gon(v) for k, v in cac_ban.items()}
     sk = ", ".join(nguoi.get("skills") or []) or "(chưa gán)"
     vai = "trưởng phòng" if nguoi.get("vai") == "truong" else "thành viên"
     vi_tri = (nguoi.get("vi_tri") or "").strip()
@@ -893,25 +869,25 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
         "Chỉ trả lời trong lượt này. Không gửi tin, không đăng bài, không chi tiền.",
     ]
     if viec.get("lenh_them"):
-        dong.append("COMMENT MUỐN SỬA: " + str(viec.get("lenh_them"))[:500])
+        dong.append("COMMENT MUỐN SỬA: " + str(viec.get("lenh_them")))
     if viec.get("ket_cu") and loai in ("KET", "THEM", "SUA", "LAM"):
         cu = str(viec.get("ket_cu") or "")
         dong.append("KẾT QUẢ CŨ, giữ phần comment không đụng:")
-        dong.append(cu[:6000] if loai == "KET" else _gon(cu, 900))
+        dong.append(cu)
     tl = viec.get("tai_lieu") or []
-    if tl and loai in ("LAM", "KET", "GIAO", "THEM"):
-        dong.append("TÀI LIỆU THAM KHẢO, tối đa 3 file:")
-        tran_tl = 1400 if loai == "KET" else 700
+    if tl and loai in ("LAM", "KET", "GIAO", "THEM", "CAP"):
+        dong.append("TÀI LIỆU THAM KHẢO, tối đa 3 file, nguyên văn:")
         for f in tl[:3]:
-            dong.append(str(f.get("ten") or "file") + ":\n" + _gon(f.get("noi_dung") or "", tran_tl))
+            dong.append(str(f.get("ten") or "file") + ":\n" + str(f.get("noi_dung") or ""))
     if loai == "KET":
-        dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói.")
+        dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói. Không cắt giữa chừng.")
     elif loai == "LAM" and not ban_day:
-        dong.append("Đây là bản đầu. Viết đủ phần của bạn, gọn từng ý, để người sau chỉ sửa từng điểm. Người xem đọc hết lời này.")
+        dong.append("Đây là bản làm, không phải câu chat. Viết hết phần của bạn, đủ để người sau dùng ngay. Không hứa sẽ viết tiếp. Không dừng giữa chừng.")
     elif loai == "LAM":
-        dong.append("Viết đủ phần mới của bước bạn, gọn từng ý, để ghép bản. Không chép lại cả bài cũ. Người xem đọc hết lời này.")
+        dong.append("Đây là bản làm, không phải câu chat. Viết hết phần mới của bước bạn, đủ để ghép. Không chép lại cả bài cũ. Không dừng giữa chừng.")
     elif loai not in ("CAP", "THEM"):
-        dong.append("Trao đổi như chat nội bộ: một hoặc hai câu. Nêu chỗ thiếu hoặc chỗ cần sửa. Không dán bảng, không dán cả bài.")
+        dong.append("Câu bạn nói thì một hoặc hai câu. Nêu chỗ thiếu hoặc chỗ cần sửa. Không dán bảng.")
+        dong.append("Bản việc đưa kèm là bản đủ, không phải bản đã cắt để hiện trên màn hình. Không được kết luận là bị cắt ngắn.")
     if loai == "GIAO":
         dong.extend(_truoc(viec, phong.get("slug") or ""))
         dong.append("Vài dòng: ai làm gì. Không viết bài.")
@@ -1435,7 +1411,7 @@ async def chay_them(kho: Kho, vid: str, noi, comment: str, thu_tu: list | None =
     if thu_tu:
         viec = dat_thu_tu_phong(kho, vid, thu_tu)
     viec["ket_cu"] = (viec.get("ket_qua") or "").strip()
-    viec["lenh_them"] = comment[:500]
+    viec["lenh_them"] = comment[:LOI_TRAN]
     viec["trang_thai"] = "dang_chay"
     viec["huy"] = False
     viec["loi_chay"] = ""

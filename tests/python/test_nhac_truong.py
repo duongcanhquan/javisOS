@@ -480,20 +480,22 @@ def test_het_lan_cai_thi_truong_phan():
 
 
 def test_gon_khong_dan_ca_bai():
-    dai = "Trọng tâm bài này. " + ("lặp lại cho dài " * 80) + "\n1. Bỏ câu hứa\n2. Thêm nguồn"
+    dai = "Trọng tâm bài này. " + ("lặp lại cho dài " * 80) + "\n1. Bỏ câu hứa\n2. Thêm nguồn\nMOC-BAN"
     nguoi = {"ten": "An", "vai": "truong", "tinh_cach": "", "skills": [], "vi_tri": ""}
     phong = {"ten": "Nội dung", "tieu_chi": "Rõ", "slug": "noi-dung"}
     viec = {"tieu_de": "Bài", "brief": "ngắn"}
     p = nt.lap_prompt("DOI", nguoi, phong, viec, ban=dai, lenh="thiếu nguồn", giao_cho={"ten": "Chi", "vai": "thanh_vien"})
-    check("không dán cả bài dài", len(p) < len(dai))
-    check("còn điểm sửa", "1. Bỏ câu hứa" in p and "2. Thêm nguồn" in p)
+    check("bước sau đọc đủ bản", "MOC-BAN" in p and "lặp lại cho dài" in p)
+    check("không được coi bản đủ là bị cắt", "Không được kết luận là bị cắt ngắn" in p)
     check("bảo không viết lại cả bài", "Không viết lại cả bài" in p)
     lam = nt.lap_prompt("LAM", nguoi, phong, viec, ban=dai)
-    check("bước sau không được chép cả bài", "Không chép bản trước" in lam and len(lam) < 1800)
+    check("bước sau không được chép cả bài", "Không chép bản trước" in lam)
+    check("bước sau nhận đủ bản trước", "MOC-BAN" in lam and "…" not in lam)
     dau = nt.lap_prompt("LAM", nguoi, phong, viec)
-    check("bản đầu viết đủ", "bản đầu" in dau and "Không viết hết" not in dau)
+    check("bản đầu viết đủ", "bản làm" in dau and "Không viết hết" not in dau and "Không dừng giữa chừng" in dau)
+    check("bản dài vẫn giữ", nt._cat("A" * 9000) == "A" * 9000)
     ket = nt.lap_prompt("KET", nguoi, phong, viec, cac_ban={"noi-dung": dai + "\nMOC-CUOI"})
-    check("kết quả nhận đủ bản", "MOC-CUOI" in ket)
+    check("kết quả nhận đủ bản", "MOC-CUOI" in ket and "MOC-BAN" in ket)
 
 
 def test_phong_trao_doi():
