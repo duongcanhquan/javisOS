@@ -108,21 +108,25 @@ if fail:
     sys.exit(1)
 PY
 
-echo "==> verify prompt-help.js + VERSION trên mọi container javis-*"
+echo "==> verify VERSION + skill hub marketingskills/openmontage trên mọi container javis-*"
 miss=0
 while read -r name; do
   [ -n "$name" ] || continue
   ver=$(docker exec "$name" cat /app/VERSION 2>/dev/null | tr -d ' \n\r' || echo missing)
-  if docker exec "$name" test -f /app/dashboard/prompt-help.js 2>/dev/null; then
-    echo "OK  $name VERSION=$ver prompt-help.js"
+  has_mkt=0
+  has_om=0
+  docker exec "$name" test -f /app/.claude/skills/marketingskills/SKILL.md 2>/dev/null && has_mkt=1
+  docker exec "$name" test -f /app/.claude/skills/openmontage/SKILL.md 2>/dev/null && has_om=1
+  if [ "$has_mkt" = 1 ] && [ "$has_om" = 1 ]; then
+    echo "OK  $name VERSION=$ver marketingskills+openmontage"
   else
-    echo "MISS $name VERSION=$ver thiếu prompt-help.js"
+    echo "MISS $name VERSION=$ver mkt=$has_mkt om=$has_om"
     miss=$((miss + 1))
   fi
 done < <(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE 'proxy|park|pixelle' | sort)
 
 if [ "$miss" != 0 ]; then
-  echo "ERROR: $miss máy thiếu prompt-help.js"
+  echo "ERROR: $miss máy thiếu hub marketingskills/openmontage"
   exit 1
 fi
-echo "OK mọi máy có nút ? prompt-help (0.56.42+)"
+echo "OK mọi máy có hub marketingskills + openmontage (0.56.48+)"
