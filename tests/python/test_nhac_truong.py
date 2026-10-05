@@ -86,6 +86,7 @@ def test_noi_thu_xong():
     check("prompt có tính cách", any("thẳng, không viết hộ" in p for p in prompts))
     md = Path(kho.goc) / "viec" / f"{viec['id']}.md"
     check("có file biên bản", md.is_file() and "An" in md.read_text(encoding="utf-8"))
+    check("có kết quả cuối", "Kết quả cuối" in (xong.get("ket_qua") or "") and "## Kết quả" in md.read_text(encoding="utf-8"))
 
 
 def test_phap_che_chan_du_noi_bo_bo_qua():
@@ -168,7 +169,9 @@ def test_api():
     doc = c.get(f"/nhac-truong/viec/{vid}")
     check("api đọc lại biên bản", doc.json()["viec"]["loi"])
     md = Path(goc) / "nhac-truong" / "viec" / f"{vid}.md"
-    check("api ghi file md", md.is_file())
+    check("api ghi file md", md.is_file() and "Kết quả" in md.read_text(encoding="utf-8"))
+    trang = c.get(f"/nhac-truong/viec/{vid}/ket-qua")
+    check("api mở được trang kết quả", trang.status_code == 200 and "Lưu PDF" in trang.text and "Kết quả cuối" in trang.text)
     sua = c.post("/nhac-truong/phong/noi-dung", json={"tieu_chi": "Đúng brief"})
     check("api sửa tiêu chí", sua.status_code == 200 and sua.json()["phong"]["tieu_chi"] == "Đúng brief")
     trong = c.post("/nhac-truong/phong/noi-dung", json={"tieu_chi": " "})
@@ -370,6 +373,23 @@ def test_het_lan_cai_thi_truong_phan():
     ])
 
 
+def test_gon_khong_dan_ca_bai():
+    dai = "Trọng tâm bài này. " + ("lặp lại cho dài " * 80) + "\n1. Bỏ câu hứa\n2. Thêm nguồn"
+    nguoi = {"ten": "An", "vai": "truong", "tinh_cach": "", "skills": [], "vi_tri": ""}
+    phong = {"ten": "Nội dung", "tieu_chi": "Rõ", "slug": "noi-dung"}
+    viec = {"tieu_de": "Bài", "brief": "ngắn"}
+    p = nt.lap_prompt("DOI", nguoi, phong, viec, ban=dai, lenh="thiếu nguồn", giao_cho={"ten": "Chi", "vai": "thanh_vien"})
+    check("không dán cả bài dài", len(p) < len(dai))
+    check("còn điểm sửa", "1. Bỏ câu hứa" in p and "2. Thêm nguồn" in p)
+    check("bảo không viết lại cả bài", "Không viết lại cả bài" in p)
+    lam = nt.lap_prompt("LAM", nguoi, phong, viec, ban=dai)
+    check("bước sau không được chép cả bài", "Không chép bản trước" in lam and len(lam) < 1800)
+    dau = nt.lap_prompt("LAM", nguoi, phong, viec)
+    check("bản đầu viết đủ", "bản đầu" in dau and "Không viết hết" not in dau)
+    ket = nt.lap_prompt("KET", nguoi, phong, viec, cac_ban={"noi-dung": dai + "\nMOC-CUOI"})
+    check("kết quả nhận đủ bản", "MOC-CUOI" in ket)
+
+
 def test_phong_trao_doi():
     kho = nt.Kho(tempfile.mkdtemp())
     asyncio.run(dung_phong(kho))
@@ -410,6 +430,7 @@ if __name__ == "__main__":
     test_doc_thu_tu()
     test_lan_luot_ban_giao()
     test_het_lan_cai_thi_truong_phan()
+    test_gon_khong_dan_ca_bai()
     test_phong_trao_doi()
     if _fails:
         print(f"\n{len(_fails)} FAIL")

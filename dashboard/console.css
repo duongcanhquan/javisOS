@@ -2905,6 +2905,9 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-say header b { font-size: 12px; font-weight: 650; }
 .nt-meta, .nt-to { font-size: 10px; color: var(--text3); }
 .nt-say p { margin: 0; white-space: pre-wrap; color: var(--text); font-size: 12px; line-height: 1.35; }
+.nt-ket { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--accent-line); background: var(--surface-1); }
+.nt-ket h3 { margin: 0 0 6px; font-size: 14px; }
+.nt-ket p { margin: 0 0 8px; white-space: pre-wrap; font-size: 13px; line-height: 1.4; }
 .nt-ban { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--glass-brd); }
 .nt-ban h3 { margin: 0 0 6px; font-size: 14px; }
 .nt-ban h4 { margin: 8px 0 2px; font-size: 12px; color: var(--text3); font-weight: 600; }

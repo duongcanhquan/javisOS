@@ -29,7 +29,7 @@
     lech: ["Còn lệch", "warn"],
     loi: ["Lỗi", "warn"]
   };
-  var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi" };
+  var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi", ket: "Kết quả" };
   var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
   var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null };
 
@@ -592,7 +592,7 @@
     var rows = (v.loi || []).filter(function (r) {
       return r.phong === p.slug || r.lop === "hop" || r.lop === "chia" || r.lop === "dap";
     });
-    return "<h3>Giao tiếp</h3>" +
+    return "<h3>Giao tiếp</h3>" + htmlKet(v) +
       '<p class="nt-hint">' + esc(v.tieu_de || "") + " · " + esc((TRANG[v.trang_thai] || [v.trang_thai || ""])[0]) + "</p>" +
       dangLam(v) +
       '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ lời đầu tiên." : "Chưa có lời nào.") + "</p>") + "</div>";
@@ -719,7 +719,7 @@
   function dangLam(v) {
     var d = v && v.dang_lam;
     if (!d || v.trang_thai !== "dang_chay") return "";
-    var tenBuoc = { giao: "đang xem việc để xếp bước", lam: "đang làm", kiem: "đang phản hồi", hop: "đang họp", sua: "đang mang lệnh về", nhan: "đang xem bàn giao", doi: "đang trả lời", xu: "đang xử lý chỗ chưa thống nhất", chia: "đang góp ý phòng khác", dap: "đang đáp lại", gop: "đang trao đổi trong phòng" };
+    var tenBuoc = { giao: "đang xem việc để xếp bước", lam: "đang làm", kiem: "đang phản hồi", hop: "đang họp", sua: "đang mang lệnh về", nhan: "đang xem bàn giao", doi: "đang trả lời", xu: "đang xử lý chỗ chưa thống nhất", chia: "đang góp ý phòng khác", dap: "đang đáp lại", gop: "đang trao đổi trong phòng", ket: "đang viết kết quả" };
     var ai = d.ten + (d.vi_tri ? " · " + d.vi_tri : "");
     var cau = ai + " " + (tenBuoc[d.buoc] || "đang làm");
     if (d.phong_ten) cau += " · phòng " + d.phong_ten;
@@ -766,6 +766,26 @@
       "</div>";
   }
 
+  function htmlKet(v) {
+    if (!v || (v.trang_thai !== "xong" && v.trang_thai !== "lech")) return "";
+    var co = (v.ket_qua || "").trim();
+    return '<section class="nt-ket"><h3>Kết quả</h3>' +
+      (co ? "<p>" + esc(co) + "</p>" : '<p class="nt-hint">Chưa có bản kết quả.</p>') +
+      '<div class="nt-row"><button type="button" class="nt-btn pri nt-pdf">Xuất PDF</button></div>' +
+      '<p class="nt-hint">Bản này nằm trong brain: nhac-truong/viec/' + esc(v.id) + '.md. Xuất PDF để lưu file. Dùng đúng bản này khi viết báo cáo hoặc đưa sang thiết kế.</p></section>';
+  }
+
+  function moPdf() {
+    var v = viecHien() || S._viecDay;
+    if (!v) return;
+    window.open("/nhac-truong/viec/" + encodeURIComponent(v.id) + "/ket-qua?brain=" + encodeURIComponent(brain()), "_blank");
+  }
+
+  function ganPdf() {
+    if (!S.root) return;
+    S.root.querySelectorAll(".nt-pdf").forEach(function (b) { b.onclick = moPdf; });
+  }
+
   function theoDoi() {
     var v = S._viecDay;
     if (!v) return '<p class="nt-hint">Chọn một việc để xem biên bản.</p>';
@@ -786,6 +806,7 @@
       (chay ? "" : '<button type="button" class="nt-btn danger" id="ntXoaViec">Xoá việc</button>') +
       "</div>" +
       '<p class="nt-hint">Chạy dùng model đang chọn, chỉ nháp trong brain. Chạy thử dùng người giả để xem cách chặn bản.</p>' +
+      htmlKet(v) +
       '<div class="nt-log" id="ntLog">' + (loi || '<p class="nt-hint">' + (chay ? "Đang chờ lời đầu tiên. Dòng phía trên là người đang nói." : "Chưa có lời nào.") + "</p>") + "</div>" +
       (hienBan && ban ? '<div class="nt-ban"><h3>Bản chốt</h3>' + ban + "</div>" : "") +
       (mo ? '<ul class="nt-mo">' + mo + "</ul>" : "") +
@@ -1064,6 +1085,7 @@
     if (tv2) tv2.oninput = function () { S._nhap = chupViec(); };
     ganPick();
     ganTheoDoi();
+    ganPdf();
   }
 
   function ganTheoDoi() {
@@ -1091,6 +1113,7 @@
         ve();
       } catch (e) { hong(xv, "Không kết nối được."); }
     };
+    ganPdf();
   }
 
   function khoaViec(v) {
@@ -1098,7 +1121,7 @@
     var loi = v.loi || [];
     var last = loi.length ? (loi[loi.length - 1].loi || "").length : 0;
     var d = v.dang_lam || {};
-    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.ten || "", d.buoc || "", d.giao_cho || ""].join("~");
+    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.ten || "", d.buoc || "", d.giao_cho || "", (v.ket_qua || "").length].join("~");
   }
 
   function capNhatTheoDoi() {
@@ -1180,6 +1203,7 @@
         ve();
       };
     });
+    ganPdf();
   }
 
   function batPoll() {

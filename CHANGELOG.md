@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.54] - 2026-10-05
+### Mới
+- Việc xong thì có khối **Kết quả** ngay trên phòng và trang theo dõi. Bấm **Xuất PDF** để lưu file. Bản chữ cũng nằm trong brain, thư mục nhac-truong/viec.
+- Bản đầu viết đủ. Các lượt trao đổi sau chỉ nêu điểm cần sửa, cho đỡ dài.
+- Dùng đúng bản kết quả đó khi viết báo cáo hoặc đưa sang thiết kế.
+
 ## [0.56.53] - 2026-10-05
 ### Mới
 - Cột giao tiếp nhìn như đoạn chat. Tên mỗi người một màu, lệch trái hoặc phải. Chữ nhỏ hơn. Các lời cách nhau bằng -----.

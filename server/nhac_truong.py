@@ -16,6 +16,7 @@ from pathlib import Path
 VONG_MAC_DINH = 2
 VONG_TRAN = 4
 LOI_TRAN = 8000
+GON = 480
 
 
 class LoiNhacTruong(ValueError):
@@ -408,6 +409,25 @@ def _cat(text: str) -> str:
     return t
 
 
+def _gon(text: str, tran: int = GON) -> str:
+    """Chỉ giữ trọng tâm và các điểm đánh số, để lượt sau không nuốt cả bài."""
+    t = (text or "").strip()
+    if len(t) <= tran:
+        return t
+    diem = []
+    for ln in t.splitlines():
+        s = ln.strip()
+        if re.match(r"^(?:\d+[\).\]]|điểm\s+\d+|diem\s+\d+)\s+", s, re.I):
+            diem.append(s)
+    dau = t[:tran].rstrip()
+    if " " in dau:
+        dau = dau.rsplit(" ", 1)[0]
+    them = [d for d in diem if d not in dau][:6]
+    if not them:
+        return dau + "…"
+    return dau + "…\nĐiểm giữ lại:\n" + "\n".join(them)
+
+
 def _nhan(nguoi: dict) -> str:
     ten = nguoi.get("ten") or ""
     vt = (nguoi.get("vi_tri") or "").strip()
@@ -455,6 +475,12 @@ def _ghi(kho: Kho, viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, lo
 def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
                lenh: str = "", cac_ban: dict | None = None, giao_cho: dict | None = None,
                thanh_vien: list | None = None, luot: int = 0) -> str:
+    ban_day = ban or ""
+    if loai != "KET":
+        ban = _gon(ban)
+        lenh = _gon(lenh, 240)
+        if cac_ban:
+            cac_ban = {k: _gon(v) for k, v in cac_ban.items()}
     sk = ", ".join(nguoi.get("skills") or []) or "(chưa gán)"
     vai = "trưởng phòng" if nguoi.get("vai") == "truong" else "thành viên"
     vi_tri = (nguoi.get("vi_tri") or "").strip()
@@ -469,8 +495,14 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
         f"Brief: {viec.get('brief')}",
         "Chỉ trả lời trong lượt này. Không gửi tin, không đăng bài, không chi tiền.",
     ]
+    if loai == "KET":
+        dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói.")
+    elif loai == "LAM" and not ban_day:
+        dong.append("Đây là bản đầu. Viết đủ phần của bạn để người sau chỉ sửa từng điểm.")
+    else:
+        dong.append("Viết ngắn, chỉ trọng tâm. Không chép lại bài đã có. Chỗ cần sửa ghi điểm 1, điểm 2. Không viết hết.")
     if loai == "GIAO":
-        dong.append("Xem brief rồi phân việc. Không viết hộ cả bài.")
+        dong.append("Vài dòng: ai làm gì. Không viết bài.")
         if thanh_vien:
             dong.append("Quy trình có sẵn của phòng:")
             for i, m in enumerate(thanh_vien, 1):
@@ -485,6 +517,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN ĐANG NHẬN:",
             ban or "(trống)",
             "HẾT BẢN",
+            "Một hoặc hai câu rồi dòng NHAN. Không tóm tắt lại bài.",
             "Chưa hiểu hoặc thấy sai thì nói thẳng. Chưa nhận thì chưa làm phần của bạn.",
         ]
         if luot == 1:
@@ -506,7 +539,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN BẠN VỪA GIAO:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Trả lời đúng chỗ họ bắt. Sửa nếu họ đúng. Viết lại bản bàn giao.",
+            "Không viết lại cả bài. Chỉ ghi các điểm đã chỉnh, đánh số.",
         ]
     elif loai == "XU":
         dong += [
@@ -514,7 +547,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN ĐANG TRANH:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Phán để việc đi tiếp. Kết thúc bằng:",
+            "Một câu rồi dòng QUYET. Không viết lại bài. Kết thúc bằng:",
             "QUYET: LAM",
             "hoặc",
             "QUYET: SUA",
@@ -526,21 +559,23 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
                 "BƯỚC TRƯỚC ĐÃ CHỐT:",
                 ban,
                 "HẾT BẢN",
-                "Phần này đã được nhận. Làm bước của bạn trên bản đó.",
+                "Phần này đã được nhận. Không chép bản trước.",
+                "Chỉ viết phần mới của bước bạn, hoặc điểm 1, điểm 2 chỗ bạn sửa.",
             ]
         else:
-            dong.append("Làm đúng đầu việc của bạn. Viết bản bạn phụ trách.")
+            dong.append("Viết đủ phần của bạn. Người sau sẽ chỉ nêu điểm cần sửa.")
         if giao_cho:
             dong.append("Cuối lời, một câu bàn giao cho " + _nhan(giao_cho) + ": việc bước sau cần nhận.")
         if lenh:
             dong.append("LỆNH SỬA: " + lenh)
-            dong.append("Sửa đúng chỗ bị bắt. Giữ phần đã đạt.")
+            dong.append("Chỉ sửa đúng các điểm bị bắt. Không viết lại phần đã ổn.")
     elif loai == "KIEM":
         dong += [
             "Bạn đang kiểm bản phòng mình. Giả định bản đang sai cho đến khi đọc hết.",
             "BAN HIỆN TẠI:",
             ban or "(trống)",
             "HẾT BẢN",
+            "Không viết lại bản. Chỉ dòng QUYET và, nếu chưa đạt, một câu SUA.",
             "Chỉ xét BAN HIỆN TẠI. Kết thúc bằng đúng một trong hai:",
             "QUYET: DAT",
             "hoặc",
@@ -550,6 +585,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
     elif loai == "HOP":
         dong.append("HỌP TRƯỞNG. Chỉ các trưởng phòng. Bạn không sửa hộ phòng khác.")
         dong.append("Bạn chỉ ghi DAT khi tiêu chí phòng mình đạt trên các bản dưới đây.")
+        dong.append("Không viết lại bản. Chỉ dòng QUYET, một câu SUA nếu chưa đạt, và TRA.")
         for slug, text in (cac_ban or {}).items():
             dong += [f"[{slug}]", text or "(trống)"]
         dong += [
@@ -560,6 +596,13 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "SUA: một câu",
             "TRA: slug phòng phải sửa",
         ]
+    elif loai == "KET":
+        dong.append("Ghép các bản dưới đây thành một kết quả cho người giao việc.")
+        dong.append("Giữ nội dung đã làm. Bỏ câu trao đổi. Không ghi QUYET.")
+        if viec.get("mo"):
+            dong.append("Còn lệch: " + "; ".join(viec.get("mo") or []))
+        for slug, text in (cac_ban or {}).items():
+            dong += [f"[{slug}]", text or "(trống)"]
     elif loai == "CHIA":
         dong += [
             "Bạn đang nói với trưởng phòng " + (_nhan(giao_cho) if giao_cho else "bên cạnh") + ".",
@@ -567,7 +610,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN PHÒNG HỌ:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Viết 2 đến 4 câu. Không viết QUYET. Không viết hộ bài của họ.",
+            "Một hoặc hai câu. Chỉ điểm cần sửa. Không viết QUYET. Không viết hộ bài của họ.",
         ]
     elif loai == "DAP":
         dong += [
@@ -576,7 +619,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN PHÒNG BẠN:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Đáp đúng chỗ họ bắt. Giữ phần đúng. Nói bạn sẽ sửa chỗ nào. Không viết QUYET.",
+            "Một hoặc hai câu. Điểm nào giữ, điểm nào sửa. Không viết lại bài. Không viết QUYET.",
         ]
     elif loai == "GOP":
         dong += [
@@ -584,7 +627,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN CẢ PHÒNG:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Viết ngắn. Không viết lại cả bài.",
+            "Một hoặc hai câu. Chỉ điểm cần người kia chỉnh. Không viết lại bài.",
         ]
     elif loai == "SUA":
         dong.append("Mang lệnh này về team. Nhắc đúng chỗ phải sửa, không viết hộ.")
@@ -635,6 +678,7 @@ async def chay(kho: Kho, vid: str, noi) -> dict:
             viec["dat"][phongs[0]["slug"]] = bool(viec["khoa"][phongs[0]["slug"]])
         else:
             await _hop(kho, viec, phongs, noi, vmax)
+        await _ket(kho, viec, phongs, noi)
     except LoiNoi as e:
         viec["trang_thai"] = "loi"
         viec["loi_chay"] = str(e)
@@ -857,6 +901,26 @@ async def _hop(kho: Kho, viec: dict, phongs: list, noi, vmax: int) -> None:
             await _sua_phong(kho, viec, by[tra], noi, sua, vong)
 
 
+async def _ket(kho: Kho, viec: dict, phongs: list, noi) -> None:
+    """Một bản kết quả đầy đủ sau khi các lượt trao đổi đã ngắn."""
+    phong = phongs[0]
+    truong = _truong(phong)
+    nguon = {}
+    for p in phongs:
+        manh = []
+        for row in viec.get("loi") or []:
+            if row.get("phong") == p["slug"] and row.get("lop") == "lam":
+                manh.append(row.get("loi") or "")
+        ban = (viec.get("ban") or {}).get(p["slug"]) or ""
+        if ban and ban not in "\n".join(manh):
+            manh.append(ban)
+        nguon[p["slug"]] = "\n\n".join(x for x in manh if x)
+    _bao(kho, viec, phong, truong, "ket")
+    text = await _goi(noi, truong, lap_prompt("KET", truong, phong, viec, cac_ban=nguon))
+    viec["ket_qua"] = text
+    kho.luu_viec(viec)
+
+
 def bien_ban(viec: dict) -> str:
     d = [
         f"# {viec.get('tieu_de') or 'Việc'}",
@@ -866,6 +930,8 @@ def bien_ban(viec: dict) -> str:
         f"Trạng thái: {viec.get('trang_thai') or 'nhap'}",
         "",
     ]
+    if viec.get("ket_qua"):
+        d += ["## Kết quả", "", viec["ket_qua"], ""]
     if viec.get("loi_chay"):
         d += [f"Lỗi: {viec['loi_chay']}", ""]
     lop_ten = {
@@ -933,6 +999,8 @@ async def noi_thu(nguoi: dict, prompt: str) -> str:
         return "QUYET: LAM"
     if loai == "SUA":
         return "Sửa đúng câu bị bắt. Giữ phần còn lại."
+    if loai == "KET":
+        return "Kết quả cuối. Buổi học theo đề cương, không hứa kết quả. Các phần đã chốt được giữ trong bản này."
     if loai in ("LAM",):
         if "LỆNH SỬA" in prompt:
             return "Buổi học gồm các phần trong đề cương. Không hứa kết quả."

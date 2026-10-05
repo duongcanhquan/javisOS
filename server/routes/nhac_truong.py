@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 import nhac_truong as nt
 
@@ -162,6 +162,34 @@ async def doc_viec(vid: str, brain: str = "brain"):
     return {"ok": True, "viec": viec}
 
 
+def _html(s: str) -> str:
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+@router.get("/nhac-truong/viec/{vid}/ket-qua", response_class=HTMLResponse)
+async def trang_ket_qua(vid: str, brain: str = "brain"):
+    """Trang in. Trình duyệt lưu thành PDF."""
+    try:
+        viec = _kho(brain).doc_viec(vid)
+    except nt.LoiNhacTruong as e:
+        return HTMLResponse(f"<p>{_html(str(e))}</p>", status_code=404)
+    tieu = viec.get("tieu_de") or "Kết quả"
+    than = viec.get("ket_qua") or "Chưa có kết quả. Chạy việc xong rồi mở lại trang này."
+    page = (
+        "<!doctype html><html lang=\"vi\"><head><meta charset=\"utf-8\">"
+        f"<title>{_html(tieu)}</title><style>"
+        "body{font:15px/1.5 system-ui,sans-serif;margin:32px auto;max-width:720px;color:#111}"
+        "h1{font-size:22px}pre{white-space:pre-wrap;font:inherit}"
+        ".nut{margin-top:16px}@media print{.nut{display:none}}"
+        "</style></head><body>"
+        f"<h1>{_html(tieu)}</h1><pre>{_html(than)}</pre>"
+        "<p class=\"nut\"><button onclick=\"print()\">Lưu PDF</button></p>"
+        "<script>addEventListener('load',function(){setTimeout(function(){print()},300)})</script>"
+        "</body></html>"
+    )
+    return HTMLResponse(page)
+
+
 @router.delete("/nhac-truong/viec/{vid}")
 async def xoa_viec(vid: str, brain: str = "brain"):
     khoa = f"{brain}:{vid}"
@@ -235,6 +263,7 @@ async def _noi_that(brain: str, nguoi: dict, prompt: str) -> str:
         f"Tính cách: {nguoi.get('tinh_cach') or ''}\n"
         f"Skill: {', '.join(nguoi.get('skills') or []) or '(không)'}.\n"
         "Bạn đang nói trong Nhạc trưởng. Chỉ viết phần của lượt này.\n"
+        "Bản đầu và kết quả cuối thì viết đủ. Các lượt trao đổi ở giữa thì ngắn, chỉ điểm 1, điểm 2.\n"
         "Không gửi tin, không đăng, không chi tiền, không bảo người khác tự đi làm.\n"
     )
     agent = (nguoi.get("agent") or "").strip()
