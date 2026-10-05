@@ -32,6 +32,11 @@ Trang **Công việc → Marketing**, hoặc chat/Telegram/Zalo: kiểm SEO, vi�
 | **Báo cáo Ads** | Số đo spend/CTR/CPC + bảng campaign | Ads 7 hoặc 30 ngày | `bo-marketing-ads` |
 | **Catalog công cụ** | Chọn nhóm tool SEO/email/ads/analytics | Stack MKT mới | `marketing-cong-cu` |
 | **Advertools SEO/SEM** | Keyword/sitemap/crawl khi host đã `pip install advertools` | Xuất CSV crawl | `advertools-seo-sem` |
+| **Cold email B2B** | Outreach chưa quen / subject / follow-up (chỉ draft) | Chuỗi 3 lá | `cold-email-b2b` |
+| **Churn / giữ khách** | Cancel flow, save offer, dunning | SaaS churn cao | `churn-prevention` |
+| **A/B test MKT** | Giả thuyết + variant + sample size | Test CTA/landing | `ab-testing-marketing` |
+| **Lead magnet** | Checklist/template/webinar lấy lead | Magnet + landing | `lead-magnets` |
+| **Bộ Corey (map)** | Map 50 skill marketingskills → Javis | «dùng marketingskills» | `marketingskills` |
 
 Skills SEO: luôn nạp **`seo-gpt`** cùng `kiem-tra-seo` / `viet-bai-seo`. Không chỉ tối ưu Google.
 Landing xong cần SEO audit URL/file → **Kiểm SEO**; cần `.pke` → **`html-to-webcake`**.

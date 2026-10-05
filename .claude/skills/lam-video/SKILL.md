@@ -1,7 +1,7 @@
 ---
 name: Làm video
-description: "Điều phối làm video: chọn pipeline (paperdesign/Remotion/OmmiStudio), nghiên cứu, viết kịch bản, render đúng brief."
-description_en: "Orchestrate video: pick pipeline (paperdesign/Remotion/OmmiStudio), research, script, render to brief."
+description: "Điều phối làm video: chọn pipeline (paperdesign/Remotion/OpenMontage/Ommi), nghiên cứu, viết kịch bản, render đúng brief."
+description_en: "Orchestrate video: pick pipeline (paperdesign/Remotion/OpenMontage/Ommi), research, script, render to brief."
 group: "Video & Motion"
 ---
 
@@ -10,8 +10,8 @@ group: "Video & Motion"
 ## Khi nào dùng
 
 User muốn làm video / short / explainer / quảng cáo / Remotion / collage Vox / paperdesign /
-postcard / shotcraft / OmmiStudio / html-video / motion graphics. Dùng skill này TRƯỚC khi nhảy
-vào một pipeline cụ thể.
+postcard / shotcraft / OpenMontage / OmmiStudio / html-video / motion graphics. Dùng skill này
+TRƯỚC khi nhảy vào một pipeline cụ thể.
 
 ## Chuẩn bị
 
@@ -56,7 +56,7 @@ Với paperdesign: beat map là cổng duyệt thứ hai - show user trước kh
 
 ### 4. Chọn pipeline (đọc catalog)
 
-Chọn ĐÚNG MỘT pipeline chính theo catalog. Báo user vì sao chọn. Nếu user chỉ định sẵn (paperdesign / Remotion / Ommi) thì theo user. Kiểm tra key/binary; thiếu → manual hoặc đổi pipeline.
+Chọn ĐÚNG MỘT pipeline chính theo catalog. Báo user vì sao chọn. Nếu user chỉ định sẵn (paperdesign / Remotion / OpenMontage / Ommi) thì theo user. Kiểm tra key/binary; thiếu → manual hoặc đổi pipeline.
 
 ### 5. Render theo đúng skill của pipeline
 
@@ -64,6 +64,7 @@ Chọn ĐÚNG MỘT pipeline chính theo catalog. Báo user vì sao chọn. Nế
 - `pixcelvideo` → nạp skill `pixcelvideo`: viết + duyệt kịch bản, rồi **`javis_render_script_video`**
   (Edge-TTS+ffmpeg). Pixelle `mode: fixed` chỉ khi `PIXELLE_API_BASE` sống.
 - `remotion` → nạp `remotion-best-practices`, tạo/sửa composition Remotion, preview rồi render.
+- `openmontage` → nạp **`openmontage`**: studio agentic ngoài Javis (AGPL - clone host/VPS, không vendor). Doctor rồi làm trong `$OPENMONTAGE_HOME`.
 - `ommistudio` / `html-video` → hướng dẫn hoặc gọi OmmiStudio/nexu html-video (cần Node, Playwright, ffmpeg). Ghi brief + template + brand tokens rõ ràng.
 - Không đủ điều kiện render → xuất Manual pack: beat map + image prompts + motion prompts + VO script để user dán generator khác.
 

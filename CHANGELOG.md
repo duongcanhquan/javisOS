@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.48] - 2026-10-05
+### Thêm
+- **Marketing Skills (Corey):** hub map ~50 kỹ năng MIT sang skill Javis (CRO, copy, SEO, ads, email, launch, giá…). Thêm cold email B2B, chống churn, A/B test, lead magnet.
+- **OpenMontage:** hub cài/doctor và điều phối studio video agentic từ `lam-video`. AGPL - không nhét mã vào image; clone trên VPS/host khi cần.
+
 ## [0.56.47] - 2026-10-02
 ### Cải thiện
 - **Mic chat nghe câu tiếng Việt xen tiếng Anh đúng hơn.** Có key Groq thì Javis nghe lại bằng Whisper trước khi gửi. Không có key, hoặc tắt Tai nghe lại trong Cài đặt nhanh, thì vẫn dùng chữ trình duyệt. Cuộc họp và tin thoại Zalo/Telegram không đổi.
