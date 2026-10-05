@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.60] - 2026-10-05
+### Sửa
+- **Nhạc trưởng** nút Chạy, Chạy lại, Chạy thử và Dừng đổi trạng thái ngay khi bấm, không vẽ lại cả màn mỗi tin nhắn.
+- Sơ đồ phòng: trưởng ngồi giữa hàng trên. Nhân viên theo thứ tự, tối đa 4 người một hàng. Icon bàn nhỏ hơn.
+
 ## [0.56.59] - 2026-10-05
 ### Sửa
 - **Nhạc trưởng** phòng thiết kế nộp bộ ảnh, phòng video nộp file video, phòng chữ vẫn nộp bản chữ. Giao tiếp dài thì thu gọn, bấm mới xổ. Sơ đồ phòng: trưởng ngồi giữa.

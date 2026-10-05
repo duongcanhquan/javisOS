@@ -3202,27 +3202,27 @@ body.on-mcp .cview-body > .cview-placeholder {
     repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(0,0,0,.035) 22px, rgba(0,0,0,.035) 23px),
     var(--bg2);
 }
-.nt-hang { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 12px 16px; width: 100%; }
-.nt-hang-truong { padding: 2px 0; }
+.nt-hang { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 8px 10px; width: 100%; }
+.nt-hang-truong { padding: 0 0 2px; }
 .nt-room-doi .nt-hang { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: end; }
 .nt-room-doi .nt-seatrow:first-child { grid-column: 1; }
 .nt-room-doi .nt-seatrow.head { grid-column: 2; }
 .nt-seatrow {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  width: 108px; text-align: center; padding: 4px 4px 6px;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  width: 88px; text-align: center; padding: 2px 2px 4px;
 }
 .nt-seatrow .nt-qno { position: absolute; top: 2px; left: 2px; }
 .nt-seatrow .nt-who { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
 .nt-seatrow.head {
-  width: 132px; padding: 8px 6px 8px; border-radius: 14px;
+  width: 104px; padding: 6px 4px; border-radius: 12px;
   background: var(--accent-wash); box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .nt-role {
   display: inline-block; margin-bottom: 2px; padding: 1px 6px; border-radius: 999px;
   background: var(--accent-solid); color: var(--on-accent); font-size: 10px; font-weight: 700; letter-spacing: .2px;
 }
-.nt-deskico { width: 52px; height: 40px; flex: 0 0 auto; color: #1b7f4a; }
-.nt-seatrow.head .nt-deskico { width: 76px; height: 54px; }
+.nt-deskico { width: 40px; height: 30px; flex: 0 0 auto; color: #1b7f4a; }
+.nt-seatrow.head .nt-deskico { width: 52px; height: 38px; }
 .nt-deskico svg { display: block; width: 100%; height: 100%; fill: currentColor; }
 .nt-seatrow.wait .nt-qno { background: var(--ok-wash); color: #1b7f4a; }
 .nt-seatrow.on .nt-deskico { color: #d92d20; }
