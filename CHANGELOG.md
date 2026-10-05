@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.58] - 2026-10-05
+### Sửa
+- **Nhạc trưởng · Giao tiếp** hiện đủ lời đã trao đổi, không cắt còn một câu hay 180 ký tự. Cách nói vẫn ngắn. Việc đang soạn sửa lại được. Tab Setup, Giao việc, Theo dõi dính khi cuộn. Việc xong thì comment chạy lại nằm ngay trên sơ đồ bàn.
+
 ## [0.56.57] - 2026-10-05
 ### Mới
 - **Nhạc trưởng** trải hết màn hình. Setup ba cột: phòng, quy trình trên xuống dưới, sửa từng người. Giao việc xếp phòng nào trước và người nào trước, hoặc để nhạc trưởng tự xếp. Theo dõi: danh sách việc thu được, bàn làm việc xanh theo thứ tự, bàn đang làm đỏ kèm chữ đang làm. Chat chỉ câu ngắn. Kết quả cuối mới là bản đủ.

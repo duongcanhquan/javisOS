@@ -450,7 +450,6 @@
     S.root.innerHTML =
       '<div class="nt">' +
       (S.loi ? '<p class="nt-err" role="alert">' + esc(S.loi) + "</p>" : "") +
-      '<p class="nt-lead">Setup xếp phòng và người. Giao việc chọn lộ trình. Theo dõi xem bàn và câu trao đổi ngắn.</p>' +
       '<div class="nt-tabs" role="tablist">' +
       '<button type="button" class="nt-tab' + (S.tab === "phong" ? " on" : "") + '" data-tab="phong" role="tab">Setup</button>' +
       '<button type="button" class="nt-tab' + (S.tab === "giao" ? " on" : "") + '" data-tab="giao" role="tab">Giao việc</button>' +
@@ -740,13 +739,15 @@
         (r.tu ? '<p class="nt-hint">Nhạc trưởng tự xếp người trong phòng.</p>' : nguoi) + "</article>";
     }).join("");
     return '<form id="ntTaoViec" class="nt-giao nt-form">' +
-      '<section class="nt-col"><h2>Brief</h2>' +
+      '<section class="nt-col"><h2>' + (S._suaId ? "Sửa việc đang soạn" : "Brief") + "</h2>" +
       '<label>Tên việc<input name="tieu_de" required placeholder="Bài ra mắt khóa" value="' + esc(n.tieu_de || "") + '"></label>' +
       '<label>Vòng tối đa mỗi tầng, 1 đến 10<input name="vong" type="number" min="1" max="10" value="' + esc(n.vong || "6") + '"></label>' +
       '<label>Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc">' + esc(n.brief || "") + "</textarea></label>" +
       '<label>Tài liệu, tối đa 3 file chữ<input name="tai_lieu" type="file" accept=".txt,.md,.csv,.json,.html" multiple></label>' +
       '<p class="nt-hint">Tối đa 10 vòng. Còn lỗi cụ thể thì sửa tiếp. Hết lỗi thì dừng, dù mới 1 hoặc 2 vòng.</p>' +
-      '<div class="nt-row"><button class="nt-btn pri" type="submit">Giao việc</button></div></section>' +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">' + (S._suaId ? "Lưu việc đang soạn" : "Giao việc") + "</button>" +
+      (S._suaId ? '<button type="button" class="nt-btn ghost" id="ntHuySuaViec">Soạn việc mới</button>' : "") +
+      "</div></section>" +
       '<section class="nt-col"><h2>Lộ trình</h2>' +
       '<label class="nt-chip"><input type="checkbox" id="ntTuXep"' + (r.tu ? " checked" : "") + "> Nhạc trưởng tự phân bổ người</label>" +
       '<p class="nt-hint">Phòng trên làm trước, phòng dưới làm sau. Bỏ chọn ô nếu muốn tự xếp thứ tự người trong từng phòng.</p>' +
@@ -851,10 +852,45 @@
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
       htmlBanPhong(v) +
       (tl ? '<p class="nt-hint">Tài liệu đã đưa</p><ul class="nt-mo">' + tl + "</ul>" : "") +
-      '<form id="ntThem" class="nt-form">' +
-      '<label>Sửa thêm<textarea name="comment" placeholder="Giữ kết quả cũ, chỉ sửa chỗ này"></textarea></label>' +
-      '<div class="nt-row"><button class="nt-btn pri" type="submit">Chạy lại với comment</button></div></form>' +
-      '<p class="nt-hint">Hệ thống giữ bản cũ và comment này, không làm lại từ đầu.</p></section>';
+      "</section>";
+  }
+
+  function moSuaViec(v) {
+    if (!v || v.trang_thai !== "nhap") return;
+    var chon = (v.phong || []).slice();
+    var nguoi = {};
+    var tay = {};
+    chon.forEach(function (slug) {
+      var xep = (v.xep || {})[slug] || [];
+      if (xep.length) {
+        nguoi[slug] = xep.map(function (n) { return n.slug || n; });
+        tay[slug] = true;
+      }
+    });
+    S._suaId = v.id;
+    S._nhap = {
+      tieu_de: v.tieu_de || "",
+      brief: v.brief || "",
+      vong: String(v.vong_toi_da || "6"),
+      phong: chon
+    };
+    S._route = { tu: !v.xep_khoa, phong: chon.slice(), nguoi: nguoi, bo: {}, tay: tay };
+    S.phong.forEach(function (p) {
+      if (chon.indexOf(p.slug) < 0 && truongCua(p)) S._route.bo[p.slug] = true;
+    });
+    S._routeDaChon = true;
+    S.tab = "giao";
+    S.loi = "";
+    ve();
+  }
+
+  function htmlSuaThem(v) {
+    if (!v || (v.trang_thai !== "xong" && v.trang_thai !== "lech" && v.trang_thai !== "dung")) return "";
+    return '<form id="ntThem" class="nt-form nt-sua-them">' +
+      "<h3>Sửa kết quả</h3>" +
+      '<label>Comment<textarea name="comment" placeholder="Giữ kết quả cũ, chỉ sửa chỗ này"></textarea></label>' +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">Chạy lại từ kết quả cũ</button></div>' +
+      '<p class="nt-hint">Giữ bản vừa chạy, chỉ sửa theo comment mới.</p></form>';
   }
 
   function moPdf() {
@@ -878,30 +914,27 @@
     S.root.querySelectorAll(".nt-mo-ban").forEach(function (b) { b.onclick = moBanDay; });
   }
 
-  function tomBrief(s) {
-    s = String(s || "").replace(/\s+/g, " ").trim();
-    return s.length > 140 ? s.slice(0, 137) + "…" : s;
-  }
-
   function theoDoi() {
     var v = S._viecDay;
     if (!v) return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
       '<p class="nt-hint">Chọn một việc.</p>';
     var chay = v.trang_thai === "dang_chay";
     var treo = chay && v.song === false;
+    var soan = v.trang_thai === "nhap";
     var nutChay = treo ? "Khởi động lại" : (chay ? "Đang chạy" : (v.trang_thai === "dung" || v.trang_thai === "loi" ? "Chạy lại" : "Chạy"));
     return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
       '<div class="nt-row">' + pillTrang(treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
       (treo ? '<p class="nt-err">Việc ghi là đang chạy nhưng không còn tiến.</p>' : "") +
-      (tomBrief(v.brief) ? '<p class="nt-hint">' + esc(tomBrief(v.brief)) + "</p>" : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
       dangLam(v) +
       '<div class="nt-row">' +
+      (soan ? '<button type="button" class="nt-btn" id="ntSuaViec">Sửa việc đang soạn</button>' : "") +
       '<button type="button" class="nt-btn pri" id="ntChay"' + (chay && !treo ? " disabled" : "") + ">" + nutChay + "</button>" +
       (chay ? '<button type="button" class="nt-btn danger" id="ntDung">Dừng</button>' : "") +
       '<button type="button" class="nt-btn" id="ntThu"' + (chay && !treo ? " disabled" : "") + ">Chạy thử</button>" +
       (chay ? "" : '<button type="button" class="nt-btn danger" id="ntXoaViec">Xoá việc</button>') +
       "</div>" +
+      htmlSuaThem(v) +
       '<div class="nt-floors" id="ntMap">' + htmlMap() + "</div>";
   }
 
@@ -926,16 +959,9 @@
 
   function tomChat(row) {
     var sach = loiSach(row.loi);
-    if (!sach) return "";
-    if (row.lop === "lam" || row.lop === "ket") {
-      var dong = sach.split("\n").map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
-      dong = dong.replace(/^[#>*\-\d\.\)\s]+/, "");
-      if (dong.length > 140) dong = dong.slice(0, 137) + "…";
-      return dong || "Đã làm phần của mình.";
-    }
-    var gon = sach.replace(/\s+/g, " ").trim();
-    if (gon.length > 180) gon = gon.slice(0, 177) + "…";
-    return gon;
+    if (sach) return sach;
+    if (row.lop === "lam" || row.lop === "ket") return "Đã làm phần của mình.";
+    return "";
   }
 
   function nhomLoi(rows) {
@@ -1080,15 +1106,25 @@
         var r = routeNhap();
         var body = {
           brain: brain(), tieu_de: fd.get("tieu_de"), brief: fd.get("brief"),
-          phong: fd.getAll("phong"), vong: fd.get("vong"), tai_lieu: tai,
+          phong: fd.getAll("phong"), vong: fd.get("vong"), bo_xep: !!r.tu,
         };
+        if (tai.length) body.tai_lieu = tai;
         if (!r.tu) {
           body.xep = {};
           fd.getAll("phong").forEach(function (slug) { body.xep[slug] = (r.nguoi[slug] || []).slice(); });
         }
-        var j = await post("/nhac-truong/viec", body);
+        var j = S._suaId
+          ? await post("/nhac-truong/viec/" + encodeURIComponent(S._suaId) + "/sua", body)
+          : await post("/nhac-truong/viec", body);
         if (!j.ok) return hong(btn, j.error);
-        S.viec.unshift({
+        if (S._suaId) {
+          S.viec = S.viec.map(function (x) {
+            return x.id === j.viec.id ? {
+              id: j.viec.id, tieu_de: j.viec.tieu_de,
+              trang_thai: j.viec.trang_thai, phong: j.viec.phong
+            } : x;
+          });
+        } else S.viec.unshift({
           id: j.viec.id, tieu_de: j.viec.tieu_de,
           trang_thai: j.viec.trang_thai, phong: j.viec.phong
         });
@@ -1097,6 +1133,7 @@
         S._khoa = "";
         S.tab = "viec";
         S._nhap = null;
+        S._suaId = "";
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -1218,6 +1255,14 @@
       };
     });
     var tuXep = document.getElementById("ntTuXep");
+    var huySua = document.getElementById("ntHuySuaViec");
+    if (huySua) huySua.onclick = function () {
+      S._suaId = "";
+      S._nhap = null;
+      S._route = null;
+      S._routeDaChon = false;
+      ve();
+    };
     if (tuXep) tuXep.onchange = function () {
       var r = routeNhap();
       r.tu = !!tuXep.checked;
@@ -1377,6 +1422,8 @@
   }
 
   function ganTheoDoi() {
+    var suaViec = document.getElementById("ntSuaViec");
+    if (suaViec) suaViec.onclick = function () { moSuaViec(S._viecDay); };
     var chay = document.getElementById("ntChay");
     if (chay) chay.onclick = function () { batDau(false); };
     var thu = document.getElementById("ntThu");

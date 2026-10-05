@@ -381,6 +381,22 @@ def test_tran_muoi_va_dung_som():
     check("cùng một lỗi thì không đốt hết 6 vòng", lap["n"] == 2 and ket["trang_thai"] == "lech")
 
 
+def test_sua_viec_dang_soan():
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Nội dung", "Rõ")
+    nt.them_nguoi(kho, "noi-dung", "An", "", "", "truong")
+    viec = nt.tao_viec(kho, "Bài", "brief cũ", ["noi-dung"], 2)
+    sua = nt.sua_viec(kho, viec["id"], "Bài sửa", "brief mới", ["noi-dung"], 8)
+    check("sửa việc đang soạn giữ id", sua["id"] == viec["id"] and sua["brief"] == "brief mới" and sua["vong_toi_da"] == 8)
+    viec["trang_thai"] = "xong"
+    kho.luu_viec(viec)
+    try:
+        nt.sua_viec(kho, viec["id"], "Lại", "brief", ["noi-dung"])
+        check("việc đã chạy không soạn lại", False)
+    except nt.LoiNhacTruong:
+        check("việc đã chạy không soạn lại", True)
+
+
 def test_het_lan_cai_thi_truong_phan():
     kho = nt.Kho(tempfile.mkdtemp())
     nt.tao_phong(kho, "Marketing", "Đúng brief", "lan_luot")
@@ -520,6 +536,7 @@ if __name__ == "__main__":
     test_doc_thu_tu()
     test_lan_luot_ban_giao()
     test_tran_muoi_va_dung_som()
+    test_sua_viec_dang_soan()
     test_het_lan_cai_thi_truong_phan()
     test_gon_khong_dan_ca_bai()
     test_phong_trao_doi()

@@ -544,6 +544,73 @@ def tao_viec(kho: Kho, tieu_de: str, brief: str, phong_slugs: list, vong: int = 
     return viec
 
 
+def _gan_xep(kho: Kho, slugs: list, xep: dict | None) -> dict | None:
+    if not isinstance(xep, dict) or not xep:
+        return None
+    sach = {}
+    for slug, day in xep.items():
+        if slug not in slugs or not isinstance(day, list):
+            continue
+        sach[slug] = [str(s) for s in day if str(s).strip()][:12]
+    if not sach:
+        return None
+    named = {}
+    for k, day in sach.items():
+        by = {n.get("slug"): n for n in (kho.doc_phong(k).get("nguoi") or [])}
+        named[k] = [{
+            "slug": s,
+            "ten": (by.get(s) or {}).get("ten") or s,
+            "vi_tri": ((by.get(s) or {}).get("vi_tri") or "").strip(),
+        } for s in day]
+    return named
+
+
+def sua_viec(kho: Kho, vid: str, tieu_de: str, brief: str, phong_slugs: list,
+             vong: int = VONG_MAC_DINH, tai_lieu=None, xep: dict | None = None,
+             bo_xep: bool = False) -> dict:
+    """Sửa việc mới soạn, chưa chạy. Việc đã chạy thì sửa bằng comment."""
+    viec = kho.doc_viec(vid)
+    if viec.get("trang_thai") != "nhap":
+        raise LoiNhacTruong("Việc đã chạy. Muốn sửa kết quả thì ghi comment và chạy lại.")
+    tieu_de = (tieu_de or "").strip()
+    brief = (brief or "").strip()
+    if not tieu_de or not brief:
+        raise LoiNhacTruong("Việc cần tiêu đề và brief.")
+    slugs = []
+    for s in phong_slugs or []:
+        s = slugify(s) if not _slug_ok(str(s)) else str(s)
+        if s and s not in slugs:
+            slugs.append(s)
+    if not slugs:
+        raise LoiNhacTruong("Chọn ít nhất một phòng.")
+    for s in slugs:
+        _truong(kho.doc_phong(s))
+    try:
+        vong = int(vong)
+    except (TypeError, ValueError):
+        vong = VONG_MAC_DINH
+    vong = min(VONG_TRAN, max(1, vong))
+    viec["tieu_de"] = tieu_de
+    viec["brief"] = brief
+    viec["phong"] = slugs
+    viec["vong_toi_da"] = vong
+    viec["dat"] = {s: False for s in slugs}
+    viec["khoa"] = {s: False for s in slugs}
+    viec["ban"] = {s: "" for s in slugs}
+    if tai_lieu is not None:
+        viec["tai_lieu"] = chuan_tai_lieu(tai_lieu)
+    if bo_xep:
+        viec.pop("xep", None)
+        viec["xep_khoa"] = False
+    else:
+        named = _gan_xep(kho, slugs, xep)
+        if named:
+            viec["xep"] = named
+            viec["xep_khoa"] = True
+    kho.luu_viec(viec)
+    return viec
+
+
 def _cat(text: str) -> str:
     t = (text or "").strip()
     if len(t) > LOI_TRAN:
@@ -654,9 +721,9 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
     if loai == "KET":
         dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói.")
     elif loai == "LAM" and not ban_day:
-        dong.append("Đây là bản đầu. Dòng đầu chỉ một câu tóm tắt. Từ dòng sau viết đủ phần của bạn để người sau chỉ sửa từng điểm. Chat chỉ hiện câu tóm tắt.")
+        dong.append("Đây là bản đầu. Viết đủ phần của bạn, gọn từng ý, để người sau chỉ sửa từng điểm. Người xem đọc hết lời này.")
     elif loai == "LAM":
-        dong.append("Dòng đầu một câu tóm tắt cho chat. Từ dòng sau viết đủ phần mới của bước bạn để ghép bản. Không dán cả bài vào câu chat.")
+        dong.append("Viết đủ phần mới của bước bạn, gọn từng ý, để ghép bản. Không chép lại cả bài cũ. Người xem đọc hết lời này.")
     else:
         dong.append("Trao đổi như chat nội bộ: một hoặc hai câu. Nêu chỗ thiếu hoặc chỗ cần sửa. Không dán bảng, không dán cả bài.")
     if loai == "GIAO":

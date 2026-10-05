@@ -1370,7 +1370,7 @@
   "page.workspace.label": "Cộng sự",
   "page.nhac_truong.label": "Nhạc trưởng",
   "page.nhac_truong.title": "Nhạc trưởng",
-  "page.nhac_truong.sub": "Phòng ban, trưởng phòng điều phối, họp liên phòng, biên bản",
+  "page.nhac_truong.sub": "",
   "cs.ch_zl_sent_n": "Đã nhắn {count} lần.",
   "cs.tfa_start_err": "Không bắt đầu được.",
   "cs.ne_open_tab": "Mở tab mới",

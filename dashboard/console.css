@@ -2811,7 +2811,18 @@ body.on-mcp .cview-body > .cview-placeholder {
   color: var(--text); background: var(--danger-wash); border: 1px solid var(--danger-line);
   font-size: 13px;
 }
-.nt-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.nt-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 6;
+  padding: 8px 0; margin: 0;
+  background: var(--bg);
+}
+.nt-sua-them {
+  margin: 8px 0 12px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--accent-line); background: var(--surface-1);
+}
+.nt-sua-them h3 { margin: 0 0 8px; font-size: 14px; }
+.cview-sub:empty { display: none; }
 .nt-tab {
   padding: 8px 16px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px;
   border: 1px solid var(--glass-brd); background: transparent; color: var(--text2);
@@ -2902,7 +2913,7 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-say header { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-bottom: 2px; }
 .nt-say header b { font-size: 12px; font-weight: 650; }
 .nt-say .nt-meta { color: var(--text3); font-size: 11px; }
-.nt-say p { margin: 0; white-space: pre-wrap; color: var(--text); font-size: 12px; line-height: 1.35; }
+.nt-say p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); font-size: 12px; line-height: 1.45; }
 .nt-setup { display: grid; grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr) minmax(280px, 1fr); gap: 12px; align-items: stretch; min-height: calc(100vh - 168px); }
 .nt-tim { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; color: var(--text3); font-size: 12px; }
 .nt-tim input { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--glass-brd); background: var(--bg2); color: var(--text); }
@@ -2912,7 +2923,7 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-ket { margin: 10px 0 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-wash); }
 .nt-ket p { white-space: pre-wrap; }
 .nt-meta, .nt-to { font-size: 10px; color: var(--text3); }
-.nt-say p { margin: 0; white-space: pre-wrap; color: var(--text); font-size: 12px; line-height: 1.35; }
+.nt-say p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); font-size: 12px; line-height: 1.45; }
 .nt-ket { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--accent-line); background: var(--surface-1); }
 .nt-ket a, .nt-ket-links button {
   color: var(--accent-ink); font-weight: 650; text-underline-offset: 2px;

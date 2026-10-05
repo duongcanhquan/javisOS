@@ -156,6 +156,23 @@ async def tao_viec(request: Request):
     return {"ok": True, "viec": viec}
 
 
+@router.post("/nhac-truong/viec/{vid}/sua")
+async def sua_viec(vid: str, request: Request):
+    body = await request.json()
+    try:
+        viec = nt.sua_viec(
+            _kho(body.get("brain") or "brain"), vid,
+            body.get("tieu_de") or "", body.get("brief") or "",
+            body.get("phong") or [], body.get("vong") or nt.VONG_MAC_DINH,
+            tai_lieu=body.get("tai_lieu") if "tai_lieu" in body else None,
+            xep=body.get("xep") if isinstance(body.get("xep"), dict) else None,
+            bo_xep=bool(body.get("bo_xep")),
+        )
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "viec": viec}
+
+
 @router.get("/nhac-truong/viec/{vid}")
 async def doc_viec(vid: str, brain: str = "brain"):
     try:
