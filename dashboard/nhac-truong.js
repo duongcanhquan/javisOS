@@ -1,4 +1,4 @@
-/* Nhạc trưởng: tab Phòng và tab Theo dõi, mỗi tab full bề ngang. */
+/* Nhạc trưởng: tab Phòng, Giao việc, Theo dõi. */
 (function () {
   "use strict";
   function esc(s) {
@@ -30,7 +30,7 @@
     loi: ["Lỗi", "warn"]
   };
   var LOP = { giao: "Giao việc", lam: "Làm", kiem: "Kiểm", hop: "Họp trưởng", sua: "Mang lệnh về" };
-  var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "" };
+  var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null };
 
   function phongChon() {
     return S.phong.filter(function (p) { return p.slug === S.chonPhong; })[0] || null;
@@ -50,6 +50,104 @@
     if (q === "DAT") return '<span class="nt-pill ok">Đạt</span>';
     if (q === "CHUA") return '<span class="nt-pill warn">Chưa đạt</span>';
     return "";
+  }
+  function khongDau(s) {
+    return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  }
+  function rut(s, n) {
+    s = String(s || "").replace(/\s+/g, " ").trim();
+    return s.length > n ? s.slice(0, n - 1) + "…" : s;
+  }
+  function skillTen(slug) {
+    var s = (S.kho || []).filter(function (x) { return x.slug === slug; })[0];
+    return s ? (s.name || s.slug) : slug;
+  }
+  function oSkill(daChon) {
+    var arr = (daChon || []).filter(Boolean);
+    var chips = arr.map(function (s) {
+      return '<button type="button" class="nt-pill" data-bo="' + esc(s) + '">' + esc(skillTen(s)) + " ×</button>";
+    }).join("");
+    return '<div class="nt-pick"><span class="nt-lbl">Skill trong kho</span>' +
+      '<div class="nt-picked" data-picked>' + chips + "</div>" +
+      '<input type="hidden" name="skills" value="' + esc(arr.join(", ")) + '">' +
+      '<div class="nt-seek-wrap"><input type="search" class="nt-seek" placeholder="Gõ hoặc bấm để tìm skill, rồi chọn" autocomplete="off">' +
+      '<div class="nt-seek-list" hidden></div></div>' +
+      '<p class="nt-hint">Tối đa 8 skill. Bấm dấu × trên thẻ để bỏ.</p></div>';
+  }
+  function ganPick() {
+    S.root.querySelectorAll(".nt-pick").forEach(function (host) {
+      var hidden = host.querySelector('input[name="skills"]');
+      var picked = host.querySelector("[data-picked]");
+      var seek = host.querySelector(".nt-seek");
+      var list = host.querySelector(".nt-seek-list");
+      if (!hidden || !seek || !list) return;
+      function doc() {
+        return (hidden.value || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+      }
+      function ghi(arr) {
+        hidden.value = arr.join(", ");
+        picked.innerHTML = arr.map(function (s) {
+          return '<button type="button" class="nt-pill" data-bo="' + esc(s) + '">' + esc(skillTen(s)) + " ×</button>";
+        }).join("");
+      }
+      function loc() {
+        var q = khongDau(seek.value.trim());
+        var co = doc();
+        var rows = (S.kho || []).filter(function (s) {
+          if (s.enabled === false) return false;
+          if (co.indexOf(s.slug) >= 0) return false;
+          if (!q) return true;
+          return khongDau(s.name + " " + s.slug + " " + (s.description || "") + " " + (s.group || "")).indexOf(q) >= 0;
+        }).slice(0, 12);
+        list.hidden = false;
+        if (!S.kho.length) {
+          list.innerHTML = '<p class="nt-hint">Kho skill của brain này đang trống.</p>';
+          return;
+        }
+        if (co.length >= 8) {
+          list.innerHTML = '<p class="nt-hint">Đã đủ 8 skill.</p>';
+          return;
+        }
+        if (!rows.length) {
+          list.innerHTML = '<p class="nt-hint">Không thấy skill khớp. Enter để thêm chữ vừa gõ.</p>';
+          return;
+        }
+        list.innerHTML = rows.map(function (s) {
+          return '<button type="button" data-add="' + esc(s.slug) + '"><b>' + esc(s.name || s.slug) + "</b><small>" +
+            esc(s.group || "Chung") + (s.description ? " · " + esc(rut(s.description, 90)) : "") + "</small></button>";
+        }).join("");
+      }
+      function them(slug) {
+        slug = String(slug || "").trim().slice(0, 40);
+        if (!slug) return;
+        var arr = doc();
+        if (arr.length >= 8 || arr.indexOf(slug) >= 0) return;
+        arr.push(slug);
+        ghi(arr);
+        seek.value = "";
+        loc();
+      }
+      seek.onfocus = loc;
+      seek.onclick = loc;
+      seek.oninput = loc;
+      seek.onkeydown = function (ev) {
+        if (ev.key !== "Enter") return;
+        ev.preventDefault();
+        var first = list.querySelector("[data-add]");
+        if (first) them(first.getAttribute("data-add"));
+        else if (seek.value.trim()) them(seek.value.trim());
+      };
+      host.onclick = function (ev) {
+        var bo = ev.target.closest("[data-bo]");
+        if (bo) {
+          var x = bo.getAttribute("data-bo");
+          ghi(doc().filter(function (s) { return s !== x; }));
+          return;
+        }
+        var add = ev.target.closest("[data-add]");
+        if (add) them(add.getAttribute("data-add"));
+      };
+    });
   }
   function agentOpts() {
     if (S._agentHtml != null && S._agentN === S.agents.length) return S._agentHtml;
@@ -76,6 +174,10 @@
       host.insertBefore(cu, host.firstChild);
     }
     cu.textContent = msg;
+  }
+  function nutGui(form, ev) {
+    if (ev && ev.submitter) return ev.submitter;
+    return form.querySelector("button[type=submit]");
   }
   function bam(btn, nhan) {
     if (S.ban) return false;
@@ -105,6 +207,7 @@
       tieu_de: f.tieu_de.value,
       brief: f.brief.value,
       vong: f.vong.value,
+      phong: Array.prototype.map.call(f.querySelectorAll('input[name="phong"]:checked'), function (x) { return x.value; }),
       open: !!(det && det.open)
     };
   }
@@ -121,17 +224,19 @@
   function ve(giu) {
     if (!S.root) return;
     var giuViec = giu ? chupViec() : null;
+    if (giuViec) S._nhap = giuViec;
     var dang = coDangChay();
     S.root.innerHTML =
       '<div class="nt">' +
       (S.loi ? '<p class="nt-err" role="alert">' + esc(S.loi) + "</p>" : "") +
-      '<p class="nt-lead">Mỗi phòng một trưởng. Trưởng điều phối team và chặn bản. Nhiều phòng thì các trưởng họp với nhau trước khi chốt.</p>' +
+      '<p class="nt-lead">Phòng để xếp người và skill. Giao việc để giao brief. Theo dõi để xem từng việc chạy.</p>' +
       '<div class="nt-tabs" role="tablist">' +
-      '<button type="button" class="nt-tab' + (S.tab !== "viec" ? " on" : "") + '" data-tab="phong" role="tab">Phòng</button>' +
+      '<button type="button" class="nt-tab' + (S.tab === "phong" ? " on" : "") + '" data-tab="phong" role="tab">Phòng</button>' +
+      '<button type="button" class="nt-tab' + (S.tab === "giao" ? " on" : "") + '" data-tab="giao" role="tab">Giao việc</button>' +
       '<button type="button" class="nt-tab' + (S.tab === "viec" ? " on" : "") + '" data-tab="viec" role="tab">Theo dõi' +
       (dang ? " · đang chạy" : "") + "</button>" +
       "</div>" +
-      '<div class="nt-panel">' + (S.tab === "viec" ? tabViec() : tabPhong()) + "</div></div>";
+      '<div class="nt-panel">' + (S.tab === "viec" ? tabViec() : S.tab === "giao" ? tabGiao() : tabPhong()) + "</div></div>";
     gan();
     if (giuViec) phucViec(giuViec);
   }
@@ -156,7 +261,7 @@
       '<div class="nt-row full"><button class="nt-btn pri" type="submit">Tạo phòng</button></div></form></details>';
     if (!S.phong.length) {
       return "<h2>Phòng</h2>" +
-        '<p class="nt-hint">Tạo phòng, viết tiêu chí, đặt một trưởng. Rồi sang tab Theo dõi để giao việc.</p>' + tao;
+        '<p class="nt-hint">Tạo phòng, viết tiêu chí, đặt một trưởng. Rồi sang tab Giao việc.</p>' + tao;
     }
     return "<h2>Phòng</h2>" + ds + thanPhong() + tao;
   }
@@ -177,8 +282,8 @@
       '<details class="nt-details"' + moNguoi + '><summary>Thêm người</summary>' +
       '<form id="ntThemNguoi" class="nt-form nt-split">' +
       '<label>Tên<input name="ten" required placeholder="An"></label>' +
-      '<label>Skill<input name="skills" placeholder="viết bài, nghiên cứu"></label>' +
       '<label class="full">Tính cách<textarea name="tinh_cach" placeholder="Thẳng, không viết hộ, bắt lỗi từng câu"></textarea></label>' +
+      '<div class="full">' + oSkill([]) + "</div>" +
       '<label>Vai<select name="vai"><option value="thanh_vien"' + (t ? " selected" : "") + '>Thành viên</option><option value="truong"' + (t ? " disabled" : " selected") + '>Trưởng phòng</option></select></label>' +
       '<label>Trợ lý gốc, không bắt buộc<select name="agent">' + agentOpts() + "</select></label>" +
       '<div class="nt-row full"><button class="nt-btn pri" type="submit">Thêm người</button></div></form></details>';
@@ -189,7 +294,7 @@
       return '<form class="nt-card nt-form" id="ntSuaNguoi">' +
         "<b>" + esc(n.ten) + "</b>" +
         '<label>Tính cách<textarea name="tinh_cach">' + esc(n.tinh_cach || "") + "</textarea></label>" +
-        '<label>Skill<input name="skills" value="' + esc((n.skills || []).join(", ")) + '"></label>' +
+        oSkill(n.skills || []) +
         '<label>Vai<select name="vai"><option value="thanh_vien"' + (n.vai !== "truong" ? " selected" : "") +
         '>Thành viên</option><option value="truong"' +
         (n.vai === "truong" ? " selected" : (coTruong ? " disabled" : "")) +
@@ -197,7 +302,7 @@
         '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu</button>' +
         '<button type="button" class="nt-btn ghost" id="ntHuySua">Huỷ</button></div></form>';
     }
-    var sk = (n.skills || []).map(function (s) { return '<span class="nt-pill">' + esc(s) + "</span>"; }).join(" ");
+    var sk = (n.skills || []).map(function (s) { return '<span class="nt-pill">' + esc(skillTen(s)) + "</span>"; }).join(" ");
     return '<article class="nt-card"><div><b>' + esc(n.ten) + "</b> " +
       (n.vai === "truong" ? '<span class="nt-pill ok">Trưởng phòng</span>' : '<span class="nt-pill">Thành viên</span>') +
       "<p>" + esc(n.tinh_cach || "Chưa viết tính cách.") + "</p>" +
@@ -206,46 +311,57 @@
       '<button type="button" class="nt-btn ghost" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></article>';
   }
 
+  function tabGiao() {
+    if (!S.phong.length) {
+      return "<h2>Giao việc</h2>" +
+        '<p class="nt-hint">Chưa có phòng. Tạo phòng ở tab Phòng trước.</p>' +
+        '<button type="button" class="nt-btn" data-tab="phong">Về tab Phòng</button>';
+    }
+    if (!S.phong.some(truongCua)) {
+      return "<h2>Giao việc</h2>" +
+        '<p class="nt-call">Chưa giao được. Mỗi phòng tham gia cần một trưởng.</p>' +
+        '<button type="button" class="nt-btn" data-tab="phong">Về tab Phòng</button>';
+    }
+    return "<h2>Giao việc</h2>" +
+      '<p class="nt-hint">Viết brief, chọn phòng, rồi bấm Giao việc. Việc vừa giao mở ở tab Theo dõi. Bấm Chạy ở đó để các trưởng bắt đầu.</p>' +
+      formViec();
+  }
+
   function tabViec() {
     if (!S.phong.length) {
       return "<h2>Theo dõi</h2>" +
         '<p class="nt-hint">Chưa có phòng. Tạo phòng ở tab Phòng trước.</p>' +
         '<button type="button" class="nt-btn" data-tab="phong">Về tab Phòng</button>';
     }
-    if (!S.phong.some(truongCua)) {
-      return "<h2>Theo dõi</h2>" +
-        '<p class="nt-call">Chưa giao việc được. Mỗi phòng tham gia cần một trưởng.</p>' +
-        '<button type="button" class="nt-btn" data-tab="phong">Về tab Phòng</button>';
-    }
-    return "<h2>Theo dõi</h2>" + formViec() + dsViec() + '<div id="ntTheoDoi">' + theoDoi() + "</div>";
+    return '<div class="nt-watch"><aside class="nt-rail"><h2>Việc</h2>' +
+      '<button type="button" class="nt-btn" data-tab="giao">Giao việc mới</button>' +
+      dsViec() +
+      '</aside><div class="nt-stage" id="ntTheoDoi">' + theoDoi() + "</div></div>";
   }
 
   function formViec() {
-    if (!S.phong.length) return "";
-    if (!S.phong.some(truongCua)) {
-      return '<p class="nt-hint">Chưa giao việc được. Phòng tham gia cần có trưởng trước.</p>';
-    }
+    var n = S._nhap || {};
     var hop = S.phong.map(function (p) {
       var thieu = truongCua(p) ? "" : " disabled";
-      var chon = p.slug === S.chonPhong && truongCua(p) ? " checked" : "";
+      var chon = "";
+      if (n.phong && n.phong.length) chon = n.phong.indexOf(p.slug) >= 0 ? " checked" : "";
+      else if (p.slug === S.chonPhong && truongCua(p)) chon = " checked";
       return '<label class="nt-chip"><input type="checkbox" name="phong" value="' + esc(p.slug) + '"' + chon + thieu + "> " +
         esc(p.ten) + (thieu ? " (thiếu trưởng)" : "") + "</label>";
     }).join("");
-    var mo = S.viec.length ? "" : " open";
-    return '<details class="nt-details"' + mo + '><summary>Việc mới</summary>' +
-      '<form id="ntTaoViec" class="nt-form nt-split">' +
-      '<label>Tên việc<input name="tieu_de" required placeholder="Bài ra mắt khóa"></label>' +
-      '<label>Vòng tối đa mỗi tầng<input name="vong" type="number" min="1" max="4" value="2"></label>' +
-      '<label class="full">Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc"></textarea></label>' +
+    return '<form id="ntTaoViec" class="nt-form nt-split">' +
+      '<label>Tên việc<input name="tieu_de" required placeholder="Bài ra mắt khóa" value="' + esc(n.tieu_de || "") + '"></label>' +
+      '<label>Vòng tối đa mỗi tầng<input name="vong" type="number" min="1" max="4" value="' + esc(n.vong || "2") + '"></label>' +
+      '<label class="full">Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc">' + esc(n.brief || "") + "</textarea></label>" +
       '<span class="nt-lbl full">Phòng tham gia<div class="nt-chips">' + hop + "</div></span>" +
       '<p class="nt-hint full">Hết vòng thì dừng và ghi chỗ còn mở. Không sửa mãi.</p>' +
-      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Tạo việc</button></div></form></details>';
+      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Giao việc</button></div></form>';
   }
 
   function dsViec() {
-    if (!S.viec.length) return '<p class="nt-hint">Chưa có việc.</p>';
-    return '<div class="nt-cards">' + S.viec.map(function (v) {
-      return '<button type="button" class="' + (v.id === S.chonViec ? "on" : "") + '" data-viec="' + esc(v.id) + '">' +
+    if (!S.viec.length) return '<p class="nt-hint">Chưa có việc. Bấm Giao việc mới.</p>';
+    return '<div class="nt-jobs">' + S.viec.map(function (v) {
+      return '<button type="button" class="nt-job' + (v.id === S.chonViec ? " on" : "") + '" data-viec="' + esc(v.id) + '">' +
         "<b>" + esc(v.tieu_de) + "</b><small>" + esc((TRANG[v.trang_thai] || [v.trang_thai || ""])[0]) + "</small></button>";
     }).join("") + "</div>";
   }
@@ -315,8 +431,13 @@
   function gan() {
     S.root.querySelectorAll("[data-tab]").forEach(function (b) {
       b.onclick = function () {
-        var id = b.getAttribute("data-tab") === "viec" ? "viec" : "phong";
+        var raw = b.getAttribute("data-tab");
+        var id = raw === "viec" || raw === "giao" ? raw : "phong";
         if (id === S.tab) return;
+        if (S.tab === "giao") {
+          var giu = chupViec();
+          if (giu) S._nhap = giu;
+        }
         S.tab = id;
         S.sua = "";
         S.loi = "";
@@ -327,7 +448,7 @@
     var tao = document.getElementById("ntTaoPhong");
     if (tao) tao.onsubmit = async function (ev) {
       ev.preventDefault();
-      var btn = ev.submitter || tao.querySelector("button");
+      var btn = nutGui(tao, ev);
       if (!bam(btn, "Đang tạo…")) return;
       var fd = new FormData(tao);
       try {
@@ -352,7 +473,7 @@
     var them = document.getElementById("ntThemNguoi");
     if (them) them.onsubmit = async function (ev) {
       ev.preventDefault();
-      var btn = ev.submitter || them.querySelector("button");
+      var btn = nutGui(them, ev);
       if (!bam(btn, "Đang thêm…")) return;
       var fd = new FormData(them);
       try {
@@ -403,10 +524,10 @@
     var tv = document.getElementById("ntTaoViec");
     if (tv) tv.onsubmit = async function (ev) {
       ev.preventDefault();
-      var btn = ev.submitter || tv.querySelector("button");
+      var btn = nutGui(tv, ev);
       var fd = new FormData(tv);
       if (!fd.getAll("phong").length) return hienLoi("Chọn ít nhất một phòng đã có trưởng.");
-      if (!bam(btn, "Đang tạo…")) return;
+      if (!bam(btn, "Đang giao…")) return;
       try {
         var j = await post("/nhac-truong/viec", {
           brain: brain(), tieu_de: fd.get("tieu_de"), brief: fd.get("brief"),
@@ -421,6 +542,7 @@
         S._viecDay = j.viec;
         S._khoa = "";
         S.tab = "viec";
+        S._nhap = null;
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -447,7 +569,7 @@
     var tc = document.getElementById("ntSuaTieu");
     if (tc) tc.onsubmit = async function (ev) {
       ev.preventDefault();
-      var btn = ev.submitter || tc.querySelector("button[type=submit], button");
+      var btn = nutGui(tc, ev);
       if (!bam(btn, "Đang lưu…")) return;
       var fd = new FormData(tc);
       try {
@@ -464,7 +586,7 @@
     var sua = document.getElementById("ntSuaNguoi");
     if (sua) sua.onsubmit = async function (ev) {
       ev.preventDefault();
-      var btn = ev.submitter || sua.querySelector("button");
+      var btn = nutGui(sua, ev);
       if (!bam(btn, "Đang lưu…")) return;
       var fd = new FormData(sua);
       try {
@@ -482,8 +604,15 @@
     S.root.querySelectorAll("[data-sua]").forEach(function (b) {
       b.onclick = function () { S.sua = b.getAttribute("data-sua") || ""; ve(); };
     });
+    S.root.onclick = function (ev) {
+      if (ev.target.closest(".nt-pick")) return;
+      S.root.querySelectorAll(".nt-seek-list").forEach(function (l) { l.hidden = true; });
+    };
     var huy = document.getElementById("ntHuySua");
     if (huy) huy.onclick = function () { S.sua = ""; ve(); };
+    var tv2 = document.getElementById("ntTaoViec");
+    if (tv2) tv2.oninput = function () { S._nhap = chupViec(); };
+    ganPick();
     ganTheoDoi();
   }
 
@@ -666,12 +795,14 @@
       var cap = await Promise.all([
         api("/agents?brain=" + b),
         api("/nhac-truong/phong?brain=" + b),
-        api("/nhac-truong/viec?brain=" + b)
+        api("/nhac-truong/viec?brain=" + b),
+        api("/skills?brain=" + b)
       ]);
       S.agents = (cap[0] && cap[0].agents) || [];
       S._agentHtml = null;
       S.phong = (cap[1] && cap[1].phong) || [];
       S.viec = (cap[2] && cap[2].viec) || [];
+      S.kho = (cap[3] && cap[3].skills) || [];
     } catch (e) {
       S.agents = [];
       return hienLoi("Không tải được Nhạc trưởng.");

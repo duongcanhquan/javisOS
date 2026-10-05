@@ -36,7 +36,7 @@ check("mobile: nút form cao tối thiểu 44px",
 check("2FA setup QR + bước cạnh nhau",
       'class="tfa-setup"' in CONSOLE and ".tfa-setup-copy" in CSS)
 check("cache bust console.css không tụt",
-      "console.css?v=71" in INDEX)
+      "console.css?v=72" in INDEX)
 check("Cài đặt cùng bề ngang 1180",
       ".settings-page { width: min(100%, 1180px)" in CSS)
 

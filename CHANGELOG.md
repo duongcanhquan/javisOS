@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.50] - 2026-10-05
+### Mới
+- **Nhạc trưởng** có tab **Giao việc**. Viết brief, chọn phòng, bấm Giao việc. Việc vừa giao mở ngay ở tab Theo dõi.
+- Ô skill tìm trong kho skill của brain đang dùng. Gõ hoặc bấm để ra danh sách, chọn để gắn, tối đa 8.
+- Tab Theo dõi có danh sách việc bên trái. Bấm một việc thì phần trao đổi mở rộng phần còn lại của trang.
+
 ## [0.56.49] - 2026-10-05
 ### Mới
 - **Nhạc trưởng** trong nhóm Năng lực. Trang có hai tab full bề ngang: Phòng và Theo dõi.

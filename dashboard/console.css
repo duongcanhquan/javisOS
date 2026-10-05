@@ -2802,8 +2802,10 @@ body.on-mcp .cview-body > .cview-placeholder {
   .ws-id .ws-err { flex: 1 0 100%; }
 }
 
-/* Nhạc trưởng: hai tab full bề ngang, Phòng và Theo dõi */
+/* Nhạc trưởng: Phòng, Giao việc, Theo dõi. Theo dõi trải gần hết trang. */
 .nt { display: flex; flex-direction: column; gap: 14px; width: min(100%, 1180px); margin: 0 auto; }
+.nt:has(.nt-watch) { width: 100%; }
+.cview-page:has(.nt-watch) { width: min(1480px, 100%); }
 .nt-lead { margin: 0; color: var(--text2); font-size: 14px; line-height: 1.5; }
 .nt-err {
   margin: 0; padding: 10px 12px; border-radius: 10px;
@@ -2918,9 +2920,48 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-details { margin-top: 8px; }
 .nt-details summary { cursor: pointer; color: var(--text2); font-size: 13px; padding: 4px 0; }
 .nt-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: 12px; }
+.nt-watch {
+  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start;
+  min-height: min(72vh, 860px);
+}
+.nt-rail {
+  position: sticky; top: 8px; max-height: min(72vh, 860px); overflow: auto;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.nt-rail .nt-btn { width: 100%; }
+.nt-jobs { display: flex; flex-direction: column; gap: 6px; }
+.nt-job {
+  width: 100%; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--glass-brd); background: var(--surface-1); color: var(--text);
+  font: inherit; touch-action: manipulation;
+}
+.nt-job b { display: block; font-size: 14px; }
+.nt-job small { display: block; margin-top: 4px; color: var(--text3); font-size: 12px; }
+.nt-job.on, .nt-job:active { background: var(--accent-wash); border-color: var(--accent-line); }
+.nt-stage { min-width: 0; }
+.nt-stage .nt-log { max-height: min(68vh, 920px); }
+.nt-pick { position: relative; display: flex; flex-direction: column; gap: 6px; grid-column: 1 / -1; }
+.nt-picked { display: flex; flex-wrap: wrap; gap: 6px; min-height: 8px; }
+.nt-picked .nt-pill { cursor: pointer; font: inherit; font-size: 12px; padding: 4px 10px; }
+.nt-seek-wrap { position: relative; }
+.nt-seek-list {
+  position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px);
+  max-height: 280px; overflow: auto; padding: 4px;
+  background: var(--surface-1); border: 1px solid var(--glass-brd); border-radius: 12px;
+  box-shadow: var(--shadow-1);
+}
+.nt-seek-list button {
+  width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: inherit; cursor: pointer;
+}
+.nt-seek-list button:hover, .nt-seek-list button:focus { background: var(--accent-wash); }
+.nt-seek-list small { display: block; margin-top: 2px; color: var(--text3); font-size: 12px; }
+.nt-seek-list .nt-hint { margin: 8px; }
 @media (max-width: 720px) {
   .nt-split, .nt-form.nt-split { grid-template-columns: 1fr; }
   .nt-cards button { max-width: none; }
-  .nt-form input, .nt-form textarea, .nt-form select { font-size: 16px; }
+  .nt-form input, .nt-form textarea, .nt-form select, .nt-seek { font-size: 16px; }
   .nt-btn, .nt-tab { min-height: 44px; }
+  .nt-watch { grid-template-columns: 1fr; min-height: 0; }
+  .nt-rail { position: static; max-height: 240px; }
 }
