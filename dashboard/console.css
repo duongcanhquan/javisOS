@@ -2806,6 +2806,7 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt { display: flex; flex-direction: column; gap: 14px; width: min(100%, 1180px); margin: 0 auto; }
 .nt:has(.nt-watch) { width: 100%; }
 .cview-page:has(.nt-watch) { width: min(1480px, 100%); }
+.cview-page:has(.nt-phong) { width: 100%; max-width: none; }
 .nt-lead { margin: 0; color: var(--text2); font-size: 14px; line-height: 1.5; }
 .nt-err {
   margin: 0; padding: 10px 12px; border-radius: 10px;
@@ -2911,6 +2912,11 @@ body.on-mcp .cview-body > .cview-placeholder {
 }
 .nt-chip:has(input:checked) { border-color: var(--accent-line); background: var(--accent-wash); }
 .nt-chip:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.nt-live {
+  margin: 0 0 10px; padding: 8px 10px; border-radius: 10px;
+  background: var(--accent-wash); border: 1px solid var(--accent-line);
+  color: var(--text); font-size: 13.5px; line-height: 1.4;
+}
 .nt-call {
   margin: 0 0 10px; padding: 8px 10px; border-radius: 10px;
   background: var(--danger-wash); border: 1px solid var(--danger-line);
@@ -2924,7 +2930,75 @@ body.on-mcp .cview-body > .cview-placeholder {
   display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start;
   min-height: min(72vh, 860px);
 }
-.nt-watch.nt-phong { grid-template-columns: 340px minmax(0, 1fr); }
+.nt-watch.nt-phong { grid-template-columns: 280px minmax(0, 1fr); min-height: calc(100vh - 150px); }
+.nt-office {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 40%);
+  gap: 18px; align-items: stretch; min-height: calc(100vh - 180px);
+}
+.nt-office-map {
+  border: 1px solid var(--border); border-radius: 16px; background: var(--bg);
+  padding: 18px 20px; min-width: 0;
+}
+.nt-office-map .nt-kicker { font-size: 13px; letter-spacing: .06em; }
+.nt-office-map > .nt-hint { font-size: 15px; color: var(--text); }
+.nt-roombox {
+  margin-top: 12px; border: 1px solid var(--border); border-radius: 16px;
+  padding: 22px 18px 16px; background: var(--bg2);
+}
+.nt-headrow, .nt-down { display: flex; justify-content: center; }
+.nt-down { margin-top: 8px; }
+.nt-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 6px; margin-top: 8px; }
+.nt-desk {
+  width: 210px; text-align: left; border: 1px solid var(--border); background: var(--bg);
+  border-radius: 14px; padding: 14px 16px; cursor: pointer; color: var(--text); font: inherit;
+}
+.nt-desk.head { border-color: var(--glass-brd); }
+.nt-desk.on {
+  border-color: var(--danger-ink, #d92d20); background: var(--danger-wash);
+  box-shadow: 0 0 0 3px var(--danger-wash);
+}
+.nt-seat {
+  display: block; width: 52px; height: 26px; margin: 0 0 10px; border-radius: 8px 8px 4px 4px;
+  border: 1px solid var(--border); background: var(--bg3); position: relative;
+}
+.nt-seat:before {
+  content: ""; position: absolute; left: 16px; top: -11px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--text2);
+}
+.nt-desk.on .nt-seat { border-color: var(--danger-ink, #d92d20); background: var(--danger-wash); }
+.nt-desk.on .nt-seat:before { background: var(--danger-ink, #d92d20); }
+.nt-desk b { display: block; font-size: 17px; line-height: 1.25; }
+.nt-desk small { display: block; margin-top: 3px; color: var(--text); font-size: 14px; }
+.nt-desk em { display: block; margin-top: 6px; color: var(--text2); font-size: 13px; font-style: normal; font-weight: 600; }
+.nt-desk.on em { color: var(--danger-ink, #d92d20); }
+.nt-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 88px; flex: 0 0 auto; }
+.nt-aline { display: block; width: 42px; height: 3px; border-radius: 2px; background: var(--border); position: relative; }
+.nt-aline:after {
+  content: ""; position: absolute; right: -2px; top: -4px;
+  border: 5px solid transparent; border-left: 7px solid var(--border);
+}
+.nt-arrow i { font-style: normal; font-size: 13px; font-weight: 650; color: var(--text2); white-space: nowrap; }
+.nt-arrow.go .nt-aline, .nt-arrow.talk .nt-aline { background: var(--danger-ink, #d92d20); }
+.nt-arrow.go .nt-aline:after, .nt-arrow.talk .nt-aline:after { border-left-color: var(--danger-ink, #d92d20); }
+.nt-arrow.go i, .nt-arrow.talk i { color: var(--danger-ink, #d92d20); }
+.nt-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.nt-linkbar { width: 22px; height: 3px; border-radius: 2px; background: var(--border); }
+.nt-linkbar.on { background: var(--danger-ink, #d92d20); }
+.nt-roomlink {
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+  border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.nt-roomlink.on { border-color: var(--accent-line); background: var(--accent-wash); }
+.nt-roomlink.run { border-color: var(--danger-ink, #d92d20); background: var(--danger-wash); color: var(--text); font-weight: 650; }
+.nt-office-talk { min-width: 0; display: flex; flex-direction: column; }
+.nt-office-talk h3 { margin: 0 0 8px; font-size: 20px; }
+.nt-office-talk > .nt-hint { font-size: 15px; color: var(--text); }
+.nt-office-talk .nt-live {
+  font-size: 16px; font-weight: 650; background: var(--danger-wash); border-color: var(--danger-ink, #d92d20);
+}
+.nt-office-talk .nt-log { max-height: calc(100vh - 280px); }
+.nt-office-talk .nt-say p, .nt-office-talk .nt-say .nt-hint { font-size: 15px; line-height: 1.5; }
+.nt-office-talk .nt-say header b { font-size: 16px; }
 .nt-side { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); }
 .nt-rail .nt-form.nt-split, .nt-rail .nt-side { grid-template-columns: 1fr; }
 .nt-vi-tri { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: var(--text); }
@@ -3032,7 +3106,7 @@ body.on-mcp .cview-body > .cview-placeholder {
   .nt-cards button { max-width: none; }
   .nt-form input, .nt-form textarea, .nt-form select, .nt-seek { font-size: 16px; }
   .nt-btn, .nt-tab { min-height: 44px; }
-  .nt-watch, .nt-watch.nt-phong { grid-template-columns: 1fr; min-height: 0; }
+  .nt-watch, .nt-watch.nt-phong, .nt-office { grid-template-columns: 1fr; min-height: 0; }
   .nt-rail { position: static; max-height: 240px; }
   .nt-phong .nt-rail { max-height: none; }
   .nt-kho { padding: 0; align-items: stretch; }

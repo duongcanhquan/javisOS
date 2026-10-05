@@ -278,6 +278,98 @@ def test_loi_noi_khong_bia_dat():
     check("model gãy thì lỗi, không đạt", xong["trang_thai"] == "loi" and xong["dat"]["noi-dung"] is False)
 
 
+def test_doc_thu_tu():
+    mems = [
+        {"slug": "binh", "ten": "Bình", "vai": "thanh_vien", "vi_tri": "Nghiên cứu"},
+        {"slug": "chi", "ten": "Chi", "vai": "thanh_vien", "vi_tri": "Content"},
+    ]
+    check("trưởng đảo bước", [m["slug"] for m in nt.doc_thu_tu("THU_TU: chi > binh", mems)] == ["chi", "binh"])
+    check("trưởng bỏ người không cần", [m["slug"] for m in nt.doc_thu_tu("xong\nTHU_TU: chi", mems)] == ["chi"])
+    check("không xếp thì giữ quy trình", [m["slug"] for m in nt.doc_thu_tu("làm theo phòng", mems)] == ["binh", "chi"])
+    check("nhận ok", nt.doc_nhan("ổn\nNHAN: OK") == "OK")
+    check("thiếu nhận là chưa", nt.doc_nhan("tạm được") == "")
+
+
+def test_lan_luot_ban_giao():
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Marketing", "Đúng brief", "lan_luot")
+    nt.them_nguoi(kho, "marketing", "An", "ngắn", "", "truong", vi_tri="Trưởng marketing")
+    nt.them_nguoi(kho, "marketing", "Bình", "soi số", "", "thanh_vien", vi_tri="Nghiên cứu")
+    nt.them_nguoi(kho, "marketing", "Chi", "viết", "", "thanh_vien", vi_tri="Content")
+    nt.doi_cho(kho, "marketing", "chi", "len")
+    thu_tu = [n["ten"] for n in kho.doc_phong("marketing")["nguoi"] if n["vai"] != "truong"]
+    check("đưa bước lên", thu_tu == ["Chi", "Bình"])
+    nt.doi_cho(kho, "marketing", "chi", "xuong")
+    thay = []
+    lan = {"n": 0}
+
+    async def noi(nguoi, prompt):
+        dang = kho.doc_viec(viec["id"]).get("dang_lam") or {}
+        thay.append(dang.get("ten"))
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "GIAO":
+            check("trưởng thấy quy trình và việc", "slug binh" in prompt and "một bài" in prompt)
+            return "Nghiên cứu rồi mới viết.\nTHU_TU: binh > chi"
+        if kind == "NHAN" and nguoi["slug"] == "chi":
+            lan["n"] += 1
+            if lan["n"] == 1:
+                return "Thiếu nguồn.\nNHAN: CHUA\nSUA: Thêm nguồn."
+            check("content thấy nguồn rồi mới nhận", "khảo sát" in prompt)
+            return "Nguồn ổn.\nNHAN: OK"
+        if kind == "DOI" and nguoi["slug"] == "binh":
+            return "Insight: khách đọc buổi tối. Nguồn: khảo sát 12 người."
+        if kind == "LAM" and nguoi["slug"] == "binh":
+            return "Insight: khách đọc buổi tối."
+        if kind == "LAM" and nguoi["slug"] == "chi":
+            check("content chỉ làm sau khi nhận", "BƯỚC TRƯỚC ĐÃ CHỐT" in prompt and "khảo sát" in prompt)
+            return "Bài ngắn theo insight."
+        return "tiếp"
+
+    viec = nt.tao_viec(kho, "Bài ra mắt", "một bài, không hứa", ["marketing"], 2)
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    loi = [(r["slug"], r["lop"], r.get("quyet") or "") for r in xong["loi"]]
+    check("cãi xong mới làm bước sau", loi == [
+        ("an", "giao", ""),
+        ("binh", "lam", ""),
+        ("chi", "nhan", "CHUA"),
+        ("binh", "doi", ""),
+        ("chi", "nhan", "OK"),
+        ("chi", "lam", ""),
+        ("an", "kiem", "DAT"),
+    ])
+    check("trưởng xếp đúng người", [n["slug"] for n in xong["xep"]["marketing"]] == ["binh", "chi"])
+    check("trang thấy người đang nói", thay[:3] == ["An", "Bình", "Chi"])
+    check("hết việc thì không còn người đang làm", xong.get("dang_lam") is None and xong["trang_thai"] == "xong")
+
+
+def test_het_lan_cai_thi_truong_phan():
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Marketing", "Đúng brief", "lan_luot")
+    nt.them_nguoi(kho, "marketing", "An", "", "", "truong")
+    nt.them_nguoi(kho, "marketing", "Bình", "", "", "thanh_vien")
+    nt.them_nguoi(kho, "marketing", "Chi", "", "", "thanh_vien")
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "GIAO":
+            return "THU_TU: binh > chi"
+        if kind == "NHAN":
+            return "NHAN: CHUA\nSUA: sai số"
+        if kind == "XU":
+            return "QUYET: LAM"
+        return "bản đã chỉnh"
+
+    viec = nt.tao_viec(kho, "Bài", "một bài ngắn", ["marketing"], 1)
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    check("hết lần cãi thì trưởng cho đi tiếp", [r["lop"] for r in xong["loi"]] == [
+        "giao", "lam", "nhan", "doi", "xu", "lam", "kiem",
+    ])
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -290,6 +382,9 @@ if __name__ == "__main__":
     test_api()
     test_sua_va_xoa()
     test_loi_noi_khong_bia_dat()
+    test_doc_thu_tu()
+    test_lan_luot_ban_giao()
+    test_het_lan_cai_thi_truong_phan()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)

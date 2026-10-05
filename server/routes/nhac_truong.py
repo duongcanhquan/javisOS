@@ -51,7 +51,7 @@ async def tao_phong(request: Request):
     body = await request.json()
     try:
         phong = nt.tao_phong(_kho(body.get("brain") or "brain"), body.get("ten") or "",
-                             body.get("tieu_chi") or "")
+                             body.get("tieu_chi") or "", body.get("cach_lam") or "")
     except nt.LoiNhacTruong as e:
         return _err(e)
     return {"ok": True, "phong": phong}
@@ -70,7 +70,12 @@ async def xoa_phong(slug: str, brain: str = "brain"):
 async def sua_phong(slug: str, request: Request):
     body = await request.json()
     try:
-        phong = nt.sua_phong(_kho(body.get("brain") or "brain"), slug, body.get("tieu_chi") or "")
+        kho = _kho(body.get("brain") or "brain")
+        phong = nt.sua_phong(
+            kho, slug,
+            tieu_chi=body.get("tieu_chi") if "tieu_chi" in body else None,
+            cach_lam=body.get("cach_lam") if "cach_lam" in body else None,
+        )
     except nt.LoiNhacTruong as e:
         return _err(e)
     return {"ok": True, "phong": phong}
@@ -116,6 +121,17 @@ async def sua_nguoi(slug: str, ns: str, request: Request):
     except nt.LoiNhacTruong as e:
         return _err(e)
     return {"ok": True, "nguoi": nguoi, "phong": kho.doc_phong(slug)}
+
+
+@router.post("/nhac-truong/phong/{slug}/nguoi/{ns}/thu-tu")
+async def doi_cho(slug: str, ns: str, request: Request):
+    body = await request.json()
+    try:
+        kho = _kho(body.get("brain") or "brain")
+        phong = nt.doi_cho(kho, slug, ns, body.get("huong") or "")
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "phong": phong}
 
 
 @router.get("/nhac-truong/viec")

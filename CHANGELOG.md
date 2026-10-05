@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.52] - 2026-10-05
+### Mới
+- Bấm một phòng thấy sơ đồ bàn làm việc full ngang. Bàn đang làm viền đỏ. Mũi tên ghi Đưa tới, hoặc Đang trao đổi khi hai người đang hỏi đáp.
+- Bên phải là cột Giao tiếp: ai bàn giao, ai chưa nhận, ai trả lời.
+- Trưởng xem việc rồi xếp thứ tự. Bước sau chưa hiểu thì nói lại với bước trước. Nhận rồi mới làm và chuyển tiếp.
+
 ## [0.56.51] - 2026-10-05
 ### Mới
 - **Nhạc trưởng · Phòng:** cột trái tạo phòng và thêm người. Cột phải hiện người, vị trí và tiêu chí trên phần rộng của trang.
