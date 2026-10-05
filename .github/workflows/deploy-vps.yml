@@ -4,6 +4,7 @@
 #   VPS_USER          root
 #   VPS_SSH_KEY       private key (nội dung file id_ed25519 deploy)
 #   VPS_DIR           ~/javis-os  (tuỳ chọn)
+#   VPS_STANDALONE_SSH_KEY   khóa riêng cho 2 VPS không tenant (/root/javis)
 name: Deploy Javis to VPS
 
 on:
@@ -88,3 +89,49 @@ jobs:
             fi
             # Hot path: pull javis + up + health. Không seed/optimize/antigravity/HTĐT.
             bash scripts/vps-deploy.sh
+
+  # Hai VPS cài kiểu kéo image, thư mục /root/javis, không có tenant.
+  # Không chạy vps-deploy.sh (script đó dành cho máy tenant và có sửa domain).
+  deploy-standalone:
+    name: Deploy standalone VPS
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [221.132.19.203, 221.132.19.197]
+    steps:
+      - name: Pull latest image over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+        with:
+          host: ${{ matrix.host }}
+          username: root
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          command_timeout: 20m
+          envs: GHCR_TOKEN,GHCR_USER
+          script: |
+            set -euo pipefail
+            cd /root/javis
+            if [ -n "${GHCR_TOKEN:-}" ]; then
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            fi
+            docker compose pull javis
+            docker compose up -d --no-build --force-recreate javis
+            ok=0
+            for i in $(seq 1 40); do
+              if curl -fsS -m 3 http://127.0.0.1:7777/health; then
+                echo
+                ok=1
+                break
+              fi
+              sleep 3
+            done
+            echo
+            docker exec javis cat /app/VERSION || true
+            if [ "$ok" != 1 ]; then
+              docker logs javis --tail 60 || true
+              exit 1
+            fi
