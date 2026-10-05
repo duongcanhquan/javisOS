@@ -70,9 +70,10 @@
     return '<div class="nt-pick"><span class="nt-lbl">Skill trong kho</span>' +
       '<div class="nt-picked" data-picked>' + chips + "</div>" +
       '<input type="hidden" name="skills" value="' + esc(arr.join(", ")) + '">' +
-      '<div class="nt-seek-wrap"><input type="search" class="nt-seek" placeholder="Gõ hoặc bấm để tìm skill, rồi chọn" autocomplete="off">' +
+      '<div class="nt-seek-row"><div class="nt-seek-wrap"><input type="search" class="nt-seek" placeholder="Gõ từ khoá để lọc nhanh" autocomplete="off">' +
       '<div class="nt-seek-list" hidden></div></div>' +
-      '<p class="nt-hint">Tối đa 8 skill. Bấm dấu × trên thẻ để bỏ.</p></div>';
+      '<button type="button" class="nt-btn" data-mo-kho>Mở kho</button></div>' +
+      '<p class="nt-hint" data-kho-dem>Đang tải kho skill…</p></div>';
   }
   function ganPick() {
     S.root.querySelectorAll(".nt-pick").forEach(function (host) {
@@ -90,15 +91,18 @@
           return '<button type="button" class="nt-pill" data-bo="' + esc(s) + '">' + esc(skillTen(s)) + " ×</button>";
         }).join("");
       }
+      var di = 0;
       function loc() {
+        di = 0;
         var q = khongDau(seek.value.trim());
         var co = doc();
-        var rows = (S.kho || []).filter(function (s) {
+        var khop = (S.kho || []).filter(function (s) {
           if (s.enabled === false) return false;
           if (co.indexOf(s.slug) >= 0) return false;
           if (!q) return true;
           return khongDau(s.name + " " + s.slug + " " + (s.description || "") + " " + (s.group || "")).indexOf(q) >= 0;
-        }).slice(0, 12);
+        });
+        var rows = khop.slice(0, 8);
         list.hidden = false;
         if (!S.kho.length) {
           list.innerHTML = '<p class="nt-hint">Kho skill của brain này đang trống.</p>';
@@ -112,10 +116,42 @@
           list.innerHTML = '<p class="nt-hint">Không thấy skill khớp. Enter để thêm chữ vừa gõ.</p>';
           return;
         }
+        var thieu = khop.length - rows.length;
         list.innerHTML = rows.map(function (s) {
-          return '<button type="button" data-add="' + esc(s.slug) + '"><b>' + esc(s.name || s.slug) + "</b><small>" +
-            esc(s.group || "Chung") + (s.description ? " · " + esc(rut(s.description, 90)) : "") + "</small></button>";
-        }).join("");
+          return '<button type="button" data-add="' + esc(s.slug) + '"><span class="nt-sk-name">' + esc(s.name || s.slug) +
+            '</span><span class="nt-sk-meta">' + esc(s.group || "Chung") +
+            (s.description ? " · " + esc(rut(s.description, 64)) : "") + "</span></button>";
+        }).join("") +
+          '<button type="button" class="nt-kho-more" data-mo-kho>Mở kho theo chuyên mục' +
+          (thieu > 0 ? " · còn " + thieu : "") + "</button>";
+        danhDau();
+        datList();
+      }
+      function datList() {
+        if (list.hidden) return;
+        var r = seek.getBoundingClientRect();
+        if (r.width < 8 || r.bottom < 0 || r.top > window.innerHeight) {
+          list.hidden = true;
+          return;
+        }
+        list.style.position = "fixed";
+        list.style.left = Math.round(r.left) + "px";
+        list.style.top = Math.round(r.bottom + 4) + "px";
+        list.style.width = Math.round(r.width) + "px";
+        list.style.right = "auto";
+        list.style.maxHeight = Math.max(120, Math.min(240, window.innerHeight - r.bottom - 12)) + "px";
+      }
+      list._dat = datList;
+      function danhDau() {
+        var nuts = list.querySelectorAll("[data-add]");
+        if (di >= nuts.length) di = 0;
+        nuts.forEach(function (n, i) { n.classList.toggle("nt-sk-on", i === di); });
+        var n = nuts[di];
+        if (!n) return;
+        var top = n.offsetTop;
+        var bot = top + n.offsetHeight;
+        if (top < list.scrollTop) list.scrollTop = top;
+        else if (bot > list.scrollTop + list.clientHeight) list.scrollTop = bot - list.clientHeight;
       }
       function them(slug) {
         slug = String(slug || "").trim().slice(0, 40);
@@ -127,17 +163,50 @@
         seek.value = "";
         loc();
       }
+      list.onmouseover = function (ev) {
+        var b = ev.target.closest("[data-add]");
+        if (!b || b.classList.contains("nt-sk-on")) return;
+        var nuts = list.querySelectorAll("[data-add]");
+        di = Array.prototype.indexOf.call(nuts, b);
+        nuts.forEach(function (n, i) { n.classList.toggle("nt-sk-on", i === di); });
+      };
       seek.onfocus = loc;
       seek.onclick = loc;
       seek.oninput = loc;
       seek.onkeydown = function (ev) {
+        var nuts = list.querySelectorAll("[data-add]");
+        if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+          ev.preventDefault();
+          if (!nuts.length) return;
+          di = ev.key === "ArrowDown" ? Math.min(di + 1, nuts.length - 1) : Math.max(di - 1, 0);
+          danhDau();
+          return;
+        }
+        if (ev.key === "Escape") { list.hidden = true; return; }
         if (ev.key !== "Enter") return;
         ev.preventDefault();
-        var first = list.querySelector("[data-add]");
-        if (first) them(first.getAttribute("data-add"));
+        var cur = nuts[di] || nuts[0];
+        if (cur) them(cur.getAttribute("data-add"));
         else if (seek.value.trim()) them(seek.value.trim());
       };
+      var dem = host.querySelector("[data-kho-dem]");
+      if (dem) {
+        var nBat = (S.kho || []).filter(function (s) { return s.enabled !== false; }).length;
+        dem.textContent = S._khoLoi ? S._khoLoi
+          : (nBat ? "Kho có " + nBat + " skill đang bật. Mở kho để xem theo chuyên mục. Tối đa 8." : "Kho skill của brain này đang trống.");
+      }
+      host._ntDoc = doc;
+      host._ntGhi = ghi;
+      if (!S._neo) {
+        S._neo = function () {
+          if (!S.root) return;
+          S.root.querySelectorAll(".nt-seek-list").forEach(function (l) { if (l._dat) l._dat(); });
+        };
+        window.addEventListener("scroll", S._neo, true);
+        window.addEventListener("resize", S._neo);
+      }
       host.onclick = function (ev) {
+        if (ev.target.closest("[data-mo-kho]")) { ev.preventDefault(); moKho(host); return; }
         var bo = ev.target.closest("[data-bo]");
         if (bo) {
           var x = bo.getAttribute("data-bo");
@@ -148,6 +217,123 @@
         if (add) them(add.getAttribute("data-add"));
       };
     });
+  }
+  function dongKho() {
+    var el = document.getElementById("ntKho");
+    if (el) el.remove();
+    document.removeEventListener("keydown", khoPhim);
+    S._khoHost = null;
+  }
+  function khoPhim(ev) {
+    if (ev.key === "Escape") dongKho();
+  }
+  function skillBat() {
+    return (S.kho || []).filter(function (s) { return s.enabled !== false; });
+  }
+  function moKho(host) {
+    if (!host) return;
+    var cu = host.querySelector(".nt-seek-list");
+    if (cu) cu.hidden = true;
+    S._khoHost = host;
+    S._khoNhom = "";
+    S._khoQ = "";
+    dongKho();
+    S._khoHost = host;
+    var el = document.createElement("div");
+    el.id = "ntKho";
+    el.className = "nt-kho";
+    el.innerHTML =
+      '<div class="nt-kho-panel" role="dialog" aria-label="Kho skill">' +
+      '<div class="nt-kho-head"><div><b>Kho skill</b><p class="nt-hint" data-kho-tong></p></div>' +
+      '<input type="search" class="nt-kho-q" placeholder="Tìm trong chuyên mục" autocomplete="off">' +
+      '<button type="button" class="nt-btn" data-dong-kho>Xong</button></div>' +
+      '<div class="nt-kho-body"><div class="nt-kho-cats"></div><div class="nt-kho-list"></div></div>' +
+      '<div class="nt-kho-foot"><span data-kho-chon></span><button type="button" class="nt-btn ghost" data-tai-kho>Tải lại kho</button></div>' +
+      "</div>";
+    document.body.appendChild(el);
+    el.addEventListener("click", function (ev) { if (ev.target === el) dongKho(); });
+    el.querySelector("[data-dong-kho]").onclick = dongKho;
+    el.querySelector(".nt-kho-q").oninput = function () { S._khoQ = this.value; veKhoList(); };
+    el.querySelector("[data-tai-kho]").onclick = async function () {
+      this.textContent = "Đang tải…";
+      this.disabled = true;
+      await taiKho();
+      veKhoList();
+      var nut = document.querySelector("#ntKho [data-tai-kho]");
+      if (nut) { nut.textContent = "Tải lại kho"; nut.disabled = false; }
+    };
+    el.querySelector(".nt-kho-body").onclick = function (ev) {
+      var cat = ev.target.closest("[data-nhom]");
+      if (cat) { S._khoNhom = cat.getAttribute("data-nhom") || ""; veKhoList(); return; }
+      var row = ev.target.closest("[data-slug]");
+      if (row) doiSkill(row.getAttribute("data-slug"));
+    };
+    document.addEventListener("keydown", khoPhim);
+    veKhoList();
+    var q = el.querySelector(".nt-kho-q");
+    if (q) q.focus();
+  }
+  function doiSkill(slug) {
+    var host = S._khoHost;
+    if (!host || !host._ntGhi || !host._ntDoc) return;
+    slug = String(slug || "").trim().slice(0, 40);
+    if (!slug) return;
+    var arr = host._ntDoc();
+    var i = arr.indexOf(slug);
+    if (i >= 0) arr.splice(i, 1);
+    else if (arr.length >= 8) return;
+    else arr.push(slug);
+    host._ntGhi(arr);
+    veKhoList();
+  }
+  function veKhoList() {
+    var el = document.getElementById("ntKho");
+    var host = S._khoHost;
+    if (!el || !host) return;
+    var bat = skillBat();
+    var tong = el.querySelector("[data-kho-tong]");
+    if (tong) tong.textContent = S._khoLoi ? S._khoLoi : (bat.length ? bat.length + " skill đang bật trên brain này." : "Kho đang trống.");
+    var da = host._ntDoc ? host._ntDoc() : [];
+    var chon = el.querySelector("[data-kho-chon]");
+    if (chon) chon.textContent = "Đã gắn " + da.length + "/8";
+    var dem = {};
+    bat.forEach(function (s) {
+      var g = s.group || "Chung";
+      dem[g] = (dem[g] || 0) + 1;
+    });
+    var nhom = Object.keys(dem).sort(function (a, b) {
+      return dem[b] - dem[a] || a.localeCompare(b, "vi");
+    });
+    if (S._khoNhom && nhom.indexOf(S._khoNhom) < 0) S._khoNhom = "";
+    var cats = '<button type="button" data-nhom="" class="' + (S._khoNhom ? "" : "on") + '">Tất cả <small>' + bat.length + "</small></button>";
+    cats += nhom.map(function (g) {
+      return '<button type="button" data-nhom="' + esc(g) + '" class="' + (S._khoNhom === g ? "on" : "") + '">' +
+        esc(g) + " <small>" + dem[g] + "</small></button>";
+    }).join("");
+    el.querySelector(".nt-kho-cats").innerHTML = cats;
+    var q = khongDau((S._khoQ || "").trim());
+    var rows = bat.filter(function (s) {
+      if (S._khoNhom && (s.group || "Chung") !== S._khoNhom) return false;
+      if (!q) return true;
+      return khongDau(s.name + " " + s.slug + " " + (s.description || "") + " " + (s.group || "")).indexOf(q) >= 0;
+    });
+    var list = el.querySelector(".nt-kho-list");
+    if (!rows.length) {
+      list.innerHTML = '<p class="nt-hint">Không có skill trong mục này.</p>';
+      return;
+    }
+    list.innerHTML = rows.map(function (s) {
+      var co = da.indexOf(s.slug) >= 0;
+      return '<button type="button" class="nt-kho-row' + (co ? " on" : "") + '" data-slug="' + esc(s.slug) + '">' +
+        '<span class="nt-sk-name">' + esc(s.name || s.slug) + "</span>" +
+        '<span class="nt-sk-meta">' + esc(rut(s.description || s.slug, 110)) + "</span>" +
+        '<span class="nt-kho-act">' + (co ? "Bỏ" : (da.length >= 8 ? "Đủ 8" : "Thêm")) + "</span></button>";
+    }).join("");
+  }
+  async function taiKho() {
+    var j = await api("/skills?brain=" + encodeURIComponent(brain()));
+    S.kho = (j && j.skills) || [];
+    S._khoLoi = S.kho.length ? "" : ((j && j.error) || "Không tải được kho skill.");
   }
   function agentOpts() {
     if (S._agentHtml != null && S._agentN === S.agents.length) return S._agentHtml;
@@ -246,68 +432,83 @@
     return S.viec.some(function (v) { return v.trang_thai === "dang_chay"; });
   }
 
-  function tabPhong() {
-    var ds = S.phong.length ? '<div class="nt-cards">' + S.phong.map(function (p) {
+  function dsPhongNut() {
+    if (!S.phong.length) return '<p class="nt-hint">Chưa có phòng.</p>';
+    return '<div class="nt-jobs">' + S.phong.map(function (p) {
       var t = truongCua(p);
-      return '<button type="button" class="' + (p.slug === S.chonPhong ? "on" : "") + '" data-phong="' + esc(p.slug) + '">' +
-        "<b>" + esc(p.ten) + "</b><small>" + (t ? "Trưởng " + esc(t.ten) : "Chưa có trưởng") +
+      return '<button type="button" class="nt-job' + (p.slug === S.chonPhong ? " on" : "") + '" data-phong="' + esc(p.slug) + '">' +
+        "<b>" + esc(p.ten) + "</b><small>" + (t ? esc(t.ten) : "Chưa có trưởng") +
         " · " + (p.nguoi || []).length + " người</small></button>";
-    }).join("") + "</div>" : "";
-    var mo = S.phong.length ? "" : " open";
-    var tao = '<details class="nt-details"' + mo + '><summary>Phòng mới</summary>' +
-      '<form id="ntTaoPhong" class="nt-form nt-split">' +
-      '<label>Tên<input name="ten" required placeholder="Nội dung"></label>' +
-      '<label class="full">Tiêu chí trưởng giữ<textarea name="tieu_chi" placeholder="Rõ ý, đúng brief, không bịa"></textarea></label>' +
-      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Tạo phòng</button></div></form></details>';
-    if (!S.phong.length) {
-      return "<h2>Phòng</h2>" +
-        '<p class="nt-hint">Tạo phòng, viết tiêu chí, đặt một trưởng. Rồi sang tab Giao việc.</p>' + tao;
-    }
-    return "<h2>Phòng</h2>" + ds + thanPhong() + tao;
+    }).join("") + "</div>";
+  }
+
+  function formTaoPhong() {
+    return '<form id="ntTaoPhong" class="nt-form nt-side">' +
+      '<p class="nt-kicker">Phòng mới</p>' +
+      '<label>Tên<input name="ten" required placeholder="Nội dung" autocomplete="off"></label>' +
+      '<button class="nt-btn pri" type="submit">Tạo phòng</button>' +
+      '<p class="nt-hint">Tiêu chí sửa ở cột phải sau khi tạo.</p></form>';
+  }
+
+  function formThemNguoi() {
+    var p = phongChon();
+    if (!p) return "";
+    return '<form id="ntThemNguoi" class="nt-form nt-side">' +
+      '<p class="nt-kicker">Thêm vào ' + esc(p.ten) + "</p>" +
+      '<label>Tên<input name="ten" required placeholder="An" autocomplete="off"></label>' +
+      '<label>Vị trí<input name="vi_tri" placeholder="Chuyên viên thiết kế" autocomplete="off"></label>' +
+      '<label>Vai<select name="vai"><option value="thanh_vien">Thành viên</option><option value="truong">Trưởng phòng</option></select></label>' +
+      '<p class="nt-hint">Đặt trưởng thì người đang giữ vị trí đó xuống thành viên.</p>' +
+      '<label>Tính cách<textarea name="tinh_cach" placeholder="Thẳng, không viết hộ"></textarea></label>' +
+      oSkill([]) +
+      '<label>Trợ lý gốc<select name="agent">' + agentOpts() + "</select></label>" +
+      '<button class="nt-btn pri" type="submit">Thêm người</button></form>';
+  }
+
+  function tabPhong() {
+    return '<div class="nt-watch nt-phong"><aside class="nt-rail"><h2>Phòng</h2>' +
+      dsPhongNut() + formTaoPhong() + formThemNguoi() +
+      '</aside><div class="nt-stage">' + thanPhong() + "</div></div>";
   }
 
   function thanPhong() {
     var p = phongChon();
-    if (!p) return '<p class="nt-hint">Chọn một phòng.</p>';
+    if (!p) return "<h2>Phòng</h2>" +
+      '<p class="nt-hint">Tạo phòng ở cột trái. Phần này hiện người, vị trí và tiêu chí.</p>';
     var t = truongCua(p);
-    var nguoi = (p.nguoi || []).map(function (n) { return theNguoi(n, !!t); }).join("");
-    var moNguoi = t ? "" : " open";
-    return '<form id="ntSuaTieu" class="nt-form nt-split">' +
-      '<label class="full">Tiêu chí trưởng giữ<textarea name="tieu_chi" required>' + esc(p.tieu_chi || "") + "</textarea></label>" +
-      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Lưu tiêu chí</button>' +
+    var nguoi = (p.nguoi || []).map(function (n) { return theNguoi(n); }).join("");
+    return "<h2>" + esc(p.ten) + "</h2>" +
+      (t ? '<p class="nt-hint"><span class="nt-pill ok">Trưởng</span> ' + esc(t.ten) +
+        (t.vi_tri ? " · " + esc(t.vi_tri) : " · chưa đặt vị trí") + "</p>"
+        : '<p class="nt-call">Chưa có trưởng. Thêm người ở cột trái và chọn vai Trưởng phòng.</p>') +
+      '<form id="ntSuaTieu" class="nt-form">' +
+      '<label>Tiêu chí trưởng giữ<textarea name="tieu_chi" required>' + esc(p.tieu_chi || "") + "</textarea></label>" +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu tiêu chí</button>' +
       '<button type="button" class="nt-btn danger" id="ntXoaPhong">Xoá phòng</button></div></form>' +
-      (t ? '<p class="nt-hint"><span class="nt-pill ok">Có trưởng</span> ' + esc(t.ten) + "</p>"
-        : '<p class="nt-call">Chưa có trưởng. Thêm một người với vai Trưởng phòng, rồi mới giao việc.</p>') +
-      (nguoi ? '<div class="nt-people">' + nguoi + "</div>" : "") +
-      '<details class="nt-details"' + moNguoi + '><summary>Thêm người</summary>' +
-      '<form id="ntThemNguoi" class="nt-form nt-split">' +
-      '<label>Tên<input name="ten" required placeholder="An"></label>' +
-      '<label class="full">Tính cách<textarea name="tinh_cach" placeholder="Thẳng, không viết hộ, bắt lỗi từng câu"></textarea></label>' +
-      '<div class="full">' + oSkill([]) + "</div>" +
-      '<label>Vai<select name="vai"><option value="thanh_vien"' + (t ? " selected" : "") + '>Thành viên</option><option value="truong"' + (t ? " disabled" : " selected") + '>Trưởng phòng</option></select></label>' +
-      '<label>Trợ lý gốc, không bắt buộc<select name="agent">' + agentOpts() + "</select></label>" +
-      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Thêm người</button></div></form></details>';
+      (nguoi ? '<div class="nt-people">' + nguoi + "</div>" : '<p class="nt-hint">Chưa có người. Thêm ở cột trái.</p>');
   }
 
-  function theNguoi(n, coTruong) {
+  function theNguoi(n) {
     if (S.sua === n.slug) {
       return '<form class="nt-card nt-form" id="ntSuaNguoi">' +
         "<b>" + esc(n.ten) + "</b>" +
+        '<label>Vị trí<input name="vi_tri" value="' + esc(n.vi_tri || "") + '" placeholder="Chuyên viên thiết kế"></label>' +
+        '<label>Vai<select name="vai"><option value="thanh_vien"' + (n.vai !== "truong" ? " selected" : "") +
+        '>Thành viên</option><option value="truong"' + (n.vai === "truong" ? " selected" : "") +
+        ">Trưởng phòng</option></select></label>" +
+        '<p class="nt-hint">Đặt trưởng thì trưởng hiện tại xuống thành viên. Mỗi phòng một trưởng.</p>' +
         '<label>Tính cách<textarea name="tinh_cach">' + esc(n.tinh_cach || "") + "</textarea></label>" +
         oSkill(n.skills || []) +
-        '<label>Vai<select name="vai"><option value="thanh_vien"' + (n.vai !== "truong" ? " selected" : "") +
-        '>Thành viên</option><option value="truong"' +
-        (n.vai === "truong" ? " selected" : (coTruong ? " disabled" : "")) +
-        '>Trưởng phòng</option></select></label>' +
         '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu</button>' +
         '<button type="button" class="nt-btn ghost" id="ntHuySua">Huỷ</button></div></form>';
     }
     var sk = (n.skills || []).map(function (s) { return '<span class="nt-pill">' + esc(skillTen(s)) + "</span>"; }).join(" ");
-    return '<article class="nt-card"><div><b>' + esc(n.ten) + "</b> " +
+    return '<article class="nt-card nt-member"><div><b>' + esc(n.ten) + "</b> " +
       (n.vai === "truong" ? '<span class="nt-pill ok">Trưởng phòng</span>' : '<span class="nt-pill">Thành viên</span>') +
+      '<p class="nt-vi-tri">' + (n.vi_tri ? esc(n.vi_tri) : "Chưa đặt vị trí") + "</p>" +
       "<p>" + esc(n.tinh_cach || "Chưa viết tính cách.") + "</p>" +
       (sk ? '<p class="nt-chips">' + sk + "</p>" : '<p class="nt-hint">Chưa gán skill.</p>') +
-      '</div><div class="nt-row"><button type="button" class="nt-btn ghost" data-sua="' + esc(n.slug) + '">Sửa</button>' +
+      '</div><div class="nt-row"><button type="button" class="nt-btn ghost" data-sua="' + esc(n.slug) + '">Sửa vị trí</button>' +
       '<button type="button" class="nt-btn ghost" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></article>';
   }
 
@@ -420,6 +621,7 @@
       if (pha !== khoa) { khoa = pha; out += '<div class="nt-phase">' + esc(pha) + "</div>"; }
       var vai = row.vai === "truong" ? "Trưởng" : "Thành viên";
       out += '<article class="nt-say"><header><b>' + esc(row.ten) + "</b> " +
+        (row.vi_tri ? '<span class="nt-pill">' + esc(row.vi_tri) + "</span> " : "") +
         '<span class="nt-pill">' + esc(vai) + "</span> " +
         '<span class="nt-pill">' + esc(LOP[row.lop] || row.lop) + "</span> " +
         pillQuyet(row.quyet) + "</header>" +
@@ -480,10 +682,12 @@
         var j = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi", {
           brain: brain(), ten: fd.get("ten"), tinh_cach: fd.get("tinh_cach"),
           skills: fd.get("skills"), vai: fd.get("vai"), agent: fd.get("agent"),
+          vi_tri: fd.get("vi_tri"),
         });
         if (!j.ok) return hong(btn, j.error);
         var p = phongChon();
-        if (p) p.nguoi.push(j.nguoi);
+        if (p && j.phong) p.nguoi = j.phong.nguoi || [];
+        else if (p) p.nguoi.push(j.nguoi);
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -591,11 +795,13 @@
       var fd = new FormData(sua);
       try {
         var j = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi/" + encodeURIComponent(S.sua), {
-          brain: brain(), tinh_cach: fd.get("tinh_cach"), skills: fd.get("skills"), vai: fd.get("vai"),
+          brain: brain(), tinh_cach: fd.get("tinh_cach"), skills: fd.get("skills"),
+          vai: fd.get("vai"), vi_tri: fd.get("vi_tri"),
         });
         if (!j.ok) return hong(btn, j.error);
         var p = phongChon();
-        if (p) p.nguoi = (p.nguoi || []).map(function (n) { return n.slug === j.nguoi.slug ? j.nguoi : n; });
+        if (p && j.phong) p.nguoi = j.phong.nguoi || [];
+        else if (p) p.nguoi = (p.nguoi || []).map(function (n) { return n.slug === j.nguoi.slug ? j.nguoi : n; });
         S.sua = "";
         S.ban = false;
         ve();
@@ -803,6 +1009,7 @@
       S.phong = (cap[1] && cap[1].phong) || [];
       S.viec = (cap[2] && cap[2].viec) || [];
       S.kho = (cap[3] && cap[3].skills) || [];
+      S._khoLoi = S.kho.length ? "" : ((cap[3] && cap[3].error) || "");
     } catch (e) {
       S.agents = [];
       return hienLoi("Không tải được Nhạc trưởng.");
@@ -818,6 +1025,15 @@
 
   window.JavisNhacTruong = {
     render: render,
-    stop: function () { if (S.timer) clearInterval(S.timer); S.timer = 0; }
+    stop: function () {
+      if (S.timer) clearInterval(S.timer);
+      S.timer = 0;
+      dongKho();
+      if (S._neo) {
+        window.removeEventListener("scroll", S._neo, true);
+        window.removeEventListener("resize", S._neo);
+        S._neo = null;
+      }
+    }
   };
 })();

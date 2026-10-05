@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.51] - 2026-10-05
+### Mới
+- **Nhạc trưởng · Phòng:** cột trái tạo phòng và thêm người. Cột phải hiện người, vị trí và tiêu chí trên phần rộng của trang.
+- Mỗi người đặt được **vị trí** (ví dụ chuyên viên thiết kế) và sửa lại được. Đổi trưởng thì người đang giữ vị trí đó xuống thành viên.
+- **Mở kho** xem hết skill đang bật, lọc theo chuyên mục. Menu gõ tìm có nền đặc, chữ nhỏ, không còn đè chữ bên dưới.
+
 ## [0.56.50] - 2026-10-05
 ### Mới
 - **Nhạc trưởng** có tab **Giao việc**. Viết brief, chọn phòng, bấm Giao việc. Việc vừa giao mở ngay ở tab Theo dõi.

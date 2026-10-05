@@ -80,15 +80,16 @@ async def sua_phong(slug: str, request: Request):
 async def them_nguoi(slug: str, request: Request):
     body = await request.json()
     try:
+        kho = _kho(body.get("brain") or "brain")
         nguoi = nt.them_nguoi(
-            _kho(body.get("brain") or "brain"), slug,
+            kho, slug,
             body.get("ten") or "", body.get("tinh_cach") or "",
             body.get("skills") or "", body.get("vai") or "thanh_vien",
-            body.get("agent") or "",
+            body.get("agent") or "", body.get("vi_tri") or "",
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
-    return {"ok": True, "nguoi": nguoi}
+    return {"ok": True, "nguoi": nguoi, "phong": kho.doc_phong(slug)}
 
 
 @router.delete("/nhac-truong/phong/{slug}/nguoi/{ns}")
@@ -104,15 +105,17 @@ async def xoa_nguoi(slug: str, ns: str, brain: str = "brain"):
 async def sua_nguoi(slug: str, ns: str, request: Request):
     body = await request.json()
     try:
+        kho = _kho(body.get("brain") or "brain")
         nguoi = nt.sua_nguoi(
-            _kho(body.get("brain") or "brain"), slug, ns,
-            tinh_cach=body.get("tinh_cach"),
-            skills=body.get("skills"),
-            vai=body.get("vai"),
+            kho, slug, ns,
+            tinh_cach=body.get("tinh_cach") if "tinh_cach" in body else None,
+            skills=body.get("skills") if "skills" in body else None,
+            vai=body.get("vai") if "vai" in body else None,
+            vi_tri=body.get("vi_tri") if "vi_tri" in body else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
-    return {"ok": True, "nguoi": nguoi}
+    return {"ok": True, "nguoi": nguoi, "phong": kho.doc_phong(slug)}
 
 
 @router.get("/nhac-truong/viec")

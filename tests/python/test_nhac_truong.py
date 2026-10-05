@@ -48,11 +48,11 @@ def test_tao_va_chan_hai_truong():
     nt.them_nguoi(kho, p["slug"], "An", "thẳng", "dieu-phoi", "truong")
     n = nt.them_nguoi(kho, p["slug"], "Chi", "ấm", "viết bài, nghiên cứu", "thanh_vien")
     check("skill giữ nguyên chữ người gõ", n["skills"] == ["viết bài", "nghiên cứu"])
-    try:
-        nt.them_nguoi(kho, p["slug"], "Bình", "cũng muốn làm trưởng", "", "truong")
-        check("chặn hai trưởng", False)
-    except nt.LoiNhacTruong:
-        check("chặn hai trưởng", True)
+    nt.them_nguoi(kho, p["slug"], "Bình", "cũng muốn làm trưởng", "", "truong", vi_tri="Chuyên viên nội dung")
+    phong = kho.doc_phong(p["slug"])
+    truong = [n["ten"] for n in phong["nguoi"] if n.get("vai") == "truong"]
+    binh = next(n for n in phong["nguoi"] if n["ten"] == "Bình")
+    check("đổi trưởng thì chỉ còn một", truong == ["Bình"] and binh["vi_tri"] == "Chuyên viên nội dung")
     try:
         nt.tao_viec(kho, "Bài", "800 chữ", ["phap-che"])
         check("việc cần phòng có thật", False)
@@ -157,8 +157,9 @@ def test_api():
     check("api tạo phòng", r.status_code == 200 and r.json()["phong"]["slug"] == "noi-dung")
     c.post("/nhac-truong/phong/noi-dung/nguoi", json={"ten": "An", "vai": "truong", "tinh_cach": "thẳng"})
     c.post("/nhac-truong/phong/noi-dung/nguoi", json={"ten": "Lan", "skills": "viết bài"})
-    hai = c.post("/nhac-truong/phong/noi-dung/nguoi", json={"ten": "Bình", "vai": "truong"})
-    check("api chặn hai trưởng", hai.status_code == 400)
+    hai = c.post("/nhac-truong/phong/noi-dung/nguoi", json={"ten": "Bình", "vai": "truong", "vi_tri": "Biên tập"})
+    truong = [n["ten"] for n in hai.json()["phong"]["nguoi"] if n.get("vai") == "truong"]
+    check("api đổi trưởng giữ một người", hai.status_code == 200 and truong == ["Bình"])
     v = c.post("/nhac-truong/viec", json={"tieu_de": "Bài", "brief": "ngắn", "phong": ["noi-dung"], "vong": 2})
     vid = v.json()["viec"]["id"]
     chay = c.post(f"/nhac-truong/viec/{vid}/chay", json={"thu": True})
@@ -174,8 +175,11 @@ def test_api():
     check("api chặn tiêu chí trống", trong.status_code == 400)
     doi = c.post("/nhac-truong/phong/noi-dung/nguoi/lan", json={"tinh_cach": "ấm", "skills": "sửa bài"})
     check("api sửa người", doi.status_code == 200 and doi.json()["nguoi"]["tinh_cach"] == "ấm")
-    hai_vai = c.post("/nhac-truong/phong/noi-dung/nguoi/lan", json={"vai": "truong"})
-    check("api không thêm trưởng thứ hai", hai_vai.status_code == 400)
+    hai_vai = c.post("/nhac-truong/phong/noi-dung/nguoi/lan", json={"vai": "truong", "vi_tri": "Chuyên viên"})
+    nguoi = hai_vai.json()["phong"]["nguoi"]
+    truong = [n["slug"] for n in nguoi if n.get("vai") == "truong"]
+    lan = next(n for n in nguoi if n["slug"] == "lan")
+    check("api sửa được vị trí trưởng", hai_vai.status_code == 200 and truong == ["lan"] and lan["vi_tri"] == "Chuyên viên")
     xoa = c.delete(f"/nhac-truong/viec/{vid}")
     check("api xoá việc", xoa.status_code == 200 and not md.is_file())
     v2 = c.post("/nhac-truong/viec", json={"tieu_de": "Kẹt", "brief": "ngắn", "phong": ["noi-dung"]})
@@ -202,11 +206,11 @@ def test_sua_va_xoa():
         check("tiêu chí trống", True)
     n = nt.sua_nguoi(kho, "noi-dung", "lan", tinh_cach="ấm", skills="sửa bài, đọc")
     check("sửa người giữ chữ", n["tinh_cach"] == "ấm" and n["skills"] == ["sửa bài", "đọc"])
-    try:
-        nt.sua_nguoi(kho, "noi-dung", "lan", vai="truong")
-        check("không thêm trưởng thứ hai", False)
-    except nt.LoiNhacTruong:
-        check("không thêm trưởng thứ hai", True)
+    nt.sua_nguoi(kho, "noi-dung", "lan", vai="truong", vi_tri="Chuyên viên nội dung")
+    phong = kho.doc_phong("noi-dung")
+    truong = [n["slug"] for n in phong["nguoi"] if n.get("vai") == "truong"]
+    lan = next(n for n in phong["nguoi"] if n["slug"] == "lan")
+    check("sửa được vị trí, vẫn một trưởng", truong == ["lan"] and lan["vi_tri"] == "Chuyên viên nội dung")
     viec = nt.tao_viec(kho, "Xoá", "brief đủ", ["noi-dung"])
     md = Path(kho.goc) / "viec" / f"{viec['id']}.md"
     md.write_text("biên bản", encoding="utf-8")

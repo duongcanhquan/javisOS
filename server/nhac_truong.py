@@ -162,8 +162,19 @@ def tao_phong(kho: Kho, ten: str, tieu_chi: str = "") -> dict:
     return phong
 
 
+def _ha_truong(phong: dict, giu: str) -> None:
+    for n in phong["nguoi"]:
+        if n.get("vai") == "truong" and n.get("slug") != giu:
+            n["vai"] = "thanh_vien"
+
+
+def _vi_tri(raw) -> str:
+    return str(raw or "").strip()[:80]
+
+
 def them_nguoi(kho: Kho, phong_slug: str, ten: str, tinh_cach: str = "",
-               skills: str = "", vai: str = "thanh_vien", agent: str = "") -> dict:
+               skills: str = "", vai: str = "thanh_vien", agent: str = "",
+               vi_tri: str = "") -> dict:
     phong = kho.doc_phong(phong_slug)
     ten = (ten or "").strip()
     if not ten:
@@ -176,12 +187,13 @@ def them_nguoi(kho: Kho, phong_slug: str, ten: str, tinh_cach: str = "",
     vai = (vai or "thanh_vien").strip()
     if vai not in ("truong", "thanh_vien"):
         raise LoiNhacTruong("Vai chỉ là trưởng phòng hoặc thành viên.")
-    if vai == "truong" and any(n.get("vai") == "truong" for n in phong["nguoi"]):
-        raise LoiNhacTruong("Mỗi phòng một trưởng phòng.")
+    if vai == "truong":
+        _ha_truong(phong, "")
     nguoi = {
         "slug": ns,
         "ten": ten,
         "vai": vai,
+        "vi_tri": _vi_tri(vi_tri),
         "tinh_cach": (tinh_cach or "").strip()[:400],
         "skills": _tach_skill(skills),
         "agent": slugify(agent) if (agent or "").strip() else "",
@@ -224,7 +236,7 @@ def sua_phong(kho: Kho, slug: str, tieu_chi: str) -> dict:
 
 
 def sua_nguoi(kho: Kho, phong_slug: str, nguoi_slug: str, tinh_cach=None,
-              skills=None, vai=None) -> dict:
+              skills=None, vai=None, vi_tri=None) -> dict:
     phong = kho.doc_phong(phong_slug)
     nguoi = next((n for n in phong["nguoi"] if n.get("slug") == nguoi_slug), None)
     if not nguoi:
@@ -233,11 +245,11 @@ def sua_nguoi(kho: Kho, phong_slug: str, nguoi_slug: str, tinh_cach=None,
         vai = (vai or "thanh_vien").strip()
         if vai not in ("truong", "thanh_vien"):
             raise LoiNhacTruong("Vai chỉ là trưởng phòng hoặc thành viên.")
-        if vai == "truong" and any(
-            n.get("vai") == "truong" and n.get("slug") != nguoi_slug for n in phong["nguoi"]
-        ):
-            raise LoiNhacTruong("Mỗi phòng một trưởng phòng.")
+        if vai == "truong":
+            _ha_truong(phong, nguoi_slug)
         nguoi["vai"] = vai
+    if vi_tri is not None:
+        nguoi["vi_tri"] = _vi_tri(vi_tri)
     if tinh_cach is not None:
         nguoi["tinh_cach"] = str(tinh_cach or "").strip()[:400]
     if skills is not None:
@@ -326,6 +338,7 @@ def _them(viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, loi: str, q
         "slug": nguoi["slug"],
         "ten": nguoi["ten"],
         "vai": nguoi["vai"],
+        "vi_tri": (nguoi.get("vi_tri") or "").strip(),
         "lop": lop,
         "vong": vong,
         "loi": _cat(loi),
@@ -337,9 +350,11 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
                lenh: str = "", cac_ban: dict | None = None) -> str:
     sk = ", ".join(nguoi.get("skills") or []) or "(chưa gán)"
     vai = "trưởng phòng" if nguoi.get("vai") == "truong" else "thành viên"
+    vi_tri = (nguoi.get("vi_tri") or "").strip()
+    chuc = f"{vi_tri}, {vai}" if vi_tri else vai
     dong = [
         f"LOAI: {loai}",
-        f"Bạn là {nguoi.get('ten')}, {vai} phòng {phong.get('ten')}.",
+        f"Bạn là {nguoi.get('ten')}, {chuc} phòng {phong.get('ten')}.",
         f"Tính cách: {nguoi.get('tinh_cach') or '(chưa mô tả)'}",
         f"Skill: {sk}",
         f"Tiêu chí phòng này, chỉ bạn giữ khi bạn là trưởng: {phong.get('tieu_chi')}",
