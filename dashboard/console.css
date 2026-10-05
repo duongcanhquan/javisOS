@@ -2932,6 +2932,15 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-day[open] .khi-dong { display: none; }
 .nt-day[open] .khi-mo { display: inline; }
 .nt-say:has(.nt-day[open]) .nt-rut { display: none; }
+.nt-dinh {
+  display: inline-flex; margin-top: 4px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--accent-line); background: var(--surface-1); color: var(--accent-ink);
+  font-size: 11px; font-weight: 650; cursor: pointer;
+}
+.nt-dinh.on { background: var(--accent-wash); }
+.nt-doc { margin-top: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--glass-brd); background: var(--surface-1); }
+.nt-doc header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.nt-doc pre { margin: 0; max-height: 280px; overflow: auto; white-space: pre-wrap; font-size: 12px; line-height: 1.45; }
 .nt-hang-files { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .nt-hang-files h4 { flex: 1 0 100%; margin: 0; font-size: 13px; }
 .nt-hang-file { margin: 0; width: min(220px, 100%); }
@@ -3202,32 +3211,40 @@ body.on-mcp .cview-body > .cview-placeholder {
     repeating-linear-gradient(90deg, transparent, transparent 22px, rgba(0,0,0,.035) 22px, rgba(0,0,0,.035) 23px),
     var(--bg2);
 }
-.nt-hang { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 8px 10px; width: 100%; }
-.nt-hang-truong { padding: 0 0 2px; }
-.nt-room-doi .nt-hang { display: grid; grid-template-columns: 1fr 1fr 1fr; justify-items: center; align-items: end; }
-.nt-room-doi .nt-seatrow:first-child { grid-column: 1; }
-.nt-room-doi .nt-seatrow.head { grid-column: 2; }
-.nt-seatrow {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  width: 88px; text-align: center; padding: 2px 2px 4px;
+.nt-hang {
+  display: flex; flex-wrap: nowrap; justify-content: center; align-items: flex-start;
+  gap: 4px 6px; width: 100%;
 }
-.nt-seatrow .nt-qno { position: absolute; top: 2px; left: 2px; }
-.nt-seatrow .nt-who { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
+.nt-hang-truong { padding: 0 0 2px; }
+.nt-seatrow {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: 1 1 0; max-width: 76px; min-width: 0; text-align: center; padding: 2px 1px 3px;
+}
+.nt-hang-truong .nt-seatrow { flex: 0 0 84px; max-width: 84px; }
+.nt-seatrow .nt-qno { position: static; width: 16px; height: 16px; font-size: 10px; }
+.nt-seatrow .nt-who { display: flex; flex-direction: column; align-items: center; width: 100%; min-width: 0; }
+.nt-seatrow b {
+  font-size: 11px; line-height: 1.2; height: 1.2em; max-width: 100%;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.nt-seatrow .nt-who small {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  height: 2.5em; line-height: 1.25; font-size: 10px; width: 100%; overflow: hidden;
+}
 .nt-seatrow.head {
-  width: 104px; padding: 6px 4px; border-radius: 12px;
+  padding: 4px 3px; border-radius: 10px;
   background: var(--accent-wash); box-shadow: inset 0 0 0 1px var(--accent-line);
 }
-.nt-role {
-  display: inline-block; margin-bottom: 2px; padding: 1px 6px; border-radius: 999px;
-  background: var(--accent-solid); color: var(--on-accent); font-size: 10px; font-weight: 700; letter-spacing: .2px;
-}
-.nt-deskico { width: 40px; height: 30px; flex: 0 0 auto; color: #1b7f4a; }
-.nt-seatrow.head .nt-deskico { width: 52px; height: 38px; }
+.nt-deskico { width: 28px; height: 20px; flex: 0 0 auto; color: #1b7f4a; }
+.nt-seatrow.head .nt-deskico { width: 34px; height: 24px; }
 .nt-deskico svg { display: block; width: 100%; height: 100%; fill: currentColor; }
 .nt-seatrow.wait .nt-qno { background: var(--ok-wash); color: #1b7f4a; }
 .nt-seatrow.on .nt-deskico { color: #d92d20; }
 .nt-seatrow.on .nt-qno { background: #fde8e6; color: #d92d20; }
-.nt-seatrow em { display: block; margin-top: 1px; font-style: normal; font-size: 11px; font-weight: 700; color: #d92d20; }
+.nt-seatrow em {
+  display: block; height: 1.15em; margin-top: 0; font-style: normal; font-size: 10px; font-weight: 700; color: #d92d20;
+}
+.nt-seatrow em.trong { visibility: hidden; }
 @media (max-width: 720px) {
   .nt-split, .nt-form.nt-split, .nt-giao.nt-form { grid-template-columns: 1fr; }
   .nt-cards button { max-width: none; }

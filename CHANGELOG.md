@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.62] - 2026-10-05
+### Sửa
+- **Nhạc trưởng** câu trao đổi chỉ nêu ý chính. Bản dài đi trong file đính kèm, người sau đọc file. Lượt bị cắt thì viết tiếp và ghép. Một câu ngắn không ghi đè bản dài.
+- Sơ đồ bàn thẳng hàng. Chức danh cố định hai dòng. Icon bàn nhỏ hơn.
+
 ## [0.56.61] - 2026-10-05
 ### Sửa
 - **Nhạc trưởng** câu trên màn hình vẫn ngắn, nhưng bản làm, tài liệu và kết quả cũ đưa cho bước sau đi nguyên văn. Bước sau không còn thấy bản cụt rồi kết luận là bị cắt ngắn.

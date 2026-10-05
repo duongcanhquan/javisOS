@@ -454,8 +454,10 @@ async def _noi_that(brain: str, nguoi: dict, prompt: str) -> str:
         f"Bạn là {nguoi.get('ten')}.\n"
         f"Tính cách: {nguoi.get('tinh_cach') or ''}\n"
         f"Skill: {', '.join(nguoi.get('skills') or []) or '(không)'}.\n"
-        "Bạn đang nói trong Nhạc trưởng. Chỉ viết phần của lượt này.\n"
-        "Bản đầu và kết quả cuối thì viết đủ. Các lượt trao đổi ở giữa thì ngắn, chỉ điểm 1, điểm 2.\n"
+        "Bạn đang nói trong Nhạc trưởng.\n"
+        "Câu NOI chỉ nêu ý chính, ngắn, gạch đầu dòng nếu là phản hồi.\n"
+        "Nội dung dài, kể cả dự án nhiều chữ, luôn viết đủ trong FILE. Viết gọn, chia mục, không lặp. Lượt ở giữa cũng vậy, không được viết cụt.\n"
+        "Nếu hết lượt mà file chưa xong, dừng bằng đúng một dòng CON_TIEP. Không viết câu báo bị cắt.\n"
         "Không gửi tin, không đăng, không chi tiền, không bảo người khác tự đi làm.\n"
     )
     agent = (nguoi.get("agent") or "").strip()

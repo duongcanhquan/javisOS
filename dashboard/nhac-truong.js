@@ -589,9 +589,8 @@
       '<span class="nt-qno">' + so + "</span>" +
       '<span class="nt-deskico">' + iconBan() + "</span>" +
       '<span class="nt-who">' +
-      (head ? '<span class="nt-role">Trưởng</span>' : "") +
       "<b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (head ? "Trưởng phòng" : "Thành viên")) + "</small>" +
-      (bat ? "<em>đang làm</em>" : "") + "</span></div>";
+      (bat ? "<em>đang làm</em>" : '<em class="trong">đang làm</em>') + "</span></div>";
   }
 
   function hangGhe(list, slug, d, them) {
@@ -636,7 +635,22 @@
     if (!v) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
     var rows = (v.loi || []).slice().reverse();
     return "<h3>Giao tiếp</h3>" + htmlKet(v) + dangLam(v) +
-      '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ câu đầu." : "Chưa có trao đổi.") + "</p>") + "</div>";
+      '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ câu đầu." : "Chưa có trao đổi.") + "</p>") + "</div>" +
+      htmlDoc(v);
+  }
+
+  function khoaTep(row) {
+    var t = row.tep || {};
+    return [row.phong || "", row.slug || "", row.lop || "", row.vong || 0, t.ten || "", String(t.noi_dung || "").length].join("|");
+  }
+
+  function htmlDoc(v) {
+    if (!S._docKey) return "";
+    var row = (v.loi || []).filter(function (r) { return khoaTep(r) === S._docKey; })[0];
+    if (!row || !row.tep || !String(row.tep.noi_dung || "").trim()) return "";
+    return '<section class="nt-doc" id="ntDoc"><header><b>' + esc(row.tep.ten || "Tài liệu") +
+      '</b><button type="button" class="nt-btn ghost" id="ntDongDoc">Đóng</button></header><pre>' +
+      esc(row.tep.noi_dung) + "</pre></section>";
   }
 
   function buocQuy(n, so, tong, viecNgan) {
@@ -1086,8 +1100,17 @@
   function tomChat(row) {
     var sach = loiSach(row.loi);
     if (sach) return sach;
+    if (row.tep && row.tep.ten) return "Đã gửi file " + row.tep.ten + ".";
     if (row.lop === "lam" || row.lop === "ket") return "Đã làm phần của mình.";
     return "";
+  }
+
+  function htmlTep(row) {
+    var t = row.tep;
+    if (!t || !String(t.noi_dung || "").trim()) return "";
+    var mo = S._docKey === khoaTep(row) ? " on" : "";
+    return '<button type="button" class="nt-dinh' + mo + '" data-dinh="' + esc(khoaTep(row)) + '">File đính kèm: ' +
+      esc(t.ten || "tài liệu") + "</button>";
   }
 
   function loiDai(text) {
@@ -1104,6 +1127,8 @@
 
   function htmlLoi(row, tom, i) {
     if (!tom) return "";
+    var phanHoi = { nhan: 1, kiem: 1, hop: 1, doi: 1, xu: 1, chia: 1, dap: 1, gop: 1, sua: 1 };
+    if (row.tep || phanHoi[row.lop]) return "<p>" + esc(tom) + "</p>";
     if (!loiDai(tom)) return "<p>" + esc(tom) + "</p>";
     var k = [row.phong || "", row.slug || "", row.lop || "", row.vong || 0, i, tom.length].join("|");
     var mo = S._moLoi && S._moLoi[k] ? " open" : "";
@@ -1126,7 +1151,7 @@
         '<span class="nt-meta">' + esc(row.vi_tri || (row.vai === "truong" ? "Trưởng" : "")) +
         " · " + esc(LOP[row.lop] || row.lop) + "</span>" +
         pillQuyet(row.quyet, row.lop) + veGiao(row) + "</header>" +
-        htmlLoi(row, tom, i) + "</article>";
+        htmlLoi(row, tom, i) + htmlTep(row) + "</article>";
     });
     return out;
   }
@@ -1705,17 +1730,18 @@
     S._khoaPhong = k;
     var log = document.getElementById("ntLogPhong");
     var sat = log ? log.scrollTop < 48 : true;
+    var giu = log ? log.scrollTop : 0;
     map.innerHTML = htmlMap();
     talk.innerHTML = htmlTalk();
     ganNhan();
     var log2 = document.getElementById("ntLogPhong");
-    if (log2 && sat) log2.scrollTop = 0;
+    if (log2) log2.scrollTop = sat ? 0 : giu;
   }
 
   function ganLoi() {
+    var talk = document.getElementById("ntTalk");
     var log = document.getElementById("ntLogPhong");
-    if (!log) return;
-    log.querySelectorAll("details.nt-day").forEach(function (d) {
+    if (log) log.querySelectorAll("details.nt-day").forEach(function (d) {
       d.ontoggle = function () {
         var k = d.getAttribute("data-k") || "";
         if (!k) return;
@@ -1724,6 +1750,21 @@
         else delete S._moLoi[k];
       };
     });
+    if (!talk) return;
+    talk.querySelectorAll("[data-dinh]").forEach(function (b) {
+      b.onclick = function () {
+        var k = b.getAttribute("data-dinh") || "";
+        S._docKey = S._docKey === k ? "" : k;
+        talk.innerHTML = htmlTalk();
+        ganLoi();
+      };
+    });
+    var dong = document.getElementById("ntDongDoc");
+    if (dong) dong.onclick = function () {
+      S._docKey = "";
+      talk.innerHTML = htmlTalk();
+      ganLoi();
+    };
   }
 
   function ganNhan() {

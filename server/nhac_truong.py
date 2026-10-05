@@ -16,7 +16,7 @@ from pathlib import Path
 
 VONG_MAC_DINH = 6
 VONG_TRAN = 10
-LOI_TRAN = 64000
+LOI_TRAN = 200000
 
 
 class LoiNhacTruong(ValueError):
@@ -617,6 +617,101 @@ def _cat(text: str) -> str:
     return t
 
 
+_MO_FILE = re.compile(r"(?m)^FILE:\s*(.*?)\s*$", re.I)
+_HET_FILE = re.compile(r"(?m)^HET FILE\s*$", re.I)
+_DONG_LENH = re.compile(r"^(?:NOI|NHAN|QUYET|QUYẾT|SUA|SỬA|TRA|THU[_ ]?TU|THỨ TỰ)\s*:", re.I)
+
+
+def y_phan_hoi(text: str) -> str:
+    """Giữ hết ý phản hồi. Bỏ dòng điều khiển, không rút còn một câu."""
+    giu = []
+    for ln in str(text or "").splitlines():
+        s = ln.strip()
+        if not s:
+            continue
+        if re.match(r"^(?:QUYET|QUYẾT|NHAN|NHẬN|TRA|THU[_ ]?TU|THỨ TỰ|FILE|HET FILE|NOI)\s*:", s, re.I):
+            continue
+        if re.match(r"^(?:SUA|SỬA)\s*:", s, re.I):
+            rest = s.split(":", 1)[1].strip()
+            if rest:
+                giu.append("- " + rest)
+            continue
+        giu.append(s)
+    return "\n".join(giu).strip()
+
+
+def _y_chinh(text: str, tran: int = 700) -> str:
+    """Phần hiện trong hội thoại: ý chính, không phải cả bản."""
+    dong = []
+    n = 0
+    for ln in str(text or "").splitlines():
+        s = ln.strip()
+        if not s or _DONG_LENH.match(s) or re.match(r"^(?:FILE|HET FILE)\s*:", s, re.I):
+            continue
+        if dong and n + len(s) > tran:
+            break
+        dong.append(s)
+        n += len(s) + 1
+        if n >= tran:
+            break
+    return "\n".join(dong).strip() or "Bản đầy đủ nằm trong file đính kèm."
+
+
+def _giu_ban(cu: str, moi: str) -> str:
+    """Sửa bài không được thay bản dài bằng một mẩu ngắn."""
+    cu, moi = (cu or "").strip(), (moi or "").strip()
+    if not moi:
+        return cu
+    if not cu or len(cu) < 800 or len(moi) >= int(len(cu) * 0.35) or cu in moi:
+        return moi
+    return cu
+
+
+def tach_tra_loi(text: str, giau: bool = False) -> dict:
+    """Tách câu nói ngắn và file đính kèm. Bản dài luôn nằm trong file khi giau=True."""
+    raw = str(text or "").strip()
+    m = _MO_FILE.search(raw)
+    if not m:
+        if giau and len(raw) > 700:
+            return {
+                "noi": _y_chinh(raw),
+                "ban": raw,
+                "ten": "ban-day-du.md",
+                "tep": raw,
+                "ngoai": raw,
+            }
+        return {"noi": raw, "ban": raw, "ten": "", "tep": "", "ngoai": raw}
+    ten = (m.group(1) or "").strip() or "tai-lieu.md"
+    sau = raw[m.end():]
+    if sau.startswith("\n"):
+        sau = sau[1:]
+    het = _HET_FILE.search(sau)
+    if het:
+        than = sau[:het.start()].strip()
+        duoi = sau[het.end():].strip()
+    else:
+        than = sau.strip()
+        duoi = ""
+    dau = raw[:m.start()].strip()
+    ngoai = "\n".join(x for x in (dau, duoi) if x).strip()
+    noi = []
+    for line in ngoai.splitlines():
+        s = line.strip()
+        mn = re.match(r"^NOI:\s?(.*)$", s, re.I)
+        if mn and mn.group(1).strip():
+            noi.append(mn.group(1).strip())
+    if not noi:
+        noi = [s for s in dau.splitlines() if s.strip() and not _DONG_LENH.match(s.strip())]
+    cau = "\n".join(noi).strip() or ("Đã gửi file " + ten + ".")
+    return {"noi": cau, "ban": than or raw, "ten": ten[:80], "tep": than, "ngoai": ngoai or raw}
+
+
+def _tep_row(t: dict):
+    if not (t.get("tep") or "").strip():
+        return None
+    return {"ten": t.get("ten") or "tai-lieu.md", "noi_dung": t["tep"]}
+
+
 def _nhan(nguoi: dict) -> str:
     ten = nguoi.get("ten") or ""
     vt = (nguoi.get("vi_tri") or "").strip()
@@ -626,8 +721,8 @@ def _nhan(nguoi: dict) -> str:
 
 
 def _them(viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, loi: str,
-          quyet: str = "", giao_cho: str = "") -> None:
-    viec["loi"].append({
+          quyet: str = "", giao_cho: str = "", tep: dict | None = None) -> None:
+    row = {
         "phong": phong["slug"],
         "phong_ten": phong["ten"],
         "slug": nguoi["slug"],
@@ -639,7 +734,13 @@ def _them(viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, loi: str,
         "loi": _cat(loi),
         "quyet": quyet,
         "giao_cho": giao_cho,
-    })
+    }
+    if tep and str(tep.get("noi_dung") or "").strip():
+        row["tep"] = {
+            "ten": (str(tep.get("ten") or "tai-lieu.md").strip() or "tai-lieu.md")[:80],
+            "noi_dung": _cat(str(tep.get("noi_dung") or "")),
+        }
+    viec["loi"].append(row)
 
 
 def _bao(kho: Kho, viec: dict, phong: dict, nguoi: dict, buoc: str, giao: dict | None = None) -> None:
@@ -658,8 +759,8 @@ def _bao(kho: Kho, viec: dict, phong: dict, nguoi: dict, buoc: str, giao: dict |
 
 
 def _ghi(kho: Kho, viec: dict, phong: dict, nguoi: dict, lop: str, vong: int, loi: str,
-         quyet: str = "", giao_cho: str = "") -> None:
-    _them(viec, phong, nguoi, lop, vong, loi, quyet, giao_cho)
+         quyet: str = "", giao_cho: str = "", tep: dict | None = None) -> None:
+    _them(viec, phong, nguoi, lop, vong, loi, quyet, giao_cho, tep)
     kho.luu_viec(viec)
 
 
@@ -881,13 +982,13 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             dong.append(str(f.get("ten") or "file") + ":\n" + str(f.get("noi_dung") or ""))
     if loai == "KET":
         dong.append("Viết bản kết quả cuối, đầy đủ, dùng được ngay. Không kể lại cuộc nói. Không cắt giữa chừng.")
-    elif loai == "LAM" and not ban_day:
-        dong.append("Đây là bản làm, không phải câu chat. Viết hết phần của bạn, đủ để người sau dùng ngay. Không hứa sẽ viết tiếp. Không dừng giữa chừng.")
-    elif loai == "LAM":
-        dong.append("Đây là bản làm, không phải câu chat. Viết hết phần mới của bước bạn, đủ để ghép. Không chép lại cả bài cũ. Không dừng giữa chừng.")
+    elif loai in ("LAM", "DOI", "CAP", "THEM"):
+        dong.append("Câu NOI chỉ là lời bàn giao, ngắn. Bản dài để trong FILE, không viết vào câu nói.")
+    elif loai == "NHAN":
+        dong.append("Câu NOI là phản hồi ngắn. Chưa được thì gạch đầu dòng từng điểm. Không dán cả bài vào câu nói.")
     elif loai not in ("CAP", "THEM"):
         dong.append("Câu bạn nói thì một hoặc hai câu. Nêu chỗ thiếu hoặc chỗ cần sửa. Không dán bảng.")
-        dong.append("Bản việc đưa kèm là bản đủ, không phải bản đã cắt để hiện trên màn hình. Không được kết luận là bị cắt ngắn.")
+        dong.append("File đính kèm là bản đủ. Không được kết luận là bị cắt ngắn.")
     if loai == "GIAO":
         dong.extend(_truoc(viec, phong.get("slug") or ""))
         dong.append("Vài dòng: ai làm gì. Không viết bài.")
@@ -910,18 +1011,19 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
     elif loai == "NHAN":
         dong += [
             "Bạn nhận bàn giao từ " + (_nhan(giao_cho) if giao_cho else "bước trước") + ".",
+            "FILE ĐÍNH KÈM, đọc hết, đây là bản đủ:",
             "BẢN ĐANG NHẬN:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Một hoặc hai câu rồi dòng NHAN. Không tóm tắt lại bài.",
-            "Chưa hiểu hoặc thấy sai thì nói thẳng. Chưa nhận thì chưa làm phần của bạn.",
-        ]
-        dong += [
+            "NOI: một câu nếu nhận. Nếu chưa, mỗi điểm một gạch đầu dòng, không tóm tắt lại bài.",
+            "Chưa nhận thì chưa làm phần của bạn.",
+            "Nếu chưa được, kèm FILE đã ghi note ngay chỗ cần sửa. Giữ nguyên phần còn lại của file.",
+            "FILE: ten.md",
+            "nội dung file đã note",
+            "HET FILE",
             "Chỉ NHAN: CHUA khi còn một lỗi cụ thể: sai brief, thiếu ý, mâu thuẫn, hoặc câu bị cấm.",
-            "Hết lỗi thì NHAN: OK ngay, kể cả lượt đầu. Không bịa chỗ chưa chắc để kéo dài.",
-        ]
-        dong += [
-            "Kết thúc bằng đúng một trong hai:",
+            "Hết lỗi thì NHAN: OK ngay, kể cả lượt đầu. Không bịa chỗ chưa chắc để kéo dài. Lúc OK không cần FILE.",
+            "Các dòng NHAN và SUA để sau HET FILE.",
             "NHAN: OK",
             "hoặc",
             "NHAN: CHUA",
@@ -930,11 +1032,15 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
     elif loai == "DOI":
         dong += [
             (_nhan(giao_cho) if giao_cho else "Bước sau") + " chưa nhận bài của bạn.",
-            "Họ nói: " + (lenh or "chưa rõ."),
-            "BẢN BẠN VỪA GIAO:",
+            "Ý kiến của họ, gạch đầu dòng:",
+            lenh or "chưa rõ.",
+            "FILE HỌ ĐÃ NOTE:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Không viết lại cả bài. Chỉ ghi các điểm đã chỉnh, đánh số.",
+            "NOI: một câu, đã sửa theo ý kiến và bàn giao lại.",
+            "FILE: ban-da-sua.md",
+            "Viết lại cả file cho đủ sau khi sửa, không chỉ liệt kê điểm đã đổi. Không cắt giữa chừng.",
+            "HET FILE",
         ]
     elif loai == "XU":
         dong += [
@@ -951,42 +1057,49 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
     elif loai == "LAM":
         dong.extend(_truoc(viec, phong.get("slug") or ""))
         dong.extend(_yeu_cau_hang(phong, viec))
+        dong += [
+            "Đúng khuôn, câu nói trước, file sau:",
+            "NOI: Tôi bàn giao. Ông đọc file. Lưu ý: việc bước sau cần làm.",
+            "FILE: ban-buoc.md",
+            "Nội dung đủ của bước này. Viết gọn, chia mục, không lặp, không cắt.",
+            "HET FILE",
+        ]
         if ban:
             dong += [
-                "BƯỚC TRƯỚC ĐÃ CHỐT:",
+                "FILE BƯỚC TRƯỚC ĐÃ CHỐT, đọc hết:",
                 ban,
                 "HẾT BẢN",
-                "Phần này đã được nhận. Không chép bản trước.",
-                "Chỉ viết phần mới của bước bạn, hoặc điểm 1, điểm 2 chỗ bạn sửa.",
+                "Phần này đã được nhận. File của bạn là phần mới, không chép nguyên file trước vào câu nói.",
             ]
         else:
-            dong.append("Viết đủ phần của bạn. Người sau sẽ chỉ nêu điểm cần sửa.")
+            dong.append("File là phần đủ của bạn. Người sau chỉ nêu điểm cần sửa, không viết lại hộ.")
         if giao_cho:
-            dong.append("Cuối lời, một câu bàn giao cho " + _nhan(giao_cho) + ": việc bước sau cần nhận.")
+            dong.append("Trong NOI, nói rõ bàn giao cho " + _nhan(giao_cho) + " và điểm lưu ý họ cần làm.")
         if lenh:
             dong.append("LỆNH SỬA: " + lenh)
-            dong.append("Chỉ sửa đúng các điểm bị bắt. Không viết lại phần đã ổn.")
+            dong.append("File lần này là bản đủ sau khi sửa đúng các điểm bị bắt.")
     elif loai == "KIEM":
         dong += [
             "Bạn đang kiểm bản phòng mình. Đọc để tìm lỗi cụ thể.",
             "BAN HIỆN TẠI:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Không viết lại bản. Chỉ dòng QUYET và, nếu chưa đạt, một câu SUA.",
+            "Không viết lại bản vào câu nói. NOI là các gạch đầu dòng, mỗi lỗi một dòng, viết hết lỗi nhìn thấy.",
+            "Người sửa chỉ nhận các dòng này và file. Viết đủ ý để họ sửa được, không rút một câu.",
             "Chỉ xét BAN HIỆN TẠI. Hết lỗi thì QUYET: DAT ngay, dù mới vòng 1 hoặc 2.",
             "Chỉ CHUA khi còn lỗi cụ thể chưa được sửa. Không lặp lỗi đã sửa. Không bịa lỗi để dùng hết số vòng.",
             "Kết thúc bằng đúng một trong hai:",
             "QUYET: DAT",
             "hoặc",
             "QUYET: CHUA",
-            "SUA: một câu chỉ chỗ phải sửa",
+            "SUA: ý chính của các dòng trên",
         ]
     elif loai == "HOP":
         dong.append("HỌP TRƯỞNG. Chỉ các trưởng phòng. Bạn không sửa hộ phòng khác.")
         dong.append("Bạn chỉ ghi DAT khi tiêu chí phòng mình đạt trên các bản dưới đây.")
         dong.append("Hết lỗi thì DAT ngay, dù mới vòng 1 hoặc 2. Chỉ CHUA khi còn lỗi cụ thể chưa được sửa.")
         dong.append("Không lặp lại lỗi đã sửa. Không bịa lỗi để dùng hết số vòng.")
-        dong.append("Không viết lại bản. Chỉ dòng QUYET, một câu SUA nếu chưa đạt, và TRA.")
+        dong.append("Không viết lại bản. NOI là gạch đầu dòng đủ từng lỗi. Rồi QUYET, SUA là ý chính, và TRA.")
         for slug, text in (cac_ban or {}).items():
             dong += [f"[{slug}]", text or "(trống)"]
         dong += [
@@ -994,7 +1107,7 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "QUYET: DAT",
             "hoặc",
             "QUYET: CHUA",
-            "SUA: một câu",
+            "SUA: ý chính các lỗi",
             "TRA: slug phòng phải sửa",
         ]
     elif loai == "KET":
@@ -1017,6 +1130,10 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN CŨ CỦA PHÒNG BẠN:",
             ban or "(trống)",
             "HẾT BẢN",
+            "NOI: một câu đã cập nhật.",
+            "FILE: ban-cap.md",
+            "Bản đủ của phòng bạn sau khi khớp hàng mới. Không viết phần phòng trước.",
+            "HET FILE",
         ]
     elif loai == "CHIA":
         dong += [
@@ -1042,7 +1159,10 @@ def lap_prompt(loai: str, nguoi: dict, phong: dict, viec: dict, ban: str = "",
             "BẢN PHÒNG HIỆN TẠI:",
             ban or "(trống)",
             "HẾT BẢN",
-            "Viết lại phần phòng bạn sau khi sửa. Giữ chỗ không bị comment đụng. Gạch đầu dòng những chỗ vừa đổi.",
+            "NOI: một câu, chỗ vừa đổi.",
+            "FILE: ban-sua.md",
+            "Viết lại đủ phần phòng bạn. Giữ chỗ comment không đụng.",
+            "HET FILE",
         ]
     elif loai == "GOP":
         dong += [
@@ -1072,6 +1192,59 @@ async def _goi(noi, nguoi: dict, prompt: str) -> str:
     if not text:
         raise LoiNoi(f"{nguoi.get('ten') or 'Người'} trả lời rỗng.")
     return text
+
+
+_CANH_CAT = "Phản hồi bị cắt"
+
+
+def _bo_canh_cat(text: str) -> str:
+    t = str(text or "")
+    t = re.sub(r"⚠️?\s*Phản hồi bị cắt do hết max_tokens\.[^\n]*", "", t)
+    t = re.sub(r"(?m)^CON_TIEP\s*$", "", t)
+    return t.strip()
+
+
+def _ghep_manh(manh: list) -> str:
+    """Ghép các lần viết tiếp thành một lời, giữ NOI và FILE của phần đầu."""
+    sach = [_bo_canh_cat(m) for m in manh if _bo_canh_cat(m)]
+    if not sach:
+        return ""
+    if len(sach) == 1:
+        return sach[0]
+    dau = sach[0]
+    them = []
+    for phan in sach[1:]:
+        phan = re.sub(r"(?m)^NOI:.*(?:\n|$)", "", phan)
+        phan = re.sub(r"(?m)^FILE:.*(?:\n|$)", "", phan, count=1)
+        phan = phan.strip()
+        if phan:
+            them.append(phan)
+    hop = dau.rstrip() + ("\n" + "\n".join(them) if them else "")
+    if "HET FILE" in hop:
+        than, _, cuoi = hop.rpartition("HET FILE")
+        hop = than.rstrip() + "\nHET FILE" + cuoi.replace("HET FILE", "")
+    return hop.strip()
+
+
+async def _goi_du(noi, nguoi: dict, prompt: str, lan: int = 4) -> str:
+    """Nếu model bị cắt giữa bản dài thì gọi viết tiếp và ghép lại."""
+    manh = []
+    yeu = prompt
+    for _ in range(max(1, lan)):
+        text = await _goi(noi, nguoi, yeu)
+        bi_cat = _CANH_CAT in text or bool(re.search(r"(?m)^CON_TIEP\s*$", text))
+        manh.append(_bo_canh_cat(text))
+        if not bi_cat:
+            break
+        da = _ghep_manh(manh)
+        yeu = (
+            "Viết TIẾP đúng chỗ đang dừng. Không lặp phần đã có. Không mở đầu lại.\n"
+            "Câu NOI giữ nguyên ý đã nói. Phần FILE viết tiếp cho đủ.\n"
+            "Khi hết nội dung thì một dòng HET FILE.\n"
+            "PHẦN ĐÃ CÓ, bám chữ cuối:\n"
+            + da[-8000:]
+        )
+    return _cat(_ghep_manh(manh))
 
 
 async def chay(kho: Kho, vid: str, noi, ra_file=None) -> dict:
@@ -1143,30 +1316,38 @@ async def _chan(kho: Kho, viec: dict, phong: dict, noi, truoc: dict, sau: dict, 
     ban_dung = False
     for i in range(vmax):
         _bao(kho, viec, phong, sau, "nhan", truoc)
-        text = await _goi(noi, sau, lap_prompt(
+        text = await _goi_du(noi, sau, lap_prompt(
             "NHAN", sau, phong, viec, ban=ban, giao_cho=truoc, luot=i + 1))
-        nhan = doc_nhan(text) or "CHUA"
-        _ghi(kho, viec, phong, sau, "nhan", vong, text, nhan, _nhan(truoc))
+        t = tach_tra_loi(text, giau=True)
+        nguon = t["ngoai"] if t["tep"] else text
+        nhan = doc_nhan(nguon) or doc_nhan(text) or "CHUA"
+        _ghi(kho, viec, phong, sau, "nhan", vong, t["noi"], nhan, _nhan(truoc), _tep_row(t))
         if nhan == "OK":
             return ban
-        sua = doc_quyet(text)["sua"] or "Làm rõ chỗ chưa ổn."
+        sua = y_phan_hoi(nguon) or y_phan_hoi(text) or "Làm rõ chỗ chưa ổn."
         if sua_cu and ban_dung and _trung_lenh(sua, sua_cu):
             break
         sua_cu = sua
+        ban_note = t["ban"] if t["tep"] else ban
         ban_truoc = ban
         _bao(kho, viec, phong, truoc, "doi", sau)
-        ban = await _goi(noi, truoc, lap_prompt("DOI", truoc, phong, viec, ban=ban, lenh=sua, giao_cho=sau))
-        _ghi(kho, viec, phong, truoc, "doi", vong, ban, giao_cho=_nhan(sau))
+        raw = await _goi_du(noi, truoc, lap_prompt(
+            "DOI", truoc, phong, viec, ban=ban_note, lenh=sua, giao_cho=sau))
+        td = tach_tra_loi(raw, giau=True)
+        _ghi(kho, viec, phong, truoc, "doi", vong, td["noi"], giao_cho=_nhan(sau), tep=_tep_row(td))
+        ban = _giu_ban(ban, td["ban"])
         ban_dung = _trung_lenh(ban, ban_truoc)
     _bao(kho, viec, phong, truong, "xu", sau)
-    xu = await _goi(noi, truong, lap_prompt("XU", truong, phong, viec, ban=ban, giao_cho=sau))
+    xu = await _goi_du(noi, truong, lap_prompt("XU", truong, phong, viec, ban=ban, giao_cho=sau))
     q = doc_quyet(xu)
     _ghi(kho, viec, phong, truong, "xu", vong, xu, q["quyet"] or "LAM")
     if q["quyet"] == "SUA":
         _bao(kho, viec, phong, truoc, "doi", sau)
-        ban = await _goi(noi, truoc, lap_prompt(
-            "DOI", truoc, phong, viec, ban=ban, lenh=q["sua"] or "Sửa đúng chỗ trưởng chỉ.", giao_cho=sau))
-        _ghi(kho, viec, phong, truoc, "doi", vong, ban, giao_cho=_nhan(sau))
+        raw = await _goi_du(noi, truoc, lap_prompt(
+            "DOI", truoc, phong, viec, ban=ban, lenh=y_phan_hoi(xu) or q["sua"] or "Sửa đúng chỗ trưởng chỉ.", giao_cho=sau))
+        td = tach_tra_loi(raw, giau=True)
+        _ghi(kho, viec, phong, truoc, "doi", vong, td["noi"], giao_cho=_nhan(sau), tep=_tep_row(td))
+        ban = _giu_ban(ban, td["ban"])
     return ban
 
 
@@ -1179,13 +1360,17 @@ async def _chuoi(kho: Kho, viec: dict, phong: dict, noi, mems: list, lenh: str, 
     for i, mem in enumerate(mems):
         sau = mems[i + 1] if i + 1 < len(mems) else truong
         if nguoi_truoc:
-            ban_truoc = await _chan(kho, viec, phong, noi, nguoi_truoc, mem, ban_truoc, vong)
+            ban_moi = await _chan(kho, viec, phong, noi, nguoi_truoc, mem, ban_truoc, vong)
+            if manh:
+                manh[-1] = f"[{_nhan(nguoi_truoc)}]\n{ban_moi}"
+            ban_truoc = ban_moi
         _bao(kho, viec, phong, mem, "lam", sau)
-        loi = await _goi(noi, mem, lap_prompt(
+        raw = await _goi_du(noi, mem, lap_prompt(
             "LAM", mem, phong, viec, ban=ban_truoc, lenh=lenh, giao_cho=sau))
-        _ghi(kho, viec, phong, mem, "lam", vong, loi, giao_cho=_nhan(sau))
-        manh.append(f"[{_nhan(mem)}]\n{loi}")
-        ban_truoc = loi
+        t = tach_tra_loi(raw, giau=True)
+        _ghi(kho, viec, phong, mem, "lam", vong, t["noi"], giao_cho=_nhan(sau), tep=_tep_row(t))
+        manh.append(f"[{_nhan(mem)}]\n{t['ban']}")
+        ban_truoc = t["ban"]
         nguoi_truoc = mem
     return "\n\n".join(manh)
 
@@ -1200,7 +1385,7 @@ async def _noi_bo(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None:
     ban_cu = ""
     for vong in range(1, vmax + 1):
         _bao(kho, viec, phong, truong, "giao", mems[0] if mems else None)
-        giao = await _goi(noi, truong, lap_prompt("GIAO", truong, phong, viec, lenh=lenh))
+        giao = await _goi_du(noi, truong, lap_prompt("GIAO", truong, phong, viec, lenh=lenh))
         _ghi(kho, viec, phong, truong, "giao", vong, giao)
         if not mems:
             viec["ban"][phong["slug"]] = giao
@@ -1208,19 +1393,23 @@ async def _noi_bo(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None:
             manh = []
             for mem in mems:
                 _bao(kho, viec, phong, mem, "lam")
-                loi = await _goi(noi, mem, lap_prompt("LAM", mem, phong, viec, lenh=lenh))
-                _ghi(kho, viec, phong, mem, "lam", vong, loi)
-                manh.append(loi)
-            viec["ban"][phong["slug"]] = "\n\n".join(manh)
+                raw = await _goi_du(noi, mem, lap_prompt("LAM", mem, phong, viec, lenh=lenh))
+                t = tach_tra_loi(raw, giau=True)
+                _ghi(kho, viec, phong, mem, "lam", vong, t["noi"], tep=_tep_row(t))
+                manh.append(t["ban"])
+            hop = "\n\n".join(manh)
+            if lenh:
+                hop = _giu_ban(viec["ban"].get(phong["slug"]) or "", hop)
+            viec["ban"][phong["slug"]] = hop
             if len(mems) > 1:
                 for mem in mems:
                     khac = next((m for m in mems if m["slug"] != mem["slug"]), None)
                     _bao(kho, viec, phong, mem, "gop", khac)
-                    gop = await _goi(noi, mem, lap_prompt(
+                    gop = await _goi_du(noi, mem, lap_prompt(
                         "GOP", mem, phong, viec, ban=viec["ban"][phong["slug"]], giao_cho=khac))
                     _ghi(kho, viec, phong, mem, "gop", vong, gop, giao_cho=_nhan(khac) if khac else "")
         _bao(kho, viec, phong, truong, "kiem")
-        kiem = await _goi(noi, truong, lap_prompt(
+        kiem = await _goi_du(noi, truong, lap_prompt(
             "KIEM", truong, phong, viec, ban=viec["ban"][phong["slug"]]))
         q = doc_quyet(kiem)
         quyet = q["quyet"] or "CHUA"
@@ -1228,7 +1417,7 @@ async def _noi_bo(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None:
         if quyet == "DAT":
             viec["khoa"][phong["slug"]] = True
             return
-        moi = q["sua"] or "Sửa cho đúng tiêu chí phòng."
+        moi = y_phan_hoi(kiem) or q["sua"] or "Sửa cho đúng tiêu chí phòng."
         viec["mo"].append(f"{phong['ten']}: {moi}")
         ban_nay = viec["ban"].get(phong["slug"]) or ""
         if lenh and _trung_lenh(moi, lenh) and _trung_lenh(ban_nay, ban_cu):
@@ -1246,7 +1435,7 @@ async def _noi_bo_lan(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None
     ban_cu = ""
     for vong in range(1, vmax + 1):
         _bao(kho, viec, phong, truong, "giao")
-        giao = await _goi(noi, truong, lap_prompt(
+        giao = await _goi_du(noi, truong, lap_prompt(
             "GIAO", truong, phong, viec, lenh=lenh, thanh_vien=mems))
         day = doc_thu_tu(giao, mems)
         ep = bool(viec.get("xep_khoa") and (viec.get("xep") or {}).get(phong["slug"]))
@@ -1257,9 +1446,12 @@ async def _noi_bo_lan(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None
                 {"slug": m["slug"], "ten": m["ten"], "vi_tri": (m.get("vi_tri") or "").strip()} for m in day
             ]
         _ghi(kho, viec, phong, truong, "giao", vong, giao, giao_cho=_nhan(day[0]))
-        viec["ban"][phong["slug"]] = await _chuoi(kho, viec, phong, noi, day, lenh, vong)
+        hop = await _chuoi(kho, viec, phong, noi, day, lenh, vong)
+        if lenh:
+            hop = _giu_ban(viec["ban"].get(phong["slug"]) or "", hop)
+        viec["ban"][phong["slug"]] = hop
         _bao(kho, viec, phong, truong, "kiem")
-        kiem = await _goi(noi, truong, lap_prompt(
+        kiem = await _goi_du(noi, truong, lap_prompt(
             "KIEM", truong, phong, viec, ban=viec["ban"][phong["slug"]]))
         q = doc_quyet(kiem)
         quyet = q["quyet"] or "CHUA"
@@ -1267,7 +1459,7 @@ async def _noi_bo_lan(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None
         if quyet == "DAT":
             viec["khoa"][phong["slug"]] = True
             return
-        moi = q["sua"] or "Sửa cho đúng tiêu chí phòng."
+        moi = y_phan_hoi(kiem) or q["sua"] or "Sửa cho đúng tiêu chí phòng."
         viec["mo"].append(f"{phong['ten']}: {moi}")
         ban_nay = viec["ban"].get(phong["slug"]) or ""
         if lenh and _trung_lenh(moi, lenh) and _trung_lenh(ban_nay, ban_cu):
@@ -1282,7 +1474,7 @@ async def _sua_phong(kho: Kho, viec: dict, phong: dict, noi, lenh: str, vong: in
     truong = _truong(phong)
     mems = _mems(viec, phong)
     _bao(kho, viec, phong, truong, "sua", mems[0] if mems else None)
-    ra_lenh = await _goi(noi, truong, lap_prompt("SUA", truong, phong, viec, lenh=lenh))
+    ra_lenh = await _goi_du(noi, truong, lap_prompt("SUA", truong, phong, viec, lenh=lenh))
     _ghi(kho, viec, phong, truong, "sua", vong, ra_lenh)
     if not mems:
         viec["ban"][phong["slug"]] = ra_lenh
@@ -1295,9 +1487,10 @@ async def _sua_phong(kho: Kho, viec: dict, phong: dict, noi, lenh: str, vong: in
     manh = []
     for mem in mems:
         _bao(kho, viec, phong, mem, "lam")
-        loi = await _goi(noi, mem, lap_prompt("LAM", mem, phong, viec, lenh=lenh))
-        _ghi(kho, viec, phong, mem, "lam", vong, loi)
-        manh.append(loi)
+        raw = await _goi_du(noi, mem, lap_prompt("LAM", mem, phong, viec, lenh=lenh))
+        t = tach_tra_loi(raw, giau=True)
+        _ghi(kho, viec, phong, mem, "lam", vong, t["noi"], tep=_tep_row(t))
+        manh.append(t["ban"])
     viec["ban"][phong["slug"]] = "\n\n".join(manh)
     kho.luu_viec(viec)
 
@@ -1312,11 +1505,11 @@ async def _trao(kho: Kho, viec: dict, phongs: list, noi, vong: int) -> None:
         kia = _truong(khac)
         ban_khac = (viec.get("ban") or {}).get(khac["slug"]) or ""
         _bao(kho, viec, phong, truong, "chia", kia)
-        y = await _goi(noi, truong, lap_prompt(
+        y = await _goi_du(noi, truong, lap_prompt(
             "CHIA", truong, phong, viec, ban=ban_khac, giao_cho=kia))
         _ghi(kho, viec, phong, truong, "chia", vong, y, giao_cho=_nhan(kia))
         _bao(kho, viec, khac, kia, "dap", truong)
-        d = await _goi(noi, kia, lap_prompt(
+        d = await _goi_du(noi, kia, lap_prompt(
             "DAP", kia, khac, viec, ban=(viec.get("ban") or {}).get(khac["slug"]) or "",
             lenh=y, giao_cho=truong))
         _ghi(kho, viec, khac, kia, "dap", vong, d, giao_cho=_nhan(truong))
@@ -1333,7 +1526,7 @@ async def _hop(kho: Kho, viec: dict, phongs: list, noi, vmax: int, ra_file=None)
         for phong in phongs:
             truong = _truong(phong)
             _bao(kho, viec, phong, truong, "hop")
-            text = await _goi(noi, truong, lap_prompt(
+            text = await _goi_du(noi, truong, lap_prompt(
                 "HOP", truong, phong, viec, cac_ban=viec["ban"]))
             q = doc_quyet(text)
             quyet = q["quyet"] or "CHUA"
@@ -1343,7 +1536,7 @@ async def _hop(kho: Kho, viec: dict, phongs: list, noi, vmax: int, ra_file=None)
             if quyet != "DAT":
                 # Không ghi TRA thì lệnh về đúng phòng của người đang nói.
                 tra = q["tra"] if q["tra"] in by else phong["slug"]
-                orders.append((tra, q["sua"] or "Sửa cho đạt tiêu chí."))
+                orders.append((tra, y_phan_hoi(text) or q["sua"] or "Sửa cho đạt tiêu chí."))
         kho.luu_viec(viec)
         if all(viec["dat"].get(s) for s in slugs):
             viec["mo"] = []
@@ -1374,13 +1567,14 @@ async def _ket(kho: Kho, viec: dict, phongs: list, noi) -> None:
         manh = []
         for row in viec.get("loi") or []:
             if row.get("phong") == p["slug"] and row.get("lop") == "lam":
-                manh.append(row.get("loi") or "")
+                tep = ((row.get("tep") or {}).get("noi_dung") or "").strip()
+                manh.append(tep or row.get("loi") or "")
         ban = (viec.get("ban") or {}).get(p["slug"]) or ""
         if ban and ban not in "\n".join(manh):
             manh.append(ban)
         nguon[p["slug"]] = "\n\n".join(x for x in manh if x)
     _bao(kho, viec, phong, truong, "ket")
-    text = await _goi(noi, truong, lap_prompt("KET", truong, phong, viec, cac_ban=nguon))
+    text = await _goi_du(noi, truong, lap_prompt("KET", truong, phong, viec, cac_ban=nguon))
     viec["ket_qua"] = text
     kho.luu_viec(viec)
 
@@ -1447,20 +1641,22 @@ async def chay_them(kho: Kho, vid: str, noi, comment: str, thu_tu: list | None =
                 truong = _truong(sau)
                 ban_cu = (viec.get("ban") or {}).get(sau["slug"]) or ""
                 _bao(kho, viec, sau, truong, "sua")
-                text = await _goi(noi, truong, lap_prompt(
+                raw = await _goi_du(noi, truong, lap_prompt(
                     "CAP", truong, sau, viec, ban=ban_cu, lenh=comment))
-                viec["ban"][sau["slug"]] = text
-                _ghi(kho, viec, sau, truong, "sua", 1, text)
+                t = tach_tra_loi(raw, giau=True)
+                viec["ban"][sau["slug"]] = _giu_ban(ban_cu, t["ban"])
+                _ghi(kho, viec, sau, truong, "sua", 1, t["noi"], tep=_tep_row(t))
                 await _nop_hang(kho, viec, sau, ra_file)
         else:
             for phong in phongs:
                 truong = _truong(phong)
                 ban = (viec.get("ban") or {}).get(phong["slug"]) or viec.get("ket_cu") or ""
                 _bao(kho, viec, phong, truong, "sua")
-                text = await _goi(noi, truong, lap_prompt(
+                raw = await _goi_du(noi, truong, lap_prompt(
                     "THEM", truong, phong, viec, ban=ban, lenh=comment))
-                viec["ban"][phong["slug"]] = text
-                _ghi(kho, viec, phong, truong, "sua", 1, text)
+                t = tach_tra_loi(raw, giau=True)
+                viec["ban"][phong["slug"]] = _giu_ban(ban, t["ban"])
+                _ghi(kho, viec, phong, truong, "sua", 1, t["noi"], tep=_tep_row(t))
                 await _nop_hang(kho, viec, phong, ra_file)
         await _ket(kho, viec, phongs, noi)
         _gan_ket(viec)
@@ -1544,6 +1740,12 @@ def bien_ban(viec: dict) -> str:
             d.append(f"Bàn giao cho {row['giao_cho']}.")
         d.append("")
         d.append(row.get("loi") or "")
+        tep = row.get("tep") or {}
+        if str(tep.get("noi_dung") or "").strip():
+            d.append("")
+            d.append(f"File đính kèm: {tep.get('ten') or 'tai-lieu.md'}")
+            d.append("")
+            d.append(tep.get("noi_dung") or "")
         d.append("")
     if viec.get("trang_thai") in ("xong", "lech"):
         d.append("## Bản chốt")

@@ -486,16 +486,84 @@ def test_gon_khong_dan_ca_bai():
     viec = {"tieu_de": "Bài", "brief": "ngắn"}
     p = nt.lap_prompt("DOI", nguoi, phong, viec, ban=dai, lenh="thiếu nguồn", giao_cho={"ten": "Chi", "vai": "thanh_vien"})
     check("bước sau đọc đủ bản", "MOC-BAN" in p and "lặp lại cho dài" in p)
-    check("không được coi bản đủ là bị cắt", "Không được kết luận là bị cắt ngắn" in p)
-    check("bảo không viết lại cả bài", "Không viết lại cả bài" in p)
+    check("sửa thì trả lại cả file", "Viết lại cả file cho đủ" in p and "FILE:" in p)
     lam = nt.lap_prompt("LAM", nguoi, phong, viec, ban=dai)
-    check("bước sau không được chép cả bài", "Không chép bản trước" in lam)
+    check("bước sau không chép file vào câu nói", "không chép nguyên file trước" in lam)
     check("bước sau nhận đủ bản trước", "MOC-BAN" in lam and "…" not in lam)
     dau = nt.lap_prompt("LAM", nguoi, phong, viec)
-    check("bản đầu viết đủ", "bản làm" in dau and "Không viết hết" not in dau and "Không dừng giữa chừng" in dau)
+    check("bản đầu là file đủ", "FILE:" in dau and "HET FILE" in dau and "Không viết hết" not in dau)
     check("bản dài vẫn giữ", nt._cat("A" * 9000) == "A" * 9000)
     ket = nt.lap_prompt("KET", nguoi, phong, viec, cac_ban={"noi-dung": dai + "\nMOC-CUOI"})
     check("kết quả nhận đủ bản", "MOC-CUOI" in ket and "MOC-BAN" in ket)
+
+
+def test_file_dinh_kem_khong_vao_hoi_thoai():
+    dai = "NOI: Tôi bàn giao. Ông đọc file. Lưu ý: giữ số liệu.\nFILE: bao-cao.md\n" + ("Đoạn đủ. " * 40) + "MOC-FILE\nHET FILE"
+    t = nt.tach_tra_loi(dai)
+    check("câu nói không chứa bài dài", "MOC-FILE" not in t["noi"] and "bàn giao" in t["noi"])
+    check("file giữ nguyên bài", "MOC-FILE" in t["tep"] and t["ban"].count("Đoạn đủ") == 40)
+
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Nội dung", "Đủ ý", "lan_luot")
+    nt.them_nguoi(kho, "noi-dung", "An", "", "", "truong")
+    nt.them_nguoi(kho, "noi-dung", "Bình", "", "", "thanh_vien")
+    nt.them_nguoi(kho, "noi-dung", "Chi", "", "", "thanh_vien")
+    thay = []
+    lan = {"n": 0}
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "GIAO":
+            return "THU_TU: binh > chi"
+        if kind == "LAM" and nguoi["slug"] == "binh":
+            return "NOI: Tôi bàn giao. Ông đọc file. Lưu ý: thêm nguồn.\nFILE: ban-binh.md\n" + ("Nội dung Bình. " * 30) + "MOC-BINH\nHET FILE"
+        if kind == "NHAN" and nguoi["slug"] == "chi":
+            lan["n"] += 1
+            if lan["n"] == 1:
+                thay.append("MOC-BINH" in prompt)
+                return "NOI:\n- Thiếu nguồn\n- Câu mở chưa rõ\nFILE: ban-binh-note.md\n" + ("Nội dung Bình. " * 30) + "NOTE: thêm nguồn\nHET FILE\nNHAN: CHUA\nSUA: Thêm nguồn."
+            return "NHAN: OK"
+        if kind == "DOI" and nguoi["slug"] == "binh":
+            thay.append("Thiếu nguồn" in prompt and "NOTE: thêm nguồn" in prompt)
+            return "NOI: Đã sửa theo ý và bàn giao lại.\nFILE: ban-binh-sua.md\nNội dung Bình đã có nguồn. MOC-SUA\nHET FILE"
+        if kind == "LAM" and nguoi["slug"] == "chi":
+            thay.append("MOC-SUA" in prompt)
+            return "NOI: Tôi bàn giao phần viết.\nFILE: ban-chi.md\nBài của Chi.\nHET FILE"
+        if kind == "NHAN":
+            return "NHAN: OK"
+        return "tiếp"
+
+    viec = nt.tao_viec(kho, "Bàn giao", "một bài", ["noi-dung"], 2)
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    lam = [r for r in xong["loi"] if r["lop"] == "lam" and r["slug"] == "binh"]
+    check("hội thoại không dán bài dài", lam and "MOC-BINH" not in lam[0]["loi"] and "bàn giao" in lam[0]["loi"])
+    check("file nằm ở đính kèm", lam and "MOC-BINH" in (lam[0].get("tep") or {}).get("noi_dung", ""))
+    check("người sau đọc file, không đọc câu cụt", thay[:3] == [True, True, True])
+    check("bản phòng giữ bài đã sửa", "MOC-SUA" in (xong.get("ban") or {}).get("noi-dung", ""))
+
+
+def test_du_an_dai_khong_dut():
+    cu = "Mở đầu dự án.\n" + ("Đoạn đã chốt. " * 200) + "\nCUỐI-CŨ"
+    moi = "Chỉ sửa câu đầu."
+    giu = nt._giu_ban(cu, moi)
+    check("bản dài không bị thay bằng một câu", giu == cu)
+    y = nt.y_phan_hoi("QUYET: CHUA\n- Thiếu mục 2\n- Sai số bảng 4\nSUA: xem các dòng trên")
+    check("phản hồi giữ hết ý", "Thiếu mục 2" in y and "Sai số bảng 4" in y and "QUYET" not in y)
+    dai = "Câu mở ngắn.\n" + ("Nội dung rất dài của dự án. " * 80) + "MỐC-CUỐI"
+    t = nt.tach_tra_loi(dai, giau=True)
+    check("hội thoại chỉ lấy ý đầu", "MỐC-CUỐI" not in t["noi"] and "Câu mở ngắn" in t["noi"])
+    check("file ngầm giữ đến cuối", t["ban"].endswith("MỐC-CUỐI") and "MỐC-CUỐI" in t["tep"])
+
+    async def noi(_nguoi, prompt):
+        if "Viết TIẾP" in prompt:
+            return "phần tiếp theo hết bài.\nHET FILE"
+        return "NOI: Bàn giao bản dài.\nFILE: du-an.md\nPhần đầu của dự án.\n⚠️ Phản hồi bị cắt do hết max_tokens. Nhắn 'tiếp tục' để model viết tiếp."
+
+    ghep = asyncio.run(nt._goi_du(noi, {"ten": "An"}, "viết bản"))
+    check("bị cắt thì viết tiếp và ghép", "Phần đầu của dự án" in ghep and "phần tiếp theo hết bài" in ghep)
+    check("không lưu câu báo bị cắt", "bị cắt" not in ghep and "HET FILE" in ghep)
 
 
 def test_phong_trao_doi():
@@ -598,6 +666,8 @@ if __name__ == "__main__":
     test_hang_thiet_ke_va_lam_lai_mot_phong()
     test_het_lan_cai_thi_truong_phan()
     test_gon_khong_dan_ca_bai()
+    test_file_dinh_kem_khong_vao_hoi_thoai()
+    test_du_an_dai_khong_dut()
     test_phong_trao_doi()
     test_file_dung_va_chay_them()
     if _fails:
