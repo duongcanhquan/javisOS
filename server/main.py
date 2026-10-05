@@ -1025,6 +1025,7 @@ def _asset_fps(html: str) -> dict:
         "meetings.js", "baigiang.js", "video.js", "marketing.js",
         "org.js", "drive-projects.js",
         "guides.js", "tool-apis.js", "usage.js", "workspace.js", "chatbots.js",
+        "nhac-truong.js",
     ):
         rels.add(name)
     out = {}
@@ -1045,6 +1046,7 @@ _PAGE_LAZY_ASSETS = (
     "meetings.js", "baigiang.js", "video.js", "marketing.js",
     "org.js", "drive-projects.js",
     "guides.js", "tool-apis.js", "usage.js", "workspace.js", "chatbots.js",
+    "nhac-truong.js",
 )
 
 
@@ -12960,6 +12962,20 @@ import routes.domain as domain_routes   # noqa: E402
 domain_routes.register(app, domain_routes.DomainDeps(deploy_mode=lambda: _deploy_mode()))
 import routes.org as org_routes   # noqa: E402
 org_routes.register(app)
+import routes.nhac_truong as nhac_truong_routes   # noqa: E402
+
+
+def _nt_doc_agent(brain, slug):
+    p = _agents_dir(brain) / f"{slug}.md"
+    if not p.is_file():
+        return {}, ""
+    return _read_md(p)
+
+
+nhac_truong_routes.register(app, nhac_truong_routes.Deps(
+    brain_root=lambda name: _brain_root(name or "brain"),
+    doc_agent=_nt_doc_agent,
+))
 
 
 

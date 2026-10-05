@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.49] - 2026-10-05
+### Mới
+- **Nhạc trưởng** trong nhóm Năng lực. Trang có hai tab full bề ngang: Phòng và Theo dõi.
+- Tạo phòng, viết tiêu chí, đặt tên người với tính cách và skill, một trưởng mỗi phòng. Sửa tiêu chí và người ngay trên tab Phòng. Trưởng điều phối team và chặn bản. Nhiều phòng thì các trưởng họp, mỗi người chỉ ghi đạt phần phòng mình.
+- Giao việc ở tab Theo dõi. Bấm Tạo, Lưu hoặc Chạy thì chữ trên nút đổi ngay. Biên bản hiện lúc chạy và mở lại được. Xoá việc khi không còn đang chạy.
+
 ## [0.56.48] - 2026-10-05
 ### Thêm
 - **Marketing Skills (Corey):** hub map ~50 kỹ năng MIT sang skill Javis (CRO, copy, SEO, ads, email, launch, giá…). Thêm cold email B2B, chống churn, A/B test, lead magnet.

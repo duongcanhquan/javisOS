@@ -24,6 +24,7 @@ const lazyFiles = [
   "usage.js",
   "workspace.js",
   "chatbots.js",
+  "nhac-truong.js",
 ];
 
 check("PAGE_LAZY + ensurePageScript + withLazyPage",

@@ -47,6 +47,7 @@
     tool_apis: "key",
     channels: "send",
     mcp: "plug",
+    nhac_truong: "messages-square",
     plugins: "toolbox",
     packs: "package",
     logs: "scroll-text",
@@ -94,7 +95,7 @@
   // Nhãn rail lấy từ TỪ ĐIỂN (thư mục dashboard/i18n) chứ không viết cứng. `t()` suy biến về
   // tiếng Việt khi thiếu key, nên một bản dịch làm dở không bao giờ để lại key trần trên rail.
   const RAIL_ITEMS = [
-    "home", "chat", "settings", "workspace", "skills", "conversations", "files", "drive",
+    "home", "chat", "settings", "workspace", "nhac_truong", "skills", "conversations", "files", "drive",
     "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins",
     "packs", "logs", "account", "usage", "share", "org",
     "guide_what", "guide_connect", "guide_studio", "guide_work",
@@ -112,7 +113,7 @@
     // Thêm chức năng Code mới = thêm 1 mục vào RAIL_ITEMS + 1 id vào đây + 1 dòng trong
     // CHUC_NANG của dashboard/code-term.js.
     { id: "code", get label() { return t("nav.group.code"); },        icon: GICON["Code"],     ids: ["terminal"] },
-    { id: "nang_luc", get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["workspace", "conversations", "skills", "plugins"] },
+    { id: "nang_luc", get label() { return t("nav.group.nang_luc"); },    icon: GICON["Năng lực"], ids: ["workspace", "nhac_truong", "conversations", "skills", "plugins"] },
     { id: "viec", get label() { return t("nav.group.viec"); },        icon: GICON["Việc"],     ids: ["meetings", "baigiang", "video", "marketing", "kanban", "selfimprove"] },
     { id: "ket_noi", get label() { return t("nav.group.ket_noi"); },     icon: GICON["Kết nối"],  ids: ["mcp", "packs", "channels", "models", "tool_apis"] },
     { id: "huong_dan", get label() { return t("nav.group.huong_dan"); },   icon: GICON["Hướng dẫn"], ids: ["guide_what", "guide_connect", "guide_studio", "guide_work"] },
@@ -215,7 +216,7 @@
   //
   // `page.<id>.title` cho phép tiêu đề trang KHÁC nhãn trên rail khi cần (rail chật nên
   // "Việc", trang rộng nên "Việc (Kanban)"); thiếu key đó thì tự rơi về `page.<id>.label`.
-  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workspace", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "conversations", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "share", "org", "guide_what", "guide_connect", "guide_studio", "guide_work"].map(id => [id, {
+  const VIEW_META = Object.fromEntries(["home", "chat", "settings", "workspace", "nhac_truong", "skills", "files", "drive", "terminal", "selfimprove", "chatbots", "conversations", "learn", "meetings", "baigiang", "video", "marketing", "kanban", "models", "tool_apis", "channels", "mcp", "plugins", "packs", "logs", "account", "usage", "share", "org", "guide_what", "guide_connect", "guide_studio", "guide_work"].map(id => [id, {
     icon: VIEW_ICON[id],
     get label() {
       const rieng = t(`page.${id}.title`);
@@ -492,6 +493,7 @@
     usage:     { file: "usage.js",           ready: () => !!(window.JavisUsage && window.JavisUsage.render) },
     workspace: { file: "workspace.js",       ready: () => !!window.JavisWorkspace },
     chatbots:  { file: "chatbots.js",        ready: () => !!(window.JavisChatbots && window.JavisChatbots.render) },
+    nhac_truong: { file: "nhac-truong.js",   ready: () => !!(window.JavisNhacTruong && window.JavisNhacTruong.render) },
   };
   const _pageLazyProm = Object.create(null);
 
@@ -582,6 +584,17 @@
     }
     if (id === "mcp")      return renderConnect(el);
     if (id === "plugins")  return renderPlugins(el);
+    if (id === "nhac_truong") {
+      return withLazyPage("nhac_truong", el, (node) => {
+        const prev = _pageLeave;
+        _pageLeave = () => {
+          try { if (window.JavisNhacTruong && window.JavisNhacTruong.stop) window.JavisNhacTruong.stop(); } catch (e) {}
+          if (prev) try { prev(); } catch (e) {}
+        };
+        if (window.JavisNhacTruong) return window.JavisNhacTruong.render(node);
+        node.innerHTML = placeholder("nhac_truong", "nhac-truong.js chưa sẵn sàng.");
+      });
+    }
     // Trang Gói do packs.js dựng, uỷ quyền y như renderStudioPage uỷ cho studio.js. Để riêng
     // file vì console.js đã ~7k dòng. packs.js vẫn eager: trang Kết nối gọi moKho/goApp.
     if (id === "packs") {
