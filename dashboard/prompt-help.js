@@ -85,14 +85,14 @@
             lab: t("prompt_help.lab_drive_new", "Tạo kho + chưng cất"),
             text: t(
               "prompt_help.s2_new",
-              "Tạo kho Drive tên «<Tên kho>» từ link này: <URL folder>\nĐồng bộ rclone → mirror sources/drive/<slug>/\nRồi chưng cất toàn bộ file unprocessed (trừ README); kho lớn xếp Kanban theo batch.\nPDF chưa có chữ thì liệt kê rõ."
+              "Tạo kho Drive tên «[Tên kho]» từ link này: [URL folder]\nĐồng bộ rclone → mirror sources/drive/[slug]/\nRồi chưng cất toàn bộ file unprocessed (trừ README); kho lớn xếp Kanban theo batch.\nPDF chưa có chữ thì liệt kê rõ."
             ),
           },
           {
             lab: t("prompt_help.lab_drive_again", "Đồng bộ + chưng cất lại"),
             text: t(
               "prompt_help.s2_again",
-              "Đồng bộ lại kho Drive «<Tên>», rồi Chưng cất kho:\ningest-source mọi file unprocessed trong sources/drive/<slug>/."
+              "Đồng bộ lại kho Drive «[Tên]», rồi Chưng cất kho:\ningest-source mọi file unprocessed trong sources/drive/[slug]/."
             ),
           },
         ],
@@ -125,14 +125,14 @@
             lab: t("prompt_help.lab_research", "Nghiên cứu + lưu"),
             text: t(
               "prompt_help.s4_save",
-              "Nghiên cứu sâu về: <chủ đề / câu hỏi>.\nDùng web (Tavily/WebSearch). Lưu báo cáo vào sources/research/<slug>.md\n(status: unprocessed, kèm URL nguồn), rồi ingest-source lên wiki.\nPhân biệt fact vs suy luận; liệt kê nguồn. Không bịa link."
+              "Nghiên cứu sâu về: [chủ đề / câu hỏi].\nDùng web (Tavily/WebSearch). Lưu báo cáo vào sources/research/[slug].md\n(status: unprocessed, kèm URL nguồn), rồi ingest-source lên wiki.\nPhân biệt fact vs suy luận; liệt kê nguồn. Không bịa link."
             ),
           },
           {
             lab: t("prompt_help.lab_quick", "Chỉ tìm nhanh"),
             text: t(
               "prompt_help.s4_quick",
-              "Search nhanh: <câu hỏi>. Tóm tắt + link. Không ghi vào sources/wiki."
+              "Search nhanh: [câu hỏi]. Tóm tắt + link. Không ghi vào sources/wiki."
             ),
           },
         ],
@@ -148,7 +148,7 @@
             lab: t("prompt_help.lab_query", "Hỏi lại chuẩn"),
             text: t(
               "prompt_help.s5_query",
-              "Mở wiki/index.md, tìm trang liên quan <chủ đề>.\nTrả lời dựa trên wiki + sources gốc nếu cần.\nMọi khẳng định cụ thể có [[citation]].\nWiki chưa có thì nói rõ gap (có thể ghi wiki/_open-questions.md), không bịa."
+              "Mở wiki/index.md, tìm trang liên quan [chủ đề].\nTrả lời dựa trên wiki + sources gốc nếu cần.\nMọi khẳng định cụ thể có [[citation]].\nWiki chưa có thì nói rõ gap (có thể ghi wiki/_open-questions.md), không bịa."
             ),
           },
         ],
