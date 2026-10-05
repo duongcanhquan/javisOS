@@ -112,7 +112,7 @@
             lab: t("prompt_help.lab_save", "Lưu + tra cứu sau"),
             text: t(
               "prompt_help.s3_save",
-              "Lưu toàn bộ folder này vào sources/local/<slug-ngắn>/ (giữ cấu trúc tương đối),\gắn status: unprocessed, rồi ingest-source từng file.\nChưng cất lên wiki; kho lớn thì xếp batch Kanban + báo tiến độ.\nBỏ qua file rác (__MACOSX, .DS_Store). Báo file nào không đọc được."
+              "Lưu toàn bộ folder này vào sources/local/[slug-ngắn]/ (giữ cấu trúc tương đối),\gắn status: unprocessed, rồi ingest-source từng file.\nChưng cất lên wiki; kho lớn thì xếp batch Kanban + báo tiến độ.\nBỏ qua file rác (__MACOSX, .DS_Store). Báo file nào không đọc được."
             ),
           },
         ],
