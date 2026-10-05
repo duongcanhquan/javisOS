@@ -118,6 +118,7 @@ async def sua_nguoi(slug: str, ns: str, request: Request):
             skills=body.get("skills") if "skills" in body else None,
             vai=body.get("vai") if "vai" in body else None,
             vi_tri=body.get("vi_tri") if "vi_tri" in body else None,
+            ten=body.get("ten") if "ten" in body else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)

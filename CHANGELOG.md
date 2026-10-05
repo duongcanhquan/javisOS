@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.57] - 2026-10-05
+### Mới
+- **Nhạc trưởng** trải hết màn hình. Setup ba cột: phòng, quy trình trên xuống dưới, sửa từng người. Giao việc xếp phòng nào trước và người nào trước, hoặc để nhạc trưởng tự xếp. Theo dõi: danh sách việc thu được, bàn làm việc xanh theo thứ tự, bàn đang làm đỏ kèm chữ đang làm. Chat chỉ câu ngắn. Kết quả cuối mới là bản đủ.
+- Vòng tối đa mỗi tầng lên 10, mặc định 6. Hết lỗi thì dừng sớm. Cùng một lỗi mà bản không đổi thì không đốt hết số vòng.
+
 ## [0.56.56] - 2026-10-05
 ### Sửa
 - Vault giữa màn hình trở lại thiên hà như cũ. Bỏ hình não vẽ đè lên đồ thị.

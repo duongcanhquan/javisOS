@@ -395,6 +395,12 @@
     var f = document.getElementById("ntTaoViec");
     if (!f) return null;
     var det = f.closest("details");
+    var tu = document.getElementById("ntTuXep");
+    if (S._route) {
+      if (tu) S._route.tu = !!tu.checked;
+      S._route.bo = S._route.bo || {};
+      f.querySelectorAll('input[name="phong"]').forEach(function (x) { S._route.bo[x.value] = !x.checked; });
+    }
     return {
       tieu_de: f.tieu_de.value,
       brief: f.brief.value,
@@ -402,6 +408,29 @@
       phong: Array.prototype.map.call(f.querySelectorAll('input[name="phong"]:checked'), function (x) { return x.value; }),
       open: !!(det && det.open)
     };
+  }
+
+  function routeNhap() {
+    var co = S.phong.filter(truongCua);
+    if (!S._route) S._route = { tu: true, phong: [], nguoi: {}, bo: {}, tay: {} };
+    var r = S._route;
+    r.nguoi = r.nguoi || {};
+    r.bo = r.bo || {};
+    r.tay = r.tay || {};
+    co.forEach(function (p) {
+      if (r.phong.indexOf(p.slug) < 0) r.phong.push(p.slug);
+      var ids = (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; }).map(function (n) { return n.slug; });
+      if (r.tu || !r.tay[p.slug]) {
+        r.nguoi[p.slug] = ids.slice();
+      } else {
+        var cur = r.nguoi[p.slug] || [];
+        ids.forEach(function (ns) { if (cur.indexOf(ns) < 0) cur.push(ns); });
+        r.nguoi[p.slug] = cur.filter(function (ns) { return ids.indexOf(ns) >= 0; });
+      }
+    });
+    var slugs = co.map(function (p) { return p.slug; });
+    r.phong = r.phong.filter(function (s) { return slugs.indexOf(s) >= 0; });
+    return r;
   }
   function phucViec(g) {
     var f = document.getElementById("ntTaoViec");
@@ -421,7 +450,7 @@
     S.root.innerHTML =
       '<div class="nt">' +
       (S.loi ? '<p class="nt-err" role="alert">' + esc(S.loi) + "</p>" : "") +
-      '<p class="nt-lead">Setup để xếp phòng và người. Giao việc để đưa brief. Theo dõi để xem bàn làm việc và lời trao đổi.</p>' +
+      '<p class="nt-lead">Setup xếp phòng và người. Giao việc chọn lộ trình. Theo dõi xem bàn và câu trao đổi ngắn.</p>' +
       '<div class="nt-tabs" role="tablist">' +
       '<button type="button" class="nt-tab' + (S.tab === "phong" ? " on" : "") + '" data-tab="phong" role="tab">Setup</button>' +
       '<button type="button" class="nt-tab' + (S.tab === "giao" ? " on" : "") + '" data-tab="giao" role="tab">Giao việc</button>' +
@@ -481,10 +510,11 @@
   }
 
   function tabPhong() {
-    return '<div class="nt-setup"><aside class="nt-rail"><h2>Setup</h2>' +
+    return '<div class="nt-setup nt-full"><aside class="nt-rail"><h2>Phòng</h2>' +
       '<label class="nt-tim">Tìm<input id="ntTim" type="search" placeholder="Phòng, người, vị trí" value="' + esc(S.tim || "") + '"></label>' +
-      '<div id="ntDsPhong">' + dsPhongNut() + "</div>" + formTaoPhong() + formThemNguoi() +
-      '</aside><div class="nt-stage">' + thanPhong() + "</div></div>";
+      '<div id="ntDsPhong">' + dsPhongNut() + "</div>" + formTaoPhong() +
+      '</aside><section class="nt-col">' + cotQuyTrinh() +
+      '</section><section class="nt-col">' + cotNguoi() + "</section></div>";
   }
 
   function viecChoPhong(slug) {
@@ -547,131 +577,111 @@
       "</button>";
   }
 
+  function iconBan() {
+    return '<svg viewBox="0 0 64 48" aria-hidden="true"><rect x="6" y="18" width="52" height="8" rx="2"></rect>' +
+      '<rect x="12" y="26" width="5" height="16" rx="1"></rect><rect x="47" y="26" width="5" height="16" rx="1"></rect>' +
+      '<rect x="22" y="6" width="20" height="12" rx="1.5" opacity="0.55"></rect></svg>';
+  }
+
+  function gheBan(n, slug, d, so) {
+    var bat = laDang(d, n, slug);
+    return '<div class="nt-seatrow' + (bat ? " on" : " wait") + (n.vai === "truong" ? " head" : "") + '">' +
+      '<span class="nt-qno">' + so + "</span>" +
+      '<span class="nt-deskico">' + iconBan() + "</span>" +
+      "<span><b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (n.vai === "truong" ? "Trưởng phòng" : "Thành viên")) + "</small>" +
+      (bat ? "<em>đang làm</em>" : "") + "</span></div>";
+  }
+
   function htmlMap() {
-    var p = phongChon();
-    if (!p) return "";
     var v = viecHien();
-    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
-    var lan = p.cach_lam === "lan_luot";
-    var truong = truongCua(p);
-    var day = dayViec(p, v);
-    var khac = "";
-    if (v && (v.phong || []).length > 1) {
-      khac = '<div class="nt-links">' + v.phong.map(function (slug, i) {
-        var q = S.phong.filter(function (x) { return x.slug === slug; })[0];
-        var ten = q ? q.ten : slug;
-        var run = d && d.phong === slug;
-        return (i ? '<span class="nt-linkbar' + (run ? " on" : "") + '"></span>' : "") +
-          '<button type="button" class="nt-roomlink' + (slug === p.slug ? " on" : "") + (run ? " run" : "") + '" data-phong="' + esc(slug) + '">' +
-          (q && q.icon ? '<img alt="" src="' + esc(q.icon) + '">' : '<span class="nt-ava">' + esc((ten || "?").slice(0, 1)) + "</span>") +
-          "<b>" + esc(ten) + "</b>" + (run ? "<small>đang làm</small>" : "") + "</button>";
-      }).join("") + "</div>";
-    }
-    function noiNhau(a, b) {
-      if (!d || d.phong !== p.slug || !a || !b) return "";
-      var ab = d.ten === a.ten && d.giao_cho && d.giao_cho.indexOf(b.ten) >= 0;
-      var ba = d.ten === b.ten && d.giao_cho && d.giao_cho.indexOf(a.ten) >= 0;
-      if (!ab && !ba) return "";
-      var doiThoai = d.buoc === "nhan" || d.buoc === "doi" || d.buoc === "chia" || d.buoc === "dap" || d.buoc === "gop";
-      return doiThoai ? "talk" : "go";
-    }
-    function mui(loai) {
-      var nhan = loai === "talk" ? "Đang trao đổi" : "Đưa tới";
-      return '<span class="nt-arrow' + (loai ? " " + loai : "") + '"><span class="nt-aline"></span><i>' + nhan + "</i></span>";
-    }
-    var oNgoai = d && d.phong && d.phong !== p.slug;
-    var xuong = lan && truong && day[0] ? '<div class="nt-down">' + mui(noiNhau(truong, day[0])) + "</div>" : "";
-    var luong = day.map(function (n, i) {
-      var muiTen = lan && i < day.length - 1 ? mui(noiNhau(n, day[i + 1])) : "";
-      return banNguoi(n, p.slug, d, lan ? i + 1 : 0) + muiTen;
-    }).join("");
-    return khac +
-      '<p class="nt-kicker">' + esc(p.ten) + " · " + (lan ? "Làm lần lượt" : "Làm cùng") + "</p>" +
-      (v ? '<p class="nt-hint">' + esc(v.tieu_de || "") + (oNgoai ? " · việc đang xử lý ở " + esc(d.phong_ten || "phòng khác") : "") + "</p>" : '<p class="nt-hint">Chưa có việc. Giao ở tab Giao việc, rồi bấm Chạy.</p>') +
-      '<div class="nt-roombox">' +
-      (truong ? '<div class="nt-headrow">' + banNguoi(truong, p.slug, d, 0) + "</div>" : '<p class="nt-call">Chưa có trưởng.</p>') +
-      xuong +
-      (luong ? '<div class="nt-flow">' + luong + "</div>" : '<p class="nt-hint">Chưa có người ngồi bàn. Thêm ở cột trái.</p>') +
-      '<p class="nt-hint">Tiêu chí: ' + esc(p.tieu_chi || "") + "</p></div>";
+    if (!v) return '<p class="nt-hint">Chọn một việc.</p>';
+    var d = v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var tang = (v.phong || []).map(function (slug, i) {
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      if (!p) return "";
+      var truong = truongCua(p);
+      var day = dayViec(p, v);
+      var ghe = [];
+      var so = 0;
+      if (truong) { so += 1; ghe.push(gheBan(truong, slug, d, so)); }
+      day.forEach(function (n) { so += 1; ghe.push(gheBan(n, slug, d, so)); });
+      var run = d && d.phong === slug;
+      return '<section class="nt-floor' + (run ? " on" : "") + '"><header><span class="nt-qno">' + (i + 1) + "</span>" +
+        (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : '<span class="nt-ava">' + esc((p.ten || "?").slice(0, 1)) + "</span>") +
+        "<span><b>" + esc(p.ten) + "</b><small>" + (p.cach_lam === "lan_luot" ? "Lần lượt" : "Làm cùng") + "</small></span></header>" +
+        '<div class="nt-desks">' + (ghe.join("") || '<p class="nt-hint">Chưa có người.</p>') + "</div></section>";
+    }).join('<div class="nt-qsep">↓</div>');
+    return tang || '<p class="nt-hint">Việc chưa gắn phòng.</p>';
   }
 
   function htmlTalk() {
-    var p = phongChon();
     var v = viecHien();
-    if (!p) return "";
-    if (!v) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chưa có lời. Khi chạy, hỏi đáp và bàn giao hiện ở đây.</p>';
+    if (!v) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
     var rows = (v.loi || []).slice().reverse();
-    return "<h3>Giao tiếp</h3>" + htmlKet(v) +
-      '<p class="nt-hint">' + esc(v.tieu_de || "") + " · " + esc((TRANG[v.trang_thai] || [v.trang_thai || ""])[0]) + "</p>" +
-      dangLam(v) +
-      '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ lời đầu tiên." : "Chưa có lời nào.") + "</p>") + "</div>";
+    return "<h3>Giao tiếp</h3>" + htmlKet(v) + dangLam(v) +
+      '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ câu đầu." : "Chưa có trao đổi.") + "</p>") + "</div>";
   }
 
-  function thanPhong() {
+  function buocQuy(n, so, tong, viecNgan) {
+    var chon = S.sua === n.slug ? " on" : "";
+    var len = so ? '<button type="button" class="nt-btn ghost" data-len="' + esc(n.slug) + '"' + (so <= 1 ? " disabled" : "") + ">Lên</button>" +
+      '<button type="button" class="nt-btn ghost" data-xuong="' + esc(n.slug) + '"' + (so >= tong ? " disabled" : "") + ">Xuống</button>" : "";
+    return '<li><button type="button" class="nt-qitem' + chon + '" data-nguoi="' + esc(n.slug) + '">' +
+      '<span class="nt-qno">' + (so || "★") + "</span>" +
+      "<span><b>" + esc(n.ten) + "</b><small>" + esc(viecNgan) + "</small></span></button>" + len + "</li>";
+  }
+
+  function cotQuyTrinh() {
     var p = phongChon();
-    if (!p) return "<h2>Setup</h2>" +
-      '<p class="nt-hint">Tạo phòng ở cột trái. Bấm phòng để sửa tên, tiêu chí, người và thứ tự.</p>';
-    var t = truongCua(p);
+    if (!p) return "<h2>Quy trình</h2>" +
+      '<p class="nt-hint">Bấm một phòng bên trái. Cột này là thứ tự người làm, từ trên xuống.</p>';
     var lan = p.cach_lam === "lan_luot";
-    var tong = lan ? (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; }).length : 0;
-    var buoc = 0;
-    var nguoi = (p.nguoi || []).map(function (n) {
-      var so = 0;
-      if (lan && n.vai !== "truong") { buoc += 1; so = buoc; }
-      return theNguoi(n, so, tong);
-    }).join("");
-    return '<div class="nt-setup-body">' +
-      '<h2>' + esc(p.ten) + "</h2>" +
+    var t = truongCua(p);
+    var mem = (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+    var hang = [];
+    if (t) hang.push(buocQuy(t, 0, mem.length, (t.vi_tri || "Trưởng phòng") + " · giao việc"));
+    mem.forEach(function (n, i) {
+      var cuoi = i === mem.length - 1;
+      var mac = lan ? (cuoi ? "làm xong, đưa lên trưởng" : "làm phần mình, đưa bước sau") : "làm cùng, trưởng chốt";
+      hang.push(buocQuy(n, lan ? i + 1 : 0, mem.length, (n.vi_tri || "Thành viên") + " · " + mac));
+    });
+    return "<h2>" + esc(p.ten) + "</h2>" +
       (p.icon ? '<img class="nt-icon" alt="" src="' + esc(p.icon) + '">' : "") +
-      '<form id="ntIcon" class="nt-form"><label>Icon phòng<input name="icon" type="file" accept="image/*"></label>' +
-      '<p class="nt-hint">Ảnh nhỏ, hiện trên bàn làm việc ở tab Theo dõi.</p></form>' +
-      '<details class="nt-details" open><summary>Sửa phòng, vị trí và thứ tự</summary>' +
-      '<form id="ntCach" class="nt-form">' +
-      '<label>Cách làm<select name="cach_lam">' +
-      '<option value="lan_luot"' + (lan ? " selected" : "") + ">Làm lần lượt</option>" +
-      '<option value="cung"' + (lan ? "" : " selected") + ">Làm cùng</option></select></label>" +
-      '<p class="nt-hint">' + (lan
-        ? "Thứ tự bên dưới là quy trình có sẵn. Khi có việc, trưởng xem brief và được xếp lại. Bước sau chưa hiểu thì nói lại với bước trước. Nhận rồi mới làm và chuyển tiếp."
-        : "Mọi người nhận cùng brief và viết phần mình. Trưởng đọc bản ghép rồi phản hồi.") +
-      "</p></form>" +
-      (t ? '<p class="nt-hint"><span class="nt-pill ok">Trưởng</span> ' + esc(t.ten) +
-        (t.vi_tri ? " · " + esc(t.vi_tri) : " · chưa đặt vị trí") + "</p>"
-        : '<p class="nt-call">Chưa có trưởng. Thêm người ở cột trái và chọn vai Trưởng phòng.</p>') +
+      '<form id="ntIcon" class="nt-form"><label>Icon phòng<input name="icon" type="file" accept="image/*"></label></form>' +
+      '<form id="ntCach" class="nt-form"><label>Cách làm<select name="cach_lam">' +
+      '<option value="lan_luot"' + (lan ? " selected" : "") + ">Làm lần lượt, trên xuống dưới</option>" +
+      '<option value="cung"' + (lan ? "" : " selected") + ">Làm cùng</option></select></label></form>" +
       '<form id="ntSuaTieu" class="nt-form">' +
       '<label>Tên phòng<input name="ten" required value="' + esc(p.ten || "") + '"></label>' +
-      '<label>Tiêu chí trưởng giữ<textarea name="tieu_chi" required>' + esc(p.tieu_chi || "") + "</textarea></label>" +
-      '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu tiêu chí</button>' +
+      '<label>Tiêu chí<textarea name="tieu_chi" required>' + esc(p.tieu_chi || "") + "</textarea></label>" +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu phòng</button>' +
       '<button type="button" class="nt-btn danger" id="ntXoaPhong">Xoá phòng</button></div></form>' +
-      (nguoi ? '<div class="nt-people">' + nguoi + "</div>" : '<p class="nt-hint">Chưa có người. Thêm ở cột trái.</p>') +
-      "</details></div>";
+      (t ? "" : '<p class="nt-call">Chưa có trưởng. Thêm người ở cột phải và chọn vai Trưởng phòng.</p>') +
+      (hang.length ? '<ol class="nt-quytrinh">' + hang.join('<li class="nt-qsep" aria-hidden="true">↓</li>') + "</ol>"
+        : '<p class="nt-hint">Chưa có người.</p>') +
+      '<button type="button" class="nt-btn" data-nguoi="+">Thêm người</button>';
   }
 
-  function theNguoi(n, so, tong) {
-    if (S.sua === n.slug) {
-      return '<form class="nt-card nt-form" id="ntSuaNguoi">' +
-        "<b>" + esc(n.ten) + "</b>" +
-        '<label>Vị trí<input name="vi_tri" value="' + esc(n.vi_tri || "") + '" placeholder="Chuyên viên thiết kế"></label>' +
-        '<label>Vai<select name="vai"><option value="thanh_vien"' + (n.vai !== "truong" ? " selected" : "") +
-        '>Thành viên</option><option value="truong"' + (n.vai === "truong" ? " selected" : "") +
-        ">Trưởng phòng</option></select></label>" +
-        '<p class="nt-hint">Đặt trưởng thì trưởng hiện tại xuống thành viên. Mỗi phòng một trưởng.</p>' +
-        '<label>Tính cách<textarea name="tinh_cach">' + esc(n.tinh_cach || "") + "</textarea></label>" +
-        oSkill(n.skills || []) +
-        '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu</button>' +
-        '<button type="button" class="nt-btn ghost" id="ntHuySua">Huỷ</button></div></form>';
-    }
-    var sk = (n.skills || []).map(function (s) { return '<span class="nt-pill">' + esc(skillTen(s)) + "</span>"; }).join(" ");
-    var thu = so ? '<span class="nt-pill run">Bước ' + so + "</span> " : "";
-    var xep = so ? '<button type="button" class="nt-btn ghost" data-len="' + esc(n.slug) + '"' + (so <= 1 ? " disabled" : "") + ">Lên</button>" +
-      '<button type="button" class="nt-btn ghost" data-xuong="' + esc(n.slug) + '"' + (so >= tong ? " disabled" : "") + ">Xuống</button>" : "";
-    return '<article class="nt-card nt-member"><div><b>' + esc(n.ten) + "</b> " + thu +
-      (n.vai === "truong" ? '<span class="nt-pill ok">Trưởng phòng</span>' : '<span class="nt-pill">Thành viên</span>') +
-      '<p class="nt-vi-tri">' + (n.vi_tri ? esc(n.vi_tri) : "Chưa đặt vị trí") + "</p>" +
-      "<p>" + esc(n.tinh_cach || "Chưa viết tính cách.") + "</p>" +
-      (sk ? '<p class="nt-chips">' + sk + "</p>" : '<p class="nt-hint">Chưa gán skill.</p>') +
-      '</div><div class="nt-row">' + xep +
-      '<button type="button" class="nt-btn ghost" data-sua="' + esc(n.slug) + '">Sửa vị trí</button>' +
-      '<button type="button" class="nt-btn ghost" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></article>';
+  function cotNguoi() {
+    var p = phongChon();
+    if (!p) return "<h2>Nhân viên</h2>" + '<p class="nt-hint">Chọn phòng, rồi bấm một người trong quy trình.</p>';
+    if (S.sua === "+") return "<h2>Thêm người</h2>" + formThemNguoi() +
+      '<button type="button" class="nt-btn ghost" id="ntHuySua">Huỷ</button>';
+    var n = (p.nguoi || []).filter(function (x) { return x.slug === S.sua; })[0];
+    if (!n) return "<h2>Nhân viên</h2>" +
+      '<p class="nt-hint">Bấm một người ở cột giữa để sửa tên, vị trí, skill. Hoặc bấm Thêm người.</p>';
+    return "<h2>Sửa " + esc(n.ten) + "</h2>" +
+      '<form class="nt-form" id="ntSuaNguoi">' +
+      '<label>Tên<input name="ten" required value="' + esc(n.ten || "") + '"></label>' +
+      '<label>Vị trí<input name="vi_tri" value="' + esc(n.vi_tri || "") + '" placeholder="Chuyên viên nghiên cứu"></label>' +
+      '<label>Vai<select name="vai"><option value="thanh_vien"' + (n.vai !== "truong" ? " selected" : "") +
+      '>Thành viên</option><option value="truong"' + (n.vai === "truong" ? " selected" : "") +
+      ">Trưởng phòng</option></select></label>" +
+      '<p class="nt-hint">Mỗi phòng một trưởng. Đặt trưởng mới thì trưởng cũ xuống thành viên.</p>' +
+      '<label>Tính cách<textarea name="tinh_cach">' + esc(n.tinh_cach || "") + "</textarea></label>" +
+      oSkill(n.skills || []) +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu người</button>' +
+      '<button type="button" class="nt-btn danger" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></form>';
   }
 
   function tabGiao() {
@@ -685,9 +695,7 @@
         '<p class="nt-call">Chưa giao được. Mỗi phòng tham gia cần một trưởng.</p>' +
         '<button type="button" class="nt-btn" data-tab="phong">Về tab Setup</button>';
     }
-    return "<h2>Giao việc</h2>" +
-      '<p class="nt-hint">Viết brief, chọn phòng, rồi bấm Giao việc. Việc vừa giao mở ở tab Theo dõi. Bấm Chạy ở đó để các trưởng bắt đầu.</p>' +
-      formViec();
+    return formViec();
   }
 
   function tabViec() {
@@ -696,31 +704,55 @@
         '<p class="nt-hint">Chưa có phòng. Tạo phòng ở tab Setup trước.</p>' +
         '<button type="button" class="nt-btn" data-tab="phong">Về tab Setup</button>';
     }
-    return '<div class="nt-watch"><aside class="nt-rail"><h2>Việc</h2>' +
-      '<button type="button" class="nt-btn" data-tab="giao">Giao việc mới</button>' +
-      dsViec() +
-      '</aside><div class="nt-stage" id="ntTheoDoi">' + theoDoi() + "</div></div>";
+    return '<div class="nt-watch' + (S.gon ? " gon" : "") + '">' +
+      (S.gon ? "" : '<aside class="nt-rail"><div class="nt-row"><h2>Việc</h2><button type="button" class="nt-btn ghost" id="ntGon">Thu</button></div>' +
+        '<button type="button" class="nt-btn" data-tab="giao">Giao việc mới</button>' + dsViec() + "</aside>") +
+      '<div class="nt-col" id="ntTheoDoi">' + theoDoi() + "</div>" +
+      '<aside class="nt-office-talk" id="ntTalk">' + htmlTalk() + "</aside></div>";
   }
 
   function formViec() {
     var n = S._nhap || {};
-    var hop = S.phong.map(function (p) {
-      var thieu = truongCua(p) ? "" : " disabled";
-      var chon = "";
-      if (n.phong && n.phong.length) chon = n.phong.indexOf(p.slug) >= 0 ? " checked" : "";
-      else if (p.slug === S.chonPhong && truongCua(p)) chon = " checked";
-      return '<label class="nt-chip"><input type="checkbox" name="phong" value="' + esc(p.slug) + '"' + chon + thieu + "> " +
-        esc(p.ten) + (thieu ? " (thiếu trưởng)" : "") + "</label>";
+    var r = routeNhap();
+    if (n.phong && n.phong.length && !S._routeDaChon) {
+      r.phong.forEach(function (slug) { r.bo[slug] = n.phong.indexOf(slug) < 0; });
+      S._routeDaChon = true;
+    }
+    var duong = r.phong.map(function (slug, i) {
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      if (!p) return "";
+      var tat = !!r.bo[slug];
+      var nguoi = "";
+      if (!r.tu) {
+        nguoi = '<ol class="nt-mini">' + (r.nguoi[slug] || []).map(function (ns, k) {
+          var u = (p.nguoi || []).filter(function (x) { return x.slug === ns; })[0];
+          if (!u) return "";
+          var ids = r.nguoi[slug];
+          return "<li><span><b>" + esc(u.ten) + "</b><small>" + esc(u.vi_tri || "Thành viên") + "</small></span>" +
+            '<button type="button" class="nt-btn ghost" data-route="nguoi" data-room="' + esc(slug) + '" data-slug="' + esc(ns) + '" data-huong="len"' + (k ? "" : " disabled") + ">Lên</button>" +
+            '<button type="button" class="nt-btn ghost" data-route="nguoi" data-room="' + esc(slug) + '" data-slug="' + esc(ns) + '" data-huong="xuong"' + (k < ids.length - 1 ? "" : " disabled") + ">Xuống</button></li>";
+        }).join("") + "</ol>";
+      }
+      return '<article class="nt-lane' + (tat ? " off" : "") + '"><header><label class="nt-chip"><input type="checkbox" name="phong" value="' + esc(slug) + '"' + (tat ? "" : " checked") + "> " +
+        (i + 1) + ". " + esc(p.ten) + "</label>" +
+        '<button type="button" class="nt-btn ghost" data-route="phong" data-slug="' + esc(slug) + '" data-huong="len"' + (i ? "" : " disabled") + ">Lên</button>" +
+        '<button type="button" class="nt-btn ghost" data-route="phong" data-slug="' + esc(slug) + '" data-huong="xuong"' + (i < r.phong.length - 1 ? "" : " disabled") + ">Xuống</button></header>" +
+        (r.tu ? '<p class="nt-hint">Nhạc trưởng tự xếp người trong phòng.</p>' : nguoi) + "</article>";
     }).join("");
-    return '<form id="ntTaoViec" class="nt-form nt-split">' +
+    return '<form id="ntTaoViec" class="nt-giao nt-form">' +
+      '<section class="nt-col"><h2>Brief</h2>' +
       '<label>Tên việc<input name="tieu_de" required placeholder="Bài ra mắt khóa" value="' + esc(n.tieu_de || "") + '"></label>' +
-      '<label>Vòng tối đa mỗi tầng<input name="vong" type="number" min="1" max="4" value="' + esc(n.vong || "2") + '"></label>' +
-      '<label class="full">Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc">' + esc(n.brief || "") + "</textarea></label>" +
-      '<label class="full">Tài liệu tham khảo, tối đa 3 file chữ<input name="tai_lieu" type="file" accept=".txt,.md,.csv,.json,.html" multiple></label>' +
-      '<p class="nt-hint full">File để hệ thống đọc khi triển khai. PDF hãy dán chữ vào brief.</p>' +
-      '<span class="nt-lbl full">Phòng tham gia, thứ tự từ trên xuống là lộ trình<div class="nt-chips">' + hop + "</div></span>" +
-      '<p class="nt-hint full">Hết vòng thì dừng và ghi chỗ còn mở. Không sửa mãi. Trong từng phòng, thứ tự người đặt ở Setup.</p>' +
-      '<div class="nt-row full"><button class="nt-btn pri" type="submit">Giao việc</button></div></form>';
+      '<label>Vòng tối đa mỗi tầng, 1 đến 10<input name="vong" type="number" min="1" max="10" value="' + esc(n.vong || "6") + '"></label>' +
+      '<label>Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc">' + esc(n.brief || "") + "</textarea></label>" +
+      '<label>Tài liệu, tối đa 3 file chữ<input name="tai_lieu" type="file" accept=".txt,.md,.csv,.json,.html" multiple></label>' +
+      '<p class="nt-hint">Tối đa 10 vòng. Còn lỗi cụ thể thì sửa tiếp. Hết lỗi thì dừng, dù mới 1 hoặc 2 vòng.</p>' +
+      '<div class="nt-row"><button class="nt-btn pri" type="submit">Giao việc</button></div></section>' +
+      '<section class="nt-col"><h2>Lộ trình</h2>' +
+      '<label class="nt-chip"><input type="checkbox" id="ntTuXep"' + (r.tu ? " checked" : "") + "> Nhạc trưởng tự phân bổ người</label>" +
+      '<p class="nt-hint">Phòng trên làm trước, phòng dưới làm sau. Bỏ chọn ô nếu muốn tự xếp thứ tự người trong từng phòng.</p>' +
+      (S.phong.some(function (p) { return !truongCua(p); }) ? '<p class="nt-hint">Phòng thiếu trưởng chưa vào lộ trình: ' +
+        esc(S.phong.filter(function (p) { return !truongCua(p); }).map(function (p) { return p.ten; }).join(", ")) + ".</p>" : "") +
+      duong + "</section></form>";
   }
 
   function dsViec() {
@@ -846,28 +878,31 @@
     S.root.querySelectorAll(".nt-mo-ban").forEach(function (b) { b.onclick = moBanDay; });
   }
 
+  function tomBrief(s) {
+    s = String(s || "").replace(/\s+/g, " ").trim();
+    return s.length > 140 ? s.slice(0, 137) + "…" : s;
+  }
+
   function theoDoi() {
     var v = S._viecDay;
-    if (!v) return '<p class="nt-hint">Chọn một việc để xem biên bản.</p>';
+    if (!v) return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
+      '<p class="nt-hint">Chọn một việc.</p>';
     var chay = v.trang_thai === "dang_chay";
     var treo = chay && v.song === false;
-    var loi = "";
-    var hienBan = v.trang_thai === "xong" || v.trang_thai === "lech" || v.trang_thai === "dung";
     var nutChay = treo ? "Khởi động lại" : (chay ? "Đang chạy" : (v.trang_thai === "dung" || v.trang_thai === "loi" ? "Chạy lại" : "Chạy"));
-    return '<div class="nt-row">' + pillTrang(treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
-      (treo ? '<p class="nt-err">Việc đang ghi là chạy nhưng không còn tiến. Bấm Khởi động lại hoặc Dừng.</p>' : "") +
-      '<p class="nt-hint">' + esc(v.brief || "") + "</p>" +
+    return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
+      '<div class="nt-row">' + pillTrang(treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
+      (treo ? '<p class="nt-err">Việc ghi là đang chạy nhưng không còn tiến.</p>' : "") +
+      (tomBrief(v.brief) ? '<p class="nt-hint">' + esc(tomBrief(v.brief)) + "</p>" : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
-      soDo(v) + nutThuTu(v) + dangLam(v) + buoc(v) +
+      dangLam(v) +
       '<div class="nt-row">' +
       '<button type="button" class="nt-btn pri" id="ntChay"' + (chay && !treo ? " disabled" : "") + ">" + nutChay + "</button>" +
       (chay ? '<button type="button" class="nt-btn danger" id="ntDung">Dừng</button>' : "") +
       '<button type="button" class="nt-btn" id="ntThu"' + (chay && !treo ? " disabled" : "") + ">Chạy thử</button>" +
       (chay ? "" : '<button type="button" class="nt-btn danger" id="ntXoaViec">Xoá việc</button>') +
       "</div>" +
-      '<div class="nt-office"><div class="nt-office-map" id="ntMap">' + htmlMap() +
-      '</div><aside class="nt-office-talk" id="ntTalk">' + htmlTalk() + "</aside></div>" +
-      (hienBan ? "" : "");
+      '<div class="nt-floors" id="ntMap">' + htmlMap() + "</div>";
   }
 
   function loiSach(text) {
@@ -889,19 +924,34 @@
     return '<span class="nt-to">' + (ngan[row.lop] || "với") + " " + esc(row.giao_cho) + "</span>";
   }
 
+  function tomChat(row) {
+    var sach = loiSach(row.loi);
+    if (!sach) return "";
+    if (row.lop === "lam" || row.lop === "ket") {
+      var dong = sach.split("\n").map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
+      dong = dong.replace(/^[#>*\-\d\.\)\s]+/, "");
+      if (dong.length > 140) dong = dong.slice(0, 137) + "…";
+      return dong || "Đã làm phần của mình.";
+    }
+    var gon = sach.replace(/\s+/g, " ").trim();
+    if (gon.length > 180) gon = gon.slice(0, 177) + "…";
+    return gon;
+  }
+
   function nhomLoi(rows) {
     var out = "";
     var khoa = "";
-    var hoi = { nhan: 1, kiem: 1, chia: 1, gop: 1, hop: 1, xu: 1, giao: 1 };
+    var bao = { giao: 1, kiem: 1, hop: 1, xu: 1, sua: 1, ket: 1 };
     rows.forEach(function (row) {
-      var pha = (row.lop === "hop" || row.lop === "chia" || row.lop === "dap" ? "Giữa các phòng" : (row.phong_ten || "Trong phòng")) + " · vòng " + row.vong;
+      var pha = (row.lop === "hop" || row.lop === "chia" || row.lop === "dap" ? "Giữa phòng" : (row.phong_ten || "Trong phòng")) + " · vòng " + row.vong;
       if (pha !== khoa) { khoa = pha; out += '<div class="nt-phase">' + esc(pha) + "</div>"; }
-      var kieu = hoi[row.lop] ? "hoi" : "tra";
+      var kieu = bao[row.lop] ? "bao" : "trao";
+      var tom = tomChat(row);
       out += '<article class="nt-say ' + kieu + '"><header><b style="color:' + mauTen(row.slug) + '">' + esc(row.ten) + "</b>" +
-        '<span class="nt-meta">' + esc(row.vi_tri || (row.vai === "truong" ? "Trưởng" : "Thành viên")) +
+        '<span class="nt-meta">' + esc(row.vi_tri || (row.vai === "truong" ? "Trưởng" : "")) +
         " · " + esc(LOP[row.lop] || row.lop) + "</span>" +
         pillQuyet(row.quyet, row.lop) + veGiao(row) + "</header>" +
-        (loiSach(row.loi) ? "<p>" + esc(loiSach(row.loi)) + "</p>" : "") + "</article>";
+        (tom ? "<p>" + esc(tom) + "</p>" : "") + "</article>";
     });
     return out;
   }
@@ -976,6 +1026,7 @@
         var p = phongChon();
         if (p && j.phong) p.nguoi = j.phong.nguoi || [];
         else if (p) p.nguoi.push(j.nguoi);
+        if (j.nguoi) S.sua = j.nguoi.slug;
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -1008,6 +1059,7 @@
           if (!j.ok) return hong(b, j.error);
           var p = phongChon();
           if (p) p.nguoi = (p.nguoi || []).filter(function (n) { return n.slug !== ns; });
+          if (S.sua === ns) S.sua = "";
           S.ban = false;
           ve();
         } catch (e) { hong(b, "Không kết nối được."); }
@@ -1025,16 +1077,16 @@
         var inp = tv.querySelector('input[name="tai_lieu"]');
         try { tai = await docTaiLieu(inp); }
         catch (e) { S.ban = false; return hienLoi(e.message || "Không đọc được file."); }
-        var xep = {};
-        fd.getAll("phong").forEach(function (slug) {
-          var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-          if (!p) return;
-          xep[slug] = (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; }).map(function (n) { return n.slug; });
-        });
-        var j = await post("/nhac-truong/viec", {
+        var r = routeNhap();
+        var body = {
           brain: brain(), tieu_de: fd.get("tieu_de"), brief: fd.get("brief"),
-          phong: fd.getAll("phong"), vong: fd.get("vong"), tai_lieu: tai, xep: xep,
-        });
+          phong: fd.getAll("phong"), vong: fd.get("vong"), tai_lieu: tai,
+        };
+        if (!r.tu) {
+          body.xep = {};
+          fd.getAll("phong").forEach(function (slug) { body.xep[slug] = (r.nguoi[slug] || []).slice(); });
+        }
+        var j = await post("/nhac-truong/viec", body);
         if (!j.ok) return hong(btn, j.error);
         S.viec.unshift({
           id: j.viec.id, tieu_de: j.viec.tieu_de,
@@ -1127,14 +1179,14 @@
       var fd = new FormData(sua);
       try {
         var j = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi/" + encodeURIComponent(S.sua), {
-          brain: brain(), tinh_cach: fd.get("tinh_cach"), skills: fd.get("skills"),
+          brain: brain(), ten: fd.get("ten"), tinh_cach: fd.get("tinh_cach"), skills: fd.get("skills"),
           vai: fd.get("vai"), vi_tri: fd.get("vi_tri"),
         });
         if (!j.ok) return hong(btn, j.error);
         var p = phongChon();
         if (p && j.phong) p.nguoi = j.phong.nguoi || [];
         else if (p) p.nguoi = (p.nguoi || []).map(function (n) { return n.slug === j.nguoi.slug ? j.nguoi : n; });
-        S.sua = "";
+        if (j.nguoi) S.sua = j.nguoi.slug;
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -1142,6 +1194,37 @@
     S.root.querySelectorAll("[data-sua]").forEach(function (b) {
       b.onclick = function () { S.sua = b.getAttribute("data-sua") || ""; ve(); };
     });
+    S.root.querySelectorAll("[data-nguoi]").forEach(function (b) {
+      b.onclick = function () { S.sua = b.getAttribute("data-nguoi") || ""; ve(); };
+    });
+    S.root.querySelectorAll("[data-route]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.preventDefault();
+        if (b.disabled) return;
+        var r = routeNhap();
+        var arr = b.getAttribute("data-route") === "phong" ? r.phong : (r.nguoi[b.getAttribute("data-room")] || []);
+        var slug = b.getAttribute("data-slug");
+        var i = arr.indexOf(slug);
+        var j = b.getAttribute("data-huong") === "len" ? i - 1 : i + 1;
+        if (i < 0 || j < 0 || j >= arr.length) return;
+        var t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+        if (b.getAttribute("data-route") === "nguoi") {
+          r.tay = r.tay || {};
+          r.tay[b.getAttribute("data-room")] = true;
+        }
+        ve(true);
+      };
+    });
+    var tuXep = document.getElementById("ntTuXep");
+    if (tuXep) tuXep.onchange = function () {
+      var r = routeNhap();
+      r.tu = !!tuXep.checked;
+      if (r.tu) r.tay = {};
+      ve(true);
+    };
+    ganGon();
     S.root.onclick = function (ev) {
       if (ev.target.closest(".nt-pick")) return;
       S.root.querySelectorAll(".nt-seek-list").forEach(function (l) { l.hidden = true; });
@@ -1333,6 +1416,14 @@
       } catch (e) { hong(xv, "Không kết nối được."); }
     };
     ganPdf();
+    ganGon();
+  }
+
+  function ganGon() {
+    if (!S.root) return;
+    S.root.querySelectorAll("#ntGon").forEach(function (b) {
+      b.onclick = function () { S.gon = !S.gon; ve(); };
+    });
   }
 
   function khoaViec(v) {

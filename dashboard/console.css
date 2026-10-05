@@ -2802,11 +2802,9 @@ body.on-mcp .cview-body > .cview-placeholder {
   .ws-id .ws-err { flex: 1 0 100%; }
 }
 
-/* Nhạc trưởng: Phòng, Giao việc, Theo dõi. Theo dõi trải gần hết trang. */
-.nt { display: flex; flex-direction: column; gap: 14px; width: min(100%, 1180px); margin: 0 auto; }
-.nt:has(.nt-watch) { width: 100%; }
-.cview-page:has(.nt-watch) { width: min(1480px, 100%); }
-.cview-page:has(.nt-phong) { width: 100%; max-width: none; }
+/* Nhạc trưởng: Setup, Giao việc, Theo dõi trải hết bề ngang. */
+.nt { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: none; margin: 0; }
+.cview-page:has(.nt) { width: 100%; max-width: none; }
 .nt-lead { margin: 0; color: var(--text2); font-size: 14px; line-height: 1.5; }
 .nt-err {
   margin: 0; padding: 10px 12px; border-radius: 10px;
@@ -2898,14 +2896,14 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-log { max-height: min(62vh, 640px); overflow: auto; margin-top: 8px; }
 .nt-phase { margin: 8px 0 2px; color: var(--text3); font-size: 10px; letter-spacing: .3px; }
 .nt-gap { margin: 1px 0 0; color: var(--text3); font-size: 10px; letter-spacing: .5px; line-height: 1; font-family: ui-monospace, monospace; }
-.nt-say { padding: 8px 12px; margin: 6px 0; max-width: 78%; border-radius: 18px; }
-.nt-say.hoi { margin-right: auto; background: var(--surface-2); border-radius: 18px 18px 18px 6px; }
-.nt-say.tra { margin-left: auto; background: var(--accent-wash-2); border-radius: 18px 18px 6px 18px; }
-.nt-say header { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-bottom: 4px; }
+.nt-say { padding: 5px 8px; margin: 4px 0; max-width: 88%; border-radius: 12px; }
+.nt-say.trao { margin-left: auto; background: var(--accent-wash-2); border-radius: 12px 12px 4px 12px; }
+.nt-say.bao { max-width: 100%; margin-right: auto; margin-left: 0; background: var(--surface-1); border: 1px dashed var(--glass-brd); border-radius: 8px; }
+.nt-say header { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-bottom: 2px; }
 .nt-say header b { font-size: 12px; font-weight: 650; }
 .nt-say .nt-meta { color: var(--text3); font-size: 11px; }
-.nt-say p { margin: 0; white-space: pre-wrap; color: var(--text); font-size: 13px; line-height: 1.4; }
-.nt-setup { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.nt-say p { margin: 0; white-space: pre-wrap; color: var(--text); font-size: 12px; line-height: 1.35; }
+.nt-setup { display: grid; grid-template-columns: minmax(220px, 280px) minmax(260px, 1fr) minmax(280px, 1fr); gap: 12px; align-items: stretch; min-height: calc(100vh - 168px); }
 .nt-tim { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; color: var(--text3); font-size: 12px; }
 .nt-tim input { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--glass-brd); background: var(--bg2); color: var(--text); }
 .nt-icon { width: 48px; height: 48px; object-fit: cover; border-radius: 12px; }
@@ -2955,9 +2953,10 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-details summary { cursor: pointer; color: var(--text2); font-size: 13px; padding: 4px 0; }
 .nt-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-top: 12px; }
 .nt-watch {
-  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start;
-  min-height: min(72vh, 860px);
+  display: grid; grid-template-columns: 240px minmax(260px, .95fr) minmax(300px, 1.15fr); gap: 12px; align-items: stretch;
+  min-height: calc(100vh - 168px);
 }
+.nt-watch.gon { grid-template-columns: minmax(260px, .95fr) minmax(300px, 1.2fr); }
 .nt-watch.nt-phong { grid-template-columns: 280px minmax(0, 1fr); min-height: calc(100vh - 150px); }
 .nt-office {
   display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-height: 0;
@@ -3130,12 +3129,61 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-kho-act { grid-area: act; justify-self: end; font-size: 12px; color: var(--accent-ink); white-space: nowrap; }
 .nt-kho-row.on, .nt-kho-row:hover { background: var(--bg3); }
 .nt-kho-row.on { border-color: var(--border); }
+.nt-panel:has(.nt-full), .nt-panel:has(.nt-giao), .nt-panel:has(.nt-watch) {
+  padding: 0; background: transparent; border: 0; box-shadow: none;
+}
+.nt-giao.nt-form {
+  display: grid; grid-template-columns: minmax(300px, .9fr) minmax(320px, 1.1fr); gap: 12px; align-items: stretch;
+  min-height: calc(100vh - 168px);
+}
+.nt-giao textarea { min-height: 180px; }
+.nt-giao .nt-chip { flex-direction: row; align-items: center; }
+.nt-setup > .nt-rail, .nt-setup > .nt-col, .nt-watch > .nt-rail, .nt-watch > .nt-col, .nt-watch > .nt-office-talk, .nt-giao > .nt-col {
+  max-height: calc(100vh - 180px); overflow: auto; min-width: 0;
+  border: 1px solid var(--glass-brd); border-radius: 14px; padding: 12px; background: var(--glass);
+}
+.nt-quytrinh, .nt-mini { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.nt-quytrinh > li:not(.nt-qsep) { display: flex; align-items: center; gap: 6px; }
+.nt-qsep { list-style: none; text-align: center; color: var(--text3); font-size: 12px; line-height: 1; }
+.nt-qitem {
+  flex: 1; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; font: inherit; color: var(--text);
+  border: 1px solid var(--glass-brd); background: var(--surface-1); border-radius: 12px; padding: 8px 10px;
+}
+.nt-qitem.on { border-color: var(--accent-line); background: var(--accent-wash); }
+.nt-qitem b, .nt-seatrow b, .nt-floor header b { display: block; font-size: 13px; }
+.nt-qitem small, .nt-seatrow small, .nt-floor header small { display: block; color: var(--text3); font-size: 11px; font-weight: 500; }
+.nt-qno {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--accent-wash); font-size: 11px; font-weight: 700;
+}
+.nt-lane { border: 1px solid var(--glass-brd); border-radius: 12px; padding: 8px; margin: 8px 0; background: var(--surface-1); }
+.nt-lane.off { opacity: .55; }
+.nt-lane header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nt-mini li { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-top: 1px solid var(--hairline); }
+.nt-mini li > span { flex: 1; min-width: 0; }
+.nt-floors { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.nt-floor { border: 1px solid var(--glass-brd); border-radius: 12px; padding: 8px 10px; background: var(--surface-1); }
+.nt-floor.on { border-color: var(--accent-line); background: var(--accent-wash); }
+.nt-floor header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.nt-floor header img, .nt-floor .nt-ava {
+  width: 28px; height: 28px; border-radius: 8px; object-fit: cover; flex: 0 0 auto;
+  display: inline-grid; place-items: center; background: var(--accent-wash-2); font-size: 12px; font-weight: 700;
+}
+.nt-desks { display: flex; flex-direction: column; gap: 8px; }
+.nt-seatrow { display: flex; align-items: center; gap: 10px; }
+.nt-deskico { width: 52px; height: 40px; flex: 0 0 auto; color: #1b7f4a; }
+.nt-deskico svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.nt-seatrow.wait .nt-qno { background: var(--ok-wash); color: #1b7f4a; }
+.nt-seatrow.on .nt-deskico { color: #d92d20; }
+.nt-seatrow.on .nt-qno { background: #fde8e6; color: #d92d20; }
+.nt-seatrow em { display: block; margin-top: 1px; font-style: normal; font-size: 11px; font-weight: 700; color: #d92d20; }
 @media (max-width: 720px) {
-  .nt-split, .nt-form.nt-split { grid-template-columns: 1fr; }
+  .nt-split, .nt-form.nt-split, .nt-giao.nt-form { grid-template-columns: 1fr; }
   .nt-cards button { max-width: none; }
   .nt-form input, .nt-form textarea, .nt-form select, .nt-seek { font-size: 16px; }
   .nt-btn, .nt-tab { min-height: 44px; }
-  .nt-watch, .nt-watch.nt-phong, .nt-office, .nt-setup { grid-template-columns: 1fr; min-height: 0; }
+  .nt-watch, .nt-watch.gon, .nt-watch.nt-phong, .nt-office, .nt-setup, .nt-giao.nt-form { grid-template-columns: 1fr; min-height: 0; }
+  .nt-setup > .nt-rail, .nt-setup > .nt-col, .nt-watch > .nt-rail, .nt-watch > .nt-col, .nt-watch > .nt-office-talk, .nt-giao > .nt-col { max-height: none; }
   .nt-rail { position: static; max-height: 240px; }
   .nt-phong .nt-rail { max-height: none; }
   .nt-kho { padding: 0; align-items: stretch; }

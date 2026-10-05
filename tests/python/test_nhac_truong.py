@@ -216,6 +216,8 @@ def test_sua_va_xoa():
     truong = [n["slug"] for n in phong["nguoi"] if n.get("vai") == "truong"]
     lan = next(n for n in phong["nguoi"] if n["slug"] == "lan")
     check("sửa được vị trí, vẫn một trưởng", truong == ["lan"] and lan["vi_tri"] == "Chuyên viên nội dung")
+    doi = nt.sua_nguoi(kho, "noi-dung", "lan", ten="Lan Phương")
+    check("đổi tên hiển thị, giữ slug", doi["ten"] == "Lan Phương" and doi["slug"] == "lan")
     viec = nt.tao_viec(kho, "Xoá", "brief đủ", ["noi-dung"])
     md = Path(kho.goc) / "viec" / f"{viec['id']}.md"
     md.write_text("biên bản", encoding="utf-8")
@@ -347,6 +349,36 @@ def test_lan_luot_ban_giao():
     check("trưởng xếp đúng người", [n["slug"] for n in xong["xep"]["marketing"]] == ["binh", "chi"])
     check("trang thấy người đang nói", thay[:3] == ["An", "Bình", "Chi"])
     check("hết việc thì không còn người đang làm", xong.get("dang_lam") is None and xong["trang_thai"] == "xong")
+
+
+def test_tran_muoi_va_dung_som():
+    kho = nt.Kho(tempfile.mkdtemp())
+    nt.tao_phong(kho, "Nội dung", "Rõ")
+    nt.them_nguoi(kho, "noi-dung", "An", "", "", "truong")
+    nt.them_nguoi(kho, "noi-dung", "Lan", "", "", "thanh_vien")
+    cao = nt.tao_viec(kho, "Trần", "brief đủ", ["noi-dung"], 99)
+    check("trần vòng là 10", cao["vong_toi_da"] == 10)
+    mac = nt.tao_viec(kho, "Mặc định", "brief đủ", ["noi-dung"])
+    check("mặc định 6 vòng", mac["vong_toi_da"] == 6)
+
+    async def dat_ngay(nguoi, prompt):
+        if loai(prompt) == "KIEM":
+            return "QUYET: DAT"
+        return "bản ổn"
+
+    som = asyncio.run(nt.chay(kho, cao["id"], dat_ngay))
+    check("hết lỗi thì dừng ở vòng 1", som["trang_thai"] == "xong" and sum(1 for r in som["loi"] if r["lop"] == "kiem") == 1)
+
+    lap = {"n": 0}
+
+    async def lap_loi(nguoi, prompt):
+        if loai(prompt) == "KIEM":
+            lap["n"] += 1
+            return "QUYET: CHUA\nSUA: Thiếu nguồn."
+        return "bản vẫn thiếu nguồn"
+
+    ket = asyncio.run(nt.chay(kho, mac["id"], lap_loi))
+    check("cùng một lỗi thì không đốt hết 6 vòng", lap["n"] == 2 and ket["trang_thai"] == "lech")
 
 
 def test_het_lan_cai_thi_truong_phan():
@@ -487,6 +519,7 @@ if __name__ == "__main__":
     test_loi_noi_khong_bia_dat()
     test_doc_thu_tu()
     test_lan_luot_ban_giao()
+    test_tran_muoi_va_dung_som()
     test_het_lan_cai_thi_truong_phan()
     test_gon_khong_dan_ca_bai()
     test_phong_trao_doi()
