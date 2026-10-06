@@ -989,9 +989,9 @@
     var treo = !!(v && v.trang_thai === "dang_chay" && v.song === false && !cho && !dungCho && !S._nut);
     var chay = dang || dungCho;
     var nhan = "Chạy";
-    if (treo) nhan = "Khởi động lại";
+    if (treo) nhan = "Chạy tiếp";
     else if (chay && !dungCho) nhan = "Đang chạy";
-    else if (v && (v.trang_thai === "dung" || v.trang_thai === "loi")) nhan = "Chạy lại";
+    else if (v && (v.trang_thai === "dung" || v.trang_thai === "loi")) nhan = "Chạy tiếp";
     return {
       chay: chay, treo: treo, dungCho: dungCho,
       nhan: nhan,
@@ -1064,7 +1064,7 @@
     var soan = v.trang_thai === "nhap" && !t.chay;
     return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
       '<div class="nt-row">' + pillTrang(t.treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
-      (t.treo ? '<p class="nt-err">Việc ghi là đang chạy nhưng không còn tiến.</p>' : "") +
+      (t.treo ? '<p class="nt-err">Việc đã dừng giữa chừng. Phần đã nói vẫn giữ. Bấm Chạy tiếp để làm tiếp từ chỗ dừng.</p>' : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
       dangLam(v) +
       '<div class="nt-row" id="ntNuts">' +

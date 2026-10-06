@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.64] - 2026-10-06
+### Sửa
+- **Nhạc trưởng** bị dừng giữa chừng thì bấm **Chạy tiếp**. Việc làm tiếp từ người đang dở, giữ lời đã nói và bản đã viết. Không xếp lại từ đầu.
+- Máy chủ khởi động lại khi việc còn ghi đang chạy thì trang thôi xoay. Bấm Chạy tiếp là nối chỗ dừng, kể cả cuộc họp trưởng đã nói một phần.
+
 ## [0.56.63] - 2026-10-06
 ### Mới
 - Trong chat, Javis biết các phòng Nhạc trưởng. Chưa nói phòng nào thì hỏi lại. Nói đúng phòng thì giao việc và chạy như nút Chạy. Tiến trình và kết quả xem ở tab Theo dõi.

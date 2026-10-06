@@ -40,6 +40,21 @@ def _kho(brain: str) -> nt.Kho:
     return nt.Kho(_DEPS.brain_root(brain or "brain"))
 
 
+_LOI_MAT_TIEN = (
+    "Việc dừng giữa chừng vì tiến trình không còn "
+    "(thường là máy chủ vừa khởi động lại). Phần đã nói vẫn giữ. Bấm Chạy tiếp để làm tiếp từ chỗ dừng."
+)
+
+
+def _dong_neu_mat(kho: nt.Kho, vid: str, song: bool) -> dict:
+    """File còn dang_chay mà process này không còn task thì chốt dừng, khỏi để trang xoay mãi."""
+    viec = kho.doc_viec(vid)
+    if song or viec.get("trang_thai") != "dang_chay":
+        return viec
+    viec["loi_chay"] = _LOI_MAT_TIEN
+    return nt._cham(kho, viec, "dung")
+
+
 def _khoa_viec(brain: str, vid: str) -> str:
     """Một ổ khoá cho cả trang và chat, kể cả khi một bên gửi tên brain, bên kia gửi đường dẫn."""
     try:
@@ -277,9 +292,12 @@ async def doc_viec(vid: str, brain: str = "brain"):
         viec = _kho(brain).doc_viec(vid)
     except nt.LoiNhacTruong as e:
         return _err(e, 404)
-    out = dict(viec)
     dang = _DANG.get(_khoa_viec(brain, vid))
-    out["song"] = bool(dang is not None and not dang.done())
+    song = bool(dang is not None and not dang.done())
+    if not song:
+        viec = _dong_neu_mat(_kho(brain), vid, song)
+    out = dict(viec)
+    out["song"] = song and viec.get("trang_thai") == "dang_chay"
     return {"ok": True, "viec": out}
 
 

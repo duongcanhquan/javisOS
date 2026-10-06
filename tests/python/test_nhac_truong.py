@@ -195,6 +195,17 @@ def test_api():
     p2.write_text(json.dumps(data), encoding="utf-8")
     xoa2 = c.delete(f"/nhac-truong/viec/{vid2}")
     check("api xoá việc kẹt không còn chạy", xoa2.status_code == 200 and not p2.is_file())
+    v3 = c.post("/nhac-truong/viec", json={"tieu_de": "Mất tiến", "brief": "ngắn", "phong": ["noi-dung"]})
+    vid3 = v3.json()["viec"]["id"]
+    p3 = Path(goc) / "nhac-truong" / "viec" / f"{vid3}.json"
+    mat = json.loads(p3.read_text(encoding="utf-8"))
+    mat["trang_thai"] = "dang_chay"
+    mat["loi"] = [{"ten": "An", "lop": "kiem", "loi": "QUYET: CHUA", "quyet": "CHUA", "phong": "noi-dung", "vai": "truong", "vong": 1}]
+    p3.write_text(json.dumps(mat), encoding="utf-8")
+    doc3 = c.get(f"/nhac-truong/viec/{vid3}")
+    viec3 = doc3.json()["viec"]
+    check("mất tiến thì thôi ghi đang chạy", doc3.status_code == 200 and viec3["trang_thai"] == "dung" and viec3["song"] is False)
+    check("mất tiến vẫn giữ lời đã nói", any(r.get("quyet") == "CHUA" for r in viec3["loi"]) and "Chạy tiếp" in (viec3.get("loi_chay") or ""))
 
 
 def test_sua_va_xoa():
@@ -697,6 +708,121 @@ def test_chat_hoi_phong_roi_moi_giao():
     check("cùng brain đang chat", da_chay.get("brain") == str(goc))
 
 
+def test_chay_lai_noi_cho_dung():
+    kho = nt.Kho(tempfile.mkdtemp())
+    p = nt.tao_phong(kho, "Nội dung", "Rõ ý", "lan_luot")
+    nt.them_nguoi(kho, p["slug"], "An", "thẳng", "", "truong")
+    nt.them_nguoi(kho, p["slug"], "Lan", "viết ngắn", "", "thanh_vien")
+    nt.them_nguoi(kho, p["slug"], "Bình", "chỉnh", "", "thanh_vien")
+    viec = nt.tao_viec(kho, "Bài dở", "viết bài", [p["slug"]], 2)
+    viec["trang_thai"] = "dung"
+    viec["loi"] = [
+        {"phong": p["slug"], "slug": "an", "ten": "An", "vai": "truong", "lop": "giao",
+         "vong": 1, "loi": "THU_TU: lan > binh", "quyet": "", "giao_cho": "Lan"},
+        {"phong": p["slug"], "slug": "lan", "ten": "Lan", "vai": "thanh_vien", "lop": "lam",
+         "vong": 1, "loi": "Mở bài của Lan.", "quyet": "",
+         "tep": {"ten": "a.md", "noi_dung": "Mở bài đầy đủ của Lan, đủ dài."}},
+    ]
+    viec["ban"] = {p["slug"]: "[Lan]\nMở bài đầy đủ của Lan, đủ dài."}
+    viec["khoa"] = {p["slug"]: False}
+    viec["dat"] = {p["slug"]: False}
+    kho.luu_viec(viec)
+    seen = []
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        seen.append((nguoi["slug"], kind, prompt))
+        if kind == "NHAN":
+            return "NHAN: OK"
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "KET":
+            return "Kết quả nối từ bản Lan."
+        if kind == "LAM":
+            return "Phần của " + nguoi["ten"]
+        return "tiếp"
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    check("chạy lại thì xong", xong["trang_thai"] == "xong")
+    check("không giao lại từ đầu", seen and seen[0][1] != "GIAO")
+    check("người sau làm tiếp", ("binh", "LAM") in [(s, k) for s, k, _ in seen])
+    check("người đã làm không làm lại", ("lan", "LAM") not in [(s, k) for s, k, _ in seen])
+    check("giữ lời đã nói", any(r.get("loi") == "Mở bài của Lan." for r in xong["loi"]))
+    check("người sau thấy bản trước", any("Mở bài đầy đủ của Lan" in pmt for _, k, pmt in seen if k in ("NHAN", "LAM")))
+
+    chua = nt.tao_viec(kho, "Bài chưa đạt", "viết lại", [p["slug"]], 3)
+    chua["trang_thai"] = "dung"
+    chua["loi"] = [
+        {"phong": p["slug"], "slug": "an", "ten": "An", "vai": "truong", "lop": "kiem",
+         "vong": 1, "loi": "QUYET: CHUA\nSUA: Bỏ câu hứa.", "quyet": "CHUA"},
+    ]
+    chua["ban"] = {p["slug"]: "Bản vòng một còn câu hứa."}
+    chua["khoa"] = {p["slug"]: False}
+    chua["dat"] = {p["slug"]: False}
+    kho.luu_viec(chua)
+    sua = []
+
+    async def noi_sua(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "LAM":
+            sua.append("Bỏ câu hứa" in prompt)
+            return "Bản sửa, đã bỏ câu hứa."
+        if kind == "GIAO":
+            return "THU_TU: lan > binh"
+        if kind == "NHAN":
+            return "NHAN: OK"
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "KET":
+            return "Đã bỏ câu hứa."
+        return "Bản sửa."
+
+    lai = asyncio.run(nt.chay(kho, chua["id"], noi_sua))
+    check("chưa đạt thì sửa tiếp", lai["trang_thai"] == "xong" and any(sua))
+    check("giữ lời chưa đạt", any(r.get("quyet") == "CHUA" for r in lai["loi"]))
+    check("vòng sửa là vòng sau", any(r.get("lop") == "giao" and int(r.get("vong") or 0) == 2 for r in lai["loi"]))
+
+
+def test_hop_dung_khong_noi_lai():
+    kho = nt.Kho(tempfile.mkdtemp())
+    a = nt.tao_phong(kho, "Nội dung", "Rõ")
+    b = nt.tao_phong(kho, "Pháp chế", "Chặt")
+    nt.them_nguoi(kho, a["slug"], "An", "", "", "truong")
+    nt.them_nguoi(kho, b["slug"], "Hà", "", "", "truong")
+    viec = nt.tao_viec(kho, "Bài họp", "brief", [a["slug"], b["slug"]], 2)
+    viec["trang_thai"] = "dang_chay"
+    viec["khoa"] = {a["slug"]: True, b["slug"]: True}
+    viec["dat"] = {a["slug"]: False, b["slug"]: False}
+    viec["ban"] = {a["slug"]: "Bản nội dung", b["slug"]: "Bản pháp chế"}
+    viec["loi"] = [
+        {"phong": a["slug"], "slug": "an", "lop": "kiem", "vong": 1, "loi": "QUYET: DAT", "quyet": "DAT"},
+        {"phong": b["slug"], "slug": "ha", "lop": "kiem", "vong": 1, "loi": "QUYET: DAT", "quyet": "DAT"},
+        {"phong": a["slug"], "slug": "an", "lop": "chia", "vong": 1, "loi": "Bỏ câu hứa bên pháp chế.", "quyet": ""},
+    ]
+    kho.luu_viec(viec)
+    seen = []
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        seen.append((nguoi["slug"], kind))
+        if kind == "HOP":
+            return "QUYET: DAT"
+        if kind == "KET":
+            return "Kết quả sau họp."
+        if kind == "DAP":
+            return "Đã nghe góp ý."
+        if kind == "CHIA":
+            return "Góp lại."
+        return "không được gọi " + kind
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi))
+    check("file đang chạy dở vẫn nối", xong["trang_thai"] == "xong")
+    check("không góp lại câu đã nói", ("an", "CHIA") not in seen)
+    check("không xếp lại phòng đã xong", ("an", "GIAO") not in seen and ("ha", "GIAO") not in seen)
+    check("người chưa đáp thì đáp", ("ha", "DAP") in seen)
+    check("giữ góp ý cũ", sum(1 for r in xong["loi"] if r.get("loi") == "Bỏ câu hứa bên pháp chế.") == 1)
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -721,6 +847,8 @@ if __name__ == "__main__":
     test_phong_trao_doi()
     test_file_dung_va_chay_them()
     test_chat_hoi_phong_roi_moi_giao()
+    test_chay_lai_noi_cho_dung()
+    test_hop_dung_khong_noi_lai()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)
