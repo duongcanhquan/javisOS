@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.67] - 2026-10-06
+### Sửa
+- **Nhạc trưởng** bấm việc nào thì cột giao tiếp hiện hội thoại của việc đó. Trước đây cột giữa đổi việc còn cột giao tiếp giữ nguyên việc đầu.
+
 ## [0.56.66] - 2026-10-06
 ### Sửa
 - Video **Remotion** không còn ngồi nghiên cứu web rồi mới render. Nói Remotion là viết và kết xuất ngay.

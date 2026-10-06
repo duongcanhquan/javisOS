@@ -615,7 +615,7 @@
   }
 
   function htmlMap() {
-    var v = viecHien();
+    var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : viecHien();
     if (!v) return '<p class="nt-hint">Chọn một việc.</p>';
     var d = v.trang_thai === "dang_chay" ? v.dang_lam : null;
     var tang = (v.phong || []).map(function (slug, i) {
@@ -631,8 +631,8 @@
   }
 
   function htmlTalk() {
-    var v = viecHien();
-    if (!v) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
+    var v = S._viecDay;
+    if (!v || v.id !== S.chonViec) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
     var rows = (v.loi || []).slice().reverse();
     return "<h3>Giao tiếp</h3>" + htmlKet(v) + dangLam(v) +
       '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ câu đầu." : "Chưa có trao đổi.") + "</p>") + "</div>" +
@@ -1341,6 +1341,8 @@
         var id = b.getAttribute("data-viec");
         if (!id || id === S.chonViec || S.ban) return;
         S.chonViec = id;
+        S._docKey = "";
+        S._khoaPhong = "";
         S.loi = "";
         hienLoi("");
         S.root.querySelectorAll("[data-viec]").forEach(function (x) {
@@ -1753,19 +1755,25 @@
   function capNhatPhong() {
     var map = document.getElementById("ntMap");
     var talk = document.getElementById("ntTalk");
-    if (!map || !talk) return;
-    var v = viecHien();
+    if (!map && !talk) return;
+    var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
     var k = (v ? khoaViec(v) : "") + "|" + S.chonPhong;
     if (k === S._khoaPhong) return;
+    var doiViec = !!(S._khoaPhong && v && S._khoaPhong.indexOf(v.id + "~") !== 0);
     S._khoaPhong = k;
+    if (doiViec) S._docKey = "";
+    if (map) {
+      map.innerHTML = htmlMap();
+      ganNhan();
+    }
+    if (!talk) return;
     var log = document.getElementById("ntLogPhong");
-    var sat = log ? log.scrollTop < 48 : true;
+    var sat = !doiViec && log && log.scrollTop < 48;
     var giu = log ? log.scrollTop : 0;
-    map.innerHTML = htmlMap();
     talk.innerHTML = htmlTalk();
-    ganNhan();
+    ganLoi();
     var log2 = document.getElementById("ntLogPhong");
-    if (log2) log2.scrollTop = sat ? 0 : giu;
+    if (log2) log2.scrollTop = (doiViec || sat) ? 0 : giu;
   }
 
   function ganLoi() {
