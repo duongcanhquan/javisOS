@@ -1,5 +1,5 @@
 # One-shot: đo RAM + sổ máy người trên VPS (tránh workflow_dispatch 403).
-# bump: 2026-10-06T15:47Z
+# bump: 2026-10-06T15:51Z
 name: Probe machines once
 
 on:
@@ -50,22 +50,5 @@ jobs:
               echo "$c limit_mb=$lim_mb"
             done
             echo "=== TENANT REGISTRY + COORD ==="
-            docker exec javis-manager python -c '
-import sys
-sys.path.insert(0, "/app/server")
-import org_tenants as ot, org_coord as oc, org_docker as od
-ts = (ot.load().get("tenants") or [])
-print("tenants_in_registry", len(ts))
-for t in ts:
-    print(" -", t.get("slug"), "paused=", bool(t.get("paused")), "deleted=", bool(t.get("deleted_at")), "prot=", bool(t.get("protected")), "st=", t.get("status"), "quota_gb=", t.get("quota_gb"), "c=", t.get("container"))
-c = oc.coord()
-print("host_ram_mb", c.get("host_ram_mb"), "avail", c.get("host_avail_mb"), "disk_free", c.get("host_disk_free_bytes"), "disk_total", c.get("host_disk_total_bytes"), "cpus", c.get("host_cpus"))
-print("suggest", c.get("suggest"), "max_running", c.get("max_running"), "effective", oc.effective_max(), "ram_mb_per", c.get("ram_mb"), "reserve", c.get("reserve_mb"))
-try:
-    run = od.people_running()
-    print("people_running", len(run), [x.get("slug") for x in run])
-except Exception as e:
-    print("people_running err", e)
-'
+            docker exec javis-manager python -c 'import sys; sys.path.insert(0,"/app/server"); import org_tenants as ot, org_coord as oc, org_docker as od; ts=(ot.load().get("tenants") or []); print("tenants_in_registry", len(ts)); [print(" -", t.get("slug"), "paused=", bool(t.get("paused")), "deleted=", bool(t.get("deleted_at")), "prot=", bool(t.get("protected")), "st=", t.get("status"), "quota_gb=", t.get("quota_gb"), "c=", t.get("container")) for t in ts]; c=oc.coord(); print("host_ram_mb", c.get("host_ram_mb"), "avail", c.get("host_avail_mb"), "disk_free", c.get("host_disk_free_bytes"), "disk_total", c.get("host_disk_total_bytes"), "cpus", c.get("host_cpus")); print("suggest", c.get("suggest"), "max_running", c.get("max_running"), "effective", oc.effective_max(), "ram_mb_per", c.get("ram_mb"), "reserve", c.get("reserve_mb")); run=od.people_running(); print("people_running", len(run), [x.get("slug") for x in run])'
             echo PROBE_MACHINES_DONE
-# bump: 2026-10-06T15:48Z
