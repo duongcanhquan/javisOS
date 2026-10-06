@@ -1,6 +1,6 @@
 # One-shot: đồng bộ image mới lên mọi máy người + verify skill hubs.
 # Chạy khi push file này / script sync (tránh phụ thuộc workflow_dispatch 403).
-# bump: 0.56.48 marketingskills + openmontage
+# bump: 0.56.65 đăng nhập GHCR trước khi pull, token cũ trên máy bị từ chối
 name: Sync tenant images once
 
 on:
@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   sync:
@@ -38,14 +39,19 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           JAVIS_IMAGE: ghcr.io/duongcanhquan/javisos:latest
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 40m
-          envs: JAVIS_IMAGE
+          envs: JAVIS_IMAGE,GHCR_TOKEN,GHCR_USER
           script: |
             set -euo pipefail
+            if [ -n "${GHCR_TOKEN:-}" ]; then
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            fi
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             mkdir -p "$DIR/scripts"
