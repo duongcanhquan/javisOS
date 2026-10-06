@@ -450,6 +450,13 @@ def dat_thu_tu_phong(kho: Kho, vid: str, slugs: list) -> dict:
     return viec
 
 
+def chan_chay_thu(viec: dict) -> str:
+    """Chạy thử chỉ cho việc trống. Không trộn lời giả vào việc đã nói."""
+    if viec.get("loi"):
+        return "Việc đã có lời. Chạy thử chỉ dùng khi việc còn trống. Dùng Chạy tiếp hoặc Chạy lại."
+    return ""
+
+
 def ket_phan(viec: dict) -> str:
     """Bản nhìn thấy được khi dừng giữa chừng hoặc chưa viết kết quả."""
     co = (viec.get("ket_qua") or "").strip()
@@ -1449,7 +1456,7 @@ async def _tiep_phong(kho: Kho, viec: dict, phong: dict, noi, vmax: int) -> None
         await _noi_bo(kho, viec, phong, noi, vmax, tu=vong + 1, lenh0=lenh, ban0=ban)
 
 
-async def chay(kho: Kho, vid: str, noi, ra_file=None) -> dict:
+async def chay(kho: Kho, vid: str, noi, ra_file=None, tu_dau: bool = False) -> dict:
     viec = kho.doc_viec(vid)
     try:
         phongs = [kho.doc_phong(s) for s in viec["phong"]]
@@ -1461,7 +1468,12 @@ async def chay(kho: Kho, vid: str, noi, ra_file=None) -> dict:
         kho.luu_viec(viec)
         return viec
     # dang_chay mà không còn task (máy vừa khởi động lại) cũng là việc dở, không phải việc mới.
-    tiep = bool(viec.get("loi")) and viec.get("trang_thai") in ("dung", "loi", "dang_chay")
+    # tu_dau là nút Chạy lại: xoá lời đã nói và làm từ đầu.
+    tiep = (
+        not tu_dau
+        and bool(viec.get("loi"))
+        and viec.get("trang_thai") in ("dung", "loi", "dang_chay")
+    )
     viec["trang_thai"] = "dang_chay"
     viec["huy"] = False
     viec["loi_chay"] = ""
@@ -1483,6 +1495,9 @@ async def chay(kho: Kho, vid: str, noi, ra_file=None) -> dict:
         viec["dat"] = {p["slug"]: False for p in phongs}
         viec["khoa"] = {p["slug"]: False for p in phongs}
         viec["mo"] = []
+        viec["ket_qua"] = ""
+        viec["ket_cu"] = ""
+        viec["lenh_them"] = ""
     kho.luu_viec(viec, tha_huy=True)
     vmax = min(VONG_TRAN, max(1, int(viec.get("vong_toi_da") or VONG_MAC_DINH)))
     try:

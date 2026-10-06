@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.65] - 2026-10-06
+### Sửa
+- **Nhạc trưởng** khi việc dừng giữa chừng có hai nút. **Chạy tiếp** làm từ chỗ đang dở, giữ lời đã nói. **Chạy lại** hỏi một lần rồi làm từ đầu.
+- Việc đã xong mà bấm Chạy lại cũng hỏi trước khi xóa. Chạy thử không đụng việc đã có lời.
+
 ## [0.56.64] - 2026-10-06
 ### Sửa
 - **Nhạc trưởng** bị dừng giữa chừng thì bấm **Chạy tiếp**. Việc làm tiếp từ người đang dở, giữ lời đã nói và bản đã viết. Không xếp lại từ đầu.

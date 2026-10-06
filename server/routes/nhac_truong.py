@@ -42,7 +42,8 @@ def _kho(brain: str) -> nt.Kho:
 
 _LOI_MAT_TIEN = (
     "Việc dừng giữa chừng vì tiến trình không còn "
-    "(thường là máy chủ vừa khởi động lại). Phần đã nói vẫn giữ. Bấm Chạy tiếp để làm tiếp từ chỗ dừng."
+    "(thường là máy chủ vừa khởi động lại). Phần đã nói vẫn giữ. "
+    "Chạy tiếp làm tiếp từ chỗ dừng. Chạy lại sẽ làm từ đầu."
 )
 
 
@@ -64,8 +65,8 @@ def _khoa_viec(brain: str, vid: str) -> str:
     return f"{goc}:{vid}"
 
 
-def bat_chay(brain: str, vid: str) -> str:
-    """Chạy thật ở nền, cùng đường với nút Chạy trên trang. Trả 'dang_chay' nếu đã chạy."""
+def bat_chay(brain: str, vid: str, tu_dau: bool = False) -> str:
+    """Chạy thật ở nền, cùng đường với nút trên trang. tu_dau thì làm từ đầu. Trả 'dang_chay' nếu đã chạy."""
     if _DEPS is None:
         raise nt.LoiNhacTruong("Nhạc trưởng chưa sẵn sàng.")
     khoa = _khoa_viec(brain, vid)
@@ -81,6 +82,7 @@ def bat_chay(brain: str, vid: str) -> str:
                 kho, vid,
                 lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt),
                 ra_file=_ra_file_cho(brain),
+                tu_dau=tu_dau,
             )
         except Exception as e:
             _danh_loi(kho, vid, e)
@@ -366,6 +368,7 @@ async def chay_viec(vid: str, request: Request):
         body = {}
     brain = body.get("brain") or "brain"
     thu = bool(body.get("thu"))
+    tu_dau = bool(body.get("tu_dau"))
     khoa = _khoa_viec(brain, vid)
     dang = _DANG.get(khoa)
     if dang is not None and not dang.done():
@@ -378,12 +381,15 @@ async def chay_viec(vid: str, request: Request):
 
     if thu:
         try:
-            viec = await nt.chay(kho, vid, nt.noi_thu, ra_file=_ra_file_cho(brain))
+            ly = nt.chan_chay_thu(kho.doc_viec(vid))
+            if ly:
+                raise nt.LoiNhacTruong(ly)
+            viec = await nt.chay(kho, vid, nt.noi_thu, ra_file=_ra_file_cho(brain), tu_dau=tu_dau)
         except nt.LoiNhacTruong as e:
             return _err(e)
         return {"ok": True, "viec": viec}
 
-    bat_chay(brain, vid)
+    bat_chay(brain, vid, tu_dau=tu_dau)
     return {"ok": True, "trang_thai": "dang_chay"}
 
 

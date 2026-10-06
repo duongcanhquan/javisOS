@@ -823,6 +823,36 @@ def test_hop_dung_khong_noi_lai():
     check("giữ góp ý cũ", sum(1 for r in xong["loi"] if r.get("loi") == "Bỏ câu hứa bên pháp chế.") == 1)
 
 
+def test_chay_lai_xoa_roi_lam_tu_dau():
+    kho = nt.Kho(tempfile.mkdtemp())
+    p = nt.tao_phong(kho, "Nội dung", "Rõ")
+    nt.them_nguoi(kho, p["slug"], "An", "", "", "truong")
+    viec = nt.tao_viec(kho, "Làm lại", "brief", [p["slug"]], 1)
+    viec["trang_thai"] = "dung"
+    viec["loi"] = [{"phong": p["slug"], "slug": "an", "lop": "kiem", "vong": 1, "loi": "LỜI CŨ", "quyet": "CHUA"}]
+    viec["ban"] = {p["slug"]: "bản cũ"}
+    viec["khoa"] = {p["slug"]: False}
+    viec["ket_qua"] = "KẾT CŨ"
+    viec["lenh_them"] = "comment cũ"
+    kho.luu_viec(viec)
+
+    async def noi(nguoi, prompt):
+        kind = loai(prompt)
+        if kind == "KIEM":
+            return "QUYET: DAT"
+        if kind == "KET":
+            return "Kết quả mới."
+        return "Bản mới từ đầu."
+
+    xong = asyncio.run(nt.chay(kho, viec["id"], noi, tu_dau=True))
+    check("chạy lại thì xong từ đầu", xong["trang_thai"] == "xong")
+    check("chạy lại xoá lời cũ", not any(r.get("loi") == "LỜI CŨ" for r in xong["loi"]))
+    check("chạy lại có lượt giao mới", any(r.get("lop") == "giao" for r in xong["loi"]))
+    check("chạy lại bỏ kết quả cũ", "KẾT CŨ" not in (xong.get("ket_qua") or "") and not xong.get("lenh_them"))
+    check("chạy thử không đụng việc đã có lời", "còn trống" in nt.chan_chay_thu(xong))
+    check("chạy thử được khi việc trống", nt.chan_chay_thu({"loi": []}) == "")
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -849,6 +879,7 @@ if __name__ == "__main__":
     test_chat_hoi_phong_roi_moi_giao()
     test_chay_lai_noi_cho_dung()
     test_hop_dung_khong_noi_lai()
+    test_chay_lai_xoa_roi_lam_tu_dau()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)

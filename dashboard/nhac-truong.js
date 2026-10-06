@@ -984,16 +984,21 @@
     var id = v && v.id;
     var dungCho = !!(id && S._dung === id);
     var cho = !!(id && S._choChay === id);
-    var ban = S._nut === "chay" || S._nut === "thu" || S._nut === "dung" || S._nut === "them";
-    var dang = !!(v && v.trang_thai === "dang_chay") || cho || S._nut === "chay" || S._nut === "thu";
+    var ban = S._nut === "chay" || S._nut === "thu" || S._nut === "lai" || S._nut === "dung" || S._nut === "them";
+    var dang = !!(v && v.trang_thai === "dang_chay") || cho || S._nut === "chay" || S._nut === "thu" || S._nut === "lai";
     var treo = !!(v && v.trang_thai === "dang_chay" && v.song === false && !cho && !dungCho && !S._nut);
     var chay = dang || dungCho;
+    var coLoi = !!(v && (v.loi || []).length);
+    var dungGiua = !!(treo || (v && (v.trang_thai === "dung" || v.trang_thai === "loi")));
+    var het = !!(v && coLoi && (v.trang_thai === "xong" || v.trang_thai === "lech"));
     var nhan = "Chạy";
-    if (treo) nhan = "Chạy tiếp";
+    if (S._nut === "lai") nhan = S._nhanLai ? "Đang chạy lại…" : "Chạy tiếp";
+    else if (coLoi && (treo || (dungGiua && !chay))) nhan = "Chạy tiếp";
+    else if (het && !chay) nhan = "Chạy lại";
     else if (chay && !dungCho) nhan = "Đang chạy";
-    else if (v && (v.trang_thai === "dung" || v.trang_thai === "loi")) nhan = "Chạy tiếp";
     return {
       chay: chay, treo: treo, dungCho: dungCho,
+      hienLai: !!(coLoi && (dungGiua || S._nut === "lai") && (treo || !chay || S._nut === "lai")),
       nhan: nhan,
       nhanThu: S._nut === "thu" ? "Đang chạy thử…" : "Chạy thử",
       nhanDung: (dungCho || S._nut === "dung") ? "Đang dừng…" : "Dừng",
@@ -1011,6 +1016,24 @@
     var xoa = document.getElementById("ntXoaViec");
     var nuts = document.getElementById("ntNuts");
     if (chay) { chay.disabled = !!t.khoa; chay.textContent = t.nhan; }
+    var lai = document.getElementById("ntChayLai");
+    if (t.hienLai) {
+      var taoLai = !!(v && (t.treo || v.trang_thai === "dung" || v.trang_thai === "loi"));
+      if (!lai && nuts && taoLai) {
+        lai = document.createElement("button");
+        lai.type = "button";
+        lai.className = "nt-btn";
+        lai.id = "ntChayLai";
+        lai.onclick = function () { batDau(false, true); };
+        if (chay && chay.nextSibling) nuts.insertBefore(lai, chay.nextSibling);
+        else if (nuts) nuts.appendChild(lai);
+      }
+      if (lai) {
+        lai.hidden = false;
+        lai.disabled = !!t.khoa;
+        lai.textContent = S._nut === "lai" ? "Đang chạy lại…" : "Chạy lại";
+      }
+    } else if (lai) lai.remove();
     if (thu) { thu.disabled = !!t.khoa; thu.textContent = t.nhanThu; }
     if (t.hienDung) {
       if (!dung && nuts) {
@@ -1064,12 +1087,13 @@
     var soan = v.trang_thai === "nhap" && !t.chay;
     return (S.gon ? '<button type="button" class="nt-btn ghost" id="ntGon">Hiện việc</button>' : "") +
       '<div class="nt-row">' + pillTrang(t.treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
-      (t.treo ? '<p class="nt-err">Việc đã dừng giữa chừng. Phần đã nói vẫn giữ. Bấm Chạy tiếp để làm tiếp từ chỗ dừng.</p>' : "") +
+      (t.treo ? '<p class="nt-err">Việc đã dừng giữa chừng. Phần đã nói vẫn giữ. Chạy tiếp làm tiếp từ chỗ dừng. Chạy lại sẽ làm từ đầu.</p>' : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
       dangLam(v) +
       '<div class="nt-row" id="ntNuts">' +
       (soan ? '<button type="button" class="nt-btn" id="ntSuaViec">Sửa việc đang soạn</button>' : "") +
       '<button type="button" class="nt-btn pri" id="ntChay"' + (t.khoa ? " disabled" : "") + ">" + esc(t.nhan) + "</button>" +
+      (t.hienLai ? '<button type="button" class="nt-btn" id="ntChayLai"' + (t.khoa ? " disabled" : "") + ">Chạy lại</button>" : "") +
       (t.hienDung ? '<button type="button" class="nt-btn danger" id="ntDung"' + (S._nut === "dung" ? " disabled" : "") + ">" + esc(t.nhanDung) + "</button>" : "") +
       '<button type="button" class="nt-btn" id="ntThu"' + (t.khoa ? " disabled" : "") + ">" + esc(t.nhanThu) + "</button>" +
       (t.hienDung ? "" : '<button type="button" class="nt-btn danger" id="ntXoaViec">Xoá việc</button>') +
@@ -1620,7 +1644,13 @@
     var suaViec = document.getElementById("ntSuaViec");
     if (suaViec) suaViec.onclick = function () { moSuaViec(S._viecDay); };
     var chay = document.getElementById("ntChay");
-    if (chay) chay.onclick = function () { batDau(false); };
+    if (chay) chay.onclick = function () {
+      var v = S._viecDay;
+      var het = v && (v.loi || []).length && (v.trang_thai === "xong" || v.trang_thai === "lech");
+      batDau(false, !!het);
+    };
+    var lai = document.getElementById("ntChayLai");
+    if (lai) lai.onclick = function () { batDau(false, true); };
     var thu = document.getElementById("ntThu");
     if (thu) thu.onclick = function () { batDau(true); };
     var dung = document.getElementById("ntDung");
@@ -1823,12 +1853,14 @@
     }, 1000);
   }
 
-  async function batDau(thu) {
+  async function batDau(thu, tuDau) {
     if (!S.chonViec || !S._viecDay || S._nut) return;
     if (S._viecDay.trang_thai === "dang_chay" && S._viecDay.song !== false && S._dung !== S.chonViec) return;
+    if (tuDau && !window.confirm("Chạy lại từ đầu? Lời đã nói và bản đang dở sẽ bị xoá.")) return;
     var id = S.chonViec;
     var truoc = S._viecDay.trang_thai;
-    S._nut = thu ? "thu" : "chay";
+    S._nhanLai = !!tuDau && (truoc === "xong" || truoc === "lech");
+    S._nut = tuDau ? "lai" : (thu ? "thu" : "chay");
     S._dung = "";
     S._viecDay.trang_thai = "dang_chay";
     S._viecDay.song = true;
@@ -1839,12 +1871,15 @@
     var j;
     try {
       j = await post("/nhac-truong/viec/" + encodeURIComponent(id) + "/chay", {
-        brain: brain(), thu: !!thu,
+        brain: brain(), thu: !!thu, tu_dau: !!tuDau,
       });
     } catch (e) {
       j = { ok: false, error: "Không kết nối được." };
     }
-    if (S._nut === "chay" || S._nut === "thu") S._nut = "";
+    if (S._nut === "chay" || S._nut === "thu" || S._nut === "lai") {
+      S._nut = "";
+      S._nhanLai = false;
+    }
     if (id !== S.chonViec) return;
     if (S._dung === id) {
       veNut();
