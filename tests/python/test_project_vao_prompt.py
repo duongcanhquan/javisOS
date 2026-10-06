@@ -75,6 +75,8 @@ check("và nội dung file chưa ghim KHÔNG bị nạp vào", "1.200.000đ" not
 st.set_project_file_pinned(pid, f_md, True)
 kh = main._project_block(pid)
 check("ghim rồi thì NỘI DUNG file được nạp thẳng vào prompt", "1.200.000đ" in kh, kh)
+check("tài liệu project không thành đề bài khi câu sang việc khác",
+      "không lấy project này làm đề bài" in kh, kh)
 check("có tiêu đề nói rõ đây là nội dung nạp sẵn",
       "NỘI DUNG FILE ĐÃ GHIM" in kh, kh)
 

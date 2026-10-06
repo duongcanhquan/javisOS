@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.63] - 2026-10-06
+### Mới
+- Trong chat, Javis biết các phòng Nhạc trưởng. Chưa nói phòng nào thì hỏi lại. Nói đúng phòng thì giao việc và chạy như nút Chạy. Tiến trình và kết quả xem ở tab Theo dõi.
+### Sửa
+- Cùng một đoạn chat có nhiều việc, câu vừa hỏi là việc phải làm. "Cái đó", "sửa lại", "làm tiếp" vẫn bám đúng việc đang nói. Câu sang việc khác không bị kéo về dự án cũ.
+
 ## [0.56.62] - 2026-10-05
 ### Sửa
 - **Nhạc trưởng** câu trao đổi chỉ nêu ý chính. Bản dài đi trong file đính kèm, người sau đọc file. Lượt bị cắt thì viết tiếp và ghép. Một câu ngắn không ghi đè bản dài.

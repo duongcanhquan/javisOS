@@ -1,0 +1,10 @@
+name: Nhạc trưởng
+slug: javis-nhac-truong
+version: 1.0.0
+description: Từ chat, xem phòng Nhạc trưởng, hỏi lại khi chưa rõ phòng, rồi giao việc và chạy như nút trên trang.
+author: Javis (bundled)
+enabled: true
+min_mode: readonly
+tools:
+  - javis_nhac_truong
+hooks: []

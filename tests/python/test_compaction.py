@@ -243,6 +243,12 @@ check("fast-path: nhồi lịch sử vào user message",
       and "làm tiếp cái đó" in (out_fp[-1].get("content") or ""))
 check("fast-path: không lịch sử thì giữ nguyên",
       compaction.chem_lich_su_vao_messages(msgs_fp, [], "hi") == msgs_fp)
+_boot = compaction.bootstrap_prompt(raw_fp, "Lên đề cương môn sử")
+check("mồi lại: câu hiện tại là việc, không bảo làm tiếp mạch cũ",
+      "YÊU CẦU HIỆN TẠI" in _boot and "chỉ làm việc đó" in _boot
+      and "tiếp tục đúng mạch" not in _boot and _boot.endswith("Lên đề cương môn sử"))
+check("tóm tắt là ký ức để tra",
+      "không phải việc phải làm" in compaction.SUMMARY_HEADER)
 
 
 asyncio.run(main())

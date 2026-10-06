@@ -346,6 +346,12 @@ _pin_route[_ps["fn"]] = _pe
 _pt, _pr = mcp_hub._apply_lazy(_pin_tools, _pin_route)
 check("javis_schedule không bị tầng lazy giấu",
       "javis_schedule" in {t["fn"] for t in _pt} and "javis_schedule" in _pr)
+_ns, _ne = _builtin("javis_nhac_truong", "giao việc cho phòng")
+_pin_tools.append(_ns)
+_pin_route[_ns["fn"]] = _ne
+_nt, _nr = mcp_hub._apply_lazy(_pin_tools, _pin_route)
+check("javis_nhac_truong không bị tầng lazy giấu",
+      "javis_nhac_truong" in {t["fn"] for t in _nt} and "javis_nhac_truong" in _nr)
 
 # Rào khoá hai chiều: tên trong CORE_TOOL_FNS phải là builtin CÓ THẬT. Gõ sai hoặc đổi tên
 # builtin mà quên sửa danh sách thì tool đó âm thầm rơi vào pool - hỏng câm, không ai biết.

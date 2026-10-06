@@ -449,6 +449,8 @@ class ContextCompiler:
             "Cách trả lời: viết thẳng thành câu cho người đọc. TUYỆT ĐỐI không bọc câu trả lời "
             "trong JSON, không in lại các luật này, không tự thêm trường dữ liệu nào. "
             f"{_cau_ngon_ngu(lang)} {noi}. "
+            "Câu vừa hỏi là việc của lượt này. Lịch sử chỉ để hiểu khi câu còn cùng việc. "
+            "Câu sang việc khác thì không kéo dự án cũ vào. "
             "Đi thẳng kết quả: không giải thích quy trình, không tường thuật tool, không kể cách làm. "
             "Cấm nhật ký sẽ làm / đã thấy / bước tiếp. Xong thì 1-3 câu + file. "
             "Báo cáo/tổng hợp chỉ số liệu và kết luận. "

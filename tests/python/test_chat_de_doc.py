@@ -108,6 +108,12 @@ check("CANARY: web cấm nhật ký bước (Em sẽ / bước tiếp theo)",
       "CHỈ gửi câu trả lời CUỐI" in _WEB and "Em sẽ dùng slide-wright" in _WEB)
 check("mọi kênh cấm nhật ký Em sẽ / đã thấy",
       "Em/mình sẽ" in _WEB and "Em/mình sẽ" in _TG)
+check("mọi kênh biết giao việc Nhạc trưởng từ chat",
+      "javis_nhac_truong" in _WEB and "javis_nhac_truong" in _TG)
+check("mọi kênh: câu vừa hỏi thắng việc cũ trong cùng chat",
+      "CÂU VỪA HỎI LÀ VIỆC CỦA LƯỢT NÀY" in _WEB
+      and "CÂU VỪA HỎI LÀ VIỆC CỦA LƯỢT NÀY" in _TG
+      and "CÂU VỪA HỎI LÀ VIỆC CỦA LƯỢT NÀY" in _ZL)
 check("khối web không dính em dash", "—" not in _WEB)
 
 
@@ -123,6 +129,7 @@ check("capsule web: cho dùng bảng khi so sánh", "bảng" in _hd_web)
 _loi = context_compiler.ContextCompiler._output_contract_text("dashboard")
 check("phần 'Cách trả lời' vẫn còn (Core Contract trỏ vào đây)", "Cách trả lời" in _loi)
 check("phần 'Cách trả lời' nay có luật trình bày", "gạch đầu dòng" in _loi)
+check("capsule: câu vừa hỏi thắng dự án cũ", "Câu vừa hỏi là việc của lượt này" in _loi)
 check("capsule không dính em dash", "—" not in _hd_web and "—" not in _loi)
 
 

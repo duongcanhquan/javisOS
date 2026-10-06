@@ -615,6 +615,7 @@ CORE_TOOL_FNS = frozenset({
 # "không có trong MCP của phiên" dù plugin vẫn nạp.
 PINNED_TOOL_FNS = frozenset({
     "javis_schedule",
+    "javis_nhac_truong",
 })
 
 # Mô tả nhóm tool nội bộ cho thực đơn lazy. Builtin/plugin không có connector trong

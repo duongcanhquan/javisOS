@@ -14,7 +14,7 @@
   "use strict";
 
   // Cùng danh sách với RAIL_ITEMS trong console.js và PAGES trong plugin javis-ui.
-  var PAGES = ["home", "chat", "settings", "workspace", "skills", "chatbots", "conversations", "files",
+  var PAGES = ["home", "chat", "settings", "workspace", "nhac_truong", "skills", "chatbots", "conversations", "files",
                "drive", "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing",
                "kanban", "models", "channels", "mcp", "plugins", "packs", "tool_apis", "logs", "account",
                "usage", "pet", "share", "org",

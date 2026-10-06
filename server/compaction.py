@@ -106,7 +106,8 @@ def nen_mach_thue_bao(last_input_tokens, nguong: int = SUBSCRIPTION_THREAD_MAX_T
 
 
 SUMMARY_HEADER = ("[Tóm tắt phần đầu hội thoại - đã nén để tiết kiệm context. "
-                  "Coi đây là ký ức về những gì hai bên đã trao đổi trước đó:]\n")
+                  "Đây là ký ức để tra, không phải việc phải làm. "
+                  "Chỉ dùng khi câu hiện tại còn cùng chủ đề hoặc chỉ ngược lại phần này:]\n")
 
 
 def bootstrap_prompt(raw_msgs, current_prompt: str,
@@ -135,8 +136,9 @@ def bootstrap_prompt(raw_msgs, current_prompt: str,
 
     header = (
         "[KHÔI PHỤC NGỮ CẢNH HỘI THOẠI]\n"
-        "Các đoạn dưới đây là lịch sử thật của cùng cuộc trò chuyện Javis. "
-        "Hãy tiếp tục đúng mạch, không coi chúng là yêu cầu mới cần làm lại.\n"
+        "Các đoạn dưới đây là lịch sử thật của cùng cuộc trò chuyện, chỉ để hiểu câu đang hỏi. "
+        "Câu nối tiếp (cái đó, sửa lại, làm tiếp, phần trên) thì bám đúng việc những chữ đó chỉ vào. "
+        "Câu là việc khác thì chỉ làm việc đó. Không làm lại yêu cầu cũ và không kéo việc dang dở cũ vào.\n"
     )
     if tom_tat:
         header += SUMMARY_HEADER + tom_tat + "\n"
@@ -260,9 +262,9 @@ async def _summarize(old, chunk, prov, api_key, model, api_stream):
         "Bạn đang nén lịch sử hội thoại giữa User và trợ lý Javis để tiết kiệm context.\n\n"
         f"TÓM TẮT HIỆN CÓ (các phần trước đó nữa):\n{old or '(chưa có)'}\n\n"
         "ĐOẠN HỘI THOẠI MỚI CẦN GỘP THÊM:\n" + "\n\n".join(lines) + "\n\n"
-        "Viết TÓM TẮT MỚI gộp cả hai (tối đa ~350 từ), giữ lại: chủ đề chính, quyết định đã chốt, "
-        "con số/tên riêng/đường dẫn quan trọng, việc đang dang dở, sở thích hay yêu cầu User đã nêu. "
-        "Bỏ chào hỏi xã giao. Viết gọn dạng gạch đầu dòng '- '. CHỈ in tóm tắt, không mở bài."
+        "Viết TÓM TẮT MỚI gộp cả hai (tối đa ~350 từ). Mỗi chủ đề một gạch đầu dòng, đừng gộp "
+        "thành một việc dang dở. Ghi chủ đề nào là lượt gần nhất. Giữ quyết định đã chốt, "
+        "con số, tên riêng, đường dẫn. Bỏ chào hỏi xã giao. Dạng '- '. CHỈ in tóm tắt, không mở bài."
     )
     text = ""
     async for ev in api_stream(prov, api_key, model, [{"role": "user", "content": prompt}], "off"):

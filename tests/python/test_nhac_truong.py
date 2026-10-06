@@ -647,6 +647,56 @@ def test_file_dung_va_chay_them():
     check("dừng vẫn để bản nhìn được", "bản dở" in (dung.get("ket_qua") or "") or "Bản dở" in (dung.get("ket_qua") or ""))
 
 
+def test_chat_hoi_phong_roi_moi_giao():
+    ds = [
+        {"slug": "marketing", "ten": "Marketing", "nguoi": [{"ten": "An", "vai": "truong"}]},
+        {"slug": "phap-che", "ten": "Pháp chế", "nguoi": [{"ten": "Bình", "vai": "truong"}]},
+    ]
+    mot, hoi = nt.chon_phong(ds, "")
+    check("chưa chỉ phòng thì hỏi", not mot and "Marketing" in hoi and "Pháp chế" in hoi)
+    mot, hoi = nt.chon_phong(ds, "phòng")
+    check("tên không khớp đúng thì không đoán", not mot and "đừng đoán" in hoi)
+    mot, hoi = nt.chon_phong(ds, "Marketing")
+    check("đúng tên thì chọn một phòng", [p["slug"] for p in mot] == ["marketing"] and not hoi)
+    mot, hoi = nt.chon_phong([ds[0]], "")
+    check("chỉ một phòng thì dùng phòng đó", mot and mot[0]["slug"] == "marketing")
+
+    import importlib.util
+    p = ROOT / "system" / "plugins" / "javis-nhac-truong" / "plugin.py"
+    spec = importlib.util.spec_from_file_location("javis_nhac_truong_plugin", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    goc = Path(tempfile.mkdtemp(prefix="javis-nt-chat-"))
+    kho = nt.Kho(goc)
+    nt.tao_phong(kho, "Marketing", "Đúng khách")
+    nt.tao_phong(kho, "Pháp chế", "Không hứa quá")
+    nt.them_nguoi(kho, "marketing", "An", "thẳng", "", "truong")
+    nt.them_nguoi(kho, "phap-che", "Bình", "chặt", "", "truong")
+
+    class Ctx:
+        vault_root = str(goc)
+
+    hoi = asyncio.run(mod._chay({"op": "giao", "title": "Bài", "brief": "viết bài"}, Ctx()))
+    check("tool chưa rõ phòng thì hỏi", "Hỏi" in hoi and not list((goc / "nhac-truong" / "viec").glob("*.json")))
+    da_chay = {}
+    cu = rte.bat_chay
+
+    def gia(brain, vid):
+        da_chay["vid"] = vid
+        da_chay["brain"] = brain
+        return "bat"
+
+    rte.bat_chay = gia
+    try:
+        tra = asyncio.run(mod._chay({
+            "op": "giao", "title": "Bài tuần", "brief": "viết bài ngắn", "phong": "Marketing",
+        }, Ctx()))
+    finally:
+        rte.bat_chay = cu
+    check("giao đúng phòng thì chạy", da_chay.get("vid") == "bai-tuan" and "Marketing" in tra and "Theo dõi" in tra)
+    check("cùng brain đang chat", da_chay.get("brain") == str(goc))
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
@@ -670,6 +720,7 @@ if __name__ == "__main__":
     test_du_an_dai_khong_dut()
     test_phong_trao_doi()
     test_file_dung_va_chay_them()
+    test_chat_hoi_phong_roi_moi_giao()
     if _fails:
         print(f"\n{len(_fails)} FAIL")
         sys.exit(1)

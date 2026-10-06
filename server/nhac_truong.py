@@ -476,6 +476,49 @@ def _bi_huy(kho: Kho, vid: str) -> bool:
         return False
 
 
+def _mo_ta_phong(ds: list) -> str:
+    dong = ["Các phòng đang có:"]
+    for p in ds or []:
+        truong = next((n.get("ten") for n in (p.get("nguoi") or []) if n.get("vai") == "truong"), "chưa có trưởng")
+        dong.append(f"- {p.get('ten')} (mã {p.get('slug')}, trưởng {truong})")
+    return "\n".join(dong)
+
+
+def chon_phong(ds: list, chu: str) -> tuple[list, str]:
+    """Chọn phòng theo đúng tên hoặc mã. Mơ hồ thì trả lời để hỏi lại, không đoán."""
+    rooms = list(ds or [])
+    if not rooms:
+        return [], "Chưa có phòng nào. Bảo người dùng tạo phòng ở trang Nhạc trưởng trước."
+    raw = (chu or "").strip()
+    if not raw:
+        if len(rooms) == 1:
+            return rooms, ""
+        return [], "Chưa chỉ phòng. Hỏi người dùng muốn giao phòng nào. Đừng đoán.\n" + _mo_ta_phong(rooms)
+    chon = []
+    for tok in [t.strip() for t in re.split(r"[,;\n]+", raw) if t.strip()]:
+        q = slugify(tok)
+        dung, gan = [], []
+        for p in rooms:
+            slug = str(p.get("slug") or "")
+            ten = slugify(p.get("ten") or "")
+            if q and (q == slug or q == ten):
+                dung.append(p)
+            elif q and len(q) >= 3 and ((ten and (q in ten or ten in q)) or (slug and q in slug)):
+                gan.append(p)
+        if len(dung) == 1:
+            if dung[0] not in chon:
+                chon.append(dung[0])
+            continue
+        if not dung and len(gan) == 1:
+            if gan[0] not in chon:
+                chon.append(gan[0])
+            continue
+        return [], f"Không chốt được phòng cho \"{tok}\". Hỏi lại, đừng đoán.\n" + _mo_ta_phong(rooms)
+    if not chon:
+        return [], "Chưa chọn được phòng.\n" + _mo_ta_phong(rooms)
+    return chon, ""
+
+
 def tao_viec(kho: Kho, tieu_de: str, brief: str, phong_slugs: list, vong: int = VONG_MAC_DINH,
              tai_lieu=None, xep: dict | None = None) -> dict:
     tieu_de = (tieu_de or "").strip()

@@ -592,8 +592,9 @@ def _project_block(project_id: str, chi_huong_dan: bool = False) -> str:
     dong, da_nap = _liet_ke_tai_lieu(p.get("brain") or "brain", files, links)
     if dong:
         ra += ("\n\n# === TÀI LIỆU & LINK CỦA PROJECT ===\n"
-               "Đây là DANH SÁCH, không phải nội dung: mở file bằng tool đọc file khi cần, "
-               "đừng đoán nội dung từ cái tên. Link chỉ mở được nếu lượt này có tool duyệt web; "
+               "Đây là DANH SÁCH, không phải nội dung: mở file bằng tool đọc file khi câu đang hỏi "
+               "thuộc project này, đừng đoán nội dung từ cái tên. Câu sang việc khác thì không lấy "
+               "project này làm đề bài. Link chỉ mở được nếu lượt này có tool duyệt web; "
                "không có thì nói thẳng chứ đừng đoán nội dung trang.\n" + "\n".join(dong))
     if da_nap:
         ra += ("\n\n# === NỘI DUNG FILE ĐÃ GHIM (nạp sẵn, không cần mở lại) ===" + "".join(da_nap))
@@ -662,9 +663,9 @@ def _session_block(session_id: str) -> str:
     ra = ""
     if dong:
         ra += ("\n\n# === TÀI LIỆU & LINK NGƯỜI DÙNG GẮN VÀO CUỘC NÀY ===\n"
-               "Người dùng tự gắn tay ở khung \"Trong cuộc trò chuyện này\", nên đây là thứ họ "
-               "coi là quan trọng cho ĐÚNG cuộc này. Vẫn là DANH SÁCH chứ không phải nội dung: "
-               "mở file bằng tool đọc file khi cần, đừng đoán nội dung từ cái tên.\n"
+               "Người dùng tự gắn tay ở khung \"Trong cuộc trò chuyện này\". Vẫn là DANH SÁCH "
+               "chứ không phải nội dung: mở file khi câu này cần đến, đừng đoán nội dung từ cái tên, "
+               "và đừng biến file này thành đề bài khi câu đang hỏi việc khác.\n"
                + "\n".join(dong))
     if da_nap:
         ra += ("\n\n# === NỘI DUNG FILE ĐÃ GHIM TRONG CUỘC NÀY (nạp sẵn, không cần mở lại) ==="

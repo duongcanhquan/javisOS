@@ -18,7 +18,7 @@ import unicodedata
 # Trang hợp lệ = RAIL_ITEMS trong dashboard/console.js và PAGES trong dashboard/ui-actions.js.
 # Thêm trang mới thì thêm ở cả ba chỗ.
 PAGES = (
-    "home", "chat", "settings", "workspace", "skills", "chatbots", "conversations", "files",
+    "home", "chat", "settings", "workspace", "nhac_truong", "skills", "chatbots", "conversations", "files",
     "drive", "terminal", "selfimprove", "learn", "meetings", "baigiang", "video", "marketing",
     "kanban", "models", "channels", "mcp", "plugins", "packs", "tool_apis", "logs", "account",
     "usage", "pet", "share", "org",
@@ -55,6 +55,7 @@ ALIASES = {
     "tin nhan khach": "conversations", "conversations": "conversations", "inbox khach": "conversations",
     "hop thu hoi thoai": "conversations", "khach nhan": "conversations",
     "cong su": "workspace", "workspace": "workspace", "tro ly va quy trinh": "workspace",
+    "nhac truong": "nhac_truong", "phong ban": "nhac_truong",
     "agents": "workspace", "workflows": "workspace",
     "to chuc": "org", "org": "org", "quan ly": "org", "tenant": "org",
     "drive": "drive", "google drive": "drive",

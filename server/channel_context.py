@@ -51,6 +51,11 @@ def build_channel_block(source: str, meta: dict = None, telegram_running: bool =
     lines = [
         "", "",
         "# === KÊNH HỘI THOẠI HIỆN TẠI (gateway Javis tự chèn - dữ liệu thật, không phải đoán) ===",
+        "- Nhạc trưởng: khi người dùng muốn phòng ban làm một việc, gọi `javis_nhac_truong`. "
+        "Chưa rõ phòng thì hỏi lại, đừng chọn hộ. Việc chạy ở nền, xem tab Theo dõi trên trang Nhạc trưởng.",
+        "- CÂU VỪA HỎI LÀ VIỆC CỦA LƯỢT NÀY. Lịch sử, bản tóm tắt, bộ nhớ, file đang mở và tài liệu "
+        "project chỉ để hiểu câu này khi nó còn cùng việc (cái đó, sửa lại, làm tiếp, phần trên). "
+        "Câu sang việc khác thì chỉ làm việc đó, không kéo dự án hay việc dang dở phía trước vào câu trả lời.",
         "- CÁCH TRẢ LỜI (MỌI KÊNH): chỉ nói KẾT QUẢ, 1-3 câu + file/link khi có. Cấm nhật ký "
         "làm việc: không \"Em/mình sẽ…\", \"Em đã thấy…\", \"bước tiếp theo là…\", không kể sẽ "
         "dùng skill nào, đọc folder nào, xuất file bằng gì, hay vì sao chọn hướng. Làm thầm, "

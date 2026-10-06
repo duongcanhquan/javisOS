@@ -40,6 +40,40 @@ def _kho(brain: str) -> nt.Kho:
     return nt.Kho(_DEPS.brain_root(brain or "brain"))
 
 
+def _khoa_viec(brain: str, vid: str) -> str:
+    """Một ổ khoá cho cả trang và chat, kể cả khi một bên gửi tên brain, bên kia gửi đường dẫn."""
+    try:
+        goc = Path(_kho(brain).goc).resolve()
+    except Exception:
+        goc = brain or "brain"
+    return f"{goc}:{vid}"
+
+
+def bat_chay(brain: str, vid: str) -> str:
+    """Chạy thật ở nền, cùng đường với nút Chạy trên trang. Trả 'dang_chay' nếu đã chạy."""
+    if _DEPS is None:
+        raise nt.LoiNhacTruong("Nhạc trưởng chưa sẵn sàng.")
+    khoa = _khoa_viec(brain, vid)
+    dang = _DANG.get(khoa)
+    if dang is not None and not dang.done():
+        return "dang_chay"
+    kho = _kho(brain)
+    kho.doc_viec(vid)
+
+    async def _nen():
+        try:
+            await nt.chay(
+                kho, vid,
+                lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt),
+                ra_file=_ra_file_cho(brain),
+            )
+        except Exception as e:
+            _danh_loi(kho, vid, e)
+
+    _DANG[khoa] = asyncio.create_task(_nen())
+    return "bat"
+
+
 def _ra_file_cho(brain: str):
     """Ảnh hoặc video thật, cất trong việc. Lỗi trả về cho trang, không nuốt im."""
 
@@ -244,7 +278,7 @@ async def doc_viec(vid: str, brain: str = "brain"):
     except nt.LoiNhacTruong as e:
         return _err(e, 404)
     out = dict(viec)
-    dang = _DANG.get(f"{brain}:{vid}")
+    dang = _DANG.get(_khoa_viec(brain, vid))
     out["song"] = bool(dang is not None and not dang.done())
     return {"ok": True, "viec": out}
 
@@ -294,7 +328,7 @@ async def tep_hang(vid: str, p: str = "", brain: str = "brain"):
 
 @router.delete("/nhac-truong/viec/{vid}")
 async def xoa_viec(vid: str, brain: str = "brain"):
-    khoa = f"{brain}:{vid}"
+    khoa = _khoa_viec(brain, vid)
     dang = _DANG.get(khoa)
     if dang is not None and not dang.done():
         return JSONResponse({"ok": False, "error": "Việc đang chạy."}, status_code=409)
@@ -314,7 +348,7 @@ async def chay_viec(vid: str, request: Request):
         body = {}
     brain = body.get("brain") or "brain"
     thu = bool(body.get("thu"))
-    khoa = f"{brain}:{vid}"
+    khoa = _khoa_viec(brain, vid)
     dang = _DANG.get(khoa)
     if dang is not None and not dang.done():
         return JSONResponse({"ok": False, "error": "Việc đang chạy."}, status_code=409)
@@ -331,13 +365,7 @@ async def chay_viec(vid: str, request: Request):
             return _err(e)
         return {"ok": True, "viec": viec}
 
-    async def _nen():
-        try:
-            await nt.chay(kho, vid, lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt), ra_file=_ra_file_cho(brain))
-        except Exception as e:
-            _danh_loi(kho, vid, e)
-
-    _DANG[khoa] = asyncio.create_task(_nen())
+    bat_chay(brain, vid)
     return {"ok": True, "trang_thai": "dang_chay"}
 
 
@@ -356,7 +384,7 @@ async def dung_viec(vid: str, request: Request):
         return _err(e, 404)
     viec["huy"] = True
     kho.luu_viec(viec)
-    khoa = f"{brain}:{vid}"
+    khoa = _khoa_viec(brain, vid)
     task = _DANG.get(khoa)
     if task is not None and not task.done():
         task.cancel()
@@ -378,7 +406,7 @@ async def chay_them(vid: str, request: Request):
     except Exception:
         body = {}
     brain = body.get("brain") or "brain"
-    khoa = f"{brain}:{vid}"
+    khoa = _khoa_viec(brain, vid)
     dang = _DANG.get(khoa)
     if dang is not None and not dang.done():
         return JSONResponse({"ok": False, "error": "Việc đang chạy."}, status_code=409)
