@@ -562,6 +562,24 @@ def _ghi_stdin(proc, s: str) -> None:
         i = j
 
 
+# Gemini trên agy hay phát một lời gọi tool không có tên (báo "default_api" / tool không
+# tìm thấy) khi prompt bảo gọi javis_* như tool native. Chú thích này đứng sát câu hỏi.
+# Không viết chữ "undefined" vào đây: model có thể gọi lại đúng chữ đó.
+_GHI_CHU_TOOL_AGY = (
+    "# Tool trên Antigravity\n"
+    "Chỉ gọi tool có trong danh sách phiên này đưa ra "
+    "(view_file, write_to_file, replace_file_content, run_command, manage_task, "
+    "schedule, call_mcp_tool, search_web, ask_question, send_message và subagent). "
+    "Tool tên javis_* không gọi thẳng: chỉ qua call_mcp_tool khi biết đúng tên. "
+    "Không phát lời gọi tool thiếu tên.\n"
+    "Người dùng nói Remotion hoặc video React: không nghiên cứu web, không hỏi đủ 5 mục brief "
+    "nếu đã có chủ đề. Nạp skill remotion-best-practices, viết composition, "
+    "render ngay trong lượt bằng run_command với npx remotion render. "
+    "Không dùng javis_render_script_video. "
+    "Chưa chạy lệnh thì không kể task nền đang render và không bịa mã task."
+)
+
+
 _CANH_BAO_HONG_DAU = (
     "\n\n_(Lưu ý của Javis: bản `agy` trên máy này làm hỏng dấu tiếng Việt khi nhận prompt dài "
     "(chữ biến thành `�`), và đổi đường gửi cũng không cứu được. Lỗi nằm trong chính CLI, "
@@ -1152,7 +1170,8 @@ class AntigravityCLI:
         return duong_prompt_dai(self.cli_path)
 
     def _gop_prompt(self, phan_user: str) -> str:
-        return (self.instructions.strip() + "\n\n" + phan_user) if self.instructions else phan_user
+        dau = (self.instructions.strip() + "\n\n") if self.instructions else ""
+        return dau + _GHI_CHU_TOOL_AGY + "\n\n" + phan_user
 
     def phan_user_gui(self, prompt: str, duong: str) -> str:
         """Phần user đưa vào agy.

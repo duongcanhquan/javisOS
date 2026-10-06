@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.66] - 2026-10-06
+### Sửa
+- Video **Remotion** không còn ngồi nghiên cứu web rồi mới render. Nói Remotion là viết và kết xuất ngay.
+- Antigravity hết gọi một tool không có tên rồi kể là video đang xuất ở nền. Lệnh render chạy trong lượt đó.
+
 ## [0.56.65] - 2026-10-06
 ### Sửa
 - **Nhạc trưởng** khi việc dừng giữa chừng có hai nút. **Chạy tiếp** làm từ chỗ đang dở, giữ lời đã nói. **Chạy lại** hỏi một lần rồi làm từ đầu.

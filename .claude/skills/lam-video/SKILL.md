@@ -11,9 +11,11 @@ group: "Video & Motion"
 
 User muốn làm video / short / explainer / quảng cáo / Remotion / collage Vox / paperdesign /
 postcard / shotcraft / OpenMontage / OmmiStudio / html-video / motion graphics. Dùng skill này
-TRƯỚC khi nhảy vào một pipeline cụ thể.
+TRƯỚC khi nhảy vào một pipeline cụ thể, trừ khi user đã nói Remotion (mục dưới).
 
 ## Chuẩn bị
+
+User đã nói Remotion thì bỏ mục này, nhảy tới bước 0.
 
 1. Đọc `references/brief-checklist.md` - cổng brief bắt buộc.
 2. Đọc brief user theo checklist; thiếu mục BẮT BUỘC → DỪNG (xem bước 1).
@@ -22,7 +24,20 @@ TRƯỚC khi nhảy vào một pipeline cụ thể.
 
 ## Quy trình
 
+### 0. Remotion đã được chỉ định (làm ngay, bỏ bước 1 và 2)
+
+User nói **Remotion / React video / data trên timeline**, và không nói postcard hay shotcraft:
+
+- Không hỏi 5 mục brief. Không chạy `deep-research`. Không gọi `javis_render_script_video`.
+- Thiếu độ dài thì lấy 30 giây, thiếu tỉ lệ thì 16:9, thiếu ngôn ngữ thì tiếng Việt. Nêu giả định một dòng rồi làm.
+- Nạp `remotion-best-practices`, viết composition, render **trong lượt này**.
+- Antigravity chỉ có `run_command`, `write_to_file`, `view_file`, `replace_file_content`. Render bằng `run_command`: `npx remotion render`. Tool tên `javis_*` không gọi thẳng.
+- Claude Code / Codex: cùng lệnh qua Bash.
+- Lệnh chưa chạy xong thì không kể task nền, không bịa mã task, không hứa gửi file sau.
+
 ### 1. Cổng brief (BẮT BUỘC - không bỏ)
+
+Chỉ khi **chưa** đi đường Remotion ở trên.
 
 Đọc `references/brief-checklist.md`.
 

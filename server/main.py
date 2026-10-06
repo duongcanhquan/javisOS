@@ -9712,7 +9712,11 @@ async def studio_seed_video(brain: str = Form("brain")):
                 "trước khi research, kiểm {{input}} đủ chủ đề + mục tiêu + độ dài + tỉ lệ + ngôn ngữ. "
                 "Thiếu → DỪNG, liệt kê thiếu gì, hỏi user (JAVIS_ASK cho lựa chọn kín). "
                 "CẤM giả định 5 mục bắt buộc rồi làm tiếp.\n"
-                "Khi brief đã chốt: BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2): "
+                "NGOẠI LỆ REMOTION: {{input}} nói Remotion hoặc video React "
+                "(không phải postcard/shotcraft) thì KHÔNG deep-research, KHÔNG hỏi 5 mục. "
+                "Thiếu độ dài/tỉ lệ/ngôn ngữ thì lấy 30 giây, 16:9, tiếng Việt, nêu một dòng. "
+                "Trả đúng 3 dòng: chủ đề, giả định, pipeline: remotion. Xong.\n"
+                "Khi brief đã chốt và không phải Remotion: BẮT BUỘC nạp và chạy skill **deep-research** (breadth≈4, depth≈2): "
                 "sinh SERP query → Tavily/WebSearch → learnings có nguồn → đào sâu → report.\n"
                 "Bối cảnh: Javis có nhiều pipeline (paperdesign collage, Remotion, OmmiStudio/html-video).\n"
                 "Sau deep-research, chưng thêm: (1) audience + mục tiêu, "
@@ -9729,7 +9733,9 @@ async def studio_seed_video(brain: str = Form("brain")):
             "prompt": (
                 "Bạn là biên kịch video.\n"
                 "Mục tiêu: kịch bản sẵn để đạo diễn chọn pipeline và render.\n"
-                "Cổng brief: nếu {{input}} thiếu độ dài/tỉ lệ/ngôn ngữ/mục tiêu thì DỪNG và hỏi, không viết beat.\n"
+                "Cổng brief: nếu {{input}} thiếu độ dài/tỉ lệ/ngôn ngữ/mục tiêu thì DỪNG và hỏi, không viết beat. "
+                "Ngoại lệ: pipeline remotion hoặc user nói Remotion thì viết beat ngắn ngay, "
+                "thiếu thì 30 giây, 16:9, tiếng Việt.\n"
                 "Quy trình: đọc nghiên cứu deep-research {{prev}} + brief đã chốt {{input}}; chỉ dùng fact đã có nguồn; "
                 "thiếu fact then chốt thì ghi rõ cần nghiên cứu thêm, không bịa.\n"
                 "Viết beat map: Hook ≤3s; mỗi beat: id, narration, title on-screen, scene, feel, shot a/b (3-6s).\n"
@@ -9754,7 +9760,10 @@ async def studio_seed_video(brain: str = Form("brain")):
                 "- postcard-video: promo cinematic Remotion (video-shotcraft), 15-45s, SFX/BGM; Node+ffmpeg+ensure-shotcraft.\n"
                 "- pixcelvideo: short ảnh AI + Edge-TTS (javis_render_script_video).\n"
                 "- paperdesign: collage Vox, cần ATLASCLOUD_API_KEY + ffmpeg.\n"
-                "- remotion: video React frame-perfect.\n"
+                "- remotion: video React frame-perfect. User đã nói Remotion thì bỏ nghiên cứu, "
+                "nạp remotion-best-practices, render ngay bằng npx remotion render "
+                "(run_command trên Antigravity, Bash trên Claude/Codex). "
+                "Không gọi javis_render_script_video. Không bịa task nền.\n"
                 "- html-video / OmmiStudio (duongcanhquan/OmmiStudio + nexu): template HTML→MP4.\n"
                 "- manual: thiếu key/binary thì xuất beat + prompts + VO.\n"
                 "Quy trình: (1) đọc kịch bản {{prev}} + brief {{input}} (fact lấy từ deep-research trước đó), "
@@ -9796,7 +9805,9 @@ async def studio_seed_video(brain: str = Form("brain")):
         "description": "Nghiên cứu chủ đề → biên kịch → đạo diễn chọn paperdesign/Remotion/Ommi → kiểm chứng.",
         "steps": [
             {"agent": "nghien-cuu-chu-de-video",
-             "task": "Cổng brief (checklist lam-video): {{input}} phải có chủ đề+mục tiêu+độ dài+tỉ lệ+ngôn ngữ. "
+             "task": "Nếu {{input}} nói Remotion hoặc video React (không postcard/shotcraft): "
+                     "không nghiên cứu, không hỏi brief, trả pipeline remotion. "
+                     "Còn lại: cổng brief (checklist lam-video) phải có chủ đề+mục tiêu+độ dài+tỉ lệ+ngôn ngữ. "
                      "Thiếu thì DỪNG hỏi. Đủ thì deep-research (breadth 4, depth 2). Report + hook + Sources."},
             {"agent": "bien-kich-video",
              "task": "Viết kịch bản beat/shot cho brief đã chốt '{{input}}' từ nghiên cứu:\n{{prev}}\n"

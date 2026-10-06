@@ -2,6 +2,8 @@
 
 Dùng trước nghiên cứu / biên kịch / render. Thiếu mục **BẮT BUỘC** → DỪNG và hỏi user (chat: JAVIS_ASK cho lựa chọn kín; Telegram: liệt kê đánh số). Không giả định rồi làm tiếp.
 
+**Ngoại lệ Remotion:** user đã nói Remotion / React video (không phải postcard hay shotcraft) thì không dùng checklist này. Render ngay. Thiếu độ dài / tỉ lệ / ngôn ngữ thì lấy 30 giây, 16:9, tiếng Việt và nêu một dòng.
+
 ## Mẫu dán vào ô chạy workflow / tin nhắn
 
 ```

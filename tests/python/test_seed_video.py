@@ -2,6 +2,7 @@
 """Canh endpoint Bộ Video / Bộ Proposal tồn tại và ghi đúng file vào brain tạm."""
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import tempfile
@@ -14,7 +15,6 @@ _tmp = Path(tempfile.mkdtemp(prefix="javis-seed-video-"))
 (_tmp / "brain").mkdir()
 os.environ["BRAINS_DIR"] = str(_tmp)
 
-from starlette.testclient import TestClient  # noqa: E402
 import main  # noqa: E402
 
 if hasattr(main, "BRAINS_DIR"):
@@ -27,11 +27,7 @@ def check(msg, cond):
         raise SystemExit(1)
 
 
-client = TestClient(main.app, base_url="http://127.0.0.1")
-
-r = client.post("/studio/seed-video", data={"brain": "brain"})
-check(f"POST /studio/seed-video trả 200 (thật: {r.status_code})", r.status_code == 200)
-body = r.json()
+body = asyncio.run(main.studio_seed_video(brain="brain"))
 check("seed-video ok", body.get("ok") is True)
 check("workflow slug đúng", body.get("workflow") == "bo-video-da-pipeline")
 
@@ -44,15 +40,17 @@ check("có workflow bo-video-da-pipeline", (wf_dir / "bo-video-da-pipeline.md").
 sk = ROOT / ".claude" / "skills" / "lam-video" / "SKILL.md"
 check("skill lam-video tồn tại", sk.is_file())
 text = sk.read_text(encoding="utf-8")
-check("lam-video có group Nội dung", "group: Nội dung" in text)
+check("lam-video có group Video", "Video" in text and "group:" in text)
 check("lam-video có cổng brief", "Cổng brief" in text or "cổng brief" in text.lower())
+check("lam-video có đường Remotion bỏ nghiên cứu", "Không chạy `deep-research`" in text)
+check("lam-video render bằng npx remotion", "npx remotion render" in text)
 check("catalog pipeline đi kèm",
       (ROOT / ".claude/skills/lam-video/references/catalog.md").is_file())
 check("brief-checklist đi kèm",
       (ROOT / ".claude/skills/lam-video/references/brief-checklist.md").is_file())
 
-r2 = client.post("/studio/seed-strategy", data={"brain": "brain"})
-check(f"POST /studio/seed-strategy trả 200 (thật: {r2.status_code})", r2.status_code == 200)
+body2 = asyncio.run(main.studio_seed_strategy(brain="brain"))
+check("seed-strategy ok", body2.get("ok") is True)
 
 
 # deep-research phải gắn vào agent nghiên cứu video
@@ -60,6 +58,10 @@ ag = (agents_dir / "nghien-cuu-chu-de-video.md").read_text(encoding="utf-8")
 check("agent nghiên cứu video gắn deep-research", "deep-research" in ag)
 check("agent nghiên cứu bắt buộc cổng brief", "CỔNG BRIEF" in ag or "cổng brief" in ag.lower())
 check("agent nghiên cứu CẤM giả định brief", "CẤM giả định" in ag)
+check("agent nghiên cứu có ngoại lệ Remotion", "NGOẠI LỆ REMOTION" in ag)
 check("skill deep-research tồn tại", (ROOT / ".claude/skills/deep-research/SKILL.md").is_file())
+check("agy nhắc render Remotion", "npx remotion render" in main.antigravity_cli._GHI_CHU_TOOL_AGY)
+_agy = main.antigravity_cli.AntigravityCLI(cwd=str(_tmp), instructions="luat")
+check("prompt agy có chú thích tool", "run_command" in _agy._gop_prompt("lam video"))
 
 print("OK - test_seed_video")

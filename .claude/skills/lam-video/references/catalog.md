@@ -20,7 +20,7 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 2. User nói **Pixelle / pixcelvideo / short tự động / topic ra mp4 có VO** → `pixcelvideo`
    (viết kịch bản → **`javis_render_script_video`**; Pixelle chỉ nếu API :8000 đang sống).
 3. User nói **postcard / shotcraft / video-shotcraft / promo cinematic recipe** → `postcard-video`.
-4. User nói **Remotion / React video / data trên timeline** (không chỉ định shotcraft) → `remotion`.
+4. User nói **Remotion / React video / data trên timeline** (không chỉ định shotcraft) → `remotion`. Bỏ nghiên cứu web và cổng brief. Nạp `remotion-best-practices`, render ngay bằng `npx remotion render` (`run_command` trên Antigravity, Bash trên Claude/Codex). Không gọi `javis_render_script_video`.
 5. User nói **OpenMontage / Monty / studio video agentic / 12 pipeline** → `openmontage` (clone host; không copy AGPL vào Javis).
 6. User nói **Ommi / LYON Studio / template HTML / brand pack** → `html-video` (+ `motion-css` nếu cần chữ kinetic).
 7. Chỉ cần **ảnh/slide** → `html-still`, đừng mở pipeline video.
