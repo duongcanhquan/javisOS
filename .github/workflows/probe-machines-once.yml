@@ -1,0 +1,93 @@
+# One-shot: đo RAM + sổ máy người trên VPS (tránh workflow_dispatch 403).
+# bump: 2026-10-06T15:47Z
+name: Probe machines once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-machines-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Probe host + tenants over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            echo "=== HOST ==="
+            date -u
+            free -m | head -3
+            echo -n "cpus="; nproc
+            df -h / | head -2
+            echo "=== VERSION manager ==="
+            docker exec javis-manager cat /app/VERSION 2>/dev/null || echo missing
+            echo "=== ALL javis containers ==="
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep -E '^javis-|NAMES' || true
+            echo "=== DOCKER STATS ==="
+            names=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | tr '\n' ' ' || true)
+            if [ -n "$names" ]; then
+              docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.CPUPerc}}' $names
+            fi
+            echo "=== MEMORY LIMITS ==="
+            for c in $(docker ps --format '{{.Names}}' | grep -E '^javis-' | sort); do
+              lim=$(docker inspect -f '{{.HostConfig.Memory}}' "$c" 2>/dev/null || echo 0)
+              lim_mb=$((lim/1024/1024))
+              echo "$c limit_mb=$lim_mb"
+            done
+            echo "=== TENANT REGISTRY + COORD ==="
+            docker exec javis-manager python - <<'PY'
+            import sys
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot
+            import org_coord as oc
+            import org_docker as od
+            ts = (ot.load().get("tenants") or [])
+            print("tenants_in_registry", len(ts))
+            for t in ts:
+                print(
+                    " -",
+                    t.get("slug"),
+                    "paused=", bool(t.get("paused")),
+                    "deleted=", bool(t.get("deleted_at")),
+                    "prot=", bool(t.get("protected")),
+                    "st=", t.get("status"),
+                    "quota_gb=", t.get("quota_gb"),
+                    "c=", t.get("container"),
+                )
+            c = oc.coord()
+            print(
+                "host_ram_mb", c.get("host_ram_mb"),
+                "avail", c.get("host_avail_mb"),
+                "disk_free", c.get("host_disk_free_bytes"),
+                "disk_total", c.get("host_disk_total_bytes"),
+                "cpus", c.get("host_cpus"),
+            )
+            print(
+                "suggest", c.get("suggest"),
+                "max_running", c.get("max_running"),
+                "effective", oc.effective_max(),
+                "ram_mb_per", c.get("ram_mb"),
+                "reserve", c.get("reserve_mb"),
+            )
+            try:
+                run = od.people_running()
+                print("people_running", len(run), [x.get("slug") for x in run])
+            except Exception as e:
+                print("people_running err", e)
+            PY
+            echo PROBE_MACHINES_DONE
