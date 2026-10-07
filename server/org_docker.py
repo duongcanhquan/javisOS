@@ -68,12 +68,15 @@ def docker_available() -> bool:
 
 
 def memory_should_raise(current: int, target: int = _MEM) -> bool:
-    """Trần đang thấp hơn mức máy người (hoặc chưa đặt) thì cần nâng."""
+    """Trần đang thấp hơn sàn máy người (hoặc chưa đặt) thì cần nâng.
+
+    Trần đã nới (cao hơn sàn) thì giữ. Nhịp nới/hạ xử lý riêng, không kéo về 1024 ở đây.
+    """
     try:
         cur = int(current or 0)
     except (TypeError, ValueError):
         cur = 0
-    return cur != int(target)
+    return cur < int(target)
 
 
 _MEM_DONE: set[str] = set()
@@ -81,7 +84,10 @@ _MEM_BAO: set[str] = set()
 
 
 def ensure_people_memory() -> int:
-    """Nâng trần RAM mọi máy người lên 1024 MB. Không đụng manager, quan, proxy, park."""
+    """Nâng trần RAM mọi máy người lên sàn 1024 MB. Không đụng manager, quan, proxy, park.
+
+    Máy đang được nới trên 1024 MB thì bỏ qua. balance_people_memory hạ khi hết việc.
+    """
     if not docker_available():
         return 0
     raised = 0
@@ -1241,7 +1247,11 @@ def ram_live_report(running: list[dict] | None = None) -> dict:
         "people_idle_n": idle_n,
         "ram_limit_mb": oc.RAM_MB,
         "fit_more_est": int(fit_more),
-        "note": "Máy bật vẫn tốn RAM app. Nghỉ từ 15 phút thì tự nhả cache file. Tắt máy mới trả hết.",
+        "note": (
+            "Sàn 1024 MB. Một máy gần đầy được nới tới 2048 MB khi host còn trống. "
+            "Máy khác cũng gần đầy, hoặc việc đã xong, thì kéo về sàn. "
+            "Nghỉ từ 15 phút thì tự nhả cache file."
+        ),
     }
 
 
@@ -1550,6 +1560,84 @@ def reclaim_idle_file_cache() -> int:
     return 1
 
 
+_BURST_BAO: set[str] = set()
+
+
+def _apply_memory_mb(cname: str, mb: int) -> bool:
+    """Đặt trần RAM (và swap bằng đúng trần, không mượn thêm đĩa)."""
+    name = (cname or "").strip()
+    if not name:
+        return False
+    try:
+        nbytes = int(mb) * 1024 * 1024
+    except (TypeError, ValueError):
+        return False
+    if nbytes < _MEM:
+        return False
+    try:
+        upd = _docker_api(
+            "POST", f"/containers/{quote(name)}/update",
+            json_body={"Memory": nbytes, "MemorySwap": nbytes}, timeout=30.0,
+        )
+    except Exception as e:
+        print(f"[org ram] {name}: {e}", flush=True)
+        return False
+    if upd.status_code in (200, 204):
+        return True
+    key = f"{name}:{mb}:{upd.status_code}"
+    if key not in _BURST_BAO:
+        print(f"[org ram] {name} HTTP {upd.status_code} {(upd.text or '')[:180]}", flush=True)
+        _BURST_BAO.add(key)
+    return False
+
+
+def balance_people_memory() -> int:
+    """Nới một máy gần đầy lên 2048 MB khi host còn trống, rồi kéo về 1024 MB khi xong.
+
+    Không tắt máy khác. Không nới khi không đọc được RAM trống.
+    """
+    if not docker_available():
+        return 0
+    _tot, avail = oc.host_mem_mb()
+    if avail <= 0:
+        return 0
+    tenants = people_running()
+    if not tenants:
+        return 0
+    rows = []
+    by_slug: dict[str, str] = {}
+    for t in tenants:
+        if t.get("paused"):
+            continue
+        slug = str(t.get("slug") or "").strip().lower()
+        cname = str(t.get("container") or "").strip()
+        if not slug or not cname:
+            continue
+        used, lim = container_mem_mb(cname)
+        if lim <= 0:
+            continue
+        rows.append({"slug": slug, "mem_mb": used, "limit_mb": lim})
+        by_slug[slug] = cname
+    plan = oc.memory_limit_plan(avail, rows)
+    changed = 0
+    for slug, mb in plan.items():
+        cname = by_slug.get(slug) or ""
+        before = 0
+        for row in rows:
+            if row["slug"] == slug:
+                before = int(row["limit_mb"])
+                break
+        if not _apply_memory_mb(cname, mb):
+            continue
+        changed += 1
+        _BURST_BAO.discard(f"{cname}:{mb}:")
+        print(f"[org ram] {slug} trần {before} -> {mb} MB", flush=True)
+    if changed:
+        _MEM_CACHE["at"] = 0.0
+        _MEM_CACHE["by_name"] = {}
+    return changed
+
+
 def tick_coord() -> None:
     if not ot.manager_enabled() or not docker_available():
         return
@@ -1561,6 +1649,10 @@ def tick_coord() -> None:
         print(f"[org heal] {e}", flush=True)
     try:
         ensure_people_memory()
+    except Exception as e:
+        print(f"[org ram] {e}", flush=True)
+    try:
+        balance_people_memory()
     except Exception as e:
         print(f"[org ram] {e}", flush=True)
     try:

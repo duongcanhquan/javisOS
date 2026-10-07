@@ -402,14 +402,14 @@
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
           <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Máy nghỉ từ 15 phút thì tự nhả cache file, app vẫn chạy. <b>Tắt máy</b> mới trả hết RAM.
             Cập nhật mỗi ~4 giây. Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck và poll nền không tính.
-            Máy đã tạo trước khi nâng trần có thể vẫn 768 MB đến khi tắt/bật tạo lại.</p></div></div>
+            Một máy dùng gần hết sàn thì được nới tới 2048 MB nếu host còn trống. Máy khác cũng gần đầy thì cả hai về lại 1024 MB.</p></div></div>
         <div class="org-kpi">
           <div class="org-kpi-i"><span class="org-kpi-l">Ngân sách máy người</span>
             <strong class="org-kpi-v">${budgetMb ? (esc(String(budgetMb)) + " MB") : "?"}</strong>
             <span class="org-kpi-s">host ${esc(String(ramHost || "?"))} GB - chừa ${esc(String(reserveMb))} MB - giữ ${esc(String(Number(coord.keep_free_mb || 400)))} MB</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy (trần)</span>
             <strong class="org-kpi-v" data-org-ram="per-ceil-kpi">${esc(String(ramPer))} MB</strong>
-            <span class="org-kpi-s">gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
+            <span class="org-kpi-s">sàn này, một máy gần đầy nới tới ${esc(String(Number(coord.burst_mb || 2048)))} MB. Gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Đang đo trên VPS</span>
             <strong class="org-kpi-v" data-org-ram="people-used">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
             <span class="org-kpi-s" data-org-ram="people-used-sub">${esc(String(activeN))} có tín hiệu · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB

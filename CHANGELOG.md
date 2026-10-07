@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.77] - 2026-10-07
+### Sửa
+- Mỗi người vẫn có sàn 1024 MB. Khi một người dùng gần hết sàn và máy chủ còn trống, trần của người đó nới lên 2048 MB.
+- Người khác cũng dùng nhiều, hoặc việc đã xong, thì trần trở lại 1024 MB. Máy nghỉ không bị tắt.
+
 ## [0.56.76] - 2026-10-07
 ### Sửa
 - Chat giao việc thì việc dừng để duyệt. Bạn nói "đồng ý" hoặc "duyệt" kèm một câu, trên chat hoặc Telegram, là chạy tiếp. Telegram có nút Đồng ý.

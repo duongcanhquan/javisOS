@@ -9,6 +9,13 @@ from pathlib import Path
 import org_tenants as ot
 
 RAM_MB = 1024
+# Một máy đang gần đầy được nới lên mức này khi host còn trống. Máy khác không bị tắt.
+BURST_MB = 2048
+# Dùng từ mức này thì xin nới. Giữ nới khi còn trên mức KEEP, để khỏi lên xuống liên tục.
+BURST_NEED_MB = 768
+BURST_KEEP_MB = 512
+# Chỉ hạ trần khi mức đang dùng còn dưới số này (sàn trừ 64 MB), kẻo Docker giết tiến trình.
+SHRINK_SAFE_MB = 960
 MAX_RUNNING_DEFAULT = 6
 IDLE_MINUTES_DEFAULT = 0
 PARK_NAME = "javis-park"
@@ -170,6 +177,81 @@ def host_cpus() -> int:
     return max(0, n)
 
 
+def burst_fits(avail_mb: int, usage_mb: int, burst_mb: int = BURST_MB) -> bool:
+    """Host còn đủ chỗ nếu máy này lớn tới trần nới. RAM trống không đọc được thì không nới."""
+    try:
+        avail = int(avail_mb or 0)
+        usage = int(usage_mb or 0)
+        burst = int(burst_mb or BURST_MB)
+    except (TypeError, ValueError):
+        return False
+    if avail <= 0 or burst <= RAM_MB:
+        return False
+    extra = max(0, burst - max(0, usage))
+    return avail >= KEEP_FREE_MB + extra
+
+
+def memory_limit_plan(avail_mb: int, rows: list | None) -> dict[str, int]:
+    """slug -> trần MB cần đặt. Chỉ trả máy phải đổi.
+
+    Một máy dùng từ BURST_NEED được lên BURST_MB khi host chịu được.
+    Hai máy cùng gần đầy thì không nới thêm. Máy đã nới mà việc xong, hoặc máy
+    kia cũng đang giữ nhiều RAM, thì kéo về RAM_MB nếu mức đang dùng còn an toàn.
+    """
+    try:
+        avail = int(avail_mb or 0)
+    except (TypeError, ValueError):
+        avail = 0
+    if avail <= 0 or not rows:
+        return {}
+    clean: list[dict] = []
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        slug = str(raw.get("slug") or "").strip().lower()
+        if not slug:
+            continue
+        try:
+            mem = int(raw.get("mem_mb") or 0)
+            lim = int(raw.get("limit_mb") or 0)
+        except (TypeError, ValueError):
+            continue
+        if lim <= 0:
+            continue
+        clean.append({"slug": slug, "mem_mb": max(0, mem), "limit_mb": lim})
+    if not clean:
+        return {}
+    heavies = [r for r in clean if r["mem_mb"] >= BURST_NEED_MB]
+    grant = ""
+    if len(heavies) == 1 and burst_fits(avail, heavies[0]["mem_mb"]):
+        grant = heavies[0]["slug"]
+    elif not heavies:
+        holders = [
+            r for r in clean
+            if r["limit_mb"] > RAM_MB + 64 and r["mem_mb"] >= BURST_KEEP_MB
+        ]
+        if len(holders) == 1 and burst_fits(avail, holders[0]["mem_mb"]):
+            rival = [
+                r for r in clean
+                if r["slug"] != holders[0]["slug"] and r["mem_mb"] >= BURST_KEEP_MB
+            ]
+            if not rival:
+                grant = holders[0]["slug"]
+    out: dict[str, int] = {}
+    for r in clean:
+        if r["slug"] == grant:
+            want = BURST_MB
+        elif r["limit_mb"] > RAM_MB + 64 and r["mem_mb"] <= SHRINK_SAFE_MB:
+            want = RAM_MB
+        else:
+            continue
+        if want < r["mem_mb"] + 64:
+            continue
+        if want != r["limit_mb"]:
+            out[r["slug"]] = want
+    return out
+
+
 def suggest_slots(total_mb: int) -> int:
     """Số chỗ Javis người an toàn từ RAM máy. Không đếm gốc và Quan."""
     try:
@@ -214,6 +296,7 @@ def coord(data: dict | None = None) -> dict:
         "max_running": s["max_running"],
         "idle_minutes": s["idle_minutes"],
         "ram_mb": RAM_MB,
+        "burst_mb": BURST_MB,
         "reserve_mb": RESERVE_MB,
         "keep_free_mb": KEEP_FREE_MB,
         "effective_max": mx,
@@ -379,6 +462,7 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
         "running": n,
         "waiting": wait_len(),
         "ram_mb": RAM_MB,
+        "burst_mb": BURST_MB,
         "reserve_mb": RESERVE_MB,
         "keep_free_mb": KEEP_FREE_MB,
         "ram_est_mb": n * RAM_MB,
