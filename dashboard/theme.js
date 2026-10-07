@@ -2,10 +2,9 @@
 // JAVIS OS - Bộ đổi tông: TỐI · NEON · SÁNG
 // ============================================
 // Tông lưu ở localStorage "javis.theme": "dark" | "neon" | "light".
-// Tông sáng đặt data-theme="light" trên <html>; neon đặt data-theme="neon";
-// tông tối gỡ hẳn thuộc tính (mặc định :root luôn là tối).
-// Bố cục lưu ở "javis.layout": "glass" (mới, mặc định) | "classic" (cũ).
-// Mới đặt data-layout="glass". Cũ gỡ thuộc tính, rail trái và vault trở lại.
+// Sáng đặt data-theme="light"; neon đặt data-theme="neon".
+// Tối gỡ hẳn thuộc tính (mặc định :root luôn là tối).
+// Menu ngang và bố cục màn chính áp cho mọi tông.
 //
 // Giá trị cũ "dim" (tông tối-nhạt, đã gỡ ở 0.9.250) quy về "dark".
 // "cyber" / "cyberpunk" (bí danh lúc soạn) quy về "neon".
@@ -15,7 +14,6 @@
 // detail = { theme, light, neon }.
 (function () {
   var KEY = "javis.theme";
-  var LAYOUT_KEY = "javis.layout";
   var NAMES = ["dark", "neon", "light"];
   var root = document.documentElement;
 
@@ -137,47 +135,9 @@
     }
   }
 
-  function layoutNow() {
-    return root.getAttribute("data-layout") === "glass" ? "glass" : "classic";
-  }
-
-  function layoutLabel(name) {
-    var keys = { glass: "top.layout_opt_glass", classic: "top.layout_opt_classic" };
-    var fallback = { glass: "Mới", classic: "Cũ" };
-    var key = keys[name] || keys.glass;
-    var txt = window.t ? window.t(key) : key;
-    if (!txt || txt === key) txt = fallback[name] || fallback.glass;
-    return txt;
-  }
-
-  function markLayout(name) {
-    document.querySelectorAll("[data-layout-set]").forEach(function (el) {
-      var id = el.getAttribute("data-layout-set");
-      var on = id === name;
-      el.classList.toggle("on", on);
-      if (el.hasAttribute("aria-checked")) el.setAttribute("aria-checked", on ? "true" : "false");
-      var span = el.querySelector("[data-i18n], span:last-child");
-      if (id && span) span.textContent = layoutLabel(id);
-    });
-  }
-
-  function applyLayout(name, persist) {
-    var layout = name === "classic" ? "classic" : "glass";
-    var doi = layoutNow() !== layout;
-    if (layout === "classic") root.removeAttribute("data-layout");
-    else root.setAttribute("data-layout", "glass");
-    if (persist) {
-      try { localStorage.setItem(LAYOUT_KEY, layout); } catch (e) {}
-    }
-    markLayout(layout);
-    if (!doi) return;
-    requestAnimationFrame(function () {
-      try { window.dispatchEvent(new Event("resize")); } catch (e2) {}
-    });
-  }
-
   function apply(nameOrLight, persist) {
     var name = normalize(nameOrLight);
+    root.removeAttribute("data-layout");
     if (name === "dark") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", name);
     if (persist) write(name);
@@ -198,13 +158,10 @@
 
   window.addEventListener("javis:i18n", function () {
     syncButton(current());
-    markLayout(layoutNow());
   });
 
   window.javisTheme = {
     names: NAMES,
-    layout: layoutNow,
-    setLayout: function (name, persist) { applyLayout(name, persist !== false); },
     current: current,
     isLight: isLight,
     isNeon: isNeon,
@@ -223,11 +180,8 @@
 
   function init() {
     var saved = read();
-    if (saved === "dim") { write("dark"); saved = "dark"; }
+    if (saved === "dim" || saved === "future" || saved === "glass") { write("dark"); saved = "dark"; }
     apply(normalize(saved), false);
-    var savedLayout = "";
-    try { savedLayout = localStorage.getItem(LAYOUT_KEY) || ""; } catch (e) {}
-    applyLayout(savedLayout === "classic" ? "classic" : "glass", false);
 
     var wrap = document.getElementById("themeWrap");
     var b = document.getElementById("themeToggle");
@@ -242,14 +196,6 @@
     }
     if (pop) {
       pop.addEventListener("click", function (ev) {
-        var lay = ev.target.closest("[data-layout-set]");
-        if (lay) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          applyLayout(lay.getAttribute("data-layout-set"), true);
-          setPopOpen(false);
-          return;
-        }
         var btn = ev.target.closest("[data-theme-set]");
         if (!btn) return;
         ev.preventDefault();
@@ -268,7 +214,6 @@
 
     window.addEventListener("storage", function (e) {
       if (e.key === KEY) apply(normalize(e.newValue), false);
-      if (e.key === LAYOUT_KEY) applyLayout(e.newValue === "classic" ? "classic" : "glass", false);
     });
   }
 

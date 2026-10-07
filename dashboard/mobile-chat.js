@@ -182,20 +182,15 @@
       if (!mq.matches && document.body.classList.contains("brain-max")) setBrainMax(false);
     }
 
-    function muteRailNotes() {
-      if (!railEl) return;
-      var glassDesk = document.documentElement.getAttribute("data-layout") === "glass" && !mq.matches;
-      railEl.querySelectorAll(".rail-grp-lbl, .rail-item").forEach(function (btn) {
-        if (glassDesk) {
-          if (btn.hasAttribute("title")) btn.removeAttribute("title");
-        }
-      });
+    function muteRailNotes(e) {
+      if (!railEl || mq.matches) return;
+      var btn = e && e.target && e.target.closest && e.target.closest(".rail-grp-lbl, .rail-item");
+      if (btn && btn.hasAttribute("title")) btn.removeAttribute("title");
     }
 
-    function placeGlassNav() {
+    function placeTopNav() {
       if (!railEl || !headerRoot || !railParent) return;
-      var glass = document.documentElement.getAttribute("data-layout") === "glass";
-      if (glass && !mq.matches) {
+      if (!mq.matches) {
         if (railEl.parentElement !== headerRoot) headerRoot.appendChild(railEl);
       } else if (railEl.parentElement === headerRoot) {
         if (railNext && railNext.parentElement === railParent) railParent.insertBefore(railEl, railNext);
@@ -203,14 +198,13 @@
       }
     }
 
-    function applyAll() { placeHeader(); placeSystem(); placeGlassNav(); muteRailNotes(); setPlaceholder(); syncBrainMax(); }
+    function applyAll() { placeHeader(); placeSystem(); placeTopNav(); setPlaceholder(); syncBrainMax(); }
     if (railEl) railEl.addEventListener("mouseover", muteRailNotes);
     applyAll();
 
     var onChange = function () { applyAll(); closeNav(); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
-    window.addEventListener("resize", applyAll);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

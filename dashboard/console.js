@@ -6535,9 +6535,6 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const telegram = s.telegram || {};
     const dashboard = s.dashboard || {};
     const graphOn = dashboard.graph_enabled !== false;
-    const curLayout = (window.javisTheme && window.javisTheme.layout)
-      ? window.javisTheme.layout()
-      : (document.documentElement.getAttribute("data-layout") === "glass" ? "glass" : "classic");
     const curTheme = (window.javisTheme && window.javisTheme.current)
       ? window.javisTheme.current()
       : (document.documentElement.getAttribute("data-theme") === "light" ? "light"
@@ -6659,10 +6656,6 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div class="settings-card settings-span">
             <div class="settings-card-head"><b>${esc(t("settings.theme"))}</b></div>
             <p>${esc(t("settings.theme_desc"))}</p>
-            <div class="theme-picks" id="setLayoutPicks">
-              <button type="button" class="theme-pick ${curLayout === "glass" ? "on" : ""}" data-layout-set="glass">${esc(t("top.layout_opt_glass"))}</button>
-              <button type="button" class="theme-pick ${curLayout === "classic" ? "on" : ""}" data-layout-set="classic">${esc(t("top.layout_opt_classic"))}</button>
-            </div>
             <div class="theme-picks" id="setThemePicks">
               <button type="button" class="theme-pick ${curTheme === "dark" ? "on" : ""}" data-theme-set="dark">
                 <span class="theme-pick-preview preview-dark" aria-hidden="true"><span class="sw"></span><span class="sw"></span></span>
@@ -6810,13 +6803,6 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       await saveSetting("dashboard", { graph_enabled: next });
       graphEnabled = next; recomputeGraph(); refreshSettings();
     };
-    const layoutPicks = document.getElementById("setLayoutPicks");
-    if (layoutPicks && window.javisTheme && window.javisTheme.setLayout) {
-      layoutPicks.querySelectorAll("[data-layout-set]").forEach(btn => {
-        const name = btn.getAttribute("data-layout-set");
-        btn.onclick = () => window.javisTheme.setLayout(name, true);
-      });
-    }
     const themePicks = document.getElementById("setThemePicks");
     if (themePicks && window.javisTheme) {
       themePicks.querySelectorAll("[data-theme-set]").forEach(btn => {
@@ -8334,11 +8320,13 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     if (!tip) { tip = document.createElement("div"); tip.id = "railTip"; tip.className = "rail-tip"; document.body.appendChild(tip); }
     let timer = null, cur = null;
     const collapsed = () => document.body.classList.contains("rail-collapsed");
+    const desk = window.matchMedia("(min-width: 861px)");
     const railWide = () => {
       const r = document.querySelector(".rail.collapsed");
       return !!(r && (r.matches(":hover") || r.matches(":focus-within")));
     };
     nav.addEventListener("mouseover", (e) => {
+      if (desk.matches) return;
       const btn = e.target.closest(".rail-item"); if (!btn || !collapsed() || railWide() || btn === cur) return;
       cur = btn;
       if (btn.hasAttribute("title")) { btn.dataset.tip = btn.getAttribute("title"); btn.removeAttribute("title"); }  // chặn tooltip native chậm
@@ -8354,6 +8342,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       }, 90);
     });
     nav.addEventListener("mouseout", (e) => {
+      if (desk.matches) return;
       const btn = e.target.closest(".rail-item"); if (!btn) return;
       if (e.relatedTarget && btn.contains(e.relatedTarget)) return;
       clearTimeout(timer); tip.classList.remove("show");

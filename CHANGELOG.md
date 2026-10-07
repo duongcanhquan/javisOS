@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.71] - 2026-10-07
+### Sửa
+- Bỏ giao diện Future. Tối, Neon và Sáng giữ màu cũ. Menu nằm trên cùng. Não ở bên trái, chat ở bên phải.
+- Nút bấm và menu cùng một cỡ. Chữ và khung chat mỏng hơn, dễ đọc hơn.
+- Màn hình bớt việc thừa khi rê chuột và khi đổi kích thước cửa sổ, nên phản hồi nhanh hơn.
+
 ## [0.56.70] - 2026-10-07
 ### Mới
 - Menu trên máy tính chỉ xổ danh sách của đúng icon đang rê chuột. Không còn dòng chữ đè lên nhau, không cần bấm mới mở.
