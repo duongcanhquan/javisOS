@@ -1,4 +1,5 @@
-// Tầng icon của dashboard - bọc quanh bộ Lucide đã vendor sẵn.
+// Tầng icon của dashboard - bọc quanh bộ Phosphor Duotone đã vendor sẵn.
+// Khóa vẫn là tên cũ (ic("settings")), file vendor mới chứa path Duotone.
 //
 // Vì sao có file này: dashboard dựng HTML bằng template string khắp nơi
 // (innerHTML = `...`), nên thứ cần nhất là một hàm TRẢ VỀ CHUỖI SVG để nhét
@@ -16,8 +17,8 @@
 // innerHTML, mà r.error là chuỗi từ server - nối thẳng là mở lỗ XSS.
 // Icons.msg() tự escape phần chữ nên chặn hẳn rủi ro đó.
 //
-// Icon vẽ bằng stroke="currentColor" nên TỰ ĐỔI MÀU theo tông SÁNG/TỐI và theo
-// màu chữ của chỗ nó đứng - việc emoji không bao giờ làm được.
+// Icon tô bằng fill="currentColor" (bản Duotone: một lớp đặc, một lớp mờ 20%)
+// nên TỰ ĐỔI MÀU theo tông SÁNG/TỐI và theo màu chữ của chỗ nó đứng.
 (function () {
   "use strict";
 
@@ -59,12 +60,11 @@
     var key = name + "|" + (o.cls || "") + "|" + (o.size || "") + "|" + (o.title || "");
     if (cache[key]) return cache[key];
 
-    var cls = "ic" + (o.cls ? " " + o.cls : "");
+    var cls = "ic glass-icon" + (o.cls ? " " + o.cls : "");
     var attrs =
       'class="' + esc(cls) + '"' +
-      ' width="1em" height="1em" viewBox="0 0 24 24"' +
-      ' fill="none" stroke="currentColor" stroke-width="2"' +
-      ' stroke-linecap="round" stroke-linejoin="round"';
+      ' width="1em" height="1em" viewBox="0 0 256 256"' +
+      ' fill="currentColor" stroke="none"';
     if (o.size) attrs += ' style="width:' + esc(o.size) + ';height:' + esc(o.size) + '"';
 
     var inner = bodyOf(name);

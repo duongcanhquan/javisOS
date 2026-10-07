@@ -29,24 +29,22 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
-  <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=1">
-  <link rel="stylesheet" href="/static/style.css?v=104">
-  <link rel="stylesheet" href="/static/console.css?v=93">
+  <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=2">
+  <link rel="stylesheet" href="/static/style.css?v=108">
+  <link rel="stylesheet" href="/static/console.css?v=98">
   <link rel="stylesheet" href="/static/workbench.css?v=9">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng/neon.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
-  <script>(function(){try{var t=localStorage.getItem('vmos.theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='neon'||t==='cyber'||t==='cyberpunk')document.documentElement.setAttribute('data-theme','neon');}catch(e){}})();</script>
+  <script>(function(){try{var layout=localStorage.getItem('javis.layout');if(layout!=='classic')document.documentElement.setAttribute('data-layout','glass');var t=localStorage.getItem('javis.theme')||localStorage.getItem('vmos.theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='neon'||t==='cyber'||t==='cyberpunk')document.documentElement.setAttribute('data-theme','neon');}catch(e){}})();</script>
 </head>
 <body>
   <div class="hud">
 
     <!-- ===== TOP BAR ===== -->
     <header class="hud-top">
-      <!-- Mobile-only: mở ngăn kéo điều hướng -->
-      <button class="hud-icon-btn nav-toggle-btn" id="navToggle" title="Menu" aria-label="Mở menu" data-i18n-title="top.menu" data-i18n-aria="top.menu_open">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
-        </svg>
+      <!-- Nút menu: trên giao diện cũ là nút mở ngăn kéo (điện thoại). Giao diện mới căn nó giữa header bằng CSS. -->
+      <button class="hud-icon-btn nav-toggle-btn" id="navToggle" type="button" title="Menu" aria-label="Mở menu" aria-haspopup="menu" aria-expanded="false" data-i18n-title="top.menu" data-i18n-aria="top.menu_open">
+        <i data-ic="menu"></i>
       </button>
       <!-- NHÓM TRÁI: thương hiệu + chọn brain + số liệu (bám trái) -->
       <div class="hud-top-left">
@@ -74,10 +72,7 @@
       <div class="hud-top-right">
         <button class="notification-trigger" id="notificationTrigger" type="button"
                 aria-haspopup="dialog" aria-expanded="false" title="Mở hộp thư Thông báo" data-i18n-title="top.notifications">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-            <path d="M10 21h4"></path>
-          </svg>
+          <i data-ic="bell"></i>
           <span class="notification-trigger-label" data-i18n="noti.label">Thông báo</span>
           <span class="notification-badge" id="notificationBadge" hidden>0</span>
         </button>
@@ -96,22 +91,20 @@
                 title="Đang dùng tông tối - bấm để chọn tông"
                 aria-label="Đang dùng tông tối - bấm để chọn tông">
           <!-- Trăng = tối, tia sét = neon, mặt trời = sáng (đổi qua CSS theo data-theme) -->
-          <svg class="ic-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"/>
-          </svg>
-          <svg class="ic-zap" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="13 2 4 14 12 14 11 22 20 10 12 10 13 2"/>
-          </svg>
-          <svg class="ic-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4.1"/>
-            <path d="M12 2.6v2.1M12 19.3v2.1M4.35 4.35l1.5 1.5M18.15 18.15l1.5 1.5M2.6 12h2.1M19.3 12h2.1M4.35 19.65l1.5-1.5M18.15 5.85l1.5-1.5"/>
-          </svg>
+          <i data-ic="moon" class="ic-moon"></i>
+          <i data-ic="zap" class="ic-zap"></i>
+          <i data-ic="sun" class="ic-sun"></i>
         </button>
         <div class="theme-pop" id="themePop" hidden role="menu"
              aria-label="Chọn tông giao diện" data-i18n-aria="top.theme_menu">
+          <div class="theme-sec" data-i18n="top.layout_label">Giao diện</div>
+          <button type="button" class="theme-opt" role="menuitemradio" data-layout-set="glass" aria-checked="true">
+            <span data-i18n="top.layout_opt_glass">Mới</span>
+          </button>
+          <button type="button" class="theme-opt" role="menuitemradio" data-layout-set="classic" aria-checked="false">
+            <span data-i18n="top.layout_opt_classic">Cũ</span>
+          </button>
+          <div class="theme-sec" data-i18n="top.theme_label">Tông màu</div>
           <button type="button" class="theme-opt" role="menuitemradio" data-theme-set="dark" aria-checked="true">
             <span class="theme-swatch theme-swatch-dark" aria-hidden="true"></span>
             <span data-i18n="top.theme_opt_dark">Tối</span>
@@ -129,25 +122,16 @@
         <div class="hud-actions">
           <button class="studio-open-btn" id="studioOpenBtn" title="Studio - Agents, Skills, Workflows" data-i18n-title="top.studio_title">▦ Studio</button>
           <button class="hud-icon-btn" id="settingsBtn" title="Cài đặt" data-i18n-title="page.settings.label">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
-              <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
-              <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
-            </svg>
+            <i data-ic="settings"></i>
           </button>
           <!-- Nút loa header đã BỎ (0.48.3). Nút loa thanh nhập (#ttsToggleBar) cũng BỎ
                (02/09): loa đi theo mic qua window.JavisTts.set. Công tắc còn lại ở Cài đặt nhanh. -->
           <button class="hud-icon-btn" id="resetBtn" title="Reset hội thoại" data-i18n-title="top.reset">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.7 3M3 4v5h5"/>
-            </svg>
+            <i data-ic="rotate-cw"></i>
           </button>
           <!-- Mobile-only: hội thoại mới -->
           <button class="hud-icon-btn new-chat-btn" id="newChatBtn" title="Hội thoại mới" data-i18n-title="top.new_chat" aria-label="Hội thoại mới" data-i18n-aria="top.new_chat">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <i data-ic="plus"></i>
           </button>
         </div>
       </div>
@@ -240,27 +224,16 @@
         <button class="brain-overlay-toggle" id="brainOverlayToggle" type="button"
                 aria-pressed="false" aria-label="Ẩn nhãn và số liệu brain" data-i18n-aria="orb.overlay_aria"
                 title="Ẩn nhãn thư mục và số liệu Agents / Skills / Workflows" data-i18n-title="orb.overlay_title">
-          <svg class="brain-eye-on" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
-            <circle cx="12" cy="12" r="2.75"></circle>
-          </svg>
-          <svg class="brain-eye-off" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M3 3l18 18M10.6 6.15A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.05 2.65M6.3 6.35C3.85 8.05 2.5 12 2.5 12s3.5 6 9.5 6a9.5 9.5 0 0 0 3.1-.52M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
-          </svg>
+          <i data-ic="eye" class="brain-eye-on"></i>
+          <i data-ic="eye-off" class="brain-eye-off"></i>
         </button>
 
         <!-- Timelapse "cuộc đời brain": chiếu lại note mọc dần theo thời gian tạo (chỉ đồ thị 2D) -->
         <button class="brain-overlay-toggle graph-timelapse-btn" id="graphTimelapseBtn" type="button"
                 aria-pressed="false" aria-label="Chiếu timelapse cuộc đời brain" data-i18n-aria="orb.timelapse_aria"
                 title="Timelapse: xem lại brain lớn lên từ note đầu tiên tới giờ" data-i18n-title="orb.timelapse_title">
-          <svg class="tl-play" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="M12 7v5l3.5 2"></path>
-          </svg>
-          <svg class="tl-stop" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"></circle>
-            <rect x="9" y="9" width="6" height="6" rx="1"></rect>
-          </svg>
+          <i data-ic="clock" class="tl-play"></i>
+          <i data-ic="circle-stop" class="tl-stop"></i>
         </button>
 
         <!-- BUNG/THU khoang não - CHỈ hiện trên điện thoại (console.css .brain-max-btn).
@@ -268,12 +241,8 @@
         <button class="brain-overlay-toggle brain-max-btn" id="brainMaxBtn" type="button"
                 aria-pressed="false" aria-label="Bung khoang não toàn màn" data-i18n-aria="orb.max_aria"
                 title="Bung khoang não ra toàn màn để nhìn rõ đồ thị" data-i18n-title="orb.max_title">
-          <svg class="bmx-in" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"></path>
-          </svg>
-          <svg class="bmx-out" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 10h4a2 2 0 0 0 2-2V4M20 10h-4a2 2 0 0 1-2-2V4M4 14h4a2 2 0 0 1 2 2v4M20 14h-4a2 2 0 0 0-2 2v4"></path>
-          </svg>
+          <i data-ic="maximize" class="bmx-in"></i>
+          <i data-ic="minimize" class="bmx-out"></i>
         </button>
 
         <!-- Lớp Agentic: số agent / skill / workflow - bấm mở Studio -->
@@ -513,40 +482,29 @@
     <!-- ===== BOTTOM: voice bar ===== -->
     <div class="hud-voice" id="hudVoice">
       <button class="mic-big" id="voiceBtn" title="Bấm để nói (hoặc giữ Space)" data-i18n-title="bar.mic">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
-        </svg>
+        <i data-ic="mic" data-ic-size="22px"></i>
       </button>
       <button class="attach-btn" id="attachBtn" title="Đính kèm file (ảnh, text, tài liệu) → lưu vào Sources" data-i18n-title="bar.attach">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-        </svg>
+        <i data-ic="paperclip" data-ic-size="20px"></i>
       </button>
       <button class="attach-btn" id="folderBtn" title="Chọn thư mục trên máy → đọc / thao tác trong chat" data-i18n-title="bar.folder">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        <i data-ic="folder" data-ic-size="20px"></i>
       </button>
       <button type="button" class="attach-btn ph-help-btn" id="promptHelpBtn"
               title="Gợi ý prompt nhập / lưu dữ liệu"
               data-i18n-title="prompt_help.btn"
               aria-label="Gợi ý prompt nhập / lưu dữ liệu"
               data-i18n-aria="prompt_help.btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
+        <i data-ic="circle-help" data-ic-size="18px"></i>
       </button>
       <input type="file" id="fileInput" multiple style="display:none">
       <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
-      <textarea id="chatInput" class="voice-input" placeholder="Nói với VMOS, gõ ở đây, hoặc kéo/dán file vào..." data-i18n-ph="bar.input_ph" rows="1"></textarea>
+      <textarea id="chatInput" class="voice-input" placeholder="Nói với VMOS, gõ ở đây, hoặc kéo/dán file vào..." data-i18n-ph="bar.input_ph" rows="2"></textarea>
       <button class="stop-btn" id="stopBtn" title="Ngắt lệnh / dừng đọc (Esc)" data-i18n-title="bar.stop" style="display:none">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        <i data-ic="circle-stop" data-ic-size="18px"></i>
       </button>
       <button class="send-btn" id="sendBtn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+        <i data-ic="send" data-ic-size="18px"></i>
       </button>
     </div>
     <p class="chat-limit-note" id="chatLimitNote" data-i18n="bar.file_limit">Mỗi lượt: tối đa 3 file tài liệu (15 MB) và 4 ảnh (8 MB). Thư mục: tối đa 50 file / 100 MB.</p>
@@ -854,13 +812,13 @@
        bắt được cả trường hợp một file phía dưới hỏng vì đang chạy bản cũ. -->
   <script src="/static/freshness.js"></script>
   <script src="/static/i18n/index.js?v=2"></script>
-  <script src="/static/vendor/lucide-icons.js?v=4"></script>
-  <script src="/static/icons.js?v=2"></script>
+  <script src="/static/vendor/lucide-icons.js?v=5"></script>
+  <script src="/static/icons.js?v=3"></script>
 
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
        hàm vẽ lại theo tông ngay lúc parse, nếu window.javisTheme chưa có thì chúng
        đăng ký hụt và các lớp canvas kẹt ở bảng màu tối. -->
-  <script src="/static/theme.js?v=4"></script>
+  <script src="/static/theme.js?v=6"></script>
   <script src="/static/starfield.js?v=2"></script>
   <script src="/static/brain-waves.js?v=5"></script>
   <script src="/static/voice.js?v=27"></script>
@@ -906,7 +864,7 @@
   <script type="application/json" id="javis-page-lazy">["meetings.js","baigiang.js","video.js","marketing.js","org.js","drive-projects.js","guides.js","tool-apis.js","usage.js","workspace.js","chatbots.js","nhac-truong.js"]</script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
   <script src="/static/console.js?v=161"></script>
-  <script src="/static/mobile-chat.js?v=9"></script>
+  <script src="/static/mobile-chat.js?v=10"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>
   <script src="/static/push.js?v=2"></script>

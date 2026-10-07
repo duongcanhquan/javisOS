@@ -379,8 +379,7 @@ button, input, select, textarea { font-family: inherit; }
 }
 .notification-trigger:active { transform: scale(.96); }
 .notification-trigger svg {
-  width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round;
+  width: 17px; height: 17px; fill: currentColor;
 }
 .notification-trigger.has-unread {
   color: var(--text-hi); border-color: var(--accent);
@@ -550,6 +549,8 @@ button, input, select, textarea { font-family: inherit; }
 }
 /* Nút đổi tông: trăng = tối, tia = neon, mặt trời = sáng. Báo TÔNG HIỆN TẠI. */
 .theme-wrap { position: relative; display: inline-flex; align-items: center; }
+.theme-toggle .ic { width: 18px; height: 18px; }
+.hud-icon-btn > .ic { width: 18px; height: 18px; }
 .theme-toggle .ic-sun,
 .theme-toggle .ic-zap { display: none; }
 :root[data-theme="light"] .theme-toggle .ic-moon { display: none; }
@@ -565,8 +566,14 @@ button, input, select, textarea { font-family: inherit; }
   box-shadow: var(--shadow-2);
 }
 .theme-pop[hidden] { display: none; }
-.theme-opt {
-  display: flex; align-items: center; gap: 10px; width: 100%;
+.theme-sec {
+  padding: 8px 10px 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.theme-opt { display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 8px 10px; border: 0; border-radius: 8px;
   background: transparent; color: var(--text); cursor: pointer;
   font: 600 13px var(--font); text-align: left;
@@ -832,10 +839,9 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
 .brain-overlay-toggle:active { transform: scale(.94); }
 .brain-overlay-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .brain-overlay-toggle svg {
-  width: 19px; height: 19px; fill: none; stroke: currentColor;
-  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+  width: 19px; height: 19px; fill: currentColor;
 }
-.brain-eye-off { display: none; }
+.brain-overlay-toggle .brain-eye-off { display: none; }
 /* Nút bung/thu khoang não: MẶC ĐỊNH ẨN, chỉ mobile bật lên (console.css). Trên desktop
    khoang não đã là cả cột giữa, không có gì để bung ra. */
 .brain-max-btn { display: none; }
@@ -1032,7 +1038,7 @@ body.vault-thu .hud-body > .hud-left > .vault-expand:hover { color: var(--accent
   opacity: 0; visibility: hidden; pointer-events: none;
 }
 .hud-center.brain-overlays-hidden .brain-eye-on { display: none; }
-.hud-center.brain-overlays-hidden .brain-eye-off { display: block; }
+.hud-center.brain-overlays-hidden .brain-overlay-toggle .brain-eye-off { display: block; }
 .orb-overlay {
   position: absolute; bottom: 92px; left: 0; right: 0;
   text-align: center; pointer-events: none; z-index: 5;
@@ -3104,25 +3110,19 @@ body.ne-full-on .cview { z-index: 250; }
 .slash-desc { grid-area: desc; font-size: 11px; color: var(--text3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ==========================================================================
-   ICON (Lucide) - dashboard/icons.js dựng thẻ <svg class="ic">
+   ICON (Phosphor Duotone) - dashboard/icons.js dựng thẻ <svg class="ic glass-icon">
    --------------------------------------------------------------------------
-   Icon vẽ bằng nét, màu là currentColor nên TỰ ĂN THEO màu chữ của chỗ nó
-   đứng và tự đổi khi chuyển tông SÁNG/TỐI. Đây là lý do chính bỏ emoji: emoji
-   cứng màu, ở tông sáng nó chọc vào mắt và mỗi máy vẽ một kiểu.
-
-   Cỡ mặc định là 1em - icon lớn nhỏ theo cỡ chữ của khối chứa nó, không phải
-   con số cứng. Nhờ vậy icon trong nút 11px và icon trong tiêu đề 18px đều cân.
+   Màu là currentColor nên tự ăn theo chữ và tự đổi khi chuyển tông sáng/tối.
+   Bóng nhẹ và opacity tách icon khỏi nền kính. Cỡ mặc định 1em, theo cỡ chữ.
    ========================================================================== */
 .ic {
   display: inline-block;
   width: 1em;
   height: 1em;
-  /* Nhấc lên khỏi đường chân chữ: SVG mặc định ngồi trên baseline nên trông
-     như bị tụt so với chữ bên cạnh. -0.14em đưa tâm icon về ngang tâm chữ. */
   vertical-align: -0.14em;
-  flex: none;              /* trong flex container thì không cho co méo */
-  stroke-width: 2;
-  overflow: visible;       /* nét ở sát rìa viewBox không bị cắt cụt */
+  flex: none;
+  stroke-width: 1.5;
+  overflow: visible;
 }
 
 /* Nét mảnh dần khi icon to lên: nét 2 ở cỡ 16px là vừa, ở cỡ 32px thì thô. */
@@ -3143,7 +3143,9 @@ body.ne-full-on .cview { z-index: 250; }
 /* Icon đang chờ thì quay. prefers-reduced-motion thì đứng im. */
 .ic-spin { animation: ic-spin 1.1s linear infinite; }
 @keyframes ic-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .ic-spin { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .ic-spin { animation: none; }
+}
 
 /* Nút chỉ có icon, không có chữ: canh giữa tuyệt đối. */
 .ic-btn {

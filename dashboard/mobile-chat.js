@@ -127,15 +127,23 @@
     // ---- 5) Ngăn kéo điều hướng ----
     var toggle = document.getElementById("navToggle");
     var backdrop = document.getElementById("navBackdrop");
-    function openNav() { document.body.classList.add("nav-open"); if (backdrop) backdrop.hidden = false; }
-    function closeNav() { document.body.classList.remove("nav-open"); if (backdrop) backdrop.hidden = true; }
+    function openNav() {
+      document.body.classList.add("nav-open");
+      if (backdrop) backdrop.hidden = false;
+      if (toggle) toggle.setAttribute("aria-expanded", "true");
+    }
+    function closeNav() {
+      document.body.classList.remove("nav-open");
+      if (backdrop) backdrop.hidden = true;
+      if (toggle) toggle.setAttribute("aria-expanded", "false");
+    }
     if (toggle) toggle.addEventListener("click", function () {
       document.body.classList.contains("nav-open") ? closeNav() : openNav();
     });
     if (backdrop) backdrop.addEventListener("click", closeNav);
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
     if (railEl) railEl.addEventListener("click", function (e) {
-      if (e.target.closest(".rail-item") && mq.matches) closeNav();  // chọn mục điều hướng -> đóng
+      if (e.target.closest(".rail-item")) closeNav();
     });
 
     // ---- 6) Bung/thu khoang não (mobile-only) ----

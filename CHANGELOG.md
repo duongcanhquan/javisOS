@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.68] - 2026-10-07
+### Mới
+- Màn chính có giao diện kính. Menu nằm giữa phía trên, bấm ra danh sách thả xuống. Não ở bên trái, chat ở bên phải, ô gõ cao hai dòng. Cây vault không còn chiếm màn chính.
+- Icon đổi sang kiểu hai lớp, nhìn có chiều sâu. Các trang quản lý, thẻ và hộp thoại dùng cùng chất kính, không chỉ màn chính.
+- Nút đổi tông thêm **Mới** và **Cũ**. Tối, Neon và Sáng vẫn chọn được. Chọn Cũ là thanh bên và vault trở lại như trước.
+
 ## [0.56.67] - 2026-10-06
 ### Sửa
 - **Nhạc trưởng** bấm việc nào thì cột giao tiếp hiện hội thoại của việc đó. Trước đây cột giữa đổi việc còn cột giao tiếp giữ nguyên việc đầu.

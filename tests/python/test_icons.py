@@ -349,7 +349,7 @@ check(f"manifest có icon ({len(want)} tên)", len(want) > 50)
 check("vendor có đủ mọi icon trong manifest", set(want) <= set(have))
 check("vendor không chứa icon thừa ngoài manifest", set(have) <= set(want))
 check("vendor ghi rõ là file tự sinh", "FILE TỰ SINH" in VENDOR)
-check("vendor ghi rõ nguồn và giấy phép", "lucide-static" in VENDOR and "ISC" in VENDOR)
+check("vendor ghi rõ nguồn và giấy phép", "phosphor-icons" in VENDOR and "MIT" in VENDOR)
 
 # --- 2. Mọi tên icon gọi trong nguồn đều có thật -----------------------------
 used = set()
@@ -376,7 +376,7 @@ check("icon thiếu thì cảnh báo ra console chứ không im lặng",
 check("icon mặc định ẩn khỏi trình đọc màn hình",
       'aria-hidden="true"' in ICONS_JS)
 check("icon dùng currentColor để tự đổi màu theo tông",
-      'stroke="currentColor"' in ICONS_JS)
+      'fill="currentColor"' in ICONS_JS)
 
 # --- 4. Thứ tự nạp trong index.html -----------------------------------------
 pos_vendor = INDEX.find("vendor/lucide-icons.js")

@@ -256,9 +256,7 @@
     if (/^\/(?!\/)/.test(s)) return s;
     return "#";
   };
-  const _shield = (on) => on
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V5l8-3z"/><path d="M9 12l2 2 4-4"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V5l8-3z"/></svg>';
+  const _shield = (on) => ic("shield", { cls: on ? "ic-ok" : "ic-dim" });
   const body = () => document.getElementById("cviewBody");
 
   /** Phân trang phía client cho các khung nhật ký: tải một lần rồi lật trang tại chỗ.
@@ -6537,6 +6535,9 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     const telegram = s.telegram || {};
     const dashboard = s.dashboard || {};
     const graphOn = dashboard.graph_enabled !== false;
+    const curLayout = (window.javisTheme && window.javisTheme.layout)
+      ? window.javisTheme.layout()
+      : (document.documentElement.getAttribute("data-layout") === "glass" ? "glass" : "classic");
     const curTheme = (window.javisTheme && window.javisTheme.current)
       ? window.javisTheme.current()
       : (document.documentElement.getAttribute("data-theme") === "light" ? "light"
@@ -6658,6 +6659,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div class="settings-card settings-span">
             <div class="settings-card-head"><b>${esc(t("settings.theme"))}</b></div>
             <p>${esc(t("settings.theme_desc"))}</p>
+            <div class="theme-picks" id="setLayoutPicks">
+              <button type="button" class="theme-pick ${curLayout === "glass" ? "on" : ""}" data-layout-set="glass">${esc(t("top.layout_opt_glass"))}</button>
+              <button type="button" class="theme-pick ${curLayout === "classic" ? "on" : ""}" data-layout-set="classic">${esc(t("top.layout_opt_classic"))}</button>
+            </div>
             <div class="theme-picks" id="setThemePicks">
               <button type="button" class="theme-pick ${curTheme === "dark" ? "on" : ""}" data-theme-set="dark">
                 <span class="theme-pick-preview preview-dark" aria-hidden="true"><span class="sw"></span><span class="sw"></span></span>
@@ -6805,6 +6810,13 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       await saveSetting("dashboard", { graph_enabled: next });
       graphEnabled = next; recomputeGraph(); refreshSettings();
     };
+    const layoutPicks = document.getElementById("setLayoutPicks");
+    if (layoutPicks && window.javisTheme && window.javisTheme.setLayout) {
+      layoutPicks.querySelectorAll("[data-layout-set]").forEach(btn => {
+        const name = btn.getAttribute("data-layout-set");
+        btn.onclick = () => window.javisTheme.setLayout(name, true);
+      });
+    }
     const themePicks = document.getElementById("setThemePicks");
     if (themePicks && window.javisTheme) {
       themePicks.querySelectorAll("[data-theme-set]").forEach(btn => {

@@ -5,22 +5,23 @@ Chạy lại mỗi khi thêm/bớt icon trong manifest:
 
     python tools/gen_icons.py
 
-Script tải SVG từ CDN của lucide-static rồi rút phần ruột (bỏ thẻ <svg> ngoài,
-vì icons.js tự dựng thẻ bọc). Kết quả ghi vào vendor/ và ĐƯỢC COMMIT vào repo -
-app không bao giờ gọi mạng lúc chạy, chạy được cả khi máy không có internet.
+Nguồn hình là Phosphor Icons bản Duotone. Khóa trong file vendor VẪN là tên
+cũ trong manifest, vì khắp dashboard gọi ic("tên-cũ"). Bảng MAP bên dưới dịch
+tên cũ sang slug Phosphor khi hai bên không trùng.
 
-Cần internet KHI CHẠY SCRIPT. Nếu một tên icon không có thật, script dừng và
-báo tên sai thay vì ghi ra file thiếu icon (icon thiếu = icon vô hình, rất khó
-phát hiện bằng mắt).
+Script tải SVG rồi rút phần ruột (bỏ thẻ <svg> ngoài, vì icons.js tự dựng thẻ
+bọc). Kết quả ghi vào vendor/ và được commit - app không gọi mạng lúc chạy.
+
+Cần internet KHI CHẠY SCRIPT. Nếu một tên không có thật, script dừng và báo
+tên sai thay vì ghi ra file thiếu icon.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,9 +29,78 @@ MANIFEST = ROOT / "dashboard" / "icons.manifest.json"
 OUT = ROOT / "dashboard" / "vendor" / "lucide-icons.js"
 OUT_CSS = ROOT / "dashboard" / "vendor" / "lucide-icons.css"
 
-LUCIDE_VERSION = "1.27.0"
-CDN = "https://cdn.jsdelivr.net/npm/lucide-static@{ver}/icons/{name}.svg"
+PH_VERSION = "2.1.1"
+CDN = "https://cdn.jsdelivr.net/npm/@phosphor-icons/core@{ver}/assets/duotone/{name}-duotone.svg"
 TIMEOUT = 20
+
+# Tên trong manifest (khóa ic()) -> slug file Phosphor Duotone.
+# Tên không có trong bảng này được hiểu là trùng slug Phosphor.
+MAP = {
+    "alarm-clock": "alarm",
+    "arrow-up-down": "arrows-down-up",
+    "ban": "prohibit",
+    "bot": "robot",
+    "brush-cleaning": "broom",
+    "building-2": "buildings",
+    "chart-column": "chart-bar",
+    "chevron-down": "caret-down",
+    "chevron-left": "caret-left",
+    "chevron-right": "caret-right",
+    "chevron-up": "caret-up",
+    "chevrons-down": "caret-double-down",
+    "chevrons-up": "caret-double-up",
+    "circle-check": "check-circle",
+    "circle-dot": "radio-button",
+    "circle-help": "question",
+    "circle-stop": "stop-circle",
+    "circle-user": "user-circle",
+    "circle-x": "x-circle",
+    "clipboard-check": "clipboard-text",
+    "ellipsis-vertical": "dots-three-vertical",
+    "external-link": "arrow-square-out",
+    "eye-off": "eye-slash",
+    "file-type": "file",
+    "folder-tree": "folders",
+    "history": "clock-counter-clockwise",
+    "layers": "stack",
+    "list-todo": "list-checks",
+    "loader": "circle-notch",
+    "log-out": "sign-out",
+    "mail": "envelope",
+    "maximize": "arrows-out",
+    "menu": "list",
+    "message-circle": "chat-circle",
+    "messages-square": "chats",
+    "mic": "microphone",
+    "minimize": "arrows-in",
+    "panel-left": "sidebar",
+    "pen-line": "pen",
+    "pin": "push-pin",
+    "plane-takeoff": "airplane-takeoff",
+    "puzzle": "puzzle-piece",
+    "quote": "quotes",
+    "rotate-cw": "arrow-clockwise",
+    "save": "floppy-disk",
+    "scroll-text": "scroll",
+    "search": "magnifying-glass",
+    "send": "paper-plane-tilt",
+    "settings": "gear",
+    "sparkles": "sparkle",
+    "square-kanban": "kanban",
+    "square-pen": "note-pencil",
+    "table-2": "table",
+    "trash-2": "trash",
+    "trending-down": "trend-down",
+    "trending-up": "trend-up",
+    "triangle-alert": "warning",
+    "type": "text-t",
+    "undo-2": "arrow-u-up-left",
+    "upload-cloud": "cloud-arrow-up",
+    "volume-2": "speaker-high",
+    "webhook": "webhooks-logo",
+    "workflow": "flow-arrow",
+    "zap": "lightning",
+}
 
 # Thuộc tính thẻ <svg> ngoài do icons.js dựng, nên rút bỏ khỏi phần ruột.
 OUTER_SVG = re.compile(r"^.*?<svg\b[^>]*>(.*)</svg>\s*$", re.DOTALL)
@@ -66,9 +136,8 @@ def data_uri(body: str) -> str:
     còn lại cho file dễ đọc và nhẹ hơn so với base64.
     """
     svg = (
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' "
-        "stroke='black' stroke-width='2' stroke-linecap='round' "
-        "stroke-linejoin='round'>" + body.replace('"', "'") + "</svg>"
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256' fill='black'>"
+        + body.replace('"', "'") + "</svg>"
     )
     for ch, rep in (("%", "%25"), ("#", "%23"), ("<", "%3C"), (">", "%3E")):
         svg = svg.replace(ch, rep)
@@ -76,19 +145,27 @@ def data_uri(body: str) -> str:
 
 
 def fetch(name: str) -> str:
-    url = CDN.format(ver=LUCIDE_VERSION, name=name)
+    slug = MAP.get(name, name)
+    url = CDN.format(ver=PH_VERSION, name=slug)
+    # curl chứ không phải urllib: máy macOS hay thiếu CA trong Python,
+    # còn curl dùng kho chứng chỉ của hệ điều hành.
     try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT) as resp:
-            raw = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
+        raw = subprocess.run(
+            ["curl", "-fsSL", url],
+            check=True,
+            capture_output=True,
+            timeout=TIMEOUT,
+        ).stdout.decode("utf-8")
+    except subprocess.CalledProcessError as exc:
+        if exc.returncode == 22:
             sys.exit(
-                f"Không có icon '{name}' trong lucide-static@{LUCIDE_VERSION}.\n"
-                f"Tra lại tên đúng ở https://lucide.dev/icons/ rồi sửa manifest."
+                f"Không có icon '{name}' (Phosphor '{slug}') trong "
+                f"@phosphor-icons/core@{PH_VERSION}.\n"
+                f"Tra slug tại https://phosphoricons.com rồi sửa MAP trong tools/gen_icons.py."
             )
-        sys.exit(f"Tải '{name}' lỗi HTTP {exc.code}: {url}")
-    except urllib.error.URLError as exc:
-        sys.exit(f"Không nối được CDN ({exc.reason}). Script này cần internet.")
+        sys.exit(f"Tải '{name}' lỗi (curl {exc.returncode}): {url}")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        sys.exit(f"Không nối được CDN ({exc}). Script này cần internet.")
 
     raw = COMMENT.sub("", raw)
     match = OUTER_SVG.match(raw)
@@ -102,7 +179,7 @@ def fetch(name: str) -> str:
 
 def main() -> None:
     names, css_vars = load_manifest()
-    print(f"Manifest có {len(names)} icon. Đang tải từ lucide-static@{LUCIDE_VERSION}...")
+    print(f"Manifest có {len(names)} icon. Đang tải Phosphor Duotone @{PH_VERSION}...")
 
     icons: dict[str, str] = {}
     for i, name in enumerate(names, 1):
@@ -111,14 +188,14 @@ def main() -> None:
 
     lines = [
         "// FILE TỰ SINH - ĐỪNG SỬA TAY.",
-        f"// Nguồn: lucide-static@{LUCIDE_VERSION} (giấy phép ISC) - https://lucide.dev",
+        f"// Nguồn: @phosphor-icons/core@{PH_VERSION} bản Duotone (giấy phép MIT) - https://phosphoricons.com",
         "// Sinh lại: sửa dashboard/icons.manifest.json rồi chạy python tools/gen_icons.py",
         "window.LucideIcons = {",
     ]
     for name in names:
         lines.append(f'  {json.dumps(name)}: {json.dumps(icons[name])},')
     lines.append("};")
-    lines.append(f'window.LucideIconsVersion = "{LUCIDE_VERSION}";')
+    lines.append(f'window.LucideIconsVersion = "phosphor-duotone@{PH_VERSION}";')
     lines.append("")
 
     # newline="\n": cả repo dùng LF. Trên Windows, Python ở text mode tự đổi \n
@@ -130,7 +207,7 @@ def main() -> None:
 
     css = [
         "/* FILE TỰ SINH - ĐỪNG SỬA TAY. */",
-        f"/* Nguồn: lucide-static@{LUCIDE_VERSION} (giấy phép ISC) - https://lucide.dev */",
+        f"/* Nguồn: @phosphor-icons/core@{PH_VERSION} bản Duotone (giấy phép MIT) - https://phosphoricons.com */",
         "/* Sinh lại: sửa css_vars trong dashboard/icons.manifest.json rồi chạy",
         "   python tools/gen_icons.py */",
         "",

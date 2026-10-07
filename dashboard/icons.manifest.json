@@ -3,10 +3,10 @@
     "Danh sách icon Lucide mà dashboard dùng. Đây là NGUỒN SỰ THẬT duy nhất.",
     "Thêm icon mới: thêm tên vào nhóm phù hợp rồi chạy: python tools/gen_icons.py",
     "Script sẽ tải SVG từ lucide-static và ghi lại dashboard/vendor/lucide-icons.js.",
-    "Tên phải khớp CHÍNH XÁC tên file trong lucide-static/icons/ (bỏ đuôi .svg).",
-    "Tra tên tại https://lucide.dev/icons/ - bản v1 đã đổi tên nhiều icon so với bản cũ."
+    "Khóa giữ tên cũ để ic() không phải đổi. Slug Phosphor nằm ở MAP trong tools/gen_icons.py.",
+    "Tra hình tại https://phosphoricons.com (bản Duotone)."
   ],
-  "_source": "lucide-static@1.27.0 (giấy phép ISC)",
+  "_source": "@phosphor-icons/core@2.1.1 bản Duotone (giấy phép MIT)",
   "_css_vars_doc": [
     "Icon cần dùng trong NGỮ CẢNH CSS (content của ::before, background...).",
     "Thẻ SVG không nhét được vào content: của CSS, nên script sinh thêm file",
@@ -81,6 +81,7 @@
       "arrow-down",
       "arrow-up-down",
       "maximize",
+      "minimize",
       "menu",
       "house",
       "panel-left"
@@ -134,6 +135,7 @@
       "sparkle",
       "lightbulb",
       "alarm-clock",
+      "clock",
       "calendar",
       "plane-takeoff",
       "webhook",
@@ -147,6 +149,7 @@
       "git-branch",
       "bell",
       "eye",
+      "eye-off",
       "rocket",
       "layers",
       "tag",
