@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.72] - 2026-10-07
+### Sửa
+- Icon menu trên cùng to hơn và cách nhau rộng hơn. Icon cài đặt ở cuối hàng nằm thẳng với các icon kia.
+- Nút mic, gửi và đính kèm nằm giữa ô gõ chat hai dòng.
+
 ## [0.56.71] - 2026-10-07
 ### Sửa
 - Bỏ giao diện Future. Tối, Neon và Sáng giữ màu cũ. Menu nằm trên cùng. Não ở bên trái, chat ở bên phải.

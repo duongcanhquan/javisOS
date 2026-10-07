@@ -3221,7 +3221,7 @@ body.on-mcp .cview-body > .cview-placeholder {
     justify-self: center;
     align-self: center;
     width: max-content;
-    max-width: min(560px, 48vw);
+    max-width: min(680px, 58vw);
     height: auto;
     max-height: none;
     z-index: 6;
@@ -3251,7 +3251,7 @@ body.on-mcp .cview-body > .cview-placeholder {
     flex: 0 0 auto;
     flex-direction: row;
     align-items: center;
-    gap: 4px;
+    gap: 10px;
     min-height: 0;
     overflow: visible;
     padding: 0;
@@ -3260,6 +3260,7 @@ body.on-mcp .cview-body > .cview-placeholder {
   .rail-group.foot {
     position: relative;
     flex: 0 0 auto;
+    align-self: center;
     margin: 0;
   }
   .rail-group::after {
@@ -3270,11 +3271,14 @@ body.on-mcp .cview-body > .cview-placeholder {
     top: 100%;
     height: 14px;
   }
-  .rail-grp-lbl {
-    width: 32px;
-    height: 32px;
+  .rail-grp-lbl,
+  .rail-group.foot .rail-grp-lbl {
+    width: 40px;
+    height: 40px;
+    margin: 0;
     padding: 0;
     justify-content: center;
+    align-items: center;
     border-radius: 8px;
     color: var(--text2);
     background: var(--bg3);
@@ -3292,7 +3296,7 @@ body.on-mcp .cview-body > .cview-placeholder {
   .rail.collapsed:focus-within .rail-grp-lbl::before { display: none; }
   #railTip { display: none !important; }
   .rail-grp-ico { margin: 0; opacity: 1; }
-  .rail-grp-ico svg { width: 16px; height: 16px; }
+  .rail-grp-ico svg { width: 20px; height: 20px; }
   .rail-grp-lbl:hover,
   .rail-group:hover > .rail-grp-lbl,
   .rail-group:focus-within > .rail-grp-lbl,
