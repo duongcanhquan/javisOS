@@ -182,6 +182,16 @@
       if (!mq.matches && document.body.classList.contains("brain-max")) setBrainMax(false);
     }
 
+    function muteRailNotes() {
+      if (!railEl) return;
+      var glassDesk = document.documentElement.getAttribute("data-layout") === "glass" && !mq.matches;
+      railEl.querySelectorAll(".rail-grp-lbl, .rail-item").forEach(function (btn) {
+        if (glassDesk) {
+          if (btn.hasAttribute("title")) btn.removeAttribute("title");
+        }
+      });
+    }
+
     function placeGlassNav() {
       if (!railEl || !headerRoot || !railParent) return;
       var glass = document.documentElement.getAttribute("data-layout") === "glass";
@@ -193,7 +203,8 @@
       }
     }
 
-    function applyAll() { placeHeader(); placeSystem(); placeGlassNav(); setPlaceholder(); syncBrainMax(); }
+    function applyAll() { placeHeader(); placeSystem(); placeGlassNav(); muteRailNotes(); setPlaceholder(); syncBrainMax(); }
+    if (railEl) railEl.addEventListener("mouseover", muteRailNotes);
     applyAll();
 
     var onChange = function () { applyAll(); closeNav(); };

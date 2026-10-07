@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.70] - 2026-10-07
+### Mới
+- Menu trên máy tính chỉ xổ danh sách của đúng icon đang rê chuột. Không còn dòng chữ đè lên nhau, không cần bấm mới mở.
+- Nền giao diện Mới là tím xanh sáng, lớp kính trắng mờ. Chữ trắng, nhìn nhẹ hơn nền tối trước.
+
 ## [0.56.69] - 2026-10-07
 ### Mới
 - Trên máy tính, menu là hàng icon ngang ở giữa thanh trên. Rê chuột vào icon nào thì danh sách của icon đó xổ xuống.
