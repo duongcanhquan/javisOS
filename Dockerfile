@@ -69,6 +69,8 @@ RUN npm install -g @openai/codex && npm cache clean --force && codex --version
 # Engine đó đã GỠ HẲN khỏi repo ở 0.50.0. Đường Google cho tài khoản cá nhân hiện nay là
 # Antigravity CLI (`agy`); đường xAI dùng gói SuperGrok / X Premium+ là Grok Build (`grok`).
 # Cả hai đều là script tải về chạy thẳng, không cài qua npm nên không nằm trong image.
+# docker/entrypoint.sh tự cài lúc container khởi động, vào thư mục đã link sang volume /data
+# nên chỉ cài một lần. Tắt bằng JAVIS_AUTO_INSTALL_CLIS=0.
 
 WORKDIR /app
 

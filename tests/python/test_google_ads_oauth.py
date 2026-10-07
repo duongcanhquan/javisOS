@@ -106,8 +106,9 @@ if duong_dan and os.path.exists(duong_dan):
           and tren_dia.get("type") == "authorized_user")
 
 check("các biến môi trường khác vẫn được truyền",
-      env.get("GOOGLE_ADS_DEVELOPER_TOKEN") == "DEVTOK"
-      and env.get("GOOGLE_PROJECT_ID") == "du-an-cua-toi")
+      env.get("GOOGLE_ADS_DEVELOPER_TOKEN") == "DEVTOK")
+check("không còn ô Project ID (bản PyPI không đọc GOOGLE_PROJECT_ID)",
+      "GOOGLE_PROJECT_ID" not in env)
 
 # ---- đường lui: dán tay file ADC thì KHÔNG bị OAuth ghi đè ----
 cid2, _ = mcp_store.add_connection("google-ads", {

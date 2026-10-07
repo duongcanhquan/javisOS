@@ -42,7 +42,7 @@ def _giao(args, ctx) -> str:
     if thieu:
         return "Phòng " + ", ".join(thieu) + " chưa có trưởng phòng. Nhờ người dùng đặt trưởng trên trang Nhạc trưởng rồi giao lại."
     try:
-        viec = nt.tao_viec(kho, tieu_de, brief, [p["slug"] for p in chon])
+        viec = nt.tao_viec(kho, tieu_de, brief, [p["slug"] for p in chon], bat_cong=True)
     except nt.LoiNhacTruong as e:
         return f"ERROR: {e}"
     brain = ctx.vault_root
@@ -55,7 +55,9 @@ def _giao(args, ctx) -> str:
         return f"Việc \"{viec['tieu_de']}\" ({viec['id']}) đã đang chạy ở phòng {ten}. Xem trên trang Nhạc trưởng, tab Theo dõi."
     return (
         f"Đã giao \"{viec['tieu_de']}\" cho phòng {ten} và bấm chạy. "
-        f"Mã việc {viec['id']}. Đang chạy ở nền, xem tiến trình và kết quả trên trang Nhạc trưởng, tab Theo dõi. "
+        f"Mã việc {viec['id']}. Việc sẽ dừng để duyệt kế hoạch, và dừng lần nữa trước phòng thiết kế hoặc video. "
+        f"Khi người dùng nói đồng ý hoặc một câu sửa, gọi op=duyet với id này. "
+        f"Xem tiến trình trên trang Nhạc trưởng, tab Theo dõi. "
         f"File nằm trong brain: nhac-truong/viec/{viec['id']}.md. "
         "Đừng hứa sẽ chờ xong rồi tóm tắt trong lượt chat này."
     )
@@ -82,13 +84,40 @@ def _xem(args, ctx) -> str:
         f"Trạng thái: {v.get('trang_thai')}",
         "Phòng: " + ", ".join(v.get("phong") or []),
     ]
+    if v.get("trang_thai") == "cho_duyet":
+        dong.append("Đang chờ duyệt: " + str(v.get("cong") or ""))
+        dong.append(nt.tin_cong(v))
+        dong.append("Người dùng nói đồng ý thì gọi op=duyet, đừng tự viết tiếp.")
     if v.get("loi_chay"):
         dong.append("Lỗi: " + str(v.get("loi_chay"))[:300])
     if ket:
         dong.append("Kết quả:\n" + ket[:1200])
     else:
         dong.append("Chưa có kết quả. Xem lời trao đổi trên trang Nhạc trưởng.")
-    return "\n".join(dong)
+        return "\n".join(dong)
+
+
+def _duyet(args, ctx) -> str:
+    kho = _kho(ctx)
+    if kho is None:
+        return "ERROR: chưa biết brain nào."
+    vid = str((args or {}).get("id") or "").strip()
+    y = str((args or {}).get("y") or "").strip()[:300]
+    try:
+        if vid:
+            viec = nt.duyet(kho, vid, y)
+        else:
+            viec = nt.duyet_loi(kho, ("đồng ý " + y).strip())
+    except nt.LoiNhacTruong as e:
+        return f"ERROR: {e}"
+    try:
+        rte.bat_chay(ctx.vault_root, viec["id"])
+    except nt.LoiNhacTruong as e:
+        return f"ERROR: đã ghi duyệt nhưng chưa chạy tiếp được. {e}"
+    return (
+        f"Đã duyệt \"{viec.get('tieu_de')}\" ({viec.get('id')}). "
+        "Chạy tiếp từ chỗ dừng, không làm lại từ đầu. Xem tab Theo dõi."
+    )
 
 
 def register(ctx):
@@ -102,13 +131,16 @@ def register(ctx):
         "Nếu người dùng chưa nói phòng, hoặc tên không khớp đúng một phòng, tool trả danh sách: HỎI LẠI người dùng, "
         "đừng chọn hộ và đừng gọi op=giao lần nữa cho đến khi họ chỉ phòng. "
         "Chỉ một phòng trong brain thì được giao phòng đó và nói rõ. "
-        "Việc chạy ở nền. Nói mã việc và bảo xem tab Theo dõi. Không hứa sẽ chờ xong rồi báo lại. "
-        "op=xem: đọc trạng thái và kết quả, id nếu biết mã việc.",
+        "Việc chạy ở nền và dừng để người dùng duyệt. Nói mã việc và bảo xem tab Theo dõi. "
+        "Không hứa sẽ chờ xong rồi báo lại. "
+        "op=xem: đọc trạng thái. Nếu đang chờ duyệt, bảo người dùng nói đồng ý hoặc một câu sửa. "
+        "op=duyet: khi người dùng đồng ý hoặc góp một câu. id nếu biết mã việc, y là câu sửa, để trống nếu chỉ đồng ý.",
         _chay,
         schema={
             "type": "object",
             "properties": {
-                "op": {"type": "string", "enum": ["phong", "giao", "xem"]},
+                "op": {"type": "string", "enum": ["phong", "giao", "xem", "duyet"]},
+                "y": {"type": "string", "description": "Câu sửa khi duyệt. Để trống nếu chỉ đồng ý."},
                 "title": {"type": "string", "description": "Tên việc ngắn"},
                 "brief": {"type": "string", "description": "Lời giao việc, đủ ý người dùng vừa nói"},
                 "phong": {"type": "string", "description": "Tên hoặc mã phòng, nhiều phòng cách nhau bằng dấu phẩy"},
@@ -129,4 +161,6 @@ async def _chay(args, ctx) -> str:
         return _giao(args, ctx)
     if op == "xem":
         return _xem(args, ctx)
-    return "ERROR: op phải là phong, giao hoặc xem."
+    if op == "duyet":
+        return _duyet(args, ctx)
+    return "ERROR: op phải là phong, giao, xem hoặc duyet."

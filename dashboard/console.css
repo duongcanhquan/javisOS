@@ -2799,8 +2799,17 @@ body.on-mcp .cview-body > .cview-placeholder {
   border: 1px solid var(--glass-brd); background: var(--bg2); color: var(--text); font: inherit; font-size: 14px;
 }
 .nt-form textarea { min-height: 68px; resize: vertical; }
-.nt-btn {
-  padding: 0 14px; min-height: 32px; border-radius: 8px; cursor: pointer; font: 500 13px var(--font);
+.nt-ykien {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+.nt-btn {  padding: 0 14px; min-height: 32px; border-radius: 8px; cursor: pointer; font: 500 13px var(--font);
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
 }
 .nt-btn:hover { border-color: var(--accent-line); }

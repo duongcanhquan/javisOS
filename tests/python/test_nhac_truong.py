@@ -64,6 +64,22 @@ def test_thieu_quyet_la_chua():
     check("thiếu QUYET là chưa", nt.doc_quyet("tạm được")["quyet"] == "")
     check("đọc Đạt có dấu", nt.doc_quyet("QUYET: ĐẠT")["quyet"] == "DAT")
     check("đọc chưa và trả", nt.doc_quyet("QUYET: CHƯA\nTRA: Nội dung\nSUA: Bỏ câu")["tra"] == "noi-dung")
+    js = '{"quyet":"CHUA","sua":"thiếu nguồn","tra":"noi-dung"}\nQUYET: DAT'
+    q = nt.doc_quyet(js)
+    check("JSON được đọc trước dòng chữ", q["quyet"] == "CHUA" and q["tra"] == "noi-dung" and "thiếu nguồn" in q["sua"])
+    check("JSON sai mã thì không lọt, dù dòng chữ nói Đạt", nt.doc_quyet('{"quyet":"MAYBE"}\nQUYET: DAT')["quyet"] == "")
+    check("không có JSON thì vẫn đọc dòng", nt.doc_quyet("xong\nQUYET: DAT")["quyet"] == "DAT")
+    check("nhận JSON", nt.doc_nhan('{"nhan":"OK"}') == "OK")
+    check("nhận JSON sai thì không lọt", nt.doc_nhan('{"nhan":"có lẽ"}\nNHAN: OK') == "")
+    check("không có JSON thì vẫn đọc NHAN", nt.doc_nhan("ổn\nNHAN: OK") == "OK")
+    check("gọi tool đọc", nt.doc_goi('{"goi":"phap_che","q":"nghị định"}')["ten"] == "phap_che")
+    check("khối quyết định không bị coi là gọi tool", nt.doc_goi('{"quyet":"DAT","goi":"web"}') == {})
+    nc = nt.vai_doc({"vi_tri": "Chuyên viên nghiên cứu", "skills": []}, "Bạn là An, thành viên phòng Nội dung.")
+    check("nghiên cứu được web và Drive", nc == {"web", "drive"})
+    pc = nt.vai_doc({"vi_tri": "", "skills": []}, "Bạn là Hà, trưởng phòng phòng Pháp chế.")
+    check("pháp chế được kho luật", pc == {"phap_che"})
+    check("người viết bài không được tool đọc", nt.vai_doc({"vi_tri": "Biên tập", "skills": ["viết"]}, "Bạn là Bình, thành viên phòng Nội dung.") == set())
+    check("ý phản hồi bỏ dòng JSON", "thiếu nguồn" not in nt.y_phan_hoi('{"sua":"thiếu nguồn"}\n- còn lệch mục 2'))
 
 
 def test_noi_thu_xong():
@@ -853,9 +869,27 @@ def test_chay_lai_xoa_roi_lam_tu_dau():
     check("chạy thử được khi việc trống", nt.chan_chay_thu({"loi": []}) == "")
 
 
+def test_tool_doc_khong_bia():
+    check("tool Drive chỉ nhận tên có drive và đọc",
+          rte._chon_tool_doc(
+              [{"name": "create_drive_file"}, {"name": "search_drive_files"}],
+              ("drive",)) == "search_drive_files")
+    check("tool web lấy search", rte._chon_tool_doc([{"name": "tavily-search"}], ("search",)) == "tavily-search")
+
+    async def chay():
+        van = await rte._chay_doc("brain", {"ten": "van_hanh", "q": "sĩ số"})
+        web = await rte._doc_mcp("tavily", "web", "học phí", ("search",))
+        return van, web
+
+    van, web = asyncio.run(chay())
+    check("chưa có CIS thì nói thẳng", "Chưa có kết nối CIS/CMS" in van and "Không bịa" in van)
+    check("chưa nối web thì nói thẳng", "Chưa nối Tavily" in web and "Không bịa" in web)
+
+
 if __name__ == "__main__":
     test_tao_va_chan_hai_truong()
     test_thieu_quyet_la_chua()
+    test_tool_doc_khong_bia()
     test_noi_thu_xong()
     test_phap_che_chan_du_noi_bo_bo_qua()
     test_truong_khong_gat_ho_phong_khac()

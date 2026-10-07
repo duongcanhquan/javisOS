@@ -393,6 +393,8 @@
   "models.grok_note": "Dùng gói SuperGrok hoặc X Premium+ của bạn, không cần mua API key. Đăng nhập được ngay tại đây kể cả khi VMOS chạy trên VPS.",
   "models.agy_note": "Dùng gói Google của bạn, không cần mua API key. Đây là bản Google chỉ định thay cho Gemini CLI, và cho chọn đúng dàn model của Antigravity IDE - gồm cả model không phải của Google.",
   "models.cli_install": "Chưa thấy CLI trên máy. Cài một lần trên máy chạy VMOS:",
+  "models.cli_auto_installing": "VMOS đang tự cài {ten}.",
+  "models.cli_auto_failed": "VMOS không tự cài được {ten}. Có thể thử lại bằng lệnh này:",
   "models.agy_login": "Đăng nhập trong terminal của máy chạy VMOS:",
   "models.agy_done": "Xong rồi bấm Kiểm tra lại ở dưới.",
   "models.auth_title": "Chạy bằng",

@@ -393,6 +393,8 @@
   "models.grok_note": "Uses your SuperGrok or X Premium+ plan, no API key to buy. You can sign in right here, even when VMOS runs on a VPS.",
   "models.agy_note": "Uses your Google plan, no API key to buy. This is Google's designated replacement for Gemini CLI, and it offers the exact model lineup of the Antigravity IDE - including non-Google models.",
   "models.cli_install": "CLI not found on this machine. Install once on the machine running VMOS:",
+  "models.cli_auto_installing": "VMOS is installing {ten}.",
+  "models.cli_auto_failed": "VMOS could not install {ten} by itself. You can retry with this command:",
   "models.agy_login": "Sign in from the terminal of the machine running VMOS:",
   "models.agy_done": "Then hit Check again below.",
   "models.auth_title": "Runs on",

@@ -28,7 +28,8 @@
     xong: ["Đạt", "ok"],
     lech: ["Còn lệch", "warn"],
     dung: ["Đã dừng", "warn"],
-    loi: ["Lỗi", "warn"]
+    loi: ["Lỗi", "warn"],
+    cho_duyet: ["Chờ duyệt", "warn"]
   };
   var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi", ket: "Kết quả" };
   var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
@@ -685,6 +686,13 @@
       '<form id="ntSuaTieu" class="nt-form">' +
       '<label>Tên phòng<input name="ten" required value="' + esc(p.ten || "") + '"></label>' +
       '<label>Tiêu chí<textarea name="tieu_chi" required>' + esc(p.tieu_chi || "") + "</textarea></label>" +
+      '<label>Loại phòng<select name="loai">' +
+      '<option value=""' + (!p.loai ? " selected" : "") + ">Theo tên phòng</option>" +
+      '<option value="viet"' + (p.loai === "viet" ? " selected" : "") + ">Viết</option>" +
+      '<option value="thiet_ke"' + (p.loai === "thiet_ke" ? " selected" : "") + ">Thiết kế</option>" +
+      '<option value="video"' + (p.loai === "video" ? " selected" : "") + ">Video</option></select></label>" +
+      '<label>Khuôn bàn giao, tên trường cách nhau bởi dấu phẩy<input name="khuon" value="' +
+      esc(((p.khuon || {}).truong || []).join(", ")) + '" placeholder="nguon, so lieu"></label>' +
       '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu phòng</button>' +
       '<button type="button" class="nt-btn danger" id="ntXoaPhong">Xoá phòng</button></div></form>' +
       (t ? "" : '<p class="nt-call">Chưa có trưởng. Thêm người ở cột phải và chọn vai Trưởng phòng.</p>') +
@@ -776,6 +784,7 @@
       '<label>Vòng tối đa mỗi tầng, 1 đến 10<input name="vong" type="number" min="1" max="10" value="' + esc(n.vong || "6") + '"></label>' +
       '<label>Brief<textarea name="brief" required placeholder="Việc cần làm, điều cấm, người đọc">' + esc(n.brief || "") + "</textarea></label>" +
       '<label>Tài liệu, tối đa 3 file chữ<input name="tai_lieu" type="file" accept=".txt,.md,.csv,.json,.html" multiple></label>' +
+      '<label class="nt-chip"><input type="checkbox" name="bat_cong"' + (n.bat_cong ? " checked" : "") + "> Dừng để duyệt kế hoạch và bản thảo</label>" +
       '<p class="nt-hint">Tối đa 10 vòng. Còn lỗi cụ thể thì sửa tiếp. Hết lỗi thì dừng, dù mới 1 hoặc 2 vòng.</p>' +
       '<div class="nt-row"><button class="nt-btn pri" type="submit">' + (S._suaId ? "Lưu việc đang soạn" : "Giao việc") + "</button>" +
       (S._suaId ? '<button type="button" class="nt-btn ghost" id="ntHuySuaViec">Soạn việc mới</button>' : "") +
@@ -934,6 +943,7 @@
       tieu_de: v.tieu_de || "",
       brief: v.brief || "",
       vong: String(v.vong_toi_da || "6"),
+      bat_cong: !!v.bat_cong,
       phong: chon
     };
     S._route = { tu: !v.xep_khoa, phong: chon.slice(), nguoi: nguoi, bo: {}, tay: tay };
@@ -991,7 +1001,9 @@
     var coLoi = !!(v && (v.loi || []).length);
     var dungGiua = !!(treo || (v && (v.trang_thai === "dung" || v.trang_thai === "loi")));
     var het = !!(v && coLoi && (v.trang_thai === "xong" || v.trang_thai === "lech"));
+    var choDuyet = !!(v && v.trang_thai === "cho_duyet");
     var nhan = "Chạy";
+    if (choDuyet) nhan = "Chờ duyệt";
     if (S._nut === "lai") nhan = S._nhanLai ? "Đang chạy lại…" : "Chạy tiếp";
     else if (coLoi && (treo || (dungGiua && !chay))) nhan = "Chạy tiếp";
     else if (het && !chay) nhan = "Chạy lại";
@@ -1002,7 +1014,8 @@
       nhan: nhan,
       nhanThu: S._nut === "thu" ? "Đang chạy thử…" : "Chạy thử",
       nhanDung: (dungCho || S._nut === "dung") ? "Đang dừng…" : "Dừng",
-      khoa: (chay && !treo) || ban,
+      khoa: (chay && !treo) || ban || choDuyet,
+      choDuyet: choDuyet,
       hienDung: chay || treo || dungCho || S._nut === "dung",
     };
   }
@@ -1089,10 +1102,13 @@
       '<div class="nt-row">' + pillTrang(t.treo ? "loi" : v.trang_thai) + "<b>" + esc(v.tieu_de) + "</b></div>" +
       (t.treo ? '<p class="nt-err">Việc đã dừng giữa chừng. Phần đã nói vẫn giữ. Chạy tiếp làm tiếp từ chỗ dừng. Chạy lại sẽ làm từ đầu.</p>' : "") +
       (v.loi_chay ? '<p class="nt-err">' + esc(v.loi_chay) + "</p>" : "") +
+      (v.xin_y ? '<p class="nt-hint">' + esc(v.xin_y) + "</p>" : "") +
       dangLam(v) +
       '<div class="nt-row" id="ntNuts">' +
       (soan ? '<button type="button" class="nt-btn" id="ntSuaViec">Sửa việc đang soạn</button>' : "") +
-      '<button type="button" class="nt-btn pri" id="ntChay"' + (t.khoa ? " disabled" : "") + ">" + esc(t.nhan) + "</button>" +
+      (t.choDuyet ? '<input id="ntYKien" class="nt-ykien" placeholder="Góp ý ngắn, có thể để trống" maxlength="300">' +
+      '<button type="button" class="nt-btn pri" id="ntDuyet">Đồng ý</button>' : "") +
+      '<button type="button" class="nt-btn' + (t.choDuyet ? "" : " pri") + '" id="ntChay"' + (t.khoa ? " disabled" : "") + ">" + esc(t.nhan) + "</button>" +
       (t.hienLai ? '<button type="button" class="nt-btn" id="ntChayLai"' + (t.khoa ? " disabled" : "") + ">Chạy lại</button>" : "") +
       (t.hienDung ? '<button type="button" class="nt-btn danger" id="ntDung"' + (S._nut === "dung" ? " disabled" : "") + ">" + esc(t.nhanDung) + "</button>" : "") +
       '<button type="button" class="nt-btn" id="ntThu"' + (t.khoa ? " disabled" : "") + ">" + esc(t.nhanThu) + "</button>" +
@@ -1305,6 +1321,7 @@
         var body = {
           brain: brain(), tieu_de: fd.get("tieu_de"), brief: fd.get("brief"),
           phong: fd.getAll("phong"), vong: fd.get("vong"), bo_xep: !!r.tu,
+          bat_cong: fd.get("bat_cong") === "on",
         };
         if (tai.length) body.tai_lieu = tai;
         if (!r.tu) {
@@ -1399,11 +1416,19 @@
       var fd = new FormData(tc);
       try {
         var j = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong), {
-          brain: brain(), tieu_chi: fd.get("tieu_chi"), ten: fd.get("ten"),
+          brain: brain(), tieu_chi: fd.get("tieu_chi"), ten: fd.get("ten"), loai: fd.get("loai") || "",
         });
         if (!j.ok) return hong(btn, j.error);
         var p = phongChon();
-        if (p) { p.tieu_chi = j.phong.tieu_chi; p.ten = j.phong.ten; }
+        var khuon = String(fd.get("khuon") || "").split(/[,;\n]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        var k = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/khuon", {
+          brain: brain(), truong: khuon, ten: "Bàn giao",
+        });
+        if (!k.ok) return hong(btn, k.error);
+        if (p) {
+          p.tieu_chi = j.phong.tieu_chi; p.ten = j.phong.ten; p.loai = j.phong.loai || "";
+          p.khuon = k.phong.khuon;
+        }
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -1645,6 +1670,8 @@
   function ganTheoDoi() {
     var suaViec = document.getElementById("ntSuaViec");
     if (suaViec) suaViec.onclick = function () { moSuaViec(S._viecDay); };
+    var duyet = document.getElementById("ntDuyet");
+    if (duyet) duyet.onclick = function () { duyetCong(); };
     var chay = document.getElementById("ntChay");
     if (chay) chay.onclick = function () {
       var v = S._viecDay;
@@ -1859,6 +1886,35 @@
         }
       });
     }, 1000);
+  }
+
+  async function duyetCong() {
+    if (!S.chonViec || !S._viecDay || S._viecDay.trang_thai !== "cho_duyet" || S._nut) return;
+    var id = S.chonViec;
+    var y = (document.getElementById("ntYKien") || {}).value || "";
+    S._nut = "chay";
+    S._choChay = id;
+    S._viecDay.trang_thai = "dang_chay";
+    veNut();
+    var j;
+    try {
+      j = await post("/nhac-truong/viec/" + encodeURIComponent(id) + "/duyet", { brain: brain(), y: y });
+    } catch (e) {
+      S._nut = "";
+      S._choChay = "";
+      if (S._viecDay) S._viecDay.trang_thai = "cho_duyet";
+      veNut();
+      return;
+    }
+    S._nut = "";
+    if (!j || !j.ok) {
+      S._choChay = "";
+      if (S._viecDay && j && j.error) S._viecDay.loi_chay = j.error;
+      await moViec();
+      ve();
+      return;
+    }
+    batPoll();
   }
 
   async function batDau(thu, tuDau) {

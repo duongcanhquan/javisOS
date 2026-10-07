@@ -46,4 +46,29 @@ for d in .local .antigravity .config .gemini .grok .copilot; do
     ln -sfn "$dst" "$src" 2>/dev/null || true
 done
 
+# Tự cài Antigravity CLI (`agy`) và Grok Build (`grok`) nếu máy chưa có.
+# Hai CLI này không phát hành qua npm, và không nhúng binary của Google/xAI vào image công khai.
+# Cài nền lúc boot, vào ~/.local và ~/.grok đã link sang /data nên chỉ cài một lần.
+# Hỏng thì ghi lại, lần sau thử lại, không cản server lên. Tắt bằng JAVIS_AUTO_INSTALL_CLIS=0.
+CLI_STATE="$PERSIST_ROOT/.cli-auto-install"
+co_cli() {
+    command -v "$1" >/dev/null 2>&1 || [ -x "$2" ] || [ -x "$HOME/.local/bin/$1" ]
+}
+tu_cai_cli() {
+    co_cli "$1" "$2" && { echo "ok $(date +%s)" > "$CLI_STATE/$1" 2>/dev/null; return 0; }
+    echo "installing $(date +%s)" > "$CLI_STATE/$1" 2>/dev/null
+    echo "[$(date -u +%FT%TZ)] cài $1 từ $3" >> "$CLI_STATE/install.log" 2>/dev/null
+    if curl -fsSL --max-time 300 "$3" | bash >> "$CLI_STATE/install.log" 2>&1 && co_cli "$1" "$2"; then
+        echo "ok $(date +%s)" > "$CLI_STATE/$1" 2>/dev/null
+    else
+        echo "failed $(date +%s)" > "$CLI_STATE/$1" 2>/dev/null
+    fi
+}
+if [ "${JAVIS_AUTO_INSTALL_CLIS:-1}" != "0" ] && mkdir -p "$CLI_STATE" 2>/dev/null; then
+    ( (
+        tu_cai_cli agy "$HOME/.local/bin/agy" https://antigravity.google/cli/install.sh
+        tu_cai_cli grok "$HOME/.grok/bin/grok" https://x.ai/cli/install.sh
+    ) </dev/null >/dev/null 2>&1 & )
+fi
+
 exec "$@"

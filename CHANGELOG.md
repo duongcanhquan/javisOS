@@ -1,5 +1,28 @@
 # Nhật ký cập nhật
 
+## [0.56.76] - 2026-10-07
+### Sửa
+- Chat giao việc thì việc dừng để duyệt. Bạn nói "đồng ý" hoặc "duyệt" kèm một câu, trên chat hoặc Telegram, là chạy tiếp. Telegram có nút Đồng ý.
+- Khuôn không nhận một chữ cho qua. Số trong các trường được ghi vào sổ, không cần viết thêm dòng FACT.
+- Phòng viết phía sau chỉ nhận các trường đã chốt. Phòng thiết kế và video vẫn nhận cả bản để làm hình.
+
+## [0.56.75] - 2026-10-07
+### Sửa
+- Mỗi phòng có thể gắn khuôn bàn giao. Thiếu trường thì trưởng chưa chấm, và việc dừng sớm thay vì hỏi vòng vo.
+- Số đã chốt được ghi vào sổ chung. Phòng sau dùng lại số đó, không phân tích lại từ đầu.
+- Việc có thể dừng hai lần để bạn duyệt: sau khi trưởng giao việc, và trước khi phòng thiết kế hoặc video bắt đầu. Bấm Đồng ý, hoặc viết một câu ngắn, thì chạy tiếp từ chỗ dừng. Nếu đã nối Telegram thì có tin báo.
+
+## [0.56.74] - 2026-10-07
+### Sửa
+- Nhạc trưởng đọc quyết định dạng JSON trước. Không có JSON thì vẫn hiểu dòng `QUYET` và `NHAN` như cũ. JSON sai mã thì không cho lọt.
+- Người nghiên cứu được tra web và Drive, pháp chế được tra kho luật, vận hành được hỏi số liệu lớp. Nguồn chưa nối thì câu trả lời phải nói chưa có số, không bịa.
+
+## [0.56.73] - 2026-10-07
+### Sửa
+- Khoá mã hoá lệch không còn xoá sạch key API và đăng nhập. Trả đúng khoá về là dùng lại được.
+- Kết nối Google (Workspace, Ads, Search Console, Tasks, Keep, NotebookLM) tự chạy bản chính thức mới. Kết nối đã tạo từ trước cũng lên lệnh mới.
+- Bản Docker tự cài Antigravity và Grok Build lúc khởi động. Trang Models báo đang cài, thay vì đưa một lệnh không có chỗ gõ.
+
 ## [0.56.72] - 2026-10-07
 ### Sửa
 - Icon menu trên cùng to hơn và cách nhau rộng hơn. Icon cài đặt ở cuối hàng nằm thẳng với các icon kia.

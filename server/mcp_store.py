@@ -418,6 +418,15 @@ def resolved(enabled_only=True):
                 i2 += 1
         taken_ns.add(ns)
         args = list(c.get("args") or [])
+        lenh = c.get("command", "")
+        # Kết nối lưu lệnh lúc tạo, nên catalog đổi lệnh thì kết nối cũ vẫn chạy lệnh cũ mãi.
+        # `lenh_cu` liệt kê đúng các lệnh mặc định đã từng phát hành: còn y nguyên một lệnh
+        # trong đó thì chạy lệnh hiện hành. Lệnh người dùng tự sửa không khớp nên được giữ.
+        for cu in ((con or {}).get("lenh_cu") or []):
+            if (cu.get("command") == lenh and list(cu.get("args") or []) == args
+                    and con.get("command")):
+                lenh, args = con["command"], list(con.get("args") or [])
+                break
         env = secrets_store.decrypt_map(c.get("env") or {})
         if con:
             for k, v in mcp_catalog.build_env(con, secrets).items():
@@ -502,7 +511,7 @@ def resolved(enabled_only=True):
             # là kết nối đi theo ngay - y như headers vốn đã dựng lại mỗi lần resolve.
             "url": (mcp_catalog.build_url(con, secrets) if (con or {}).get("url_template")
                     else "") or c.get("url", ""),
-            "command": c.get("command", ""), "args": args,
+            "command": lenh, "args": args,
             "headers": headers, "env": env,
             "internal": (con or {}).get("internal") or "",
             # Tham số kỹ thuật connector tự chèn vào MỌI tool call (vd meta['ucp-agent'] của

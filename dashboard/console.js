@@ -4101,6 +4101,14 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           </div>
           ${p.is_main ? '<span class="prov-badge">MAIN</span>' : ""}
         </div>`;
+    const cliSetup = (p, ten) => {
+      if (p.cli_found) return "";
+      if (p.tu_cai === "installing") {
+        return `<div class="prov-steps"><div>${ic("loader", { cls: "ic-spin" })} ${esc(t("models.cli_auto_installing", { ten }))}</div></div>`;
+      }
+      const head = p.tu_cai === "failed" ? t("models.cli_auto_failed", { ten }) : t("models.cli_install");
+      return `<div class="prov-steps"><div>${esc(head)}<br><code>${esc(p.cai_lenh || "")}</code></div></div>`;
+    };
     const provCard = (p) => {
       const on = p.configured;
       // Máy thiếu binary CLI thì nói TẠI ĐÂY, đừng để user đăng nhập xanh rồi vào chat mới
@@ -4141,9 +4149,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           ${provHead(p, on, "MCP/skill", st)}
           <div class="prov-note">${esc(t("models.grok_note"))}</div>
           ${cliWarn("grok")}
-          ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>${esc(t("models.cli_install"))}<br><code>${esc(p.cai_lenh || "")}</code></div>
-          </div>`}
+          ${cliSetup(p, "Grok Build")}
           <div id="grokBox" class="prov-steps" style="display:none"></div>
           <div class="prov-action" style="flex-wrap:wrap">
             ${on
@@ -4170,9 +4176,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
         return `<div class="prov-card ${p.is_main ? "main" : ""}">
           ${provHead(p, on, "MCP/skill", st)}
           <div class="prov-note">${esc(t("models.agy_note"))}</div>
-          ${p.cli_found ? "" : `<div class="prov-steps">
-            <div>${esc(t("models.cli_install"))}<br><code>${esc(p.cai_lenh || "")}</code></div>
-          </div>`}
+          ${cliSetup(p, "Antigravity CLI")}
           ${on ? "" : `<div class="prov-steps">
             <div><b>${esc(t("models.agy_login"))}</b> <code>${esc(dn.dang_nhap || "agy")}</code></div>
             <div>${esc(dn.ghi_chu || "")}</div>

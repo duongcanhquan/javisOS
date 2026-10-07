@@ -83,6 +83,7 @@ def bat_chay(brain: str, vid: str, tu_dau: bool = False) -> str:
                 lambda nguoi, prompt: (_DEPS.noi or _noi_that)(brain, nguoi, prompt),
                 ra_file=_ra_file_cho(brain),
                 tu_dau=tu_dau,
+                bao=_bao_cong,
             )
         except Exception as e:
             _danh_loi(kho, vid, e)
@@ -191,6 +192,7 @@ async def sua_phong(slug: str, request: Request):
             tieu_chi=body.get("tieu_chi") if "tieu_chi" in body else None,
             cach_lam=body.get("cach_lam") if "cach_lam" in body else None,
             ten=body.get("ten") if "ten" in body else None,
+            loai=body.get("loai") if "loai" in body else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -265,6 +267,7 @@ async def tao_viec(request: Request):
             body.get("tieu_de") or "", body.get("brief") or "",
             body.get("phong") or [], body.get("vong") or nt.VONG_MAC_DINH,
             tai_lieu=body.get("tai_lieu"), xep=body.get("xep") if isinstance(body.get("xep"), dict) else None,
+            bat_cong=bool(body.get("bat_cong")),
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -282,6 +285,7 @@ async def sua_viec(vid: str, request: Request):
             tai_lieu=body.get("tai_lieu") if "tai_lieu" in body else None,
             xep=body.get("xep") if isinstance(body.get("xep"), dict) else None,
             bo_xep=bool(body.get("bo_xep")),
+            bat_cong=body.get("bat_cong") if "bat_cong" in body else None,
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -390,6 +394,60 @@ async def chay_viec(vid: str, request: Request):
         return {"ok": True, "viec": viec}
 
     bat_chay(brain, vid, tu_dau=tu_dau)
+    return {"ok": True, "trang_thai": "dang_chay"}
+
+
+async def _bao_cong(viec: dict) -> None:
+    """Báo Telegram khi tới cổng duyệt. Im nếu chưa nối bot."""
+    try:
+        import config as cfgmod
+        tg = cfgmod.read_settings().get("telegram") or {}
+        raw = str(tg.get("chat_id") or "")
+        ids = [x.strip() for x in raw.replace(";", ",").split(",") if x.strip()]
+        if not (tg.get("enabled") and tg.get("token") and ids):
+            return
+        import httpx
+        text = nt.tin_cong(viec)[:500]
+        nut = nt.nut_duyet(viec)
+        async with httpx.AsyncClient(timeout=8) as c:
+            for cid in ids:
+                payload = {"chat_id": cid, "text": text}
+                if nut:
+                    payload["reply_markup"] = nut
+                await c.post(
+                    f"https://api.telegram.org/bot{tg['token']}/sendMessage",
+                    json=payload,
+                )
+    except Exception:
+        return
+
+
+@router.post("/nhac-truong/phong/{slug}/khuon")
+async def dat_khuon(slug: str, request: Request):
+    body = await request.json()
+    try:
+        phong = nt.dat_khuon(
+            _kho(body.get("brain") or "brain"), slug,
+            body.get("truong") or [], body.get("ten") or "",
+        )
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "phong": phong}
+
+
+@router.post("/nhac-truong/viec/{vid}/duyet")
+async def duyet_viec(vid: str, request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    brain = (body or {}).get("brain") or "brain"
+    try:
+        nt.duyet(_kho(brain), vid, (body or {}).get("y") or "")
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    bat_chay(brain, vid, tu_dau=False)
     return {"ok": True, "trang_thai": "dang_chay"}
 
 
@@ -512,6 +570,9 @@ async def _noi_that(brain: str, nguoi: dict, prompt: str) -> str:
         "Nếu hết lượt mà file chưa xong, dừng bằng đúng một dòng CON_TIEP. Không viết câu báo bị cắt.\n"
         "Không gửi tin, không đăng, không chi tiền, không bảo người khác tự đi làm.\n"
     )
+    nguon = nt.loi_nguon(nt.vai_doc(nguoi, prompt))
+    if nguon:
+        sysprompt += "\n" + nguon + "\n"
     agent = (nguoi.get("agent") or "").strip()
     if agent and _DEPS.doc_agent:
         meta, body = _DEPS.doc_agent(brain, agent)
@@ -524,15 +585,105 @@ async def _noi_that(brain: str, nguoi: dict, prompt: str) -> str:
         c = aux_engine.swap(c, mode="suggest", tag="nhac-truong", spec=aux_engine.research_spec())
     except Exception as e:
         raise nt.LoiNoi(f"Chưa gọi được model: {type(e).__name__}") from e
-    out, err = "", ""
-    async for ev in c.query(prompt):
-        kind = ev.get("type")
-        if kind == "final":
-            out = ev.get("content") or out
-        elif kind == "text" and not out:
-            out = ev.get("content") or ""
-        elif kind == "error":
-            err = ev.get("content") or err
+    async def _hoi(cau: str) -> tuple[str, str]:
+        tra, loi = "", ""
+        async for ev in c.query(cau):
+            kind = ev.get("type")
+            if kind == "final":
+                tra = ev.get("content") or tra
+            elif kind == "text" and not tra:
+                tra = ev.get("content") or ""
+            elif kind == "error":
+                loi = ev.get("content") or loi
+        return tra, loi
+
+    out, err = await _hoi(prompt)
     if not (out or "").strip():
         raise nt.LoiNoi(err or "Model không trả lời.")
+    goi = nt.doc_goi(out)
+    duoc = nt.vai_doc(nguoi, prompt)
+    if goi and goi["ten"] in duoc and not nt.doc_quyet(out)["quyet"] and not nt.doc_nhan(out):
+        ket = await _chay_doc(brain, goi)
+        tiep = (
+            prompt
+            + "\n\nKẾT QUẢ TOOL " + goi["ten"] + ":\n"
+            + ket
+            + "\nViết bản của lượt này. Không gọi tool lần hai. "
+            + "Nếu kết quả nói chưa nối hoặc không có số, ghi rõ chưa có số liệu, không bịa."
+        )
+        out2, err2 = await _hoi(tiep)
+        if (out2 or "").strip():
+            return out2
+        if err2:
+            raise nt.LoiNoi(err2)
     return out
+
+
+async def _chay_doc(brain: str, goi: dict) -> str:
+    """Một tool đọc. Không nối thì nói thẳng, không trả số bịa."""
+    ten = goi.get("ten") or ""
+    q = (goi.get("q") or "").strip() or "tài liệu liên quan"
+    if ten == "phap_che":
+        import phap_che
+        try:
+            kq = phap_che.search(_DEPS.brain_root(brain or "brain"), q, top_k=3)
+        except Exception as e:
+            return f"Không tra được kho pháp chế: {type(e).__name__}. Không bịa điều luật."
+        hits = kq.get("local") or []
+        if not hits:
+            return "Kho pháp chế không có đoạn khớp. Không bịa điều luật."
+        dong = []
+        for h in hits[:3]:
+            dong.append(f"- {h.get('path') or 'nguon'}: {str(h.get('excerpt') or '')[:400]}")
+        return "\n".join(dong)
+    if ten == "van_hanh":
+        return "Chưa có kết nối CIS/CMS. Không bịa sĩ số hay số lớp."
+    if ten == "web":
+        return await _doc_mcp("tavily", "web", q, ("search",))
+    if ten == "drive":
+        return await _doc_mcp("google-workspace", "drive", q, ("drive",))
+    return "Tool đọc không có trong danh sách được phép."
+
+
+async def _doc_mcp(connector_id: str, loai: str, q: str, manh: tuple) -> str:
+    import mcp_store
+    co = any(
+        c.get("connector_id") == connector_id and c.get("enabled")
+        for c in mcp_store.list_connections()
+    )
+    nhan = "Tavily" if loai == "web" else "Google Drive"
+    if not co:
+        return f"Chưa nối {nhan}. Không bịa số liệu từ nguồn này."
+    try:
+        import asyncio
+        import mcp_client
+        conn = next(
+            c for c in mcp_store.resolved(enabled_only=True)
+            if c.get("connector_id") == connector_id
+        )
+        spec = mcp_client._conn_spec(conn)
+        tools = await asyncio.wait_for(mcp_client.pool.list_tools(spec), 12)
+        ten = _chon_tool_doc(tools, manh)
+        if not ten:
+            return f"Đã nối {nhan} nhưng không thấy tool đọc. Không bịa số liệu."
+        raw = await asyncio.wait_for(
+            mcp_client.pool.call_tool(spec, ten, {"query": q}), 20)
+    except Exception as e:
+        return f"Không gọi được {nhan}: {type(e).__name__}. Không bịa số liệu."
+    text = str(raw or "").strip()
+    if not text or text.startswith("ERROR:"):
+        return f"{nhan} không trả nội dung. Không bịa số liệu."
+    return text[:1500]
+
+
+def _chon_tool_doc(tools, manh: tuple) -> str:
+    for t in tools or []:
+        ten = t.get("name") if isinstance(t, dict) else str(t or "")
+        low = ten.lower()
+        if not ten or any(k in low for k in ("delete", "create", "update", "send", "trash")):
+            continue
+        if all(m in low for m in manh) and any(k in low for k in ("search", "list", "find", "get", "read")):
+            return ten
+        if manh == ("search",) and "search" in low:
+            return ten
+    return ""

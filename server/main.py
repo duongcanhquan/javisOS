@@ -129,6 +129,7 @@ import chatbot_log       # nhật ký hội thoại khách + thống kê câu bo
 import chatbot_runtime   # bộ giám sát Bot chuyên trách (mỗi bot một poller Telegram)
 import chatbot_store     # kho bản ghi bot + token qua secrets_store
 import agent_assets      # tài liệu & link gắn vào MỘT trợ lý (lưu trong frontmatter agent)
+import cli_autoinstall   # trạng thái agy/grok do container Docker tự cài
 import workflow_chat     # persona_cua_phien: kênh agent:/workflow: đổi cách _do_turn chạy lượt
 import channel_accounts  # tài khoản kênh dạng token (0.61.0), bot chỉ trỏ tới
 import channels          # sổ đăng ký kênh của Hộp thư hội thoại (0.61.0)
@@ -1756,6 +1757,7 @@ def _providers_view(cfg):
             item["plan"] = _k.get("plan", "")
             item["auth_error"] = _k.get("error", "")
             item["cai_lenh"] = grok_cli.lenh_cai()
+            item["tu_cai"] = cli_autoinstall.state("grok")
             item["dang_nhap"] = grok_cli.login_huong_dan()
             # Phiên nằm trong `~/.grok/auth.json` do chính CLI giữ, Javis không sở hữu nó -
             # nhưng `grok logout` thì gọi được, nên thẻ CÓ nút Ngắt (khác `agy`).
@@ -1766,6 +1768,7 @@ def _providers_view(cfg):
             item["auth_method"] = _a.get("method", "")
             item["auth_error"] = _a.get("error", "")
             item["cai_lenh"] = antigravity_cli.lenh_cai()
+            item["tu_cai"] = cli_autoinstall.state("agy")
             # Không có nút Ngắt: token nằm trong keyring của hệ điều hành, Javis không giữ nên
             # cũng không gỡ hộ được. Dựng nút rồi bên dưới không làm gì mới là dối.
             item["auth_by_javis"] = False
@@ -3648,6 +3651,7 @@ def antigravity_status():
     d = antigravity_cli.auth_status()
     d["cli_path"] = antigravity_cli.find_antigravity_cli() or ""
     d["cai_lenh"] = antigravity_cli.lenh_cai()
+    d["tu_cai"] = cli_autoinstall.state("agy")
     d["huong_dan"] = antigravity_cli.login_huong_dan()
     return d
 
@@ -3717,6 +3721,7 @@ def grok_status():
     d = grok_cli.auth_status()
     d["cli_path"] = grok_cli.find_grok_cli() or ""
     d["cai_lenh"] = grok_cli.lenh_cai()
+    d["tu_cai"] = cli_autoinstall.state("grok")
     d["huong_dan"] = grok_cli.login_huong_dan()
     try:
         d["chan_doan"] = grok_cli.chan_doan()
@@ -19149,6 +19154,19 @@ async def _tg_callback(data, chat=None):
                 "alert": "Đã đổi brain"}
     if data == "noop":
         return None   # nút chỉ-hiển-thị (số trang) - answer callback cho tắt spinner, không sửa tin
+    if data.startswith("ntd:"):
+        vid = data.split(":", 1)[1].strip()
+        brain = _brain_root(_tg_brain(chat_key))
+        try:
+            nt_viec = nhac_truong_routes.nt.duyet(nhac_truong_routes.nt.Kho(brain), vid, "")
+            nhac_truong_routes.bat_chay(brain, vid)
+        except nhac_truong_routes.nt.LoiNhacTruong as e:
+            return {"alert": str(e)[:180]}
+        return {
+            "text": f"Đã duyệt {nt_viec.get('tieu_de') or vid}. Việc chạy tiếp từ chỗ dừng.",
+            "alert": "Đã duyệt",
+            "reply_markup": {"inline_keyboard": []},
+        }
     # ---- chọn / duyệt workflow ----
     if data == "wx":
         return {"text": "Đã đóng danh sách workflow.", "alert": "Đã đóng"}
@@ -19666,6 +19684,22 @@ async def zalo_bot_test():
     return {"ok": sent > 0, "sent": sent, "total": len(ids), "error": "; ".join(errs)[:300]}
 
 
+def _tg_duyet_nhac(text, meta=None):
+    """Câu đồng ý hoặc duyệt khi có việc đang chờ. Không có việc thì để chat xử lý câu đó."""
+    chat = _tg_norm_chat((meta or {}).get("chat_id"))
+    brain = _brain_root(_tg_brain(chat))
+    viec, loi = nhac_truong_routes.nt.thu_duyet(nhac_truong_routes.nt.Kho(brain), text or "")
+    if loi:
+        return {"reply": loi}
+    if viec is None:
+        return None
+    try:
+        nhac_truong_routes.bat_chay(brain, viec["id"])
+    except nhac_truong_routes.nt.LoiNhacTruong as e:
+        return {"reply": str(e)}
+    return {"reply": f"Đã duyệt {viec.get('tieu_de') or viec.get('id')}. Việc chạy tiếp từ chỗ dừng."}
+
+
 def restart_telegram():
     """Bật lại bot theo cấu hình settings.telegram (tắt bot cũ nếu có)."""
     global _TG_BOT
@@ -19676,7 +19710,7 @@ def restart_telegram():
     _TG_SESS.clear()   # xoá mọi phiên hội thoại cũ khi khởi động lại bot
     if t.get("enabled") and t.get("token"):
         _TG_BOT = TelegramBot(t["token"], t.get("chat_id", ""), _tg_answer, _tg_command, _tg_callback,
-                              download_dir=_tg_inbox_dir, stt_fn=_stt_nghe)
+                              download_dir=_tg_inbox_dir, precheck_fn=_tg_duyet_nhac, stt_fn=_stt_nghe)
         _TG_BOT.start()
         return True
     return False
