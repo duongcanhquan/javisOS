@@ -5,7 +5,7 @@ Chạy lại mỗi khi thêm/bớt icon trong manifest:
 
     python tools/gen_icons.py
 
-Nguồn hình là Phosphor Icons bản Duotone. Khóa trong file vendor VẪN là tên
+Nguồn hình là Phosphor Icons bản Regular (nét mảnh). Khóa trong file vendor VẪN là tên
 cũ trong manifest, vì khắp dashboard gọi ic("tên-cũ"). Bảng MAP bên dưới dịch
 tên cũ sang slug Phosphor khi hai bên không trùng.
 
@@ -30,10 +30,10 @@ OUT = ROOT / "dashboard" / "vendor" / "lucide-icons.js"
 OUT_CSS = ROOT / "dashboard" / "vendor" / "lucide-icons.css"
 
 PH_VERSION = "2.1.1"
-CDN = "https://cdn.jsdelivr.net/npm/@phosphor-icons/core@{ver}/assets/duotone/{name}-duotone.svg"
+CDN = "https://cdn.jsdelivr.net/npm/@phosphor-icons/core@{ver}/assets/regular/{name}.svg"
 TIMEOUT = 20
 
-# Tên trong manifest (khóa ic()) -> slug file Phosphor Duotone.
+# Tên trong manifest (khóa ic()) -> slug file Phosphor Regular.
 # Tên không có trong bảng này được hiểu là trùng slug Phosphor.
 MAP = {
     "alarm-clock": "alarm",
@@ -179,7 +179,7 @@ def fetch(name: str) -> str:
 
 def main() -> None:
     names, css_vars = load_manifest()
-    print(f"Manifest có {len(names)} icon. Đang tải Phosphor Duotone @{PH_VERSION}...")
+    print(f"Manifest có {len(names)} icon. Đang tải Phosphor Regular @{PH_VERSION}...")
 
     icons: dict[str, str] = {}
     for i, name in enumerate(names, 1):
@@ -188,14 +188,14 @@ def main() -> None:
 
     lines = [
         "// FILE TỰ SINH - ĐỪNG SỬA TAY.",
-        f"// Nguồn: @phosphor-icons/core@{PH_VERSION} bản Duotone (giấy phép MIT) - https://phosphoricons.com",
+        f"// Nguồn: @phosphor-icons/core@{PH_VERSION} bản Regular, nét mảnh (giấy phép MIT) - https://phosphoricons.com",
         "// Sinh lại: sửa dashboard/icons.manifest.json rồi chạy python tools/gen_icons.py",
         "window.LucideIcons = {",
     ]
     for name in names:
         lines.append(f'  {json.dumps(name)}: {json.dumps(icons[name])},')
     lines.append("};")
-    lines.append(f'window.LucideIconsVersion = "phosphor-duotone@{PH_VERSION}";')
+    lines.append(f'window.LucideIconsVersion = "phosphor-regular@{PH_VERSION}";')
     lines.append("")
 
     # newline="\n": cả repo dùng LF. Trên Windows, Python ở text mode tự đổi \n
@@ -207,7 +207,7 @@ def main() -> None:
 
     css = [
         "/* FILE TỰ SINH - ĐỪNG SỬA TAY. */",
-        f"/* Nguồn: @phosphor-icons/core@{PH_VERSION} bản Duotone (giấy phép MIT) - https://phosphoricons.com */",
+        f"/* Nguồn: @phosphor-icons/core@{PH_VERSION} bản Regular, nét mảnh (giấy phép MIT) - https://phosphoricons.com */",
         "/* Sinh lại: sửa css_vars trong dashboard/icons.manifest.json rồi chạy",
         "   python tools/gen_icons.py */",
         "",

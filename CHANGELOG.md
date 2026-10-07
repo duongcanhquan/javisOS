@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.69] - 2026-10-07
+### Mới
+- Trên máy tính, menu là hàng icon ngang ở giữa thanh trên. Rê chuột vào icon nào thì danh sách của icon đó xổ xuống.
+- Giao diện Mới có nền tím xanh và lớp kính mờ. Chữ trắng, icon nét mảnh màu trắng, đọc rõ trên kính.
+- Cạnh chữ HỘI THOẠI có nút tạo hội thoại mới. Rê chuột vào thấy dòng chữ Tạo hội thoại mới.
+
 ## [0.56.68] - 2026-10-07
 ### Mới
 - Màn chính có giao diện kính. Menu nằm giữa phía trên, bấm ra danh sách thả xuống. Não ở bên trái, chat ở bên phải, ô gõ cao hai dòng. Cây vault không còn chiếm màn chính.

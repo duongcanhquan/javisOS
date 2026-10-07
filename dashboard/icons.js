@@ -1,5 +1,5 @@
-// Tầng icon của dashboard - bọc quanh bộ Phosphor Duotone đã vendor sẵn.
-// Khóa vẫn là tên cũ (ic("settings")), file vendor mới chứa path Duotone.
+// Tầng icon của dashboard - bọc quanh bộ Phosphor Regular (nét mảnh) đã vendor sẵn.
+// Khóa vẫn là tên cũ (ic("settings")), file vendor chứa path nét outline.
 //
 // Vì sao có file này: dashboard dựng HTML bằng template string khắp nơi
 // (innerHTML = `...`), nên thứ cần nhất là một hàm TRẢ VỀ CHUỖI SVG để nhét

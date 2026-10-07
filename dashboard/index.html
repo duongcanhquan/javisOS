@@ -29,9 +29,9 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
-  <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=2">
-  <link rel="stylesheet" href="/static/style.css?v=108">
-  <link rel="stylesheet" href="/static/console.css?v=98">
+  <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=109">
+  <link rel="stylesheet" href="/static/console.css?v=100">
   <link rel="stylesheet" href="/static/workbench.css?v=9">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng/neon.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
@@ -286,6 +286,10 @@
         <button class="chatcol-expand" id="chatColMo" title="Mở lại khung hội thoại" data-i18n-title="chat.col_expand" aria-label="Mở lại khung hội thoại" data-i18n-aria="chat.col_expand"><i data-ic="panel-left"></i></button>
         <div class="panel-label">
           <span data-i18n="chat.panel">HỘI THOẠI</span>
+          <button type="button" class="chat-new-btn" id="chatNewBtn" title="Tạo hội thoại mới" data-i18n-title="chat.new_btn" aria-label="Tạo hội thoại mới" data-i18n-aria="chat.new_btn">
+            <i data-ic="square-pen" data-ic-size="20px"></i>
+            <span class="chat-new-tip" data-i18n="chat.new_btn">Tạo hội thoại mới</span>
+          </button>
           <!-- Chip project: sessions-ui.js vẽ vào đây khi lượt chat thuộc một project.
                Rỗng thì span co về 0 nên hàng vẫn là "nhãn ... nút" như cũ. -->
           <span class="proj-chip-host" id="projChipHost"></span>
@@ -812,7 +816,7 @@
        bắt được cả trường hợp một file phía dưới hỏng vì đang chạy bản cũ. -->
   <script src="/static/freshness.js"></script>
   <script src="/static/i18n/index.js?v=2"></script>
-  <script src="/static/vendor/lucide-icons.js?v=5"></script>
+  <script src="/static/vendor/lucide-icons.js?v=6"></script>
   <script src="/static/icons.js?v=3"></script>
 
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
@@ -843,7 +847,7 @@
   <script src="/static/chat-acts.js?v=2"></script>
   <script src="/static/chat-marks.js?v=3"></script>
   <script src="/static/chat-wait.js?v=3"></script>
-  <script src="/static/app.js?v=118"></script>
+  <script src="/static/app.js?v=119"></script>
   <!-- Sau app.js: dải việc nền đọc window.JavisSessions (app.js dựng) để biết phiên + brain. -->
   <script src="/static/background-strip.js?v=1"></script>
   <script src="/static/model-picker.js?v=7"></script>
@@ -864,7 +868,7 @@
   <script type="application/json" id="javis-page-lazy">["meetings.js","baigiang.js","video.js","marketing.js","org.js","drive-projects.js","guides.js","tool-apis.js","usage.js","workspace.js","chatbots.js","nhac-truong.js"]</script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
   <script src="/static/console.js?v=161"></script>
-  <script src="/static/mobile-chat.js?v=10"></script>
+  <script src="/static/mobile-chat.js?v=11"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>
   <script src="/static/push.js?v=2"></script>

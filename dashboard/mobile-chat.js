@@ -8,6 +8,8 @@
   function init() {
     var mq = window.matchMedia("(max-width: 860px)");
     var railEl = document.querySelector(".rail");
+    var railParent = railEl ? railEl.parentElement : null;
+    var railNext = railEl ? railEl.nextSibling : null;
 
     // ---- 1) Header mobile: dời chip model + nút + lên header; desktop trả về chỗ cũ ----
     var mbOpen = document.getElementById("mbOpen");
@@ -180,12 +182,24 @@
       if (!mq.matches && document.body.classList.contains("brain-max")) setBrainMax(false);
     }
 
-    function applyAll() { placeHeader(); placeSystem(); setPlaceholder(); syncBrainMax(); }
+    function placeGlassNav() {
+      if (!railEl || !headerRoot || !railParent) return;
+      var glass = document.documentElement.getAttribute("data-layout") === "glass";
+      if (glass && !mq.matches) {
+        if (railEl.parentElement !== headerRoot) headerRoot.appendChild(railEl);
+      } else if (railEl.parentElement === headerRoot) {
+        if (railNext && railNext.parentElement === railParent) railParent.insertBefore(railEl, railNext);
+        else railParent.appendChild(railEl);
+      }
+    }
+
+    function applyAll() { placeHeader(); placeSystem(); placeGlassNav(); setPlaceholder(); syncBrainMax(); }
     applyAll();
 
     var onChange = function () { applyAll(); closeNav(); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
+    window.addEventListener("resize", applyAll);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

@@ -165,6 +165,7 @@
   "orb.stat_workflows": "Open Studio · Workflows",
   "chat.col_expand": "Reopen the conversation panel",
   "chat.panel": "CONVERSATION",
+  "chat.new_btn": "New conversation",
   "chat.zoom": "Open the Chat page (full-screen chat)",
   "chat.col_collapse": "Collapse the conversation panel to the right (like the sidebar)",
   "qs.title": "QUICK SETTINGS",

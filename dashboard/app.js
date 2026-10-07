@@ -2803,6 +2803,8 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   convo = []; savedSessionId = null;   // xoá phiên đã lưu (số liệu giữ nguyên)
   persistSession();
 });
+var chatNewBtn = document.getElementById("chatNewBtn");
+if (chatNewBtn) chatNewBtn.addEventListener("click", () => { newChat(); });
 
 // Voice picker
 const voicePickerBtn = document.getElementById("voicePickerBtn");

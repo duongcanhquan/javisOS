@@ -4,9 +4,9 @@
     "Thêm icon mới: thêm tên vào nhóm phù hợp rồi chạy: python tools/gen_icons.py",
     "Script sẽ tải SVG từ lucide-static và ghi lại dashboard/vendor/lucide-icons.js.",
     "Khóa giữ tên cũ để ic() không phải đổi. Slug Phosphor nằm ở MAP trong tools/gen_icons.py.",
-    "Tra hình tại https://phosphoricons.com (bản Duotone)."
+    "Tra hình tại https://phosphoricons.com (bản Regular, nét mảnh)."
   ],
-  "_source": "@phosphor-icons/core@2.1.1 bản Duotone (giấy phép MIT)",
+  "_source": "@phosphor-icons/core@2.1.1 bản Regular, nét mảnh (giấy phép MIT)",
   "_css_vars_doc": [
     "Icon cần dùng trong NGỮ CẢNH CSS (content của ::before, background...).",
     "Thẻ SVG không nhét được vào content: của CSS, nên script sinh thêm file",
