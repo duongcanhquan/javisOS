@@ -490,7 +490,7 @@
         ? ""
         : `<button type="button" class="org-pwr on" data-org-start="${esc(t.slug)}" title="${paused ? "Mở khóa và bật máy" : "Bật máy"}">${paused ? "Chạy lại" : "Bật máy"}</button>`;
       const restoreBtn = deleted ? `<button type="button" class="org-pwr on" data-org-restore="${esc(t.slug)}">Khôi phục</button>` : "";
-      const pwBtn = prot || deleted ? "" : `<button type="button" class="btn org-btn-ghost" data-org-pw-open="${esc(t.slug)}">Đổi MK</button>`;
+      const pwBtn = prot || deleted ? "" : `<button type="button" class="btn org-btn-ghost" data-org-pw-open="${esc(t.slug)}">Đổi mật khẩu</button>`;
       const delBtn = prot ? "" : `<button type="button" class="btn org-btn-danger" data-org-del-open="${esc(t.slug)}">${deleted ? "Xóa ngay" : "Xóa"}</button>`;
       const mode = t.brain_mode || (t.shared_api ? "both" : "byo");
       const provs = Array.isArray(t.providers) ? t.providers : [];
@@ -561,11 +561,14 @@
           <label>Gõ <code>${esc(t.slug)}</code> để xác nhận<input name="confirm" required autocomplete="off" placeholder="Ví dụ: ${esc(t.slug)}"></label>
           <button class="btn org-del" type="submit">${deleted ? "Xóa vĩnh viễn ngay" : "Xóa (giữ 72 giờ)"}</button>
         </form>
-        <form class="org-inline" data-org-pw="${esc(t.slug)}" hidden>
-          <label>Mật khẩu mới<input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
-          <label>Nhập lại<input name="password2" type="password" minlength="10" autocomplete="new-password" required></label>
-          <button class="btn" type="button" data-org-gen="${esc(t.slug)}">Tạo mật khẩu</button>
-          <button class="btn primary" type="submit">Đặt mật khẩu</button>
+        <form class="org-inline org-pw-form" data-org-pw="${esc(t.slug)}" hidden>
+          <p class="org-pw-lead"><b>Đổi mật khẩu đăng nhập</b> của ${esc(t.login_user || t.slug)}</p>
+          <p class="org-pw-help dim">Gợi ý mật khẩu chỉ điền sẵn vào ô, mật khẩu đang dùng chưa đổi. Lưu mật khẩu mới thì người đó phải đăng nhập bằng mật khẩu vừa lưu.</p>
+          <label>Mật khẩu mới<input name="password" type="text" minlength="10" autocomplete="off" required spellcheck="false"></label>
+          <label>Nhập lại cho khớp<input name="password2" type="text" minlength="10" autocomplete="off" required spellcheck="false"></label>
+          <p class="org-pw-note" data-org-pw-note></p>
+          <button class="btn" type="button" data-org-gen="${esc(t.slug)}">Gợi ý mật khẩu</button>
+          <button class="btn primary" type="submit">Lưu mật khẩu mới</button>
         </form>
       </article>`;
     }).join("");
@@ -834,6 +837,11 @@
         .org-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
         .org-acts .btn{padding:6px 10px;font-size:12.5px}
         .org-del-form p{width:100%;margin:0 0 8px;font-size:13px}
+        .org-pw-form{margin-top:8px}
+        .org-pw-lead,.org-pw-help,.org-pw-note{width:100%;margin:0}
+        .org-pw-lead{font-size:13px}
+        .org-pw-help,.org-pw-note{font-size:12.5px}
+        .org-pw-note{word-break:break-all}
         .org-meter{margin:0}
         .org-meter-lbl{font-size:12.5px;margin-bottom:3px}
         .org-bar{height:7px;border-radius:99px;background:rgba(127,127,127,.2);overflow:hidden}
@@ -1200,7 +1208,9 @@
         const pw = genPw();
         f.password.value = pw;
         f.password2.value = pw;
-        msg.textContent = "Đã điền mật khẩu mạnh. Gửi cho người đó một lần.";
+        const note = f.querySelector("[data-org-pw-note]");
+        if (note) note.textContent = "Gợi ý chưa lưu: " + pw + ". Copy câu này, rồi bấm Lưu mật khẩu mới.";
+        if (msg) msg.textContent = "Đã điền gợi ý vào ô. Bấm Lưu mật khẩu mới thì mật khẩu đăng nhập mới đổi.";
       });
     });
     el.querySelectorAll("form[data-org-edit]").forEach((f) => {
@@ -1251,7 +1261,9 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: f.password.value }),
           });
-          msg.textContent = "Đã đặt mật khẩu mới. VMOS gốc không lưu mật khẩu. Gửi cho người đó rồi họ tự đổi.";
+          const note = f.querySelector("[data-org-pw-note]");
+          if (note) note.textContent = "";
+          msg.textContent = "Đã lưu mật khẩu mới cho " + slug + ". Người đó đăng nhập bằng mật khẩu vừa lưu. VMOS không giữ bản sao.";
           f.hidden = true;
           f.reset();
         } catch (e) { msg.textContent = e.message; }

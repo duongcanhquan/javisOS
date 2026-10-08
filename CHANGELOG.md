@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.79] - 2026-10-08
+### Sửa
+- Đổi mật khẩu một người có hai bước rõ: Gợi ý mật khẩu chỉ điền sẵn và hiện chữ để copy. Lưu mật khẩu mới thì mật khẩu đăng nhập mới đổi.
+
 ## [0.56.78] - 2026-10-08
 ### Sửa
 - Bấm Chạy lại một người vừa tạm dừng không còn báo lỗi. Máy của người đó bật lại, máy người khác không bị tắt.

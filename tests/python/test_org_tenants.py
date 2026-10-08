@@ -219,6 +219,11 @@ check("org.js sau lỗi tạo vẫn kiểm tra sổ",
 check("index không nạp org.js eager (lazy trong console)",
       "/static/org.js" not in (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8"))
 check("org.js có Lưu thay đổi và Xóa người", "Lưu thay đổi" in org_js and "data-org-del" in org_js and "Xóa vĩnh viễn" in org_js)
+check("đổi mật khẩu tenant tách gợi ý và lưu",
+      "Gợi ý mật khẩu" in org_js and "Lưu mật khẩu mới" in org_js
+      and "Đổi mật khẩu đăng nhập" in org_js
+      and ">Tạo mật khẩu</button>" not in org_js
+      and ">Đặt mật khẩu</button>" not in org_js)
 check("org.js tạm dừng tài khoản", "Tạm dừng tài khoản" in org_js and "Chạy lại" in org_js and "/pause" in org_js)
 check("org.js xóa mềm 72h + khôi phục", "Khôi phục" in org_js and "data-org-restore" in org_js and "72 giờ" in org_js)
 check("org.js hiện last_active / image", "hoạt động" in org_js and "image_digest" in org_js)
