@@ -224,6 +224,9 @@ check("đổi mật khẩu tenant tách gợi ý và lưu",
       and "Đổi mật khẩu đăng nhập" in org_js
       and ">Tạo mật khẩu</button>" not in org_js
       and ">Đặt mật khẩu</button>" not in org_js)
+check("trang Tổ chức tắt mã 2 lớp",
+      "Tắt mã 2 lớp" in org_js and "/2fa/tat" in org_js and "/2fa/tat" in org_py)
+check("tắt 2FA gọi totp_tat", "def tat_2fa" in src and "c.totp_tat()" in src)
 check("org.js tạm dừng tài khoản", "Tạm dừng tài khoản" in org_js and "Chạy lại" in org_js and "/pause" in org_js)
 check("org.js xóa mềm 72h + khôi phục", "Khôi phục" in org_js and "data-org-restore" in org_js and "72 giờ" in org_js)
 check("org.js hiện last_active / image", "hoạt động" in org_js and "image_digest" in org_js)

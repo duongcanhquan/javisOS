@@ -414,6 +414,20 @@ def set_admin(cname: str, username: str, password: str) -> None:
         raise RuntimeError("Không đặt được mật khẩu trên Javis con.")
 
 
+def tat_2fa(cname: str) -> None:
+    """Tắt mã Authenticator trên một máy người. Mật khẩu đăng nhập giữ nguyên."""
+    code = (
+        "import sys\n"
+        "sys.path.insert(0,'/app/server')\n"
+        "import config as c\n"
+        "c.totp_tat()\n"
+        "print('OK')\n"
+    )
+    out = _exec(cname, ["python", "-c", code])
+    if "OK" not in out:
+        raise RuntimeError("Không tắt được mã 2 lớp trên máy này.")
+
+
 def disk_usage_bytes(cname: str) -> int:
     out = _exec(cname, ["python", "-c",
                         "import os\n"

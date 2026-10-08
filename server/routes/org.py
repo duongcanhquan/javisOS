@@ -485,7 +485,40 @@ def _make_router() -> APIRouter:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         return {"ok": True}
 
-    @router.get("/org/tenants/{slug}/usage")
+    @router.post("/org/tenants/{slug}/2fa/tat")
+    async def org_tat_2fa(slug: str, request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        rec = ot.get(slug)
+        if not rec:
+            return JSONResponse({"ok": False, "error": "Không có bản này."}, status_code=404)
+        if rec.get("protected"):
+            return JSONResponse(
+                {"ok": False, "error": "Không tắt mã 2 lớp của bản quan từ đây."},
+                status_code=400,
+            )
+        if ot.is_soft_deleted(rec):
+            return JSONResponse(
+                {"ok": False, "error": "Máy đang chờ xóa. Bấm Khôi phục trước."},
+                status_code=400,
+            )
+        cname = str(rec.get("container") or "")
+        if not cname or not org_docker.docker_available():
+            return JSONResponse({"ok": False, "error": "Không kết nối được máy của người này."}, status_code=503)
+        if org_docker.container_status(cname) != "running":
+            return JSONResponse(
+                {"ok": False, "error": "Máy đang tắt. Bấm Bật máy hoặc Chạy lại, rồi tắt mã 2 lớp."},
+                status_code=400,
+            )
+        try:
+            await asyncio.to_thread(org_docker.tat_2fa, cname)
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        try:
+            ot.audit("tat-2fa", slug)
+        except Exception:
+            pass
+        return {"ok": True}
     def org_usage(slug: str, request: Request):
         if (deny := _need_manager(request)) is not None:
             return deny

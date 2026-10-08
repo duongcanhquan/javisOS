@@ -491,6 +491,7 @@
         : `<button type="button" class="org-pwr on" data-org-start="${esc(t.slug)}" title="${paused ? "Mở khóa và bật máy" : "Bật máy"}">${paused ? "Chạy lại" : "Bật máy"}</button>`;
       const restoreBtn = deleted ? `<button type="button" class="org-pwr on" data-org-restore="${esc(t.slug)}">Khôi phục</button>` : "";
       const pwBtn = prot || deleted ? "" : `<button type="button" class="btn org-btn-ghost" data-org-pw-open="${esc(t.slug)}">Đổi mật khẩu</button>`;
+      const faBtn = prot || deleted ? "" : `<button type="button" class="btn org-btn-ghost" data-org-2fa="${esc(t.slug)}">Tắt mã 2 lớp</button>`;
       const delBtn = prot ? "" : `<button type="button" class="btn org-btn-danger" data-org-del-open="${esc(t.slug)}">${deleted ? "Xóa ngay" : "Xóa"}</button>`;
       const mode = t.brain_mode || (t.shared_api ? "both" : "byo");
       const provs = Array.isArray(t.providers) ? t.providers : [];
@@ -541,6 +542,7 @@
         <div class="org-acts">
           ${pauseBtn}
           ${pwBtn}
+          ${faBtn}
           ${delBtn}
         </div>
         <p class="org-tip dim" data-org-tip aria-live="polite"></p>
@@ -1193,6 +1195,22 @@
           orgTab = "quan";
           render(el);
         } catch (e) { msg.textContent = e.message; }
+      });
+    });
+    el.querySelectorAll("[data-org-2fa]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const slug = b.getAttribute("data-org-2fa");
+        if (!window.confirm("Tắt mã Authenticator của " + slug + "? Người đó đăng nhập bằng tên và mật khẩu, không cần app.")) return;
+        b.disabled = true;
+        if (msg) msg.textContent = "Đang tắt mã 2 lớp…";
+        try {
+          await api("/org/tenants/" + encodeURIComponent(slug) + "/2fa/tat", { method: "POST" });
+          if (msg) msg.textContent = "Đã tắt mã 2 lớp của " + slug + ". Vào bằng tên đăng nhập và mật khẩu.";
+        } catch (e) {
+          if (msg) msg.textContent = e.message;
+        } finally {
+          b.disabled = false;
+        }
       });
     });
     el.querySelectorAll("[data-org-pw-open]").forEach((b) => {

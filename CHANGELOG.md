@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.80] - 2026-10-08
+### Sửa
+- Trang Tổ chức có nút Tắt mã 2 lớp. Bấm trên người đang bị hỏi mã Authenticator thì họ vào lại bằng tên và mật khẩu.
+
 ## [0.56.79] - 2026-10-08
 ### Sửa
 - Đổi mật khẩu một người có hai bước rõ: Gợi ý mật khẩu chỉ điền sẵn và hiện chữ để copy. Lưu mật khẩu mới thì mật khẩu đăng nhập mới đổi.
