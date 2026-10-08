@@ -212,6 +212,8 @@ check("tạo tenant: health chậm không nuốt máy đã ghi sổ",
       and create_fn.find("ot.upsert(rec)") < create_fn.find("wait_health"))
 org_py = (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8")
 check("API tạo trả note khi boot_warn", "boot_warn" in org_py and "Khởi động chưa xong" in org_py)
+check("trang Tổ chức bật máy có handoff", "start_with_capacity(slug, handoff=False)" in org_py)
+check("start_with_capacity nhận handoff", "def start_with_capacity(slug: str, handoff: bool = False)" in src)
 check("org.js sau lỗi tạo vẫn kiểm tra sổ",
       "đã có trong sổ" in org_js and 'api("/org/tenants")' in org_js)
 check("index không nạp org.js eager (lazy trong console)",

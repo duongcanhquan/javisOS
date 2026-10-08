@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.78] - 2026-10-08
+### Sửa
+- Bấm Chạy lại một người vừa tạm dừng không còn báo lỗi. Máy của người đó bật lại, máy người khác không bị tắt.
+
 ## [0.56.77] - 2026-10-07
 ### Sửa
 - Mỗi người vẫn có sàn 1024 MB. Khi một người dùng gần hết sàn và máy chủ còn trống, trần của người đó nới lên 2048 MB.

@@ -1418,7 +1418,12 @@ def _park_new_if_over_cap(slug: str) -> None:
     return
 
 
-def start_with_capacity(slug: str) -> dict:
+def start_with_capacity(slug: str, handoff: bool = False) -> dict:
+    """Bật một tenant. `handoff` giữ để trang Tổ chức gọi được.
+
+    Cả hai giá trị đều không tắt máy khác: chỗ RAM không còn bị nhường bằng cách đá tenant nghỉ.
+    """
+    del handoff
     rec = ot.get(slug)
     if not rec:
         raise RuntimeError("Không có bản này.")
