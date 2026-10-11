@@ -1,0 +1,92 @@
+# One-shot: kiểm tra skill openmontage trên mọi container javis-*.
+# bump: 2026-10-11T09:20Z
+name: Check openmontage on tenants
+
+on:
+  push:
+    paths:
+      - ".github/workflows/check-openmontage-tenants.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check openmontage skill over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            echo "=== VERSION manager ==="
+            docker exec javis-manager cat /app/VERSION 2>/dev/null || echo missing
+            echo "=== openmontage in IMAGE (/app/.claude/skills) ==="
+            miss_img=0
+            ok_img=0
+            while read -r name; do
+              [ -n "$name" ] || continue
+              ver=$(docker exec "$name" cat /app/VERSION 2>/dev/null | tr -d ' \n\r' || echo missing)
+              if docker exec "$name" test -f /app/.claude/skills/openmontage/SKILL.md 2>/dev/null; then
+                echo "OK_IMG  $name VERSION=$ver"
+                ok_img=$((ok_img + 1))
+              else
+                echo "MISS_IMG $name VERSION=$ver"
+                miss_img=$((miss_img + 1))
+              fi
+            done < <(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE 'proxy|park|pixelle' | sort)
+            echo "image_ok=$ok_img image_miss=$miss_img"
+            echo "=== openmontage synced into default brain (best-effort) ==="
+            miss_br=0
+            ok_br=0
+            skip_br=0
+            while read -r name; do
+              [ -n "$name" ] || continue
+              # đường brain phổ biến trong container
+              found=0
+              for p in \
+                /data/brains/default/.claude/skills/openmontage/SKILL.md \
+                /data/vault/.claude/skills/openmontage/SKILL.md \
+                /brains/default/.claude/skills/openmontage/SKILL.md \
+                /app/brains/default/.claude/skills/openmontage/SKILL.md
+              do
+                if docker exec "$name" test -f "$p" 2>/dev/null; then
+                  echo "OK_BRAIN $name $p"
+                  found=1
+                  break
+                fi
+              done
+              if [ "$found" = 1 ]; then
+                ok_br=$((ok_br + 1))
+              else
+                # liệt kê vài đường skills nếu có
+                sample=$(docker exec "$name" sh -c 'ls /data/brains/*/ .claude/skills/openmontage/SKILL.md 2>/dev/null; ls /data/brains/*/.claude/skills/openmontage/SKILL.md 2>/dev/null; ls /data/state 2>/dev/null | head' || true)
+                echo "NO_BRAIN_PATH $name"
+                miss_br=$((miss_br + 1))
+              fi
+            done < <(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE 'proxy|park|pixelle|manager' | sort)
+            echo "brain_ok=$ok_br brain_miss=$miss_br"
+            echo "=== marketingskills hub (so sánh) ==="
+            while read -r name; do
+              [ -n "$name" ] || continue
+              if docker exec "$name" test -f /app/.claude/skills/marketingskills/SKILL.md 2>/dev/null; then
+                echo "OK_MKT $name"
+              else
+                echo "MISS_MKT $name"
+              fi
+            done < <(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE 'proxy|park|pixelle' | sort | head -5)
+            echo CHECK_OPENMONTAGE_DONE
+            if [ "$miss_img" != 0 ]; then
+              echo "ERROR: $miss_img máy thiếu openmontage trong image"
+              exit 1
+            fi
