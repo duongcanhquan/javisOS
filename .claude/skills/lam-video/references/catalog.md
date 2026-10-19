@@ -8,6 +8,8 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 | `pixcelvideo` | Short video đầy đủ | skill `pixcelvideo` + `javis_render_script_video` (ảnh ChatGPT + TTS); Pixelle tuỳ chọn | Topic/script → ảnh AI + VO → mp4 | ChatGPT OAuth (ảnh) + ffmpeg + Edge-TTS; RunningHub chỉ nếu dùng Pixelle image_* |
 | `postcard-video` | Postcard cinematic | skill `postcard-video` ([video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)) | Promo/launch/demo UI ngắn 15-45s, recipe shot + SFX/BGM Remotion | CLI+Bash, Node 20+, ffmpeg; clone upstream qua `scripts/ensure-shotcraft.sh`; URL/screenshot sản phẩm |
 | `remotion` | Remotion (React) | skill `remotion-best-practices` ([remotion-dev/skills](https://github.com/remotion-dev/skills)) | Motion UI, data viz, caption frame-perfect, video tham số hoá | Node, Remotion project, (render) ffmpeg |
+| `remotion-topic-explainer` | Topic explainer 9:16 | skill `remotion-topic-explainer` ([remotion-cuongit-template](https://github.com/Cuongyd196/remotion-cuongit-template)) | Short 50-60s dọc giải thích công nghệ/khái niệm + TTS | Node, clone vendor qua ensure-template, ffmpeg |
+| `lemo-opuscar` | Code film styles | skill `lemo-opuscar` ([lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar), MIT) | Phim ngắn vẽ bằng code theo 51 style, không model video | Node 20+, ffmpeg, Python 3.11+; sparse clone vendor |
 | `openmontage` | OpenMontage studio | skill `openmontage` ([OpenMontage](https://github.com/calesthio/OpenMontage), AGPL) | Production video đa pipeline / tool registry / agentic studio | Clone ngoài Javis + Python/ffmpeg/(Node); **không vendor AGPL** |
 | `html-video` | HTML → MP4 | [OmmiStudio](https://github.com/duongcanhquan/OmmiStudio) + [nexu html-video](https://github.com/nexu-io/html-video) | Template sẵn, brand pack, short marketing HTML kinetic | Node 20+, pnpm setup, Playwright Chromium, ffmpeg |
 | `motion-css` | CSS kinetic | [motion-anything](https://github.com/nexu-io/motion-anything) (qua OmmiStudio) | Chữ/kinetic typography nhúng HTML hoặc video | Cùng stack html-video |
@@ -20,11 +22,13 @@ Chọn **một** pipeline chính. Có thể kết hợp phụ (vd motion-anythin
 2. User nói **Pixelle / pixcelvideo / short tự động / topic ra mp4 có VO** → `pixcelvideo`
    (viết kịch bản → **`javis_render_script_video`**; Pixelle chỉ nếu API :8000 đang sống).
 3. User nói **postcard / shotcraft / video-shotcraft / promo cinematic recipe** → `postcard-video`.
-4. User nói **Remotion / React video / data trên timeline** (không chỉ định shotcraft) → `remotion`. Bỏ nghiên cứu web và cổng brief. Nạp `remotion-best-practices`, render ngay bằng `npx remotion render` (`run_command` trên Antigravity, Bash trên Claude/Codex). Không gọi `javis_render_script_video`.
-5. User nói **OpenMontage / Monty / studio video agentic / 12 pipeline** → `openmontage` (clone host; không copy AGPL vào Javis).
-6. User nói **Ommi / LYON Studio / template HTML / brand pack** → `html-video` (+ `motion-css` nếu cần chữ kinetic).
-7. Chỉ cần **ảnh/slide** → `html-still`, đừng mở pipeline video.
-8. Thiếu key/binary bắt buộc → `manual` + nêu rõ thiếu gì; hoặc đổi pipeline còn chạy được.
+4. User nói **Remotion / React video / data trên timeline** (không chỉ định shotcraft / CuongIT / topic explainer) → `remotion`. Bỏ nghiên cứu web và cổng brief. Nạp `remotion-best-practices`, render ngay bằng `npx remotion render` (`run_command` trên Antigravity, Bash trên Claude/Codex). Không gọi `javis_render_script_video`.
+5. User nói **topic explainer / Remotion CuongIT / video dọc kiến thức 50-60s** → `remotion-topic-explainer` (ensure template vendor; TTS Edge mặc định).
+6. User nói **Lemo / Opuscar / phim style code / không model video / Impasto / Ukiyo-e / Satellite Briefing** → `lemo-opuscar` (sparse clone vendor; treatment trước demo).
+7. User nói **OpenMontage / Monty / studio video agentic / 12 pipeline** → `openmontage` (clone host; không copy AGPL vào Javis).
+8. User nói **Ommi / LYON Studio / template HTML / brand pack** → `html-video` (+ `motion-css` nếu cần chữ kinetic).
+9. Chỉ cần **ảnh/slide** → `html-still`, đừng mở pipeline video.
+10. Thiếu key/binary bắt buộc → `manual` + nêu rõ thiếu gì; hoặc đổi pipeline còn chạy được.
 
 ## OmmiStudio (repo của chủ)
 

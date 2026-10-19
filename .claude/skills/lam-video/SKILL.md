@@ -1,7 +1,7 @@
 ---
 name: Làm video
-description: "Điều phối làm video: chọn pipeline (paperdesign/Remotion/OpenMontage/Ommi), nghiên cứu, viết kịch bản, render đúng brief."
-description_en: "Orchestrate video: pick pipeline (paperdesign/Remotion/OpenMontage/Ommi), research, script, render to brief."
+description: "Điều phối làm video: chọn pipeline (paperdesign/Remotion/Lemo/OpenMontage/Ommi), brief rồi render."
+description_en: "Orchestrate video: pick pipeline (paperdesign/Remotion/Lemo/OpenMontage/Ommi), brief then render."
 group: "Video & Motion"
 ---
 
@@ -79,6 +79,8 @@ Chọn ĐÚNG MỘT pipeline chính theo catalog. Báo user vì sao chọn. Nế
 - `pixcelvideo` → nạp skill `pixcelvideo`: viết + duyệt kịch bản, rồi **`javis_render_script_video`**
   (Edge-TTS+ffmpeg). Pixelle `mode: fixed` chỉ khi `PIXELLE_API_BASE` sống.
 - `remotion` → nạp `remotion-best-practices`, tạo/sửa composition Remotion, preview rồi render.
+- `remotion-topic-explainer` → nạp **`remotion-topic-explainer`**: ensure template CuongIT, project trong `exports/video/<slug>/`, TTS Edge, render 9:16 50-60s.
+- `lemo-opuscar` → nạp **`lemo-opuscar`**: ensure sparse library, treatment trước demo, project trong `exports/video/<slug>/`.
 - `openmontage` → nạp **`openmontage`**: studio agentic ngoài Javis (AGPL - clone host/VPS, không vendor). Doctor rồi làm trong `$OPENMONTAGE_HOME`.
 - `ommistudio` / `html-video` → hướng dẫn hoặc gọi OmmiStudio/nexu html-video (cần Node, Playwright, ffmpeg). Ghi brief + template + brand tokens rõ ràng.
 - Không đủ điều kiện render → xuất Manual pack: beat map + image prompts + motion prompts + VO script để user dán generator khác.

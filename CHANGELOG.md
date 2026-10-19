@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.81] - 2026-10-19
+### Mới
+- Hai skill làm video: Remotion Topic Explainer (short dọc 50-60s) và Lemo-Opuscar (phim style bằng code). Nói trong chat là Javis chọn đúng pipeline.
+- Repo gốc không nhét vào image. Máy tự clone khi dùng lần đầu. Menu Làm video có thêm hai lựa chọn này.
+
 ## [0.56.80] - 2026-10-08
 ### Sửa
 - Trang Tổ chức có nút Tắt mã 2 lớp. Bấm trên người đang bị hỏi mã Authenticator thì họ vào lại bằng tên và mật khẩu.
