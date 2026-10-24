@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.82] - 2026-10-24
+### Mới
+- Skill Tử Vi Ziwei: lập lá số từ ngày giờ sinh, tra cổ thư, luận giải theo quy trình chuyên nghiệp. Nói "lập lá số" hoặc "xem tử vi" là dùng được.
+- Repo lập số không nhét vào image. Máy tự clone khi dùng lần đầu. Agent Chuyên gia Tử Vi có sẵn trên Studio.
+
 ## [0.56.81] - 2026-10-19
 ### Mới
 - Hai skill làm video: Remotion Topic Explainer (short dọc 50-60s) và Lemo-Opuscar (phim style bằng code). Nói trong chat là Javis chọn đúng pipeline.

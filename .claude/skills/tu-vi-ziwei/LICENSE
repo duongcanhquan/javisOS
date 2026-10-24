@@ -1,0 +1,9 @@
+MIT License
+
+This Javis skill adapter (instructions and scripts under tu-vi-ziwei/) is provided
+under the MIT License, same spirit as upstream Renhuai123/ziwei-doushu.
+
+Upstream charting code and iztro remain under their own MIT licenses.
+Classic texts bundled in the upstream clone are treated as public-domain sources.
+Tianji quote corpus in upstream docs/tianji-ziwei is CC BY-NC-SA 4.0 — see
+references/ban-quyen.md.

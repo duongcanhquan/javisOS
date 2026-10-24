@@ -171,3 +171,4 @@ bin/rclone
 
 # Script tạm lúc debug trên máy (không ship)
 scripts/_tmp_*
+.tmp-javis-state/
