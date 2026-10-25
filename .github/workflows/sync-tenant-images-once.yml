@@ -1,6 +1,6 @@
 # One-shot: đồng bộ image mới lên mọi máy người + verify skill hubs.
 # Chạy khi push file này / script sync (tránh phụ thuộc workflow_dispatch 403).
-# bump: 0.56.65 đăng nhập GHCR trước khi pull, token cũ trên máy bị từ chối
+# bump: 2026-10-25T11:08Z org-ram-0.56.83
 name: Sync tenant images once
 
 on:

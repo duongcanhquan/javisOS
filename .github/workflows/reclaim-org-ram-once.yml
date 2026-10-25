@@ -1,5 +1,5 @@
 # One-shot: nhả RAM gấp - tắt máy người nghỉ / vượt trần (não giữ).
-# bump: 2026-10-25T11:05Z
+# bump: 2026-10-25T11:08Z post-deploy
 name: Reclaim org RAM once
 
 on:
