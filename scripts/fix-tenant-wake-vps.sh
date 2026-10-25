@@ -113,9 +113,64 @@ hosts = (labels.get("javis.org.park.hosts") or "")[:200]
 print("park_hosts", hosts)
 '
 
+echo "=== CHẨN ĐOÁN START thô (thuha) ==="
+docker exec javis-manager python -c '
+import sys, json
+sys.path.insert(0, "/app/server")
+import org_tenants as ot, org_docker as od
+from urllib.parse import quote
+
+slug = "thuha"
+cname = "javis-" + slug
+data = od.inspect_name(cname)
+st = (data.get("State") or {}) if data else {}
+print("inspect_before", json.dumps({
+    "status": od.container_status(cname),
+    "Running": st.get("Running"),
+    "ExitCode": st.get("ExitCode"),
+    "Error": (st.get("Error") or "")[:200],
+    "OOMKilled": st.get("OOMKilled"),
+    "FinishedAt": st.get("FinishedAt"),
+}, ensure_ascii=False))
+cfg = (data.get("Config") or {}) if data else {}
+labels = cfg.get("Labels") or {}
+print("caddy_label", (labels.get("caddy") or "")[:80])
+print("image", (cfg.get("Image") or "")[:80])
+hc = (data.get("HostConfig") or {}) if data else {}
+print("memory", hc.get("Memory"), "network", hc.get("NetworkMode"))
+binds = hc.get("Binds") or []
+print("binds_n", len(binds), "binds", binds[:6])
+
+# start thô qua Docker API
+od.invalidate_status_cache()
+r = od._docker_api("POST", "/containers/%s/start" % quote(cname), timeout=60.0)
+print("raw_start_http", r.status_code, (r.text or "")[:300])
+od.invalidate_status_cache(cname)
+data2 = od.inspect_name(cname)
+st2 = (data2.get("State") or {}) if data2 else {}
+print("inspect_after_raw", json.dumps({
+    "status": od.container_status(cname),
+    "Running": st2.get("Running"),
+    "ExitCode": st2.get("ExitCode"),
+    "Error": (st2.get("Error") or "")[:200],
+    "OOMKilled": st2.get("OOMKilled"),
+    "Status": st2.get("Status"),
+}, ensure_ascii=False))
+if st2.get("Running"):
+    print("RAW_START_OK")
+else:
+    # logs nếu chết ngay
+    try:
+        lr = od._docker_api("GET", "/containers/%s/logs?stdout=1&stderr=1&tail=40" % quote(cname), timeout=20.0)
+        print("logs_http", lr.status_code)
+        print("logs_tail", (lr.text or "")[-1500:])
+    except Exception as e:
+        print("logs_err", e)
+'
+
 echo "=== THỬ WAKE 1 MÁY MẪU (thuha) ==="
 docker exec javis-manager python -c '
-import sys
+import sys, re
 sys.path.insert(0, "/app/server")
 import org_tenants as ot, org_docker as od
 
@@ -127,11 +182,21 @@ print("status_before", od.container_status(cname))
 print("serving_before", od.container_serving_ready(cname))
 
 try:
+    print("start_with_capacity...")
+    od.start_with_capacity(slug)
+    print("start_with_capacity_ok", od.container_status(cname))
+except Exception as e:
+    print("start_with_capacity_err", type(e).__name__, e)
+
+try:
     r = od.ensure_tenant_ready(slug, wait_sec=90)
     print("ensure", {k: r.get(k) for k in ("ok", "status", "slug", "container")})
     if not r.get("ok"):
-        html = (r.get("html") or "")[:240]
-        print("ensure_html", html.replace("\n", " "))
+        html = (r.get("html") or "")
+        # lấy câu body trong thẻ p nếu có
+        m = re.search(r"<p[^>]*>(.*?)</p>", html, re.I | re.S)
+        body = re.sub(r"<[^>]+>", "", m.group(1) if m else html)
+        print("ensure_body", body.replace("\n", " ")[:400])
 except Exception as e:
     print("ensure_err", type(e).__name__, e)
 

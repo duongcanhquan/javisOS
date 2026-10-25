@@ -206,6 +206,10 @@ check("wake có khóa theo slug", "def _ensure_lock" in src)
 check("wake kiểm tra /health sẵn sàng", "def container_serving_ready" in src)
 check("wake gắn nhãn Caddy trước khi bật", "def publish_tenant_route" in src)
 check("wake báo trạng thái health", "def _health_status" in src)
+check("start báo nếu máy thoát ngay", "start xong nhưng máy" in src)
+pub_fn = src.split("def publish_tenant_route", 1)[-1].split("\ndef ensure_tenant_ready", 1)[0]
+check("wake không recreate nếu đã đúng nhãn caddy",
+      'labels.get("caddy")' in pub_fn and "apply_public_hosts" in pub_fn)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
 check("org.js điều phối theo RAM thật", "effective_max" in org_js and "xếp hàng" in org_js)
 check("org.js hiện cấu hình VPS để phân bổ",

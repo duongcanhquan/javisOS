@@ -981,6 +981,20 @@ def start(slug: str, *, wait_ready: bool = False) -> None:
     if r.status_code not in (204, 200, 304):
         raise RuntimeError(f"start HTTP {r.status_code}: {(r.text or '')[:300]}")
     invalidate_status_cache(cname)
+    # Docker đôi khi trả 204 rồi process thoát ngay (Created hỏng / OOM) - bắt sớm.
+    st = container_status(cname)
+    if st != "running":
+        data = inspect_name(cname)
+        state = data.get("State") if isinstance(data.get("State"), dict) else {}
+        err = str(state.get("Error") or "").strip()
+        exit_code = state.get("ExitCode")
+        oom = state.get("OOMKilled")
+        detail = f"exit={exit_code}"
+        if oom:
+            detail += " OOM"
+        if err:
+            detail += f" {err[:160]}"
+        raise RuntimeError(f"start xong nhưng máy {st} ({detail}). Thử mở lại hoặc báo quản trị.")
     if wait_ready:
         try:
             wait_health(cname, tries=20)
@@ -1917,6 +1931,7 @@ def publish_tenant_route(slug: str, enabled: bool = True) -> None:
     """Gắn nhãn Caddy cho máy đang tắt (không recreate máy đang chạy).
 
     Khi bật lại, Caddy lấy hostname từ chính container tenant; park nhả host đó.
+    Chỉ recreate khi thiếu/sai nhãn caddy - không kéo image lại mỗi lần mở link.
     """
     if not enabled:
         return
@@ -1928,6 +1943,16 @@ def publish_tenant_route(slug: str, enabled: bool = True) -> None:
         return
     cname = str(rec.get("container") or f"javis-{s}")
     if container_status(cname) == "running":
+        return
+    wanted = ot.tenant_domain(s).strip()
+    if not wanted:
+        return
+    data = inspect_name(cname)
+    if not data:
+        return
+    cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
+    labels = dict(cfg.get("Labels") or {})
+    if (labels.get("caddy") or "").strip() == wanted:
         return
     apply_public_hosts(s)
 
