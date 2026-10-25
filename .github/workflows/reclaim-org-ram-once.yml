@@ -1,0 +1,53 @@
+# One-shot: nhả RAM gấp - tắt máy người nghỉ / vượt trần (não giữ).
+# bump: 2026-10-25T11:05Z
+name: Reclaim org RAM once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/reclaim-org-ram-once.yml"
+      - "scripts/reclaim-org-ram-vps.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reclaim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload reclaim script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/reclaim-org-ram-vps.sh"
+          target: "/tmp/javis-reclaim-ram/"
+
+      - name: Reclaim RAM over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR/scripts"
+            if [ -f /tmp/javis-reclaim-ram/reclaim-org-ram-vps.sh ]; then
+              cp -f /tmp/javis-reclaim-ram/reclaim-org-ram-vps.sh "$DIR/scripts/reclaim-org-ram-vps.sh"
+            elif [ -f /tmp/javis-reclaim-ram/scripts/reclaim-org-ram-vps.sh ]; then
+              cp -f /tmp/javis-reclaim-ram/scripts/reclaim-org-ram-vps.sh "$DIR/scripts/reclaim-org-ram-vps.sh"
+            fi
+            chmod +x "$DIR/scripts/reclaim-org-ram-vps.sh"
+            bash "$DIR/scripts/reclaim-org-ram-vps.sh"
