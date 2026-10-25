@@ -997,17 +997,19 @@ def start(slug: str, *, wait_ready: bool = False) -> None:
         raise RuntimeError(f"start xong nhưng máy {st} ({detail}). Thử mở lại hoặc báo quản trị.")
     # File org-last-active trong ổ có thể cũ (trước khi tắt). Tick idle đọc file đó
     # sẽ tắt máy vừa bật (SIGTERM 143) trước khi user kịp vào - ghi lại giờ mở máy.
-    try:
-        now_i = int(time.time())
-        _exec(
-            cname,
-            ["sh", "-c",
-             f"mkdir -p /data/state && echo {now_i} > /data/state/org-last-active"],
-            timeout=10.0,
-        )
-        _LAST_ACTIVE_CACHE[cname] = (time.time(), now_i)
-    except Exception:
-        _LAST_ACTIVE_CACHE[cname] = (time.time(), int(time.time()))
+    now_i = int(time.time())
+    _LAST_ACTIVE_CACHE[cname] = (time.time(), now_i)
+    for _try in range(3):
+        try:
+            _exec(
+                cname,
+                ["sh", "-c",
+                 f"mkdir -p /data/state && echo {now_i} > /data/state/org-last-active"],
+                timeout=10.0,
+            )
+            break
+        except Exception:
+            time.sleep(0.8)
     if wait_ready:
         try:
             wait_health(cname, tries=20)
@@ -1789,7 +1791,24 @@ def tick_coord() -> None:
             if not slug:
                 continue
             cname = str(t.get("container") or "")
+            # Máy vừa bật < 3 phút: đừng idle-stop (file last-active trong ổ có thể còn cũ).
+            try:
+                data = inspect_name(cname)
+                started = _started_unix(
+                    str(((data.get("State") or {}) if isinstance(data.get("State"), dict) else {}).get("StartedAt") or "")
+                )
+                if started and now - started < 180:
+                    continue
+            except Exception:
+                pass
             ts = read_last_active(cname, t)
+            # Ưu tiên mốc mới hơn giữa file trong máy và sổ (start vừa ghi sổ).
+            try:
+                reg_ts = int((t.get("last_active") or 0))
+            except (TypeError, ValueError):
+                reg_ts = 0
+            if reg_ts > ts:
+                ts = reg_ts
             if ts and now - ts >= limit:
                 try:
                     rec = ot.get(slug) or t
@@ -1934,10 +1953,27 @@ def _health_status(cname: str) -> str:
 
 
 def container_serving_ready(cname: str) -> bool:
-    """Máy đang chạy và /health bên trong trả 200 - đủ để proxy."""
+    """Máy đang chạy và /health sẵn sàng - đủ để proxy.
+
+    Thứ tự: Docker Health=healthy (healthcheck image) → gọi trong máy → gọi qua
+    mạng Docker. Chỉ tin _health_inside sẽ false-negative khi exec python lỗi
+    dù app đã trả 200 (đã thấy trên VPS).
+    """
     if container_status(cname) != "running":
         return False
-    return _health_inside(cname)
+    data = inspect_name(cname)
+    st = data.get("State") if isinstance(data.get("State"), dict) else {}
+    health = st.get("Health") if isinstance(st.get("Health"), dict) else {}
+    if str(health.get("Status") or "").lower() == "healthy":
+        return True
+    if _health_inside(cname):
+        return True
+    try:
+        import urllib.request
+        with urllib.request.urlopen(f"http://{cname}:7777/health", timeout=4) as resp:
+            return int(resp.status) == 200
+    except Exception:
+        return False
 
 
 def publish_tenant_route(slug: str, enabled: bool = True) -> None:

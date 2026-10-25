@@ -1,5 +1,5 @@
 # One-shot: chẩn đoán + vá wake tenant (park/Caddy/start) sau reclaim RAM.
-# bump: 2026-10-25T11:50Z
+# bump: 2026-10-25T11:55Z
 name: Fix tenant wake once
 
 on:

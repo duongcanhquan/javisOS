@@ -209,6 +209,10 @@ check("wake báo trạng thái health", "def _health_status" in src)
 check("start báo nếu máy thoát ngay", "start xong nhưng máy" in src)
 check("start ghi lại last-active để tick idle không tắt ngay",
       "org-last-active" in src.split("def start(", 1)[-1].split("def stop(", 1)[0])
+check("tick không idle-stop máy vừa bật",
+      "now - started < 180" in src.split("def tick_coord", 1)[-1].split("def sync_park", 1)[0])
+check("serving_ready tin Docker healthy",
+      '== "healthy"' in src.split("def container_serving_ready", 1)[-1].split("\ndef publish_tenant_route", 1)[0])
 pub_fn = src.split("def publish_tenant_route", 1)[-1].split("\ndef ensure_tenant_ready", 1)[0]
 check("wake không recreate nếu đã đúng nhãn caddy",
       'labels.get("caddy")' in pub_fn and "apply_public_hosts" in pub_fn)
