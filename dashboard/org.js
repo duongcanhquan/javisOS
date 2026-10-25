@@ -356,6 +356,7 @@
     const stopped = tenants.filter((t) => t.status === "stopped" || t.status === "missing").length;
     const coord = d.coord || {};
     const maxHand = Number(coord.max_running || 6);
+    const idleMin = Number(coord.idle_minutes != null ? coord.idle_minutes : 15);
     const maxR = Number(coord.effective_max || maxHand);
     const runP = Number(coord.running != null ? coord.running : people.filter((t) => t.status === "running").length);
     const ramPer = Number(coord.ram_mb || 1024);
@@ -400,7 +401,7 @@
     const ramCalc = `
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
-          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Máy nghỉ từ 15 phút thì tự nhả cache file, app vẫn chạy. <b>Tắt máy</b> mới trả hết RAM.
+          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Máy nghỉ đủ lâu theo «Tự tắt sau» thì <b>tắt hẳn</b> để trả RAM (não giữ). Trong lúc chờ, máy nghỉ ≥15 phút cũng nhả cache file.
             Cập nhật mỗi ~4 giây. Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck và poll nền không tính.
             Một máy dùng gần hết sàn thì được nới tới 2048 MB nếu host còn trống. Máy khác cũng gần đầy thì cả hai về lại 1024 MB.</p></div></div>
         <div class="org-kpi">
@@ -659,20 +660,20 @@
           <div class="org-split">
             <div class="org-sec">
               <div class="org-sec-h"><div><h3>Điều phối máy (RAM)</h3>
-                <p class="dim org-sec-sub"><b>Không giới hạn số tài khoản.</b> Máy người <b>giữ chạy</b>, không tự tắt theo giờ.
-                  Tắt chỉ khi bạn bấm Tắt hoặc Tạm dừng. Não vẫn giữ.</p></div></div>
+                <p class="dim org-sec-sub"><b>Không giới hạn số tài khoản.</b> Máy người <b>tự tắt</b> khi không có người dùng thật
+                  (mặc định 15 phút). Mở link là bật lại. Não và ổ giữ nguyên.</p></div></div>
               ${vpsKpis}
               ${ramCalc}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần máy mở cùng lúc<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}" title="Không phải số người trong sổ. Chỉ số container Docker đang chạy."></label>
-                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="0" title="Để 0. Máy không tự tắt."></label>
+                <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleMin))}" title="0 = không tự tắt theo giờ. Vẫn tắt máy nghỉ khi vượt trần hoặc RAM host thấp."></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
-              <p class="dim org-sec-note"><b>Không tự tắt.</b> Máy đang mở giữ chạy đến khi bạn bấm Tắt hoặc Tạm dừng. Não không mất.
+              <p class="dim org-sec-note"><b>Tự nhả RAM.</b> Không chat / không tín hiệu người thật đủ lâu → tắt máy (não không mất).
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
                 Gợi ý RAM an toàn khoảng <b>${esc(String(suggestN))}</b> máy (ước theo trần Docker ${esc(String(ramPer))} MB).
                 Trần tay bạn đặt <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>
-                (không còn bị kẹp xuống gợi ý RAM). Khi RAM host thấp, máy nghỉ vẫn bị tắt nhường chỗ.</p>
+                (kẹp theo gợi ý RAM). Vượt trần hoặc RAM host thấp → tắt máy nghỉ lâu nhất để nhường chỗ.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">

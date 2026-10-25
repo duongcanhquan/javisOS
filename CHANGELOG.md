@@ -1,5 +1,11 @@
 # Nhật ký cập nhật
 
+## [0.56.83] - 2026-10-25
+### Sửa
+- **Tổ chức · tự nhả RAM:** máy người không dùng (mặc định 15 phút không có tín hiệu người thật) tự tắt để trả RAM. Não và ổ giữ; mở link là bật lại.
+- Hết chỗ hoặc RAM host thấp thì tắt máy nghỉ lâu nhất để người mới vào. Bỏ ép «không tự tắt» từ 0.56.37.
+- Trang Tổ chức hiện lại ô «Tự tắt sau (phút)» đúng giá trị đang lưu.
+
 ## [0.56.82] - 2026-10-24
 ### Mới
 - Skill Tử Vi Ziwei: lập lá số từ ngày giờ sinh, tra cổ thư, luận giải theo quy trình chuyên nghiệp. Nói "lập lá số" hoặc "xem tử vi" là dùng được.

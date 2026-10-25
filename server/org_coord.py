@@ -17,7 +17,9 @@ BURST_KEEP_MB = 512
 # Chỉ hạ trần khi mức đang dùng còn dưới số này (sàn trừ 64 MB), kẻo Docker giết tiến trình.
 SHRINK_SAFE_MB = 960
 MAX_RUNNING_DEFAULT = 6
-IDLE_MINUTES_DEFAULT = 0
+# Mặc định tự tắt máy người sau 15 phút không có tín hiệu người thật.
+# (0.56.37 từng ép 0 = không tự tắt → 15 máy mở cùng lúc tràn RAM 12 GB.)
+IDLE_MINUTES_DEFAULT = 15
 PARK_NAME = "javis-park"
 # Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~2 Javis người (trần 1024).
 RESERVE_MB = 2800

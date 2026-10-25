@@ -63,7 +63,10 @@ check("không hạ trần xuống dưới mức đang dùng", plan == {})
 src = (SERVER / "org_docker.py").read_text(encoding="utf-8")
 tick = src.split("def tick_coord", 1)[-1].split("\ndef ", 1)[0]
 check("tick gọi nới trần", "balance_people_memory()" in tick)
-check("nới không tắt máy khác", "def _acquire_slot" in src and "Không tắt máy khác" in src)
+check("nới kèm nhường chỗ khi hết RAM", "def _acquire_slot" in src and "nhường máy nghỉ" in src)
+tick_full = src.split("def tick_coord", 1)[-1].split("\ndef sync_park", 1)[0]
+check("tick tự tắt khi idle > 0", "if idle > 0:" in tick_full and "stop(slug, park=False)" in tick_full)
+check("tick không ép idle về 0", "put_coord(idle_minutes=0)" not in tick_full)
 
 if FAIL:
     raise SystemExit(len(FAIL))

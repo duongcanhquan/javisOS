@@ -1423,19 +1423,63 @@ def _pick_evict(except_slug: str, grace_sec: int | None = None) -> str:
 
 
 def _acquire_slot(slug: str) -> None:
-    """Không tắt máy khác để lấy chỗ. Tenant được bật và giữ chạy."""
-    return
+    """Lấy 1 chỗ chạy: còn trống thì thôi; hết chỗ / RAM chật thì nhường máy nghỉ.
+
+    Máy Docker đang bật luôn tốn RAM thật (kể cả không ai chat) - máy nghỉ phải tắt
+    mới nhả RAM. Ưu tiên người đang/vừa dùng.
+    """
+    cap = int(oc.effective_max())
+    running = people_running()
+    if any(str(t.get("slug") or "") == slug for t in running):
+        return
+    _tot, avail = oc.host_mem_mb()
+    ram_tight = bool(avail and avail < oc.KEEP_FREE_MB + oc.RAM_MB)
+    need_slot = len(running) >= cap
+    if not need_slot and not ram_tight:
+        return
+    victim = _pick_evict(slug)
+    if not victim:
+        victim = _pick_evict(slug, grace_sec=_handoff_grace_sec())
+    if not victim:
+        if not need_slot:
+            raise RuntimeError(
+                f"RAM máy chủ còn ~{avail} MB - chưa đủ mở thêm một máy (~{oc.RAM_MB} MB). "
+                "Đợi máy nghỉ tự tắt, hoặc tắt tay máy không dùng trên Tổ chức. "
+                "Não và file giữ nguyên."
+            )
+        names = [str(t.get("slug") or "?") for t in running[:8]]
+        more = f" (+{len(running) - 8})" if len(running) > 8 else ""
+        idle_m = int(oc.coord().get("idle_minutes") or 0)
+        tip = (
+            f"Máy nghỉ ≥{idle_m} phút sẽ tự nhả RAM."
+            if idle_m > 0
+            else "Bật «Tự tắt sau (phút)» hoặc tắt tay máy không dùng trên Tổ chức."
+        )
+        raise RuntimeError(
+            f"Hết chỗ máy người: đang mở {len(running)}/{cap}. "
+            f"Đang chạy: {', '.join(names)}{more}. "
+            f"Máy bật dù không chat vẫn tốn RAM. Ưu tiên người đang dùng; {tip} "
+            "Não và file giữ nguyên - trang tự mở khi có chỗ."
+        )
+    stop(victim, park=False)
 
 
 def _park_new_if_over_cap(slug: str) -> None:
-    """Không tắt máy vừa tạo vì vượt trần. Quản trị tắt tay nếu cần."""
-    return
+    """Máy vừa tạo mà vượt trần chỗ → tắt lại (não giữ). Không đụng máy protected."""
+    rec = ot.get(slug)
+    if not rec or rec.get("protected"):
+        return
+    cap = int(oc.effective_max())
+    n = len(people_running())
+    if n <= cap:
+        return
+    stop(slug, park=False)
 
 
 def start_with_capacity(slug: str, handoff: bool = False) -> dict:
-    """Bật một tenant. `handoff` giữ để trang Tổ chức gọi được.
+    """Bật một tenant. Hết chỗ / RAM chật thì nhường máy nghỉ (não giữ nguyên).
 
-    Cả hai giá trị đều không tắt máy khác: chỗ RAM không còn bị nhường bằng cách đá tenant nghỉ.
+    `handoff` giữ tương thích trang Tổ chức (không đổi hành vi).
     """
     del handoff
     rec = ot.get(slug)
@@ -1686,22 +1730,67 @@ def tick_coord() -> None:
         purge_soft_deleted()
     except Exception as e:
         print(f"[org purge] {e}", flush=True)
-    # Không tự tắt tenant theo giờ vắng, trần chỗ hay RAM. Chỉ tắt khi quản trị bấm.
-    try:
-        if int(oc.coord().get("idle_minutes") or 0) != 0:
-            oc.put_coord(idle_minutes=0)
-    except Exception as e:
-        print(f"[org coord] ghi idle 0: {e}", flush=True)
-    w = oc.peek_waiter()
-    if w:
-        rec = ot.get(w)
-        if rec and not rec.get("paused") and not rec.get("protected") and not ot.is_soft_deleted(rec):
+    # Tự tắt máy nghỉ / vượt trần / RAM thấp - não và volume giữ nguyên.
+    now = int(time.time())
+    idle = int(oc.coord().get("idle_minutes") or 0)
+    _, avail = oc.host_mem_mb()
+    if avail and avail < oc.KEEP_FREE_MB + oc.RAM_MB and idle:
+        idle = min(idle, 10)
+    if avail and 0 < avail < oc.KEEP_FREE_MB:
+        victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
+        if victim:
             try:
-                start_with_capacity(w)
-            except Exception:
-                pass
-        else:
-            oc.clear_wait(w)
+                stop(victim, park=False)
+            except Exception as e:
+                print(f"[org coord] RAM thấp, tắt {victim}: {e}", flush=True)
+    cap = int(oc.effective_max())
+    running = people_running()
+    while len(running) > cap:
+        victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
+        if not victim:
+            break
+        try:
+            stop(victim, park=False)
+            running = [t for t in running if str(t.get("slug") or "") != victim]
+        except Exception as e:
+            print(f"[org coord] hạ trần tắt {victim}: {e}", flush=True)
+            break
+    if idle > 0:
+        limit = idle * 60
+        for t in list(running):
+            slug = str(t.get("slug") or "")
+            if not slug:
+                continue
+            cname = str(t.get("container") or "")
+            ts = read_last_active(cname, t)
+            if ts and now - ts >= limit:
+                try:
+                    rec = ot.get(slug) or t
+                    rec["last_active"] = ts
+                    ot.upsert(rec)
+                    stop(slug, park=False)
+                    running = [x for x in running if str(x.get("slug") or "") != slug]
+                except Exception as e:
+                    print(f"[org coord] tắt {slug}: {e}", flush=True)
+    if oc.wait_len() > 0 and len(running) >= cap:
+        victim = _pick_evict("", grace_sec=_handoff_grace_sec())
+        if victim:
+            try:
+                stop(victim, park=False)
+                running = [t for t in running if str(t.get("slug") or "") != victim]
+            except Exception as e:
+                print(f"[org coord] nhường chỗ {victim}: {e}", flush=True)
+    if len(running) < cap:
+        w = oc.peek_waiter()
+        if w:
+            rec = ot.get(w)
+            if rec and not rec.get("paused") and not rec.get("protected") and not ot.is_soft_deleted(rec):
+                try:
+                    start_with_capacity(w)
+                except Exception:
+                    pass
+            else:
+                oc.clear_wait(w)
     try:
         sync_park()
     except Exception as e:
