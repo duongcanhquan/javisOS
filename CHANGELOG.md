@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.84] - 2026-10-25
+### Sửa
+- **Tổ chức · mở link máy tắt:** sau khi nhả RAM, mở lại máy con bị im. Đã vá đường tự bật (thiếu hàm wake), hộp đỗ Caddy không còn unhealthy, và không tự tắt ngay vì file «vừa dùng» cũ trong ổ.
+
 ## [0.56.83] - 2026-10-25
 ### Sửa
 - **Tổ chức · tự nhả RAM:** máy người không dùng (mặc định 15 phút không có tín hiệu người thật) tự tắt để trả RAM. Não và ổ giữ; mở link là bật lại.

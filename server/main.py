@@ -276,8 +276,15 @@ async def _org_coord_http(request: Request, call_next):
             # Đã ensure + sync_park: để Caddy bắt tay lại vào máy tenant (không proxy WS ở đây).
             return await call_next(request)
         return await _odx.proxy_tenant_request(request, slug)
-    except Exception:
-        pass
+    except Exception as e:
+        # Nuốt lỗi trước đây làm user mở link máy tắt không thấy gì (wake gãy im lặng).
+        try:
+            import logging as _log_org
+            _log_org.getLogger("javis.org").exception(
+                "org wake/proxy fail host=%s: %s", request.headers.get("host"), e
+            )
+        except Exception:
+            pass
     return await call_next(request)
 
 

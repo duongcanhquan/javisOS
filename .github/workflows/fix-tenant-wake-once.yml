@@ -1,0 +1,60 @@
+# One-shot: chẩn đoán + vá wake tenant (park/Caddy/start) sau reclaim RAM.
+# bump: 2026-10-25T11:55Z
+name: Fix tenant wake once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-tenant-wake-once.yml"
+      - "scripts/fix-tenant-wake-vps.sh"
+      - "server/org_docker.py"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload fix script + org_docker
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/fix-tenant-wake-vps.sh,server/org_docker.py"
+          target: "/tmp/javis-fix-wake/"
+
+      - name: Diagnose and fix wake over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR/scripts" "$DIR/server"
+            if [ -f /tmp/javis-fix-wake/scripts/fix-tenant-wake-vps.sh ]; then
+              cp -f /tmp/javis-fix-wake/scripts/fix-tenant-wake-vps.sh "$DIR/scripts/fix-tenant-wake-vps.sh"
+            elif [ -f /tmp/javis-fix-wake/fix-tenant-wake-vps.sh ]; then
+              cp -f /tmp/javis-fix-wake/fix-tenant-wake-vps.sh "$DIR/scripts/fix-tenant-wake-vps.sh"
+            fi
+            if [ -f /tmp/javis-fix-wake/server/org_docker.py ]; then
+              cp -f /tmp/javis-fix-wake/server/org_docker.py "$DIR/server/org_docker.py"
+            elif [ -f /tmp/javis-fix-wake/org_docker.py ]; then
+              cp -f /tmp/javis-fix-wake/org_docker.py "$DIR/server/org_docker.py"
+            fi
+            chmod +x "$DIR/scripts/fix-tenant-wake-vps.sh"
+            export JAVIS_DIR="$DIR"
+            bash "$DIR/scripts/fix-tenant-wake-vps.sh"
