@@ -201,6 +201,11 @@ check("điều phối trần + idle + park",
       and "javis-park" in (ROOT / "server" / "org_coord.py").read_text(encoding="utf-8"))
 park_fn = src.split("def sync_park", 1)[-1].split("def wake_or_wait", 1)[0] if "def sync_park" in src else ""
 check("park không gắn volume", "Binds" not in park_fn and "volume rm" not in park_fn)
+check("park tắt healthcheck image", 'Healthcheck' in park_fn and 'NONE' in park_fn)
+check("wake có khóa theo slug", "def _ensure_lock" in src)
+check("wake kiểm tra /health sẵn sàng", "def container_serving_ready" in src)
+check("wake gắn nhãn Caddy trước khi bật", "def publish_tenant_route" in src)
+check("wake báo trạng thái health", "def _health_status" in src)
 check("org.js điều phối trần máy", "orgCoord" in org_js and "max_running" in org_js and "idle_minutes" in org_js)
 check("org.js điều phối theo RAM thật", "effective_max" in org_js and "xếp hàng" in org_js)
 check("org.js hiện cấu hình VPS để phân bổ",

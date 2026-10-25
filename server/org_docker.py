@@ -1823,7 +1823,17 @@ def sync_park() -> None:
         cfg = data.get("Config") if isinstance(data.get("Config"), dict) else {}
         labels = dict(cfg.get("Labels") or {})
     old = (labels.get("javis.org.park.hosts") or "").strip()
-    if old == wanted and data and ((data.get("State") or {}).get("Running") if isinstance(data.get("State"), dict) else False):
+    # Park chỉ sleep - tắt healthcheck image (NONE). Nếu còn unhealthy thì recreate.
+    park_running = bool(
+        data and isinstance(data.get("State"), dict) and (data.get("State") or {}).get("Running")
+    )
+    park_health = ""
+    if data and isinstance(data.get("State"), dict):
+        h = (data.get("State") or {}).get("Health")
+        if isinstance(h, dict):
+            park_health = str(h.get("Status") or "")
+    park_ok = park_running and park_health not in ("unhealthy", "starting")
+    if old == wanted and park_ok:
         return
     if data:
         _docker_api("POST", f"/containers/{quote(oc.PARK_NAME)}/stop", timeout=30.0)
@@ -1845,6 +1855,9 @@ def sync_park() -> None:
         "Hostname": oc.PARK_NAME,
         "Cmd": ["python", "-c", "import time; time.sleep(10**9)"],
         "Labels": plabels,
+        # Tắt HEALTHCHECK của image Javis - park không lắng nghe :7777.
+        # Caddy-docker-proxy bỏ container unhealthy → mất route → user mở link không vào được.
+        "Healthcheck": {"Test": ["NONE"]},
         "HostConfig": {
             "Memory": 32 * 1024 * 1024,
             "MemorySwap": 32 * 1024 * 1024,
@@ -1863,8 +1876,64 @@ def sync_park() -> None:
         raise RuntimeError(f"bật park HTTP {st.status_code}: {(st.text or '')[:200]}")
 
 
+_ENSURE_LOCKS: dict[str, threading.Lock] = {}
+_ENSURE_META = threading.Lock()
+
+
+def _ensure_lock(slug: str) -> threading.Lock:
+    """Khóa theo slug: hai request cùng máy không start song song."""
+    key = (slug or "").strip().lower() or "_"
+    with _ENSURE_META:
+        lock = _ENSURE_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _ENSURE_LOCKS[key] = lock
+        return lock
+
+
+def _health_status(cname: str) -> str:
+    """Chuỗi trạng thái health Docker (hoặc starting) - chỉ để báo lỗi chờ."""
+    data = inspect_name(cname)
+    if not data:
+        return "không thấy máy"
+    st = data.get("State") if isinstance(data.get("State"), dict) else {}
+    if not st.get("Running"):
+        return "máy chưa chạy"
+    health = st.get("Health") if isinstance(st.get("Health"), dict) else {}
+    hs = str(health.get("Status") or "").strip()
+    if hs:
+        return hs
+    return "starting"
+
+
+def container_serving_ready(cname: str) -> bool:
+    """Máy đang chạy và /health bên trong trả 200 - đủ để proxy."""
+    if container_status(cname) != "running":
+        return False
+    return _health_inside(cname)
+
+
+def publish_tenant_route(slug: str, enabled: bool = True) -> None:
+    """Gắn nhãn Caddy cho máy đang tắt (không recreate máy đang chạy).
+
+    Khi bật lại, Caddy lấy hostname từ chính container tenant; park nhả host đó.
+    """
+    if not enabled:
+        return
+    s = (slug or "").strip().lower()
+    if not s:
+        return
+    rec = ot.get(s)
+    if not rec or rec.get("protected"):
+        return
+    cname = str(rec.get("container") or f"javis-{s}")
+    if container_status(cname) == "running":
+        return
+    apply_public_hosts(s)
+
+
 def ensure_tenant_ready(slug: str, wait_sec: int = 90) -> dict:
-    """Bật máy (nếu cần) và chờ /health — không trả HTML chờ interstitial.
+    """Bật máy (nếu cần) và chờ /health - không trả HTML chờ interstitial.
 
     Trả {"ok": True} khi sẵn sàng để proxy; hoặc {"ok": False, "status", "html"} khi
     lỗi cố định (không có máy / tạm dừng / hết chỗ).
@@ -1953,7 +2022,7 @@ def ensure_tenant_ready(slug: str, wait_sec: int = 90) -> dict:
                         8,
                     ),
                 }
-        # Chờ healthy — trình duyệt chỉ thấy loading, không trang chờ giả.
+        # Chờ healthy - trình duyệt chỉ thấy loading, không trang chờ giả.
         deadline = time.time() + max(15, int(wait_sec))
         last = "chưa sẵn sàng"
         while time.time() < deadline:
@@ -1979,14 +2048,10 @@ def ensure_tenant_ready(slug: str, wait_sec: int = 90) -> dict:
             "html": oc.wake_html(
                 host,
                 "Máy mở chậm",
-                f"Đã chờ nhưng Javis con chưa trả lời ({last}). Thử mở lại sau vài giây — não không mất.",
+                f"Đã chờ nhưng Javis con chưa trả lời ({last}). Thử mở lại sau vài giây - não không mất.",
                 5,
             ),
         }
-
-
-_ENSURE_LOCKS: dict[str, threading.Lock] = {}
-_ENSURE_META = threading.Lock()
 
 
 async def proxy_tenant_request(request, slug: str):
