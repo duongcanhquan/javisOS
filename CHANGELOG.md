@@ -2,7 +2,7 @@
 
 ## [0.56.84] - 2026-10-25
 ### Sửa
-- **Tổ chức · mở link máy tắt:** sau khi nhả RAM, mở lại máy con bị im. Đã vá đường tự bật (thiếu hàm wake) và hộp đỗ Caddy không còn báo unhealthy làm mất đường vào.
+- **Tổ chức · mở link máy tắt:** sau khi nhả RAM, mở lại máy con bị im. Đã vá đường tự bật (thiếu hàm wake), hộp đỗ Caddy không còn unhealthy, và không tự tắt ngay vì file «vừa dùng» cũ trong ổ.
 
 ## [0.56.83] - 2026-10-25
 ### Sửa

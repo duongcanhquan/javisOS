@@ -25,27 +25,10 @@ elif [ -f /tmp/javis-fix-wake/org_docker.py ]; then
   PATCH_SRC=/tmp/javis-fix-wake/org_docker.py
 fi
 
-need_patch=0
-if ! docker exec javis-manager python -c '
-import sys
-sys.path.insert(0,"/app/server")
-import org_docker as od
-for n in ("container_serving_ready","publish_tenant_route","_ensure_lock","_health_status"):
-    if not hasattr(od, n):
-        raise SystemExit(2)
-print("helpers_ok")
-' 2>/dev/null; then
-  need_patch=1
-fi
-
-if [ "$need_patch" = "1" ]; then
-  if [ -z "$PATCH_SRC" ] || [ ! -f "$PATCH_SRC" ]; then
-    echo "FAIL: thiếu helper wake trên manager và không có file patch"
-    exit 1
-  fi
+# Luôn hot-patch khi có file nguồn (mỗi lần chạy có thể có vá mới).
+if [ -n "$PATCH_SRC" ] && [ -f "$PATCH_SRC" ]; then
   echo "patching from $PATCH_SRC"
   docker cp "$PATCH_SRC" javis-manager:/app/server/org_docker.py
-  # Reload: restart process trong container (compose restart)
   docker restart javis-manager
   for i in $(seq 1 40); do
     if curl -fsS -m 3 http://127.0.0.1:7778/health >/dev/null 2>&1; then
@@ -55,17 +38,21 @@ if [ "$need_patch" = "1" ]; then
     sleep 2
   done
   sleep 3
-  docker exec javis-manager python -c '
+else
+  echo "WARN: không có org_docker.py để patch - dùng code trong image"
+fi
+
+docker exec javis-manager python -c '
 import sys
 sys.path.insert(0,"/app/server")
 import org_docker as od
 for n in ("container_serving_ready","publish_tenant_route","_ensure_lock","_health_status"):
     assert hasattr(od, n), n
+# marker vá last-active khi start
+src = open("/app/server/org_docker.py", encoding="utf-8").read()
+assert "org-last-active" in src.split("def start(",1)[-1].split("def stop(",1)[0]
 print("helpers_ok_after_patch")
 '
-else
-  echo "helpers already present"
-fi
 
 echo "=== CONTAINERS ==="
 docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -E '^javis-|NAMES' || true
@@ -170,9 +157,10 @@ else:
 
 echo "=== THỬ WAKE 1 MÁY MẪU (thuha) ==="
 docker exec javis-manager python -c '
-import sys, re
+import sys, re, time
 sys.path.insert(0, "/app/server")
 import org_tenants as ot, org_docker as od
+from urllib.parse import quote
 
 slug = "thuha"
 rec = ot.get(slug)
@@ -180,20 +168,21 @@ print("rec", bool(rec), "paused", bool((rec or {}).get("paused")))
 cname = "javis-" + slug
 print("status_before", od.container_status(cname))
 print("serving_before", od.container_serving_ready(cname))
+print("last_active_file", od.read_last_active(cname, rec, force=True))
 
 try:
     print("start_with_capacity...")
     od.start_with_capacity(slug)
     print("start_with_capacity_ok", od.container_status(cname))
+    print("last_active_after_start", od.read_last_active(cname, ot.get(slug), force=True), "now", int(time.time()))
 except Exception as e:
     print("start_with_capacity_err", type(e).__name__, e)
 
 try:
-    r = od.ensure_tenant_ready(slug, wait_sec=90)
+    r = od.ensure_tenant_ready(slug, wait_sec=150)
     print("ensure", {k: r.get(k) for k in ("ok", "status", "slug", "container")})
     if not r.get("ok"):
         html = (r.get("html") or "")
-        # lấy câu body trong thẻ p nếu có
         m = re.search(r"<p[^>]*>(.*?)</p>", html, re.I | re.S)
         body = re.sub(r"<[^>]+>", "", m.group(1) if m else html)
         print("ensure_body", body.replace("\n", " ")[:400])
@@ -202,6 +191,12 @@ except Exception as e:
 
 print("status_after", od.container_status(cname))
 print("serving_after", od.container_serving_ready(cname))
+print("health_inside", od._health_inside(cname))
+try:
+    lr = od._docker_api("GET", "/containers/%s/logs?stdout=1&stderr=1&tail=60" % quote(cname), timeout=20.0)
+    print("tenant_logs", (lr.text or "")[-2000:])
+except Exception as e:
+    print("tenant_logs_err", e)
 import urllib.request
 try:
     with urllib.request.urlopen("http://%s:7777/health" % cname, timeout=5) as resp:
@@ -213,7 +208,7 @@ st = od.container_status(cname)
 if st == "running" and od.container_serving_ready(cname):
     print("WAKE_OK sample tenant serving")
 else:
-    print("WAKE_FAIL sample still", st)
+    print("WAKE_FAIL sample still", st, "exit_hint_check_logs")
 '
 
 echo "=== PARK SAU ==="

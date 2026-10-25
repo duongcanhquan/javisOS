@@ -995,6 +995,19 @@ def start(slug: str, *, wait_ready: bool = False) -> None:
         if err:
             detail += f" {err[:160]}"
         raise RuntimeError(f"start xong nhưng máy {st} ({detail}). Thử mở lại hoặc báo quản trị.")
+    # File org-last-active trong ổ có thể cũ (trước khi tắt). Tick idle đọc file đó
+    # sẽ tắt máy vừa bật (SIGTERM 143) trước khi user kịp vào - ghi lại giờ mở máy.
+    try:
+        now_i = int(time.time())
+        _exec(
+            cname,
+            ["sh", "-c",
+             f"mkdir -p /data/state && echo {now_i} > /data/state/org-last-active"],
+            timeout=10.0,
+        )
+        _LAST_ACTIVE_CACHE[cname] = (time.time(), now_i)
+    except Exception:
+        _LAST_ACTIVE_CACHE[cname] = (time.time(), int(time.time()))
     if wait_ready:
         try:
             wait_health(cname, tries=20)
@@ -1957,7 +1970,7 @@ def publish_tenant_route(slug: str, enabled: bool = True) -> None:
     apply_public_hosts(s)
 
 
-def ensure_tenant_ready(slug: str, wait_sec: int = 90) -> dict:
+def ensure_tenant_ready(slug: str, wait_sec: int = 150) -> dict:
     """Bật máy (nếu cần) và chờ /health - không trả HTML chờ interstitial.
 
     Trả {"ok": True} khi sẵn sàng để proxy; hoặc {"ok": False, "status", "html"} khi
