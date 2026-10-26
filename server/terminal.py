@@ -104,6 +104,16 @@ def shell_argv() -> list[str]:
     return ["/bin/sh"]
 
 
+def _trong_docker() -> bool:
+    """Container / tenant VPS: trình duyệt nằm ngoài máy chạy CLI."""
+    if Path("/.dockerenv").exists():
+        return True
+    if (os.getenv("JAVIS_ORG_TENANT") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    state = (os.getenv("JAVIS_STATE_DIR") or "").strip()
+    return state.startswith("/data")
+
+
 def _khong_co_trinh_duyet() -> bool:
     """Máy chạy Javis có mở nổi một trình duyệt mà NGƯỜI DÙNG NHÌN THẤY không.
 
@@ -111,6 +121,7 @@ def _khong_co_trinh_duyet() -> bool:
 
     - `JAVIS_TERMINAL_REMOTE=1/0` ghi đè, cho ai có bố trí lạ (X11 forwarding, máy để bàn chạy
       Docker có chia màn hình...).
+    - Docker / tenant tổ chức: luôn từ xa (trình duyệt ở máy người, CLI trong container).
     - Windows/macOS chạy THẲNG trên máy: trình duyệt ở ngay trước mặt, giữ nguyên luồng cũ.
     - Linux: có `DISPLAY`/`WAYLAND_DISPLAY` là máy để bàn có màn hình; không có thì đây là VPS
       hoặc container - kể cả khi container đó nằm trên chính máy Mac của người dùng, vì trình
@@ -121,12 +132,14 @@ def _khong_co_trinh_duyet() -> bool:
         return True
     if v in ("0", "off", "false", "no"):
         return False
+    if _trong_docker():
+        return True
     if IS_WINDOWS or sys.platform == "darwin":
         return False
     return not (os.getenv("DISPLAY") or os.getenv("WAYLAND_DISPLAY"))
 
 
-def _env(extra: dict | None = None) -> dict:
+def _env(extra: dict | None = None, *, ssh_tty: str | None = None) -> dict:
     e = dict(os.environ)
     # xterm-256color: cho lệnh biết terminal này vẽ được màu và di được con trỏ.
     e["TERM"] = "xterm-256color"
@@ -137,6 +150,11 @@ def _env(extra: dict | None = None) -> dict:
         e.setdefault("LANG", "C.UTF-8")
     # Dấu để script biết mình đang chạy trong terminal của Javis (vd muốn né tự cập nhật).
     e["JAVIS_IN_TERMINAL"] = "1"
+    # Docker/VPS: token agy phải ra file (không có keyring). Nhắc hẹn/chat đẻ process mới
+    # cần đọc lại file này - thiếu biến thì đăng nhập xong vẫn mất phiên.
+    if _trong_docker() or _khong_co_trinh_duyet():
+        e.setdefault("GEMINI_FORCE_FILE_STORAGE", "true")
+        e.setdefault("JAVIS_TERMINAL_REMOTE", "1")
     # PATH của server (systemd/Docker) thường CỤT - thiếu ~/.local/bin, đúng chỗ installer
     # chính chủ thả binary (agy, uv...). Hệ quả thật (16/08): người dùng cài agy xong, gõ
     # `agy` trong terminal của Javis nhận "command not found", tưởng cài hỏng, không đăng
@@ -180,14 +198,22 @@ def _env(extra: dict | None = None) -> dict:
     # Cùng một bệnh với mọi CLI đăng nhập kiểu loopback khi máy chủ không có màn hình.
     #
     # Chỉ đặt khi máy thật sự không có trình duyệt cho người dùng, và KHÔNG đè lên phiên SSH
-    # thật. Cố ý không đặt `SSH_TTY`: giá trị của nó là đường dẫn tty, bịa ra một đường không
-    # tồn tại còn hại hơn là thiếu.
-    if _khong_co_trinh_duyet() and not e.get("SSH_CONNECTION"):
-        # Định dạng thật: "<ip khách> <cổng khách> <ip máy chủ> <cổng máy chủ>". Javis không
-        # biết IP của trình duyệt (WebSocket có thể qua proxy), và không CLI nào đọc mấy số
-        # này - chúng chỉ hỏi "biến có hay không". Điền loopback cho đúng dạng.
-        e["SSH_CONNECTION"] = "127.0.0.1 0 127.0.0.1 22"
-        e.setdefault("SSH_CLIENT", "127.0.0.1 0 22")
+    # thật. `SSH_TTY` đặt bằng đường pty THẬT (truyền từ _mo) - tài liệu agy/headless kit
+    # yêu cầu cả ba biến SSH; thiếu TTY thì bản CLI mới đôi khi vẫn chọn luồng mở browser
+    # loopback im lặng (gõ `agy` không thấy gì).
+    if _khong_co_trinh_duyet():
+        # DISPLAY giả trong image/container làm một số bản agy tưởng có trình duyệt cùng máy.
+        e.pop("DISPLAY", None)
+        e.pop("WAYLAND_DISPLAY", None)
+        if not e.get("SSH_CONNECTION"):
+            # Định dạng thật: "<ip khách> <cổng khách> <ip máy chủ> <cổng máy chủ>". Javis không
+            # biết IP của trình duyệt (WebSocket có thể qua proxy), và không CLI nào đọc mấy số
+            # này - chúng chỉ hỏi "biến có hay không". Điền loopback cho đúng dạng.
+            e["SSH_CONNECTION"] = "127.0.0.1 0 127.0.0.1 22"
+            e.setdefault("SSH_CLIENT", "127.0.0.1 0 22")
+        tty = (ssh_tty or "").strip() or (e.get("SSH_TTY") or "").strip()
+        if tty:
+            e["SSH_TTY"] = tty
     if extra:
         e.update({k: str(v) for k, v in extra.items() if v is not None})
     return e
@@ -253,9 +279,14 @@ class Phien:
 
     # ---- khởi động ----
     def _mo(self):
-        env = _env(self.extra_env)
         if CO_PTY:
             master, slave = pty.openpty()
+            # Đường pty thật cho SSH_TTY - agy nhận phiên từ xa và in link dán mã.
+            try:
+                slave_tty = os.ttyname(slave)
+            except Exception:
+                slave_tty = ""
+            env = _env(self.extra_env, ssh_tty=slave_tty)
 
             def _con():
                 # Chạy TRONG tiến trình con, ngay trước exec. setsid() tách khỏi phiên của
@@ -281,6 +312,7 @@ class Phien:
             self._fd = master
             self._dat_co(self.cols, self.rows)
         else:
+            env = _env(self.extra_env)
             # Windows: không có pty -> ống. stderr gộp vào stdout để thứ tự dòng đúng như khi
             # nhìn trên console thật. bufsize=0 để output hiện ngay, không đợi đầy đệm.
             #

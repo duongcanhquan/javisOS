@@ -60,45 +60,62 @@ def _tra_lai():
 try:
     # ---- 1. Máy chủ không màn hình (VPS, Docker - kể cả Docker trên máy Mac) ----
     with mock.patch.object(terminal, "IS_WINDOWS", False), mock.patch.object(sys, "platform", "linux"):
-        _dat()
-        check("CANARY: máy chủ không có màn hình -> coi là phiên từ xa",
-              terminal._khong_co_trinh_duyet() is True)
-        env = terminal._env()
-        check("CANARY: _env đặt SSH_CONNECTION (agy mới hỏi chỗ dán mã)",
-              bool(env.get("SSH_CONNECTION")))
-        check("SSH_CONNECTION đúng dạng 4 phần <ip> <cổng> <ip> <cổng>",
-              len(env.get("SSH_CONNECTION", "").split()) == 4)
-        check("có kèm SSH_CLIENT cho CLI nào đọc biến đó", bool(env.get("SSH_CLIENT")))
+        with mock.patch.object(terminal, "_trong_docker", return_value=False):
+            _dat()
+            check("CANARY: máy chủ không có màn hình -> coi là phiên từ xa",
+                  terminal._khong_co_trinh_duyet() is True)
+            env = terminal._env()
+            check("CANARY: _env đặt SSH_CONNECTION (agy mới hỏi chỗ dán mã)",
+                  bool(env.get("SSH_CONNECTION")))
+            check("SSH_CONNECTION đúng dạng 4 phần <ip> <cổng> <ip> <cổng>",
+                  len(env.get("SSH_CONNECTION", "").split()) == 4)
+            check("có kèm SSH_CLIENT cho CLI nào đọc biến đó", bool(env.get("SSH_CLIENT")))
 
-        # ---- 2. Linux có màn hình: trình duyệt mở ngay trước mặt, giữ luồng cũ ----
-        _dat(DISPLAY=":0")
-        check("Linux có DISPLAY -> KHÔNG khai từ xa (trình duyệt cùng máy)",
-              terminal._khong_co_trinh_duyet() is False)
-        check("và _env không chèn SSH_CONNECTION", not terminal._env().get("SSH_CONNECTION"))
-        _dat(WAYLAND_DISPLAY="wayland-0")
-        check("Wayland cũng tính là có màn hình", terminal._khong_co_trinh_duyet() is False)
+            # ---- 2. Linux có màn hình: trình duyệt mở ngay trước mặt, giữ luồng cũ ----
+            _dat(DISPLAY=":0")
+            check("Linux có DISPLAY -> KHÔNG khai từ xa (trình duyệt cùng máy)",
+                  terminal._khong_co_trinh_duyet() is False)
+            check("và _env không chèn SSH_CONNECTION", not terminal._env().get("SSH_CONNECTION"))
+            _dat(WAYLAND_DISPLAY="wayland-0")
+            check("Wayland cũng tính là có màn hình", terminal._khong_co_trinh_duyet() is False)
 
-        # ---- 3. Phiên SSH THẬT: không đè lên giá trị của hệ thống ----
-        _dat(SSH_CONNECTION="10.0.0.9 51234 10.0.0.1 22")
-        check("SSH thật thì giữ nguyên giá trị gốc",
-              terminal._env().get("SSH_CONNECTION") == "10.0.0.9 51234 10.0.0.1 22")
+            # ---- 3. Phiên SSH THẬT: không đè lên giá trị của hệ thống ----
+            _dat(SSH_CONNECTION="10.0.0.9 51234 10.0.0.1 22")
+            # Có màn hình + SSH thật: _khong_co_trinh_duyet=False nên không đụng SSH_CONNECTION
+            _dat(DISPLAY=":0", SSH_CONNECTION="10.0.0.9 51234 10.0.0.1 22")
+            check("SSH thật thì giữ nguyên giá trị gốc",
+                  terminal._env().get("SSH_CONNECTION") == "10.0.0.9 51234 10.0.0.1 22")
 
-        # ---- 4. Công tắc tay ----
-        _dat(JAVIS_TERMINAL_REMOTE="0")
-        check("JAVIS_TERMINAL_REMOTE=0 tắt được (bố trí lạ: X11 forwarding...)",
-              terminal._khong_co_trinh_duyet() is False)
-        _dat(JAVIS_TERMINAL_REMOTE="1", DISPLAY=":0")
-        check("JAVIS_TERMINAL_REMOTE=1 bật được kể cả khi có DISPLAY",
-              terminal._khong_co_trinh_duyet() is True)
+            # ---- 4. Công tắc tay ----
+            _dat(JAVIS_TERMINAL_REMOTE="0")
+            check("JAVIS_TERMINAL_REMOTE=0 tắt được (bố trí lạ: X11 forwarding...)",
+                  terminal._khong_co_trinh_duyet() is False)
+            _dat(JAVIS_TERMINAL_REMOTE="1", DISPLAY=":0")
+            check("JAVIS_TERMINAL_REMOTE=1 bật được kể cả khi có DISPLAY",
+                  terminal._khong_co_trinh_duyet() is True)
+
+        # ---- 4b. Docker / tenant: luôn từ xa + bóc DISPLAY + nhận SSH_TTY thật ----
+        with mock.patch.object(terminal, "_trong_docker", return_value=True):
+            _dat(DISPLAY=":0")
+            check("Docker coi là phiên từ xa dù có DISPLAY",
+                  terminal._khong_co_trinh_duyet() is True)
+            env_d = terminal._env(ssh_tty="/dev/pts/9")
+            check("Docker _env có SSH_CONNECTION", bool(env_d.get("SSH_CONNECTION")))
+            check("Docker _env gắn SSH_TTY thật từ pty", env_d.get("SSH_TTY") == "/dev/pts/9")
+            check("Docker _env bật GEMINI_FORCE_FILE_STORAGE",
+                  env_d.get("GEMINI_FORCE_FILE_STORAGE") == "true")
+            check("Docker _env gỡ DISPLAY giả", "DISPLAY" not in env_d)
 
     # ---- 5. Máy để bàn chạy THẲNG (macOS/Windows): trình duyệt ở ngay trước mặt ----
     _dat()
     with mock.patch.object(terminal, "IS_WINDOWS", False), mock.patch.object(sys, "platform", "darwin"):
-        check("macOS chạy thẳng -> giữ luồng tự mở trình duyệt",
-              terminal._khong_co_trinh_duyet() is False)
+        with mock.patch.object(terminal, "_trong_docker", return_value=False):
+            check("macOS chạy thẳng -> giữ luồng tự mở trình duyệt",
+                  terminal._khong_co_trinh_duyet() is False)
     with mock.patch.object(terminal, "IS_WINDOWS", True):
-        check("Windows chạy thẳng -> giữ luồng tự mở trình duyệt",
-              terminal._khong_co_trinh_duyet() is False)
+        with mock.patch.object(terminal, "_trong_docker", return_value=False):
+            check("Windows chạy thẳng -> giữ luồng tự mở trình duyệt",
+                  terminal._khong_co_trinh_duyet() is False)
 finally:
     _tra_lai()
 
@@ -110,6 +127,8 @@ check("vẫn giữ lời cảnh báo đăng nhập đúng user (trang Code trong
       "NGAY TRONG Javis" in hd["ghi_chu"] and "root" in hd["ghi_chu"])
 check("có đường cứu hộ bằng curl cho bản agy cũ",
       "curl" in (hd.get("cuu_ho") or ""))
+check("cứu hộ nhắc kiểm SSH_CONNECTION / FORCE_FILE",
+      "SSH_CONNECTION" in (hd.get("cuu_ho") or "") and "GEMINI_FORCE_FILE_STORAGE" in (hd.get("cuu_ho") or ""))
 
 js = (ROOT / "dashboard" / "console.js").read_text(encoding="utf-8")
 check("thẻ Antigravity có vẽ dòng cứu hộ ra màn hình", "dn.cuu_ho" in js)

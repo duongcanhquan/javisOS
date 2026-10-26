@@ -869,14 +869,17 @@ def login_huong_dan() -> dict:
         "ghi_chu": ("Dùng trang Code (Terminal) NGAY TRONG Javis - nó mở shell bằng đúng user "
                     "đang chạy Javis, đăng nhập ở đó là Javis nhận liền. (SSH bằng user khác, "
                     "vd root, đăng nhập xong Javis vẫn không thấy - đây là lý do hay gặp nhất "
-                    "của cảnh 'cài rồi mà không nhận'.) Gõ `agy`: nó in ra một đường link. Mở "
-                    "link đó trên máy của bạn, đăng nhập Google xong trình duyệt nhảy sang một "
-                    "địa chỉ localhost báo không mở được - đó là bước ĐÚNG, copy nguyên địa "
-                    "chỉ trên thanh URL rồi dán ngược vào terminal và Enter. Chỉ phải làm một "
-                    "lần."),
+                    "của cảnh 'cài rồi mà không nhận'.) Gõ `agy` rồi Enter: sau vài giây nó in "
+                    "một đường link Google (nếu đứng im không chữ, bấm Ctrl+C rồi gõ lại "
+                    "`agy` - tab Code phải khai phiên từ xa). Mở link trên máy bạn, đăng nhập "
+                    "Google; trình duyệt nhảy sang localhost báo không mở được HOẶC hiện mã - "
+                    "đó là bước ĐÚNG. Copy nguyên địa chỉ trên thanh URL (hoặc mã) rồi dán "
+                    "ngược vào terminal và Enter. Chỉ phải làm một lần."),
         "cuu_ho": ("Nếu terminal không hiện chỗ dán (bản `agy` cũ): mở thêm một phiên terminal "
                    "rồi chạy curl \"<địa chỉ localhost vừa copy>\" - cổng đó đang mở ngay "
-                   "trên máy chạy Javis nên mã về đúng chỗ."),
+                   "trên máy chạy Javis nên mã về đúng chỗ. Kiểm tra nhanh: gõ "
+                   "`echo $SSH_CONNECTION` - phải có số; `echo $GEMINI_FORCE_FILE_STORAGE` "
+                   "phải là true."),
     }
 
 

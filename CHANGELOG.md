@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.85] - 2026-10-26
+### Sửa
+- **Antigravity trong tab Code:** gõ `agy` trên máy Docker/VPS không còn đứng im. Terminal gắn đủ biến phiên từ xa (kể cả `SSH_TTY` của pty thật) và ép lưu đăng nhập ra file, nên hiện link Google để dán mã; nhắc hẹn mới chạy lại được sau khi đăng nhập một lần.
+
 ## [0.56.83] - 2026-10-25
 ### Sửa
 - **Tổ chức · tự nhả RAM:** máy người không dùng (mặc định 15 phút không có tín hiệu người thật) tự tắt để trả RAM. Não và ổ giữ; mở link là bật lại.

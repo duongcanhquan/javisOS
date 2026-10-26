@@ -900,18 +900,23 @@ def apply_public_hosts(slug: str) -> None:
     have_id = str(data.get("Image") or "")
     want_id = str(_self_inspect().get("Image") or "")
     img = _self_image()
-    if old == wanted and have_id and want_id and have_id == want_id:
+    env_now = list(cfg.get("Env") or [])
+    # Env bắt buộc cho đăng nhập agy trên VPS/Docker - thiếu thì recreate dù image đã khớp.
+    need_force_file = not any(str(e).startswith("GEMINI_FORCE_FILE_STORAGE=") for e in env_now)
+    need_term_remote = not any(str(e).startswith("JAVIS_TERMINAL_REMOTE=") for e in env_now)
+    if (old == wanted and have_id and want_id and have_id == want_id
+            and not need_force_file and not need_term_remote):
         return
     hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
-    env = [e for e in (cfg.get("Env") or [])
-           if not str(e).startswith("DOMAIN_NAME=") and not str(e).startswith("WORKSPACE_NAME=")]
+    env = [e for e in env_now
+           if not str(e).startswith("DOMAIN_NAME=") and not str(e).startswith("WORKSPACE_NAME=")
+           and not str(e).startswith("GEMINI_FORCE_FILE_STORAGE=")
+           and not str(e).startswith("JAVIS_TERMINAL_REMOTE=")]
     env.append("DOMAIN_NAME=" + wanted)
     env.append("WORKSPACE_NAME=VietMy OS")
     # Đăng nhập agy trên VPS: lưu token ra file + terminal khai phiên từ xa (SSH_CONNECTION).
-    if not any(str(e).startswith("GEMINI_FORCE_FILE_STORAGE=") for e in env):
-        env.append("GEMINI_FORCE_FILE_STORAGE=true")
-    if not any(str(e).startswith("JAVIS_TERMINAL_REMOTE=") for e in env):
-        env.append("JAVIS_TERMINAL_REMOTE=1")
+    env.append("GEMINI_FORCE_FILE_STORAGE=true")
+    env.append("JAVIS_TERMINAL_REMOTE=1")
     labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
     try:
