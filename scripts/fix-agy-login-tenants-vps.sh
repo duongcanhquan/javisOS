@@ -153,10 +153,12 @@ for slug in ("thuha", "bach"):
         print("err", slug, e, file=sys.stderr)
 PY
 )
-SAMPLE=$(echo "$SAMPLE" | grep -E '^[a-z0-9-]+$' | tail -1 | tr -d '\r')
+SAMPLE=$(echo "$SAMPLE" | grep -E '^[a-z0-9-]+$' | tail -1 | tr -d '\r' || true)
 echo "sample=$SAMPLE"
 if [ -z "$SAMPLE" ]; then
-  echo "FAIL: không bật được máy mẫu"
+  echo "FAIL: không bật được máy mẫu — in log start ở trên"
+  docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep -E 'javis-|NAMES' || true
+  docker exec javis-manager python -c 'import sys; sys.path.insert(0,"/app/server"); import org_docker as od, org_tenants as ot; print("tenants", len(ot.load().get("tenants") or [])); print("running", [t.get("slug") for t in od.people_running()])' || true
 else
   CNAME="javis-$SAMPLE"
   for f in terminal.py antigravity_cli.py; do

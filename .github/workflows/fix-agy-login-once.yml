@@ -1,5 +1,5 @@
 # One-shot: vá env + terminal agy trên tenant (SSH_TTY / FORCE_FILE).
-# bump: 2026-10-26T00:50Z — một file self-extract (scp đơn, giống reclaim)
+# bump: 2026-10-26T00:55Z — một file self-extract (scp đơn, giống reclaim)
 name: Fix agy login once
 
 on:
