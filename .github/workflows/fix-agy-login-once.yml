@@ -1,5 +1,5 @@
 # One-shot: vá env + terminal agy trên tenant (SSH_TTY / FORCE_FILE).
-# bump: 2026-10-26T00:25Z
+# bump: 2026-10-26T00:35Z — lấy file từ git trên VPS (scp đang lỗi)
 name: Fix agy login once
 
 on:
@@ -25,52 +25,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage upload tree
-        run: |
-          mkdir -p .agy-upload/scripts .agy-upload/server
-          cp -f scripts/fix-agy-login-tenants-vps.sh .agy-upload/scripts/
-          cp -f server/terminal.py server/antigravity_cli.py .agy-upload/server/
-
-      - name: Ensure remote dir
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: mkdir -p /tmp/javis-fix-agy && rm -rf /tmp/javis-fix-agy/* || true
-
-      - name: Upload fix files
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: ".agy-upload/*"
-          target: "/tmp/javis-fix-agy/"
-          overwrite: true
-
       - name: Diagnose and fix agy over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIX_REF: ${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 25m
+          envs: GH_TOKEN,FIX_REF
           script: |
             set -euo pipefail
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
-            mkdir -p "$DIR/scripts" "$DIR/server"
-            # scp giữ cấu trúc .agy-upload/...
-            SRC=/tmp/javis-fix-agy
-            if [ -f "$SRC/.agy-upload/scripts/fix-agy-login-tenants-vps.sh" ]; then
-              SRC="$SRC/.agy-upload"
-            elif [ -f "$SRC/scripts/fix-agy-login-tenants-vps.sh" ]; then
-              SRC="$SRC"
-            fi
-            cp -f "$SRC/scripts/fix-agy-login-tenants-vps.sh" "$DIR/scripts/"
-            cp -f "$SRC/server/terminal.py" "$DIR/server/"
-            cp -f "$SRC/server/antigravity_cli.py" "$DIR/server/"
+            mkdir -p "$DIR/scripts" "$DIR/server" /tmp/javis-fix-agy-src
+            # Tải đúng 3 file từ commit này (repo private → token)
+            base="https://raw.githubusercontent.com/duongcanhquan/javisOS/${FIX_REF}"
+            for path in scripts/fix-agy-login-tenants-vps.sh server/terminal.py server/antigravity_cli.py; do
+              echo "fetch $path"
+              curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.raw" \
+                "$base/$path" -o "/tmp/javis-fix-agy-src/$(basename "$path")"
+            done
+            cp -f /tmp/javis-fix-agy-src/fix-agy-login-tenants-vps.sh "$DIR/scripts/"
+            cp -f /tmp/javis-fix-agy-src/terminal.py "$DIR/server/"
+            cp -f /tmp/javis-fix-agy-src/antigravity_cli.py "$DIR/server/"
             chmod +x "$DIR/scripts/fix-agy-login-tenants-vps.sh"
+            wc -c "$DIR/scripts/fix-agy-login-tenants-vps.sh" "$DIR/server/terminal.py" "$DIR/server/antigravity_cli.py"
             export JAVIS_DIR="$DIR"
             bash "$DIR/scripts/fix-agy-login-tenants-vps.sh"
