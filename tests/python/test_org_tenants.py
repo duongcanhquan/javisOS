@@ -51,8 +51,11 @@ check("handoff không đá dưới 90 giây", oc.handoff_grace_sec(idle_minutes=
 check("pressure grace 90 giây", oc.evict_grace_sec(pressure=True) == 90)
 check("máy 6GB gợi ý 2 chỗ người", oc.suggest_slots(6144) == 2)
 check("máy 10GB gợi ý 6 chỗ (trần 1024)", oc.suggest_slots(10240) == 6)
-check("trần tay 6 trên 6GB thành 2 chỗ thật", oc.effective_max(total_mb=6144) == 2)
+check("máy 20GB gợi ý 16 chỗ (không kẹp 8)", oc.suggest_slots(20 * 1024) == 16)
+check("trần tay 16 không bị kẹp gợi ý RAM",
+      oc.effective_max({"coord": {"max_running": 16, "idle_minutes": 15}}, 6144) == 16)
 check("trần tay 2 không bị đẩy lên", oc.effective_max({"coord": {"max_running": 2, "idle_minutes": 30}}, 6144) == 2)
+check("AUTO_CAP khớp ô trần (20)", oc.AUTO_CAP >= 16)
 disk_t, disk_f, disk_p = oc.host_disk_bytes()
 check("host_disk_bytes trả tổng/trống", isinstance(disk_t, int) and isinstance(disk_f, int) and disk_t >= disk_f >= 0)
 c_host = oc.coord()

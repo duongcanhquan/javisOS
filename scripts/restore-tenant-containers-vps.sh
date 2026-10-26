@@ -15,9 +15,17 @@ date -u
 df -h / | head -2
 docker exec javis-manager cat /app/VERSION 2>/dev/null || echo missing
 
-echo "=== HOT-PATCH org_docker (restore_tenant_container) ==="
+echo "=== HOT-PATCH org_docker + org_coord (restore + trần tay) ==="
+PATCHED=0
 if [ -f "$DIR/server/org_docker.py" ]; then
   docker cp "$DIR/server/org_docker.py" javis-manager:/app/server/org_docker.py
+  PATCHED=1
+fi
+if [ -f "$DIR/server/org_coord.py" ]; then
+  docker cp "$DIR/server/org_coord.py" javis-manager:/app/server/org_coord.py
+  PATCHED=1
+fi
+if [ "$PATCHED" = 1 ]; then
   docker restart javis-manager
   for i in $(seq 1 40); do
     curl -fsS -m 3 http://127.0.0.1:7778/health >/dev/null 2>&1 && break
@@ -74,11 +82,24 @@ PY
 
 docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -E '^javis-|NAMES' || true
 
-echo "=== Thử start 1 máy (thuha hoặc bach) ==="
+echo "=== Coord + thử start ==="
 docker exec -i javis-manager python - <<'PY'
 import sys
 sys.path.insert(0, "/app/server")
-import org_docker as od
+import org_coord as oc, org_docker as od
+c = oc.coord()
+print(
+    "host_ram_mb", c.get("host_ram_mb"),
+    "suggest", c.get("suggest"),
+    "max_running", c.get("max_running"),
+    "effective", oc.effective_max(),
+    "AUTO_CAP", oc.AUTO_CAP,
+    flush=True,
+)
+# Giữ trần tay 16 nếu đang thấp hơn (admin đã muốn 16)
+if int(c.get("max_running") or 0) < 16:
+    oc.put_coord(max_running=16)
+    print("raised_max_running_to", oc.coord().get("max_running"), "effective", oc.effective_max(), flush=True)
 slug = "thuha"
 try:
     od.start_with_capacity(slug)
@@ -90,6 +111,7 @@ except Exception as e:
         print("START_OK bach", od.container_status("javis-bach"), flush=True)
     except Exception as e2:
         print("START_FAIL bach", type(e2).__name__, e2, flush=True)
+print("people_running", len(od.people_running()), [t.get("slug") for t in od.people_running()], flush=True)
 PY
 
 echo RESTORE_TENANTS_DONE

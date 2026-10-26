@@ -24,7 +24,9 @@ PARK_NAME = "javis-park"
 # Gốc + Quan + Docker + OS + Caddy. Máy 6 GB còn chỗ cho ~2 Javis người (trần 1024).
 RESERVE_MB = 2800
 KEEP_FREE_MB = 400
-AUTO_CAP = 8
+# Khớp max ô «Trần máy mở cùng lúc» (20). Trước kẹp cứng 8 → admin đặt 16 vẫn chỉ mở được 8
+# dù RAM host đủ (công thức room//1024 vẫn chặn máy nhỏ).
+AUTO_CAP = 20
 PRESSURE_IDLE_SEC = 90
 # Khi có người xếp hàng: máy nghỉ tối thiểu lâu thế này mới bị nhường chỗ (giây).
 HANDOFF_MIN_SEC = 90
@@ -280,12 +282,14 @@ def _stored(data: dict | None = None) -> dict:
 
 
 def effective_max(data: dict | None = None, total_mb: int | None = None) -> int:
-    """Trần đang dùng: min(trần tay, chỗ RAM thật)."""
-    hand = int(_stored(data)["max_running"])
-    tot = int(total_mb) if total_mb is not None else host_mem_mb()[0]
-    if tot < 512:
-        return hand
-    return max(1, min(hand, suggest_slots(tot)))
+    """Trần đang dùng = trần tay admin (ô «Trần máy mở cùng lúc»).
+
+    Gợi ý RAM (`suggest_slots`) chỉ để hiển thị / cảnh báo trên UI - không còn kẹp
+    hiệu lực xuống 8 khi admin đã đặt 16. An toàn RAM vẫn có: khi host chật,
+    `_acquire_slot` tắt máy nghỉ để nhường chỗ (não giữ).
+    """
+    del total_mb  # giữ chữ ký cũ; gợi ý RAM xem suggest_slots / coord()["suggest"]
+    return int(_stored(data)["max_running"])
 
 
 def coord(data: dict | None = None) -> dict:
@@ -452,10 +456,8 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
     idle = int(idle_minutes if idle_minutes is not None else c["idle_minutes"])
     hand = int(max_running if max_running is not None else c["max_running"])
     tot = int(c.get("host_ram_mb") or 0)
-    if tot >= 512:
-        eff = max(1, min(hand, suggest_slots(tot)))
-    else:
-        eff = hand
+    # Trần hiệu lực = trần tay; gợi ý RAM chỉ advisory (đồng bộ effective_max()).
+    eff = hand
     live = ram_live if isinstance(ram_live, dict) else {}
     out = {
         "max_running": hand,

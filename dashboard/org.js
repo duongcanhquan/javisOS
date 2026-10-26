@@ -410,7 +410,7 @@
             <span class="org-kpi-s">host ${esc(String(ramHost || "?"))} GB - chừa ${esc(String(reserveMb))} MB - giữ ${esc(String(Number(coord.keep_free_mb || 400)))} MB</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Mỗi máy (trần)</span>
             <strong class="org-kpi-v" data-org-ram="per-ceil-kpi">${esc(String(ramPer))} MB</strong>
-            <span class="org-kpi-s">sàn này, một máy gần đầy nới tới ${esc(String(Number(coord.burst_mb || 2048)))} MB. Gợi ý tối đa ${esc(String(suggestN))} chỗ (trần tay ${esc(String(maxHand))} → hiệu lực ${esc(String(maxR))})</span></div>
+            <span class="org-kpi-s">sàn này, một máy gần đầy nới tới ${esc(String(Number(coord.burst_mb || 2048)))} MB. Trần tay ${esc(String(maxHand))} chỗ · gợi ý RAM ~${esc(String(suggestN))} (cảnh báo, không kẹp)</span></div>
           <div class="org-kpi-i"><span class="org-kpi-l">Đang đo trên VPS</span>
             <strong class="org-kpi-v" data-org-ram="people-used">${peopleUsed ? (esc(String(peopleUsed)) + " MB") : "…"}</strong>
             <span class="org-kpi-s" data-org-ram="people-used-sub">${esc(String(activeN))} có tín hiệu · ${esc(String(idleN))} nghỉ vẫn tốn ${esc(String(peopleIdleMb))} MB
@@ -671,9 +671,9 @@
               </form>
               <p class="dim org-sec-note"><b>Tự nhả RAM.</b> Không chat / không tín hiệu người thật đủ lâu → tắt máy (não không mất).
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
-                Gợi ý RAM an toàn khoảng <b>${esc(String(suggestN))}</b> máy (ước theo trần Docker ${esc(String(ramPer))} MB).
-                Trần tay bạn đặt <b>${esc(String(maxHand))}</b> → hiệu lực <b>${esc(String(maxR))}</b>
-                (kẹp theo gợi ý RAM). Vượt trần hoặc RAM host thấp → tắt máy nghỉ lâu nhất để nhường chỗ.</p>
+                Gợi ý RAM an toàn khoảng <b>${esc(String(suggestN))}</b> máy (ước theo trần Docker ${esc(String(ramPer))} MB) - chỉ cảnh báo.
+                Trần đang dùng = trần tay <b>${esc(String(maxHand))}</b>.
+                Vượt trần hoặc RAM host thấp → tắt máy nghỉ lâu nhất để nhường chỗ.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">

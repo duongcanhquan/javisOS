@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.87] - 2026-10-26
+### Sửa
+- **Tổ chức · trần 16 máy mở được đủ 16:** ô «Trần máy mở cùng lúc» không còn bị kẹp cứng xuống 8. Gợi ý RAM chỉ cảnh báo; khi host chật vẫn tắt máy nghỉ để nhường chỗ.
+
 ## [0.56.86] - 2026-10-26
 ### Sửa
 - **Tổ chức · Bật máy hết báo start 404:** nếu container bị gỡ nhầm mà não/ổ còn, hệ thống tự dựng lại máy rồi bật. Không đụng mật khẩu trong ổ.
