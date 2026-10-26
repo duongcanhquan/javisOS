@@ -310,7 +310,8 @@ def _backup_by_slug() -> dict[str, dict]:
             ranked.append((f.stat().st_mtime, tenants))
         except Exception:
             continue
-    ranked.sort()
+    # Chỉ xếp theo mtime. Hai file cùng giây mà sort cả tuple sẽ so list[dict] → TypeError.
+    ranked.sort(key=lambda x: x[0])
     out: dict[str, dict] = {}
     for _mtime, tenants in ranked:
         for t in tenants:

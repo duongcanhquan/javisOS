@@ -137,7 +137,7 @@ except Exception as e:
 PY
 
 echo "=== Bật 1 máy mẫu + patch terminal vào tenant ==="
-SAMPLE=$(docker exec javis-manager python - <<'PY'
+SAMPLE=$(docker exec -i javis-manager python - <<'PY'
 import sys
 sys.path.insert(0, "/app/server")
 import org_docker as od

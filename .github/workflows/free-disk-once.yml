@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:40Z — chạy lại sau restore (KHÔNG container prune)
+# bump: 2026-10-26T00:45Z — chạy lại sau restore OK (KHÔNG container prune)
 name: Free disk once
 
 on:

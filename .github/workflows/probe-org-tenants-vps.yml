@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:40Z — verify sau restore
+# bump: 2026-10-26T00:45Z — verify sau restore thành công (START_OK thuha)
 name: Probe org tenants on VPS
 on:
   workflow_dispatch:
@@ -18,25 +18,48 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 5m
+          command_timeout: 8m
           script: |
             set -euo pipefail
+            echo "=== DISK ==="
+            df -h / | head -2
+            docker system df || true
             echo "=== ALL javis containers (inc stopped) ==="
             docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep -E '^javis-|NAMES' || true
-            echo "=== tenant registry ==="
-            docker exec javis-manager python -c '
-import sys
-sys.path.insert(0, "/app/server")
-import org_tenants as ot, org_coord as oc, org_docker as od
-ts = (ot.load().get("tenants") or [])
-print("tenants_in_registry", len(ts))
-for t in ts:
-    print(" -", t.get("slug"), "paused=", bool(t.get("paused")), "deleted=", bool(t.get("deleted_at")), "prot=", bool(t.get("protected")), "st=", t.get("status"), "c=", t.get("container"))
-c = oc.coord()
-print("suggest", c.get("suggest"), "max_running", c.get("max_running"), "effective", oc.effective_max(), "running_coord", c.get("running"))
-try:
-    run = od.people_running()
-    print("people_running", len(run), [x.get("slug") for x in run])
-except Exception as e:
-    print("people_running err", e)
-'
+            echo "=== tenant registry + start smoke ==="
+            docker exec -i javis-manager python - <<'PY'
+            import sys
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot, org_coord as oc, org_docker as od
+            print("has_restore", hasattr(od, "restore_tenant_container"), flush=True)
+            ts = (ot.load().get("tenants") or [])
+            print("tenants_in_registry", len(ts), flush=True)
+            missing = []
+            for t in ts:
+                if t.get("protected") or t.get("deleted_at"):
+                    continue
+                slug = str(t.get("slug") or "").strip()
+                cname = str(t.get("container") or f"javis-{slug}")
+                exists = bool(od.inspect_name(cname))
+                st = od.container_status(cname) if exists else "MISSING"
+                print("-", slug, st, "paused=", bool(t.get("paused")), flush=True)
+                if not exists:
+                    missing.append(slug)
+            print("missing_containers", missing, flush=True)
+            c = oc.coord()
+            print("suggest", c.get("suggest"), "max_running", c.get("max_running"), "effective", oc.effective_max(), flush=True)
+            try:
+                run = od.people_running()
+                print("people_running", len(run), [x.get("slug") for x in run], flush=True)
+            except Exception as e:
+                print("people_running err", e, flush=True)
+            # Smoke: bật máy đã restore không còn 404
+            for slug in ("thuha", "bach"):
+                try:
+                    od.start_with_capacity(slug)
+                    print("START_OK", slug, od.container_status("javis-"+slug), flush=True)
+                    break
+                except Exception as e:
+                    print("START_FAIL", slug, type(e).__name__, e, flush=True)
+            print("PROBE_DONE", flush=True)
+            PY

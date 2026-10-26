@@ -4,6 +4,7 @@
 ### Sửa
 - **Tổ chức · Bật máy hết báo start 404:** nếu container bị gỡ nhầm mà não/ổ còn, hệ thống tự dựng lại máy rồi bật. Không đụng mật khẩu trong ổ.
 - **Ổ VPS đầy ≠ hết quota người:** số trên trang Tổ chức chỉ đo não/vault mỗi người. Ổ máy chủ còn chứa image Docker, log và cache - dọn an toàn, không xóa máy đang tắt.
+- Script khôi phục máy trên VPS dùng `docker exec -i` (thiếu `-i` thì lệnh Python không chạy, máy vẫn mất).
 
 ## [0.56.85] - 2026-10-26
 ### Sửa

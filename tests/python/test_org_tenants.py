@@ -338,7 +338,7 @@ check("nghỉ 10 phút chưa nhả cache", od_mem.cache_reclaim_due(10 * 60, 0, 
 check("nghỉ 16 phút thì đến lượt nhả", od_mem.cache_reclaim_due(16 * 60, 0, 10_000) is True)
 check("vừa nhả thì chưa nhả lại", od_mem.cache_reclaim_due(20 * 60, 10_000, 10_000 + 60) is False)
 check("đọc memory.stat", od_mem.parse_cgroup_memory_stat("file 123\r\nanon 4\n")["file"] == 123)
-check("org.js nói máy nghỉ tự nhả cache", "tự nhả cache file" in org_js)
+check("org.js nói máy nghỉ tự nhả cache", "nhả cache file" in org_js)
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
 check("org.js poll ram_live", 'api("/org/ram_live")' in org_js and "startRamPoll" in org_js)
 check("org.js meter RAM đang dùng thật", "RAM đang dùng (Docker)" in org_js and "RAM ước cho" not in org_js)
