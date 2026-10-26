@@ -1,0 +1,60 @@
+# bump: 2026-10-26T00:48Z — inline (ổ 100% không scp nổi)
+name: Free disk once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/free-disk-once.yml"
+      - "scripts/free-disk-vps.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  free:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Free disk over SSH (inline)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            echo "=== DISK TRƯỚC ==="
+            date -u
+            df -h / | head -2
+            docker system df || true
+
+            echo "=== journal / apt / tmp ==="
+            journalctl --vacuum-size=80M 2>/dev/null || true
+            rm -rf /tmp/javis-* /tmp/*.tar.gz /tmp/drone-* 2>/dev/null || true
+            apt-get clean 2>/dev/null || true
+            rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
+
+            echo "=== docker prune (giữ volume não) ==="
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo "=== truncate docker json logs >50M ==="
+            find /var/lib/docker/containers -name '*-json.log' -size +50M 2>/dev/null | while read -r f; do
+              echo "truncate $f"
+              : > "$f" || true
+            done
+
+            echo "=== top dung lượng ==="
+            du -xhd1 /var/lib/docker 2>/dev/null | sort -hr | head -8 || true
+
+            echo "=== DISK SAU ==="
+            df -h / | head -2
+            docker system df || true
+            echo FREE_DISK_DONE
