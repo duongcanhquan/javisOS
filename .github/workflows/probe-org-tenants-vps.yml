@@ -1,6 +1,10 @@
+# bump: 2026-10-26T00:40Z — verify sau restore
 name: Probe org tenants on VPS
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/probe-org-tenants-vps.yml"
 concurrency:
   group: vps-ssh
   cancel-in-progress: false

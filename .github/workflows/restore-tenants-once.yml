@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:30Z — khôi phục container sau prune nhầm
+# bump: 2026-10-26T00:40Z — docker exec -i (lần trước stdin trống, không restore)
 name: Restore tenant containers once
 
 on:

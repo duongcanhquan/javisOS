@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:35Z — KHÔNG prune container (não/máy người)
+# bump: 2026-10-26T00:40Z — chạy lại sau restore (KHÔNG container prune)
 name: Free disk once
 
 on:
