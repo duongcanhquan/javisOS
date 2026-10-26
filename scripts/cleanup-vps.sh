@@ -18,10 +18,11 @@ echo "RAM: ${RAM_MB} MB · đĩa trống: ~${FREE_GB} GB"
 # Không gọi apply-model-routing: mỗi deploy từng ghi đè ghim Telegram/Zalo về Antigravity.
 # Không gỡ Ollama ở đây: vps-deploy.sh chỉ gỡ khi host còn binary/service.
 
-# --- Docker prune AN TOÀN (không đụng volume brains/state) ---
+# --- Docker prune AN TOÀN ---
+# CẤM: docker container prune - máy người đang tắt (park) bị xóa → Bật máy HTTP 404
+# Volume não vẫn còn nhưng container mất; phải restore_tenant_container mới mở lại được.
 echo
-echo "==> Docker prune (images/containers/network dư, GIỮ volumes)"
-docker container prune -f 2>/dev/null || true
+echo "==> Docker prune (CHỈ image treo + build cache + network; GIỮ container + volume)"
 docker image prune -af 2>/dev/null || true
 docker network prune -f 2>/dev/null || true
 docker builder prune -af 2>/dev/null || true

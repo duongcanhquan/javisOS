@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.86] - 2026-10-26
+### Sửa
+- **Tổ chức · Bật máy hết báo start 404:** nếu container bị gỡ nhầm mà não/ổ còn, hệ thống tự dựng lại máy rồi bật. Không đụng mật khẩu trong ổ.
+- **Ổ VPS đầy ≠ hết quota người:** số trên trang Tổ chức chỉ đo não/vault mỗi người. Ổ máy chủ còn chứa image Docker, log và cache - dọn an toàn, không xóa máy đang tắt.
+
 ## [0.56.85] - 2026-10-26
 ### Sửa
 - **Antigravity trong tab Code:** gõ `agy` trên máy Docker/VPS không còn đứng im. Terminal gắn đủ biến phiên từ xa (kể cả `SSH_TTY` của pty thật) và ép lưu đăng nhập ra file, nên hiện link Google để dán mã; nhắc hẹn mới chạy lại được sau khi đăng nhập một lần.

@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:48Z — inline (ổ 100% không scp nổi)
+# bump: 2026-10-26T00:35Z — KHÔNG prune container (não/máy người)
 name: Free disk once
 
 on:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Free disk over SSH (inline)
+      - name: Free disk over SSH (inline, safe)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -40,9 +40,9 @@ jobs:
             apt-get clean 2>/dev/null || true
             rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
 
-            echo "=== docker prune (giữ volume não) ==="
-            docker container prune -f || true
-            docker image prune -af || true
+            echo "=== docker: CHỈ image treo + build cache (KHÔNG container prune) ==="
+            # CẤM: docker container prune - sẽ xóa máy người đang tắt → start 404
+            docker image prune -f || true
             docker builder prune -af || true
 
             echo "=== truncate docker json logs >50M ==="
@@ -50,9 +50,6 @@ jobs:
               echo "truncate $f"
               : > "$f" || true
             done
-
-            echo "=== top dung lượng ==="
-            du -xhd1 /var/lib/docker 2>/dev/null | sort -hr | head -8 || true
 
             echo "=== DISK SAU ==="
             df -h / | head -2

@@ -1,0 +1,95 @@
+# bump: 2026-10-26T00:30Z — khôi phục container sau prune nhầm
+name: Restore tenant containers once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/restore-tenants-once.yml"
+      - "scripts/restore-tenant-containers-vps.sh"
+      - "server/org_docker.py"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build self-extract bundle
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip, base64
+          out = Path("scripts/restore-tenants-bundle.sh")
+          lines = [
+              "#!/usr/bin/env bash", "set -euo pipefail",
+              "DIR=\"${JAVIS_DIR:-}\"",
+              "if [ -z \"$DIR\" ]; then",
+              "  if [ -d \"$HOME/javis-os\" ]; then DIR=\"$HOME/javis-os\"",
+              "  elif [ -d /root/javis-os ]; then DIR=/root/javis-os",
+              "  else DIR=\"$HOME/javis-os\"; mkdir -p \"$DIR\"; fi",
+              "fi",
+              "mkdir -p \"$DIR/scripts\" \"$DIR/server\"",
+              "export JAVIS_DIR=\"$DIR\"",
+          ]
+          for rel, dest in [
+              ("scripts/restore-tenant-containers-vps.sh", "scripts/restore-tenant-containers-vps.sh"),
+              ("server/org_docker.py", "server/org_docker.py"),
+          ]:
+              raw = Path(rel).read_bytes()
+              b64 = base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+              lines.append(f"echo 'unpack {dest}'")
+              lines.append(f"printf '%s' '{b64}' | base64 -d | gzip -d > \"$DIR/{dest}\"")
+          lines.append("chmod +x \"$DIR/scripts/restore-tenant-containers-vps.sh\"")
+          lines.append("bash \"$DIR/scripts/restore-tenant-containers-vps.sh\"")
+          out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print("bundle_bytes", out.stat().st_size)
+          PY
+          chmod +x scripts/restore-tenants-bundle.sh
+
+      - name: Prep remote
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            df -h / | head -2
+            mkdir -p "$HOME/javis-restore"
+            rm -f "$HOME/javis-restore"/* || true
+
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/restore-tenants-bundle.sh"
+          target: "javis-restore/"
+          overwrite: true
+
+      - name: Restore over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 35m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            export JAVIS_DIR="$DIR"
+            B="$HOME/javis-restore/restore-tenants-bundle.sh"
+            [ -f "$B" ] || B="$HOME/javis-restore/scripts/restore-tenants-bundle.sh"
+            chmod +x "$B"
+            bash "$B"

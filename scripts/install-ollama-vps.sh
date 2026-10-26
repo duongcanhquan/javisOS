@@ -40,8 +40,7 @@ if command -v docker >/dev/null 2>&1; then
   docker system df 2>/dev/null || true
   if [ "$PRUNE_DOCKER" = "1" ] && [ "$DRY" != "1" ]; then
     echo
-    echo "==> Dọn Docker (image/build cache không dùng, giữ container đang chạy)"
-    docker container prune -f 2>/dev/null || true
+    echo "==> Dọn Docker (image/build cache; KHÔNG container prune - máy park mất → start 404)"
     docker image prune -af 2>/dev/null || true
     docker builder prune -af 2>/dev/null || true
     FREE_KB=$(df -Pk / | awk 'NR==2 {print $4}')

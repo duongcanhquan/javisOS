@@ -37,7 +37,7 @@ done
 sleep 2
 
 echo "=== HEAL env thiếu trên mọi tenant (FORCE_FILE + TERMINAL_REMOTE) ==="
-docker exec javis-manager python - <<'PY'
+docker exec javis-manager python - <<'PY' || echo "WARN: heal python exit $?"
 import sys
 sys.path.insert(0, "/app/server")
 import org_tenants as ot, org_docker as od
