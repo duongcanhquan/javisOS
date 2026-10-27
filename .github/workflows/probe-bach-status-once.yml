@@ -1,4 +1,4 @@
-# bump: 2026-10-27T04:45Z — vá RecursionError usercustomize trên bach
+# bump: 2026-10-27T04:50Z — xóa usercustomize hỏng trên volume /data của bach
 name: Probe bach status once
 
 on:
@@ -19,110 +19,77 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Diagnose bach over SSH
+      - name: Heal bach usercustomize on volume
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 10m
+          command_timeout: 12m
           script: |
             set -euo pipefail
-            echo "=== DISK / TIME ==="
+            echo "=== BEFORE ==="
             date -u
-            df -h / | head -2
-            echo "=== docker bach ==="
-            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}\t{{.RunningFor}}\t{{.Image}}' || true
-            docker inspect javis-bach --format 'State={{.State.Status}} Exit={{.State.ExitCode}} OOM={{.State.OOMKilled}} Err={{.State.Error}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} Started={{.State.StartedAt}} Finished={{.State.FinishedAt}}' 2>/dev/null || echo 'NO_CONTAINER'
-            echo "=== recent bach logs (head+tail) ==="
-            docker logs --tail 80 javis-bach 2>&1 | tail -80 || true
-            echo "=== usercustomize on bach vs giang ==="
-            for C in javis-bach javis-giang javis-quan; do
-              echo "-- $C --"
-              docker exec "$C" sh -c 'ls -la /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; wc -c /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; md5sum /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; ls -la /usr/local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; md5sum /usr/local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null' 2>&1 | head -20 || echo "exec_fail $C"
-            done
-            echo "=== mounts bach ==="
-            docker inspect javis-bach --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' 2>/dev/null || true
-            echo "=== HEAL: copy usercustomize lành + restart bach ==="
-            # Nếu file hỏng / đệ quy: lấy bản từ máy healthy (giang), hoặc đổi tên để tắt.
-            SRC=""
-            for C in javis-giang javis-quan javis-thuha; do
-              if docker exec "$C" test -f /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; then
-                SRC="$C"
-                break
-              fi
-            done
-            if [ -n "$SRC" ]; then
-              echo "copy usercustomize from $SRC"
-              docker cp "$SRC:/home/javis/.local/lib/python3.12/site-packages/usercustomize.py" /tmp/usercustomize.good.py || true
-              # Container đang restart - cần stop rồi cp vào layer, hoặc cp qua volume nếu là bind.
-              docker stop javis-bach 2>/dev/null || true
-              # Thử ghi vào filesystem container (writable layer)
-              docker cp /tmp/usercustomize.good.py javis-bach:/home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>&1 || echo "cp_into_bach_fail"
-              # Phòng hờ: tắt usercustomize bằng rename nếu vẫn crash
-              docker start javis-bach || true
-              sleep 8
-              ST=$(docker inspect javis-bach --format '{{.State.Status}} {{.State.ExitCode}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null || echo missing)
-              echo "after_copy_status $ST"
-              if echo "$ST" | grep -Eq 'restarting|exited'; then
-                echo "still bad - disable usercustomize"
-                docker stop javis-bach 2>/dev/null || true
-                docker start javis-bach
-                # rename inside once briefly up, or use docker run --volumes-from
-                docker exec javis-bach sh -c 'f=/home/javis/.local/lib/python3.12/site-packages/usercustomize.py; if [ -f "$f" ]; then mv -f "$f" "$f.bad.$(date +%s)"; fi' 2>&1 || true
-                # Nếu exec không vào được vì crash ngay: dùng temporary container cùng volume
-                docker stop javis-bach 2>/dev/null || true
-                IMG=$(docker inspect javis-bach --format '{{.Config.Image}}')
-                # mount writable upper via docker commit approach: create helper with same mounts
-                docker run --rm --volumes-from javis-bach "$IMG" \
-                  sh -c 'f=/home/javis/.local/lib/python3.12/site-packages/usercustomize.py; if [ -f "$f" ]; then mv -f "$f" "$f.disabled"; ls -la "$f.disabled"; fi' 2>&1 || echo "volumes_from_heal_fail"
-                docker start javis-bach || true
-                sleep 12
-              fi
-            else
-              echo "no healthy usercustomize source"
-            fi
-            echo "=== status after heal ==="
             docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}'
-            docker logs --tail 25 javis-bach 2>&1 | tail -25 || true
-            echo "=== manager view ==="
+            DATA_VOL="/var/lib/docker/volumes/javis-bach_javis-data/_data"
+            UC="$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"
+            echo "data_vol=$DATA_VOL"
+            ls -la "$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"* 2>/dev/null || echo "no usercustomize on volume yet"
+            wc -c "$UC" 2>/dev/null || true
+            head -5 "$UC" 2>/dev/null || true
+
+            echo "=== DISABLE broken usercustomize (persist /data) ==="
+            docker stop javis-bach 2>/dev/null || true
+            if [ -f "$UC" ]; then
+              mv -f "$UC" "$UC.bad.$(date +%s)"
+              echo "renamed_ok"
+              ls -la "$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"* 2>/dev/null || true
+            else
+              echo "file_missing_try_alt"
+              find "$DATA_VOL/home" -name 'usercustomize.py' 2>/dev/null | head -20 || true
+              find "$DATA_VOL/home" -name 'usercustomize.py' 2>/dev/null | while read -r f; do
+                mv -f "$f" "$f.bad.$(date +%s)"
+                echo "renamed $f"
+              done
+            fi
+
+            # Tránh Python vẫn nạp bản cache .pyc
+            find "$DATA_VOL/home/.local" -name 'usercustomize*.pyc' -delete 2>/dev/null || true
+            find "$DATA_VOL/home/.local" -path '*/__pycache__/usercustomize*' -delete 2>/dev/null || true
+
+            docker start javis-bach
+            echo "=== WAIT HEALTH ==="
+            ok=0
+            for i in $(seq 1 30); do
+              ST=$(docker inspect javis-bach --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null || echo missing)
+              echo "t=$i $ST"
+              if echo "$ST" | grep -q 'running healthy'; then ok=1; break; fi
+              if echo "$ST" | grep -Eq 'restarting|exited'; then
+                echo "still_crash"
+                docker logs --tail 15 javis-bach 2>&1 | tail -15 || true
+              fi
+              sleep 3
+            done
+
+            echo "=== AFTER ==="
+            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}'
+            docker logs --tail 20 javis-bach 2>&1 | tail -20 || true
             docker exec -i javis-manager python - <<'PY'
-            import sys, time
+            import sys
             sys.path.insert(0, "/app/server")
-            import org_tenants as ot, org_coord as oc, org_docker as od
-            slug = "bach"
-            rec = ot.get(slug) or {}
-            cname = str(rec.get("container") or "javis-bach")
-            print("registry", {k: rec.get(k) for k in ("slug","status","paused","deleted_at","last_active","container","quota_gb")}, flush=True)
+            import org_docker as od
+            cname = "javis-bach"
             print("docker_status", od.container_status(cname), flush=True)
-            print("inspect", bool(od.inspect_name(cname)), flush=True)
             try:
                 print("serving_ready", od.container_serving_ready(cname), flush=True)
             except Exception as e:
-                print("serving_ready_err", type(e).__name__, e, flush=True)
-            try:
-                print("health_inside", od._health_inside(cname), flush=True)
-            except Exception as e:
-                print("health_inside_err", type(e).__name__, e, flush=True)
-            try:
-                la = od.read_last_active(cname, rec)
-                print("last_active", la, "age_sec", (int(time.time()) - int(la)) if la else None, flush=True)
-            except Exception as e:
-                print("last_active_err", type(e).__name__, e, flush=True)
-            c = oc.coord()
-            print("coord", {k: c.get(k) for k in ("max_running","effective_max","suggest","idle_minutes","host_ram_mb","host_avail_mb")}, flush=True)
-            run = od.people_running()
-            print("people_running", len(run), [t.get("slug") for t in run], flush=True)
-            print("bach_in_running", any(t.get("slug")=="bach" for t in run), flush=True)
-            # thử curl health từ manager sang bach
+                print("serving_err", e, flush=True)
             try:
                 import urllib.request
-                url = f"http://{cname}:7777/health"
-                with urllib.request.urlopen(url, timeout=5) as r:
-                    print("health_http", r.status, r.read()[:120], flush=True)
+                with urllib.request.urlopen("http://javis-bach:7777/health", timeout=5) as r:
+                    print("health_http", r.status, flush=True)
             except Exception as e:
                 print("health_http_err", type(e).__name__, e, flush=True)
-            print("BACH_PROBE_DONE", flush=True)
+            print("BACH_HEAL_DONE", flush=True)
             PY
-            echo "=== all tenants brief ==="
-            docker ps -a --format '{{.Names}} {{.Status}}' | grep '^javis-' | sort || true
+            [ "$ok" = 1 ] && echo BACH_HEALTHY || echo BACH_STILL_BAD
