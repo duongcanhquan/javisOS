@@ -1,4 +1,4 @@
-# bump: 2026-10-27 — chẩn đoán bach offline dù hệ thống bật
+# bump: 2026-10-27T04:45Z — vá RecursionError usercustomize trên bach
 name: Probe bach status once
 
 on:
@@ -34,8 +34,57 @@ jobs:
             echo "=== docker bach ==="
             docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}\t{{.RunningFor}}\t{{.Image}}' || true
             docker inspect javis-bach --format 'State={{.State.Status}} Exit={{.State.ExitCode}} OOM={{.State.OOMKilled}} Err={{.State.Error}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} Started={{.State.StartedAt}} Finished={{.State.FinishedAt}}' 2>/dev/null || echo 'NO_CONTAINER'
-            echo "=== recent bach logs ==="
-            docker logs --tail 40 javis-bach 2>&1 || true
+            echo "=== recent bach logs (head+tail) ==="
+            docker logs --tail 80 javis-bach 2>&1 | tail -80 || true
+            echo "=== usercustomize on bach vs giang ==="
+            for C in javis-bach javis-giang javis-quan; do
+              echo "-- $C --"
+              docker exec "$C" sh -c 'ls -la /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; wc -c /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; md5sum /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; ls -la /usr/local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; md5sum /usr/local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null' 2>&1 | head -20 || echo "exec_fail $C"
+            done
+            echo "=== mounts bach ==="
+            docker inspect javis-bach --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' 2>/dev/null || true
+            echo "=== HEAL: copy usercustomize lành + restart bach ==="
+            # Nếu file hỏng / đệ quy: lấy bản từ máy healthy (giang), hoặc đổi tên để tắt.
+            SRC=""
+            for C in javis-giang javis-quan javis-thuha; do
+              if docker exec "$C" test -f /home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>/dev/null; then
+                SRC="$C"
+                break
+              fi
+            done
+            if [ -n "$SRC" ]; then
+              echo "copy usercustomize from $SRC"
+              docker cp "$SRC:/home/javis/.local/lib/python3.12/site-packages/usercustomize.py" /tmp/usercustomize.good.py || true
+              # Container đang restart - cần stop rồi cp vào layer, hoặc cp qua volume nếu là bind.
+              docker stop javis-bach 2>/dev/null || true
+              # Thử ghi vào filesystem container (writable layer)
+              docker cp /tmp/usercustomize.good.py javis-bach:/home/javis/.local/lib/python3.12/site-packages/usercustomize.py 2>&1 || echo "cp_into_bach_fail"
+              # Phòng hờ: tắt usercustomize bằng rename nếu vẫn crash
+              docker start javis-bach || true
+              sleep 8
+              ST=$(docker inspect javis-bach --format '{{.State.Status}} {{.State.ExitCode}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null || echo missing)
+              echo "after_copy_status $ST"
+              if echo "$ST" | grep -Eq 'restarting|exited'; then
+                echo "still bad - disable usercustomize"
+                docker stop javis-bach 2>/dev/null || true
+                docker start javis-bach
+                # rename inside once briefly up, or use docker run --volumes-from
+                docker exec javis-bach sh -c 'f=/home/javis/.local/lib/python3.12/site-packages/usercustomize.py; if [ -f "$f" ]; then mv -f "$f" "$f.bad.$(date +%s)"; fi' 2>&1 || true
+                # Nếu exec không vào được vì crash ngay: dùng temporary container cùng volume
+                docker stop javis-bach 2>/dev/null || true
+                IMG=$(docker inspect javis-bach --format '{{.Config.Image}}')
+                # mount writable upper via docker commit approach: create helper with same mounts
+                docker run --rm --volumes-from javis-bach "$IMG" \
+                  sh -c 'f=/home/javis/.local/lib/python3.12/site-packages/usercustomize.py; if [ -f "$f" ]; then mv -f "$f" "$f.disabled"; ls -la "$f.disabled"; fi' 2>&1 || echo "volumes_from_heal_fail"
+                docker start javis-bach || true
+                sleep 12
+              fi
+            else
+              echo "no healthy usercustomize source"
+            fi
+            echo "=== status after heal ==="
+            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}'
+            docker logs --tail 25 javis-bach 2>&1 | tail -25 || true
             echo "=== manager view ==="
             docker exec -i javis-manager python - <<'PY'
             import sys, time
