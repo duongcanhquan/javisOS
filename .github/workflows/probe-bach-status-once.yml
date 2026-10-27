@@ -1,0 +1,79 @@
+# bump: 2026-10-27 — chẩn đoán bach offline dù hệ thống bật
+name: Probe bach status once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-bach-status-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Diagnose bach over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== DISK / TIME ==="
+            date -u
+            df -h / | head -2
+            echo "=== docker bach ==="
+            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}\t{{.RunningFor}}\t{{.Image}}' || true
+            docker inspect javis-bach --format 'State={{.State.Status}} Exit={{.State.ExitCode}} OOM={{.State.OOMKilled}} Err={{.State.Error}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} Started={{.State.StartedAt}} Finished={{.State.FinishedAt}}' 2>/dev/null || echo 'NO_CONTAINER'
+            echo "=== recent bach logs ==="
+            docker logs --tail 40 javis-bach 2>&1 || true
+            echo "=== manager view ==="
+            docker exec -i javis-manager python - <<'PY'
+            import sys, time
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot, org_coord as oc, org_docker as od
+            slug = "bach"
+            rec = ot.get(slug) or {}
+            cname = str(rec.get("container") or "javis-bach")
+            print("registry", {k: rec.get(k) for k in ("slug","status","paused","deleted_at","last_active","container","quota_gb")}, flush=True)
+            print("docker_status", od.container_status(cname), flush=True)
+            print("inspect", bool(od.inspect_name(cname)), flush=True)
+            try:
+                print("serving_ready", od.container_serving_ready(cname), flush=True)
+            except Exception as e:
+                print("serving_ready_err", type(e).__name__, e, flush=True)
+            try:
+                print("health_inside", od._health_inside(cname), flush=True)
+            except Exception as e:
+                print("health_inside_err", type(e).__name__, e, flush=True)
+            try:
+                la = od.read_last_active(cname, rec)
+                print("last_active", la, "age_sec", (int(time.time()) - int(la)) if la else None, flush=True)
+            except Exception as e:
+                print("last_active_err", type(e).__name__, e, flush=True)
+            c = oc.coord()
+            print("coord", {k: c.get(k) for k in ("max_running","effective_max","suggest","idle_minutes","host_ram_mb","host_avail_mb")}, flush=True)
+            run = od.people_running()
+            print("people_running", len(run), [t.get("slug") for t in run], flush=True)
+            print("bach_in_running", any(t.get("slug")=="bach" for t in run), flush=True)
+            # thử curl health từ manager sang bach
+            try:
+                import urllib.request
+                url = f"http://{cname}:7777/health"
+                with urllib.request.urlopen(url, timeout=5) as r:
+                    print("health_http", r.status, r.read()[:120], flush=True)
+            except Exception as e:
+                print("health_http_err", type(e).__name__, e, flush=True)
+            print("BACH_PROBE_DONE", flush=True)
+            PY
+            echo "=== all tenants brief ==="
+            docker ps -a --format '{{.Names}} {{.Status}}' | grep '^javis-' | sort || true
