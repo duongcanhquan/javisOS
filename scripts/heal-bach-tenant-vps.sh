@@ -162,6 +162,37 @@ for p in Path("/data/home").rglob("*"):
 print("MODEL_DIAG_DONE", flush=True)
 PY
 
+echo "=== VERIFY agy binary + auth trong process Javis ==="
+docker exec -u javis "$C" sh -c '
+export PATH="/home/javis/.local/bin:/data/home/.local/bin:$PATH"
+ls -la /home/javis/.local/bin/agy /data/home/.local/bin/agy 2>/dev/null
+file /home/javis/.local/bin/agy /data/home/.local/bin/agy 2>/dev/null
+agy --version 2>&1 | head -5 || /home/javis/.local/bin/agy --version 2>&1 | head -5 || echo AGY_VERSION_FAIL
+'
+docker exec -i "$C" python - <<'PY'
+import sys
+sys.path.insert(0, "/app/server")
+import antigravity_cli as ag
+print("find_agy", ag.find_antigravity_cli(), flush=True)
+try:
+    st = ag.auth_status_nen()
+    print("auth_status_nen", {k: st.get(k) for k in ("connected", "email", "error", "reason") if k in st or True}, flush=True)
+    print("auth_raw_keys", sorted(st.keys()), flush=True)
+    for k in ("connected", "email", "account", "error", "message", "detail"):
+        if k in st:
+            print("auth", k, st.get(k), flush=True)
+except Exception as e:
+    print("auth_err", type(e).__name__, e, flush=True)
+try:
+    ms = ag.list_models()
+    print("models_count", len(ms) if isinstance(ms, list) else type(ms), flush=True)
+    if isinstance(ms, list):
+        print("models_sample", [str(x)[:80] for x in ms[:8]], flush=True)
+except Exception as e:
+    print("models_err", type(e).__name__, e, flush=True)
+print("AGY_AUTH_DONE", flush=True)
+PY
+
 echo "=== manager → bach health + asset ==="
 docker exec -i javis-manager python - <<'PY'
 import sys, urllib.request

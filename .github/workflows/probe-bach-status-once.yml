@@ -1,4 +1,4 @@
-# bump: 2026-10-28T05:20Z — bach: cài agy (MAIN=antigravity-cli mà thiếu binary)
+# bump: 2026-10-28T05:30Z — bach: xác nhận agy binary + auth_status
 name: Probe bach status once
 
 on:
