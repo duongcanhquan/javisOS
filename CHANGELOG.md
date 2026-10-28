@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.100] - 2026-10-28
+### Mới
+- **Nhạc trưởng · campus hybrid:** sân khấu mặc định toàn cảnh — sảnh hàng đợi, phòng xếp trái→phải theo pipeline, hành lang chevron (chờ/khóa/đạt/đang chạy), phòng họp trưởng phía trên. Double-click phòng (hoặc chip pipeline) phóng ghế chữ U; Esc / Toàn cảnh quay lại.
+- Luồng liên phòng (chuyển phòng / họp / chia / dap) vẽ mũi tên; họp trưởng đi boardroom; chip pipeline thay strip cũ.
+
 ## [0.56.99] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · popup nhân vật:** bấm tên/icon mở hồ sơ — thống kê làm/trao đổi/file + timeline theo giai đoạn (giao → nhận → trao đổi → làm → kiểm → họp → kết), xem đủ lời và file đính kèm.

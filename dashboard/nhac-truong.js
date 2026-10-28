@@ -38,6 +38,7 @@
     ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {}, vanPhong: null,
     _actor: null, _presets: [], _canh: ["van_phong", "hop", "sang", "toi"], _mau: ["la", "cat", "bien", "than"],
     _talkGon: false, _ketMo: false,
+    _pxView: { mode: "campus", focus: null },
   };
   var CANH_TEN = { van_phong: "Văn phòng", hop: "Phòng họp", sang: "Sáng", toi: "Tối" };
   var MAU_TEN = { la: "Xanh lá", cat: "Cát", bien: "Biển", than: "Than" };
@@ -896,8 +897,9 @@
   function pixelPerson(n, slug, d, v) {
     var st = actorState(n, slug, d, v);
     var state = "idle";
+    var hopLien = d && (d.buoc === "hop" || d.buoc === "chia" || d.buoc === "dap") && n.vai === "truong";
     if (st.cls.indexOf("walk") >= 0) state = "walk";
-    else if (st.cls.indexOf("meet") >= 0 || st.cls.indexOf("hop") >= 0) state = "meet";
+    else if (hopLien || st.cls.indexOf("meet") >= 0 || st.cls.indexOf("hop") >= 0) state = "meet";
     else if (st.bat || st.tt === "lam") state = "type";
     else if (st.tt === "cho") state = "wait";
     return {
@@ -915,9 +917,107 @@
     };
   }
 
+  function pxView() {
+    if (!S._pxView) S._pxView = { mode: "campus", focus: null };
+    return S._pxView;
+  }
+
+  function setPxView(mode, focus) {
+    S._pxView = { mode: mode === "room" ? "room" : "campus", focus: mode === "room" ? (focus || null) : null };
+    resetKhoaPhong();
+    capNhatPhong();
+    ganLoi();
+    ganLookVaActor();
+  }
+
+  function pixelPipeline(v, d, slugs) {
+    var khoa = (v && v.khoa) || {};
+    var dat = (v && v.dat) || {};
+    var ban = (v && v.ban) || {};
+    var hang = (v && v.hang) || {};
+    return (slugs || []).map(function (slug) {
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      var banTxt = ban[slug];
+      var hangArr = hang[slug] || [];
+      return {
+        slug: slug,
+        ten: (p && p.ten) || slug,
+        khoa: !!khoa[slug],
+        dat: !!dat[slug],
+        active: !!(d && d.phong === slug),
+        soBan: banTxt ? 1 : 0,
+        soHang: hangArr.length || 0,
+      };
+    });
+  }
+
+  function pixelCrossFlow(v, d, slugs) {
+    if (!d || !d.buoc) return null;
+    var buoc = d.buoc;
+    var idx = (slugs || []).indexOf(d.phong);
+    if (buoc === "hop" || buoc === "chia" || buoc === "dap") {
+      return {
+        kind: buoc,
+        fromRoom: d.phong || "",
+        toRoom: "__board",
+        from: d.slug || d.ten || "",
+        to: "",
+        label: nhanLuong(buoc),
+      };
+    }
+    if (buoc === "sua" && d.giao_cho) {
+      return {
+        kind: "sua",
+        fromRoom: d.phong || "",
+        toRoom: d.phong || "",
+        from: d.slug || d.ten || "",
+        to: d.giao_cho,
+        label: "mang lệnh về",
+      };
+    }
+    if (idx > 0 && (buoc === "giao" || buoc === "lam") && d.phong) {
+      var prev = slugs[idx - 1];
+      var khoa = (v && v.khoa) || {};
+      if (khoa[prev] || ((v && v.dat) || {})[prev]) {
+        return {
+          kind: "pipeline",
+          fromRoom: prev,
+          toRoom: d.phong,
+          label: "chuyển phòng",
+        };
+      }
+    }
+    return null;
+  }
+
+  function pixelMeeting(v, d, rooms) {
+    var on = !!(d && (d.buoc === "hop" || d.buoc === "chia" || d.buoc === "dap"));
+    if (!on) return { on: false, round: 0, heads: [] };
+    var vong = 0;
+    ((v && v.loi) || []).forEach(function (r) {
+      if (r.lop === "hop" && (r.vong || 0) > vong) vong = r.vong;
+    });
+    var heads = [];
+    (rooms || []).forEach(function (room) {
+      (room.people || []).forEach(function (p) {
+        if (!p.boss) return;
+        heads.push({
+          phong: room.slug,
+          slug: p.slug,
+          ten: p.ten,
+          role: p.role,
+          sheet: p.sheet,
+        });
+      });
+    });
+    return { on: true, round: vong || 1, heads: heads };
+  }
+
   function pixelModel(v) {
     var l = lookVp();
-    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var d = null;
+    if (v && v.trang_thai === "dang_chay") d = v.dang_lam;
+    else if (v && v.trang_thai === "cho_duyet") d = v.dang_lam || null;
     var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
     var rooms = (slugs || []).map(function (slug) {
       var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
@@ -935,14 +1035,50 @@
       };
     }).filter(Boolean);
     var flow = null;
-    if (d && d.giao_cho) {
+    var hopLien = d && (d.buoc === "hop" || d.buoc === "chia" || d.buoc === "dap");
+    if (d && d.giao_cho && !hopLien) {
       flow = {
         from: d.slug || d.ten || "",
         to: d.giao_cho,
         label: nhanLuong(d.buoc),
       };
     }
-    return { rooms: rooms, look: l, flow: flow };
+    var view = pxView();
+    if (view.mode === "room" && view.focus && !(slugs || []).filter(function (s) { return s === view.focus; }).length) {
+      view = { mode: "campus", focus: null };
+      S._pxView = view;
+    }
+    var hd = ((S.vanPhong || {}).hang_doi) || [];
+    return {
+      rooms: rooms,
+      look: l,
+      flow: flow,
+      crossFlow: pixelCrossFlow(v, d, slugs),
+      pipeline: pixelPipeline(v, d, slugs),
+      meeting: pixelMeeting(v, d, rooms),
+      queue: hd.slice(0, 5).map(function (h) {
+        return { id: h.id, tieu_de: h.tieu_de, trang_thai: h.trang_thai };
+      }),
+      view: { mode: view.mode || "campus", focus: view.focus || null },
+      dangLam: d || null,
+    };
+  }
+
+  function htmlPipelineChips(v, d, slugs) {
+    var pipe = pixelPipeline(v, d, slugs);
+    if (!pipe.length) return "";
+    var view = pxView();
+    return '<div class="nt-pipe-chips" id="ntPipeChips">' + pipe.map(function (p, i) {
+      var cls = "nt-pipe-chip";
+      if (p.active) cls += " active";
+      if (p.dat) cls += " dat";
+      else if (p.khoa) cls += " khoa";
+      if (view.mode === "room" && view.focus === p.slug) cls += " focus";
+      return '<button type="button" class="' + cls + '" data-pipe="' + esc(p.slug) + '">' +
+        "<b>" + (i + 1) + "</b> " + esc(p.ten) +
+        (p.active && d && d.buoc ? " · " + esc(nhanLuong(d.buoc)) : "") +
+        "</button>";
+    }).join('<span class="nt-pipe-chev" aria-hidden="true">→</span>') + "</div>";
   }
 
   function ensureNtPixel() {
@@ -995,6 +1131,13 @@
           ganLoi();
           ganLookVaActor();
         },
+        onRoom: function (slug) {
+          if (!slug) return;
+          setPxView("room", slug);
+        },
+        onCampus: function () {
+          setPxView("campus", null);
+        },
       };
       if (host.getAttribute("data-px") === "1") {
         window.JavisNtPixel.update(model);
@@ -1015,24 +1158,15 @@
   function htmlMap() {
     var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
     var l = lookVp();
-    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var d = v && (v.trang_thai === "dang_chay" || v.trang_thai === "cho_duyet") ? v.dang_lam : null;
     var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
     if (!slugs.length) return hangDoiVp() + htmlLook() + '<p class="nt-hint">Chưa có phòng.</p>';
-    var strips = slugs.map(function (slug) {
-      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-      if (!p) return "";
-      var truong = truongCua(p);
-      var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
-      var all = [];
-      if (truong) all.push(truong);
-      day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
-      var run = d && d.phong === slug;
-      return '<div class="nt-flow-room"><b>' + esc(p.ten) + "</b>" + stripLuong(all, run ? d : null, slug) + "</div>";
-    }).join("");
+    var view = pxView();
     return hangDoiVp() + htmlLook() +
       '<div id="ntStage" class="nt-stage nt-stage-pixel canh-' + esc(l.canh) + " mau-" + esc(l.mau) +
-      (v && v.trang_thai === "dang_chay" ? " running" : "") + '">' +
-      '<div class="nt-pixel-strips">' + strips + "</div>" +
+      (v && v.trang_thai === "dang_chay" ? " running" : "") +
+      (view.mode === "room" ? " focus-room" : " campus") + '">' +
+      htmlPipelineChips(v, d, slugs) +
       '<div id="ntPixelHost" class="nt-pixel-host"></div></div>' +
       htmlActorPanel(v);
   }
@@ -2214,13 +2348,37 @@
     };
     var stage = document.getElementById("ntStage");
     if (stage) stage.onclick = function (ev) {
-      if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel") || ev.target.closest(".nt-px-label")) return;
+      if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel") ||
+        ev.target.closest(".nt-px-label") || ev.target.closest("[data-pipe]") ||
+        ev.target.closest(".nt-px-hit") || ev.target.closest("#ntPxCampus")) return;
       if (!S._actor) return;
       S._actor = null;
       resetKhoaPhong();
       capNhatPhong();
       ganLookVaActor();
     };
+    S.root.querySelectorAll("[data-pipe]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        var slug = b.getAttribute("data-pipe") || "";
+        if (!slug) return;
+        var view = pxView();
+        if (view.mode === "room" && view.focus === slug) setPxView("campus", null);
+        else setPxView("room", slug);
+      };
+    });
+    if (!S._pxEscBound) {
+      S._pxEscBound = true;
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key !== "Escape") return;
+        if (!S.root || S.tab !== "viec") return;
+        var view = pxView();
+        if (view.mode === "room") {
+          ev.preventDefault();
+          setPxView("campus", null);
+        }
+      });
+    }
     paintPixel();
   }
 
@@ -2384,6 +2542,7 @@
   function khoaMapCau(v) {
     var l = lookVp();
     var act = S._actor ? (S._actor.phong + "/" + S._actor.slug) : "";
+    var view = pxView();
     var slugs = v && (v.phong || []).length ? (v.phong || []) : (S.phong || []).map(function (p) { return p.slug; });
     var people = (slugs || []).map(function (slug) {
       var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
@@ -2395,7 +2554,10 @@
       return (h.id || "") + ":" + (h.trang_thai || "");
     }).join(",");
     var pc = ((S.vanPhong || {}).look || {}).phong_cach || "";
-    return [(v && v.id) || "", l.canh, l.mau, pc, act, (slugs || []).join(","), people, hd].join("~");
+    var khoa = Object.keys((v && v.khoa) || {}).join(",");
+    var dat = Object.keys((v && v.dat) || {}).join(",");
+    return [(v && v.id) || "", l.canh, l.mau, pc, act, (slugs || []).join(","), people, hd,
+      view.mode || "campus", view.focus || "", khoa, dat].join("~");
   }
 
   /** Trạng thái động trên sân (đi/họp/bubble) — vá DOM, không innerHTML. */
@@ -2419,22 +2581,26 @@
     var stage = document.getElementById("ntStage");
     if (!stage) return false;
     stage.classList.toggle("running", !!(v && v.trang_thai === "dang_chay"));
-    // Cập nhật dải A→B→C (nhẹ) + canvas pixel — không rebuild cả sân.
-    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
-    var strips = document.querySelector(".nt-pixel-strips");
-    if (strips) {
+    var view = pxView();
+    stage.classList.toggle("focus-room", view.mode === "room");
+    stage.classList.toggle("campus", view.mode !== "room");
+    var d = v && (v.trang_thai === "dang_chay" || v.trang_thai === "cho_duyet") ? v.dang_lam : null;
+    var chips = document.getElementById("ntPipeChips");
+    if (chips) {
       var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
-      strips.innerHTML = (slugs || []).map(function (slug) {
-        var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-        if (!p) return "";
-        var truong = truongCua(p);
-        var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
-        var all = [];
-        if (truong) all.push(truong);
-        day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
-        var run = d && d.phong === slug;
-        return '<div class="nt-flow-room"><b>' + esc(p.ten) + "</b>" + stripLuong(all, run ? d : null, slug) + "</div>";
-      }).join("");
+      chips.outerHTML = htmlPipelineChips(v, d, slugs);
+      if (S.root) {
+        S.root.querySelectorAll("[data-pipe]").forEach(function (b) {
+          b.onclick = function (ev) {
+            ev.stopPropagation();
+            var slug = b.getAttribute("data-pipe") || "";
+            if (!slug) return;
+            var vw = pxView();
+            if (vw.mode === "room" && vw.focus === slug) setPxView("campus", null);
+            else setPxView("room", slug);
+          };
+        });
+      }
     }
     paintPixel();
     var panel = document.getElementById("ntActorPanel");

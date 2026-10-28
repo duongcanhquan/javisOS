@@ -1,9 +1,11 @@
-/* Văn phòng pixel Nhạc trưởng — cảm hứng Pixel Agents (MIT) + sprite Metro City (CC0). */
+/* Văn phòng pixel Nhạc trưởng — campus hybrid + zoom phòng.
+   Cảm hứng Pixel Agents (MIT) + sprite Metro City (CC0). */
 (function () {
   "use strict";
 
   var TILE = 16;
-  var ZOOM = 2;
+  var ZOOM_CAMPUS = 2;
+  var ZOOM_FOCUS = 2.5;
   var CHAR_W = 16;
   var CHAR_H = 32;
   var ASSET = "/static/nt-pixel/assets/";
@@ -15,16 +17,18 @@
   var _canvas = null;
   var _ctx = null;
   var _labels = null;
+  var _hits = null;
   var _raf = 0;
   var _imgs = {};
   var _ready = false;
   var _model = null;
   var _layout = null;
   var _chars = [];
-  var _furn = [];
   var _t0 = 0;
   var _last = 0;
   var _click = null;
+  var _onRoom = null;
+  var _onCampus = null;
 
   function loadImg(src) {
     if (_imgs[src]) return _imgs[src];
@@ -87,7 +91,25 @@
     return "characters/char_" + (hash(slug || ten) % 6) + ".png";
   }
 
-  /** Ước kích thước phòng: trưởng ở đầu, NV ôm hai bên + đáy (chữ U quanh thảm họp). */
+  function emptyTiles(cols, rows) {
+    var tiles = [];
+    var r, c;
+    for (r = 0; r < rows; r++) {
+      tiles[r] = [];
+      for (c = 0; c < cols; c++) tiles[r][c] = -1;
+    }
+    return tiles;
+  }
+
+  function fillRect(tiles, x0, y0, w, h, id, cols, rows) {
+    var x, y;
+    for (y = y0; y < y0 + h; y++) {
+      for (x = x0; x < x0 + w; x++) {
+        if (x >= 0 && y >= 0 && x < cols && y < rows) tiles[y][x] = id;
+      }
+    }
+  }
+
   function roomSize(people) {
     var n = (people || []).length || 1;
     var staff = Math.max(0, n - ((people || []).some(function (p) { return p.boss; }) ? 1 : 0));
@@ -97,7 +119,6 @@
     return { w: w, h: h };
   }
 
-  /** Sinh chỗ bàn: boss giữa tường sau; NV xen kẽ trái/phải rồi đáy. */
   function seatPlan(people, x0, y0, w, h) {
     var list = (people || []).slice();
     var boss = null;
@@ -107,16 +128,13 @@
       else staff.push(p);
     });
     if (!boss && list.length) {
-      // Không gắn cờ boss → người đầu vẫn ngồi đầu phòng
       boss = list[0];
       staff = list.slice(1);
     }
     var mx = x0 + Math.floor(w / 2) - 1;
     var my = y0 + Math.floor(h / 2) - 1;
     var out = [];
-    if (boss) {
-      out.push({ p: boss, dx: mx, dy: y0 + 1, boss: true });
-    }
+    if (boss) out.push({ p: boss, dx: mx, dy: y0 + 1, boss: true });
     var leftX = x0 + 1;
     var rightX = x0 + w - 3;
     var yTop = y0 + 4;
@@ -126,54 +144,144 @@
     for (y = yTop; y <= yBot; y += 3) side.push({ dx: leftX, dy: y });
     for (y = yTop; y <= yBot; y += 3) side.push({ dx: rightX, dy: y });
     for (var x = leftX + 3; x <= rightX - 3; x += 3) {
-      // tránh đụng chân bàn trưởng / thảm
       if (Math.abs(x - mx) < 2) continue;
       side.push({ dx: x, dy: yBot });
     }
     staff.forEach(function (p, i) {
-      var s = side[i];
-      if (!s) {
-        s = { dx: leftX + (i % 3) * 3, dy: yBot - Math.floor(i / 3) * 3 };
-      }
+      var s = side[i] || { dx: leftX + (i % 3) * 3, dy: yBot - Math.floor(i / 3) * 3 };
       out.push({ p: p, dx: s.dx, dy: s.dy, boss: false });
     });
     return { seats: out, mx: mx, my: my };
   }
 
-  /** Dựng layout: mỗi phòng một khu, ghế chữ U thông minh quanh thảm họp. */
-  function buildLayout(model) {
+  function pipeStatus(room, pipe) {
+    if (!room) return "idle";
+    if (room.active) return "active";
+    var hit = (pipe || []).filter(function (p) { return p.slug === room.slug; })[0];
+    if (hit && hit.dat) return "dat";
+    if (hit && hit.khoa) return "khoa";
+    return "idle";
+  }
+
+  function doorBadge(room, pipe, d) {
+    var hit = (pipe || []).filter(function (p) { return p.slug === room.slug; })[0];
+    var st = "";
+    if (room.active && d && d.buoc) st = " · " + String(d.buoc);
+    else if (hit && hit.dat) st = " · đạt";
+    else if (hit && hit.khoa) st = " · khóa";
+    return (room.ten || room.slug) + st;
+  }
+
+  /** Campus: lobby | phòng L→R + hành lang | boardroom trên. */
+  function buildCampusLayout(model) {
     var rooms = (model && model.rooms) || [];
-    var pad = 2;
-    var sizes = rooms.map(function (r) { return roomSize(r.people); });
-    var roomInnerH = 13;
-    sizes.forEach(function (s) { roomInnerH = Math.max(roomInnerH, s.h); });
-    var cols = pad * 2;
-    sizes.forEach(function (s, i) { cols += s.w + (i ? 2 : 0); });
-    if (!rooms.length) cols = 16;
-    var rows = pad * 2 + roomInnerH + 2;
-    var tiles = [];
-    var r, c;
-    for (r = 0; r < rows; r++) {
-      tiles[r] = [];
-      for (c = 0; c < cols; c++) tiles[r][c] = -1;
-    }
+    var pipe = (model && model.pipeline) || [];
+    var queue = (model && model.queue) || [];
+    var meeting = (model && model.meeting) || {};
+    var d = model && model.dangLam;
+    var pad = 1;
+    var lobbyW = 7;
+    var hallW = 3;
+    var boardH = 7;
+    var roomW = 11;
+    var roomH = 11;
+    var n = rooms.length || 1;
+    var cols = pad * 2 + lobbyW + 1 + n * roomW + Math.max(0, n - 1) * hallW + 1;
+    var rows = pad * 2 + boardH + 1 + roomH + 1;
+    var tiles = emptyTiles(cols, rows);
     var floorId = floorFor(model && model.look);
+    var hallFloor = (floorId + 4) % 9;
     var furn = [];
     var seats = [];
     var areas = [];
-    var ox = pad;
+    var halls = [];
+    var doors = [];
+    var boardSeats = [];
+
+    // Lobby
+    var lx0 = pad;
+    var ly0 = pad + boardH + 1;
+    fillRect(tiles, lx0, ly0, lobbyW, roomH, floorId, cols, rows);
+    furn.push({ kind: "bookshelf", x: lx0 + 1, y: ly0, z: 1 });
+    furn.push({ kind: "desk", x: lx0 + 2, y: ly0 + 3, z: 3 });
+    furn.push({ kind: "chair", x: lx0 + 3, y: ly0 + 5, z: 2 });
+    furn.push({ kind: "plant", x: lx0 + lobbyW - 2, y: ly0 + 1, z: 1, big: true });
+    areas.push({
+      slug: "__lobby",
+      ten: "Sảnh",
+      x: lx0, y: ly0, w: lobbyW, h: roomH,
+      kind: "lobby",
+      active: false,
+      tickets: queue.slice(0, 4),
+    });
+
+    // Boardroom spanning above rooms
+    var bx0 = pad + lobbyW + 1;
+    var bw = Math.max(roomW, cols - bx0 - pad);
+    var by0 = pad;
+    fillRect(tiles, bx0, by0, bw, boardH, (floorId + 2) % 9, cols, rows);
+    var bmx = bx0 + Math.floor(bw / 2) - 1;
+    var bmy = by0 + 2;
+    furn.push({ kind: "carpet", x: bmx, y: bmy, z: 0 });
+    furn.push({ kind: "bench", x: bmx, y: bmy + 1, z: 2 });
+    furn.push({ kind: "coffee_table", x: bmx, y: bmy + 2, z: 2 });
+    furn.push({ kind: "painting", x: bmx, y: by0, z: 1 });
+    furn.push({ kind: "plant", x: bx0 + 1, y: by0, z: 1, big: true });
+    furn.push({ kind: "plant", x: bx0 + bw - 2, y: by0, z: 1, big: true });
+    areas.push({
+      slug: "__board",
+      ten: meeting.on ? ("Họp trưởng" + (meeting.round ? " · vòng " + meeting.round : "")) : "Phòng họp trưởng",
+      x: bx0, y: by0, w: bw, h: boardH,
+      kind: "board",
+      active: !!meeting.on,
+    });
+
+    var heads = meeting.heads || [];
+    heads.forEach(function (h, i) {
+      var hx = bx0 + 2 + (i % Math.max(1, Math.floor(bw / 3))) * 3;
+      var hy = by0 + 3 + Math.floor(i / Math.max(1, Math.floor(bw / 3)));
+      if (hy > by0 + boardH - 2) hy = by0 + boardH - 2;
+      boardSeats.push({
+        id: "board/" + h.phong + "/" + h.slug,
+        room: h.phong,
+        slug: h.slug,
+        ten: h.ten,
+        role: h.role || "Trưởng",
+        boss: true,
+        board: true,
+        sx: hx,
+        sy: hy,
+        meetX: bmx + 1,
+        meetY: bmy + 1,
+        sheet: h.sheet || charSheet(h.slug, h.ten),
+      });
+    });
+
+    var ox = pad + lobbyW + 1;
+    var ry0 = pad + boardH + 1;
     rooms.forEach(function (room, ri) {
-      var sz = sizes[ri] || { w: 14, h: roomInnerH };
-      var x0 = ox;
-      var y0 = pad;
-      var w = sz.w;
-      var h = roomInnerH;
-      var x, y;
-      for (y = y0; y < y0 + h; y++) {
-        for (x = x0; x < x0 + w; x++) {
-          if (x >= 0 && y >= 0 && x < cols && y < rows) tiles[y][x] = (floorId + (ri % 2)) % 9;
-        }
+      if (ri > 0) {
+        var hx0 = ox;
+        fillRect(tiles, hx0, ry0, hallW, roomH, hallFloor, cols, rows);
+        var prev = rooms[ri - 1];
+        var stHall = "pending";
+        var prevSt = pipeStatus(prev, pipe);
+        var curSt = pipeStatus(room, pipe);
+        if (prevSt === "dat" || prevSt === "khoa") stHall = prevSt === "dat" ? "dat" : "khoa";
+        if (curSt === "active" || prevSt === "active") stHall = "active";
+        halls.push({
+          x: hx0, y: ry0, w: hallW, h: roomH,
+          status: stHall,
+          from: prev.slug,
+          to: room.slug,
+        });
+        ox += hallW;
       }
+      var x0 = ox;
+      var y0 = ry0;
+      var w = roomW;
+      var h = roomH;
+      fillRect(tiles, x0, y0, w, h, (floorId + (ri % 2)) % 9, cols, rows);
       var plan = seatPlan(room.people || [], x0, y0, w, h);
       var mx = plan.mx;
       var my = plan.my;
@@ -182,22 +290,14 @@
       furn.push({ kind: "painting", x: mx, y: y0, z: 1 });
       furn.push({ kind: "plant", x: x0 + w - 2, y: y0, z: 1, big: true });
       furn.push({ kind: "clock", x: x0 + w - 3, y: y0, z: 1 });
-      furn.push({ kind: "bench", x: mx, y: my + 1, z: 2 });
-      furn.push({ kind: "coffee_table", x: mx, y: my + 2, z: 2 });
       furn.push({ kind: "bin", x: x0 + w - 2, y: y0 + h - 2, z: 2 });
       furn.push({ kind: "cactus", x: x0 + 1, y: y0 + h - 2, z: 2 });
-      if (plan.seats.some(function (s) { return s.boss; })) {
-        furn.push({ kind: "plant", x: mx - 2, y: y0 + 1, z: 2 });
-        furn.push({ kind: "plant", x: mx + 3, y: y0 + 1, z: 2 });
-      }
 
       plan.seats.forEach(function (s) {
         var p = s.p;
-        var dx = s.dx;
-        var dy = s.dy;
-        furn.push({ kind: "desk", x: dx, y: dy, z: 3 });
-        furn.push({ kind: "chair", x: dx + 1, y: dy + 2, z: 2 });
-        furn.push({ kind: "pc", x: dx + 1, y: dy, z: 4 });
+        furn.push({ kind: "desk", x: s.dx, y: s.dy, z: 3 });
+        furn.push({ kind: "chair", x: s.dx + 1, y: s.dy + 2, z: 2 });
+        furn.push({ kind: "pc", x: s.dx + 1, y: s.dy, z: 4 });
         seats.push({
           id: room.slug + "/" + p.slug,
           room: room.slug,
@@ -205,47 +305,190 @@
           ten: p.ten,
           role: p.role,
           boss: !!s.boss,
-          sx: dx + 1,
-          sy: dy + 1,
+          sx: s.dx + 1,
+          sy: s.dy + 1,
           meetX: mx + 1,
           meetY: my + 1,
           sheet: p.sheet || charSheet(p.slug, p.ten),
         });
       });
+
+      var st = pipeStatus(room, pipe);
+      doors.push({
+        slug: room.slug,
+        x: x0 + Math.floor(w / 2),
+        y: y0,
+        badge: doorBadge(room, pipe, d),
+        status: st,
+        idx: ri + 1,
+      });
       areas.push({
         slug: room.slug,
-        ten: room.ten,
-        x: x0,
-        y: y0,
-        w: w,
-        h: h,
+        ten: (ri + 1) + ". " + (room.ten || room.slug),
+        x: x0, y: y0, w: w, h: h,
+        kind: "room",
         active: !!room.active,
+        status: st,
+        badge: doorBadge(room, pipe, d),
       });
-      ox += w + 2;
+      ox += w;
     });
-    return { cols: cols, rows: rows, tiles: tiles, furn: furn, seats: seats, areas: areas, floorId: floorId };
+
+    return {
+      mode: "campus",
+      zoom: ZOOM_CAMPUS,
+      cols: cols,
+      rows: rows,
+      tiles: tiles,
+      furn: furn,
+      seats: seats,
+      boardSeats: boardSeats,
+      areas: areas,
+      halls: halls,
+      doors: doors,
+      floorId: floorId,
+      meetingOn: !!meeting.on,
+    };
+  }
+
+  /** Focus một phòng — ghế chữ U đầy đủ. */
+  function buildFocusLayout(model, focus) {
+    var rooms = ((model && model.rooms) || []).filter(function (r) { return r.slug === focus; });
+    if (!rooms.length) return buildCampusLayout(model);
+    var room = rooms[0];
+    var pipe = (model && model.pipeline) || [];
+    var d = model && model.dangLam;
+    var pad = 2;
+    var sz = roomSize(room.people);
+    var w = Math.max(sz.w, 16);
+    var h = Math.max(sz.h, 14);
+    var cols = pad * 2 + w;
+    var rows = pad * 2 + h + 1;
+    var tiles = emptyTiles(cols, rows);
+    var floorId = floorFor(model && model.look);
+    var furn = [];
+    var seats = [];
+    var x0 = pad;
+    var y0 = pad + 1;
+    fillRect(tiles, x0, y0, w, h, floorId, cols, rows);
+    var plan = seatPlan(room.people || [], x0, y0, w, h);
+    var mx = plan.mx;
+    var my = plan.my;
+    furn.push({ kind: "carpet", x: mx, y: my, z: 0 });
+    furn.push({ kind: "bookshelf", x: x0 + 1, y: y0, z: 1 });
+    furn.push({ kind: "painting", x: mx, y: y0, z: 1 });
+    furn.push({ kind: "plant", x: x0 + w - 2, y: y0, z: 1, big: true });
+    furn.push({ kind: "clock", x: x0 + w - 3, y: y0, z: 1 });
+    furn.push({ kind: "bench", x: mx, y: my + 1, z: 2 });
+    furn.push({ kind: "coffee_table", x: mx, y: my + 2, z: 2 });
+    furn.push({ kind: "bin", x: x0 + w - 2, y: y0 + h - 2, z: 2 });
+    furn.push({ kind: "cactus", x: x0 + 1, y: y0 + h - 2, z: 2 });
+    if (plan.seats.some(function (s) { return s.boss; })) {
+      furn.push({ kind: "plant", x: mx - 2, y: y0 + 1, z: 2 });
+      furn.push({ kind: "plant", x: mx + 3, y: y0 + 1, z: 2 });
+    }
+    plan.seats.forEach(function (s) {
+      var p = s.p;
+      furn.push({ kind: "desk", x: s.dx, y: s.dy, z: 3 });
+      furn.push({ kind: "chair", x: s.dx + 1, y: s.dy + 2, z: 2 });
+      furn.push({ kind: "pc", x: s.dx + 1, y: s.dy, z: 4 });
+      seats.push({
+        id: room.slug + "/" + p.slug,
+        room: room.slug,
+        slug: p.slug,
+        ten: p.ten,
+        role: p.role,
+        boss: !!s.boss,
+        sx: s.dx + 1,
+        sy: s.dy + 1,
+        meetX: mx + 1,
+        meetY: my + 1,
+        sheet: p.sheet || charSheet(p.slug, p.ten),
+      });
+    });
+    var st = pipeStatus(room, pipe);
+    var hit = pipe.filter(function (p) { return p.slug === room.slug; })[0] || {};
+    return {
+      mode: "room",
+      zoom: ZOOM_FOCUS,
+      focus: focus,
+      cols: cols,
+      rows: rows,
+      tiles: tiles,
+      furn: furn,
+      seats: seats,
+      boardSeats: [],
+      areas: [{
+        slug: room.slug,
+        ten: room.ten || room.slug,
+        x: x0, y: y0, w: w, h: h,
+        kind: "room",
+        active: !!room.active,
+        status: st,
+        badge: doorBadge(room, pipe, d),
+        meta: "ban " + (hit.soBan || 0) + " · file " + (hit.soHang || 0) +
+          (hit.khoa ? " · khóa" : "") + (hit.dat ? " · đạt" : ""),
+      }],
+      halls: [],
+      doors: [],
+      floorId: floorId,
+      meetingOn: !!(model.meeting && model.meeting.on),
+    };
+  }
+
+  function buildLayout(model) {
+    var view = (model && model.view) || { mode: "campus", focus: null };
+    if (view.mode === "room" && view.focus) return buildFocusLayout(model, view.focus);
+    return buildCampusLayout(model);
+  }
+
+  function findPerson(model, roomSlug, slug) {
+    var room = ((model.rooms || []).filter(function (r) { return r.slug === roomSlug; })[0]);
+    if (!room) return null;
+    var hit = null;
+    (room.people || []).forEach(function (p) { if (p.slug === slug) hit = p; });
+    return hit;
+  }
+
+  function headInMeeting(model, slug, room) {
+    var m = model && model.meeting;
+    if (!m || !m.on) return false;
+    return (m.heads || []).some(function (h) {
+      return h.slug === slug && (!h.phong || h.phong === room);
+    });
   }
 
   function syncChars(model, layout) {
     var byId = {};
     _chars.forEach(function (c) { byId[c.id] = c; });
     var next = [];
+    var meeting = model && model.meeting;
+    var useBoard = layout.mode === "campus" && meeting && meeting.on;
+
     (layout.seats || []).forEach(function (seat) {
-      var person = null;
-      ((model.rooms || []).filter(function (r) { return r.slug === seat.room; })[0] || { people: [] })
-        .people.forEach(function (p) { if (p.slug === seat.slug) person = p; });
+      var person = findPerson(model, seat.room, seat.slug);
       if (!person) return;
+      var boardSeat = null;
+      if (useBoard && person.boss && headInMeeting(model, seat.slug, seat.room)) {
+        boardSeat = (layout.boardSeats || []).filter(function (b) {
+          return b.slug === seat.slug && b.room === seat.room;
+        })[0] || (layout.boardSeats || []).filter(function (b) {
+          return b.slug === seat.slug;
+        })[0];
+      }
+      var activeSeat = boardSeat || seat;
       var old = byId[seat.id];
       var state = person.state || "idle";
-      var targetX = seat.sx * TILE + TILE / 2;
-      var targetY = seat.sy * TILE + TILE;
-      if (state === "meet" || state === "hop") {
+      var targetX = activeSeat.sx * TILE + TILE / 2;
+      var targetY = activeSeat.sy * TILE + TILE;
+      if (!boardSeat && (state === "meet" || state === "hop")) {
         targetX = seat.meetX * TILE + TILE / 2;
         targetY = seat.meetY * TILE + TILE;
       }
       if (state === "walk" && person.toSeat) {
         var dest = layout.seats.filter(function (s) {
-          return s.room === seat.room && (s.slug === person.toSeat || s.ten === person.toSeat);
+          return s.room === seat.room && (s.slug === person.toSeat || s.ten === person.toSeat ||
+            (person.toSeat && String(person.toSeat).indexOf(s.ten) === 0));
         })[0];
         if (dest) {
           targetX = (seat.sx * 0.35 + dest.sx * 0.65) * TILE + TILE / 2;
@@ -266,15 +509,15 @@
       ch.boss = !!(seat.boss || person.boss);
       ch.room = seat.room;
       ch.slug = seat.slug;
-      ch.state = state;
+      ch.state = boardSeat ? "meet" : state;
       ch.bubble = person.bubble || "";
       ch.recv = !!person.recv;
       ch.on = !!person.on;
       ch.sel = !!person.sel;
       ch.targetX = targetX;
       ch.targetY = targetY;
-      ch.sheet = seat.sheet;
-      ch.seat = seat;
+      ch.sheet = activeSeat.sheet || seat.sheet;
+      ch.seat = activeSeat;
       next.push(ch);
     });
     _chars = next;
@@ -311,7 +554,7 @@
     list.forEach(function (f) {
       var px = f.x * TILE * zoom;
       var py = f.y * TILE * zoom;
-      var im, path, fw, fh, ox = 0, oy = 0;
+      var im;
       if (f.kind === "carpet") {
         im = _imgSync[ASSET + "carpets/carpet_0.png"];
         if (im) ctx.drawImage(im, 0, 0, 32, 32, px, py, 2 * TILE * zoom, 2 * TILE * zoom);
@@ -337,20 +580,19 @@
         }
         return;
       }
-      if (f.kind === "carpet") return;
       var map = {
-        bookshelf: ["furniture/DOUBLE_BOOKSHELF.png", 0, 0],
-        painting: ["furniture/LARGE_PAINTING.png", 0, 0],
-        plant: ["furniture/LARGE_PLANT.png", 0, 0],
-        clock: ["furniture/CLOCK.png", 0, 0],
-        bench: ["furniture/BENCH.png", 0, 0],
-        coffee_table: ["furniture/COFFEE_TABLE.png", 0, 0],
-        bin: ["furniture/BIN.png", 0, 0],
-        cactus: ["furniture/CACTUS.png", 0, 0],
+        bookshelf: "furniture/DOUBLE_BOOKSHELF.png",
+        painting: "furniture/LARGE_PAINTING.png",
+        plant: "furniture/LARGE_PLANT.png",
+        clock: "furniture/CLOCK.png",
+        bench: "furniture/BENCH.png",
+        coffee_table: "furniture/COFFEE_TABLE.png",
+        bin: "furniture/BIN.png",
+        cactus: "furniture/CACTUS.png",
       };
-      var m = map[f.kind];
-      if (!m) return;
-      im = _imgSync[ASSET + m[0]];
+      var path = map[f.kind];
+      if (!path) return;
+      im = _imgSync[ASSET + path];
       if (!im) return;
       var dw = im.width * zoom;
       var dh = im.height * zoom;
@@ -358,9 +600,56 @@
     });
   }
 
+  function hallColor(status) {
+    if (status === "active") return "rgba(45,120,90,.85)";
+    if (status === "dat") return "rgba(34,140,90,.75)";
+    if (status === "khoa") return "rgba(59,90,140,.7)";
+    return "rgba(100,116,139,.35)";
+  }
+
+  function drawHalls(ctx, layout, zoom, t) {
+    (layout.halls || []).forEach(function (h) {
+      var x = (h.x + h.w / 2) * TILE * zoom;
+      var y = (h.y + h.h / 2) * TILE * zoom;
+      var pulse = h.status === "active" ? (0.65 + 0.35 * Math.sin(t * 4)) : 1;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = hallColor(h.status);
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y - 8);
+      ctx.lineTo(x + 6, y);
+      ctx.lineTo(x - 10, y + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function drawLobbyTickets(ctx, layout, zoom) {
+    var lobby = (layout.areas || []).filter(function (a) { return a.kind === "lobby"; })[0];
+    if (!lobby) return;
+    var tickets = lobby.tickets || [];
+    ctx.save();
+    ctx.font = "bold " + Math.max(9, 4 * zoom) + "px 'Segoe UI',sans-serif";
+    tickets.forEach(function (tk, i) {
+      var title = String(tk.tieu_de || tk.id || "việc").slice(0, 16);
+      var x = (lobby.x + 0.5) * TILE * zoom;
+      var y = (lobby.y + 6.5 + i * 1.1) * TILE * zoom;
+      var tw = ctx.measureText(title).width;
+      ctx.fillStyle = tk.trang_thai === "dang_chay" ? "rgba(45,120,90,.9)" :
+        (tk.trang_thai === "cho_duyet" ? "rgba(217,119,6,.9)" : "rgba(51,65,85,.85)");
+      roundRect(ctx, x, y, tw + 10, 14, 4);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.textBaseline = "middle";
+      ctx.fillText(title, x + 5, y + 7);
+    });
+    ctx.restore();
+  }
+
   function drawChar(ctx, ch, zoom, dt) {
     ch.timer += dt;
-    var speed = 48;
+    var speed = 56;
     var dx = ch.targetX - ch.x;
     var dy = ch.targetY - ch.y;
     var dist = Math.sqrt(dx * dx + dy * dy);
@@ -452,62 +741,135 @@
     ctx.closePath();
   }
 
+  function matchChar(flowKey) {
+    if (!flowKey) return null;
+    var k = String(flowKey);
+    var hit = null;
+    _chars.forEach(function (c) {
+      if (c.slug === k || c.ten === k || k.indexOf(c.ten) === 0) hit = c;
+    });
+    return hit;
+  }
+
   function drawFlow(ctx, model, layout, zoom) {
     var flow = model && model.flow;
     if (!flow || !flow.from || !flow.to) return;
-    var a = null, b = null;
-    _chars.forEach(function (c) {
-      if (c.slug === flow.from || c.ten === flow.from) a = c;
-      if (c.slug === flow.to || c.ten === flow.to) b = c;
-    });
+    var a = matchChar(flow.from);
+    var b = matchChar(flow.to);
     if (!a || !b) return;
-    var x1 = a.x * zoom, y1 = (a.y - 20) * zoom;
-    var x2 = b.x * zoom, y2 = (b.y - 20) * zoom;
+    arrowBetween(ctx, a.x * zoom, (a.y - 20) * zoom, b.x * zoom, (b.y - 20) * zoom, "#2d7860", flow.label, zoom);
+  }
+
+  function areaCenter(layout, slug) {
+    var a = (layout.areas || []).filter(function (x) { return x.slug === slug; })[0];
+    if (!a) return null;
+    return {
+      x: (a.x + a.w / 2) * TILE,
+      y: (a.y + a.h / 2) * TILE,
+    };
+  }
+
+  function drawCrossFlow(ctx, model, layout, zoom) {
+    var cf = model && model.crossFlow;
+    if (!cf) return;
+    var col = "#2563eb";
+    if (cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap") col = "#7c3aed";
+    if (cf.kind === "sua") col = "#c2410c";
+    if (cf.kind === "pipeline") col = "#2d7860";
+    var a = null;
+    var b = null;
+    if (cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap") {
+      a = areaCenter(layout, cf.fromRoom) || matchChar(cf.from);
+      b = areaCenter(layout, "__board");
+      if (a && typeof a.x === "number" && a.x < 50) { /* tile space already */ }
+      if (a && a.x && !a.y && a.slug) a = null;
+    }
+    if (cf.fromRoom && cf.toRoom) {
+      a = areaCenter(layout, cf.fromRoom);
+      b = areaCenter(layout, cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap" ? "__board" : cf.toRoom);
+    }
+    if ((!a || !b) && cf.from && cf.to) {
+      a = matchChar(cf.from);
+      b = matchChar(cf.to);
+      if (a) a = { x: a.x, y: a.y - 20 };
+      if (b) b = { x: b.x, y: b.y - 20 };
+    }
+    if (!a || !b) return;
+    arrowBetween(ctx, a.x * zoom, a.y * zoom, b.x * zoom, b.y * zoom, col, cf.label, zoom);
+  }
+
+  function arrowBetween(ctx, x1, y1, x2, y2, color, label, zoom) {
     ctx.save();
-    ctx.strokeStyle = "#2d7860";
-    ctx.fillStyle = "#2d7860";
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    ctx.quadraticCurveTo((x1 + x2) / 2, Math.min(y1, y2) - 24, x2, y2);
+    ctx.quadraticCurveTo((x1 + x2) / 2, Math.min(y1, y2) - 28, x2, y2);
     ctx.stroke();
-    var ang = Math.atan2(y2 - ((y1 + y2) / 2 - 12), x2 - (x1 + x2) / 2);
+    var ang = Math.atan2(y2 - ((y1 + y2) / 2 - 14), x2 - (x1 + x2) / 2);
     ctx.beginPath();
     ctx.moveTo(x2, y2);
     ctx.lineTo(x2 - 8 * Math.cos(ang - 0.4), y2 - 8 * Math.sin(ang - 0.4));
     ctx.lineTo(x2 - 8 * Math.cos(ang + 0.4), y2 - 8 * Math.sin(ang + 0.4));
     ctx.closePath();
     ctx.fill();
-    if (flow.label) {
-      ctx.font = "bold 11px 'Segoe UI',sans-serif";
-      var lab = flow.label;
-      var tw = ctx.measureText(lab).width;
+    if (label) {
+      ctx.font = "bold " + Math.max(10, 5 * (zoom || 2)) + "px 'Segoe UI',sans-serif";
+      var tw = ctx.measureText(label).width;
       var lx = (x1 + x2) / 2 - tw / 2 - 6;
-      var ly = Math.min(y1, y2) - 36;
-      ctx.fillStyle = "#2d7860";
+      var ly = Math.min(y1, y2) - 40;
       roundRect(ctx, lx, ly, tw + 12, 16, 8);
       ctx.fill();
       ctx.fillStyle = "#fff";
       ctx.textBaseline = "middle";
-      ctx.fillText(lab, lx + 6, ly + 8);
+      ctx.fillText(label, lx + 6, ly + 8);
     }
+    ctx.restore();
+  }
+
+  function drawMeetingRing(ctx, layout, zoom, t) {
+    if (!layout.meetingOn) return;
+    var board = (layout.areas || []).filter(function (a) { return a.kind === "board"; })[0];
+    if (!board) return;
+    var cx = (board.x + board.w / 2) * TILE * zoom;
+    var cy = (board.y + board.h / 2) * TILE * zoom;
+    var r = Math.min(board.w, board.h) * TILE * zoom * 0.35;
+    ctx.save();
+    ctx.strokeStyle = "rgba(124,58,237," + (0.45 + 0.25 * Math.sin(t * 3)) + ")";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
   function drawAreaLabels(ctx, layout, zoom) {
     (layout.areas || []).forEach(function (a) {
       var x = (a.x + a.w / 2) * TILE * zoom;
-      var y = (a.y + 0.7) * TILE * zoom;
+      var y = (a.y + 0.55) * TILE * zoom;
       ctx.save();
-      ctx.font = "bold " + Math.max(11, 4.5 * zoom) + "px 'Segoe UI',sans-serif";
+      ctx.font = "bold " + Math.max(10, 4.2 * zoom) + "px 'Segoe UI',sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      var tw = ctx.measureText(a.ten).width;
-      ctx.fillStyle = a.active ? "rgba(45,120,90,.92)" : "rgba(30,41,59,.75)";
+      var label = a.badge || a.ten;
+      var tw = ctx.measureText(label).width;
+      var bg = a.active || a.kind === "board" && layout.meetingOn
+        ? "rgba(45,120,90,.92)"
+        : (a.status === "dat" ? "rgba(34,140,90,.85)"
+          : (a.status === "khoa" ? "rgba(59,90,140,.85)" : "rgba(30,41,59,.78)"));
+      if (a.kind === "lobby") bg = "rgba(51,65,85,.88)";
       roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
+      ctx.fillStyle = bg;
       ctx.fill();
       ctx.fillStyle = "#fff";
-      ctx.fillText(a.ten, x, y);
+      ctx.fillText(label, x, y);
+      if (a.meta) {
+        ctx.font = Math.max(9, 3.5 * zoom) + "px 'Segoe UI',sans-serif";
+        ctx.fillStyle = "rgba(30,41,59,.75)";
+        ctx.fillText(a.meta, x, y + 16);
+      }
       ctx.restore();
     });
   }
@@ -522,14 +884,16 @@
 
   function updateLabels(zoom) {
     if (!_labels) return;
+    var compact = _layout && _layout.mode === "campus";
     var html = _chars.map(function (ch) {
       var left = Math.round(ch.x * zoom);
       var top = Math.round(ch.y * zoom + 2);
-      return '<div class="' + labelClass(ch) +
+      return '<div class="' + labelClass(ch) + (compact ? " compact" : "") +
         '" data-actor-phong="' + esc(ch.room) + '" data-actor="' + esc(ch.slug) +
         '" style="left:' + left + "px;top:" + top + 'px">' +
         (ch.boss ? '<span class="nt-px-star" aria-hidden="true">★</span>' : "") +
-        "<b>" + esc(ch.ten) + "</b><small>" + esc(ch.role || "") + "</small></div>";
+        "<b>" + esc(ch.ten) + "</b>" +
+        (compact ? "" : "<small>" + esc(ch.role || "") + "</small>") + "</div>";
     }).join("");
     if (_labels.getAttribute("data-k") === String(_chars.length) + html.length && _labels.childNodes.length === _chars.length) {
       var nodes = _labels.querySelectorAll(".nt-px-label");
@@ -538,7 +902,7 @@
         if (!n) return;
         n.style.left = Math.round(ch.x * zoom) + "px";
         n.style.top = Math.round(ch.y * zoom + 2) + "px";
-        n.className = labelClass(ch);
+        n.className = labelClass(ch) + (compact ? " compact" : "");
       });
       return;
     }
@@ -554,10 +918,33 @@
     }
   }
 
+  function updateHits(zoom) {
+    if (!_hits || !_layout) return;
+    var rooms = (_layout.areas || []).filter(function (a) { return a.kind === "room"; });
+    _hits.innerHTML = rooms.map(function (a) {
+      return '<button type="button" class="nt-px-hit" data-room="' + esc(a.slug) +
+        '" title="Double-click để phóng phòng" style="left:' +
+        Math.round(a.x * TILE * zoom) + "px;top:" + Math.round(a.y * TILE * zoom) +
+        "px;width:" + Math.round(a.w * TILE * zoom) + "px;height:" +
+        Math.round(a.h * TILE * zoom) + 'px"></button>';
+    }).join("");
+    _hits.querySelectorAll("[data-room]").forEach(function (el) {
+      el.ondblclick = function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (_onRoom) _onRoom(el.getAttribute("data-room"));
+      };
+    });
+  }
+
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function zoomOf(layout) {
+    return (layout && layout.zoom) || ZOOM_CAMPUS;
   }
 
   function frame(now) {
@@ -565,58 +952,98 @@
     if (!_t0) _t0 = now;
     var dt = Math.min(0.05, (_last ? (now - _last) : 16) / 1000);
     _last = now;
-    var zoom = ZOOM;
+    var zoom = zoomOf(_layout);
     var w = _layout.cols * TILE * zoom;
     var h = _layout.rows * TILE * zoom;
     if (_canvas.width !== w || _canvas.height !== h) {
       _canvas.width = w;
       _canvas.height = h;
+      updateHits(zoom);
     }
     var ctx = _ctx;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, w, h);
-    // bầu trời / nền
     var g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, "#dbe7f3");
     g.addColorStop(1, "#b7c9b2");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
+    var t = (now - _t0) / 1000;
     drawFloor(ctx, _layout, zoom);
-    drawFurn(ctx, _layout, zoom, (now - _t0) / 1000);
+    drawFurn(ctx, _layout, zoom, t);
+    drawHalls(ctx, _layout, zoom, t);
+    drawLobbyTickets(ctx, _layout, zoom);
     drawAreaLabels(ctx, _layout, zoom);
-    // characters z-sort by y
+    drawMeetingRing(ctx, _layout, zoom, t);
     var sorted = _chars.slice().sort(function (a, b) { return a.y - b.y; });
     sorted.forEach(function (ch) { drawChar(ctx, ch, zoom, dt); });
     drawFlow(ctx, _model, _layout, zoom);
+    drawCrossFlow(ctx, _model, _layout, zoom);
     updateLabels(zoom);
     _raf = requestAnimationFrame(frame);
   }
 
   function structureKey(model) {
+    var view = (model && model.view) || {};
+    var pipe = ((model && model.pipeline) || []).map(function (p) {
+      return p.slug + ":" + (p.khoa ? "1" : "0") + (p.dat ? "2" : "0") + (p.active ? "a" : "");
+    }).join(",");
+    var meet = (model && model.meeting && model.meeting.on) ? "m" : "";
     return ((model && model.rooms) || []).map(function (r) {
       return r.slug + ":" + ((r.people || []).map(function (p) { return p.slug; }).join(","));
-    }).join("|") + "~" + ((model && model.look && model.look.mau) || "");
+    }).join("|") + "~" + ((model && model.look && model.look.mau) || "") +
+      "~" + (view.mode || "campus") + ":" + (view.focus || "") + "~" + pipe + meet;
+  }
+
+  function bindChrome() {
+    if (!_host) return;
+    var btn = _host.querySelector("#ntPxCampus");
+    if (btn) btn.onclick = function (ev) {
+      ev.stopPropagation();
+      if (_onCampus) _onCampus();
+    };
   }
 
   function mount(host, model, opts) {
     if (!host) return Promise.resolve();
     _host = host;
     _click = opts && opts.onActor;
+    _onRoom = opts && opts.onRoom;
+    _onCampus = opts && opts.onCampus;
     _model = model || { rooms: [] };
+    var view = (_model.view && _model.view.mode) || "campus";
     host.innerHTML =
+      '<div class="nt-pixel-toolbar">' +
+      (view === "room"
+        ? '<button type="button" class="nt-btn ghost" id="ntPxCampus">Toàn cảnh</button>' +
+          '<span class="nt-px-focus-hint">Đang phóng phòng · Esc / Toàn cảnh để quay lại</span>'
+        : '<span class="nt-px-legend">Double-click phòng để phóng · sảnh = hàng đợi · trên = họp trưởng</span>') +
+      ((_model.meeting && _model.meeting.on && view === "room")
+        ? '<button type="button" class="nt-btn ghost" id="ntPxCampus2">Đang họp liên phòng — về toàn cảnh</button>'
+        : "") +
+      "</div>" +
       '<div class="nt-pixel-stage">' +
       '<canvas class="nt-pixel-canvas" id="ntPixelCanvas"></canvas>' +
+      '<div class="nt-pixel-hits" id="ntPixelHits"></div>' +
       '<div class="nt-pixel-labels" id="ntPixelLabels"></div>' +
       "</div>" +
-      '<p class="nt-pixel-credit">Pixel office · cảm hứng Pixel Agents · sprite Metro City (CC0)</p>';
+      '<p class="nt-pixel-credit">Pixel campus · Pixel Agents / Metro City (CC0)</p>';
+    var c2 = host.querySelector("#ntPxCampus2");
+    if (c2) c2.onclick = function (ev) {
+      ev.stopPropagation();
+      if (_onCampus) _onCampus();
+    };
+    bindChrome();
     _canvas = host.querySelector("#ntPixelCanvas");
     _labels = host.querySelector("#ntPixelLabels");
+    _hits = host.querySelector("#ntPixelHits");
     _ctx = _canvas.getContext("2d");
     return warmSync().then(function () {
       _layout = buildLayout(_model);
       syncChars(_model, _layout);
       _host.setAttribute("data-struct", structureKey(_model));
+      updateHits(zoomOf(_layout));
       if (_raf) cancelAnimationFrame(_raf);
       _last = 0;
       _raf = requestAnimationFrame(frame);
@@ -624,12 +1051,13 @@
   }
 
   function update(model) {
-    if (!_host || !_canvas) return mount(_host, model, { onActor: _click });
+    if (!_host || !_canvas) return mount(_host, model, { onActor: _click, onRoom: _onRoom, onCampus: _onCampus });
+    var prevMode = (_model && _model.view && _model.view.mode) || "campus";
     _model = model || _model;
+    var nextMode = (_model.view && _model.view.mode) || "campus";
     var sk = structureKey(_model);
-    if (sk !== _host.getAttribute("data-struct")) {
-      _layout = buildLayout(_model);
-      _host.setAttribute("data-struct", sk);
+    if (sk !== _host.getAttribute("data-struct") || prevMode !== nextMode) {
+      return mount(_host, _model, { onActor: _click, onRoom: _onRoom, onCampus: _onCampus });
     }
     syncChars(_model, _layout);
     if (!_raf) _raf = requestAnimationFrame(frame);
@@ -638,7 +1066,7 @@
   function destroy() {
     if (_raf) cancelAnimationFrame(_raf);
     _raf = 0;
-    _host = _canvas = _ctx = _labels = _layout = null;
+    _host = _canvas = _ctx = _labels = _hits = _layout = null;
     _chars = [];
   }
 
