@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.87] - 2026-10-28
+### Sửa
+- Tenant bach (và máy tương tự): CSS/JS/logo trả 500 vì `FileResponse` hỏng trên container đó - đổi sang đọc file rồi trả thẳng, giao diện hết trắng.
+- Nếu lần mở sau cập nhật bị trắng / mất giao diện (HTML không kèm CSS), app tự tải lại một lần kèm phá cache asset.
+
 ## [0.56.86] - 2026-10-28
 ### Mới
 - Trang Models có **Thứ tự dùng**: kéo hoặc bấm mũi tên để xếp MAIN và Dự phòng; chat nhảy nhà còn lượt khi nhà trên hết.

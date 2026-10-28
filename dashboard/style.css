@@ -3781,3 +3781,5 @@ body.ne-full-on .cview { z-index: 250; }
 .mord-rest { color: var(--warn, #e0a33e); margin-left: 6px; }
 .mord-key-add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .mord-key-add .js-input { flex: 1 1 140px; min-width: 0; }
+
+/* 0.56.87: cache-bust sau deploy (recovery CSS/JS). */

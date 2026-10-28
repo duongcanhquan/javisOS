@@ -29,7 +29,6 @@ import types as _types   # object tạm cho _apply_antigravity_hub ở endpoint 
 import yaml
 import fastyaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form, Request, Body, Header
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse, PlainTextResponse
 # edge_tts CỐ TÌNH không import ở đây mà nạp lười trong _tts_edge và /tts/voices.
@@ -377,7 +376,66 @@ mimetypes.add_type("image/webp", ".webp")
 mimetypes.add_type("application/octet-stream", ".ort")
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("application/octet-stream", ".bin")
-app.mount("/static", StaticFiles(directory=str(DASHBOARD_PATH)), name="static")
+
+# Không dùng starlette StaticFiles/FileResponse cho dashboard: trên một số container
+# tenant (bach, 2026-10-28) chúng trả HTTP 500 trong khi Path.read_bytes / open() thường
+# vẫn được → HTML `/` sống, CSS/JS/logo chết, trang trắng. Phục vụ bằng Response/stream.
+_STATIC_RAM_SUFFIX = {
+    ".css", ".js", ".mjs", ".map", ".json", ".svg", ".png", ".jpg", ".jpeg",
+    ".webp", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".txt", ".html", ".md",
+}
+_STATIC_RAM_MAX = 12 * 1024 * 1024  # 12MB — model .ort lớn hơn thì stream
+
+
+def _dashboard_resolve(rel: str) -> Path | None:
+    """Đường tương đối dưới dashboard → Path tuyệt đối, hoặc None nếu lệch/không có file."""
+    p = Path(rel or "")
+    if p.is_absolute() or ".." in p.parts:
+        return None
+    base = DASHBOARD_PATH.resolve()
+    f = (DASHBOARD_PATH / rel).resolve()
+    try:
+        f.relative_to(base)
+    except ValueError:
+        return None
+    return f if f.is_file() else None
+
+
+def _dashboard_file_response(f: Path, headers: dict | None = None,
+                             media_type: str | None = None) -> Response:
+    """Trả file dashboard: ưu tiên đọc RAM (ổn định); file lớn thì stream open() thường."""
+    hdrs = dict(headers or {})
+    mt = media_type or (mimetypes.guess_type(f.name)[0] or "application/octet-stream")
+    try:
+        st = f.stat()
+    except OSError as e:
+        return Response(f"stat error: {e}", status_code=500)
+    hdrs.setdefault("ETag", f'"{st.st_mtime_ns:x}-{st.st_size:x}"')
+    hdrs.setdefault("Accept-Ranges", "bytes")
+    if st.st_size <= _STATIC_RAM_MAX or f.suffix.lower() in _STATIC_RAM_SUFFIX:
+        try:
+            return Response(content=f.read_bytes(), media_type=mt, headers=hdrs)
+        except OSError as e:
+            return Response(f"read error: {e}", status_code=500)
+
+    def _chunks():
+        with open(f, "rb") as fh:
+            while True:
+                block = fh.read(64 * 1024)
+                if not block:
+                    break
+                yield block
+
+    return StreamingResponse(_chunks(), media_type=mt, headers=hdrs)
+
+
+@app.get("/static/{path:path}")
+async def static_dashboard(path: str):
+    """CSS/JS/ảnh dashboard. Thay StaticFiles để tránh FileResponse 500 trên tenant lệch."""
+    f = _dashboard_resolve(path)
+    if f is None:
+        return Response("Not Found", status_code=404)
+    return _dashboard_file_response(f)
 
 
 @app.middleware("http")
@@ -1200,19 +1258,13 @@ async def versioned_dashboard_asset(ver: str, path: str):
     """
     if not _ASSET_VER_RE.fullmatch(ver or ""):
         return Response("Not Found", status_code=404)
-    rel = Path(path)
-    if rel.is_absolute() or ".." in rel.parts:
+    if Path(path).suffix.lower() not in (".js", ".css", ".mjs", ".map"):
         return Response("Not Found", status_code=404)
-    base = DASHBOARD_PATH.resolve()
-    f = (DASHBOARD_PATH / path).resolve()
-    try:
-        f.relative_to(base)
-    except ValueError:
+    f = _dashboard_resolve(path)
+    if f is None:
         return Response("Not Found", status_code=404)
-    if not f.is_file() or f.suffix.lower() not in (".js", ".css"):
-        return Response("Not Found", status_code=404)
-    return FileResponse(
-        str(f),
+    return _dashboard_file_response(
+        f,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
             "Cross-Origin-Resource-Policy": "same-origin",
@@ -13095,7 +13147,14 @@ async def brand_logo():
     if not p.exists():
         return JSONResponse({"error": "no logo"}, status_code=404)
     # cache ngắn: đổi ảnh xong thấy ngay trong ~1 phút; JS còn bust bằng ?v= khi vừa upload.
-    return FileResponse(str(p), headers={"Cache-Control": "public, max-age=60"})
+    # Dùng _dashboard_file_response (hoặc đọc RAM) — FileResponse 500 trên một số tenant.
+    try:
+        data = p.read_bytes()
+    except OSError as e:
+        return JSONResponse({"error": f"logo read: {e}"}, status_code=500)
+    mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+    return Response(content=data, media_type=mt,
+                    headers={"Cache-Control": "public, max-age=60"})
 
 
 def _brand_icon_png_bytes(size: int) -> bytes:

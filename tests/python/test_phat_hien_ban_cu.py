@@ -75,8 +75,10 @@ check("CANARY: viết lại sang /asset/<phiên bản>/ (không chỉ ?v=; cache
       '"/asset/"' in _prep or "/asset/" in _prep)
 check("CANARY: segment URL gồm VERSION + vân tay nội dung (CDN miss khi file đổi)",
       "asset_ver" in _prep and "fp_sig" in _prep)
-check("có cổng /asset/{ver}/{path} (ngoài mount /static, tránh bị StaticFiles nuốt)",
+check("có cổng /asset/{ver}/{path} (tách khỏi /static, không bị route tĩnh nuốt)",
       '@app.get("/asset/{ver}/{path:path}")' in MAIN)
+check("CANARY: /static dùng route đọc RAM (tránh FileResponse 500 trên tenant lệch)",
+      '@app.get("/static/{path:path}")' in MAIN and "_dashboard_file_response" in MAIN)
 # CANARY: VPS public + mật khẩu → HTML `/` public nhưng CSS/JS đi /asset/…; nếu
 # /asset không nằm trong _AUTH_PUBLIC_PREFIX thì màn đăng nhập 401 hết style (UI vỡ).
 _pub = MAIN.split("_AUTH_PUBLIC_PREFIX = (", 1)[1].split(")", 1)[0]
