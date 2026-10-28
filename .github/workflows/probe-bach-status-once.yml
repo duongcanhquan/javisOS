@@ -1,10 +1,12 @@
-# bump: 2026-10-27T04:50Z — xóa usercustomize hỏng trên volume /data của bach
+# bump: 2026-10-28T05:00Z — bach: model + UI đăng nhập (FileResponse/static)
 name: Probe bach status once
 
 on:
   push:
     paths:
       - ".github/workflows/probe-bach-status-once.yml"
+      - "server/main.py"
+      - "scripts/heal-bach-tenant-vps.sh"
   workflow_dispatch:
 
 concurrency:
@@ -17,79 +19,78 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
-      - name: Heal bach usercustomize on volume
+      - uses: actions/checkout@v4
+
+      - name: Build heal bundle
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip, base64
+          out = Path("scripts/heal-bach-bundle.sh")
+          lines = [
+              "#!/usr/bin/env bash", "set -euo pipefail",
+              "DIR=\"${JAVIS_DIR:-}\"",
+              "if [ -z \"$DIR\" ]; then",
+              "  if [ -d \"$HOME/javis-os\" ]; then DIR=\"$HOME/javis-os\"",
+              "  elif [ -d /root/javis-os ]; then DIR=/root/javis-os",
+              "  else DIR=\"$HOME/javis-os\"; mkdir -p \"$DIR\"; fi",
+              "fi",
+              "mkdir -p \"$DIR/scripts\" \"$DIR/server\"",
+              "export JAVIS_DIR=\"$DIR\"",
+          ]
+          for rel, dest in [
+              ("scripts/heal-bach-tenant-vps.sh", "scripts/heal-bach-tenant-vps.sh"),
+              ("server/main.py", "server/main.py"),
+              ("VERSION", "VERSION"),
+          ]:
+              raw = Path(rel).read_bytes()
+              b64 = base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+              lines.append(f"echo 'unpack {dest}'")
+              lines.append(f"printf '%s' '{b64}' | base64 -d | gzip -d > \"$DIR/{dest}\"")
+          lines.append("chmod +x \"$DIR/scripts/heal-bach-tenant-vps.sh\"")
+          lines.append("bash \"$DIR/scripts/heal-bach-tenant-vps.sh\"")
+          out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print("bundle_bytes", out.stat().st_size)
+          PY
+          chmod +x scripts/heal-bach-bundle.sh
+
+      - name: Prep remote
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 12m
+          script: |
+            mkdir -p "$HOME/javis-restore"
+            rm -f "$HOME/javis-restore"/* || true
+            df -h / | head -2
+
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/heal-bach-bundle.sh"
+          target: "javis-restore/"
+          overwrite: true
+
+      - name: Heal bach over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
           script: |
             set -euo pipefail
-            echo "=== BEFORE ==="
-            date -u
-            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}'
-            DATA_VOL="/var/lib/docker/volumes/javis-bach_javis-data/_data"
-            UC="$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"
-            echo "data_vol=$DATA_VOL"
-            ls -la "$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"* 2>/dev/null || echo "no usercustomize on volume yet"
-            wc -c "$UC" 2>/dev/null || true
-            head -5 "$UC" 2>/dev/null || true
-
-            echo "=== DISABLE broken usercustomize (persist /data) ==="
-            docker stop javis-bach 2>/dev/null || true
-            if [ -f "$UC" ]; then
-              mv -f "$UC" "$UC.bad.$(date +%s)"
-              echo "renamed_ok"
-              ls -la "$DATA_VOL/home/.local/lib/python3.12/site-packages/usercustomize.py"* 2>/dev/null || true
-            else
-              echo "file_missing_try_alt"
-              find "$DATA_VOL/home" -name 'usercustomize.py' 2>/dev/null | head -20 || true
-              find "$DATA_VOL/home" -name 'usercustomize.py' 2>/dev/null | while read -r f; do
-                mv -f "$f" "$f.bad.$(date +%s)"
-                echo "renamed $f"
-              done
-            fi
-
-            # Tránh Python vẫn nạp bản cache .pyc
-            find "$DATA_VOL/home/.local" -name 'usercustomize*.pyc' -delete 2>/dev/null || true
-            find "$DATA_VOL/home/.local" -path '*/__pycache__/usercustomize*' -delete 2>/dev/null || true
-
-            docker start javis-bach
-            echo "=== WAIT HEALTH ==="
-            ok=0
-            for i in $(seq 1 30); do
-              ST=$(docker inspect javis-bach --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null || echo missing)
-              echo "t=$i $ST"
-              if echo "$ST" | grep -q 'running healthy'; then ok=1; break; fi
-              if echo "$ST" | grep -Eq 'restarting|exited'; then
-                echo "still_crash"
-                docker logs --tail 15 javis-bach 2>&1 | tail -15 || true
-              fi
-              sleep 3
-            done
-
-            echo "=== AFTER ==="
-            docker ps -a --filter name=javis-bach --format 'table {{.Names}}\t{{.Status}}'
-            docker logs --tail 20 javis-bach 2>&1 | tail -20 || true
-            docker exec -i javis-manager python - <<'PY'
-            import sys
-            sys.path.insert(0, "/app/server")
-            import org_docker as od
-            cname = "javis-bach"
-            print("docker_status", od.container_status(cname), flush=True)
-            try:
-                print("serving_ready", od.container_serving_ready(cname), flush=True)
-            except Exception as e:
-                print("serving_err", e, flush=True)
-            try:
-                import urllib.request
-                with urllib.request.urlopen("http://javis-bach:7777/health", timeout=5) as r:
-                    print("health_http", r.status, flush=True)
-            except Exception as e:
-                print("health_http_err", type(e).__name__, e, flush=True)
-            print("BACH_HEAL_DONE", flush=True)
-            PY
-            [ "$ok" = 1 ] && echo BACH_HEALTHY || echo BACH_STILL_BAD
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            export JAVIS_DIR="$DIR"
+            B="$HOME/javis-restore/heal-bach-bundle.sh"
+            [ -f "$B" ] || B="$HOME/javis-restore/scripts/heal-bach-bundle.sh"
+            chmod +x "$B"
+            bash "$B"
