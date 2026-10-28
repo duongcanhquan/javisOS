@@ -118,6 +118,50 @@ if sp.is_file():
             print("bin", bin_name, "err", e, flush=True)
 PY
 
+echo "=== INSTALL agy/grok nếu thiếu (model đang gắn antigravity-cli) ==="
+docker exec -u javis "$C" sh -c '
+set +e
+mkdir -p /data/home/.local/bin /data/home/.cli-auto-install /data/home/.antigravity
+# đảm bảo symlink ~/.local
+if [ ! -L /home/javis/.local ]; then
+  mkdir -p /data/home/.local
+  ln -sfn /data/home/.local /home/javis/.local 2>/dev/null || true
+fi
+export PATH="/data/home/.local/bin:/home/javis/.local/bin:$PATH"
+if ! command -v agy >/dev/null 2>&1 && [ ! -x /home/javis/.local/bin/agy ]; then
+  echo "installing agy..."
+  curl -fsSL https://antigravity.google/cli/install.sh | bash 2>&1 | tail -30
+fi
+if ! command -v grok >/dev/null 2>&1 && [ ! -x /home/javis/.local/bin/grok ]; then
+  echo "installing grok..."
+  curl -fsSL https://x.ai/cli/install.sh | bash 2>&1 | tail -20 || true
+fi
+command -v agy || ls -la /home/javis/.local/bin/agy /data/home/.local/bin/agy 2>/dev/null || echo AGY_STILL_MISSING
+command -v grok || ls -la /home/javis/.local/bin/grok 2>/dev/null || echo GROK_MISSING_OK
+ls -la /data/home/.cli-auto-install/ 2>/dev/null | head -20
+tail -30 /data/home/.cli-auto-install/install.log 2>/dev/null || true
+' || echo "install_step_err"
+
+# Nếu vẫn thiếu agy nhưng có openrouter_key: gợi ý chuyển MAIN tạm (không tự đổi trừ khi user muốn)
+docker exec -i "$C" python - <<'PY'
+import json
+from pathlib import Path
+sp = Path("/data/state/settings.json")
+s = json.loads(sp.read_text(encoding="utf-8")) if sp.is_file() else {}
+m = s.get("model") if isinstance(s.get("model"), dict) else {}
+main = m.get("main") if isinstance(m.get("main"), dict) else {}
+or_key = bool(str(m.get("openrouter_key") or "").strip())
+print("main_provider", main.get("provider"), "main_model", main.get("model"), flush=True)
+print("openrouter_key", "set" if or_key else "empty", flush=True)
+print("antigravity_dir_entries", len(list(Path("/data/home/.antigravity").iterdir())) if Path("/data/home/.antigravity").is_dir() else 0, flush=True)
+# agy login state
+for p in Path("/data/home").rglob("*"):
+    if p.is_file() and ("antigravity" in str(p).lower() or "agy" in p.name.lower()) and p.stat().st_size < 200000:
+        if any(x in p.name.lower() for x in ("auth", "token", "cred", "session", "config")):
+            print("agy_related_file", p, "bytes", p.stat().st_size, flush=True)
+print("MODEL_DIAG_DONE", flush=True)
+PY
+
 echo "=== manager → bach health + asset ==="
 docker exec -i javis-manager python - <<'PY'
 import sys, urllib.request
