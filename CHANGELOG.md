@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.97] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · bố cục Theo dõi:** cột Giao tiếp thu/mở (nhường chỗ phòng ban); Kết quả và Trao đổi gói trong details. Văn phòng pixel zoom gọn hơn, hạn chiều cao tránh tràn màn hình.
+
 ## [0.56.96] - 2026-10-28
 ### Mới
 - **Nhạc trưởng · văn phòng pixel:** sân khấu canvas kiểu Pixel Agents (tile 16px, bàn/ghế/PC/cây, nhân vật Metro City CC0). Map `dang_lam` → idle/đi/gõ/họp; tên + chức danh; mũi tên giao việc. Credit trong `dashboard/nt-pixel/CREDITS.md`.

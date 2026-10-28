@@ -37,6 +37,7 @@
     phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null,
     ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {}, vanPhong: null,
     _actor: null, _presets: [], _canh: ["van_phong", "hop", "sang", "toi"], _mau: ["la", "cat", "bien", "than"],
+    _talkGon: false, _ketMo: false,
   };
   var CANH_TEN = { van_phong: "Văn phòng", hop: "Phòng họp", sang: "Sáng", toi: "Tối" };
   var MAU_TEN = { la: "Xanh lá", cat: "Cát", bien: "Biển", than: "Than" };
@@ -1025,11 +1026,22 @@
   }
 
   function htmlTalk() {
+    if (S._talkGon) {
+      return '<button type="button" class="nt-talk-peek" id="ntTalkToggle" title="Mở giao tiếp & kết quả">Giao tiếp</button>';
+    }
     var v = S._viecDay;
-    if (!v || v.id !== S.chonViec) return "<h3>Giao tiếp</h3>" + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
+    var head = '<div class="nt-talk-head"><h3>Giao tiếp</h3>' +
+      '<button type="button" class="nt-btn ghost" id="ntTalkToggle" title="Thu cột này, nhường chỗ phòng ban">Thu</button></div>';
+    if (!v || v.id !== S.chonViec) {
+      return head + '<p class="nt-hint">Chọn một việc để xem trao đổi.</p>';
+    }
     var rows = (v.loi || []).slice().reverse();
-    return "<h3>Giao tiếp</h3>" + htmlKet(v) + dangLam(v) +
+    var soLoi = rows.length;
+    return head + htmlKet(v) + dangLam(v) +
+      '<details class="nt-talk-log" open>' +
+      "<summary>Trao đổi" + (soLoi ? " · " + soLoi : "") + "</summary>" +
       '<div class="nt-log" id="ntLogPhong">' + (nhomLoi(rows) || '<p class="nt-hint">' + (v.trang_thai === "dang_chay" ? "Đang chờ câu đầu." : "Chưa có trao đổi.") + "</p>") + "</div>" +
+      "</details>" +
       htmlDoc(v);
   }
 
@@ -1139,11 +1151,11 @@
         '<p class="nt-hint">Chưa có phòng. Tạo phòng ở tab Setup trước.</p>' +
         '<button type="button" class="nt-btn" data-tab="phong">Về tab Setup</button>';
     }
-    return '<div class="nt-watch' + (S.gon ? " gon" : "") + '">' +
+    return '<div class="nt-watch' + (S.gon ? " gon" : "") + (S._talkGon ? " talk-gon" : "") + '">' +
       (S.gon ? "" : '<aside class="nt-rail"><div class="nt-row"><h2>Việc</h2><button type="button" class="nt-btn ghost" id="ntGon">Thu</button></div>' +
         '<button type="button" class="nt-btn" data-tab="giao">Giao việc mới</button>' + dsViec() + "</aside>") +
       '<div class="nt-col" id="ntTheoDoi">' + theoDoi() + "</div>" +
-      '<aside class="nt-office-talk" id="ntTalk">' + htmlTalk() + "</aside></div>";
+      '<aside class="nt-office-talk' + (S._talkGon ? " gon" : "") + '" id="ntTalk">' + htmlTalk() + "</aside></div>";
   }
 
   function formViec() {
@@ -1285,7 +1297,9 @@
     var md = "nhac-truong/viec/" + v.id + ".md";
     var tl = (v.tai_lieu || []).map(function (f) { return "<li>" + esc((f && f.ten) || "tài liệu") + "</li>"; }).join("");
     var tieu = v.trang_thai === "lech" ? "Kết quả, còn lệch" : (v.trang_thai === "dung" ? "Kết quả khi dừng" : "Kết quả cuối");
-    return '<section class="nt-ket"><h3>' + tieu + "</h3>" +
+    var mo = S._ketMo ? " open" : "";
+    return '<details class="nt-ket-wrap"' + mo + ' id="ntKetWrap"><summary>' + esc(tieu) + "</summary>" +
+      '<section class="nt-ket">' +
       '<p class="nt-ket-links"><a href="' + esc(pdf) + '" target="_blank" rel="noopener noreferrer">Trang kết quả / PDF</a>' +
       '<button type="button" class="nt-mo-ban" data-md="' + esc(md) + '">Mở biên bản đầy đủ</button></p>' +
       "<p class=\"nt-hint\">Trạng thái: " + esc((TRANG[v.trang_thai] || [v.trang_thai || ""])[0]) +
@@ -1296,7 +1310,7 @@
       htmlBanPhong(v) +
       htmlHang(v) +
       (tl ? '<p class="nt-hint">Tài liệu đã đưa</p><ul class="nt-mo">' + tl + "</ul>" : "") +
-      "</section>";
+      "</section></details>";
   }
 
   function htmlHang(v) {
@@ -2269,7 +2283,7 @@
     var loi = v.loi || [];
     var last = loi.length ? (loi[loi.length - 1].loi || "").length : 0;
     var d = v.dang_lam || {};
-    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.slug || d.ten || "", d.buoc || "", (v.ket_qua || "").length, S._docKey || ""].join("~");
+    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.slug || d.ten || "", d.buoc || "", (v.ket_qua || "").length, S._docKey || "", S._talkGon ? "1" : "0", S._ketMo ? "1" : "0"].join("~");
   }
 
   /** Chỉ đổi khi đổi phòng/người/cảnh — được phép dựng lại DOM sân khấu. */
@@ -2429,6 +2443,15 @@
 
   function ganLoi() {
     var talk = document.getElementById("ntTalk");
+    var tg = document.getElementById("ntTalkToggle");
+    if (tg) tg.onclick = function () {
+      S._talkGon = !S._talkGon;
+      S._khoaKhung = "";
+      resetKhoaPhong();
+      ve(true);
+    };
+    var kw = document.getElementById("ntKetWrap");
+    if (kw) kw.ontoggle = function () { S._ketMo = !!kw.open; };
     var log = document.getElementById("ntLogPhong");
     if (log) log.querySelectorAll("details.nt-day").forEach(function (d) {
       d.ontoggle = function () {

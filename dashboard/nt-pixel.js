@@ -3,7 +3,7 @@
   "use strict";
 
   var TILE = 16;
-  var ZOOM = 3;
+  var ZOOM = 2;
   var CHAR_W = 16;
   var CHAR_H = 32;
   var ASSET = "/static/nt-pixel/assets/";
