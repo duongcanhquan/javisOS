@@ -33,7 +33,13 @@
   };
   var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi", ket: "Kết quả" };
   var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
-  var S = { phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null, ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {} };
+  var S = {
+    phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null,
+    ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {}, vanPhong: null,
+    _actor: null, _presets: [], _canh: ["van_phong", "hop", "sang", "toi"], _mau: ["la", "cat", "bien", "than"],
+  };
+  var CANH_TEN = { van_phong: "Văn phòng", hop: "Phòng họp", sang: "Sáng", toi: "Tối" };
+  var MAU_TEN = { la: "Xanh lá", cat: "Cát", bien: "Biển", than: "Than" };
 
   function phongChon() {
     return S.phong.filter(function (p) { return p.slug === S.chonPhong; })[0] || null;
@@ -494,15 +500,41 @@
       '<p class="nt-hint">Lần lượt: người trước xong mới bàn giao người sau. Sơ đồ phòng hiện bên phải.</p></form>';
   }
 
+  function dsPreset() {
+    return (S._presets && S._presets.length) ? S._presets : [
+      "ceo-01", "ceo-02", "ceo-03", "lead-01",
+      "nv-01", "nv-02", "nv-03", "nv-04", "nv-05", "nv-06", "nv-07", "nv-08",
+      "design-01", "design-02", "video-01", "video-02",
+      "research-01", "research-02", "legal-01", "legal-02", "ops-01", "ops-02",
+    ];
+  }
+
+  function htmlAvatarGrid(selected, prefix) {
+    var idPrefix = prefix || "av";
+    return '<div class="nt-avatar-box"><b>Icon nhân vật 2.5D</b>' +
+      '<div class="nt-av-grid" id="' + idPrefix + 'Grid">' +
+      dsPreset().map(function (id) {
+        var on = selected === "preset:" + id ? " on" : "";
+        return '<button type="button" class="nt-av-pick' + on + '" data-av="preset:' + id +
+          '"><img alt="" src="/static/nt-avatars/' + encodeURIComponent(id) + '.svg"></button>';
+      }).join("") +
+      "</div>" +
+      '<input type="hidden" name="avatar" id="' + idPrefix + 'Val" value="' + esc(selected || "") + '">' +
+      '<label class="nt-hint">Hoặc tải ảnh<input id="' + idPrefix + 'File" type="file" accept="image/*"></label>' +
+      "</div>";
+  }
+
   function formThemNguoi() {
     var p = phongChon();
     if (!p) return "";
+    var av = S._avPick || "";
     return '<form id="ntThemNguoi" class="nt-form nt-side">' +
       '<p class="nt-kicker">Thêm vào ' + esc(p.ten) + "</p>" +
       '<label>Tên<input name="ten" required placeholder="An" autocomplete="off"></label>' +
       '<label>Vị trí<input name="vi_tri" placeholder="Chuyên viên thiết kế" autocomplete="off"></label>' +
       '<label>Vai<select name="vai"><option value="thanh_vien">Thành viên</option><option value="truong">Trưởng phòng</option></select></label>' +
-      '<p class="nt-hint">Đặt trưởng thì người đang giữ vị trí đó xuống thành viên.</p>' +
+      '<p class="nt-hint">Đặt trưởng thì người đang giữ vị trí đó xuống thành viên. Chọn icon trước khi thêm.</p>' +
+      htmlAvatarGrid(av, "ntThemAv") +
       '<label>Tính cách<textarea name="tinh_cach" placeholder="Thẳng, không viết hộ"></textarea></label>' +
       oSkill([]) +
       '<label>Trợ lý gốc<select name="agent">' + agentOpts() + "</select></label>" +
@@ -583,52 +615,191 @@
       '<rect x="22" y="6" width="20" height="12" rx="1.5" opacity="0.55"></rect></svg>';
   }
 
-  function gheBan(n, slug, d, so) {
-    var bat = laDang(d, n, slug);
-    var head = n.vai === "truong";
-    return '<div class="nt-seatrow' + (bat ? " on" : " wait") + (head ? " head" : "") + '">' +
-      '<span class="nt-qno">' + so + "</span>" +
-      '<span class="nt-deskico">' + iconBan() + "</span>" +
-      '<span class="nt-who">' +
-      "<b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (head ? "Trưởng phòng" : "Thành viên")) + "</small>" +
-      (bat ? "<em>đang làm</em>" : '<em class="trong">đang làm</em>') + "</span></div>";
+  function lookVp() {
+    var l = (S.vanPhong || {}).look || {};
+    return {
+      canh: (S._canh.indexOf(l.canh) >= 0 ? l.canh : "van_phong"),
+      mau: (S._mau.indexOf(l.mau) >= 0 ? l.mau : "la"),
+    };
   }
 
-  function hangGhe(list, slug, d, them) {
-    if (!list.length) return "";
-    return '<div class="nt-hang' + (them || "") + '">' + list.map(function (t) {
-      return gheBan(t.n, slug, d, t.so);
+  function avatarCua(n, slug) {
+    if (n && n.avatar) return n.avatar;
+    var block = ((S.vanPhong || {}).phong || {})[slug] || {};
+    var hit = (block.nguoi || []).filter(function (x) {
+      return x.slug === (n && n.slug) || x.ten === (n && n.ten);
+    })[0];
+    return (hit && hit.avatar) || "";
+  }
+
+  function avatarUrl(av, n) {
+    av = av || "";
+    if (av.indexOf("preset:") === 0) {
+      return "/static/nt-avatars/" + encodeURIComponent(av.slice(7)) + ".svg";
+    }
+    if (av.indexOf("data:image/") === 0) return av;
+    var seed = ((n && n.vai) === "truong" ? "ceo-01" : "nv-01");
+    return "/static/nt-avatars/" + seed + ".svg";
+  }
+
+  function ttNguoi(slug, n) {
+    var block = ((S.vanPhong || {}).phong || {})[slug] || {};
+    var ds = block.nguoi || [];
+    var hit = ds.filter(function (x) { return x.slug === n.slug || x.ten === n.ten; })[0];
+    return (hit && hit.tt) || "idle";
+  }
+
+  function nhanTt(tt, bat) {
+    if (bat || tt === "lam") return "đang làm";
+    if (tt === "hop") return "đang họp";
+    if (tt === "cho") return "chờ duyệt";
+    return "sẵn sàng";
+  }
+
+  function hangDoiVp() {
+    var hd = ((S.vanPhong || {}).hang_doi) || [];
+    if (!hd.length) return "";
+    return '<div class="nt-hangdoi">' + hd.slice(0, 5).map(function (h) {
+      return '<span class="nt-hd-pill ' + esc(h.trang_thai || "") + '">' + esc(h.tieu_de || h.id || "") + "</span>";
     }).join("") + "</div>";
   }
 
-  function matBang(truong, day, slug, d) {
-    var the = [];
-    var so = 0;
-    if (truong) { so += 1; the.push({ n: truong, so: so }); }
-    day.forEach(function (n) { so += 1; the.push({ n: n, so: so }); });
-    if (!the.length) return '<p class="nt-hint">Chưa có người.</p>';
-    var head = the.filter(function (t) { return t.n.vai === "truong"; })[0];
-    var mem = the.filter(function (t) { return t !== head; });
-    var html = "";
-    if (head) html += hangGhe([head], slug, d, " nt-hang-truong");
-    for (var i = 0; i < mem.length; i += 4) html += hangGhe(mem.slice(i, i + 4), slug, d);
-    return '<div class="nt-room">' + html + "</div>";
+  function htmlLook() {
+    var l = lookVp();
+    var pc = ((S.vanPhong || {}).look || {}).phong_cach || "";
+    var cach = (S._phongCach || []).map(function (c) {
+      return '<option value="' + esc(c.id) + '"' + (pc === c.id ? " selected" : "") + ">" + esc(c.ten || c.id) + "</option>";
+    }).join("");
+    var canh = (S._canh || []).map(function (c) {
+      return '<option value="' + c + '"' + (l.canh === c ? " selected" : "") + ">" + esc(CANH_TEN[c] || c) + "</option>";
+    }).join("");
+    var mau = (S._mau || []).map(function (m) {
+      return '<option value="' + m + '"' + (l.mau === m ? " selected" : "") + ">" + esc(MAU_TEN[m] || m) + "</option>";
+    }).join("");
+    return '<form id="ntLook" class="nt-look">' +
+      (cach ? "<label>Phong cách<select name=\"phong_cach\"><option value=\"\">— Tuỳ chỉnh —</option>" + cach + "</select></label>" : "") +
+      "<label>Cảnh<select name=\"canh\">" + canh + "</select></label>" +
+      "<label>Màu<select name=\"mau\">" + mau + "</select></label>" +
+      '<button type="submit" class="nt-btn ghost">Áp dụng</button></form>';
+  }
+
+  function slotIso(i, tong) {
+    var cols = Math.min(4, Math.max(1, tong));
+    var row = Math.floor(i / cols);
+    var col = i % cols;
+    var x = 8 + col * 24 + row * 3;
+    var y = 10 + row * 32 + col * 2;
+    return { x: x, y: y, z: row * 10 + col };
+  }
+
+  function loiMoiNhat(v, slug, ns) {
+    var rows = ((v && v.loi) || []).filter(function (r) {
+      return r.phong === slug && (r.slug === ns || r.ten === ns);
+    });
+    return rows.length ? rows[rows.length - 1] : null;
+  }
+
+  function actorHtml(n, slug, d, i, tong, v) {
+    var bat = !!(d && laDang(d, n, slug));
+    var tt = bat ? (_BUOC_TT_UI[d.buoc] || "lam") : ttNguoi(slug, n);
+    if (v && v.trang_thai !== "dang_chay" && v.trang_thai !== "cho_duyet") tt = "idle";
+    var pos = slotIso(i, tong);
+    var head = n.vai === "truong";
+    var chon = S._actor && S._actor.phong === slug && S._actor.slug === n.slug;
+    var di = bat && d && d.giao_cho && (d.buoc === "lam" || d.buoc === "doi" || d.buoc === "giao" || d.buoc === "nhan");
+    var hop = bat && d && (d.buoc === "hop" || d.buoc === "chia" || d.buoc === "dap" || d.buoc === "gop");
+    var cls = "nt-actor" +
+      (head ? " head" : "") +
+      (bat || tt === "lam" ? " on" : "") +
+      (tt === "hop" || hop ? " hop" : "") +
+      (tt === "cho" ? " cho" : "") +
+      (di ? " walk" : "") +
+      (hop ? " meet" : "") +
+      (chon ? " sel" : "");
+    var bubble = "";
+    if (bat && v) {
+      var row = loiMoiNhat(v, slug, n.slug);
+      var text = row ? String(row.loi || "").split("\n")[0] : "";
+      if (text) bubble = '<span class="nt-bubble">' + esc(text.slice(0, 72)) + (text.length > 72 ? "…" : "") + "</span>";
+    }
+    return '<button type="button" class="' + cls + '" data-actor-phong="' + esc(slug) +
+      '" data-actor="' + esc(n.slug) + '" style="left:' + pos.x + "%;top:" + pos.y + "%;z-index:" + (20 + pos.z) +
+      ";--nt-i:" + i + '">' +
+      '<span class="nt-desk-iso" aria-hidden="true"></span>' +
+      '<img class="nt-actor-face" alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
+      (head ? '<span class="nt-badge">★</span>' : "") +
+      '<span class="nt-actor-name">' + esc(n.ten) + "</span>" +
+      '<span class="nt-actor-st">' + esc(nhanTt(tt, bat)) + "</span>" +
+      bubble + "</button>";
+  }
+
+  var _BUOC_TT_UI = {
+    giao: "lam", lam: "lam", doi: "lam", sua: "lam", cap: "lam", them: "lam", ket: "lam",
+    nhan: "cho", kiem: "cho", xu: "cho", gop: "hop", chia: "hop", dap: "hop", hop: "hop",
+  };
+
+  function htmlFloor(p, slug, d, v, i) {
+    var truong = truongCua(p);
+    var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+    var all = [];
+    if (truong) all.push(truong);
+    day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
+    var run = d && d.phong === slug;
+    var actors = all.map(function (n, idx) {
+      return actorHtml(n, slug, d, idx, all.length || 1, v);
+    }).join("");
+    return '<section class="nt-iso-floor' + (run ? " on" : "") + '">' +
+      '<header><span class="nt-qno">' + (i + 1) + "</span>" +
+      (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : "") +
+      "<b>" + esc(p.ten) + "</b></header>" +
+      '<div class="nt-iso-room">' + actors + "</div></section>";
   }
 
   function htmlMap() {
-    var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : viecHien();
-    if (!v) return '<p class="nt-hint">Chọn một việc.</p>';
-    var d = v.trang_thai === "dang_chay" ? v.dang_lam : null;
-    var tang = (v.phong || []).map(function (slug, i) {
+    var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
+    var l = lookVp();
+    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
+    if (!slugs.length) return hangDoiVp() + htmlLook() + '<p class="nt-hint">Chưa có phòng.</p>';
+    var floors = slugs.map(function (slug, i) {
       var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-      if (!p) return "";
-      var run = d && d.phong === slug;
-      return '<section class="nt-floor' + (run ? " on" : "") + '"><header><span class="nt-qno">' + (i + 1) + "</span>" +
-        (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : '<span class="nt-ava">' + esc((p.ten || "?").slice(0, 1)) + "</span>") +
-        "<span><b>" + esc(p.ten) + "</b><small>" + (p.cach_lam === "lan_luot" ? "Lần lượt" : "Làm cùng") + "</small></span></header>" +
-        matBang(truongCua(p), dayViec(p, v), slug, d) + "</section>";
-    }).join('<div class="nt-qsep">↓</div>');
-    return tang || '<p class="nt-hint">Việc chưa gắn phòng.</p>';
+      return p ? htmlFloor(p, slug, d, v, i) : "";
+    }).join("");
+    return hangDoiVp() + htmlLook() +
+      '<div id="ntStage" class="nt-stage canh-' + esc(l.canh) + " mau-" + esc(l.mau) +
+      (v && v.trang_thai === "dang_chay" ? " running" : "") + '">' +
+      '<div class="nt-stage-floor">' + floors + "</div></div>" +
+      htmlActorPanel(v);
+  }
+
+  function htmlActorPanel(v) {
+    if (!S._actor) return "";
+    var slug = S._actor.phong;
+    var ns = S._actor.slug;
+    var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+    var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
+    if (!n) return "";
+    var tt = ttNguoi(slug, n);
+    var d = v && v.dang_lam;
+    var bat = d && laDang(d, n, slug);
+    if (bat) tt = _BUOC_TT_UI[d.buoc] || "lam";
+    var rows = ((v && v.loi) || []).filter(function (r) {
+      return r.phong === slug && r.slug === ns;
+    }).slice(-3).reverse();
+    var loiHtml = rows.length ? rows.map(function (r) {
+      var tep = r.tep ? '<button type="button" class="nt-chip" data-dinh="' + esc(khoaTep(r)) + '">File</button>' : "";
+      return '<li><small>' + esc(LOP[r.lop] || r.lop || "") + "</small> " + esc(String(r.loi || "").slice(0, 160)) + tep + "</li>";
+    }).join("") : '<li class="nt-hint">Chưa có lời của người này trong việc.</li>';
+    return '<section class="nt-actor-panel" id="ntActorPanel">' +
+      '<header><img alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
+      "<div><b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (n.vai === "truong" ? "Trưởng phòng" : "Thành viên")) +
+      " · " + esc(p.ten) + "</small></div>" +
+      '<button type="button" class="nt-btn ghost" id="ntDongActor">Đóng</button></header>' +
+      "<p><em>" + esc(nhanTt(tt, bat)) + "</em>" +
+      (bat && d && d.buoc ? " · bước " + esc(d.buoc) : "") +
+      (bat && d && d.giao_cho ? " · bàn giao " + esc(d.giao_cho) : "") +
+      (v ? " · việc «" + esc(v.tieu_de) + "»" : "") + "</p>" +
+      "<ul>" + loiHtml + "</ul></section>";
   }
 
   function htmlTalk() {
@@ -709,6 +880,7 @@
     var n = (p.nguoi || []).filter(function (x) { return x.slug === S.sua; })[0];
     if (!n) return "<h2>Nhân viên</h2>" +
       '<p class="nt-hint">Bấm một người ở cột giữa để sửa tên, vị trí, skill. Hoặc bấm Thêm người.</p>';
+    var av = n.avatar || avatarCua(n, S.chonPhong) || "";
     return "<h2>Sửa " + esc(n.ten) + "</h2>" +
       '<form class="nt-form" id="ntSuaNguoi">' +
       '<label>Tên<input name="ten" required value="' + esc(n.ten || "") + '"></label>' +
@@ -717,10 +889,12 @@
       '>Thành viên</option><option value="truong"' + (n.vai === "truong" ? " selected" : "") +
       ">Trưởng phòng</option></select></label>" +
       '<p class="nt-hint">Mỗi phòng một trưởng. Đặt trưởng mới thì trưởng cũ xuống thành viên.</p>' +
+      htmlAvatarGrid(av, "ntSuaAv") +
       '<label>Tính cách<textarea name="tinh_cach">' + esc(n.tinh_cach || "") + "</textarea></label>" +
       oSkill(n.skills || []) +
       '<div class="nt-row"><button class="nt-btn pri" type="submit">Lưu người</button>' +
-      '<button type="button" class="nt-btn danger" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></form>';
+      '<button type="button" class="nt-btn danger" data-xoa-nguoi="' + esc(n.slug) + '" data-ten="' + esc(n.ten) + '">Bỏ khỏi phòng</button></div></form>' +
+      (av ? '<button type="button" class="nt-btn ghost" id="ntXoaAvatar">Bỏ avatar</button>' : "");
   }
 
   function tabGiao() {
@@ -1260,13 +1434,14 @@
         var j = await post("/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi", {
           brain: brain(), ten: fd.get("ten"), tinh_cach: fd.get("tinh_cach"),
           skills: fd.get("skills"), vai: fd.get("vai"), agent: fd.get("agent"),
-          vi_tri: fd.get("vi_tri"),
+          vi_tri: fd.get("vi_tri"), avatar: fd.get("avatar") || S._avPick || "",
         });
         if (!j.ok) return hong(btn, j.error);
         var p = phongChon();
         if (p && j.phong) p.nguoi = j.phong.nguoi || [];
         else if (p) p.nguoi.push(j.nguoi);
         if (j.nguoi) S.sua = j.nguoi.slug;
+        S._avPick = "";
         S.ban = false;
         ve();
       } catch (e) { hong(btn, "Không kết nối được."); }
@@ -1495,6 +1670,7 @@
       ve(true);
     };
     ganGon();
+    ganAvatarSetup();
     S.root.onclick = function (ev) {
       if (ev.target.closest(".nt-pick")) return;
       S.root.querySelectorAll(".nt-seek-list").forEach(function (l) { l.hidden = true; });
@@ -1667,6 +1843,134 @@
     });
   }
 
+  function ganLookVaActor() {
+    var look = document.getElementById("ntLook");
+    if (look) look.onsubmit = async function (ev) {
+      ev.preventDefault();
+      var fd = new FormData(look);
+      try {
+        var j = await post("/nhac-truong/van-phong/look", {
+          brain: brain(),
+          canh: fd.get("canh"),
+          mau: fd.get("mau"),
+          phong_cach: fd.get("phong_cach") || "",
+        });
+        if (!j.ok) return hienLoi(j.error);
+        S.vanPhong = j.van_phong || S.vanPhong;
+        S._khoaPhong = "";
+        capNhatPhong();
+      } catch (e) { hienLoi("Không lưu được giao diện."); }
+    };
+    if (!S.root) return;
+    S.root.querySelectorAll("[data-actor]").forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        var phong = b.getAttribute("data-actor-phong") || "";
+        var slug = b.getAttribute("data-actor") || "";
+        if (!slug) return;
+        if (S._actor && S._actor.slug === slug && S._actor.phong === phong) S._actor = null;
+        else S._actor = { phong: phong, slug: slug };
+        S._khoaPhong = "";
+        capNhatPhong();
+        ganLoi();
+        ganLookVaActor();
+      };
+    });
+    var dong = document.getElementById("ntDongActor");
+    if (dong) dong.onclick = function () {
+      S._actor = null;
+      S._khoaPhong = "";
+      capNhatPhong();
+      ganLookVaActor();
+    };
+    var stage = document.getElementById("ntStage");
+    if (stage) stage.onclick = function (ev) {
+      if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel")) return;
+      if (!S._actor) return;
+      S._actor = null;
+      S._khoaPhong = "";
+      capNhatPhong();
+      ganLookVaActor();
+    };
+  }
+
+  function ganAvatarSetup() {
+    if (!S.root) return;
+    function setHidden(val) {
+      var h = document.getElementById("ntThemAvVal") || document.getElementById("ntSuaAvVal");
+      if (h) h.value = val || "";
+      S.root.querySelectorAll("[data-av]").forEach(function (x) {
+        x.classList.toggle("on", x.getAttribute("data-av") === val);
+      });
+    }
+    S.root.querySelectorAll("[data-av]").forEach(function (b) {
+      b.onclick = async function () {
+        var val = b.getAttribute("data-av") || "";
+        // Form thêm: chỉ chọn local, lưu khi submit.
+        if (S.sua === "+") {
+          S._avPick = val;
+          setHidden(val);
+          return;
+        }
+        if (!S.chonPhong || !S.sua) return;
+        try {
+          var j = await post(
+            "/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi/" + encodeURIComponent(S.sua) + "/avatar",
+            { brain: brain(), data: val },
+          );
+          if (!j.ok) return hienLoi(j.error);
+          var p = phongChon();
+          if (p && j.phong) p.nguoi = j.phong.nguoi || p.nguoi;
+          if (j.van_phong) S.vanPhong = j.van_phong;
+          ve();
+        } catch (e) { hienLoi("Không lưu avatar."); }
+      };
+    });
+    async function upFile(inputId) {
+      var file = document.getElementById(inputId);
+      if (!file) return;
+      file.onchange = async function () {
+        var f = file.files && file.files[0];
+        if (!f) return;
+        try {
+          var data = await nenIcon(f);
+          if (S.sua === "+") {
+            S._avPick = data;
+            setHidden(data);
+            return;
+          }
+          if (!S.chonPhong || !S.sua) return;
+          var j = await post(
+            "/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi/" + encodeURIComponent(S.sua) + "/avatar",
+            { brain: brain(), data: data },
+          );
+          if (!j.ok) return hienLoi(j.error);
+          var p = phongChon();
+          if (p && j.phong) p.nguoi = j.phong.nguoi || p.nguoi;
+          if (j.van_phong) S.vanPhong = j.van_phong;
+          ve();
+        } catch (e) { hienLoi("Không đọc được ảnh."); }
+      };
+    }
+    upFile("ntThemAvFile");
+    upFile("ntSuaAvFile");
+    var xoa = document.getElementById("ntXoaAvatar");
+    if (xoa) xoa.onclick = async function () {
+      if (!S.chonPhong || !S.sua) return;
+      try {
+        var j = await post(
+          "/nhac-truong/phong/" + encodeURIComponent(S.chonPhong) + "/nguoi/" + encodeURIComponent(S.sua) + "/avatar",
+          { brain: brain(), data: "" },
+        );
+        if (!j.ok) return hienLoi(j.error);
+        var p = phongChon();
+        if (p && j.phong) p.nguoi = j.phong.nguoi || p.nguoi;
+        if (j.van_phong) S.vanPhong = j.van_phong;
+        ve();
+      } catch (e) { hienLoi("Không xoá được."); }
+    };
+  }
+
   function ganTheoDoi() {
     var suaViec = document.getElementById("ntSuaViec");
     if (suaViec) suaViec.onclick = function () { moSuaViec(S._viecDay); };
@@ -1690,6 +1994,7 @@
       var fd = new FormData(them);
       chayThem(fd.get("comment") || "", fd.get("phong_lai") || "");
     };
+    ganLookVaActor();
     if (!S.root) return;
     S.root.querySelectorAll("[data-phong-len],[data-phong-xuong]").forEach(function (b) {
       b.onclick = function () {
@@ -1734,7 +2039,10 @@
     var loi = v.loi || [];
     var last = loi.length ? (loi[loi.length - 1].loi || "").length : 0;
     var d = v.dang_lam || {};
-    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.ten || "", d.buoc || "", d.giao_cho || "", (v.ket_qua || "").length].join("~");
+    var l = lookVp();
+    var act = S._actor ? (S._actor.phong + "/" + S._actor.slug) : "";
+    var vp = (S.vanPhong && S.vanPhong.cap_nhat) || 0;
+    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.slug || d.ten || "", d.buoc || "", d.giao_cho || "", (v.ket_qua || "").length, act, l.canh, l.mau, vp].join("~");
   }
 
   function khoaKhung(v) {
@@ -1792,6 +2100,8 @@
     if (map) {
       map.innerHTML = htmlMap();
       ganNhan();
+      ganLookVaActor();
+      ganLoi();
     }
     if (!talk) return;
     var log = document.getElementById("ntLogPhong");
@@ -1815,19 +2125,25 @@
         else delete S._moLoi[k];
       };
     });
-    if (!talk) return;
-    talk.querySelectorAll("[data-dinh]").forEach(function (b) {
-      b.onclick = function () {
-        var k = b.getAttribute("data-dinh") || "";
-        S._docKey = S._docKey === k ? "" : k;
-        talk.innerHTML = htmlTalk();
-        ganLoi();
-      };
-    });
+    function ganDinh(root) {
+      if (!root) return;
+      root.querySelectorAll("[data-dinh]").forEach(function (b) {
+        b.onclick = function () {
+          var k = b.getAttribute("data-dinh") || "";
+          S._docKey = S._docKey === k ? "" : k;
+          var t2 = document.getElementById("ntTalk");
+          if (t2) t2.innerHTML = htmlTalk();
+          ganLoi();
+          ganLookVaActor();
+        };
+      });
+    }
+    ganDinh(talk);
+    ganDinh(document.getElementById("ntActorPanel"));
     var dong = document.getElementById("ntDongDoc");
     if (dong) dong.onclick = function () {
       S._docKey = "";
-      talk.innerHTML = htmlTalk();
+      if (talk) talk.innerHTML = htmlTalk();
       ganLoi();
     };
   }
@@ -1875,7 +2191,7 @@
         return;
       }
       S._mo = true;
-      moViec().then(function () {
+      Promise.all([moViec(), taiVanPhong()]).then(function () {
         S._mo = false;
         if (S.chonViec !== dang) return;
         capNhatTheoDoi();
@@ -1979,6 +2295,19 @@
     batPoll();
   }
 
+  async function taiVanPhong() {
+    try {
+      var j = await api("/nhac-truong/van-phong?brain=" + encodeURIComponent(brain()));
+      if (j && j.ok) {
+        S.vanPhong = j.van_phong || null;
+        if (j.avatar_preset) S._presets = j.avatar_preset;
+        if (j.canh) S._canh = j.canh;
+        if (j.mau) S._mau = j.mau;
+        if (j.phong_cach) S._phongCach = j.phong_cach;
+      }
+    } catch (e) { /* giữ bản cũ */ }
+  }
+
   async function moViec() {
     if (!S.chonViec) { S._viecDay = null; return; }
     var id = S.chonViec;
@@ -1995,6 +2324,7 @@
     if (S._dung === id && v && v.trang_thai !== "dang_chay") S._dung = "";
     S._viecDay = v;
     if (v && (v.phong || []).length && (v.phong || []).indexOf(S.chonPhong) < 0) S.chonPhong = v.phong[0];
+    await taiVanPhong();
   }
 
   function chonMacDinh() {
@@ -2008,12 +2338,20 @@
     var b = encodeURIComponent(brain());
     var cap = await Promise.all([
       api("/nhac-truong/phong?brain=" + b),
-      api("/nhac-truong/viec?brain=" + b)
+      api("/nhac-truong/viec?brain=" + b),
+      api("/nhac-truong/van-phong?brain=" + b)
     ]);
-    var a = cap[0], v = cap[1];
+    var a = cap[0], v = cap[1], vp = cap[2];
     if (a.ok === false && !a.phong) return hienLoi(a.error);
     S.phong = a.phong || [];
     S.viec = v.viec || [];
+    if (vp && vp.ok) {
+      S.vanPhong = vp.van_phong || null;
+      if (vp.avatar_preset) S._presets = vp.avatar_preset;
+      if (vp.canh) S._canh = vp.canh;
+      if (vp.mau) S._mau = vp.mau;
+      if (vp.phong_cach) S._phongCach = vp.phong_cach;
+    }
     chonMacDinh();
     await moViec();
     S._khoa = "";
@@ -2031,7 +2369,8 @@
         api("/agents?brain=" + b),
         api("/nhac-truong/phong?brain=" + b),
         api("/nhac-truong/viec?brain=" + b),
-        api("/skills?brain=" + b)
+        api("/skills?brain=" + b),
+        api("/nhac-truong/van-phong?brain=" + b)
       ]);
       S.agents = (cap[0] && cap[0].agents) || [];
       S._agentHtml = null;
@@ -2039,6 +2378,13 @@
       S.viec = (cap[2] && cap[2].viec) || [];
       S.kho = (cap[3] && cap[3].skills) || [];
       S._khoLoi = S.kho.length ? "" : ((cap[3] && cap[3].error) || "");
+      if (cap[4] && cap[4].ok) {
+        S.vanPhong = cap[4].van_phong || null;
+        if (cap[4].avatar_preset) S._presets = cap[4].avatar_preset;
+        if (cap[4].canh) S._canh = cap[4].canh;
+        if (cap[4].mau) S._mau = cap[4].mau;
+        if (cap[4].phong_cach) S._phongCach = cap[4].phong_cach;
+      }
     } catch (e) {
       S.agents = [];
       return hienLoi("Không tải được Nhạc trưởng.");

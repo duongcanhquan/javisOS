@@ -23,7 +23,18 @@ def _liet(ctx) -> str:
     ds = kho.ds_phong()
     if not ds:
         return "Chưa có phòng nào trong Nhạc trưởng. Tạo phòng ở trang Nhạc trưởng trước."
-    return nt._mo_ta_phong(ds)
+    dong = [nt._mo_ta_phong(ds)]
+    dang = [v for v in kho.ds_viec() if v.get("trang_thai") in ("dang_chay", "cho_duyet")]
+    if dang:
+        dong.append("Việc đang mở:")
+        for v in dang[:6]:
+            dong.append(
+                f"- {v.get('tieu_de')} ({v.get('id')}): {v.get('trang_thai')}"
+            )
+        dong.append("Muốn xem chi tiết gọi op=xem với id. Đang chờ duyệt thì người dùng nói đồng ý rồi op=duyet.")
+    else:
+        dong.append("Chưa có việc đang chạy. Muốn giao việc: op=giao với title, brief, phong.")
+    return "\n".join(dong)
 
 
 def _giao(args, ctx) -> str:
@@ -123,18 +134,15 @@ def _duyet(args, ctx) -> str:
 def register(ctx):
     ctx.register_tool(
         "javis_nhac_truong",
-        "Nhạc trưởng: xem phòng ban, giao một việc và chạy như nút Chạy trên trang. "
-        "Khi người dùng muốn phòng ban, nhạc trưởng, trưởng phòng hoặc nhiều người trong hệ thống làm một việc, "
-        "gọi tool này, đừng tự viết hộ. "
-        "op=phong: liệt kê phòng đang có. "
-        "op=giao: cần title, brief, và phong là tên hoặc mã phòng. Nhiều phòng thì cách nhau bằng dấu phẩy. "
-        "Nếu người dùng chưa nói phòng, hoặc tên không khớp đúng một phòng, tool trả danh sách: HỎI LẠI người dùng, "
-        "đừng chọn hộ và đừng gọi op=giao lần nữa cho đến khi họ chỉ phòng. "
-        "Chỉ một phòng trong brain thì được giao phòng đó và nói rõ. "
-        "Việc chạy ở nền và dừng để người dùng duyệt. Nói mã việc và bảo xem tab Theo dõi. "
-        "Không hứa sẽ chờ xong rồi báo lại. "
-        "op=xem: đọc trạng thái. Nếu đang chờ duyệt, bảo người dùng nói đồng ý hoặc một câu sửa. "
-        "op=duyet: khi người dùng đồng ý hoặc góp một câu. id nếu biết mã việc, y là câu sửa, để trống nếu chỉ đồng ý.",
+        "Nhạc trưởng / phòng ban: xem phòng, giao việc và chạy như nút Chạy trên trang Theo dõi. "
+        "Khi người dùng muốn phòng ban, nhạc trưởng, trưởng phòng hoặc team trong hệ thống làm việc, "
+        "gọi tool này — đừng tự viết hộ bài. "
+        "op=phong: liệt kê phòng + việc đang chạy/chờ duyệt. "
+        "op=giao: title, brief, phong (tên hoặc mã, nhiều phòng cách nhau bằng dấu phẩy). "
+        "Chưa rõ phòng thì HỎI LẠI, không đoán. Chỉ một phòng trong brain thì giao phòng đó. "
+        "Việc chạy nền; bảo xem tab Theo dõi / văn phòng 2.5D. Không hứa chờ xong trong lượt chat. "
+        "op=xem: trạng thái việc (id hoặc việc mới nhất). "
+        "op=duyet: người dùng đồng ý hoặc góp ý; id nếu biết, y là câu sửa.",
         _chay,
         schema={
             "type": "object",

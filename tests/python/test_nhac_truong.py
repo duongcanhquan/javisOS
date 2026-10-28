@@ -512,16 +512,19 @@ def test_gon_khong_dan_ca_bai():
     phong = {"ten": "Nội dung", "tieu_chi": "Rõ", "slug": "noi-dung"}
     viec = {"tieu_de": "Bài", "brief": "ngắn"}
     p = nt.lap_prompt("DOI", nguoi, phong, viec, ban=dai, lenh="thiếu nguồn", giao_cho={"ten": "Chi", "vai": "thanh_vien"})
-    check("bước sau đọc đủ bản", "MOC-BAN" in p and "lặp lại cho dài" in p)
-    check("sửa thì trả lại cả file", "Viết lại cả file cho đủ" in p and "FILE:" in p)
+    check("sửa chỉ mang đoạn cần", "MOC-BAN" in p and "ĐOẠN CẦN SỬA" in p)
+    check("sửa dùng PATCH không viết lại cả file", "PATCH:" in p and "Viết lại cả file" not in p)
+    check("DOI ngắn hơn bản đầy", len(p) < len(dai) + 800)
     lam = nt.lap_prompt("LAM", nguoi, phong, viec, ban=dai)
     check("bước sau không chép file vào câu nói", "không chép nguyên file trước" in lam)
-    check("bước sau nhận đủ bản trước", "MOC-BAN" in lam and "…" not in lam)
+    check("bước sau nhận bản trước", "MOC-BAN" in lam)
     dau = nt.lap_prompt("LAM", nguoi, phong, viec)
     check("bản đầu là file đủ", "FILE:" in dau and "HET FILE" in dau and "Không viết hết" not in dau)
     check("bản dài vẫn giữ", nt._cat("A" * 9000) == "A" * 9000)
     ket = nt.lap_prompt("KET", nguoi, phong, viec, cac_ban={"noi-dung": dai + "\nMOC-CUOI"})
     check("kết quả nhận đủ bản", "MOC-CUOI" in ket and "MOC-BAN" in ket)
+    hop = nt.lap_prompt("HOP", nguoi, phong, viec, cac_ban={"noi-dung": "## A\n" + ("x" * 5000) + "\n## B\ncuối"})
+    check("họp dùng tóm tắt không dump cả bài", "TÓM TẮT" in hop and len(hop) < 5000)
 
 
 def test_file_dinh_kem_khong_vao_hoi_thoai():
@@ -576,6 +579,14 @@ def test_du_an_dai_khong_dut():
     moi = "Chỉ sửa câu đầu."
     giu = nt._giu_ban(cu, moi)
     check("bản dài không bị thay bằng một câu", giu == cu)
+    patch = (
+        "NOI: Đã sửa mục nguồn.\nPATCH:\n@@@\n## Nguồn\ntài liệu A, năm 2024\n@@@\nHET PATCH"
+    )
+    t = nt.tach_tra_loi(patch)
+    check("tách được PATCH", bool(t.get("patches")))
+    gop = nt.hop_ban("## Nguồn\ncũ\n\n## Kết\ngiữ nguyên\nCUỐI", t)
+    check("patch chỉ đổi mục bị bắt", "tài liệu A" in gop and "giữ nguyên" in gop and "CUỐI" in gop)
+    check("patch không xoá phần khác", "## Kết" in gop)
     y = nt.y_phan_hoi("QUYET: CHUA\n- Thiếu mục 2\n- Sai số bảng 4\nSUA: xem các dòng trên")
     check("phản hồi giữ hết ý", "Thiếu mục 2" in y and "Sai số bảng 4" in y and "QUYET" not in y)
     dai = "Câu mở ngắn.\n" + ("Nội dung rất dài của dự án. " * 80) + "MỐC-CUỐI"

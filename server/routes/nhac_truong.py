@@ -209,6 +209,7 @@ async def them_nguoi(slug: str, request: Request):
             body.get("ten") or "", body.get("tinh_cach") or "",
             body.get("skills") or "", body.get("vai") or "thanh_vien",
             body.get("agent") or "", body.get("vi_tri") or "",
+            avatar=body.get("avatar") or "",
         )
     except nt.LoiNhacTruong as e:
         return _err(e)
@@ -256,6 +257,42 @@ async def doi_cho(slug: str, ns: str, request: Request):
 @router.get("/nhac-truong/viec")
 async def ds_viec(brain: str = "brain"):
     return {"ok": True, "viec": _kho(brain).ds_viec()}
+
+
+@router.get("/nhac-truong/van-phong")
+async def van_phong(brain: str = "brain"):
+    """Trạng thái phòng ban chung: người, bàn, sổ, hàng đợi — ngoài từng việc."""
+    kho = _kho(brain)
+    try:
+        vp = nt.dong_bo_van_phong(kho)
+    except Exception:
+        vp = nt.doc_van_phong(kho)
+    return {
+        "ok": True,
+        "van_phong": vp,
+        "canh": list(nt.CANH_HOP),
+        "mau": list(nt.MAU_HOP),
+        "avatar_preset": list(nt.AVATAR_PRESET),
+        "phong_cach": [
+            {"id": k, "ten": v.get("ten") or k, "canh": v["canh"], "mau": v["mau"]}
+            for k, v in nt.PHONG_CACH.items()
+        ],
+    }
+
+
+@router.post("/nhac-truong/van-phong/look")
+async def van_phong_look(request: Request):
+    body = await request.json()
+    try:
+        vp = nt.luu_look(
+            _kho(body.get("brain") or "brain"),
+            canh=body.get("canh") or "",
+            mau=body.get("mau") or "",
+            phong_cach=body.get("phong_cach") or "",
+        )
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "van_phong": vp}
 
 
 @router.post("/nhac-truong/viec")
@@ -541,6 +578,18 @@ async def icon_phong(slug: str, request: Request):
     return {"ok": True, "phong": phong}
 
 
+@router.post("/nhac-truong/phong/{slug}/nguoi/{ns}/avatar")
+async def avatar_nguoi(slug: str, ns: str, request: Request):
+    body = await request.json()
+    try:
+        kq = nt.luu_avatar(
+            _kho(body.get("brain") or "brain"), slug, ns, body.get("data") or "",
+        )
+    except nt.LoiNhacTruong as e:
+        return _err(e)
+    return {"ok": True, "phong": kq["phong"], "van_phong": kq["van_phong"]}
+
+
 def _danh_loi(kho, vid: str, e: Exception) -> None:
     """Việc kẹt dang_chay nếu task nền chết giữa chừng. Ghi lỗi để trang thôi xoay."""
     try:
@@ -560,14 +609,11 @@ async def _noi_that(brain: str, nguoi: dict, prompt: str) -> str:
     import aux_engine
 
     root = _DEPS.brain_root(brain or "brain")
+    # Không nhắc lại tên/tính cách/skill — đã có trong prompt user (tránh nhân token).
     sysprompt = (
-        f"Bạn là {nguoi.get('ten')}.\n"
-        f"Tính cách: {nguoi.get('tinh_cach') or ''}\n"
-        f"Skill: {', '.join(nguoi.get('skills') or []) or '(không)'}.\n"
         "Bạn đang nói trong Nhạc trưởng.\n"
-        "Câu NOI chỉ nêu ý chính, ngắn, gạch đầu dòng nếu là phản hồi.\n"
-        "Nội dung dài, kể cả dự án nhiều chữ, luôn viết đủ trong FILE. Viết gọn, chia mục, không lặp. Lượt ở giữa cũng vậy, không được viết cụt.\n"
-        "Nếu hết lượt mà file chưa xong, dừng bằng đúng một dòng CON_TIEP. Không viết câu báo bị cắt.\n"
+        "Câu NOI ngắn, nêu ý chính. Sửa thì dùng PATCH (chỉ phần lệch). Tạo bản mới thì FILE đủ.\n"
+        "Không viết lại cả bài khi chỉ vài điểm lỗi. Hết lượt mà file chưa xong: đúng một dòng CON_TIEP.\n"
         "Không gửi tin, không đăng, không chi tiền, không bảo người khác tự đi làm.\n"
     )
     nguon = nt.loi_nguon(nt.vai_doc(nguoi, prompt))

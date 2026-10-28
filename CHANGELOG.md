@@ -1,5 +1,25 @@
 # Nhật ký cập nhật
 
+## [0.56.93] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · văn phòng to hơn:** cột sơ đồ rộng hơn, phòng cao ~260px, nhân vật icon lớn kiểu hoạt hình (đầu to, cười, phụ kiện).
+- Icon 22 preset vẽ lại vui mắt; idle bob / đi / làm việc / bong bóng thoại có nhịp hoạt hình.
+
+## [0.56.92] - 2026-10-28
+### Sửa
+- **Nhạc trưởng:** chọn icon 2.5D ngay lúc thêm người (không chỉ lúc sửa). 22 preset; phong cách phòng ban (văn phòng mở / họp / sáng tạo / tối / pháp chế).
+- Lượt sửa/họp gọn token hơn (ít nhồi tính cách/skill/brief). Chat `javis_nhac_truong` liệt kê việc đang chạy khi hỏi phòng.
+
+## [0.56.91] - 2026-10-28
+### Mới
+- **Nhạc trưởng · văn phòng 2.5D:** sân khấu isometric, chọn cảnh/màu, icon người (preset hoặc tải ảnh). Khi việc chạy, nhân vật đi bàn giao / họp / làm; bấm người để xem họ đang làm gì.
+
+## [0.56.90] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · token:** lượt sửa/họp chỉ mang đoạn cần đụng (PATCH), không viết lại cả file. Brief rút gọn; tài liệu gốc không nhồi mỗi lượt; họp dùng tóm tắt.
+- **Nhạc trưởng · văn phòng chung:** trạng thái người/bàn/sổ/hàng đợi nằm ngoài từng việc (`van-phong`). Việc mới kế thừa sổ phòng.
+- **Nhạc trưởng · sức sống:** ghế hiện sẵn sàng / đang làm / họp / chờ duyệt; sơ đồ bàn có chiều sâu 3D nhẹ và hàng đợi việc.
+
 ## [0.56.89] - 2026-10-28
 ### Sửa
 - **Tổ chức · Bật máy hết báo start 404:** nếu container bị gỡ nhầm mà não/ổ còn, hệ thống tự dựng lại máy rồi bật. Không đụng mật khẩu trong ổ.
