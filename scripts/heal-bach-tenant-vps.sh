@@ -53,8 +53,9 @@ done
 echo "=== VERSION / static / health inside bach ==="
 docker exec "$C" sh -c 'cat /app/VERSION 2>/dev/null; rg -n "FileResponse 500|Thay StaticFiles|read_bytes" /app/server/main.py 2>/dev/null | head -5 || grep -n "Thay StaticFiles\|read_bytes" /app/server/main.py | head -5' || true
 
-docker exec "$C" python - <<'PY'
-import json, urllib.request
+# Bắt buộc -i (không thì Python nhận EOF, không in settings)
+docker exec -i "$C" python - <<'PY'
+import json, urllib.request, os, subprocess
 from pathlib import Path
 
 def get(url):
@@ -66,11 +67,10 @@ def get(url):
         return None, 0, repr(e)
 
 print("health", get("http://127.0.0.1:7777/health"), flush=True)
-for path in ("/static/style.css", "/static/console.js", "/static/icons.js", "/"):
-    st, n, head = get("http://127.0.0.1:7777" + path)
+for path in ("/static/style.css", "/static/console.js", "/static/icons.js", "/static/login.css", "/"):
+    st, n, _ = get("http://127.0.0.1:7777" + path)
     print("GET", path, "status", st, "bytes", n, flush=True)
 
-# Settings model
 sp = Path("/data/state/settings.json")
 if not sp.is_file():
     sp = Path("/data/settings.json")
@@ -81,21 +81,41 @@ if sp.is_file():
     except Exception as e:
         print("settings_json_err", e, flush=True)
         s = {}
-    m = s.get("model") or {}
-    main = m.get("main") or {}
-    aux = m.get("auxiliary") or {}
+    m = s.get("model") if isinstance(s.get("model"), dict) else {}
     def scrub(block):
         if not isinstance(block, dict):
             return block
-        out = {k: ("***" if "key" in k.lower() or "token" in k.lower() or "password" in k.lower() else v)
-               for k, v in block.items()}
+        out = {}
+        for k, v in block.items():
+            lk = k.lower()
+            if any(x in lk for x in ("key", "token", "password", "secret")):
+                out[k] = ("set" if str(v or "").strip() else "empty")
+            else:
+                out[k] = v
         return out
-    print("model.main", scrub(main), flush=True)
-    print("model.auxiliary", scrub(aux), flush=True)
-    print("providers_present", sorted([k for k in m.keys() if "key" in k.lower() or k in ("main","auxiliary","telegram","ollama_local_endpoint")]), flush=True)
-    # Claude/Codex login dirs
-    for p in (Path("/home/javis/.claude"), Path("/home/javis/.codex"), Path("/data/home/.antigravity"), Path("/data/home/.local/bin")):
-        print("path", p, "exists", p.exists(), "entries", len(list(p.iterdir())) if p.is_dir() else 0, flush=True)
+    print("model.main", scrub(m.get("main") or {}), flush=True)
+    print("model.auxiliary", scrub(m.get("auxiliary") or {}), flush=True)
+    print("model.telegram", scrub(m.get("telegram") or {}), flush=True)
+    for k in sorted(m.keys()):
+        if "key" in k.lower() or k.endswith("_endpoint"):
+            val = m.get(k)
+            print("model_field", k, ("set" if str(val or "").strip() else "empty"), flush=True)
+    # CLI engines
+    for p in (
+        Path("/home/javis/.claude"),
+        Path("/home/javis/.codex"),
+        Path("/data/home/.antigravity"),
+        Path("/data/home/.local/bin"),
+        Path("/data/home/.config"),
+    ):
+        n = len(list(p.iterdir())) if p.is_dir() else 0
+        print("path", p, "exists", p.exists(), "entries", n, flush=True)
+    for bin_name in ("claude", "codex", "agy", "grok"):
+        try:
+            r = subprocess.run(["sh", "-c", f"command -v {bin_name} || true"], capture_output=True, text=True, timeout=5)
+            print("bin", bin_name, (r.stdout or "").strip() or "MISSING", flush=True)
+        except Exception as e:
+            print("bin", bin_name, "err", e, flush=True)
 PY
 
 echo "=== manager → bach health + asset ==="

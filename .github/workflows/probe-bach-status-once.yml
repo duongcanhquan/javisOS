@@ -1,4 +1,4 @@
-# bump: 2026-10-28T05:00Z — bach: model + UI đăng nhập (FileResponse/static)
+# bump: 2026-10-28T05:10Z — bach: docker exec -i lấy settings model
 name: Probe bach status once
 
 on:
