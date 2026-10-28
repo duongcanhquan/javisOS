@@ -224,6 +224,12 @@ check("đổi mật khẩu tenant tách gợi ý và lưu",
       and "Đổi mật khẩu đăng nhập" in org_js
       and ">Tạo mật khẩu</button>" not in org_js
       and ">Đặt mật khẩu</button>" not in org_js)
+check("đổi MK hiện tín hiệu ngay trên thẻ (tip + note), không chỉ #orgMsg ẩn trên tab khác",
+      "Đang lưu mật khẩu mới" in org_js and "tipOn(f," in org_js
+      and 'data-org-pw-note' in org_js)
+check("đổi MK bật máy tắt trước khi docker exec",
+      "ensure_running_for_exec" in src and "slug=slug" in org_py
+      and "set_admin(cname, login, password, slug=slug)" in org_py)
 check("trang Tổ chức tắt mã 2 lớp",
       "Tắt mã 2 lớp" in org_js and "/2fa/tat" in org_js and "/2fa/tat" in org_py)
 check("tắt 2FA gọi totp_tat", "def tat_2fa" in src and "c.totp_tat()" in src)
@@ -338,7 +344,7 @@ check("nghỉ 10 phút chưa nhả cache", od_mem.cache_reclaim_due(10 * 60, 0, 
 check("nghỉ 16 phút thì đến lượt nhả", od_mem.cache_reclaim_due(16 * 60, 0, 10_000) is True)
 check("vừa nhả thì chưa nhả lại", od_mem.cache_reclaim_due(20 * 60, 10_000, 10_000 + 60) is False)
 check("đọc memory.stat", od_mem.parse_cgroup_memory_stat("file 123\r\nanon 4\n")["file"] == 123)
-check("org.js nói máy nghỉ tự nhả cache", "tự nhả cache file" in org_js)
+check("org.js nói máy nghỉ tự nhả cache", "nhả cache file" in org_js)
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
 check("org.js poll ram_live", 'api("/org/ram_live")' in org_js and "startRamPoll" in org_js)
 check("org.js meter RAM đang dùng thật", "RAM đang dùng (Docker)" in org_js and "RAM ước cho" not in org_js)

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.88] - 2026-10-28
+### Sửa
+- Tổ chức · Đổi mật khẩu người: hiện dòng xác nhận/lỗi ngay trên thẻ; máy đang tắt tự bật tạm rồi mới ghi mật khẩu (trước đó bấm Lưu không thấy gì).
+
 ## [0.56.87] - 2026-10-28
 ### Sửa
 - Tenant bach (và máy tương tự): CSS/JS/logo trả 500 vì `FileResponse` hỏng trên container đó - đổi sang đọc file rồi trả thẳng, giao diện hết trắng.

@@ -479,11 +479,21 @@ def _make_router() -> APIRouter:
         cname = str(rec.get("container") or "")
         if not cname or not org_docker.docker_available():
             return JSONResponse({"ok": False, "error": "Không kết nối được máy của người này."}, status_code=503)
+        if ot.is_soft_deleted(rec) or rec.get("paused"):
+            return JSONResponse(
+                {"ok": False, "error": "Máy đang tạm dừng hoặc chờ xóa. Khôi phục / Chạy lại trước khi đổi mật khẩu."},
+                status_code=400,
+            )
         try:
-            org_docker.set_admin(cname, login, password)
+            # Máy nghỉ (tự tắt nhả RAM) vẫn đổi được: bật tạm rồi ghi settings.
+            org_docker.set_admin(cname, login, password, slug=slug)
         except Exception as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-        return {"ok": True}
+        try:
+            ot.audit("password", slug, "đổi mật khẩu đăng nhập")
+        except Exception:
+            pass
+        return {"ok": True, "note": "Đã lưu mật khẩu mới. Người đó đăng nhập bằng mật khẩu vừa lưu."}
 
     @router.post("/org/tenants/{slug}/2fa/tat")
     async def org_tat_2fa(slug: str, request: Request):
