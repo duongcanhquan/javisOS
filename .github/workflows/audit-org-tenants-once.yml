@@ -1,0 +1,101 @@
+# bump: 2026-10-28T05:15Z — rà + chữa hàng loạt tenant
+name: Audit org tenants once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/audit-org-tenants-once.yml"
+      - "scripts/audit-org-tenants-vps.sh"
+      - "server/main.py"
+      - "server/org_docker.py"
+      - "server/org_coord.py"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build bundle
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip, base64
+          out = Path("scripts/audit-org-bundle.sh")
+          lines = [
+              "#!/usr/bin/env bash",
+              "set -euo pipefail",
+              "DIR=\"${JAVIS_DIR:-}\"",
+              "if [ -z \"$DIR\" ]; then",
+              "  if [ -d \"$HOME/javis-os\" ]; then DIR=\"$HOME/javis-os\"",
+              "  elif [ -d /root/javis-os ]; then DIR=/root/javis-os",
+              "  else DIR=\"$HOME/javis-os\"; mkdir -p \"$DIR\"; fi",
+              "fi",
+              "mkdir -p \"$DIR/scripts\" \"$DIR/server\"",
+              "export JAVIS_DIR=\"$DIR\"",
+          ]
+          for rel, dest in [
+              ("scripts/audit-org-tenants-vps.sh", "scripts/audit-org-tenants-vps.sh"),
+              ("server/main.py", "server/main.py"),
+              ("server/org_docker.py", "server/org_docker.py"),
+              ("server/org_coord.py", "server/org_coord.py"),
+              ("VERSION", "VERSION"),
+          ]:
+              raw = Path(rel).read_bytes()
+              b64 = base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+              lines.append(f"echo 'unpack {dest}'")
+              lines.append(f"printf '%s' '{b64}' | base64 -d | gzip -d > \"$DIR/{dest}\"")
+          lines.append("chmod +x \"$DIR/scripts/audit-org-tenants-vps.sh\"")
+          lines.append("bash \"$DIR/scripts/audit-org-tenants-vps.sh\"")
+          out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print("bundle_bytes", out.stat().st_size)
+          PY
+          chmod +x scripts/audit-org-bundle.sh
+
+      - name: Prep remote
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            mkdir -p "$HOME/javis-restore"
+            rm -f "$HOME/javis-restore"/* || true
+            df -h / | head -2
+
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/audit-org-bundle.sh"
+          target: "javis-restore/"
+          overwrite: true
+
+      - name: Audit over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            export JAVIS_DIR="$DIR"
+            B="$HOME/javis-restore/audit-org-bundle.sh"
+            [ -f "$B" ] || B="$HOME/javis-restore/scripts/audit-org-bundle.sh"
+            chmod +x "$B"
+            bash "$B"
