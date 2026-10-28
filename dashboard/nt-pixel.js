@@ -87,21 +87,68 @@
     return "characters/char_" + (hash(slug || ten) % 6) + ".png";
   }
 
-  /** Dựng layout: mỗi phòng một khu, bàn theo hàng, góc họp giữa. */
+  /** Ước kích thước phòng: trưởng ở đầu, NV ôm hai bên + đáy (chữ U quanh thảm họp). */
+  function roomSize(people) {
+    var n = (people || []).length || 1;
+    var staff = Math.max(0, n - ((people || []).some(function (p) { return p.boss; }) ? 1 : 0));
+    var perSide = Math.max(1, Math.ceil(staff / 2));
+    var w = Math.max(14, 10 + (staff > 4 ? 2 : 0) + (staff > 6 ? 2 : 0));
+    var h = Math.max(13, 5 + perSide * 3 + 3);
+    return { w: w, h: h };
+  }
+
+  /** Sinh chỗ bàn: boss giữa tường sau; NV xen kẽ trái/phải rồi đáy. */
+  function seatPlan(people, x0, y0, w, h) {
+    var list = (people || []).slice();
+    var boss = null;
+    var staff = [];
+    list.forEach(function (p) {
+      if (p.boss && !boss) boss = p;
+      else staff.push(p);
+    });
+    if (!boss && list.length) {
+      // Không gắn cờ boss → người đầu vẫn ngồi đầu phòng
+      boss = list[0];
+      staff = list.slice(1);
+    }
+    var mx = x0 + Math.floor(w / 2) - 1;
+    var my = y0 + Math.floor(h / 2) - 1;
+    var out = [];
+    if (boss) {
+      out.push({ p: boss, dx: mx, dy: y0 + 1, boss: true });
+    }
+    var leftX = x0 + 1;
+    var rightX = x0 + w - 3;
+    var yTop = y0 + 4;
+    var yBot = y0 + h - 4;
+    var side = [];
+    var y;
+    for (y = yTop; y <= yBot; y += 3) side.push({ dx: leftX, dy: y });
+    for (y = yTop; y <= yBot; y += 3) side.push({ dx: rightX, dy: y });
+    for (var x = leftX + 3; x <= rightX - 3; x += 3) {
+      // tránh đụng chân bàn trưởng / thảm
+      if (Math.abs(x - mx) < 2) continue;
+      side.push({ dx: x, dy: yBot });
+    }
+    staff.forEach(function (p, i) {
+      var s = side[i];
+      if (!s) {
+        s = { dx: leftX + (i % 3) * 3, dy: yBot - Math.floor(i / 3) * 3 };
+      }
+      out.push({ p: p, dx: s.dx, dy: s.dy, boss: false });
+    });
+    return { seats: out, mx: mx, my: my };
+  }
+
+  /** Dựng layout: mỗi phòng một khu, ghế chữ U thông minh quanh thảm họp. */
   function buildLayout(model) {
     var rooms = (model && model.rooms) || [];
     var pad = 2;
-    var deskGap = 4;
-    var roomPadX = 2;
-    var roomPadY = 2;
-    var maxPeople = 1;
-    rooms.forEach(function (r) {
-      maxPeople = Math.max(maxPeople, (r.people || []).length || 1);
-    });
-    var desksPerRow = Math.min(4, Math.max(2, maxPeople));
-    var roomInnerW = Math.max(10, desksPerRow * deskGap + 4);
-    var roomInnerH = 10;
-    var cols = pad * 2 + rooms.length * (roomInnerW + 2) - (rooms.length ? 2 : 0);
+    var sizes = rooms.map(function (r) { return roomSize(r.people); });
+    var roomInnerH = 13;
+    sizes.forEach(function (s) { roomInnerH = Math.max(roomInnerH, s.h); });
+    var cols = pad * 2;
+    sizes.forEach(function (s, i) { cols += s.w + (i ? 2 : 0); });
     if (!rooms.length) cols = 16;
     var rows = pad * 2 + roomInnerH + 2;
     var tiles = [];
@@ -116,9 +163,10 @@
     var areas = [];
     var ox = pad;
     rooms.forEach(function (room, ri) {
+      var sz = sizes[ri] || { w: 14, h: roomInnerH };
       var x0 = ox;
       var y0 = pad;
-      var w = roomInnerW;
+      var w = sz.w;
       var h = roomInnerH;
       var x, y;
       for (y = y0; y < y0 + h; y++) {
@@ -126,26 +174,27 @@
           if (x >= 0 && y >= 0 && x < cols && y < rows) tiles[y][x] = (floorId + (ri % 2)) % 9;
         }
       }
-      // Thảm họp giữa phòng
-      var mx = x0 + Math.floor(w / 2) - 1;
-      var my = y0 + 3;
+      var plan = seatPlan(room.people || [], x0, y0, w, h);
+      var mx = plan.mx;
+      var my = plan.my;
       furn.push({ kind: "carpet", x: mx, y: my, z: 0 });
-      // Kệ / trang trí tường sau
       furn.push({ kind: "bookshelf", x: x0 + 1, y: y0, z: 1 });
-      furn.push({ kind: "painting", x: x0 + Math.floor(w / 2) - 1, y: y0, z: 1 });
+      furn.push({ kind: "painting", x: mx, y: y0, z: 1 });
       furn.push({ kind: "plant", x: x0 + w - 2, y: y0, z: 1, big: true });
       furn.push({ kind: "clock", x: x0 + w - 3, y: y0, z: 1 });
       furn.push({ kind: "bench", x: mx, y: my + 1, z: 2 });
       furn.push({ kind: "coffee_table", x: mx, y: my + 2, z: 2 });
       furn.push({ kind: "bin", x: x0 + w - 2, y: y0 + h - 2, z: 2 });
       furn.push({ kind: "cactus", x: x0 + 1, y: y0 + h - 2, z: 2 });
+      if (plan.seats.some(function (s) { return s.boss; })) {
+        furn.push({ kind: "plant", x: mx - 2, y: y0 + 1, z: 2 });
+        furn.push({ kind: "plant", x: mx + 3, y: y0 + 1, z: 2 });
+      }
 
-      var people = room.people || [];
-      people.forEach(function (p, pi) {
-        var col = pi % desksPerRow;
-        var row = Math.floor(pi / desksPerRow);
-        var dx = x0 + 2 + col * deskGap;
-        var dy = y0 + h - 4 - row * 3;
+      plan.seats.forEach(function (s) {
+        var p = s.p;
+        var dx = s.dx;
+        var dy = s.dy;
         furn.push({ kind: "desk", x: dx, y: dy, z: 3 });
         furn.push({ kind: "chair", x: dx + 1, y: dy + 2, z: 2 });
         furn.push({ kind: "pc", x: dx + 1, y: dy, z: 4 });
@@ -155,6 +204,7 @@
           slug: p.slug,
           ten: p.ten,
           role: p.role,
+          boss: !!s.boss,
           sx: dx + 1,
           sy: dy + 1,
           meetX: mx + 1,
@@ -213,12 +263,14 @@
       };
       ch.ten = seat.ten;
       ch.role = seat.role;
+      ch.boss = !!(seat.boss || person.boss);
       ch.room = seat.room;
       ch.slug = seat.slug;
       ch.state = state;
       ch.bubble = person.bubble || "";
       ch.recv = !!person.recv;
       ch.on = !!person.on;
+      ch.sel = !!person.sel;
       ch.targetX = targetX;
       ch.targetY = targetY;
       ch.sheet = seat.sheet;
@@ -460,25 +512,33 @@
     });
   }
 
+  function labelClass(ch) {
+    return "nt-px-label" +
+      (ch.on ? " on" : "") +
+      (ch.recv ? " recv" : "") +
+      (ch.sel ? " sel" : "") +
+      (ch.boss ? " boss" : "");
+  }
+
   function updateLabels(zoom) {
     if (!_labels) return;
     var html = _chars.map(function (ch) {
       var left = Math.round(ch.x * zoom);
       var top = Math.round(ch.y * zoom + 2);
-      return '<div class="nt-px-label' + (ch.on ? " on" : "") + (ch.recv ? " recv" : "") +
+      return '<div class="' + labelClass(ch) +
         '" data-actor-phong="' + esc(ch.room) + '" data-actor="' + esc(ch.slug) +
         '" style="left:' + left + "px;top:" + top + 'px">' +
+        (ch.boss ? '<span class="nt-px-star" aria-hidden="true">★</span>' : "") +
         "<b>" + esc(ch.ten) + "</b><small>" + esc(ch.role || "") + "</small></div>";
     }).join("");
     if (_labels.getAttribute("data-k") === String(_chars.length) + html.length && _labels.childNodes.length === _chars.length) {
-      // cập nhật vị trí thôi
       var nodes = _labels.querySelectorAll(".nt-px-label");
       _chars.forEach(function (ch, i) {
         var n = nodes[i];
         if (!n) return;
         n.style.left = Math.round(ch.x * zoom) + "px";
         n.style.top = Math.round(ch.y * zoom + 2) + "px";
-        n.className = "nt-px-label" + (ch.on ? " on" : "") + (ch.recv ? " recv" : "");
+        n.className = labelClass(ch);
       });
       return;
     }

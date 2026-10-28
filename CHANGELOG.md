@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.99] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · popup nhân vật:** bấm tên/icon mở hồ sơ — thống kê làm/trao đổi/file + timeline theo giai đoạn (giao → nhận → trao đổi → làm → kiểm → họp → kết), xem đủ lời và file đính kèm.
+- **Nhạc trưởng · chỗ ngồi chữ U:** trưởng phòng bàn đầu tường sau; nhân viên xen kẽ hai bên rồi đáy quanh thảm họp; nhãn trưởng có ★, đang chọn viền sáng.
+
 ## [0.56.98] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · chọn icon pixel:** setup phòng ban / thêm·sửa người dùng 6 sprite Metro City (`pixel-0`…`5`), không còn lưới SVG 2.5D. Chọn xong map đúng sheet trên sân khấu pixel; preset SVG cũ vẫn đọc được nếu đã gắn.

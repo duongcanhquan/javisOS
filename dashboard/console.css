@@ -3555,8 +3555,9 @@ body.on-mcp .cview-body > .cview-placeholder {
   margin-top: 12px;
   border: 1px solid var(--glass-brd);
   border-radius: 14px;
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 92%, var(--nt-accent, #3d7a5a) 8%);
   padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
 }
 .nt-actor-panel header {
   display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
@@ -3565,9 +3566,36 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-actor-panel header b { display: block; font-size: 15px; }
 .nt-actor-panel header small { color: var(--text3); font-size: 12px; }
 .nt-actor-panel header .nt-btn { margin-left: auto; }
-.nt-actor-panel ul { margin: 6px 0 0; padding: 0; list-style: none; }
-.nt-actor-panel li { font-size: 12px; padding: 4px 0; border-top: 1px solid var(--glass-brd); }
-.nt-actor-panel li small { color: var(--text3); margin-right: 4px; }
+.nt-actor-now { margin: 0 0 8px; font-size: 12px; color: var(--text2); }
+.nt-actor-stats {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 0 0 8px; padding: 6px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #fff 55%, transparent);
+  border: 1px solid var(--glass-brd);
+}
+.nt-actor-stats span { font-size: 11px; color: var(--text3); }
+.nt-actor-stats b { color: var(--text); font-size: 13px; margin-right: 2px; }
+.nt-actor-timeline {
+  max-height: min(42vh, 360px); overflow: auto;
+  padding-right: 4px;
+}
+.nt-actor-timeline .nt-say { max-width: 100%; }
+.nt-actor-phase {
+  position: sticky; top: 0; z-index: 1;
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  padding: 4px 0; font-weight: 650;
+}
+.nt-px-label.sel {
+  border-color: var(--nt-accent, #3d7a5a);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nt-accent, #3d7a5a) 40%, transparent);
+}
+.nt-px-label.boss b::after { content: none; }
+.nt-px-star {
+  position: absolute; top: -6px; right: -4px;
+  font-size: 10px; color: #d97706;
+  text-shadow: 0 0 2px #fff;
+}
 .nt-avatar-box { margin-top: 12px; }
 .nt-avatar-box b { display: block; font-size: 12px; margin-bottom: 6px; }
 .nt-av-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }

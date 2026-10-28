@@ -32,7 +32,7 @@
     cho_duyet: ["Chờ duyệt", "warn"]
   };
   var LOP = { giao: "Xếp việc", lam: "Làm", kiem: "Phản hồi", hop: "Họp trưởng", sua: "Mang lệnh về", nhan: "Nhận bàn giao", doi: "Trả lời", xu: "Trưởng xử", chia: "Góp ý", dap: "Đáp lại", gop: "Trao đổi", ket: "Kết quả" };
-  var MAU_TEN = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
+  var MAU_CHAT = ["#8eb7ff", "#f0a202", "#3ddc97", "#e09cff", "#ff8b7b", "#7ee0d6", "#f2d06b", "#ffb4d0"];
   var S = {
     phong: [], viec: [], chonPhong: "", chonViec: "", agents: [], kho: [], timer: 0, root: null,
     ban: false, loi: "", tab: "phong", sua: "", _nhap: null, _moLoi: {}, vanPhong: null,
@@ -904,12 +904,14 @@
       slug: n.slug,
       ten: n.ten,
       role: st.role,
+      boss: n.vai === "truong",
       state: state,
       bubble: st.bubble,
       recv: !!st.recv,
       on: !!st.bat,
       toSeat: (st.bat && d && d.giao_cho) ? d.giao_cho : "",
       sheet: pixelSheetCua(n, slug),
+      sel: !!(S._actor && S._actor.phong === slug && S._actor.slug === n.slug),
     };
   }
 
@@ -1047,22 +1049,35 @@
     var bat = d && laDang(d, n, slug);
     if (bat) tt = _BUOC_TT_UI[d.buoc] || "lam";
     var rows = ((v && v.loi) || []).filter(function (r) {
-      return r.phong === slug && r.slug === ns;
-    }).slice(-3).reverse();
-    var loiHtml = rows.length ? rows.map(function (r) {
-      var tep = r.tep ? '<button type="button" class="nt-chip" data-dinh="' + esc(khoaTep(r)) + '">File</button>' : "";
-      return '<li><small>' + esc(LOP[r.lop] || r.lop || "") + "</small> " + esc(String(r.loi || "").slice(0, 160)) + tep + "</li>";
-    }).join("") : '<li class="nt-hint">Chưa có lời của người này trong việc.</li>';
-    return '<section class="nt-actor-panel" id="ntActorPanel">' +
+      if (r.slug !== ns) return false;
+      if (r.phong === slug) return true;
+      // Họp giữa phòng / lời gắn slug dù phong khác
+      return r.lop === "hop" || r.lop === "chia" || r.lop === "dap" || r.lop === "gop";
+    });
+    var soLam = rows.filter(function (r) { return r.lop === "lam" || r.lop === "ket" || r.lop === "sua"; }).length;
+    var soTrao = rows.filter(function (r) {
+      return r.lop === "doi" || r.lop === "giao" || r.lop === "nhan" || r.lop === "kiem" ||
+        r.lop === "hop" || r.lop === "chia" || r.lop === "dap" || r.lop === "gop" || r.lop === "xu";
+    }).length;
+    var soFile = rows.filter(function (r) { return !!(r.tep && (r.tep.noi_dung || r.tep.ten)); }).length;
+    var body = !v
+      ? '<p class="nt-hint">Chọn một việc ở Theo dõi để xem họ đã làm / trao đổi theo giai đoạn.</p>'
+      : ('<div class="nt-actor-stats">' +
+        '<span><b>' + soLam + "</b> làm</span>" +
+        '<span><b>' + soTrao + "</b> trao đổi</span>" +
+        '<span><b>' + soFile + "</b> file</span>" +
+        '<span><b>' + rows.length + "</b> lượt</span></div>" +
+        '<div class="nt-actor-timeline" id="ntActorLog">' + nhomLoiActor(rows) + "</div>");
+    return '<section class="nt-actor-panel" id="ntActorPanel" role="dialog" aria-label="Hồ sơ nhân vật">' +
       "<header>" + avatarMark(avatarCua(n, slug), n, "nt-panel-face") +
       "<div><b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (n.vai === "truong" ? "Trưởng phòng" : "Thành viên")) +
       " · " + esc(p.ten) + "</small></div>" +
       '<button type="button" class="nt-btn ghost" id="ntDongActor">Đóng</button></header>' +
-      "<p><em>" + esc(nhanTt(tt, bat)) + "</em>" +
-      (bat && d && d.buoc ? " · bước " + esc(d.buoc) : "") +
-      (bat && d && d.giao_cho ? " · bàn giao " + esc(d.giao_cho) : "") +
-      (v ? " · việc «" + esc(v.tieu_de) + "»" : "") + "</p>" +
-      "<ul>" + loiHtml + "</ul></section>";
+      '<p class="nt-actor-now"><em>' + esc(nhanTt(tt, bat)) + "</em>" +
+      (bat && d && d.buoc ? " · " + esc(nhanLuong(d.buoc)) : "") +
+      (bat && d && d.giao_cho ? " · với " + esc(d.giao_cho) : "") +
+      (v ? " · «" + esc(v.tieu_de) + "»" : "") + "</p>" +
+      body + "</section>";
   }
 
   function htmlTalk() {
@@ -1577,8 +1592,46 @@
   function mauTen(slug) {
     var n = 0;
     var s = String(slug || "x");
-    for (var i = 0; i < s.length; i++) n = (n + s.charCodeAt(i) * (i + 3)) % MAU_TEN.length;
-    return MAU_TEN[n];
+    for (var i = 0; i < s.length; i++) n = (n + s.charCodeAt(i) * (i + 3)) % MAU_CHAT.length;
+    return MAU_CHAT[n];
+  }
+
+  function phaCua(lop) {
+    if (lop === "giao" || lop === "xu") return { id: "giao", ten: "1 · Giao việc", thu: 1 };
+    if (lop === "nhan") return { id: "nhan", ten: "2 · Nhận bàn giao", thu: 2 };
+    if (lop === "doi" || lop === "chia" || lop === "dap" || lop === "gop") return { id: "trao", ten: "3 · Trao đổi", thu: 3 };
+    if (lop === "lam" || lop === "sua") return { id: "lam", ten: "4 · Làm việc", thu: 4 };
+    if (lop === "kiem") return { id: "kiem", ten: "5 · Kiểm / phản hồi", thu: 5 };
+    if (lop === "hop") return { id: "hop", ten: "6 · Họp", thu: 6 };
+    if (lop === "ket") return { id: "ket", ten: "7 · Kết quả", thu: 7 };
+    return { id: lop || "khac", ten: LOP[lop] || "Khác", thu: 9 };
+  }
+
+  function nhomLoiActor(rows) {
+    var sorted = (rows || []).slice().sort(function (a, b) {
+      var pa = phaCua(a.lop).thu;
+      var pb = phaCua(b.lop).thu;
+      if (pa !== pb) return pa - pb;
+      return (a.vong || 0) - (b.vong || 0);
+    });
+    var out = "";
+    var khoa = "";
+    var bao = { giao: 1, kiem: 1, hop: 1, xu: 1, sua: 1, ket: 1 };
+    sorted.forEach(function (row, i) {
+      var pha = phaCua(row.lop);
+      var nhan = pha.ten + (row.vong ? " · vòng " + row.vong : "");
+      if (nhan !== khoa) {
+        khoa = nhan;
+        out += '<div class="nt-phase nt-actor-phase">' + esc(nhan) + "</div>";
+      }
+      var kieu = bao[row.lop] ? "bao" : "trao";
+      var tom = tomChat(row);
+      out += '<article class="nt-say ' + kieu + '"><header><span class="nt-meta">' +
+        esc(LOP[row.lop] || row.lop) + "</span>" +
+        pillQuyet(row.quyet, row.lop) + veGiao(row) + "</header>" +
+        htmlLoi(row, tom, i) + htmlTep(row) + "</article>";
+    });
+    return out || '<p class="nt-hint">Chưa có lời của người này trong việc.</p>';
   }
 
   function veGiao(row) {
@@ -2316,6 +2369,7 @@
     S._khoaMapCau = "";
     S._khoaMapSong = "";
     S._khoaTalk = "";
+    S._khoaActorPanel = "";
   }
 
   function khoaTalk(v) {
@@ -2385,15 +2439,32 @@
     paintPixel();
     var panel = document.getElementById("ntActorPanel");
     if (panel && S._actor) {
-      var slugP = S._actor.phong;
-      var nsP = S._actor.slug;
-      var pP = S.phong.filter(function (x) { return x.slug === slugP; })[0];
-      var nP = ((pP && pP.nguoi) || []).filter(function (x) { return x.slug === nsP; })[0];
-      if (nP) {
-        var stP = actorState(nP, slugP, d, v);
-        var em = panel.querySelector("p em");
-        if (em && em.textContent !== stP.nhan) em.textContent = stP.nhan;
+      var loi = (v && v.loi) || [];
+      var lastL = loi.length ? String((loi[loi.length - 1].loi || "")).length : 0;
+      var kPanel = [S._actor.phong, S._actor.slug, loi.length, lastL, S._docKey || ""].join("~");
+      if (S._khoaActorPanel !== kPanel) {
+        S._khoaActorPanel = kPanel;
+        var keep = panel.querySelector(".nt-actor-timeline");
+        var giu = keep ? keep.scrollTop : 0;
+        panel.outerHTML = htmlActorPanel(v);
+        var panel2 = document.getElementById("ntActorPanel");
+        var keep2 = panel2 && panel2.querySelector(".nt-actor-timeline");
+        if (keep2) keep2.scrollTop = giu;
+        ganLookVaActor();
+        ganLoi();
+      } else {
+        var slugP = S._actor.phong;
+        var nsP = S._actor.slug;
+        var pP = S.phong.filter(function (x) { return x.slug === slugP; })[0];
+        var nP = ((pP && pP.nguoi) || []).filter(function (x) { return x.slug === nsP; })[0];
+        if (nP) {
+          var stP = actorState(nP, slugP, d, v);
+          var em = panel.querySelector(".nt-actor-now em") || panel.querySelector("p em");
+          if (em && em.textContent !== stP.nhan) em.textContent = stP.nhan;
+        }
       }
+    } else {
+      S._khoaActorPanel = "";
     }
     return true;
   }
@@ -2492,16 +2563,20 @@
     };
     var kw = document.getElementById("ntKetWrap");
     if (kw) kw.ontoggle = function () { S._ketMo = !!kw.open; };
-    var log = document.getElementById("ntLogPhong");
-    if (log) log.querySelectorAll("details.nt-day").forEach(function (d) {
-      d.ontoggle = function () {
-        var k = d.getAttribute("data-k") || "";
-        if (!k) return;
-        if (!S._moLoi) S._moLoi = {};
-        if (d.open) S._moLoi[k] = 1;
-        else delete S._moLoi[k];
-      };
-    });
+    function ganDay(root) {
+      if (!root) return;
+      root.querySelectorAll("details.nt-day").forEach(function (d) {
+        d.ontoggle = function () {
+          var k = d.getAttribute("data-k") || "";
+          if (!k) return;
+          if (!S._moLoi) S._moLoi = {};
+          if (d.open) S._moLoi[k] = 1;
+          else delete S._moLoi[k];
+        };
+      });
+    }
+    ganDay(document.getElementById("ntLogPhong"));
+    ganDay(document.getElementById("ntActorLog"));
     function ganDinh(root) {
       if (!root) return;
       root.querySelectorAll("[data-dinh]").forEach(function (b) {
@@ -2510,6 +2585,11 @@
           S._docKey = S._docKey === k ? "" : k;
           var t2 = document.getElementById("ntTalk");
           if (t2) t2.innerHTML = htmlTalk();
+          var ap = document.getElementById("ntActorPanel");
+          if (ap && S._actor) {
+            var vv = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
+            ap.outerHTML = htmlActorPanel(vv);
+          }
           ganLoi();
           ganLookVaActor();
         };
