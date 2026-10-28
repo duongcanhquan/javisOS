@@ -191,6 +191,27 @@ try:
 except Exception as e:
     print("models_err", type(e).__name__, e, flush=True)
 print("AGY_AUTH_DONE", flush=True)
+try:
+    st2 = ag.auth_status(bo_qua_cache=True)
+    print("auth_forced", st2, flush=True)
+except Exception as e:
+    print("auth_forced_err", e, flush=True)
+PY
+
+echo "=== HEAL env FORCE_FILE trên bach (agy lưu token ra file) ==="
+docker exec -i javis-manager python - <<'PY'
+import sys
+sys.path.insert(0, "/app/server")
+import org_docker as od
+try:
+    od.apply_public_hosts("bach")
+    print("apply_public_hosts ok", flush=True)
+except Exception as e:
+    print("apply_public_hosts", type(e).__name__, e, flush=True)
+data = od.inspect_name("javis-bach") or {}
+env = (data.get("Config") or {}).get("Env") or []
+print("FORCE_FILE", any(str(e).startswith("GEMINI_FORCE_FILE_STORAGE=") for e in env), flush=True)
+print("TERMINAL_REMOTE", any(str(e).startswith("JAVIS_TERMINAL_REMOTE=") for e in env), flush=True)
 PY
 
 echo "=== manager → bach health + asset ==="

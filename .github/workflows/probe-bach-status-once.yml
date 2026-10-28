@@ -1,4 +1,4 @@
-# bump: 2026-10-28T05:30Z — bach: xác nhận agy binary + auth_status
+# bump: 2026-10-28T05:45Z — bach: auth_forced + apply_public_hosts
 name: Probe bach status once
 
 on:
