@@ -853,20 +853,144 @@
       '<div class="nt-iso-room">' + flowSvg(all, run ? d : null, v, slug) + actors + "</div></section>";
   }
 
+  function pixelPerson(n, slug, d, v) {
+    var st = actorState(n, slug, d, v);
+    var state = "idle";
+    if (st.cls.indexOf("walk") >= 0) state = "walk";
+    else if (st.cls.indexOf("meet") >= 0 || st.cls.indexOf("hop") >= 0) state = "meet";
+    else if (st.bat || st.tt === "lam") state = "type";
+    else if (st.tt === "cho") state = "wait";
+    return {
+      slug: n.slug,
+      ten: n.ten,
+      role: st.role,
+      state: state,
+      bubble: st.bubble,
+      recv: !!st.recv,
+      on: !!st.bat,
+      toSeat: (st.bat && d && d.giao_cho) ? d.giao_cho : "",
+    };
+  }
+
+  function pixelModel(v) {
+    var l = lookVp();
+    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
+    var rooms = (slugs || []).map(function (slug) {
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      if (!p) return null;
+      var truong = truongCua(p);
+      var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+      var all = [];
+      if (truong) all.push(truong);
+      day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
+      return {
+        slug: slug,
+        ten: p.ten,
+        active: !!(d && d.phong === slug),
+        people: all.map(function (n) { return pixelPerson(n, slug, d, v); }),
+      };
+    }).filter(Boolean);
+    var flow = null;
+    if (d && d.giao_cho) {
+      flow = {
+        from: d.slug || d.ten || "",
+        to: d.giao_cho,
+        label: nhanLuong(d.buoc),
+      };
+    }
+    return { rooms: rooms, look: l, flow: flow };
+  }
+
+  function ensureNtPixel() {
+    if (window.JavisNtPixel) return Promise.resolve();
+    if (S._pxProm) return S._pxProm;
+    S._pxProm = new Promise(function (ok, loi) {
+      var s = document.createElement("script");
+      var ver = "0";
+      try {
+        var el = document.getElementById("javis-fresh");
+        if (el) {
+          var j = JSON.parse(el.textContent || "{}");
+          ver = String((j && (j.asset_ver || j.version)) || "0");
+        }
+      } catch (e) {}
+      s.src = "/asset/" + encodeURIComponent(ver) + "/nt-pixel.js";
+      s.async = true;
+      s.onload = function () {
+        if (!window.JavisNtPixel) {
+          S._pxProm = null;
+          loi(new Error("nt-pixel chưa sẵn sàng"));
+          return;
+        }
+        ok();
+      };
+      s.onerror = function () {
+        S._pxProm = null;
+        loi(new Error("Không tải nt-pixel.js"));
+      };
+      document.head.appendChild(s);
+    });
+    return S._pxProm;
+  }
+
+  function paintPixel() {
+    var host = document.getElementById("ntPixelHost");
+    if (!host) return;
+    var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
+    var model = pixelModel(v);
+    if (S._pxMounting) { S._pxQueue = model; return; }
+    ensureNtPixel().then(function () {
+      if (!window.JavisNtPixel) return;
+      var opts = {
+        onActor: function (phong, slug) {
+          if (!slug) return;
+          if (S._actor && S._actor.slug === slug && S._actor.phong === phong) S._actor = null;
+          else S._actor = { phong: phong, slug: slug };
+          resetKhoaPhong();
+          capNhatPhong();
+          ganLoi();
+          ganLookVaActor();
+        },
+      };
+      if (host.getAttribute("data-px") === "1") {
+        window.JavisNtPixel.update(model);
+        return;
+      }
+      S._pxMounting = true;
+      window.JavisNtPixel.mount(host, model, opts).then(function () {
+        host.setAttribute("data-px", "1");
+        S._pxMounting = false;
+        if (S._pxQueue) {
+          var q = S._pxQueue; S._pxQueue = null;
+          window.JavisNtPixel.update(q);
+        }
+      }).catch(function () { S._pxMounting = false; });
+    }).catch(function () {});
+  }
+
   function htmlMap() {
     var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
     var l = lookVp();
     var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
     var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
     if (!slugs.length) return hangDoiVp() + htmlLook() + '<p class="nt-hint">Chưa có phòng.</p>';
-    var floors = slugs.map(function (slug, i) {
+    var strips = slugs.map(function (slug) {
       var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-      return p ? htmlFloor(p, slug, d, v, i) : "";
+      if (!p) return "";
+      var truong = truongCua(p);
+      var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+      var all = [];
+      if (truong) all.push(truong);
+      day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
+      var run = d && d.phong === slug;
+      return '<div class="nt-flow-room"><b>' + esc(p.ten) + "</b>" + stripLuong(all, run ? d : null, slug) + "</div>";
     }).join("");
     return hangDoiVp() + htmlLook() +
-      '<div id="ntStage" class="nt-stage canh-' + esc(l.canh) + " mau-" + esc(l.mau) +
+      '<div id="ntStage" class="nt-stage nt-stage-pixel canh-' + esc(l.canh) + " mau-" + esc(l.mau) +
       (v && v.trang_thai === "dang_chay" ? " running" : "") + '">' +
-      '<div class="nt-stage-floor">' + floors + "</div></div>" +
+      '<div class="nt-pixel-strips">' + strips + "</div>" +
+      '<div id="ntPixelHost" class="nt-pixel-host"></div></div>' +
       htmlActorPanel(v);
   }
 
@@ -1983,13 +2107,14 @@
     };
     var stage = document.getElementById("ntStage");
     if (stage) stage.onclick = function (ev) {
-      if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel")) return;
+      if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel") || ev.target.closest(".nt-px-label")) return;
       if (!S._actor) return;
       S._actor = null;
       resetKhoaPhong();
       capNhatPhong();
       ganLookVaActor();
     };
+    paintPixel();
   }
 
   function ganAvatarSetup() {
@@ -2185,69 +2310,25 @@
   function patchStageLive(v) {
     var stage = document.getElementById("ntStage");
     if (!stage) return false;
-    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
     stage.classList.toggle("running", !!(v && v.trang_thai === "dang_chay"));
-    stage.querySelectorAll("[data-floor]").forEach(function (floor) {
-      var slug = floor.getAttribute("data-floor") || "";
-      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-      if (!p) return;
-      var truong = truongCua(p);
-      var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
-      var all = [];
-      if (truong) all.push(truong);
-      day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
-      var run = d && d.phong === slug;
-      floor.classList.toggle("on", !!run);
-      floor.querySelectorAll("[data-actor]").forEach(function (btn) {
-        var ns = btn.getAttribute("data-actor") || "";
-        var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
-        if (!n) return;
-        var st = actorState(n, slug, d, v);
-        if (btn.className !== st.cls) btn.className = st.cls;
-        var stEl = btn.querySelector(".nt-actor-st");
-        if (stEl && stEl.textContent !== st.nhan) stEl.textContent = st.nhan;
-        var roleEl = btn.querySelector(".nt-actor-role");
-        if (roleEl && roleEl.textContent !== st.role) roleEl.textContent = st.role;
-        var bub = btn.querySelector(".nt-bubble");
-        if (st.bubble) {
-          if (!bub) {
-            bub = document.createElement("span");
-            bub.className = "nt-bubble";
-            btn.insertBefore(bub, btn.firstChild);
-          }
-          if (bub.textContent !== st.bubble) bub.textContent = st.bubble;
-        } else if (bub) {
-          bub.remove();
-        }
-      });
-      var room = floor.querySelector(".nt-iso-room");
-      if (room) {
-        var svg = room.querySelector(".nt-flow-svg");
-        var nextSvg = flowSvg(all, run ? d : null, v, slug);
-        if (nextSvg) {
-          var tmp = document.createElement("div");
-          tmp.innerHTML = nextSvg;
-          var neu = tmp.firstChild;
-          if (svg && neu) room.replaceChild(neu, svg);
-          else if (neu) room.insertBefore(neu, room.firstChild);
-        } else if (svg) {
-          svg.remove();
-        }
-      }
-      var strip = floor.querySelector(".nt-flow-strip");
-      var nextStrip = stripLuong(all, run ? d : null, slug);
-      if (nextStrip) {
-        var box = document.createElement("div");
-        box.innerHTML = nextStrip;
-        var neuS = box.firstChild;
-        if (strip && neuS) floor.replaceChild(neuS, strip);
-        else if (neuS) {
-          var hdr = floor.querySelector("header");
-          if (hdr && hdr.nextSibling) floor.insertBefore(neuS, hdr.nextSibling);
-          else floor.appendChild(neuS);
-        }
-      }
-    });
+    // Cập nhật dải A→B→C (nhẹ) + canvas pixel — không rebuild cả sân.
+    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    var strips = document.querySelector(".nt-pixel-strips");
+    if (strips) {
+      var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
+      strips.innerHTML = (slugs || []).map(function (slug) {
+        var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+        if (!p) return "";
+        var truong = truongCua(p);
+        var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+        var all = [];
+        if (truong) all.push(truong);
+        day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
+        var run = d && d.phong === slug;
+        return '<div class="nt-flow-room"><b>' + esc(p.ten) + "</b>" + stripLuong(all, run ? d : null, slug) + "</div>";
+      }).join("");
+    }
+    paintPixel();
     var panel = document.getElementById("ntActorPanel");
     if (panel && S._actor) {
       var slugP = S._actor.phong;
@@ -2324,6 +2405,7 @@
         ganNhan();
         ganLookVaActor();
         ganLoi();
+        paintPixel();
       } else if (kSong !== S._khoaMapSong) {
         S._khoaMapSong = kSong;
         patchStageLive(v);

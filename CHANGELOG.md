@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.96] - 2026-10-28
+### Mới
+- **Nhạc trưởng · văn phòng pixel:** sân khấu canvas kiểu Pixel Agents (tile 16px, bàn/ghế/PC/cây, nhân vật Metro City CC0). Map `dang_lam` → idle/đi/gõ/họp; tên + chức danh; mũi tên giao việc. Credit trong `dashboard/nt-pixel/CREDITS.md`.
+
 ## [0.56.95] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · sân khấu rõ luồng:** mỗi icon hiện tên + chức danh + trạng thái; dải A→B→C theo quy trình phòng; mũi tên nóng khi giao/chuyển/họp (người nhận được viền đứt).
