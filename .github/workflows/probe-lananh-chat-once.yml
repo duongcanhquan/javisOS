@@ -1,0 +1,93 @@
+# One-shot: chẩn đoán tenant lananh chat không trả lời
+name: Probe lananh chat once
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/probe-lananh-chat-once.yml"
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Diagnose lananh
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            SLUG=lananh
+            CNAME=javis-$SLUG
+            echo "=== HOST $(date -u) ==="
+            free -h | head -2 || true
+            df -h / | head -2 || true
+            echo "=== REGISTRY ==="
+            docker exec javis-manager python - <<'PY'
+            import sys, json
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot, org_docker as od, org_coord as oc
+            slug = "lananh"
+            ts = ot.load().get("tenants") or []
+            t = next((x for x in ts if str(x.get("slug") or "") == slug), None)
+            print("found", bool(t))
+            if t:
+                for k in ("slug", "container", "paused", "protected", "deleted_at", "label", "domain"):
+                    if k in t: print(k, t.get(k))
+                print("keys", sorted(t.keys())[:40])
+            cname = (t or {}).get("container") or f"javis-{slug}"
+            print("exists", bool(od.inspect_name(cname)))
+            print("status", od.container_status(cname) if od.inspect_name(cname) else "MISSING")
+            try:
+                print("people_running", [x.get("slug") for x in od.people_running()])
+            except Exception as e:
+                print("people_running_err", e)
+            c = oc.coord()
+            print("coord", {k: c.get(k) for k in ("max_running", "effective_max", "suggest", "idle_minutes", "host_avail_mb")})
+            PY
+            echo "=== DOCKER ==="
+            docker ps -a --filter "name=^/${CNAME}$" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+            docker inspect "$CNAME" --format 'State={{.State.Status}} OOM={{.State.OOMKilled}} Exit={{.State.ExitCode}} Error={{.State.Error}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} Started={{.State.StartedAt}}' 2>/dev/null || echo "no inspect"
+            echo "=== HEALTH ==="
+            docker exec "$CNAME" curl -fsS -m 5 http://127.0.0.1:7777/health 2>&1 || echo "health_fail"
+            docker exec "$CNAME" cat /app/VERSION 2>/dev/null || echo "no_version"
+            echo "=== ENV (keys only, no secrets) ==="
+            docker exec "$CNAME" sh -c 'env | grep -E "^(JAVIS_|OPENAI_|ANTHROPIC_|GEMINI_|GOOGLE_|LLM_|MODEL_|CHAT_|BRAIN_|AGY_|FORCE_|TERMINAL_)" | sed -E "s/=.*/=***/" | sort' 2>/dev/null || true
+            echo "=== RECENT LOGS (err/chat/llm) ==="
+            docker logs "$CNAME" --tail 250 2>&1 | tail -n 250
+            echo "=== GREP errors ==="
+            docker logs "$CNAME" --tail 800 2>&1 | grep -iE 'error|traceback|exception|timeout|429|401|403|api.?key|no.?model|chat|stream|openai|anthropic|gemini|rate.?limit|oom|killed|refused' | tail -n 80 || echo "(no matches)"
+            echo "=== BRAINS / MODEL ROUTING peek ==="
+            docker exec "$CNAME" sh -c 'ls -la /data/brains 2>/dev/null | head -20; ls -la /data/state 2>/dev/null | head -20' || true
+            docker exec "$CNAME" sh -c 'python - <<"PY"
+            import json, os
+            from pathlib import Path
+            roots = [Path("/data/state"), Path("/data"), Path("/app")]
+            for name in ("model-routing.json", "models.json", "llm.json", "providers.json", "chat-brief.json"):
+              for r in roots:
+                p = r / name
+                if p.is_file():
+                  try:
+                    j = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+                    print("FILE", p, "keys", list(j)[:20] if isinstance(j, dict) else type(j))
+                  except Exception as e:
+                    print("FILE", p, "err", e)
+            # last sessions / runs if any
+            for p in Path("/data").rglob("*.json"):
+              s = str(p)
+              if any(x in s.lower() for x in ("session", "chat-log", "transcript")) and p.stat().st_size < 200000:
+                print("cand", p, p.stat().st_size)
+            print("PROBE_OK")
+            PY' || true
+            echo "=== DONE ==="
