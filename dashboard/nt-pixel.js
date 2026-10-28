@@ -159,7 +159,7 @@
           sy: dy + 1,
           meetX: mx + 1,
           meetY: my + 1,
-          sheet: charSheet(p.slug, p.ten),
+          sheet: p.sheet || charSheet(p.slug, p.ten),
         });
       });
       areas.push({

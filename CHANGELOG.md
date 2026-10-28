@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.98] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · chọn icon pixel:** setup phòng ban / thêm·sửa người dùng 6 sprite Metro City (`pixel-0`…`5`), không còn lưới SVG 2.5D. Chọn xong map đúng sheet trên sân khấu pixel; preset SVG cũ vẫn đọc được nếu đã gắn.
+
 ## [0.56.97] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · bố cục Theo dõi:** cột Giao tiếp thu/mở (nhường chỗ phòng ban); Kết quả và Trao đổi gói trong details. Văn phòng pixel zoom gọn hơn, hạn chiều cao tránh tràn màn hình.

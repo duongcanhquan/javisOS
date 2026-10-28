@@ -502,22 +502,32 @@
   }
 
   function dsPreset() {
-    return (S._presets && S._presets.length) ? S._presets : [
-      "ceo-01", "ceo-02", "ceo-03", "lead-01",
-      "nv-01", "nv-02", "nv-03", "nv-04", "nv-05", "nv-06", "nv-07", "nv-08",
-      "design-01", "design-02", "video-01", "video-02",
-      "research-01", "research-02", "legal-01", "legal-02", "ops-01", "ops-02",
+    var ds = (S._presets && S._presets.length) ? S._presets : [
+      "pixel-0", "pixel-1", "pixel-2", "pixel-3", "pixel-4", "pixel-5",
     ];
+    // Chỉ hiện preset pixel trên lưới chọn; SVG cũ vẫn mở được nếu đã gắn.
+    var px = ds.filter(function (id) { return String(id).indexOf("pixel-") === 0; });
+    return px.length ? px : ["pixel-0", "pixel-1", "pixel-2", "pixel-3", "pixel-4", "pixel-5"];
+  }
+
+  function pixelIdx(ma) {
+    var m = /^pixel-(\d)$/.exec(String(ma || ""));
+    return m ? m[1] : "";
   }
 
   function htmlAvatarGrid(selected, prefix) {
     var idPrefix = prefix || "av";
-    return '<div class="nt-avatar-box"><b>Icon nhân vật 2.5D</b>' +
-      '<div class="nt-av-grid" id="' + idPrefix + 'Grid">' +
+    return '<div class="nt-avatar-box"><b>Icon nhân vật pixel</b>' +
+      '<div class="nt-av-grid nt-av-grid-pixel" id="' + idPrefix + 'Grid">' +
       dsPreset().map(function (id) {
         var on = selected === "preset:" + id ? " on" : "";
-        return '<button type="button" class="nt-av-pick' + on + '" data-av="preset:' + id +
-          '"><img alt="" src="/static/nt-avatars/' + encodeURIComponent(id) + '.svg"></button>';
+        var i = pixelIdx(id);
+        var src = i !== ""
+          ? "/static/nt-pixel/assets/characters/char_" + i + ".png"
+          : "/static/nt-avatars/" + encodeURIComponent(id) + ".svg";
+        return '<button type="button" class="nt-av-pick pixel' + on + '" data-av="preset:' + id +
+          '" title="' + esc(id) + '"><span class="nt-av-sprite" style="background-image:url(\'' +
+          esc(src) + "')\"></span></button>";
       }).join("") +
       "</div>" +
       '<input type="hidden" name="avatar" id="' + idPrefix + 'Val" value="' + esc(selected || "") + '">' +
@@ -636,11 +646,40 @@
   function avatarUrl(av, n) {
     av = av || "";
     if (av.indexOf("preset:") === 0) {
-      return "/static/nt-avatars/" + encodeURIComponent(av.slice(7)) + ".svg";
+      var ma = av.slice(7);
+      var i = pixelIdx(ma);
+      if (i !== "") return "/static/nt-pixel/assets/characters/char_" + i + ".png";
+      return "/static/nt-avatars/" + encodeURIComponent(ma) + ".svg";
     }
     if (av.indexOf("data:image/") === 0) return av;
-    var seed = ((n && n.vai) === "truong" ? "ceo-01" : "nv-01");
-    return "/static/nt-avatars/" + seed + ".svg";
+    var h = 0;
+    var s = String((n && (n.slug || n.ten)) || "x");
+    for (var k = 0; k < s.length; k++) h = (h + s.charCodeAt(k) * (k + 3)) % 6;
+    return "/static/nt-pixel/assets/characters/char_" + h + ".png";
+  }
+
+  function laPixelUrl(url) {
+    return String(url || "").indexOf("/nt-pixel/") >= 0;
+  }
+
+  function avatarMark(av, n, cls) {
+    var url = avatarUrl(av, n);
+    var c = cls || "";
+    if (laPixelUrl(url) || (av || "").indexOf("preset:pixel-") === 0) {
+      return '<span class="' + c + ' nt-av-sprite" aria-hidden="true" style="background-image:url(\'' +
+        esc(url) + "')\"></span>";
+    }
+    return '<img class="' + c + '" alt="" src="' + esc(url) + '">';
+  }
+
+  function pixelSheetCua(n, slug) {
+    var av = avatarCua(n, slug) || "";
+    var i = av.indexOf("preset:") === 0 ? pixelIdx(av.slice(7)) : "";
+    if (i !== "") return "characters/char_" + i + ".png";
+    var h = 0;
+    var s = String((n && (n.slug || n.ten)) || "x");
+    for (var k = 0; k < s.length; k++) h = (h + s.charCodeAt(k) * (k + 3)) % 6;
+    return "characters/char_" + h + ".png";
   }
 
   function ttNguoi(slug, n) {
@@ -756,7 +795,7 @@
       ";--nt-i:" + i + '">' +
       (st.bubble ? '<span class="nt-bubble">' + esc(st.bubble) + "</span>" : "") +
       '<span class="nt-desk-iso" aria-hidden="true"></span>' +
-      '<img class="nt-actor-face" alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
+      avatarMark(avatarCua(n, slug), n, "nt-actor-face") +
       (head ? '<span class="nt-badge">★</span>' : "") +
       '<span class="nt-actor-name">' + esc(n.ten) + "</span>" +
       '<span class="nt-actor-role">' + esc(st.role) + "</span>" +
@@ -870,6 +909,7 @@
       recv: !!st.recv,
       on: !!st.bat,
       toSeat: (st.bat && d && d.giao_cho) ? d.giao_cho : "",
+      sheet: pixelSheetCua(n, slug),
     };
   }
 
@@ -1014,7 +1054,7 @@
       return '<li><small>' + esc(LOP[r.lop] || r.lop || "") + "</small> " + esc(String(r.loi || "").slice(0, 160)) + tep + "</li>";
     }).join("") : '<li class="nt-hint">Chưa có lời của người này trong việc.</li>';
     return '<section class="nt-actor-panel" id="ntActorPanel">' +
-      '<header><img alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
+      "<header>" + avatarMark(avatarCua(n, slug), n, "nt-panel-face") +
       "<div><b>" + esc(n.ten) + "</b><small>" + esc(n.vi_tri || (n.vai === "truong" ? "Trưởng phòng" : "Thành viên")) +
       " · " + esc(p.ten) + "</small></div>" +
       '<button type="button" class="nt-btn ghost" id="ntDongActor">Đóng</button></header>' +

@@ -2884,13 +2884,17 @@ _BUOC_TT = {
 
 CANH_HOP = ("van_phong", "hop", "sang", "toi")
 MAU_HOP = ("la", "cat", "bien", "than")
-AVATAR_PRESET = (
+# Picker hiện sprite pixel (Metro City / Pixel Agents). Preset SVG cũ vẫn nhận để không gãy data.
+AVATAR_PIXEL = tuple(f"pixel-{i}" for i in range(6))
+AVATAR_CU = (
     "ceo-01", "ceo-02", "ceo-03", "lead-01",
     "nv-01", "nv-02", "nv-03", "nv-04", "nv-05", "nv-06", "nv-07", "nv-08",
     "design-01", "design-02", "video-01", "video-02",
     "research-01", "research-02", "legal-01", "legal-02",
     "ops-01", "ops-02",
 )
+AVATAR_PRESET = AVATAR_PIXEL
+AVATAR_HOP = set(AVATAR_PIXEL) | set(AVATAR_CU)
 # Phong cách sân khấu: gắn sẵn cảnh + màu.
 PHONG_CACH = {
     "van_mo": {"canh": "van_phong", "mau": "la", "ten": "Văn phòng mở"},
@@ -2962,7 +2966,7 @@ def _avatar_ok(raw: str) -> str:
         return ""
     if s.startswith("preset:"):
         ma = s[7:].strip()
-        if ma not in AVATAR_PRESET:
+        if ma not in AVATAR_HOP:
             raise LoiNhacTruong("Preset avatar không có.")
         return "preset:" + ma
     if s.startswith("data:image/") and ";base64," in s:
