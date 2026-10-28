@@ -185,8 +185,11 @@
     var boardH = 7;
     var roomW = 11;
     var roomH = 11;
-    var n = rooms.length || 1;
-    var cols = pad * 2 + lobbyW + 1 + n * roomW + Math.max(0, n - 1) * hallW + 1;
+    var n = rooms.length;
+    var roomsBlock = n > 0
+      ? (n * roomW + Math.max(0, n - 1) * hallW)
+      : roomW;
+    var cols = pad * 2 + lobbyW + 1 + roomsBlock + 1;
     var rows = pad * 2 + boardH + 1 + roomH + 1;
     var tiles = emptyTiles(cols, rows);
     var floorId = floorFor(model && model.look);
@@ -607,14 +610,25 @@
     return "rgba(100,116,139,.35)";
   }
 
+  function liveHallStatus(h, model) {
+    var pipe = (model && model.pipeline) || [];
+    var prev = pipe.filter(function (p) { return p.slug === h.from; })[0];
+    var cur = pipe.filter(function (p) { return p.slug === h.to; })[0];
+    if ((cur && cur.active) || (prev && prev.active)) return "active";
+    if (prev && prev.dat) return "dat";
+    if (prev && prev.khoa) return "khoa";
+    return h.status || "pending";
+  }
+
   function drawHalls(ctx, layout, zoom, t) {
     (layout.halls || []).forEach(function (h) {
+      var status = liveHallStatus(h, _model);
       var x = (h.x + h.w / 2) * TILE * zoom;
       var y = (h.y + h.h / 2) * TILE * zoom;
-      var pulse = h.status === "active" ? (0.65 + 0.35 * Math.sin(t * 4)) : 1;
+      var pulse = status === "active" ? (0.65 + 0.35 * Math.sin(t * 4)) : 1;
       ctx.save();
       ctx.globalAlpha = pulse;
-      ctx.fillStyle = hallColor(h.status);
+      ctx.fillStyle = hallColor(status);
       ctx.beginPath();
       ctx.moveTo(x - 10, y - 8);
       ctx.lineTo(x + 6, y);
@@ -628,9 +642,15 @@
   function drawLobbyTickets(ctx, layout, zoom) {
     var lobby = (layout.areas || []).filter(function (a) { return a.kind === "lobby"; })[0];
     if (!lobby) return;
-    var tickets = lobby.tickets || [];
+    var tickets = ((_model && _model.queue) || lobby.tickets || []).slice(0, 4);
     ctx.save();
     ctx.font = "bold " + Math.max(9, 4 * zoom) + "px 'Segoe UI',sans-serif";
+    if (!tickets.length) {
+      ctx.fillStyle = "rgba(51,65,85,.55)";
+      ctx.fillText("Hàng đợi trống", (lobby.x + 0.5) * TILE * zoom, (lobby.y + 7) * TILE * zoom);
+      ctx.restore();
+      return;
+    }
     tickets.forEach(function (tk, i) {
       var title = String(tk.tieu_de || tk.id || "việc").slice(0, 16);
       var x = (lobby.x + 0.5) * TILE * zoom;
@@ -743,10 +763,12 @@
 
   function matchChar(flowKey) {
     if (!flowKey) return null;
-    var k = String(flowKey);
+    var k = String(flowKey).trim();
     var hit = null;
     _chars.forEach(function (c) {
-      if (c.slug === k || c.ten === k || k.indexOf(c.ten) === 0) hit = c;
+      if (c.slug === k || c.ten === k) hit = c;
+      else if (c.ten && k.indexOf(c.ten) === 0) hit = c;
+      else if (c.slug && k.indexOf(c.slug) >= 0) hit = c;
     });
     return hit;
   }
@@ -778,21 +800,17 @@
     if (cf.kind === "pipeline") col = "#2d7860";
     var a = null;
     var b = null;
-    if (cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap") {
-      a = areaCenter(layout, cf.fromRoom) || matchChar(cf.from);
-      b = areaCenter(layout, "__board");
-      if (a && typeof a.x === "number" && a.x < 50) { /* tile space already */ }
-      if (a && a.x && !a.y && a.slug) a = null;
+    var toBoard = cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap";
+    if (cf.fromRoom) a = areaCenter(layout, cf.fromRoom);
+    if (toBoard) b = areaCenter(layout, "__board");
+    else if (cf.toRoom) b = areaCenter(layout, cf.toRoom);
+    if (!a && cf.from) {
+      var ca = matchChar(cf.from);
+      if (ca) a = { x: ca.x, y: ca.y - 20 };
     }
-    if (cf.fromRoom && cf.toRoom) {
-      a = areaCenter(layout, cf.fromRoom);
-      b = areaCenter(layout, cf.kind === "hop" || cf.kind === "chia" || cf.kind === "dap" ? "__board" : cf.toRoom);
-    }
-    if ((!a || !b) && cf.from && cf.to) {
-      a = matchChar(cf.from);
-      b = matchChar(cf.to);
-      if (a) a = { x: a.x, y: a.y - 20 };
-      if (b) b = { x: b.x, y: b.y - 20 };
+    if (!b && cf.to) {
+      var cb = matchChar(cf.to);
+      if (cb) b = { x: cb.x, y: cb.y - 20 };
     }
     if (!a || !b) return;
     arrowBetween(ctx, a.x * zoom, a.y * zoom, b.x * zoom, b.y * zoom, col, cf.label, zoom);
@@ -845,30 +863,58 @@
     ctx.restore();
   }
 
+  function liveRoomPipe(slug) {
+    return (((_model && _model.pipeline) || []).filter(function (p) { return p.slug === slug; })[0]) || null;
+  }
+
   function drawAreaLabels(ctx, layout, zoom) {
+    var meetingOn = (_model && _model.meeting) ? !!_model.meeting.on : !!layout.meetingOn;
+    var d = _model && _model.dangLam;
     (layout.areas || []).forEach(function (a) {
       var x = (a.x + a.w / 2) * TILE * zoom;
       var y = (a.y + 0.55) * TILE * zoom;
+      var hit = a.kind === "room" ? liveRoomPipe(a.slug) : null;
+      var status = a.status || "idle";
+      var label = a.ten;
+      if (a.kind === "room") {
+        if (hit && hit.active) status = "active";
+        else if (hit && hit.dat) status = "dat";
+        else if (hit && hit.khoa) status = "khoa";
+        label = a.ten;
+        if (hit && hit.active && d && d.buoc) label = a.ten + " · " + d.buoc;
+        else if (hit && hit.dat) label = a.ten + " · đạt";
+        else if (hit && hit.khoa) label = a.ten + " · khóa";
+      }
+      if (a.kind === "board") {
+        label = meetingOn
+          ? ("Họp trưởng" + (_model.meeting && _model.meeting.round ? " · vòng " + _model.meeting.round : ""))
+          : "Phòng họp trưởng";
+      }
       ctx.save();
       ctx.font = "bold " + Math.max(10, 4.2 * zoom) + "px 'Segoe UI',sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      var label = a.badge || a.ten;
       var tw = ctx.measureText(label).width;
-      var bg = a.active || a.kind === "board" && layout.meetingOn
+      var activeBoard = a.kind === "board" && meetingOn;
+      var bg = (a.active || status === "active" || activeBoard)
         ? "rgba(45,120,90,.92)"
-        : (a.status === "dat" ? "rgba(34,140,90,.85)"
-          : (a.status === "khoa" ? "rgba(59,90,140,.85)" : "rgba(30,41,59,.78)"));
+        : (status === "dat" ? "rgba(34,140,90,.85)"
+          : (status === "khoa" ? "rgba(59,90,140,.85)" : "rgba(30,41,59,.78)"));
       if (a.kind === "lobby") bg = "rgba(51,65,85,.88)";
       roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
       ctx.fillStyle = bg;
       ctx.fill();
       ctx.fillStyle = "#fff";
       ctx.fillText(label, x, y);
-      if (a.meta) {
+      if (a.meta && layout.mode === "room") {
+        var meta = a.meta;
+        if (hit) {
+          meta = "ban " + (hit.soBan || 0) + " · file " + (hit.soHang || 0) +
+            (hit.khoa ? " · khóa" : "") + (hit.dat ? " · đạt" : "");
+        }
         ctx.font = Math.max(9, 3.5 * zoom) + "px 'Segoe UI',sans-serif";
         ctx.fillStyle = "rgba(30,41,59,.75)";
-        ctx.fillText(a.meta, x, y + 16);
+        ctx.fillText(meta, x, y + 16);
       }
       ctx.restore();
     });
@@ -918,23 +964,36 @@
     }
   }
 
-  function updateHits(zoom) {
-    if (!_hits || !_layout) return;
-    var rooms = (_layout.areas || []).filter(function (a) { return a.kind === "room"; });
-    _hits.innerHTML = rooms.map(function (a) {
-      return '<button type="button" class="nt-px-hit" data-room="' + esc(a.slug) +
-        '" title="Double-click để phóng phòng" style="left:' +
-        Math.round(a.x * TILE * zoom) + "px;top:" + Math.round(a.y * TILE * zoom) +
-        "px;width:" + Math.round(a.w * TILE * zoom) + "px;height:" +
-        Math.round(a.h * TILE * zoom) + 'px"></button>';
-    }).join("");
-    _hits.querySelectorAll("[data-room]").forEach(function (el) {
-      el.ondblclick = function (ev) {
+  function roomAt(tileX, tileY) {
+    if (!_layout) return null;
+    var hit = null;
+    (_layout.areas || []).forEach(function (a) {
+      if (a.kind !== "room") return;
+      if (tileX >= a.x && tileX < a.x + a.w && tileY >= a.y && tileY < a.y + a.h) hit = a.slug;
+    });
+    return hit;
+  }
+
+  function bindCanvasZoom() {
+    if (!_canvas) return;
+    _canvas.ondblclick = function (ev) {
+      if (!_layout || !_onRoom) return;
+      if (_layout.mode === "room") return;
+      var zoom = zoomOf(_layout);
+      var rect = _canvas.getBoundingClientRect();
+      var scaleX = _canvas.width / Math.max(1, rect.width);
+      var scaleY = _canvas.height / Math.max(1, rect.height);
+      var px = (ev.clientX - rect.left) * scaleX;
+      var py = (ev.clientY - rect.top) * scaleY;
+      var tx = px / (TILE * zoom);
+      var ty = py / (TILE * zoom);
+      var slug = roomAt(tx, ty);
+      if (slug) {
         ev.preventDefault();
         ev.stopPropagation();
-        if (_onRoom) _onRoom(el.getAttribute("data-room"));
-      };
-    });
+        _onRoom(slug);
+      }
+    };
   }
 
   function esc(s) {
@@ -958,7 +1017,6 @@
     if (_canvas.width !== w || _canvas.height !== h) {
       _canvas.width = w;
       _canvas.height = h;
-      updateHits(zoom);
     }
     var ctx = _ctx;
     ctx.imageSmoothingEnabled = false;
@@ -986,14 +1044,13 @@
 
   function structureKey(model) {
     var view = (model && model.view) || {};
-    var pipe = ((model && model.pipeline) || []).map(function (p) {
-      return p.slug + ":" + (p.khoa ? "1" : "0") + (p.dat ? "2" : "0") + (p.active ? "a" : "");
-    }).join(",");
-    var meet = (model && model.meeting && model.meeting.on) ? "m" : "";
+    // Không nhồi khoa/dat vào key — tránh remount giật khi pipeline đổi trạng thái.
+    var meet = (model && model.meeting && model.meeting.on) ? ("m" + ((model.meeting.heads || []).length)) : "";
+    var pipeSlugs = ((model && model.pipeline) || []).map(function (p) { return p.slug; }).join(",");
     return ((model && model.rooms) || []).map(function (r) {
-      return r.slug + ":" + ((r.people || []).map(function (p) { return p.slug; }).join(","));
+      return r.slug + ":" + ((r.people || []).map(function (p) { return p.slug + (p.sheet || ""); }).join(","));
     }).join("|") + "~" + ((model && model.look && model.look.mau) || "") +
-      "~" + (view.mode || "campus") + ":" + (view.focus || "") + "~" + pipe + meet;
+      "~" + (view.mode || "campus") + ":" + (view.focus || "") + "~" + pipeSlugs + "~" + meet;
   }
 
   function bindChrome() {
@@ -1024,8 +1081,7 @@
         : "") +
       "</div>" +
       '<div class="nt-pixel-stage">' +
-      '<canvas class="nt-pixel-canvas" id="ntPixelCanvas"></canvas>' +
-      '<div class="nt-pixel-hits" id="ntPixelHits"></div>' +
+      '<canvas class="nt-pixel-canvas" id="ntPixelCanvas" title="Double-click phòng để phóng"></canvas>' +
       '<div class="nt-pixel-labels" id="ntPixelLabels"></div>' +
       "</div>" +
       '<p class="nt-pixel-credit">Pixel campus · Pixel Agents / Metro City (CC0)</p>';
@@ -1037,13 +1093,13 @@
     bindChrome();
     _canvas = host.querySelector("#ntPixelCanvas");
     _labels = host.querySelector("#ntPixelLabels");
-    _hits = host.querySelector("#ntPixelHits");
+    _hits = null;
     _ctx = _canvas.getContext("2d");
+    bindCanvasZoom();
     return warmSync().then(function () {
       _layout = buildLayout(_model);
       syncChars(_model, _layout);
       _host.setAttribute("data-struct", structureKey(_model));
-      updateHits(zoomOf(_layout));
       if (_raf) cancelAnimationFrame(_raf);
       _last = 0;
       _raf = requestAnimationFrame(frame);

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.101] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · campus QA:** double-click phóng phòng qua canvas (không overlay chặn cuộn); badge/chevron/khoa·đạt cập nhật live không remount giật; bỏ trùng hàng đợi pill; campus không còn ô phòng ảo khi chưa có phòng; mũi tên liên phòng / khớp tên giao_cho ổn định hơn.
+
 ## [0.56.100] - 2026-10-28
 ### Mới
 - **Nhạc trưởng · campus hybrid:** sân khấu mặc định toàn cảnh — sảnh hàng đợi, phòng xếp trái→phải theo pipeline, hành lang chevron (chờ/khóa/đạt/đang chạy), phòng họp trưởng phía trên. Double-click phòng (hoặc chip pipeline) phóng ghế chữ U; Esc / Toàn cảnh quay lại.

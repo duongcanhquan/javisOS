@@ -3335,22 +3335,11 @@ body.on-mcp .cview-body > .cview-placeholder {
 .nt-pixel-stage { position: relative; display: inline-block; min-width: 100%; }
 .nt-pixel-canvas {
   display: block; image-rendering: pixelated; image-rendering: crisp-edges;
-  max-width: none;
+  max-width: none; cursor: zoom-in;
 }
-.nt-pixel-hits {
-  position: absolute; inset: 0; pointer-events: none;
-}
-.nt-px-hit {
-  position: absolute; pointer-events: auto; cursor: zoom-in;
-  border: 0; padding: 0; margin: 0;
-  background: transparent;
-}
-.nt-px-hit:hover {
-  background: color-mix(in srgb, var(--nt-accent, #3d7a5a) 10%, transparent);
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--nt-accent, #3d7a5a) 35%, transparent);
-}
+.nt-stage.focus-room .nt-pixel-canvas { cursor: default; }
 .nt-pixel-labels {
-  position: absolute; inset: 0; pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
 }
 .nt-px-label.compact {
   min-width: 48px; max-width: 88px; padding: 1px 4px 2px;

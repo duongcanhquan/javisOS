@@ -1162,7 +1162,8 @@
     var slugs = v && (v.phong || []).length ? v.phong : (S.phong || []).map(function (p) { return p.slug; });
     if (!slugs.length) return hangDoiVp() + htmlLook() + '<p class="nt-hint">Chưa có phòng.</p>';
     var view = pxView();
-    return hangDoiVp() + htmlLook() +
+    // Hàng đợi đã vẽ trong sảnh campus — không lặp pill phía trên.
+    return htmlLook() +
       '<div id="ntStage" class="nt-stage nt-stage-pixel canh-' + esc(l.canh) + " mau-" + esc(l.mau) +
       (v && v.trang_thai === "dang_chay" ? " running" : "") +
       (view.mode === "room" ? " focus-room" : " campus") + '">' +
@@ -2554,13 +2555,11 @@
       return (h.id || "") + ":" + (h.trang_thai || "");
     }).join(",");
     var pc = ((S.vanPhong || {}).look || {}).phong_cach || "";
-    var khoa = Object.keys((v && v.khoa) || {}).join(",");
-    var dat = Object.keys((v && v.dat) || {}).join(",");
     return [(v && v.id) || "", l.canh, l.mau, pc, act, (slugs || []).join(","), people, hd,
-      view.mode || "campus", view.focus || "", khoa, dat].join("~");
+      view.mode || "campus", view.focus || ""].join("~");
   }
 
-  /** Trạng thái động trên sân (đi/họp/bubble) — vá DOM, không innerHTML. */
+  /** Trạng thái động trên sân (đi/họp/bubble/khoa·đạt) — vá DOM, không innerHTML. */
   function khoaMapSong(v) {
     if (!v) return "";
     var d = v.dang_lam || {};
@@ -2574,7 +2573,10 @@
     if (d.phong && (d.slug || d.ten)) {
       bub = bubbleText(v, d.phong, d.slug || d.ten, true);
     }
-    return [v.trang_thai, d.phong || "", d.slug || d.ten || "", d.buoc || "", d.giao_cho || "", finger, bub].join("~");
+    var khoa = Object.keys(v.khoa || {}).join(",");
+    var dat = Object.keys(v.dat || {}).join(",");
+    return [v.trang_thai, d.phong || "", d.slug || d.ten || "", d.buoc || "", d.giao_cho || "",
+      finger, bub, khoa, dat].join("~");
   }
 
   function patchStageLive(v) {
