@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.94] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · hết giật sân khấu:** lúc việc chạy không còn dựng lại cả văn phòng mỗi giây — chỉ vá trạng thái nhân vật/bong bóng; cột giao tiếp cập nhật riêng. Animation nhẹ hơn.
+
 ## [0.56.93] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · văn phòng to hơn:** cột sơ đồ rộng hơn, phòng cao ~260px, nhân vật icon lớn kiểu hoạt hình (đầu to, cười, phụ kiện).

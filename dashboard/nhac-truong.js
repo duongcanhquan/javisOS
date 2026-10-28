@@ -699,11 +699,18 @@
     return rows.length ? rows[rows.length - 1] : null;
   }
 
-  function actorHtml(n, slug, d, i, tong, v) {
+  function bubbleText(v, slug, ns, bat) {
+    if (!bat || !v) return "";
+    var row = loiMoiNhat(v, slug, ns);
+    var text = row ? String(row.loi || "").split("\n")[0] : "";
+    if (!text) return "";
+    return text.slice(0, 72) + (text.length > 72 ? "…" : "");
+  }
+
+  function actorState(n, slug, d, v) {
     var bat = !!(d && laDang(d, n, slug));
     var tt = bat ? (_BUOC_TT_UI[d.buoc] || "lam") : ttNguoi(slug, n);
     if (v && v.trang_thai !== "dang_chay" && v.trang_thai !== "cho_duyet") tt = "idle";
-    var pos = slotIso(i, tong);
     var head = n.vai === "truong";
     var chon = S._actor && S._actor.phong === slug && S._actor.slug === n.slug;
     var di = bat && d && d.giao_cho && (d.buoc === "lam" || d.buoc === "doi" || d.buoc === "giao" || d.buoc === "nhan");
@@ -716,21 +723,29 @@
       (di ? " walk" : "") +
       (hop ? " meet" : "") +
       (chon ? " sel" : "");
-    var bubble = "";
-    if (bat && v) {
-      var row = loiMoiNhat(v, slug, n.slug);
-      var text = row ? String(row.loi || "").split("\n")[0] : "";
-      if (text) bubble = '<span class="nt-bubble">' + esc(text.slice(0, 72)) + (text.length > 72 ? "…" : "") + "</span>";
-    }
-    return '<button type="button" class="' + cls + '" data-actor-phong="' + esc(slug) +
+    return {
+      bat: bat,
+      tt: tt,
+      cls: cls,
+      bubble: bubbleText(v, slug, n.slug, bat),
+      nhan: nhanTt(tt, bat),
+    };
+  }
+
+  function actorHtml(n, slug, d, i, tong, v) {
+    var st = actorState(n, slug, d, v);
+    var pos = slotIso(i, tong);
+    var head = n.vai === "truong";
+    return '<button type="button" class="' + st.cls + '" data-actor-phong="' + esc(slug) +
       '" data-actor="' + esc(n.slug) + '" style="left:' + pos.x + "%;top:" + pos.y + "%;z-index:" + (20 + pos.z) +
       ";--nt-i:" + i + '">' +
+      (st.bubble ? '<span class="nt-bubble">' + esc(st.bubble) + "</span>" : "") +
       '<span class="nt-desk-iso" aria-hidden="true"></span>' +
       '<img class="nt-actor-face" alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
       (head ? '<span class="nt-badge">★</span>' : "") +
       '<span class="nt-actor-name">' + esc(n.ten) + "</span>" +
-      '<span class="nt-actor-st">' + esc(nhanTt(tt, bat)) + "</span>" +
-      bubble + "</button>";
+      '<span class="nt-actor-st">' + esc(st.nhan) + "</span>" +
+      "</button>";
   }
 
   var _BUOC_TT_UI = {
@@ -748,7 +763,7 @@
     var actors = all.map(function (n, idx) {
       return actorHtml(n, slug, d, idx, all.length || 1, v);
     }).join("");
-    return '<section class="nt-iso-floor' + (run ? " on" : "") + '">' +
+    return '<section class="nt-iso-floor' + (run ? " on" : "") + '" data-floor="' + esc(slug) + '">' +
       '<header><span class="nt-qno">' + (i + 1) + "</span>" +
       (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : "") +
       "<b>" + esc(p.ten) + "</b></header>" +
@@ -1411,7 +1426,7 @@
         S.chonPhong = id;
         S.sua = "";
         S.loi = "";
-        S._khoaPhong = "";
+        resetKhoaPhong();
         var vv = viecChoPhong(id);
         if (vv && vv.id !== S.chonViec) {
           S.chonViec = vv.id;
@@ -1534,7 +1549,7 @@
         if (!id || id === S.chonViec || S.ban) return;
         S.chonViec = id;
         S._docKey = "";
-        S._khoaPhong = "";
+        resetKhoaPhong();
         S.loi = "";
         hienLoi("");
         S.root.querySelectorAll("[data-viec]").forEach(function (x) {
@@ -1762,7 +1777,7 @@
       S._dung = "";
     }
     S._khoa = "";
-    S._khoaPhong = "";
+    resetKhoaPhong();
     capNhatTheoDoi();
     batPoll();
   }
@@ -1792,14 +1807,14 @@
     if (j.viec) {
       S._viecDay = j.viec;
       S._khoa = "";
-      S._khoaPhong = "";
+      resetKhoaPhong();
       capNhatTheoDoi();
       return;
     }
     if (S._viecDay) S._viecDay.trang_thai = "dang_chay";
     S._choChay = S.chonViec;
     S._khoa = "";
-    S._khoaPhong = "";
+    resetKhoaPhong();
     capNhatTheoDoi();
     batPoll();
   }
@@ -1857,7 +1872,7 @@
         });
         if (!j.ok) return hienLoi(j.error);
         S.vanPhong = j.van_phong || S.vanPhong;
-        S._khoaPhong = "";
+        resetKhoaPhong();
         capNhatPhong();
       } catch (e) { hienLoi("Không lưu được giao diện."); }
     };
@@ -1870,7 +1885,7 @@
         if (!slug) return;
         if (S._actor && S._actor.slug === slug && S._actor.phong === phong) S._actor = null;
         else S._actor = { phong: phong, slug: slug };
-        S._khoaPhong = "";
+        resetKhoaPhong();
         capNhatPhong();
         ganLoi();
         ganLookVaActor();
@@ -1879,7 +1894,7 @@
     var dong = document.getElementById("ntDongActor");
     if (dong) dong.onclick = function () {
       S._actor = null;
-      S._khoaPhong = "";
+      resetKhoaPhong();
       capNhatPhong();
       ganLookVaActor();
     };
@@ -1888,7 +1903,7 @@
       if (ev.target.closest("[data-actor]") || ev.target.closest("#ntActorPanel")) return;
       if (!S._actor) return;
       S._actor = null;
-      S._khoaPhong = "";
+      resetKhoaPhong();
       capNhatPhong();
       ganLookVaActor();
     };
@@ -2034,15 +2049,99 @@
     });
   }
 
-  function khoaViec(v) {
+  function resetKhoaPhong() {
+    S._khoaPhong = "";
+    S._khoaMapCau = "";
+    S._khoaMapSong = "";
+    S._khoaTalk = "";
+  }
+
+  function khoaTalk(v) {
     if (!v) return "";
     var loi = v.loi || [];
     var last = loi.length ? (loi[loi.length - 1].loi || "").length : 0;
     var d = v.dang_lam || {};
+    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.slug || d.ten || "", d.buoc || "", (v.ket_qua || "").length, S._docKey || ""].join("~");
+  }
+
+  /** Chỉ đổi khi đổi phòng/người/cảnh — được phép dựng lại DOM sân khấu. */
+  function khoaMapCau(v) {
     var l = lookVp();
     var act = S._actor ? (S._actor.phong + "/" + S._actor.slug) : "";
-    var vp = (S.vanPhong && S.vanPhong.cap_nhat) || 0;
-    return [v.id, v.trang_thai, loi.length, last, v.loi_chay || "", (v.mo || []).length, Object.keys(v.ban || {}).length, d.slug || d.ten || "", d.buoc || "", d.giao_cho || "", (v.ket_qua || "").length, act, l.canh, l.mau, vp].join("~");
+    var slugs = v && (v.phong || []).length ? (v.phong || []) : (S.phong || []).map(function (p) { return p.slug; });
+    var people = (slugs || []).map(function (slug) {
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      return slug + ":" + ((p && p.nguoi) || []).map(function (n) {
+        return n.slug + ":" + (n.avatar || "");
+      }).join(",");
+    }).join("|");
+    var hd = (((S.vanPhong || {}).hang_doi) || []).map(function (h) {
+      return (h.id || "") + ":" + (h.trang_thai || "");
+    }).join(",");
+    var pc = ((S.vanPhong || {}).look || {}).phong_cach || "";
+    return [(v && v.id) || "", l.canh, l.mau, pc, act, (slugs || []).join(","), people, hd].join("~");
+  }
+
+  /** Trạng thái động trên sân (đi/họp/bubble) — vá DOM, không innerHTML. */
+  function khoaMapSong(v) {
+    if (!v) return "";
+    var d = v.dang_lam || {};
+    var tt = ((S.vanPhong || {}).phong) || {};
+    var finger = Object.keys(tt).map(function (slug) {
+      return slug + ":" + ((tt[slug].nguoi || []).map(function (n) {
+        return (n.slug || "") + "=" + (n.tt || "");
+      }).join(","));
+    }).join("|");
+    var bub = "";
+    if (d.phong && (d.slug || d.ten)) {
+      bub = bubbleText(v, d.phong, d.slug || d.ten, true);
+    }
+    return [v.trang_thai, d.phong || "", d.slug || d.ten || "", d.buoc || "", d.giao_cho || "", finger, bub].join("~");
+  }
+
+  function patchStageLive(v) {
+    var stage = document.getElementById("ntStage");
+    if (!stage) return false;
+    var d = v && v.trang_thai === "dang_chay" ? v.dang_lam : null;
+    stage.classList.toggle("running", !!(v && v.trang_thai === "dang_chay"));
+    stage.querySelectorAll("[data-floor]").forEach(function (floor) {
+      var slug = floor.getAttribute("data-floor") || "";
+      floor.classList.toggle("on", !!(d && d.phong === slug));
+      floor.querySelectorAll("[data-actor]").forEach(function (btn) {
+        var ns = btn.getAttribute("data-actor") || "";
+        var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+        var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
+        if (!n) return;
+        var st = actorState(n, slug, d, v);
+        if (btn.className !== st.cls) btn.className = st.cls;
+        var stEl = btn.querySelector(".nt-actor-st");
+        if (stEl && stEl.textContent !== st.nhan) stEl.textContent = st.nhan;
+        var bub = btn.querySelector(".nt-bubble");
+        if (st.bubble) {
+          if (!bub) {
+            bub = document.createElement("span");
+            bub.className = "nt-bubble";
+            btn.insertBefore(bub, btn.firstChild);
+          }
+          if (bub.textContent !== st.bubble) bub.textContent = st.bubble;
+        } else if (bub) {
+          bub.remove();
+        }
+      });
+    });
+    var panel = document.getElementById("ntActorPanel");
+    if (panel && S._actor) {
+      var slug = S._actor.phong;
+      var ns = S._actor.slug;
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
+      if (n) {
+        var st = actorState(n, slug, d, v);
+        var em = panel.querySelector("p em");
+        if (em && em.textContent !== st.nhan) em.textContent = st.nhan;
+      }
+    }
+    return true;
   }
 
   function khoaKhung(v) {
@@ -2092,18 +2191,32 @@
     var talk = document.getElementById("ntTalk");
     if (!map && !talk) return;
     var v = S._viecDay && S._viecDay.id === S.chonViec ? S._viecDay : null;
-    var k = (v ? khoaViec(v) : "") + "|" + S.chonPhong;
-    if (k === S._khoaPhong) return;
-    var doiViec = !!(S._khoaPhong && v && S._khoaPhong.indexOf(v.id + "~") !== 0);
-    S._khoaPhong = k;
+    var kCau = (v ? khoaMapCau(v) : "") + "|" + S.chonPhong;
+    var kSong = v ? khoaMapSong(v) : "";
+    var kTalk = (v ? khoaTalk(v) : "") + "|" + S.chonPhong;
+    var doiViec = !!(S._khoaMapCau && v && S._khoaMapCau.indexOf(v.id + "~") !== 0);
     if (doiViec) S._docKey = "";
+
     if (map) {
-      map.innerHTML = htmlMap();
-      ganNhan();
-      ganLookVaActor();
-      ganLoi();
+      if (kCau !== S._khoaMapCau) {
+        S._khoaMapCau = kCau;
+        S._khoaMapSong = kSong;
+        map.innerHTML = htmlMap();
+        ganNhan();
+        ganLookVaActor();
+        ganLoi();
+      } else if (kSong !== S._khoaMapSong) {
+        S._khoaMapSong = kSong;
+        patchStageLive(v);
+      }
     }
+
+    // Giữ khóa cũ để chỗ khác (click actor) vẫn ép refresh khi cần.
+    S._khoaPhong = kCau + "#" + kSong + "#" + kTalk;
+
     if (!talk) return;
+    if (kTalk === S._khoaTalk) return;
+    S._khoaTalk = kTalk;
     var log = document.getElementById("ntLogPhong");
     var sat = !doiViec && log && log.scrollTop < 48;
     var giu = log ? log.scrollTop : 0;
@@ -2159,7 +2272,7 @@
         S.chonPhong = id;
         S.sua = "";
         S.loi = "";
-        S._khoaPhong = "";
+        resetKhoaPhong();
         var vv = viecChoPhong(id);
         if (vv && vv.id !== S.chonViec) {
           S.chonViec = vv.id;
@@ -2201,7 +2314,7 @@
           S.timer = 0;
         }
       });
-    }, 1000);
+    }, 1400);
   }
 
   async function duyetCong() {
@@ -2286,7 +2399,7 @@
       var row = S.viec.filter(function (x) { return x.id === j.viec.id; })[0];
       if (row) row.trang_thai = j.viec.trang_thai;
       S._khoaKhung = "";
-      S._khoaPhong = "";
+      resetKhoaPhong();
       capNhatTheoDoi();
       return;
     }
