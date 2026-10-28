@@ -1,18 +1,37 @@
 # Nhật ký cập nhật
 
-## [0.56.87] - 2026-10-26
-### Sửa
-- **Tổ chức · trần 16 máy mở được đủ 16:** ô «Trần máy mở cùng lúc» không còn bị kẹp cứng xuống 8. Gợi ý RAM chỉ cảnh báo; khi host chật vẫn tắt máy nghỉ để nhường chỗ.
-
-## [0.56.86] - 2026-10-26
+## [0.56.89] - 2026-10-28
 ### Sửa
 - **Tổ chức · Bật máy hết báo start 404:** nếu container bị gỡ nhầm mà não/ổ còn, hệ thống tự dựng lại máy rồi bật. Không đụng mật khẩu trong ổ.
-- **Ổ VPS đầy ≠ hết quota người:** số trên trang Tổ chức chỉ đo não/vault mỗi người. Ổ máy chủ còn chứa image Docker, log và cache - dọn an toàn, không xóa máy đang tắt.
-- Script khôi phục máy trên VPS dùng `docker exec -i` (thiếu `-i` thì lệnh Python không chạy, máy vẫn mất).
+- **Tổ chức · trần 16 máy mở được đủ 16:** ô «Trần máy mở cùng lúc» không còn bị kẹp cứng xuống 8. Gợi ý RAM chỉ cảnh báo; khi host chật vẫn tắt máy nghỉ để nhường chỗ.
+- **Antigravity trong tab Code:** gõ `agy` trên máy Docker/VPS không còn đứng im - gắn `SSH_TTY` pty thật và ép lưu đăng nhập ra file.
+- Ổ VPS đầy ≠ hết quota người (quota chỉ đo não/vault). Dọn ổ không xóa máy đang tắt.
 
-## [0.56.85] - 2026-10-26
+## [0.56.88] - 2026-10-28
 ### Sửa
-- **Antigravity trong tab Code:** gõ `agy` trên máy Docker/VPS không còn đứng im. Terminal gắn đủ biến phiên từ xa (kể cả `SSH_TTY` của pty thật) và ép lưu đăng nhập ra file, nên hiện link Google để dán mã; nhắc hẹn mới chạy lại được sau khi đăng nhập một lần.
+- Tổ chức · Đổi mật khẩu người: hiện dòng xác nhận/lỗi ngay trên thẻ; máy đang tắt tự bật tạm rồi mới ghi mật khẩu (trước đó bấm Lưu không thấy gì).
+
+## [0.56.87] - 2026-10-28
+### Sửa
+- Tenant bach (và máy tương tự): CSS/JS/logo trả 500 vì `FileResponse` hỏng trên container đó - đổi sang đọc file rồi trả thẳng, giao diện hết trắng.
+- Nếu lần mở sau cập nhật bị trắng / mất giao diện (HTML không kèm CSS), app tự tải lại một lần kèm phá cache asset.
+
+## [0.56.86] - 2026-10-28
+### Mới
+- Trang Models có **Thứ tự dùng**: kéo hoặc bấm mũi tên để xếp MAIN và Dự phòng; chat nhảy nhà còn lượt khi nhà trên hết.
+- Một nhà API thêm được nhiều key; key hết lượt tự nghỉ, key kế chạy tiếp.
+- Nền tảng nhiều tài khoản gói (Claude/Codex/Grok) đã có module sẵn; UI đăng nhập tài khoản phụ làm tiếp sau.
+
+## [0.56.85] - 2026-10-28
+### Mới
+- Thẻ Facebook Messenger trên trang Kết nối: dán Page ID, App ID, secret và token, Javis tự gắn webhook Fanpage.
+- Bot chuyên trách gắn được kênh Messenger (hộp thư Page). Cần HTTPS công khai.
+
+## [0.56.84] - 2026-10-28
+### Sửa
+- Chat trên iPhone (Thêm vào MH chính): khung bám đúng phần màn nhìn thấy; bàn phím mở thì ô nhập không bị hụt.
+- Menu điện thoại không còn trượt ra rồi biến mất, chỉ còn nền tối.
+- Xem PDF trên điện thoại luôn có nút đóng nổi; xoay máy chữ không bị to lại.
 
 ## [0.56.83] - 2026-10-25
 ### Sửa

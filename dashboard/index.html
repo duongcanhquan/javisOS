@@ -29,13 +29,97 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
   <!-- Biến --ic-* cho icon dùng trong content: của CSS. Phải đứng TRƯỚC style.css
        vì style.css tham chiếu các biến này. -->
+  <!-- Nếu lần mở trước CSS không ăn (cache immutable / nửa chừng lúc deploy), ?_cssfix
+       ép trình duyệt xin lại /asset/… với query mới - server bỏ qua query, cache thì miss. -->
+  <script>
+  (function () {
+    var K = "javis-asset-retry";
+    var DONE = "javis-asset-retry-done";
+    var u = new URL(location.href);
+    var force = u.searchParams.has("_cssfix");
+    var flagged = false;
+    try { flagged = sessionStorage.getItem(K) === "1"; } catch (e) {}
+    if (!(force || flagged)) return;
+    function bust(href) {
+      if (!href || href.charAt(0) !== "/") return href;
+      if (href.indexOf("/asset/") !== 0 && href.indexOf("/static/") !== 0) return href;
+      return href.split("?")[0] + "?r=" + Date.now();
+    }
+    // Ghi đè href của mọi <link>/<script> cùng origin ngay khi parser tạo nút.
+    var mo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        var nodes = muts[i].addedNodes;
+        for (var j = 0; j < nodes.length; j++) {
+          var n = nodes[j];
+          if (!n || n.nodeType !== 1) continue;
+          if (n.tagName === "LINK" && n.rel === "stylesheet" && n.getAttribute("href")) {
+            n.setAttribute("href", bust(n.getAttribute("href")));
+          }
+          if (n.tagName === "SCRIPT" && n.getAttribute("src")) {
+            n.setAttribute("src", bust(n.getAttribute("src")));
+          }
+        }
+      }
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener("DOMContentLoaded", function () { try { mo.disconnect(); } catch (e0) {} });
+    try {
+      sessionStorage.removeItem(K);
+      if (force) sessionStorage.setItem(DONE, "1");
+    } catch (e2) {}
+    if (force) {
+      u.searchParams.delete("_cssfix");
+      try { history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (e3) {}
+    }
+  })();
+  </script>
   <link rel="stylesheet" href="/static/vendor/lucide-icons.css?v=3">
-  <link rel="stylesheet" href="/static/style.css?v=112">
-  <link rel="stylesheet" href="/static/console.css?v=107">
+  <link rel="stylesheet" href="/static/style.css?v=116">
+  <link rel="stylesheet" href="/static/console.css?v=109">
   <link rel="stylesheet" href="/static/workbench.css?v=9">
   <!-- Áp tông đã lưu TRƯỚC khi vẽ để không nháy tối rồi mới đổi sang sáng/neon.
        Giá trị cũ "dim" (tông tối-nhạt, gỡ ở 0.9.250) quy về tối; theme.js sẽ ghi đè lại. -->
   <script>(function(){try{var t=localStorage.getItem('javis.theme')||localStorage.getItem('vmos.theme');if(t==='future'||t==='glass')t='dark';if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='neon'||t==='cyber'||t==='cyberpunk')document.documentElement.setAttribute('data-theme','neon');}catch(e){}})();</script>
+  <!-- Sau khi trang load: .hud phải là grid. Không thì CSS/JS không ăn → tự tải lại một lần. -->
+  <script>
+  (function () {
+    var K = "javis-asset-retry";
+    var DONE = "javis-asset-retry-done";
+    function cssOk() {
+      var h = document.querySelector(".hud");
+      if (!h) return true;
+      try { return getComputedStyle(h).display === "grid"; } catch (e) { return true; }
+    }
+    function retry() {
+      if (cssOk()) {
+        try { sessionStorage.removeItem(K); sessionStorage.removeItem(DONE); } catch (e) {}
+        return;
+      }
+      var used = false, done = false;
+      try {
+        used = sessionStorage.getItem(K) === "1";
+        done = sessionStorage.getItem(DONE) === "1";
+      } catch (e2) {}
+      if (used || done) return;
+      try { sessionStorage.setItem(K, "1"); } catch (e3) {}
+      var jobs = [];
+      try {
+        if (window.caches && caches.keys) {
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+      } catch (e4) {}
+      Promise.all(jobs).catch(function () {}).then(function () {
+        var u = new URL(location.href);
+        u.searchParams.set("_cssfix", String(Date.now()));
+        location.replace(u.toString());
+      });
+    }
+    if (document.readyState === "complete") setTimeout(retry, 80);
+    else window.addEventListener("load", function () { setTimeout(retry, 80); });
+  })();
+  </script>
 </head>
 <body>
   <div class="hud">
@@ -810,7 +894,7 @@
   <script src="/static/freshness.js"></script>
   <script src="/static/i18n/index.js?v=2"></script>
   <script src="/static/vendor/lucide-icons.js?v=6"></script>
-  <script src="/static/icons.js?v=3"></script>
+  <script src="/static/icons.js?v=4"></script>
 
   <!-- theme.js phải nạp TRƯỚC mọi file khác: graph.js / app.js đăng ký
        hàm vẽ lại theo tông ngay lúc parse, nếu window.javisTheme chưa có thì chúng
@@ -830,7 +914,7 @@
   <!-- Bảng lệnh của trình soạn .md (nút thanh công cụ + phím tắt + menu "/"). PHẢI đứng
        trước console.js: _neBuildToolbar đọc window.JavisEditorCmds để vẽ nút. -->
   <script src="/static/editor-cmds.js?v=1"></script>
-  <script src="/static/file-editor.js?v=11"></script>
+  <script src="/static/file-editor.js?v=12"></script>
   <script src="/static/ui-actions.js?v=1"></script>
   <script src="/static/ui-context.js?v=1"></script>
   <script src="/static/chat-ask.js?v=1"></script>
@@ -860,8 +944,10 @@
        workbench.css vẫn nạp sớm. packs.js vẫn eager (Kết nối gọi moKho/goApp). -->
   <script type="application/json" id="javis-page-lazy">["meetings.js","baigiang.js","video.js","marketing.js","org.js","drive-projects.js","guides.js","tool-apis.js","usage.js","workspace.js","chatbots.js","nhac-truong.js"]</script>
   <!-- Console layer: console.js đăng ký store TRƯỚC khi Alpine khởi động (defer) -->
-  <script src="/static/console.js?v=165"></script>
-  <script src="/static/mobile-chat.js?v=14"></script>
+  <script src="/static/console.js?v=143"></script>
+  <script src="/static/messenger-connect.js?v=1"></script>
+  <script src="/static/model-order.js?v=1"></script>
+  <script src="/static/mobile-chat.js?v=15"></script>
   <script src="/static/brain-view.js?v=1"></script>
   <script src="/static/brain-flow.js?v=2"></script>
   <script src="/static/push.js?v=2"></script>

@@ -75,7 +75,7 @@ class KenhSpec:
 
 # Thứ tự ở đây là thứ tự hiện trên giao diện. KHÔNG có kênh nào "chính": Zalo đứng đầu vì
 # khách Việt Nam dùng nhiều nhất, không phải vì nó được ưu ái trong mã.
-_MODULES = ("channels.zalo_bot", "channels.zalo_personal", "channels.telegram")
+_MODULES = ("channels.zalo_bot", "channels.zalo_personal", "channels.telegram", "channels.messenger")
 
 _DS: Optional[Dict[str, KenhSpec]] = None
 _MOD: Dict[str, object] = {}
@@ -151,12 +151,16 @@ def cho_giao_dien() -> List[dict]:
     """Bản cho giao diện: đủ để vẽ ô chọn kênh, chip, form thêm tài khoản, KHÔNG đoán gì thêm."""
     out = []
     for s in danh_sach():
+        m = _MOD.get(s.id)
+        wh = getattr(m, "WEBHOOK_PATH", "") if m else ""
         out.append({
             "id": s.id, "nhan": s.nhan, "kind": s.kind, "logo": s.logo, "mau": s.mau,
             "lay_token": s.lay_token, "tom_tat": s.tom_tat, "tien_to_ten": s.tien_to_ten,
             "nang_luc": dict(s.nang_luc),
             # Hai cờ cũ giao diện Chatbot đang đọc; giữ để không đổi hai chỗ cùng lúc.
             "co_nhom": s.nl("nhom"), "gui_tai_lieu": s.nl("gui_file"),
+            # Messenger (và kênh webhook khác): form hiện địa chỉ dán sang Meta.
+            "webhook": str(wh or ""),
         })
     return out
 

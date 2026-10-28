@@ -390,7 +390,36 @@ def wait_health(cname: str, tries: int = 40) -> None:
     raise RuntimeError(f"Javis con chưa sẵn sàng ({last}).")
 
 
-def set_admin(cname: str, username: str, password: str) -> None:
+def ensure_running_for_exec(cname: str, slug: str | None = None) -> None:
+    """docker exec chỉ chạy khi container đang up. Máy nghỉ (reclaim RAM) → bật tạm rồi mới exec."""
+    nm = str(cname or "").strip()
+    if not nm:
+        raise RuntimeError("Thiếu tên máy Docker.")
+    st = container_status(nm)
+    if st == "running":
+        return
+    if st == "missing":
+        raise RuntimeError("Chưa có máy Docker của người này.")
+    # stopped / paused / …
+    if slug:
+        start(str(slug), wait_ready=False)
+    else:
+        r = _docker_api("POST", f"/containers/{quote(nm)}/start", timeout=60.0)
+        if r.status_code not in (204, 200, 304):
+            raise RuntimeError(
+                f"Không bật được máy để ghi mật khẩu (HTTP {r.status_code})."
+            )
+        invalidate_status_cache(nm)
+    for _ in range(20):
+        if container_status(nm) == "running":
+            time.sleep(0.4)
+            return
+        time.sleep(0.35)
+    raise RuntimeError("Máy chưa bật xong. Bấm Bật máy rồi thử đổi mật khẩu lại.")
+
+
+def set_admin(cname: str, username: str, password: str, *, slug: str | None = None) -> None:
+    ensure_running_for_exec(cname, slug=slug)
     code = (
         "import os,sys\n"
         "sys.path.insert(0,'/app/server')\n"
@@ -405,11 +434,20 @@ def set_admin(cname: str, username: str, password: str) -> None:
         "cfg['auth']=a; c.write_settings(cfg)\n"
         "print('OK')\n"
     )
-    out = _exec(
-        cname,
-        ["python", "-c", code],
-        extra_env=[f"ORG_USER={username}", f"ORG_PW={password}"],
-    )
+    try:
+        out = _exec(
+            cname,
+            ["python", "-c", code],
+            extra_env=[f"ORG_USER={username}", f"ORG_PW={password}"],
+        )
+    except Exception as e:
+        msg = str(e)
+        low = msg.lower()
+        if "not running" in low or "is not running" in low or "409" in low:
+            raise RuntimeError(
+                "Máy đang tắt hoặc chưa sẵn sàng. Bấm Bật máy rồi thử lại."
+            ) from e
+        raise RuntimeError(f"Không ghi được mật khẩu lên máy: {msg[:200]}") from e
     if "OK" not in out:
         raise RuntimeError("Không đặt được mật khẩu trên Javis con.")
 

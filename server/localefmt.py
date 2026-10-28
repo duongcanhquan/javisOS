@@ -59,6 +59,20 @@ def ngon_ngu_giao_dien() -> str:
     return lang_registry.chuan_hoa(_cau_hinh().get("ui_lang") or "") or lang_registry.MAC_DINH
 
 
+def chu(vi: str, en: str = "", **bien) -> str:
+    """Câu song ngữ theo UI lang. Port nhẹ từ upstream cho Messenger / kênh mới.
+
+    ui_lang bắt đầu bằng en → tiếng Anh; còn lại → tiếng Việt. `bien` thay `{ten}` trong chuỗi.
+    """
+    s = en if str(ngon_ngu_giao_dien() or "").lower().startswith("en") and en else vi
+    if bien:
+        try:
+            s = str(s).format(**bien)
+        except Exception:
+            pass
+    return str(s)
+
+
 def ngon_ngu_tra_loi() -> str:
     """Ngôn ngữ Javis TRẢ LỜI, theo cấu hình - KHÔNG tính phần dò từ câu người dùng vừa gõ.
 

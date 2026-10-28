@@ -129,23 +129,27 @@
     // ---- 5) Ngăn kéo điều hướng ----
     var toggle = document.getElementById("navToggle");
     var backdrop = document.getElementById("navBackdrop");
+    // 0.216.0 upstream: một lần chạm trên iPhone có thể thành HAI cú bấm; cú 2 đóng ngay menu vừa mở.
+    var NGAN_DONG = 400, moLuc = 0;
     function openNav() {
       document.body.classList.add("nav-open");
       if (backdrop) backdrop.hidden = false;
       if (toggle) toggle.setAttribute("aria-expanded", "true");
+      moLuc = Date.now();
     }
     function closeNav() {
       document.body.classList.remove("nav-open");
       if (backdrop) backdrop.hidden = true;
       if (toggle) toggle.setAttribute("aria-expanded", "false");
     }
+    function closeByTap() { if (Date.now() - moLuc >= NGAN_DONG) closeNav(); }
     if (toggle) toggle.addEventListener("click", function () {
-      document.body.classList.contains("nav-open") ? closeNav() : openNav();
+      document.body.classList.contains("nav-open") ? closeByTap() : openNav();
     });
-    if (backdrop) backdrop.addEventListener("click", closeNav);
+    if (backdrop) backdrop.addEventListener("click", closeByTap);
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
     if (railEl) railEl.addEventListener("click", function (e) {
-      if (e.target.closest(".rail-item")) closeNav();
+      if (e.target.closest(".rail-item") && mq.matches) closeNav();
     });
 
     // ---- 6) Bung/thu khoang não (mobile-only) ----
@@ -198,11 +202,59 @@
       }
     }
 
-    function applyAll() { placeHeader(); placeSystem(); placeTopNav(); setPlaceholder(); syncBrainMax(); }
+    // ---- 7) Bàn phím ảo + chiều cao app (port từ upstream 0.359 / visualViewport) ----
+    // Đo vùng nhìn thấy, gắn kb-open; lúc nghỉ ghi --app-h để PWA iPhone không hụt đầu / thừa đáy.
+    var vv = window.visualViewport;
+    var rootStyle = document.documentElement.style;
+    var mocCao = 0, kbHen = 0, vuaGo = false;
+    function dangGo() {
+      var a = document.activeElement;
+      if (!a || a === document.body) return false;
+      var tag = (a.tagName || "").toLowerCase();
+      if (tag === "textarea" || a.isContentEditable) return true;
+      if (tag !== "input") return false;
+      return !/^(button|checkbox|radio|range|color|file|submit|reset|image|hidden)$/i.test(a.type || "");
+    }
+    function syncKeyboard() {
+      kbHen = 0;
+      if (!vv) return;
+      var go = dangGo();
+      if (!go || !mocCao) mocCao = Math.max(go ? mocCao : 0, vv.height);
+      var mo = mq.matches && go && mocCao - vv.height > 120;
+      document.body.classList.toggle("kb-open", mo);
+      if (mo) {
+        rootStyle.setProperty("--vv-h", Math.round(vv.height) + "px");
+        rootStyle.setProperty("--vv-top", Math.max(0, Math.round(vv.offsetTop)) + "px");
+        rootStyle.setProperty("--vv-ptop", Math.max(0, Math.round(vv.pageTop)) + "px");
+      } else {
+        rootStyle.removeProperty("--vv-h");
+        rootStyle.removeProperty("--vv-top");
+        rootStyle.removeProperty("--vv-ptop");
+      }
+      if (mq.matches && !go && Math.abs((vv.scale || 1) - 1) < 0.01 && vv.height > 200) {
+        rootStyle.setProperty("--app-h", Math.round(vv.height) + "px");
+        if (vuaGo && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
+      } else if (!mq.matches) {
+        rootStyle.removeProperty("--app-h");
+      }
+      vuaGo = go;
+    }
+    function henKeyboard() {
+      if (!kbHen) kbHen = (window.requestAnimationFrame || setTimeout)(syncKeyboard);
+    }
+    if (vv) {
+      vv.addEventListener("resize", henKeyboard);
+      vv.addEventListener("scroll", henKeyboard);
+      document.addEventListener("focusin", henKeyboard);
+      document.addEventListener("focusout", function () { henKeyboard(); setTimeout(syncKeyboard, 350); });
+      window.addEventListener("orientationchange", function () { mocCao = 0; setTimeout(syncKeyboard, 400); });
+    }
+
+    function applyAll() { placeHeader(); placeSystem(); placeTopNav(); setPlaceholder(); syncBrainMax(); syncKeyboard(); }
     if (railEl) railEl.addEventListener("mouseover", muteRailNotes);
     applyAll();
 
-    var onChange = function () { applyAll(); closeNav(); };
+    var onChange = function () { applyAll(); if (!mq.matches) closeNav(); };
     if (mq.addEventListener) mq.addEventListener("change", onChange);
     else if (mq.addListener) mq.addListener(onChange);
   }

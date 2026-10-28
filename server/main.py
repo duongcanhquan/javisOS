@@ -29,9 +29,8 @@ import types as _types   # object tạm cho _apply_antigravity_hub ở endpoint 
 import yaml
 import fastyaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form, Request, Body, Header
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse, Response, RedirectResponse, PlainTextResponse
 # edge_tts CỐ TÌNH không import ở đây mà nạp lười trong _tts_edge và /tts/voices.
 # Nó chiếm 944ms trong 2.263ms nạp main (41%), và kéo theo cả chuỗi aiohttp 212ms vào
 # đường khởi động, trong khi TTS là tính năng TUỲ CHỌN mà đa số phiên không đụng tới.
@@ -116,6 +115,8 @@ import limit_resume           # tự chạy lại lượt chat khi gói thuê ba
 import quota_scheduler        # sổ cái TPM dùng chung (Việc 6)
 import model_limits           # hạn mức GỢI Ý theo provider, để khai quota profile cho canary
 import model_router           # Phase 12: chọn model theo từng bước, lọc năng lực trước
+import model_routing          # Thứ tự dùng / nhiều key / nghỉ hết lượt (port upstream 0.350)
+import plan_accounts          # Nhiều tài khoản gói Claude/Codex/Grok (0.353)
 import workflow_graph          # Phase 10: workflow -> capability graph (thuần dữ liệu)
 import workflow_runtime        # Phase 10: chạy graph có checkpoint/resume
 import write_path_runtime    # Phase 9: write có xác nhận, idempotency và reconcile
@@ -132,6 +133,8 @@ import agent_assets      # tài liệu & link gắn vào MỘT trợ lý (lưu t
 import cli_autoinstall   # trạng thái agy/grok do container Docker tự cài
 import workflow_chat     # persona_cua_phien: kênh agent:/workflow: đổi cách _do_turn chạy lượt
 import channel_accounts  # tài khoản kênh dạng token (0.61.0), bot chỉ trỏ tới
+import messenger_bot    # Messenger webhook + transport
+import messenger_setup  # Messenger connect wizard
 import channels          # sổ đăng ký kênh của Hộp thư hội thoại (0.61.0)
 import conversations     # Hộp thư hội thoại khách: kho khách -> hội thoại -> tin (Chatbot V2)
 import zalo_personal_channel   # Hộp thư hội thoại: đọc tin Zalo cá nhân từ MCP theo cursor
@@ -198,7 +201,9 @@ _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth
                       # /connect/oauth/callback: browser redirect từ provider OAuth về.
                       "/hub/mcp", "/connect/oauth/callback",
                       # Chỉ cờ boolean: rail Tổ chức cần biết trước khi cookie ổn.
-                      "/org/status")
+                      "/org/status",
+                      # Meta Messenger: GET handshake + POST có X-Hub-Signature-256 (kiểm trong route).
+                      "/messenger/webhook")
 # Endpoint CHỈ-LOCALHOST: agent (Claude CLI chạy cùng máy/container) curl được mà không cần
 # cookie đăng nhập; request từ ngoài (qua Traefik/Caddy/LAN) đến từ IP khác loopback → vẫn bị chặn.
 # /reminders/cancel đi cùng nhóm với /reminders (TẠO nhắc): huỷ là thao tác YẾU HƠN tạo, nên
@@ -371,7 +376,66 @@ mimetypes.add_type("image/webp", ".webp")
 mimetypes.add_type("application/octet-stream", ".ort")
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("application/octet-stream", ".bin")
-app.mount("/static", StaticFiles(directory=str(DASHBOARD_PATH)), name="static")
+
+# Không dùng starlette StaticFiles/FileResponse cho dashboard: trên một số container
+# tenant (bach, 2026-10-28) chúng trả HTTP 500 trong khi Path.read_bytes / open() thường
+# vẫn được → HTML `/` sống, CSS/JS/logo chết, trang trắng. Phục vụ bằng Response/stream.
+_STATIC_RAM_SUFFIX = {
+    ".css", ".js", ".mjs", ".map", ".json", ".svg", ".png", ".jpg", ".jpeg",
+    ".webp", ".gif", ".ico", ".woff", ".woff2", ".ttf", ".txt", ".html", ".md",
+}
+_STATIC_RAM_MAX = 12 * 1024 * 1024  # 12MB — model .ort lớn hơn thì stream
+
+
+def _dashboard_resolve(rel: str) -> Path | None:
+    """Đường tương đối dưới dashboard → Path tuyệt đối, hoặc None nếu lệch/không có file."""
+    p = Path(rel or "")
+    if p.is_absolute() or ".." in p.parts:
+        return None
+    base = DASHBOARD_PATH.resolve()
+    f = (DASHBOARD_PATH / rel).resolve()
+    try:
+        f.relative_to(base)
+    except ValueError:
+        return None
+    return f if f.is_file() else None
+
+
+def _dashboard_file_response(f: Path, headers: dict | None = None,
+                             media_type: str | None = None) -> Response:
+    """Trả file dashboard: ưu tiên đọc RAM (ổn định); file lớn thì stream open() thường."""
+    hdrs = dict(headers or {})
+    mt = media_type or (mimetypes.guess_type(f.name)[0] or "application/octet-stream")
+    try:
+        st = f.stat()
+    except OSError as e:
+        return Response(f"stat error: {e}", status_code=500)
+    hdrs.setdefault("ETag", f'"{st.st_mtime_ns:x}-{st.st_size:x}"')
+    hdrs.setdefault("Accept-Ranges", "bytes")
+    if st.st_size <= _STATIC_RAM_MAX or f.suffix.lower() in _STATIC_RAM_SUFFIX:
+        try:
+            return Response(content=f.read_bytes(), media_type=mt, headers=hdrs)
+        except OSError as e:
+            return Response(f"read error: {e}", status_code=500)
+
+    def _chunks():
+        with open(f, "rb") as fh:
+            while True:
+                block = fh.read(64 * 1024)
+                if not block:
+                    break
+                yield block
+
+    return StreamingResponse(_chunks(), media_type=mt, headers=hdrs)
+
+
+@app.get("/static/{path:path}")
+async def static_dashboard(path: str):
+    """CSS/JS/ảnh dashboard. Thay StaticFiles để tránh FileResponse 500 trên tenant lệch."""
+    f = _dashboard_resolve(path)
+    if f is None:
+        return Response("Not Found", status_code=404)
+    return _dashboard_file_response(f)
 
 
 @app.middleware("http")
@@ -1194,19 +1258,13 @@ async def versioned_dashboard_asset(ver: str, path: str):
     """
     if not _ASSET_VER_RE.fullmatch(ver or ""):
         return Response("Not Found", status_code=404)
-    rel = Path(path)
-    if rel.is_absolute() or ".." in rel.parts:
+    if Path(path).suffix.lower() not in (".js", ".css", ".mjs", ".map"):
         return Response("Not Found", status_code=404)
-    base = DASHBOARD_PATH.resolve()
-    f = (DASHBOARD_PATH / path).resolve()
-    try:
-        f.relative_to(base)
-    except ValueError:
+    f = _dashboard_resolve(path)
+    if f is None:
         return Response("Not Found", status_code=404)
-    if not f.is_file() or f.suffix.lower() not in (".js", ".css"):
-        return Response("Not Found", status_code=404)
-    return FileResponse(
-        str(f),
+    return _dashboard_file_response(
+        f,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
             "Cross-Origin-Resource-Policy": "same-origin",
@@ -1674,6 +1732,57 @@ PROVIDER_DEFS = [   # thứ tự = thứ tự hiển thị card ở trang Models
 def _provider_def(pid):
     return next((p for p in PROVIDER_DEFS if p["id"] == pid), None)
 
+
+def _routing_key_fields() -> dict:
+    return {p["id"]: p["key_field"] for p in PROVIDER_DEFS if p.get("key_field")}
+
+
+def _routing_defaults() -> dict:
+    out = {}
+    for p in PROVIDER_DEFS:
+        mods = p.get("default_models") or []
+        out[p["id"]] = {"model": mods[0] if mods else "", "reasoning": "off"}
+    return out
+
+
+def _routing_connected_ids(cfg) -> list:
+    ids = []
+    for p in _providers_view(cfg):
+        if p.get("configured") and p.get("cli_found") is not False:
+            ids.append(p["id"])
+    return ids
+
+
+def _routing_migrate(cfg) -> bool:
+    m = cfg.setdefault("model", {})
+    if int(m.get("routing_version") or 0) >= model_routing.ROUTING_VERSION:
+        return False
+    return model_routing.migrate(
+        m, connected_ids=_routing_connected_ids(cfg), defaults=_routing_defaults(),
+        key_fields=_routing_key_fields())
+
+
+def _route_ready(mcfg, prov) -> bool:
+    d = _provider_def(prov)
+    if not d:
+        return False
+    if d.get("kind") == "api":
+        if d.get("key_field"):
+            if model_routing.accounts(mcfg, prov, d["key_field"]):
+                return bool(model_routing.usable_accounts(mcfg, prov, d["key_field"]))
+            return bool(_provider_key(mcfg, d))
+        return bool(_provider_key(mcfg, d))
+    # CLI / OAuth: nghỉ hết lượt (account main hoặc mọi tài khoản phụ)
+    if model_routing.resting_until(prov, "main") > time.time():
+        return False
+    try:
+        if plan_accounts.supported(prov) and plan_accounts.has_extra(mcfg, prov):
+            return plan_accounts.pick(mcfg, prov) is not None
+    except Exception:
+        pass
+    return True
+
+
 def _effective_main(cfg):
     """Model chính HIỆU LỰC: lấy model.main nếu đã set; nếu rỗng → suy từ legacy engine
     (để config cũ chưa có 'main' vẫn route đúng provider)."""
@@ -1921,19 +2030,68 @@ def _provider_key(mcfg, d):
                 return tok
     except Exception:
         pass
-    return mcfg.get(d["key_field"], "") if d.get("key_field") else ""
+    kf = d.get("key_field")
+    if kf:
+        # Nhiều key: lấy key đầu còn lượt (không nghỉ).
+        acc = model_routing.active_account(mcfg, d.get("id") or "", kf)
+        if acc and acc.get("key"):
+            return acc["key"]
+        return mcfg.get(kf, "") or ""
+    return ""
 
 
 def _chat_provider(mcfg):
-    """Provider dùng cho chat (id, kind, key, model) - từ model chính hiệu lực."""
+    """Provider dùng cho chat (id, kind, key, model).
+
+    MAIN = đỉnh Thứ tự dùng. Hết lượt / mọi key nghỉ → nhảy nhà kế còn chạy được; không ghi settings.
+    """
     em = _effective_main({"model": mcfg})
     prov, model = em["provider"], em["model"]
+    if not _route_ready(mcfg, prov):
+        try:
+            signed_in = set(_routing_connected_ids(cfgmod.read_settings()))
+        except Exception:
+            signed_in = None
+        for cand in model_routing.order(mcfg)[1:]:
+            if (signed_in is None or cand in signed_in) and _route_ready(mcfg, cand):
+                prov = cand
+                model = model_routing.profile(mcfg, cand).get("model") or ""
+                break
     d = _provider_def(prov) or {}
     kind = d.get("kind", "cli")
     key = _provider_key(mcfg, d)
     if prov == "openrouter":
         model = model or mcfg.get("openrouter_model")
     return prov, kind, key, model
+
+
+def _chat_reasoning(mcfg, prov) -> str:
+    """Effort của thẻ đang chạy chat (MAIN lấy `reasoning`, thẻ khác lấy profile)."""
+    if prov == model_routing.main_provider(mcfg):
+        r = mcfg.get("reasoning")
+        return r if r in getattr(engine, "REASONING_LEVELS", ()) else "off"
+    r = model_routing.profile(mcfg, prov).get("reasoning")
+    return r if r in getattr(engine, "REASONING_LEVELS", ()) else "off"
+
+
+def _routing_view(mcfg, providers) -> dict:
+    """Payload trang Models: thứ tự thẻ đã nối, profile, chat/bg đang dùng."""
+    conn = [p["id"] for p in providers if p.get("configured") and p.get("cli_found") is not False]
+    o = model_routing.order(mcfg, conn)
+    chat = next((p for p in o if _route_ready(mcfg, p)), "")
+    bg = None
+    try:
+        for st in model_routing.background_chain(mcfg, conn):
+            if st["provider"] in conn and _route_ready(mcfg, st["provider"]):
+                bg = {"provider": st["provider"], "model": st["model"], "step": st["step"]}
+                break
+    except Exception as e:
+        print(f"[routing] view: {type(e).__name__}: {e}", file=sys.stderr)
+    multi = [pid for pid, kf in _routing_key_fields().items()
+             if any(x.get("id") == pid and x.get("configured") for x in providers)]
+    return {"order": o, "profiles": {p: model_routing.profile(mcfg, p) for p in o},
+            "background": model_routing.background_spec(mcfg), "chat_in_use": chat, "bg_in_use": bg,
+            "multi_key": multi, "main": model_routing.main_provider(mcfg)}
 
 
 # Provider mà AGENT chạy THẬT được. Không phải mọi provider ở trang Models: aux_engine chỉ
@@ -4337,6 +4495,91 @@ async def connect_oauth_callback(state: str = Query(""), code: str = Query("")):
     return HTMLResponse(html)
 
 
+
+@app.get("/models/routing")
+async def models_routing_get():
+    cfg = cfgmod.read_settings()
+    if _routing_migrate(cfg):
+        cfgmod.write_settings(cfg)
+    mcfg = cfg.get("model", {}) or {}
+    provs = _providers_view(cfg)
+    conn = [p["id"] for p in provs if p.get("configured") and p.get("cli_found") is not False]
+    o = model_routing.order(mcfg, conn)
+    return {
+        "ok": True,
+        "order": o,
+        "profiles": {p: model_routing.profile(mcfg, p) for p in o},
+        "accounts": {
+            pid: [{"id": a["id"], "label": a["label"], "enabled": a["enabled"],
+                   "key": ("••••" + a["key"][-4:]) if a.get("key") else "",
+                   "resting_until": model_routing.resting_until(pid, a["id"])}
+                  for a in model_routing.accounts(mcfg, pid, kf)]
+            for pid, kf in _routing_key_fields().items()
+            if model_routing.accounts(mcfg, pid, kf)
+        },
+        "chat_in_use": next((p for p in o if _route_ready(mcfg, p)), ""),
+        "providers": [{"id": p["id"], "label": p["label"], "configured": p.get("configured"),
+                       "kind": p.get("kind"), "key_field": (_provider_def(p["id"]) or {}).get("key_field")}
+                      for p in provs],
+    }
+
+
+@app.post("/models/routing/order")
+async def models_routing_order(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    ids = body.get("order") or []
+    cfg = cfgmod.read_settings()
+    m = cfg.setdefault("model", {})
+    model_routing.set_order(m, ids)
+    cfgmod.write_settings(cfg)
+    return {"ok": True, "order": model_routing.stored_order(m), "main": model_routing.main_provider(m)}
+
+
+@app.post("/models/routing/accounts")
+async def models_routing_accounts(request: Request):
+    """Lưu danh sách key của một nhà API. Body: {provider, accounts:[{id,label,enabled,key?}]}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    prov = str(body.get("provider") or "").strip()
+    d = _provider_def(prov)
+    if not d or not d.get("key_field"):
+        return JSONResponse({"ok": False, "error": "Nhà này không dùng nhiều API key"}, status_code=400)
+    cfg = cfgmod.read_settings()
+    m = cfg.setdefault("model", {})
+    lst = body.get("accounts") or []
+    # Giữ key cũ khi client gửi placeholder ••••
+    cur = {a["id"]: a for a in model_routing.accounts(m, prov, d["key_field"])}
+    cleaned = []
+    for a in lst:
+        aid = str(a.get("id") or "").strip() or model_routing.new_account_id()
+        key = str(a.get("key") or "")
+        if key.startswith("••••") and aid in cur:
+            key = cur[aid].get("key") or ""
+        cleaned.append({"id": aid, "label": str(a.get("label") or "Key"), "enabled": bool(a.get("enabled", True)), "key": key})
+    model_routing.save_accounts(m, prov, cleaned, d["key_field"])
+    model_routing.add_to_order(m, prov)
+    cfgmod.write_settings(cfg)
+    return {"ok": True}
+
+
+@app.post("/models/routing/mark-rest")
+async def models_routing_mark_rest(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    prov = str(body.get("provider") or "").strip()
+    aid = str(body.get("account_id") or "main").strip() or "main"
+    secs = float(body.get("seconds") or 0)
+    until = float(body.get("until") or 0)
+    model_routing.mark_rest(prov, aid, seconds=secs, until=until, persist=True)
+    return {"ok": True, "resting_until": model_routing.resting_until(prov, aid)}
+
 @app.get("/settings")
 async def settings_get():
     cfg = cfgmod.read_settings()
@@ -4382,8 +4625,38 @@ async def settings_get():
     safe["tool_apis"] = {
         "keys_set": {str(k): bool(str(v or "").strip()) for k, v in raw_ta.items()}
     }
+    if _routing_migrate(cfg):
+        try:
+            cfgmod.write_settings(cfg)
+        except Exception as e:
+            print(f"[routing migrate] {e}", file=sys.stderr)
     safe["model"]["providers"] = _providers_view(cfg)   # danh sách provider + trạng thái + model
     safe["model"]["main"] = _effective_main(cfg)         # model chính hiệu lực (suy từ legacy nếu cần)
+    # Thứ tự dùng + danh sách key (che secret, lộ 4 ký tự cuối + giờ nghỉ).
+    try:
+        mcfg = cfg["model"]
+        conn = [p["id"] for p in safe["model"]["providers"] if p.get("configured") and p.get("cli_found") is not False]
+        o = model_routing.order(mcfg, conn)
+        chat_now = next((p for p in o if _route_ready(mcfg, p)), "")
+        safe["model"]["routing"] = {
+            "order": o,
+            "profiles": {p: model_routing.profile(mcfg, p) for p in o},
+            "chat_in_use": chat_now,
+            "main": model_routing.main_provider(mcfg),
+        }
+        safe["model"].pop("account_keys", None)
+        safe["model"]["accounts"] = {
+            pid: [{"id": a["id"], "label": a["label"], "enabled": a["enabled"],
+                   "key": ("••••" + a["key"][-4:]) if a.get("key") else "",
+                   "resting_until": model_routing.resting_until(pid, a["id"])}
+                  for a in model_routing.accounts(mcfg, pid, kf)]
+            for pid, kf in _routing_key_fields().items()
+            if model_routing.accounts(mcfg, pid, kf)
+        }
+    except Exception as e:
+        print(f"[routing view] {e}", file=sys.stderr)
+        safe["model"]["routing"] = {"order": [], "profiles": {}, "chat_in_use": "", "main": ""}
+        safe["model"]["accounts"] = {}
     return safe
 
 
@@ -4419,26 +4692,86 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
             cfg["setup_done"] = bool(patch["setup_done"])
     elif section == "model":
         m = cfg["model"]
-        # Đặt model chính theo provider (UI mới)
+        # Đặt model chính theo provider (UI mới) - đồng thời đẩy thẻ lên đầu Thứ tự dùng.
         if patch.get("main"):
             prov = patch["main"].get("provider"); mod = patch["main"].get("model")
-            if _provider_def(prov) and mod:
-                _set_main_model(cfg, prov, mod)
+            if _provider_def(prov) and mod is not None:
+                _set_main_model(cfg, prov, mod or "")
+                model_routing.promote(m, prov, mod or "")
         # Nhập credential provider (chỉ ghi khi có giá trị mới - tránh xoá bằng giá trị che ••••)
         for kf in ("openrouter_key", "anthropic_api_key", "openai_api_key", "gemini_api_key",
                    "groq_api_key", "deepseek_api_key", "ollama_key", "copilot_github_token"):
-            if patch.get(kf):
+            if patch.get(kf) and not str(patch[kf]).strip().startswith("••••"):
                 m[kf] = patch[kf]
+                # Key đơn cũ → tạo/cập nhật account 1 trong danh sách nhiều key.
+                pid = next((p["id"] for p in PROVIDER_DEFS if p.get("key_field") == kf), "")
+                if pid:
+                    cur = model_routing.accounts(m, pid, kf)
+                    if not cur:
+                        cur = [{"id": model_routing.new_account_id(), "label": "Key 1",
+                                "enabled": True, "key": patch[kf]}]
+                    else:
+                        cur[0]["key"] = patch[kf]
+                        cur[0]["enabled"] = True
+                    model_routing.save_accounts(m, pid, cur, kf)
+                    model_routing.add_to_order(m, pid)
                 if kf == "copilot_github_token":
                     try:
                         copilot_cli.xoa_cache_auth()
                     except Exception:
                         pass
+        # Nhiều key: {provider, items:[{id,label,enabled,key?}]}
+        if isinstance(patch.get("accounts"), dict) and patch["accounts"].get("provider"):
+            ap = patch["accounts"]
+            pid = str(ap.get("provider") or "").strip()
+            d = _provider_def(pid)
+            if d and d.get("key_field"):
+                items = ap.get("items")
+                if items is None:
+                    items = ap.get("accounts") or []
+                if items == []:
+                    model_routing.save_accounts(m, pid, [], d["key_field"])
+                    model_routing.drop_from_order(m, pid)
+                else:
+                    cur = {a["id"]: a for a in model_routing.accounts(m, pid, d["key_field"])}
+                    cleaned = []
+                    for a in items:
+                        aid = str(a.get("id") or "").strip() or model_routing.new_account_id()
+                        key = str(a.get("key") or "")
+                        if (not key or key.startswith("••••")) and aid in cur:
+                            key = cur[aid].get("key") or ""
+                        if not key and aid not in cur:
+                            continue  # tài khoản mới thiếu key → bỏ qua, giữ danh sách cũ
+                        cleaned.append({"id": aid, "label": str(a.get("label") or "Key"),
+                                        "enabled": bool(a.get("enabled", True)), "key": key})
+                    if cleaned or items == []:
+                        if not cleaned and items:
+                            pass  # toàn bộ item mới thiếu key → không đụng
+                        else:
+                            model_routing.save_accounts(m, pid, cleaned, d["key_field"])
+                            if cleaned:
+                                model_routing.add_to_order(m, pid)
+        # Thứ tự dùng
+        if isinstance(patch.get("order"), list):
+            model_routing.set_order(m, patch["order"])
+            em = m.get("main") or {}
+            if em.get("provider"):
+                _set_main_model(cfg, em["provider"], em.get("model") or "")
+        # Profile từng thẻ (model + effort)
+        if isinstance(patch.get("profile"), dict) and patch["profile"].get("provider"):
+            pr = patch["profile"]
+            model_routing.set_profile(m, pr["provider"], pr.get("model"), pr.get("reasoning"))
+            model_routing.sync_main(m)
+            em = m.get("main") or {}
+            if em.get("provider"):
+                _set_main_model(cfg, em["provider"], em.get("model") or "")
         # Ngắt kết nối 1 provider (xoá key). Nếu nó đang là MAIN → quay về Claude Code CLI để chat không gãy.
         if patch.get("clear_key"):
             d = _provider_def(patch["clear_key"])
             if d and d.get("key_field"):
                 m[d["key_field"]] = ""
+                model_routing.save_accounts(m, d["id"], [], d["key_field"])
+                model_routing.drop_from_order(m, d["id"])
                 if patch["clear_key"] == "copilot-cli":
                     try:
                         copilot_cli.xoa_cache_auth()
@@ -4446,6 +4779,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
                         pass
                 if _effective_main(cfg).get("provider") == patch["clear_key"]:
                     _set_main_model(cfg, "anthropic-cli", m.get("claude_model") or "opus")
+                    model_routing.promote(m, "anthropic-cli", m.get("claude_model") or "opus")
         # Gói Claude Code xác thực bằng gì: phiên subscription sẵn có, hay API key riêng.
         # Giá trị lạ về "subscription" thay vì báo lỗi - đây là ô hai lựa chọn, gõ sai thì lui
         # về cái không tốn tiền của người dùng chứ không làm chết đường chat.
@@ -4456,10 +4790,14 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         if "auxiliary" in patch:   # model phụ cho việc nền (provider + model)
             aux_patch = patch["auxiliary"] or {}
             aux = m.setdefault("auxiliary", {})
-            aux["model"] = aux_patch.get("model", "")
-            # Thiếu provider (client cũ) = Claude, đúng hành vi trước khi mở nhiều provider.
-            prov = aux_patch.get("provider") or aux_engine.CLAUDE
-            aux["provider"] = prov if _provider_def(prov) else aux_engine.CLAUDE
+            if "model" in aux_patch:
+                aux["model"] = aux_patch.get("model", "")
+            if "provider" in aux_patch:
+                prov = aux_patch.get("provider") or aux_engine.CLAUDE
+                aux["provider"] = prov if _provider_def(prov) else aux_engine.CLAUDE
+            if "reasoning" in aux_patch:
+                r = aux_patch.get("reasoning")
+                aux["reasoning"] = r if r in engine.REASONING_LEVELS else "off"
         if "research" in patch:   # model nghiên cứu / workflow (tách khỏi việc nền)
             rs_patch = patch["research"] or {}
             rs = m.setdefault("research", {})
@@ -4482,6 +4820,7 @@ async def settings_set(section: str = Form(...), data: str = Form("{}")):
         if "reasoning" in patch:
             r = patch["reasoning"]
             m["reasoning"] = r if r in engine.REASONING_LEVELS else "off"
+            model_routing.set_profile(m, model_routing.main_provider(m), reasoning=m["reasoning"])
         # Legacy trực tiếp (tương thích ngược)
         for k in ("engine", "claude_model", "openrouter_model"):
             if k in patch:
@@ -12808,7 +13147,14 @@ async def brand_logo():
     if not p.exists():
         return JSONResponse({"error": "no logo"}, status_code=404)
     # cache ngắn: đổi ảnh xong thấy ngay trong ~1 phút; JS còn bust bằng ?v= khi vừa upload.
-    return FileResponse(str(p), headers={"Cache-Control": "public, max-age=60"})
+    # Dùng _dashboard_file_response (hoặc đọc RAM) — FileResponse 500 trên một số tenant.
+    try:
+        data = p.read_bytes()
+    except OSError as e:
+        return JSONResponse({"error": f"logo read: {e}"}, status_code=500)
+    mt = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
+    return Response(content=data, media_type=mt,
+                    headers={"Cache-Control": "public, max-age=60"})
 
 
 def _brand_icon_png_bytes(size: int) -> bytes:
@@ -20267,6 +20613,183 @@ async def _shutdown_mcp_pool():
         terminal.KHO.dong_het()
     except Exception:
         pass
+
+
+
+# ============================================================
+# Messenger (port upstream): Fanpage inbox qua webhook Meta
+# ============================================================
+def _ms_verify_token() -> str:
+    m = cfgmod.read_settings().get("messenger", {}) or {}
+    tok = str(m.get("verify_token") or "").strip()
+    if not tok:
+        tok = secrets.token_urlsafe(24)
+        cfgmod.update_settings({"messenger": {"verify_token": tok}})
+    return tok
+
+
+def _ms_account_secrets() -> list:
+    out = []
+    try:
+        for a in channel_accounts.list_accounts(channel="messenger"):
+            cr = messenger_bot.split_credentials(channel_accounts.get_token(a.get("id", "")))
+            if cr.get("app_secret"):
+                out.append(cr["app_secret"])
+    except Exception as e:
+        print(f"[messenger secrets] {type(e).__name__}: {e}", file=sys.stderr)
+    return out
+
+
+def _ms_webhook_url(request: Request) -> str:
+    base = web_security.external_base(
+        request.url.scheme, request.url.netloc,
+        request.headers.get("x-forwarded-proto", ""), request.headers.get("x-forwarded-host", ""))
+    return base + "/messenger/webhook"
+
+
+def _ms_account_view(a: dict) -> dict:
+    bots = chatbot_store.bots_using_account(a.get("id", ""))
+    meta = a.get("meta") or {}
+    return {"id": a.get("id"), "label": a.get("label"), "page_id": a.get("external_id"),
+            "page_name": meta.get("bot_name", ""), "app_id": meta.get("app_id", ""),
+            "brain": meta.get("brain", ""),
+            "bots": [{"id": b["id"], "name": b.get("name"), "enabled": bool(b.get("enabled"))} for b in bots]}
+
+
+def _ms_account_creds(account_id: str):
+    a = channel_accounts.get_account(account_id)
+    if not a or a.get("channel") != "messenger":
+        return None, None
+    return a, messenger_bot.split_credentials(channel_accounts.get_token(account_id))
+
+
+def _ms_bot_running(account_id: str, page_id: str) -> bool:
+    return bool(page_id in messenger_bot.registered()
+                or any(b.get("enabled") for b in chatbot_store.bots_using_account(account_id)))
+
+
+@app.get("/channels/webhook-info")
+async def channels_webhook_info(request: Request, channel: str = ""):
+    if str(channel or "").strip().lower() != "messenger":
+        return JSONResponse({"ok": False, "error": "Kênh này không dùng webhook"}, status_code=400)
+    url = _ms_webhook_url(request)
+    return {"ok": True, "webhook_url": url, "verify_token": _ms_verify_token(),
+            "https": url.startswith("https://")}
+
+
+@app.get("/messenger/webhook")
+async def messenger_webhook_verify(request: Request):
+    q = request.query_params
+    want = _ms_verify_token()
+    got = str(q.get("hub.verify_token") or "")
+    if q.get("hub.mode") == "subscribe" and got and secrets.compare_digest(got, want):
+        return PlainTextResponse(str(q.get("hub.challenge") or ""))
+    return PlainTextResponse("forbidden", status_code=403)
+
+
+@app.post("/messenger/webhook")
+async def messenger_webhook(request: Request):
+    raw = await request.body()
+    if len(raw) > 2_000_000:
+        return PlainTextResponse("too large", status_code=413)
+    sig = request.headers.get("x-hub-signature-256", "")
+    if not messenger_bot.verify_signature(raw, sig, _ms_account_secrets()):
+        return PlainTextResponse("bad signature", status_code=401)
+    try:
+        payload = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        return PlainTextResponse("bad json", status_code=400)
+    n = await messenger_bot.handle_webhook(payload)
+    return {"ok": True, "events": n}
+
+
+@app.get("/messenger/setup")
+async def messenger_setup_info(request: Request, brain: str = ""):
+    url = _ms_webhook_url(request)
+    accs = channel_accounts.list_accounts(channel="messenger")
+    loc = str(brain or "").strip()
+    if loc:
+        accs = [a for a in accs if (a.get("meta") or {}).get("brain", "") in ("", loc)]
+    return {"ok": True, "webhook_url": url, "https": url.startswith("https://"),
+            "verify_token": _ms_verify_token(), "accounts": [_ms_account_view(a) for a in accs]}
+
+
+@app.post("/messenger/connect")
+async def messenger_connect(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    page_id = str(body.get("page_id") or "").strip()
+    res = await messenger_setup.connect(page_id, body.get("app_id"), body.get("app_secret"),
+                                        body.get("token"), _ms_webhook_url(request), _ms_verify_token())
+    if not res.get("ok"):
+        return JSONResponse({"ok": False, "error": res.get("error", ""), "step": res.get("step", "")},
+                            status_code=400)
+    secret = f"{page_id} {res['page_token']} {str(body.get('app_secret') or '').strip()}"
+    brain = str(body.get("brain") or "").strip()
+    meta = {"bot_name": res.get("page_name", ""), "app_id": str(body.get("app_id") or "").strip(),
+            "webhook_url": _ms_webhook_url(request), "brain": brain}
+    old = channel_accounts.owner_of(page_id, "messenger")
+    if old:
+        aid = old["id"]
+        ok, loi = channel_accounts.update_account(aid, {"token": secret, "external_id": page_id,
+                                                        "meta": {**(old.get("meta") or {}), **meta}})
+        if not ok:
+            return JSONResponse({"ok": False, "error": loi}, status_code=400)
+        for b in chatbot_store.bots_using_account(aid):
+            if b.get("enabled"):
+                try:
+                    chatbot_runtime.start_bot(b["id"])
+                except Exception:
+                    pass
+    else:
+        aid, loi = channel_accounts.create_account({
+            "channel": "messenger", "token": secret, "external_id": page_id, "meta": meta,
+            "label": str(body.get("label") or "").strip() or res.get("page_name", "") or page_id})
+        if loi:
+            return JSONResponse({"ok": False, "error": loi}, status_code=400)
+    a = channel_accounts.get_account(aid) or {}
+    chk = res.get("check") or {}
+    chk.setdefault("items", []).append(messenger_setup._item(
+        "bot", True if _ms_bot_running(aid, page_id) else None, ("Có bot đang trực", "A bot is answering"), "",
+        ("Vào Chatbot, tạo hoặc bật bot cho kênh Messenger.",
+         "Open Chatbot and create or turn on a bot for Messenger.")))
+    return {"ok": True, "updated": bool(old), "account": _ms_account_view(a), "check": chk,
+            "repair_errors": res.get("repair_errors", [])}
+
+
+@app.post("/messenger/check")
+async def messenger_check(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    aid = str(body.get("account_id") or "").strip()
+    a, cr = _ms_account_creds(aid)
+    if not a:
+        return JSONResponse({"ok": False, "error": "Không có tài khoản Messenger này"}, status_code=404)
+    meta = a.get("meta") or {}
+    url = _ms_webhook_url(request)
+    if not url.startswith("https://"):
+        url = meta.get("webhook_url", "")
+    errs = []
+    import httpx
+    async with httpx.AsyncClient(timeout=25) as c:
+        app_id = meta.get("app_id", "")
+        if not app_id:
+            info = await messenger_setup.debug_token(c, cr["access_token"])
+            app_id = info.get("app_id", "") if info.get("ok") else ""
+            if app_id:
+                channel_accounts.update_account(aid, {"meta": {**meta, "app_id": app_id}})
+        if body.get("repair") and app_id:
+            rep = await messenger_setup.repair(c, cr["page_id"], cr["access_token"], app_id,
+                                               cr["app_secret"], url, _ms_verify_token())
+            errs = rep.get("errors", [])
+        chk = await messenger_setup.run_checks(c, cr["page_id"], cr["access_token"], cr["app_secret"],
+                                               app_id, url, _ms_bot_running(aid, cr["page_id"]))
+    return {"ok": True, "account": _ms_account_view(channel_accounts.get_account(aid) or a),
+            "check": chk, "repair_errors": errs}
 
 
 if __name__ == "__main__":

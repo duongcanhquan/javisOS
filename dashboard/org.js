@@ -1217,7 +1217,15 @@
     el.querySelectorAll("[data-org-pw-open]").forEach((b) => {
       b.addEventListener("click", () => {
         const f = el.querySelector('[data-org-pw="' + b.getAttribute("data-org-pw-open") + '"]');
-        if (f) f.hidden = !f.hidden;
+        if (!f) return;
+        f.hidden = !f.hidden;
+        if (!f.hidden) {
+          tipOn(f, "");
+          const note = f.querySelector("[data-org-pw-note]");
+          if (note) note.textContent = "";
+          const inp = f.querySelector('input[name="password"]');
+          if (inp && inp.focus) try { inp.focus(); } catch (e) {}
+        }
       });
     });
     el.querySelectorAll("[data-org-gen]").forEach((b) => {
@@ -1228,7 +1236,9 @@
         f.password.value = pw;
         f.password2.value = pw;
         const note = f.querySelector("[data-org-pw-note]");
-        if (note) note.textContent = "Gợi ý chưa lưu: " + pw + ". Copy câu này, rồi bấm Lưu mật khẩu mới.";
+        const line = "Gợi ý chưa lưu: " + pw + ". Copy câu này, rồi bấm Lưu mật khẩu mới.";
+        if (note) note.textContent = line;
+        tipOn(f, "Đã điền gợi ý. Bấm Lưu mật khẩu mới để áp dụng.");
         if (msg) msg.textContent = "Đã điền gợi ý vào ô. Bấm Lưu mật khẩu mới thì mật khẩu đăng nhập mới đổi.";
       });
     });
@@ -1269,23 +1279,47 @@
     el.querySelectorAll("form[data-org-pw]").forEach((f) => {
       f.addEventListener("submit", async (ev) => {
         ev.preventDefault();
-        if (f.password.value !== f.password2.value) {
-          msg.textContent = "Hai mật khẩu không khớp.";
+        const slug = f.getAttribute("data-org-pw");
+        const note = f.querySelector("[data-org-pw-note]");
+        const btn = f.querySelector('button[type="submit"]');
+        const say = (t) => {
+          if (note) note.textContent = t || "";
+          tipOn(f, t || "");
+          if (msg) msg.textContent = t || "";
+        };
+        const pw1 = String(f.password.value || "");
+        const pw2 = String(f.password2.value || "");
+        if (pw1 !== pw2) {
+          say("Hai mật khẩu không khớp.");
           return;
         }
-        const slug = f.getAttribute("data-org-pw");
+        if (pw1.length < 10) {
+          say("Mật khẩu mới cần ít nhất 10 ký tự (có chữ và số).");
+          return;
+        }
+        say("Đang lưu mật khẩu mới… (máy tắt sẽ được bật tạm)");
+        busyBtn(btn, true);
         try {
-          await api("/org/tenants/" + encodeURIComponent(slug) + "/password", {
+          const res = await api("/org/tenants/" + encodeURIComponent(slug) + "/password", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: f.password.value }),
+            body: JSON.stringify({ password: pw1 }),
           });
-          const note = f.querySelector("[data-org-pw-note]");
-          if (note) note.textContent = "";
-          msg.textContent = "Đã lưu mật khẩu mới cho " + slug + ". Người đó đăng nhập bằng mật khẩu vừa lưu. VMOS không giữ bản sao.";
-          f.hidden = true;
+          const okLine = (res && res.note)
+            || ("Đã lưu mật khẩu mới cho " + slug + ". Người đó đăng nhập bằng mật khẩu vừa lưu. VMOS không giữ bản sao.");
+          say(okLine);
+          orgFlash = okLine;
           f.reset();
-        } catch (e) { msg.textContent = e.message; }
+          // Giữ form mở ~1.2s để thấy dòng xác nhận ngay trên thẻ, rồi thu lại.
+          setTimeout(() => {
+            f.hidden = true;
+            if (note) note.textContent = "";
+          }, 1200);
+        } catch (e) {
+          say(e.message || "Không lưu được mật khẩu.");
+        } finally {
+          busyBtn(btn, false);
+        }
       });
     });
     startRamPoll(el);

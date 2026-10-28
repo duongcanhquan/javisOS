@@ -227,6 +227,12 @@ check("đổi mật khẩu tenant tách gợi ý và lưu",
       and "Đổi mật khẩu đăng nhập" in org_js
       and ">Tạo mật khẩu</button>" not in org_js
       and ">Đặt mật khẩu</button>" not in org_js)
+check("đổi MK hiện tín hiệu ngay trên thẻ (tip + note), không chỉ #orgMsg ẩn trên tab khác",
+      "Đang lưu mật khẩu mới" in org_js and "tipOn(f," in org_js
+      and 'data-org-pw-note' in org_js)
+check("đổi MK bật máy tắt trước khi docker exec",
+      "ensure_running_for_exec" in src and "slug=slug" in org_py
+      and "set_admin(cname, login, password, slug=slug)" in org_py)
 check("trang Tổ chức tắt mã 2 lớp",
       "Tắt mã 2 lớp" in org_js and "/2fa/tat" in org_js and "/2fa/tat" in org_py)
 check("tắt 2FA gọi totp_tat", "def tat_2fa" in src and "c.totp_tat()" in src)

@@ -4302,6 +4302,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
           <div><h2 class="jx-page-title">Models</h2>
           <p class="jx-page-lead">Ba lớp model: <b>chính</b> (chat), <b>nghiên cứu</b> (workflow / Studio), <b>việc nền</b> (loop · Kanban · nhắc). Kết nối nhà cung cấp ở tab bên dưới.</p></div>
         </header>
+        <div id="modelOrderHost"></div>
         <div class="jx-split-2 md-top-grid">
           <section class="cview-section jx-pane">
             <h3>Model chính</h3>
@@ -4392,6 +4393,7 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     el.querySelectorAll("[data-mtab]").forEach(b => b.onclick = () => setMTab(b.dataset.mtab));
 
     const chg = document.getElementById("mdChange");
+    if (window.JavisModelOrder) window.JavisModelOrder.mount(document.getElementById("modelOrderHost"));
     if (chg) chg.onclick = () => openModelPicker(provList, main, () => renderModelsCloudTab(el));
     // Nguồn xác thực của gói Claude Code. Vẽ lại cả trang sau khi lưu vì cảnh báo phụ thuộc
     // cả lựa chọn này LẪN model việc nền - chỉ server mới ghép được hai thứ đó.
@@ -5804,7 +5806,8 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       + '<span class="conn-sec-count">' + conns.length + ' tài khoản</span></div>'
       + '<div class="conn-lead">Một dịch vụ nối được nhiều tài khoản. Mọi bộ não dùng chung kho này qua trung tâm kết nối VMOS.</div>'
       + '<label class="conn-strict"><input type="checkbox" id="mcpStrict" ' + (d.strict ? "checked" : "") + '> Chỉ dùng kết nối của VMOS (bỏ kết nối sẵn của máy)</label>'
-      + '<div class="conn-grid">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào — mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div></div>'
+      + '<div class="conn-grid">' + (connectedHtml || '<div class="mp-empty conn-empty">Chưa đấu nguồn nào — mở tab <b>Kết nối sẵn có</b> để bắt đầu.</div>') + '</div>'
+      + '<div class="conn-grid" id="mcpMessenger" style="margin-top:12px"></div></div>'
       + '<div class="conn-guide conn-cta">'
       + '<span class="conn-cta-text">Muốn nối thêm dịch vụ? Chọn từ kho sẵn có, hoặc tải thêm từ VMOS Store.</span>'
       + '<div class="conn-cta-actions">'
@@ -5821,7 +5824,10 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       + '<div class="cat-tools conn-tools">'
       + '<input class="js-input conn-search" id="catQ" placeholder="Tìm dịch vụ…">'
       + '<span class="cat-filter"><button class="cat-chip on" data-catf="">Tất cả</button>' + cats.map(x => '<button class="cat-chip" data-catf="' + esc(x) + '">' + esc(x) + '</button>').join("") + '</span></div>'
-      + '<div class="cat-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns) + catSolo(cat).map(catalogCard).join("") + '</div></div>'
+      + '<div class="cat-grid" id="catGrid">' + catalogCard(byId.custom) + groupCards(cat, conns)
+      + (window.JavisMessenger && window.JavisMessenger.catCard
+        ? window.JavisMessenger.catCard((cat.find(c => c.id === "zalo") || {}).category || "Chat") : "")
+      + catSolo(cat).map(catalogCard).join("") + '</div></div>'
       + khuDaGo
       + '</div></div>';
     // Ba tab. Hai tab đầu chỉ đổi khối hiển thị trong trang; tab thứ ba ĐIỀU HƯỚNG sang kho
@@ -5842,6 +5848,11 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
       { nhan: "Kết nối sẵn có", chon: _mcpTab === "sanco", bam: () => doiTab("sanco") },
     ]);
     if (tabKho) el.insertBefore(tabKho, el.firstChild);
+    window.JavisConnModal = { open: connModal, head: mHead, close: closeConnModal };
+    if (window.JavisMessenger) window.JavisMessenger.mount(document.getElementById("mcpMessenger"));
+    el.querySelectorAll("#catGrid [data-msc-open]").forEach(b => b.onclick = () => {
+      if (window.JavisMessenger && window.JavisMessenger.openForm) window.JavisMessenger.openForm(null);
+    });
     const nutSanCo = document.getElementById("mcpDiSanCo");
     if (nutSanCo) nutSanCo.onclick = () => doiTab("sanco");
     // Từ banner mồ côi sang thẳng gói cần cài, ô tìm điền sẵn id connector. Thả người dùng vào
@@ -8203,7 +8214,12 @@ Tệp vẫn nằm trong bản cài, cài lại được bất cứ lúc nào. C�
     // .pdf: trình duyệt tự đọc được, nên xem NGAY tại chỗ thay vì mời tải về. Popup cũ của trang
     // Tệp tin có sẵn khung xem này; bỏ popup mà không mang theo là mất một thứ đang chạy tốt.
     if (VT_FRAME_EXTS.includes(ext)) {
-      body.innerHTML = `<iframe class="ne-frame" src="${_vtRaw(rel)}"></iframe>`;
+      // PDF cuộn trong hộp riêng; điện thoại có nút X nổi (port upstream 0.332).
+      body.innerHTML =
+        `<div class="ne-pdf"><iframe class="ne-frame" src="${_vtRaw(rel)}"></iframe></div>` +
+        `<button type="button" class="pdf-float-close" title="Đóng" aria-label="Đóng">${X_ICON}</button>`;
+      const fab = body.querySelector(".pdf-float-close");
+      if (fab) fab.onclick = closeNote;
       _neCommonBtns(actions, rel, it); _vtMarkActive(null); return;
     }
     if (VT_TEXT_EXTS.includes(ext)) {
