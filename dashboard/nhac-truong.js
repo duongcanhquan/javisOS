@@ -707,6 +707,16 @@
     return text.slice(0, 72) + (text.length > 72 ? "…" : "");
   }
 
+  function viTriNguoi(n) {
+    return (n && n.vi_tri) || (n && n.vai === "truong" ? "Trưởng phòng" : "Thành viên");
+  }
+
+  function trungGiao(n, giao) {
+    if (!n || !giao) return false;
+    var g = String(giao).trim().toLowerCase();
+    return (n.ten && n.ten.toLowerCase() === g) || (n.slug && n.slug.toLowerCase() === g);
+  }
+
   function actorState(n, slug, d, v) {
     var bat = !!(d && laDang(d, n, slug));
     var tt = bat ? (_BUOC_TT_UI[d.buoc] || "lam") : ttNguoi(slug, n);
@@ -715,6 +725,7 @@
     var chon = S._actor && S._actor.phong === slug && S._actor.slug === n.slug;
     var di = bat && d && d.giao_cho && (d.buoc === "lam" || d.buoc === "doi" || d.buoc === "giao" || d.buoc === "nhan");
     var hop = bat && d && (d.buoc === "hop" || d.buoc === "chia" || d.buoc === "dap" || d.buoc === "gop");
+    var nhan = !!(d && d.phong === slug && d.giao_cho && trungGiao(n, d.giao_cho) && !bat);
     var cls = "nt-actor" +
       (head ? " head" : "") +
       (bat || tt === "lam" ? " on" : "") +
@@ -722,6 +733,7 @@
       (tt === "cho" ? " cho" : "") +
       (di ? " walk" : "") +
       (hop ? " meet" : "") +
+      (nhan ? " recv" : "") +
       (chon ? " sel" : "");
     return {
       bat: bat,
@@ -729,6 +741,8 @@
       cls: cls,
       bubble: bubbleText(v, slug, n.slug, bat),
       nhan: nhanTt(tt, bat),
+      role: viTriNguoi(n),
+      recv: nhan,
     };
   }
 
@@ -744,8 +758,76 @@
       '<img class="nt-actor-face" alt="" src="' + esc(avatarUrl(avatarCua(n, slug), n)) + '">' +
       (head ? '<span class="nt-badge">★</span>' : "") +
       '<span class="nt-actor-name">' + esc(n.ten) + "</span>" +
+      '<span class="nt-actor-role">' + esc(st.role) + "</span>" +
       '<span class="nt-actor-st">' + esc(st.nhan) + "</span>" +
       "</button>";
+  }
+
+  function nhanLuong(buoc) {
+    if (buoc === "nhan") return "xem bàn giao";
+    if (buoc === "doi") return "trả lời";
+    if (buoc === "giao") return "giao việc";
+    if (buoc === "hop" || buoc === "gop" || buoc === "chia" || buoc === "dap") return "họp";
+    if (buoc === "lam") return "bàn giao";
+    return "chuyển";
+  }
+
+  function flowSvg(all, d, v, slug) {
+    if (!all || all.length < 2) return "";
+    var tong = all.length;
+    var mid = "ntArr-" + String(slug || "x").replace(/[^a-zA-Z0-9_-]/g, "");
+    var softId = mid + "-s";
+    var hotId = mid + "-h";
+    var parts = [];
+    var i;
+    // Luồng quy trình phòng: A → B → C (mờ)
+    for (i = 0; i < all.length - 1; i++) {
+      var a = slotIso(i, tong);
+      var b = slotIso(i + 1, tong);
+      var x1 = a.x + 6, y1 = a.y + 16;
+      var x2 = b.x + 6, y2 = b.y + 16;
+      parts.push('<line class="nt-flow-soft" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+        '" marker-end="url(#' + softId + ')"/>');
+    }
+    // Mũi tên nóng khi đang giao / chuyển việc
+    if (d && d.phong === slug && d.giao_cho) {
+      var from = -1, to = -1;
+      for (i = 0; i < all.length; i++) {
+        if (laDang(d, all[i], slug)) from = i;
+        if (trungGiao(all[i], d.giao_cho)) to = i;
+      }
+      if (from >= 0 && to >= 0 && from !== to) {
+        var p1 = slotIso(from, tong);
+        var p2 = slotIso(to, tong);
+        var fx = p1.x + 6, fy = p1.y + 14;
+        var tx = p2.x + 6, ty = p2.y + 14;
+        var mx = (fx + tx) / 2, my = (fy + ty) / 2 - 4;
+        parts.push('<line class="nt-flow-hot" x1="' + fx + '" y1="' + fy + '" x2="' + tx + '" y2="' + ty +
+          '" marker-end="url(#' + hotId + ')"/>');
+        parts.push('<foreignObject x="' + (mx - 10) + '" y="' + (my - 4) + '" width="20" height="8">' +
+          '<div xmlns="http://www.w3.org/1999/xhtml" class="nt-flow-label">' + esc(nhanLuong(d.buoc)) + "</div>" +
+          "</foreignObject>");
+      }
+    }
+    if (!parts.length) return "";
+    return '<svg class="nt-flow-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">' +
+      "<defs>" +
+      '<marker id="' + softId + '" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">' +
+      '<path d="M0,0 L6,3 L0,6 Z" fill="currentColor" opacity=".45"/></marker>' +
+      '<marker id="' + hotId + '" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">' +
+      '<path d="M0,0 L7,3.5 L0,7 Z" fill="currentColor"/></marker>' +
+      "</defs>" + parts.join("") + "</svg>";
+  }
+
+  function stripLuong(all, d, slug) {
+    if (!all || !all.length) return "";
+    return '<div class="nt-flow-strip">' + all.map(function (n, i) {
+      var bat = d && laDang(d, n, slug);
+      var nhan = d && d.giao_cho && trungGiao(n, d.giao_cho) && !bat;
+      return (i ? '<span class="nt-flow-chev" aria-hidden="true">→</span>' : "") +
+        '<span class="nt-flow-node' + (bat ? " on" : "") + (nhan ? " recv" : "") + '">' +
+        esc(n.ten) + "<small>" + esc(viTriNguoi(n)) + "</small></span>";
+    }).join("") + "</div>";
   }
 
   var _BUOC_TT_UI = {
@@ -767,7 +849,8 @@
       '<header><span class="nt-qno">' + (i + 1) + "</span>" +
       (p.icon ? '<img alt="" src="' + esc(p.icon) + '">' : "") +
       "<b>" + esc(p.ten) + "</b></header>" +
-      '<div class="nt-iso-room">' + actors + "</div></section>";
+      stripLuong(all, run ? d : null, slug) +
+      '<div class="nt-iso-room">' + flowSvg(all, run ? d : null, v, slug) + actors + "</div></section>";
   }
 
   function htmlMap() {
@@ -2106,16 +2189,25 @@
     stage.classList.toggle("running", !!(v && v.trang_thai === "dang_chay"));
     stage.querySelectorAll("[data-floor]").forEach(function (floor) {
       var slug = floor.getAttribute("data-floor") || "";
-      floor.classList.toggle("on", !!(d && d.phong === slug));
+      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
+      if (!p) return;
+      var truong = truongCua(p);
+      var day = v ? dayViec(p, v) : (p.nguoi || []).filter(function (n) { return n.vai !== "truong"; });
+      var all = [];
+      if (truong) all.push(truong);
+      day.forEach(function (n) { if (!truong || n.slug !== truong.slug) all.push(n); });
+      var run = d && d.phong === slug;
+      floor.classList.toggle("on", !!run);
       floor.querySelectorAll("[data-actor]").forEach(function (btn) {
         var ns = btn.getAttribute("data-actor") || "";
-        var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
         var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
         if (!n) return;
         var st = actorState(n, slug, d, v);
         if (btn.className !== st.cls) btn.className = st.cls;
         var stEl = btn.querySelector(".nt-actor-st");
         if (stEl && stEl.textContent !== st.nhan) stEl.textContent = st.nhan;
+        var roleEl = btn.querySelector(".nt-actor-role");
+        if (roleEl && roleEl.textContent !== st.role) roleEl.textContent = st.role;
         var bub = btn.querySelector(".nt-bubble");
         if (st.bubble) {
           if (!bub) {
@@ -2128,17 +2220,44 @@
           bub.remove();
         }
       });
+      var room = floor.querySelector(".nt-iso-room");
+      if (room) {
+        var svg = room.querySelector(".nt-flow-svg");
+        var nextSvg = flowSvg(all, run ? d : null, v, slug);
+        if (nextSvg) {
+          var tmp = document.createElement("div");
+          tmp.innerHTML = nextSvg;
+          var neu = tmp.firstChild;
+          if (svg && neu) room.replaceChild(neu, svg);
+          else if (neu) room.insertBefore(neu, room.firstChild);
+        } else if (svg) {
+          svg.remove();
+        }
+      }
+      var strip = floor.querySelector(".nt-flow-strip");
+      var nextStrip = stripLuong(all, run ? d : null, slug);
+      if (nextStrip) {
+        var box = document.createElement("div");
+        box.innerHTML = nextStrip;
+        var neuS = box.firstChild;
+        if (strip && neuS) floor.replaceChild(neuS, strip);
+        else if (neuS) {
+          var hdr = floor.querySelector("header");
+          if (hdr && hdr.nextSibling) floor.insertBefore(neuS, hdr.nextSibling);
+          else floor.appendChild(neuS);
+        }
+      }
     });
     var panel = document.getElementById("ntActorPanel");
     if (panel && S._actor) {
-      var slug = S._actor.phong;
-      var ns = S._actor.slug;
-      var p = S.phong.filter(function (x) { return x.slug === slug; })[0];
-      var n = ((p && p.nguoi) || []).filter(function (x) { return x.slug === ns; })[0];
-      if (n) {
-        var st = actorState(n, slug, d, v);
+      var slugP = S._actor.phong;
+      var nsP = S._actor.slug;
+      var pP = S.phong.filter(function (x) { return x.slug === slugP; })[0];
+      var nP = ((pP && pP.nguoi) || []).filter(function (x) { return x.slug === nsP; })[0];
+      if (nP) {
+        var stP = actorState(nP, slugP, d, v);
         var em = panel.querySelector("p em");
-        if (em && em.textContent !== st.nhan) em.textContent = st.nhan;
+        if (em && em.textContent !== stP.nhan) em.textContent = stP.nhan;
       }
     }
     return true;

@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.95] - 2026-10-28
+### Sửa
+- **Nhạc trưởng · sân khấu rõ luồng:** mỗi icon hiện tên + chức danh + trạng thái; dải A→B→C theo quy trình phòng; mũi tên nóng khi giao/chuyển/họp (người nhận được viền đứt).
+
 ## [0.56.94] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · hết giật sân khấu:** lúc việc chạy không còn dựng lại cả văn phòng mỗi giây — chỉ vá trạng thái nhân vật/bong bóng; cột giao tiếp cập nhật riêng. Animation nhẹ hơn.
