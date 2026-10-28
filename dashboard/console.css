@@ -867,6 +867,9 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
     gap: 4px;
     border-top: 0; border-right: 1px solid var(--glass-brd);
     transform: translateX(-100%); transition: transform .22s ease; z-index: 60; overflow-y: auto;
+    /* Upstream 0.216: Safari iPhone hay mất vẽ drawer khi vừa blur vừa transform+scroll.
+       Nền đặc, không backdrop-filter. */
+    background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; will-change: transform;
   }
   body.nav-open .rail { transform: translateX(0); box-shadow: 8px 0 40px var(--shadow-veil); }
   .rail-top, .rail-foot { display: flex; }            /* hiện lại brand + version trong ngăn kéo */
@@ -899,10 +902,11 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   .nav-backdrop[hidden] { display: none; }
   body.nav-open .nav-backdrop { display: block; }
 
-  /* Không còn chừa 56px đáy cho rail; chat chiếm hết */
+  /* Không còn chừa 56px đáy cho rail; chat chiếm hết.
+     --app-h: chiều cao visualViewport lúc không gõ (mobile-chat.js). */
   body.has-rail .hud {
     margin-left: 0; width: 100%;
-    height: 100vh; height: 100dvh;
+    height: 100vh; height: var(--app-h, 100dvh);
   }
   .cview { left: 0; bottom: 0; }
   .cview-head { padding: 12px 14px; gap: 8px; }
@@ -929,7 +933,7 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
   html, body { width: 100%; height: 100%; overflow: hidden; }
   body.in-console .hud-body { visibility: hidden; }   /* trang quản lý: giấu quả cầu cockpit phía sau */
   .hud {
-    height: 100vh; height: 100dvh;
+    height: 100vh; height: var(--app-h, 100dvh);
     grid-template-rows: minmax(0, 1fr) auto auto;
     padding-top: calc(46px + env(safe-area-inset-top, 0px));
   }  /* header fixed; ba hàng còn lại = body + đính kèm + ô nhập */
@@ -1044,6 +1048,22 @@ body.has-rail .hud { margin-left: var(--rail-w); width: calc(100% - var(--rail-w
     margin: 5px 8px max(7px, env(safe-area-inset-bottom, 0px));
   }
   .hud-voice .voice-input { min-width: 0; }
+  .cview .hud-voice { margin-bottom: 0; }
+  .cview .chatpage-main, .cview .ws-main { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+
+  /* Bàn phím mở (body.kb-open từ mobile-chat.js / visualViewport). */
+  body.kb-open .hud {
+    position: relative; top: var(--vv-ptop, 0px);
+    height: var(--vv-h, 100dvh);
+  }
+  body.kb-open .hud-top { top: var(--vv-top, 0px); }
+  body.kb-open .cview {
+    top: calc(var(--vv-top, 0px) + var(--topbar-h)); bottom: auto;
+    height: calc(var(--vv-h, 100dvh) - var(--topbar-h));
+  }
+  body.kb-open .hud-voice { margin-bottom: 6px; }
+  body.kb-open .cview .hud-voice { margin-bottom: 0; }
+  body.kb-open .cview .chatpage-main, body.kb-open .cview .ws-main { padding-bottom: 6px; }
   .cview-head { padding: 14px 16px; }
   .cview-title { font-size: 16px; }
 }

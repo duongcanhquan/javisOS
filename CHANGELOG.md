@@ -1,5 +1,22 @@
 # Nhật ký cập nhật
 
+## [0.56.86] - 2026-10-28
+### Mới
+- Trang Models có **Thứ tự dùng**: kéo hoặc bấm mũi tên để xếp MAIN và Dự phòng; chat nhảy nhà còn lượt khi nhà trên hết.
+- Một nhà API thêm được nhiều key; key hết lượt tự nghỉ, key kế chạy tiếp.
+- Nền tảng nhiều tài khoản gói (Claude/Codex/Grok) đã có module sẵn; UI đăng nhập tài khoản phụ làm tiếp sau.
+
+## [0.56.85] - 2026-10-28
+### Mới
+- Thẻ Facebook Messenger trên trang Kết nối: dán Page ID, App ID, secret và token, Javis tự gắn webhook Fanpage.
+- Bot chuyên trách gắn được kênh Messenger (hộp thư Page). Cần HTTPS công khai.
+
+## [0.56.84] - 2026-10-28
+### Sửa
+- Chat trên iPhone (Thêm vào MH chính): khung bám đúng phần màn nhìn thấy; bàn phím mở thì ô nhập không bị hụt.
+- Menu điện thoại không còn trượt ra rồi biến mất, chỉ còn nền tối.
+- Xem PDF trên điện thoại luôn có nút đóng nổi; xoay máy chữ không bị to lại.
+
 ## [0.56.83] - 2026-10-25
 ### Sửa
 - **Tổ chức · tự nhả RAM:** máy người không dùng (mặc định 15 phút không có tín hiệu người thật) tự tắt để trả RAM. Não và ổ giữ; mở link là bật lại.

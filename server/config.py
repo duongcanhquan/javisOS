@@ -498,6 +498,8 @@ _SECRET_PATHS = (
     "model.openrouter_key", "model.anthropic_api_key", "model.openai_api_key", "model.gemini_api_key",
     "model.groq_api_key", "model.deepseek_api_key", "model.ollama_key", "model.ollama_local_key",
     "model.copilot_github_token",
+    # Nhiều API key theo tài khoản (model_routing.account_keys.<id>).
+    "model.account_keys.*",
     "model.openai_oauth.access_token", "model.openai_oauth.refresh_token", "model.openai_oauth.id_token",
     # Gemini CLI (đăng nhập Google ngay trên dashboard). Refresh token ở đây mở được cả gói
     # Code Assist của tài khoản Google, nên nó ngang hàng mọi secret khác trong danh sách.
@@ -857,6 +859,22 @@ def read_settings():
     out = json.loads(json.dumps(cfg))
     _apply_workspace_default(out)
     return out
+
+
+def update_settings(patch: dict):
+    """Gộp `patch` vào settings hiện tại rồi ghi (port upstream cho Messenger verify_token…)."""
+    cfg = read_settings()
+    if not isinstance(patch, dict):
+        return cfg
+    for k, v in patch.items():
+        if isinstance(v, dict) and isinstance(cfg.get(k), dict):
+            cur = dict(cfg.get(k) or {})
+            cur.update(v)
+            cfg[k] = cur
+        else:
+            cfg[k] = v
+    write_settings(cfg)
+    return cfg
 
 
 def write_settings(cfg):

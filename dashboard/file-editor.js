@@ -89,8 +89,10 @@
       // ngoai vung nhin thay, va nguoi dung khong con duong ra. Dan the vao bon canh thi dau
       // the luon nam dung mep tren, ban phim che gi thi che.
       "@media(max-width:700px){" +
-        ".jvfe-modal{padding:0;align-items:stretch;justify-content:stretch}" +
-        ".jvfe-card{width:100%;max-width:none;height:100vh;height:100dvh;max-height:none;" +
+        // Chua vung an toan iPhone PWA (thanh trang thai khong che nut Dong).
+        ".jvfe-modal{padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) " +
+        "env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);align-items:stretch;justify-content:stretch}" +
+        ".jvfe-card{width:100%;max-width:none;height:auto;align-self:stretch;max-height:none;" +
         "border-radius:0;border:0}" +
         // Dau the dinh o tren ke ca khi than cuon: nut Dong khong bao gio troi khoi tam tay.
         ".jvfe-head{position:sticky;top:0;z-index:2;background:var(--bg2);flex-wrap:wrap;gap:6px}" +
@@ -132,7 +134,8 @@
       ".jvfe-note a{color:var(--accent)}" +
       ".jvfe-img{padding:16px;text-align:center;overflow:auto}" +
       ".jvfe-img img{max-width:100%;height:auto;border-radius:8px}" +
-      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff}";
+      ".jvfe-frame{width:100%;height:72vh;border:0;background:#fff;display:block}" +
+      ".jvfe-pdf{max-height:72vh;overflow:auto;-webkit-overflow-scrolling:touch}";
     document.head.appendChild(s);
   }
 
@@ -253,9 +256,14 @@
     elActions.appendChild(shareBtn(b, ceil)); elActions.appendChild(openLink(b, ceil)); elActions.appendChild(dlLink(b, ceil)); elActions.appendChild(closeBtn());
     elBody.innerHTML = '<div class="jvfe-img"><img src="' + esc(rawUrl(b, ceil)) + '" alt="' + esc(baseOf(brainRel)) + '"></div>';
   }
+  // PDF cuon trong hop rieng; dien thoai co nut X noi (Safari iPhone phong iframe PDF ra ca trang).
   function renderPdf(b, ceil, brainRel) {
     elActions.appendChild(openLink(b, ceil)); elActions.appendChild(dlLink(b, ceil)); elActions.appendChild(closeBtn());
-    elBody.innerHTML = '<iframe class="jvfe-frame" src="' + esc(rawUrl(b, ceil)) + '"></iframe>';
+    elBody.innerHTML = '<div class="jvfe-pdf"><iframe class="jvfe-frame" src="' + esc(rawUrl(b, ceil)) + '"></iframe></div>';
+    var x = closeBtn();
+    x.className = "pdf-float-close";
+    x.setAttribute("aria-label", tw("fedit.close_esc") || "Đóng");
+    elBody.appendChild(x);
   }
   function renderReadonly(b, ceil, brainRel, d) {
     elActions.appendChild(openLink(b, ceil)); elActions.appendChild(dlLink(b, ceil)); elActions.appendChild(closeBtn());
