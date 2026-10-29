@@ -1,0 +1,158 @@
+# bump: 2026-10-29T02:40Z — bước 2: chỉ volume dangling an toàn
+name: Prune dangling volumes once
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Audit then prune safe dangling volumes
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            echo "=== 0. DISK TRƯỚC ==="
+            date -u
+            df -h / | head -2
+            docker system df || true
+            echo
+
+            echo "=== 1. CONTAINER đang có (kể cả tắt) - volume của chúng KHÔNG dangling ==="
+            docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E '^javis-|NAMES' || true
+            echo
+
+            echo "=== 2. Volume Javis ĐANG GẮN (inspect) - tuyệt đối giữ ==="
+            keep_mount=0
+            for c in $(docker ps -a --format '{{.Names}}' | grep -E '^javis-' | sort); do
+              vols=$(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}' "$c" 2>/dev/null || true)
+              if [ -n "${vols// }" ]; then
+                echo "KEEP_MOUNTED $c :: $vols"
+                keep_mount=$((keep_mount+1))
+              fi
+            done
+            echo "containers_with_vols=$keep_mount"
+            echo
+
+            echo "=== 3. Sổ người (manager) - slug cần não ==="
+            SLUGS=""
+            if docker ps --format '{{.Names}}' | grep -qx javis-manager; then
+              SLUGS=$(docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_tenants as ot
+            for t in (ot.load().get("tenants") or []):
+                s=(t.get("slug") or "").strip().lower()
+                if s: print(s)
+            ' 2>/dev/null || true)
+              echo "$SLUGS" | sed '/^$/d' | awk '{print "registry",$0}'
+            else
+              echo "WARN no javis-manager"
+            fi
+            echo
+
+            echo "=== 4. Mọi volume dangling (chưa lọc) ==="
+            mapfile -t ALL_DANGLE < <(docker volume ls -qf dangling=true || true)
+            echo "dangling_total=${#ALL_DANGLE[@]}"
+            echo
+
+            echo "=== 5. PHÂN LOẠI — chỉ xóa anon hex; CẤM mọi tên javis/caddy/proxy ==="
+            SAFE=()
+            BLOCKED=()
+            OTHER=()
+            for v in "${ALL_DANGLE[@]+"${ALL_DANGLE[@]}"}"; do
+              [ -n "$v" ] || continue
+              # Cấm: mọi thứ liên quan Javis / Caddy / proxy / tên có nghĩa
+              if echo "$v" | grep -Eiq 'javis|caddy|proxy|quan|manager|moonshine|ollama'; then
+                BLOCKED+=("$v")
+                echo "BLOCK $v"
+                continue
+              fi
+              # Chỉ nhận volume ẩn Docker (64 ký tự hex) — anonymous
+              if echo "$v" | grep -Eq '^[a-f0-9]{64}$'; then
+                SAFE+=("$v")
+                continue
+              fi
+              OTHER+=("$v")
+              echo "SKIP_OTHER $v"
+            done
+            echo
+            echo "safe_anon=${#SAFE[@]} blocked_named=${#BLOCKED[@]} skip_other=${#OTHER[@]}"
+            echo
+
+            # Đối chiếu: volume tên tenant trong sổ có nằm dangling không? (phải = 0 sau filter)
+            echo "=== 6. Kiểm tra não sổ có bị đưa vào SAFE không (phải 0) ==="
+            leak=0
+            for v in "${SAFE[@]+"${SAFE[@]}"}"; do
+              if echo "$v" | grep -Eiq 'javis|caddy'; then
+                echo "LEAK $v"
+                leak=$((leak+1))
+              fi
+            done
+            if [ "$leak" -gt 0 ]; then
+              echo "ABORT leak=$leak — không xóa gì"
+              exit 1
+            fi
+            echo "leak_check=OK"
+            echo
+
+            # Volume tên javis-* dangling (não mồ côi có tên) — CHỈ BÁO, không xóa
+            echo "=== 7. Volume Javis dangling (GIỮ — có thể khôi phục máy) ==="
+            for v in "${BLOCKED[@]+"${BLOCKED[@]}"}"; do
+              echo "KEEP_FOR_RESTORE $v"
+            done
+            echo "kept_named_dangling=${#BLOCKED[@]}"
+            echo
+
+            if [ "${#SAFE[@]}" -eq 0 ]; then
+              echo "Không có volume anon dangling an toàn để xóa."
+              df -h / | head -2
+              echo PRUNE_DANGLE_DONE_EMPTY
+              exit 0
+            fi
+
+            echo "=== 8. Ước kích thước mẫu (tối đa 30 volume đầu) ==="
+            n=0
+            for v in "${SAFE[@]+"${SAFE[@]}"}"; do
+              n=$((n+1))
+              [ "$n" -le 30 ] || break
+              sz=$(docker run --rm -v "$v":/v:ro alpine du -sh /v 2>/dev/null | awk '{print $1}' || echo "?")
+              echo "SAMPLE $sz $v"
+            done
+            echo
+
+            echo "=== 9. XÓA chỉ SAFE anon (${#SAFE[@]} volume) ==="
+            deleted=0
+            fail=0
+            for v in "${SAFE[@]+"${SAFE[@]}"}"; do
+              if docker volume rm "$v" >/dev/null 2>&1; then
+                deleted=$((deleted+1))
+              else
+                fail=$((fail+1))
+                echo "FAIL_RM $v"
+              fi
+            done
+            echo "deleted=$deleted fail=$fail"
+            echo
+
+            echo "=== 10. DISK SAU ==="
+            df -h / | head -2
+            docker system df || true
+            echo
+            echo "=== 11. Xác nhận container Javis vẫn còn ==="
+            docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E '^javis-' | wc -l | awk '{print "javis_containers",$1}'
+            docker ps --format '{{.Names}}' | grep -E '^javis-' | head -20
+            echo PRUNE_DANGLE_DONE
