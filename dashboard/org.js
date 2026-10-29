@@ -370,6 +370,16 @@
     const diskTotB = Number(coord.host_disk_total_bytes || 0);
     const diskFreeB = Number(coord.host_disk_free_bytes || 0);
     const diskUsedB = diskTotB > 0 ? Math.max(0, diskTotB - diskFreeB) : 0;
+    const diskClean = (coord && coord.disk_cleanup) || {};
+    const diskWeekly = !!diskClean.weekly;
+    const diskLastAt = Number(diskClean.last_run_at || 0);
+    const diskLastRep = (diskClean.last_report && typeof diskClean.last_report === "object")
+      ? diskClean.last_report : {};
+    const diskLastMb = Math.max(0, Math.round(Number(diskLastRep.reclaimed_bytes || 0) / (1024 * 1024)));
+    const diskLastLine = diskLastAt
+      ? (`Lần gần nhất: nhả ~${diskLastMb} MB`
+        + (diskLastRep.error ? (" · " + String(diskLastRep.error).slice(0, 80)) : ""))
+      : "Chưa chạy dọn trong app.";
     const cpuN = Number(coord.host_cpus || 0);
     const quotaSum = people.reduce((s, t) => s + Number(t.quota_gb || 0), 0);
     const sharedN = people.filter((t) => t.shared_api).length;
@@ -421,6 +431,16 @@
           <table class="org-table"><thead><tr><th>Máy</th><th>RAM Docker (máy bật)</th><th>Tín hiệu người</th></tr></thead>
           <tbody data-org-ram="machines-body">${liveRows || ""}</tbody></table></div>
         <p class="dim" data-org-ram="live-empty"${liveRows ? " hidden" : ""}>Chưa đo được máy người đang mở (hoặc chưa có máy chạy).</p>
+      </div>`;
+    const diskCleanPanel = `
+      <div class="org-sec org-disk-clean" style="margin-top:12px">
+        <div class="org-sec-h"><div><h3>Dọn ổ máy chủ</h3>
+          <p class="dim org-sec-sub">Giống nhả cache RAM: bấm tay khi đầy, hoặc bật lịch tuần. Xóa image treo, build cache, và volume ẩn không gắn máy - <b>không</b> đụng container / não / volume tên javis.</p></div></div>
+        <div class="org-form org-form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn primary" id="orgDiskCleanBtn">Dọn ổ ngay</button>
+          <label class="org-check" style="margin:0"><input type="checkbox" id="orgDiskWeekly"${diskWeekly ? " checked" : ""}> Tự dọn mỗi tuần (CN 03:00)</label>
+        </div>
+        <p class="dim" id="orgDiskCleanMsg" style="margin-top:8px">${esc(diskLastLine)}</p>
       </div>`;
     const vpsMeters = `
       ${diskTotB ? `<div class="org-meter"><div class="org-meter-lbl">Ổ máy chủ: <b>${esc(fmtGB(diskUsedB))}</b> / ${esc(fmtGB(diskTotB))}</div>
@@ -664,6 +684,7 @@
                   (mặc định 15 phút). Mở link là bật lại. Não và ổ giữ nguyên.</p></div></div>
               ${vpsKpis}
               ${ramCalc}
+              ${diskCleanPanel}
               <form id="orgCoord" class="org-form org-form-row">
                 <label>Trần máy mở cùng lúc<input name="max_running" type="number" min="1" max="20" value="${esc(String(maxHand))}" title="Không phải số người trong sổ. Chỉ số container Docker đang chạy."></label>
                 <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleMin))}" title="0 = không tự tắt theo giờ. Vẫn tắt máy nghỉ khi vượt trần hoặc RAM host thấp."></label>
@@ -941,6 +962,52 @@
         render(el);
       } catch (e) {
         if (coordMsg) coordMsg.textContent = e.message || "Không lưu được.";
+      }
+    });
+
+    const diskBtn = el.querySelector("#orgDiskCleanBtn");
+    const diskMsg = el.querySelector("#orgDiskCleanMsg");
+    const diskWeeklyEl = el.querySelector("#orgDiskWeekly");
+    if (diskBtn) diskBtn.addEventListener("click", async () => {
+      tipOn(diskBtn, "Đang dọn ổ…");
+      if (diskMsg) diskMsg.textContent = "Đang xóa image treo + build cache…";
+      diskBtn.disabled = true;
+      try {
+        const r = await api("/org/disk/cleanup", { method: "POST" });
+        const rep = (r && r.report) || {};
+        const mb = Math.max(0, Math.round(Number(rep.reclaimed_bytes || 0) / (1024 * 1024)));
+        const freeAfter = Number(rep.after_free_bytes || 0);
+        orgFlash = mb
+          ? (`Đã dọn ổ: nhả ~${mb} MB` + (freeAfter ? (`. Còn trống ${fmtGB(freeAfter)}.`) : "."))
+          : (rep.error
+            ? ("Dọn ổ xong nhưng không nhả thêm: " + String(rep.error).slice(0, 120))
+            : "Dọn ổ xong - không còn image/build cache thừa.");
+        orgTab = "cai";
+        tipOn(diskBtn, "");
+        render(el);
+      } catch (e) {
+        tipOn(diskBtn, e.message || "Không dọn được.");
+        if (diskMsg) diskMsg.textContent = e.message || "Không dọn được.";
+        diskBtn.disabled = false;
+      }
+    });
+    if (diskWeeklyEl) diskWeeklyEl.addEventListener("change", async () => {
+      const on = !!diskWeeklyEl.checked;
+      if (diskMsg) diskMsg.textContent = on ? "Đang bật lịch tuần…" : "Đang tắt lịch tuần…";
+      try {
+        await api("/org/settings/disk_cleanup", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weekly: on }),
+        });
+        orgFlash = on
+          ? "Đã bật tự dọn ổ mỗi Chủ nhật 03:00 (image treo + build cache)."
+          : "Đã tắt lịch dọn ổ tuần.";
+        orgTab = "cai";
+        render(el);
+      } catch (e) {
+        diskWeeklyEl.checked = !on;
+        if (diskMsg) diskMsg.textContent = e.message || "Không lưu lịch được.";
       }
     });
     if (poolForm) poolForm.addEventListener("submit", async (ev) => {

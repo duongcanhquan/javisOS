@@ -78,6 +78,9 @@ _WLOCK = threading.Lock()
 _WAIT_LOADED = False
 DISK_CACHE_SEC = 120
 _DISK_CACHE: dict = {"t": 0.0, "total": 0, "free": 0, "path": ""}
+# Dọn ổ máy chủ (image treo + build cache). Không đụng container/não.
+DISK_CLEAN_WEEKDAY_DEFAULT = 6  # Chủ nhật (Python: Mon=0 … Sun=6)
+DISK_CLEAN_HOUR_DEFAULT = 3     # 03:00 Asia/Ho_Chi_Minh
 
 
 def _hydrate_wait() -> None:
@@ -171,6 +174,86 @@ def host_disk_bytes(path: str | None = None) -> tuple[int, int, str]:
     _DISK_CACHE["free"] = free
     _DISK_CACHE["path"] = used_path
     return total, free, used_path
+
+
+def invalidate_disk_cache() -> None:
+    _DISK_CACHE["t"] = 0.0
+
+
+def disk_cleanup_settings(data: dict | None = None) -> dict:
+    """Cài đặt dọn ổ: bật lịch tuần + lần chạy gần nhất."""
+    raw = data if isinstance(data, dict) else ot.load()
+    d = raw.get("disk_cleanup") if isinstance(raw.get("disk_cleanup"), dict) else {}
+    try:
+        wd = int(d.get("weekday") if d.get("weekday") is not None else DISK_CLEAN_WEEKDAY_DEFAULT)
+    except (TypeError, ValueError):
+        wd = DISK_CLEAN_WEEKDAY_DEFAULT
+    try:
+        hour = int(d.get("hour") if d.get("hour") is not None else DISK_CLEAN_HOUR_DEFAULT)
+    except (TypeError, ValueError):
+        hour = DISK_CLEAN_HOUR_DEFAULT
+    try:
+        last = int(d.get("last_run_at") or 0)
+    except (TypeError, ValueError):
+        last = 0
+    report = d.get("last_report") if isinstance(d.get("last_report"), dict) else {}
+    return {
+        "weekly": bool(d.get("weekly")),
+        "weekday": max(0, min(6, wd)),
+        "hour": max(0, min(23, hour)),
+        "last_run_at": max(0, last),
+        "last_report": report,
+    }
+
+
+def put_disk_cleanup(*, weekly: bool | None = None, weekday: int | None = None,
+                     hour: int | None = None, last_run_at: int | None = None,
+                     last_report: dict | None = None) -> dict:
+    data = ot.load()
+    cur = disk_cleanup_settings(data)
+    if weekly is not None:
+        cur["weekly"] = bool(weekly)
+    if weekday is not None:
+        cur["weekday"] = max(0, min(6, int(weekday)))
+    if hour is not None:
+        cur["hour"] = max(0, min(23, int(hour)))
+    if last_run_at is not None:
+        cur["last_run_at"] = max(0, int(last_run_at))
+    if isinstance(last_report, dict):
+        cur["last_report"] = last_report
+    data["disk_cleanup"] = {
+        "weekly": cur["weekly"],
+        "weekday": cur["weekday"],
+        "hour": cur["hour"],
+        "last_run_at": cur["last_run_at"],
+        "last_report": cur["last_report"] if isinstance(cur["last_report"], dict) else {},
+    }
+    ot.save(data)
+    return disk_cleanup_settings(data)
+
+
+def disk_cleanup_due_now(now_ts: float | None = None) -> bool:
+    """True nếu lịch tuần bật và đúng cửa sổ giờ (Asia/Ho_Chi_Minh), chưa chạy trong ~20h."""
+    s = disk_cleanup_settings()
+    if not s.get("weekly"):
+        return False
+    now = float(now_ts if now_ts is not None else time.time())
+    if s.get("last_run_at") and (now - float(s["last_run_at"])) < 20 * 3600:
+        return False
+    try:
+        from datetime import datetime
+        try:
+            from zoneinfo import ZoneInfo
+            local = datetime.fromtimestamp(now, ZoneInfo("Asia/Ho_Chi_Minh"))
+        except Exception:
+            local = datetime.utcfromtimestamp(now)
+        if int(local.weekday()) != int(s["weekday"]):
+            return False
+        if int(local.hour) != int(s["hour"]):
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def host_cpus() -> int:
@@ -477,6 +560,7 @@ def snapshot(running: int, max_running: int | None = None, idle_minutes: int | N
         "host_disk_free_bytes": int(c.get("host_disk_free_bytes") or 0),
         "host_disk_path": str(c.get("host_disk_path") or ""),
         "host_cpus": int(c.get("host_cpus") or 0),
+        "disk_cleanup": disk_cleanup_settings(),
         "suggest": int(c.get("suggest") or hand),
         # Công thức cho UI: ngân sách máy người trên host
         "budget_people_mb": max(0, tot - RESERVE_MB - KEEP_FREE_MB) if tot else 0,

@@ -232,6 +232,60 @@ def _make_router() -> APIRouter:
             pass
         return {"ok": True, "coord": _coord_public()}
 
+    @router.get("/org/settings/disk_cleanup")
+    def org_disk_cleanup_get(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        import org_coord as oc
+        return {"ok": True, "disk_cleanup": oc.disk_cleanup_settings()}
+
+    @router.put("/org/settings/disk_cleanup")
+    async def org_disk_cleanup_put(request: Request):
+        if (deny := _need_manager(request)) is not None:
+            return deny
+        import org_coord as oc
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        weekly = body.get("weekly")
+        weekday = body.get("weekday")
+        hour = body.get("hour")
+        settings = oc.put_disk_cleanup(
+            weekly=None if weekly is None else bool(weekly),
+            weekday=None if weekday is None else _int(weekday, oc.DISK_CLEAN_WEEKDAY_DEFAULT, 0, 6),
+            hour=None if hour is None else _int(hour, oc.DISK_CLEAN_HOUR_DEFAULT, 0, 23),
+        )
+        return {"ok": True, "disk_cleanup": settings}
+
+    @router.post("/org/disk/cleanup")
+    async def org_disk_cleanup_run(request: Request):
+        """Dọn ổ máy chủ ngay: image treo + build cache. Không đụng container/não."""
+        if (deny := _need_manager(request)) is not None:
+            return deny
+
+        def _run():
+            import org_coord as oc
+            report = org_docker.free_host_disk(reason="manual")
+            try:
+                ot.audit(
+                    "disk_cleanup",
+                    "",
+                    f"nhả {int(report.get('reclaimed_bytes') or 0)} B"
+                    + (f" · {report.get('error')}" if report.get("error") else ""),
+                )
+            except Exception:
+                pass
+            return {
+                "ok": bool(report.get("ok")),
+                "report": report,
+                "disk_cleanup": oc.disk_cleanup_settings(),
+            }
+
+        return await asyncio.to_thread(_run)
+
     @router.get("/org/ram_live")
     async def org_ram_live(request: Request):
         """Chỉ số RAM Docker thật — poll nhẹ cho dashboard, không kèm cả sổ tenants."""

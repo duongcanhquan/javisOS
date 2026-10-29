@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.102] - 2026-10-29
+### Mới
+- **Tổ chức · dọn ổ máy chủ:** nút Dọn ổ ngay + lịch tự dọn mỗi Chủ nhật 03:00. Xóa image treo, build cache, và volume ẩn không gắn máy - không đụng não / container / volume tên javis.
+
 ## [0.56.101] - 2026-10-28
 ### Sửa
 - **Nhạc trưởng · campus QA:** double-click phóng phòng qua canvas (không overlay chặn cuộn); badge/chevron/khoa·đạt cập nhật live không remount giật; bỏ trùng hàng đợi pill; campus không còn ô phòng ảo khi chưa có phòng; mũi tên liên phòng / khớp tên giao_cho ổn định hơn.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -1802,6 +1803,177 @@ def reclaim_idle_file_cache() -> int:
     return 1
 
 
+def _prune_bytes(resp_json: Any) -> int:
+    if not isinstance(resp_json, dict):
+        return 0
+    for key in ("SpaceReclaimed", "space_reclaimed", "SpaceReclaimedBytes"):
+        try:
+            n = int(resp_json.get(key) or 0)
+        except (TypeError, ValueError):
+            n = 0
+        if n > 0:
+            return n
+    return 0
+
+
+def _is_safe_anon_volume(name: str) -> bool:
+    """Volume ẩn hex 64 ký tự, không mang tên javis/caddy/proxy/... (não / hệ thống)."""
+    n = (name or "").strip()
+    if not n or len(n) != 64:
+        return False
+    if not re.fullmatch(r"[a-f0-9]{64}", n):
+        return False
+    # Phòng hờ: không bao giờ khớp từ khóa hệ thống (tên hex thuần thì luôn False)
+    if re.search(r"javis|caddy|proxy|quan|manager|moonshine|ollama", n, re.I):
+        return False
+    return True
+
+
+def prune_safe_dangling_volumes() -> tuple[int, int, str]:
+    """Xóa volume dangling chỉ khi là anon hex. Trả (đã_xóa, bỏ_qua_chặn, lỗi)."""
+    deleted = blocked = 0
+    err = ""
+    try:
+        # filters dangling=true — không gắn container nào (kể cả đã tắt)
+        filt = quote('{"dangling":{"true":true}}')
+        r = _docker_api("GET", f"/volumes?filters={filt}", timeout=60.0)
+    except Exception as e:
+        return 0, 0, f"list volumes: {e}"
+    if r.status_code != 200:
+        return 0, 0, f"list volumes HTTP {r.status_code}"
+    try:
+        body = r.json() or {}
+    except Exception as e:
+        return 0, 0, f"volumes json: {e}"
+    names = []
+    for v in body.get("Volumes") or []:
+        if isinstance(v, dict) and v.get("Name"):
+            names.append(str(v["Name"]))
+    for name in names:
+        if not _is_safe_anon_volume(name):
+            blocked += 1
+            continue
+        try:
+            dr = _docker_api("DELETE", f"/volumes/{quote(name)}", timeout=60.0)
+            if dr.status_code in (200, 204):
+                deleted += 1
+            else:
+                err = (err + f"; rm {name[:12]} HTTP {dr.status_code}").strip("; ")
+        except Exception as e:
+            err = (err + f"; rm {name[:12]}: {e}").strip("; ")
+    return deleted, blocked, err
+
+
+def free_host_disk(*, reason: str = "manual") -> dict:
+    """Dọn ổ máy chủ an toàn: image treo + build cache + volume ẩn dangling.
+
+    Không đụng container, không đụng volume tên javis/caddy/não. Cần Docker socket.
+    """
+    before_tot, before_free, path = oc.host_disk_bytes()
+    out: dict[str, Any] = {
+        "ok": False,
+        "reason": str(reason or "manual"),
+        "path": path,
+        "before_free_bytes": int(before_free),
+        "before_total_bytes": int(before_tot),
+        "after_free_bytes": int(before_free),
+        "after_total_bytes": int(before_tot),
+        "reclaimed_bytes": 0,
+        "images_bytes": 0,
+        "builder_bytes": 0,
+        "volumes_deleted": 0,
+        "volumes_blocked": 0,
+        "error": "",
+        "at": int(time.time()),
+    }
+    ok_sock, sock_err = docker_status()
+    if not ok_sock:
+        out["error"] = sock_err or "Không gọi được Docker."
+        return out
+    images_b = builder_b = 0
+    vol_del = vol_block = 0
+    errs: list[str] = []
+    try:
+        # docker image prune -f → chỉ dangling (mặc định API)
+        r = _docker_api("POST", "/images/prune", timeout=180.0)
+        if r.status_code in (200, 201):
+            try:
+                images_b = _prune_bytes(r.json())
+            except Exception:
+                images_b = 0
+        else:
+            errs.append(f"image prune HTTP {r.status_code}")
+    except Exception as e:
+        errs.append(f"image prune: {e}")
+    try:
+        # docker builder prune -af
+        r = _docker_api("POST", "/build/prune?all=true&keep-storage=0", timeout=300.0)
+        if r.status_code in (200, 201):
+            try:
+                builder_b = _prune_bytes(r.json())
+            except Exception:
+                builder_b = 0
+        else:
+            errs.append(f"builder prune HTTP {r.status_code}")
+    except Exception as e:
+        errs.append(f"builder prune: {e}")
+    try:
+        vol_del, vol_block, vol_err = prune_safe_dangling_volumes()
+        if vol_err:
+            errs.append(vol_err)
+    except Exception as e:
+        errs.append(f"volume prune: {e}")
+    oc.invalidate_disk_cache()
+    after_tot, after_free, path2 = oc.host_disk_bytes()
+    reclaimed = max(0, int(after_free) - int(before_free))
+    if reclaimed <= 0 and (images_b + builder_b) > 0:
+        # df chưa kịp nhảy / cùng filesystem khác - vẫn báo số Docker reclaim
+        reclaimed = images_b + builder_b
+    out.update({
+        "ok": not errs or (images_b + builder_b + vol_del + reclaimed) > 0,
+        "path": path2 or path,
+        "after_free_bytes": int(after_free),
+        "after_total_bytes": int(after_tot),
+        "reclaimed_bytes": int(reclaimed),
+        "images_bytes": int(images_b),
+        "builder_bytes": int(builder_b),
+        "volumes_deleted": int(vol_del),
+        "volumes_blocked": int(vol_block),
+        "error": "; ".join(errs),
+        "at": int(time.time()),
+    })
+    try:
+        oc.put_disk_cleanup(last_run_at=int(out["at"]), last_report={
+            "reason": out["reason"],
+            "reclaimed_bytes": out["reclaimed_bytes"],
+            "images_bytes": out["images_bytes"],
+            "builder_bytes": out["builder_bytes"],
+            "volumes_deleted": out["volumes_deleted"],
+            "volumes_blocked": out["volumes_blocked"],
+            "before_free_bytes": out["before_free_bytes"],
+            "after_free_bytes": out["after_free_bytes"],
+            "error": out["error"],
+            "at": out["at"],
+        })
+    except Exception as e:
+        print(f"[org disk] ghi báo cáo: {e}", flush=True)
+    mb = int(out["reclaimed_bytes"]) // (1024 * 1024)
+    print(
+        f"[org disk] dọn ({out['reason']}): nhả ~{mb} MB · image={images_b} builder={builder_b}"
+        f" vol_del={vol_del} vol_block={vol_block}"
+        + (f" · {out['error']}" if out["error"] else ""),
+        flush=True,
+    )
+    return out
+
+
+def maybe_weekly_disk_cleanup() -> dict | None:
+    """Nếu lịch tuần tới giờ thì chạy free_host_disk. Trả None nếu chưa đến."""
+    if not oc.disk_cleanup_due_now():
+        return None
+    return free_host_disk(reason="weekly")
+
+
 _BURST_BAO: set[str] = set()
 
 
@@ -1905,6 +2077,10 @@ def tick_coord() -> None:
         reclaim_idle_file_cache()
     except Exception as e:
         print(f"[org cache] {e}", flush=True)
+    try:
+        maybe_weekly_disk_cleanup()
+    except Exception as e:
+        print(f"[org disk] {e}", flush=True)
     try:
         purge_soft_deleted()
     except Exception as e:
