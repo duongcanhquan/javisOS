@@ -47,15 +47,21 @@ do
   if [[ -f "$cand" ]]; then SAMPLE="$cand"; break; fi
 done
 if [[ -n "$SAMPLE" ]]; then
-  ORIG=$(wc -c < "$SAMPLE" | tr -d ' ')
-  COMP=$("$DEST/lean-ctx" read "$SAMPLE" -m signatures 2>/dev/null | wc -c | tr -d ' ')
-  python3 - "$ORIG" "$COMP" <<'PY' || true
+  ORIG=$(wc -c < "$SAMPLE" | tr -d ' ' || echo 0)
+  # pipefail: lean-ctx read lỗi không được làm hỏng cả lần cài
+  COMP=$("$DEST/lean-ctx" read "$SAMPLE" -m signatures 2>/dev/null | wc -c | tr -d ' ' || true)
+  COMP="${COMP:-0}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$ORIG" "$COMP" <<'PY' || true
 import sys
-o, c = int(sys.argv[1]), int(sys.argv[2])
+o, c = int(sys.argv[1] or 0), int(sys.argv[2] or 0)
 r = (1 - c / o) * 100 if o else 0
 print(f"compress_gate file_bytes={o} signatures={c} save={r:.2f}%")
 print("compress_gate", "PASS" if r >= 85 else "FAIL")
 PY
+  else
+    echo "compress_gate skipped (no python3) orig=$ORIG out=$COMP"
+  fi
 fi
 
 echo "NHẮC: không chạy lean-ctx onboard / lean-ctx wrap."

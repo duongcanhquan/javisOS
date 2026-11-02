@@ -2,7 +2,7 @@
 # - Org (VPS_HOST): reclaim RAM tenant + free disk + cài LeanCTX host
 # - Standalone (2 máy): free disk an toàn + cài LeanCTX host
 # Không dùng SCP (hay lỗi path / handshake). Script lấy từ raw main.
-# bump: 2026-11-02T10:15Z fleet leanctx+reclaim retry-no-scp
+# bump: 2026-11-02T10:18Z fix compress_gate pipefail on org
 name: Optimize fleet once
 
 on:
