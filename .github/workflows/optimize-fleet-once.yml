@@ -1,7 +1,8 @@
 # One-shot: tối ưu tiết kiệm trên MỌI VPS Javis
 # - Org (VPS_HOST): reclaim RAM tenant + free disk + cài LeanCTX host
 # - Standalone (2 máy): free disk an toàn + cài LeanCTX host
-# bump: 2026-11-02T10:10Z fleet leanctx+reclaim
+# Không dùng SCP (hay lỗi path / handshake). Script lấy từ raw main.
+# bump: 2026-11-02T10:15Z fleet leanctx+reclaim retry-no-scp
 name: Optimize fleet once
 
 on:
@@ -25,17 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Upload scripts
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "scripts/install-leanctx-vps.sh,scripts/reclaim-org-ram-vps.sh"
-          target: "/tmp/javis-optimize-fleet/"
-
       - name: Optimize org VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -48,14 +38,10 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             mkdir -p "$DIR/scripts" /data/leanctx_sandbox
-            for f in install-leanctx-vps.sh reclaim-org-ram-vps.sh; do
-              if [ -f "/tmp/javis-optimize-fleet/$f" ]; then
-                cp -f "/tmp/javis-optimize-fleet/$f" "$DIR/scripts/$f"
-              elif [ -f "/tmp/javis-optimize-fleet/scripts/$f" ]; then
-                cp -f "/tmp/javis-optimize-fleet/scripts/$f" "$DIR/scripts/$f"
-              fi
-              chmod +x "$DIR/scripts/$f"
-            done
+            BASE="https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts"
+            curl -fsSL "$BASE/install-leanctx-vps.sh" -o "$DIR/scripts/install-leanctx-vps.sh"
+            curl -fsSL "$BASE/reclaim-org-ram-vps.sh" -o "$DIR/scripts/reclaim-org-ram-vps.sh"
+            chmod +x "$DIR/scripts/install-leanctx-vps.sh" "$DIR/scripts/reclaim-org-ram-vps.sh"
 
             echo "======== HOST TRƯỚC ========"
             date -u
@@ -94,17 +80,6 @@ jobs:
       matrix:
         host: [221.132.19.203, 221.132.19.197]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Upload install script
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ matrix.host }}
-          username: root
-          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
-          source: "scripts/install-leanctx-vps.sh"
-          target: "/tmp/javis-optimize-fleet/"
-
       - name: Optimize standalone
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -142,9 +117,8 @@ jobs:
 
             echo "======== LEANCTX HOST ========"
             mkdir -p /data/leanctx_sandbox /root/javis/scripts
-            SRC=/tmp/javis-optimize-fleet/install-leanctx-vps.sh
-            [ -f "$SRC" ] || SRC=/tmp/javis-optimize-fleet/scripts/install-leanctx-vps.sh
-            cp -f "$SRC" /root/javis/scripts/install-leanctx-vps.sh
+            curl -fsSL https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/install-leanctx-vps.sh \
+              -o /root/javis/scripts/install-leanctx-vps.sh
             chmod +x /root/javis/scripts/install-leanctx-vps.sh
             LEANCTX_DEST=/data/leanctx_sandbox bash /root/javis/scripts/install-leanctx-vps.sh
 
