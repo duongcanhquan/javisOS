@@ -2,7 +2,7 @@
 # - Org (VPS_HOST): reclaim RAM tenant + free disk + cài LeanCTX host
 # - Standalone (2 máy): free disk an toàn + cài LeanCTX host
 # Không dùng SCP (hay lỗi path / handshake). Script lấy từ raw main.
-# bump: 2026-11-02T10:18Z fix compress_gate pipefail on org
+# bump: 2026-11-02T10:20Z compress_gate set+e + pin script SHA
 name: Optimize fleet once
 
 on:
@@ -38,7 +38,8 @@ jobs:
             DIR="${{ secrets.VPS_DIR }}"
             if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
             mkdir -p "$DIR/scripts" /data/leanctx_sandbox
-            BASE="https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts"
+            SHA="${{ github.sha }}"
+            BASE="https://raw.githubusercontent.com/duongcanhquan/javisOS/${SHA}/scripts"
             curl -fsSL "$BASE/install-leanctx-vps.sh" -o "$DIR/scripts/install-leanctx-vps.sh"
             curl -fsSL "$BASE/reclaim-org-ram-vps.sh" -o "$DIR/scripts/reclaim-org-ram-vps.sh"
             chmod +x "$DIR/scripts/install-leanctx-vps.sh" "$DIR/scripts/reclaim-org-ram-vps.sh"
@@ -117,7 +118,7 @@ jobs:
 
             echo "======== LEANCTX HOST ========"
             mkdir -p /data/leanctx_sandbox /root/javis/scripts
-            curl -fsSL https://raw.githubusercontent.com/duongcanhquan/javisOS/main/scripts/install-leanctx-vps.sh \
+            curl -fsSL "https://raw.githubusercontent.com/duongcanhquan/javisOS/${{ github.sha }}/scripts/install-leanctx-vps.sh" \
               -o /root/javis/scripts/install-leanctx-vps.sh
             chmod +x /root/javis/scripts/install-leanctx-vps.sh
             LEANCTX_DEST=/data/leanctx_sandbox bash /root/javis/scripts/install-leanctx-vps.sh

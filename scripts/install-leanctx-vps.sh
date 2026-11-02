@@ -20,7 +20,6 @@ tmp="$DEST/cache/${asset}"
 if [[ ! -f "$tmp" ]]; then
   curl -fsSL -o "$tmp" "${BASE}/${asset}"
 fi
-# Làm sạch binary cũ trong bin rồi giải nén
 find "$DEST/bin" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
 tar -xzf "$tmp" -C "$DEST/bin"
 bin="$(find "$DEST/bin" -type f -name 'lean-ctx' | head -n 1)"
@@ -35,9 +34,10 @@ echo "==> telemetry off"
 "$DEST/lean-ctx" telemetry off
 
 echo "==> version"
-"$DEST/lean-ctx" --version
+"$DEST/lean-ctx" --version || true
 
-# Verification Gate: nén signature một file lớn nếu có sẵn mã nguồn
+# Verification Gate (không được làm fail lần cài)
+set +e
 SAMPLE=""
 for cand in \
   /root/javis-os/server/main.py \
@@ -47,22 +47,24 @@ do
   if [[ -f "$cand" ]]; then SAMPLE="$cand"; break; fi
 done
 if [[ -n "$SAMPLE" ]]; then
-  ORIG=$(wc -c < "$SAMPLE" | tr -d ' ' || echo 0)
-  # pipefail: lean-ctx read lỗi không được làm hỏng cả lần cài
-  COMP=$("$DEST/lean-ctx" read "$SAMPLE" -m signatures 2>/dev/null | wc -c | tr -d ' ' || true)
-  COMP="${COMP:-0}"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$ORIG" "$COMP" <<'PY' || true
-import sys
-o, c = int(sys.argv[1] or 0), int(sys.argv[2] or 0)
-r = (1 - c / o) * 100 if o else 0
-print(f"compress_gate file_bytes={o} signatures={c} save={r:.2f}%")
-print("compress_gate", "PASS" if r >= 85 else "FAIL")
-PY
-  else
-    echo "compress_gate skipped (no python3) orig=$ORIG out=$COMP"
+  echo "==> compress_gate sample=$SAMPLE"
+  ORIG=$(wc -c < "$SAMPLE" | tr -d ' ')
+  COMP=$("$DEST/lean-ctx" read "$SAMPLE" -m signatures 2>/dev/null | wc -c | tr -d ' ')
+  COMP=${COMP:-0}
+  ORIG=${ORIG:-0}
+  if [[ "$ORIG" -gt 0 ]]; then
+    # integer % save without python (tránh python3 - argv lệch trên một số image)
+    SAVE=$(( (1000 * (ORIG - COMP) / ORIG) ))
+    SAVE_PCT=$((SAVE / 10)).$((SAVE % 10))
+    echo "compress_gate file_bytes=$ORIG signatures=$COMP save=${SAVE_PCT}%"
+    if [[ "$SAVE" -ge 850 ]]; then
+      echo "compress_gate PASS"
+    else
+      echo "compress_gate FAIL (cài vẫn OK)"
+    fi
   fi
 fi
+set -e
 
 echo "NHẮC: không chạy lean-ctx onboard / lean-ctx wrap."
 echo "LEANCTX_INSTALL_DONE dest=$DEST"
