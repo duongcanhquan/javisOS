@@ -1,0 +1,156 @@
+# One-shot: tối ưu tiết kiệm trên MỌI VPS Javis
+# - Org (VPS_HOST): reclaim RAM tenant + free disk + cài LeanCTX host
+# - Standalone (2 máy): free disk an toàn + cài LeanCTX host
+# bump: 2026-11-02T10:10Z fleet leanctx+reclaim
+name: Optimize fleet once
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/optimize-fleet-once.yml"
+      - "scripts/install-leanctx-vps.sh"
+      - "scripts/reclaim-org-ram-vps.sh"
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  org-vps:
+    name: Org VPS (tenants)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload scripts
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/install-leanctx-vps.sh,scripts/reclaim-org-ram-vps.sh"
+          target: "/tmp/javis-optimize-fleet/"
+
+      - name: Optimize org VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            DIR="${{ secrets.VPS_DIR }}"
+            if [ -z "$DIR" ]; then DIR="$HOME/javis-os"; fi
+            mkdir -p "$DIR/scripts" /data/leanctx_sandbox
+            for f in install-leanctx-vps.sh reclaim-org-ram-vps.sh; do
+              if [ -f "/tmp/javis-optimize-fleet/$f" ]; then
+                cp -f "/tmp/javis-optimize-fleet/$f" "$DIR/scripts/$f"
+              elif [ -f "/tmp/javis-optimize-fleet/scripts/$f" ]; then
+                cp -f "/tmp/javis-optimize-fleet/scripts/$f" "$DIR/scripts/$f"
+              fi
+              chmod +x "$DIR/scripts/$f"
+            done
+
+            echo "======== HOST TRƯỚC ========"
+            date -u
+            free -m | head -3
+            df -h / | head -2
+
+            echo "======== RECLAIM RAM TENANT ========"
+            bash "$DIR/scripts/reclaim-org-ram-vps.sh"
+
+            echo "======== FREE DISK (an toàn) ========"
+            journalctl --vacuum-size=80M 2>/dev/null || true
+            rm -rf /tmp/javis-* /tmp/*.tar.gz 2>/dev/null || true
+            apt-get clean 2>/dev/null || true
+            docker image prune -f || true
+            docker builder prune -af || true
+            # CẤM container prune (xóa máy người đang tắt)
+            find /var/lib/docker/containers -name '*-json.log' -size +50M 2>/dev/null | while read -r f; do
+              : > "$f" || true
+            done
+
+            echo "======== LEANCTX HOST ========"
+            LEANCTX_DEST=/data/leanctx_sandbox bash "$DIR/scripts/install-leanctx-vps.sh"
+
+            echo "======== SNAPSHOT SAU ========"
+            free -m | head -3
+            df -h / | head -2
+            docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E '^javis-|NAMES' || true
+            echo ORG_OPTIMIZE_DONE
+
+  standalone-vps:
+    name: Standalone ${{ matrix.host }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [221.132.19.203, 221.132.19.197]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload install script
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ matrix.host }}
+          username: root
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          source: "scripts/install-leanctx-vps.sh"
+          target: "/tmp/javis-optimize-fleet/"
+
+      - name: Optimize standalone
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ matrix.host }}
+          username: root
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            echo "======== HOST ${{ matrix.host }} TRƯỚC ========"
+            date -u
+            free -m | head -3
+            df -h / | head -2
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -20 || true
+
+            echo "======== FREE DISK (an toàn) ========"
+            journalctl --vacuum-size=80M 2>/dev/null || true
+            rm -rf /tmp/javis-* /tmp/*.tar.gz 2>/dev/null || true
+            apt-get clean 2>/dev/null || true
+            docker image prune -f || true
+            docker builder prune -af || true
+            find /var/lib/docker/containers -name '*-json.log' -size +50M 2>/dev/null | while read -r f; do
+              : > "$f" || true
+            done
+
+            if [ -f /root/javis/.env ]; then
+              touch /root/javis/.env
+              if grep -q '^JAVIS_ENABLE_PIXELLE=' /root/javis/.env; then
+                sed -i.bak 's/^JAVIS_ENABLE_PIXELLE=.*/JAVIS_ENABLE_PIXELLE=false/' /root/javis/.env && rm -f /root/javis/.env.bak
+              else
+                printf '\nJAVIS_ENABLE_PIXELLE=false\n' >> /root/javis/.env
+              fi
+              docker rm -f javis-pixelle-api javis-pixelle-web 2>/dev/null || true
+            fi
+
+            echo "======== LEANCTX HOST ========"
+            mkdir -p /data/leanctx_sandbox /root/javis/scripts
+            SRC=/tmp/javis-optimize-fleet/install-leanctx-vps.sh
+            [ -f "$SRC" ] || SRC=/tmp/javis-optimize-fleet/scripts/install-leanctx-vps.sh
+            cp -f "$SRC" /root/javis/scripts/install-leanctx-vps.sh
+            chmod +x /root/javis/scripts/install-leanctx-vps.sh
+            LEANCTX_DEST=/data/leanctx_sandbox bash /root/javis/scripts/install-leanctx-vps.sh
+
+            echo "======== HEALTH ========"
+            curl -fsS -m 5 http://127.0.0.1:7777/health || true
+            echo
+            free -m | head -3
+            df -h / | head -2
+            echo STANDALONE_OPTIMIZE_DONE host=${{ matrix.host }}
