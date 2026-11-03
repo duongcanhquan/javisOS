@@ -1,5 +1,9 @@
 # Nhật ký cập nhật
 
+## [0.56.105] - 2026-11-03
+### Sửa
+- **Hotfix:** IndentationError trong `destroy()` sau khi thêm `?v=true` — máy không boot được.
+
 ## [0.56.104] - 2026-11-03
 ### Sửa
 - **Chặn đầy ổ lặp lại:** bỏ `VOLUME` trong Dockerfile (nguyên nhân hàng trăm volume ẩn dangling); gỡ container kèm `?v=true` để xóa volume ẩn; dọn nhẹ volume ẩn mỗi ~6 giờ.

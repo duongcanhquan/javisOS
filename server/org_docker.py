@@ -1289,7 +1289,7 @@ def destroy(slug: str) -> None:
     if docker_available() and inspect_name(cname):
         _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
         # v=true: xóa volume ẨN gắn container (không đụng named javis-*). Chặn leak dangling.
-    rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true&v=true", timeout=30.0)
+        rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true&v=true", timeout=30.0)
         if rm.status_code not in (204, 200, 404):
             raise RuntimeError(f"gỡ máy HTTP {rm.status_code}: {(rm.text or '')[:200]}")
     if docker_available():
