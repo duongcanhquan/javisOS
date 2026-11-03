@@ -1,4 +1,4 @@
-# bump: 2026-10-26T00:45Z — chạy lại sau restore OK (KHÔNG container prune)
+# bump: 2026-11-03T12:40Z — deep clean (image -af, log, anon+orphan vols)
 name: Free disk once
 
 on:
@@ -18,38 +18,140 @@ permissions:
 jobs:
   free:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
-      - name: Free disk over SSH (inline, safe)
+      - name: Free disk over SSH (deep, safe)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 40m
           script: |
             set -euo pipefail
             echo "=== DISK TRƯỚC ==="
             date -u
             df -h / | head -2
             docker system df || true
+            echo
 
-            echo "=== journal / apt / tmp ==="
-            journalctl --vacuum-size=80M 2>/dev/null || true
-            rm -rf /tmp/javis-* /tmp/*.tar.gz /tmp/drone-* 2>/dev/null || true
+            echo "=== TOP /var/lib/docker ==="
+            du -xh /var/lib/docker --max-depth=1 2>/dev/null | sort -h | tail -12 || true
+            echo
+
+            echo "=== journal / apt / tmp / var-log ==="
+            journalctl --vacuum-size=50M 2>/dev/null || true
             apt-get clean 2>/dev/null || true
-            rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
+            rm -rf /var/cache/apt/archives/*.deb /tmp/javis-* /tmp/*.tar.gz /tmp/drone-* 2>/dev/null || true
+            find /var/log -type f \( -name '*.gz' -o -name '*.old' \) -delete 2>/dev/null || true
+            find /var/log -type f -size +30M -print -exec truncate -s 0 {} \; 2>/dev/null || true
 
-            echo "=== docker: CHỈ image treo + build cache (KHÔNG container prune) ==="
-            # CẤM: docker container prune - sẽ xóa máy người đang tắt → start 404
-            docker image prune -f || true
-            docker builder prune -af || true
-
-            echo "=== truncate docker json logs >50M ==="
-            find /var/lib/docker/containers -name '*-json.log' -size +50M 2>/dev/null | while read -r f; do
+            echo "=== truncate docker json logs >10M ==="
+            nlog=0
+            while IFS= read -r f; do
+              [ -n "$f" ] || continue
               echo "truncate $f"
               : > "$f" || true
+              nlog=$((nlog + 1))
+            done < <(find /var/lib/docker/containers -name '*-json.log' -size +10M 2>/dev/null || true)
+            echo "truncated_logs=$nlog"
+
+            echo "=== docker: image KHÔNG dùng + build cache (KHÔNG container prune) ==="
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo "=== volume anon dangling (hex 64) ==="
+            mapfile -t ALL_DANGLE < <(docker volume ls -qf dangling=true || true)
+            SAFE=()
+            BLOCKED=0
+            for v in "${ALL_DANGLE[@]+"${ALL_DANGLE[@]}"}"; do
+              [ -n "$v" ] || continue
+              if echo "$v" | grep -Eiq 'javis|caddy|proxy|quan|manager|moonshine|ollama'; then
+                BLOCKED=$((BLOCKED + 1))
+                continue
+              fi
+              if echo "$v" | grep -Eq '^[a-f0-9]{64}$'; then
+                SAFE+=("$v")
+              fi
             done
+            deleted=0
+            fail=0
+            for v in "${SAFE[@]+"${SAFE[@]}"}"; do
+              if docker volume rm "$v" >/dev/null 2>&1; then
+                deleted=$((deleted + 1))
+              else
+                fail=$((fail + 1))
+              fi
+            done
+            echo "anon_deleted=$deleted anon_fail=$fail named_dangling_kept=$BLOCKED"
+
+            echo "=== volume tenant mồ côi (không sổ + không gắn) ==="
+            SLUGS=""
+            if docker ps --format '{{.Names}}' | grep -qx javis-manager; then
+              SLUGS=$(docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_tenants as ot
+            for t in (ot.load().get("tenants") or []):
+                s=(t.get("slug") or "").strip().lower()
+                if s: print(s)
+            ' 2>/dev/null || true)
+            fi
+            MOUNTED=""
+            for c in $(docker ps -a --format '{{.Names}}' 2>/dev/null || true); do
+              MOUNTED="$MOUNTED $(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}' "$c" 2>/dev/null || true)"
+            done
+            orphan_rm=0
+            while IFS= read -r v; do
+              [ -n "$v" ] || continue
+              if ! echo "$v" | grep -Eq '^javis-[a-z0-9-]+_(javis-data|javis-brains|claude-auth|codex-auth)$'; then
+                continue
+              fi
+              slug=$(echo "$v" | sed -E 's/^javis-//; s/_(javis-data|javis-brains|claude-auth|codex-auth)$//')
+              if echo "$slug" | grep -Eq '^(quan|manager|park|proxy)$'; then
+                continue
+              fi
+              if echo " $MOUNTED " | grep -q " $v "; then
+                continue
+              fi
+              if echo "$SLUGS" | grep -qx "$slug"; then
+                continue
+              fi
+              sz=$(du -sh "/var/lib/docker/volumes/$v/_data" 2>/dev/null | awk '{print $1}' || echo "?")
+              if docker volume rm "$v" >/dev/null 2>&1; then
+                echo "ORPHAN_RM $sz $v"
+                orphan_rm=$((orphan_rm + 1))
+              else
+                echo "ORPHAN_FAIL $v"
+              fi
+            done < <(docker volume ls -q | grep -E '^javis-' || true)
+            echo "orphan_tenant_removed=$orphan_rm"
+
+            echo "=== TOP volume javis ==="
+            while IFS= read -r v; do
+              [ -n "$v" ] || continue
+              sz=$(du -sb "/var/lib/docker/volumes/$v/_data" 2>/dev/null | awk '{print $1}' || echo 0)
+              echo "$sz $v"
+            done < <(docker volume ls -q | grep -E 'javis' || true) \
+              | sort -n | tail -20 \
+              | while read -r b name; do
+                  awk -v b="$b" -v n="$name" 'BEGIN{
+                    if (b>=1073741824) printf "%.1fG %s\n", b/1073741824, n;
+                    else if (b>=1048576) printf "%.0fM %s\n", b/1048576, n;
+                    else printf "%dK %s\n", (b+1023)/1024, n;
+                  }'
+                done
+
+            echo "=== bật lịch dọn tuần CN 03:00 ==="
+            if docker ps --format '{{.Names}}' | grep -qx javis-manager; then
+              docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_coord as oc
+            s = oc.put_disk_cleanup(weekly=True, weekday=6, hour=3)
+            print("disk_cleanup weekly=", s.get("weekly"), "wd=", s.get("weekday"), "hour=", s.get("hour"))
+            ' 2>/dev/null || echo "WARN enable weekly failed"
+            fi
 
             echo "=== DISK SAU ==="
             df -h / | head -2

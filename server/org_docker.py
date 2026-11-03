@@ -822,6 +822,10 @@ def create_and_start(
                 "NanoCpus": _NANO_CPUS,
                 "PidsLimit": _PIDS,
                 "RestartPolicy": {"Name": "unless-stopped"},
+                "LogConfig": {
+                    "Type": "json-file",
+                    "Config": {"max-size": "20m", "max-file": "3"},
+                },
                 "Binds": attach_shared_runtime_binds([
                     f"{vols[0]}:/data",
                     f"{vols[1]}:/brains",
@@ -1075,6 +1079,10 @@ def restore_tenant_container(slug: str, *, start_after: bool = False) -> dict:
             "NanoCpus": _NANO_CPUS,
             "PidsLimit": _PIDS,
             "RestartPolicy": {"Name": "unless-stopped"},
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {"max-size": "20m", "max-file": "3"},
+            },
             "Binds": attach_shared_runtime_binds([
                 f"{vols[0]}:/data",
                 f"{vols[1]}:/brains",
@@ -1865,7 +1873,7 @@ def prune_safe_dangling_volumes() -> tuple[int, int, str]:
 
 
 def free_host_disk(*, reason: str = "manual") -> dict:
-    """Dọn ổ máy chủ an toàn: image treo + build cache + volume ẩn dangling.
+    """Dọn ổ máy chủ an toàn: image không dùng + build cache + volume ẩn dangling.
 
     Không đụng container, không đụng volume tên javis/caddy/não. Cần Docker socket.
     """
@@ -1894,8 +1902,10 @@ def free_host_disk(*, reason: str = "manual") -> dict:
     vol_del = vol_block = 0
     errs: list[str] = []
     try:
-        # docker image prune -f → chỉ dangling (mặc định API)
-        r = _docker_api("POST", "/images/prune", timeout=180.0)
+        # dangling=false ≈ `docker image prune -af` — image không gắn container nào.
+        # Image còn gắn máy Exited vẫn giữ (start lại không 404 thiếu layer).
+        filt = quote('{"dangling":{"false":true}}')
+        r = _docker_api("POST", f"/images/prune?filters={filt}", timeout=300.0)
         if r.status_code in (200, 201):
             try:
                 images_b = _prune_bytes(r.json())
@@ -1967,12 +1977,39 @@ def free_host_disk(*, reason: str = "manual") -> dict:
     return out
 
 
+# Dưới ngưỡng này (bytes trống) → dọn khẩn (tối đa 1 lần / 6 giờ).
+_DISK_EMERGENCY_FREE = 8 * 1024 * 1024 * 1024
+_DISK_EMERGENCY_COOLDOWN = 6 * 3600
+
+
 def maybe_weekly_disk_cleanup() -> dict | None:
     """Nếu lịch tuần tới giờ thì chạy free_host_disk. Trả None nếu chưa đến."""
     if not oc.disk_cleanup_due_now():
         return None
     return free_host_disk(reason="weekly")
 
+
+def maybe_emergency_disk_cleanup() -> dict | None:
+    """Ổ sắp đầy (<8GiB trống): dọn ngay, cooldown 6h — tránh 100% lại."""
+    try:
+        _tot, free, _path = oc.host_disk_bytes()
+    except Exception:
+        return None
+    try:
+        free_i = int(free or 0)
+    except (TypeError, ValueError):
+        return None
+    if free_i <= 0 or free_i >= _DISK_EMERGENCY_FREE:
+        return None
+    try:
+        last = int((oc.disk_cleanup_settings() or {}).get("last_run_at") or 0)
+    except (TypeError, ValueError):
+        last = 0
+    now = int(time.time())
+    if last and (now - last) < _DISK_EMERGENCY_COOLDOWN:
+        return None
+    print(f"[org disk] emergency: free={free_i // (1024**2)}MB < 8GiB → dọn", flush=True)
+    return free_host_disk(reason="emergency_low_disk")
 
 _BURST_BAO: set[str] = set()
 
@@ -2077,6 +2114,10 @@ def tick_coord() -> None:
         reclaim_idle_file_cache()
     except Exception as e:
         print(f"[org cache] {e}", flush=True)
+    try:
+        maybe_emergency_disk_cleanup()
+    except Exception as e:
+        print(f"[org disk emergency] {e}", flush=True)
     try:
         maybe_weekly_disk_cleanup()
     except Exception as e:

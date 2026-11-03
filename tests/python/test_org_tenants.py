@@ -354,6 +354,10 @@ check("tick nâng trần máy người", "def ensure_people_memory" in src)
 check("tick nhả cache file máy nghỉ", "def reclaim_idle_file_cache" in src and "reclaim_idle_file_cache()" in src)
 check("free_host_disk + lịch tuần trong tick",
       "def free_host_disk" in src and "maybe_weekly_disk_cleanup()" in src)
+check("emergency disk cleanup khi ổ thấp",
+      "def maybe_emergency_disk_cleanup" in src and "maybe_emergency_disk_cleanup()" in src)
+check("tenant LogConfig giới hạn json-file",
+      '"max-size": "20m"' in src and '"max-file": "3"' in src)
 check("volume ẩn hex mới được xóa",
       od_mem._is_safe_anon_volume("a" * 64) is True
       and od_mem._is_safe_anon_volume("javis-bach_javis-data") is False

@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.103] - 2026-11-03
+### Sửa
+- **Tổ chức · dọn ổ sâu:** `image prune -af` (image không dùng), cắt log Docker >10M, xóa volume ẩn dangling + volume tenant mồ côi (không còn sổ / không gắn). Não máy còn trong sổ giữ nguyên.
+- **Tự dọn khẩn:** ổ trống <8GiB → dọn ngay (cooldown 6h), không chờ Chủ nhật. Máy tenant mới giới hạn log `20m×3`.
+
 ## [0.56.102] - 2026-10-29
 ### Mới
 - **Tổ chức · dọn ổ máy chủ:** nút Dọn ổ ngay + lịch tự dọn mỗi Chủ nhật 03:00. Xóa image treo, build cache, và volume ẩn không gắn máy - không đụng não / container / volume tên javis.
