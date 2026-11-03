@@ -79,8 +79,10 @@ _WAIT_LOADED = False
 DISK_CACHE_SEC = 120
 _DISK_CACHE: dict = {"t": 0.0, "total": 0, "free": 0, "path": ""}
 # Dọn ổ máy chủ (image treo + build cache). Không đụng container/não.
-DISK_CLEAN_WEEKDAY_DEFAULT = 6  # Chủ nhật (Python: Mon=0 … Sun=6)
+DISK_CLEAN_WEEKDAY_DEFAULT = 6  # Chủ nhật (Python: Mon=0 … Sun=6) — chỉ dùng nếu mode=weekly
 DISK_CLEAN_HOUR_DEFAULT = 3     # 03:00 Asia/Ho_Chi_Minh
+# Mặc định dọn MỖI NGÀY (tránh đầy ổ giữa hai Chủ nhật). weekly=True vẫn = "bật lịch".
+DISK_CLEAN_MODE_DEFAULT = "daily"
 
 
 def _hydrate_wait() -> None:
@@ -181,7 +183,7 @@ def invalidate_disk_cache() -> None:
 
 
 def disk_cleanup_settings(data: dict | None = None) -> dict:
-    """Cài đặt dọn ổ: bật lịch tuần + lần chạy gần nhất."""
+    """Cài đặt dọn ổ: bật lịch (mặc định ON, mỗi ngày 03:00) + lần chạy gần nhất."""
     raw = data if isinstance(data, dict) else ot.load()
     d = raw.get("disk_cleanup") if isinstance(raw.get("disk_cleanup"), dict) else {}
     try:
@@ -197,18 +199,33 @@ def disk_cleanup_settings(data: dict | None = None) -> dict:
     except (TypeError, ValueError):
         last = 0
     report = d.get("last_report") if isinstance(d.get("last_report"), dict) else {}
+    # Chưa từng ghi → mặc định BẬT (tránh quên lịch rồi đầy ổ).
+    if "weekly" not in d:
+        weekly_on = True
+    else:
+        weekly_on = bool(d.get("weekly"))
+    mode = str(d.get("mode") or DISK_CLEAN_MODE_DEFAULT).strip().lower()
+    if mode not in ("daily", "weekly"):
+        mode = DISK_CLEAN_MODE_DEFAULT
+    try:
+        light_at = int(d.get("light_prune_at") or 0)
+    except (TypeError, ValueError):
+        light_at = 0
     return {
-        "weekly": bool(d.get("weekly")),
+        "weekly": weekly_on,
+        "mode": mode,
         "weekday": max(0, min(6, wd)),
         "hour": max(0, min(23, hour)),
         "last_run_at": max(0, last),
+        "light_prune_at": max(0, light_at),
         "last_report": report,
     }
 
 
 def put_disk_cleanup(*, weekly: bool | None = None, weekday: int | None = None,
                      hour: int | None = None, last_run_at: int | None = None,
-                     last_report: dict | None = None) -> dict:
+                     last_report: dict | None = None, mode: str | None = None,
+                     light_prune_at: int | None = None) -> dict:
     data = ot.load()
     cur = disk_cleanup_settings(data)
     if weekly is not None:
@@ -219,13 +236,20 @@ def put_disk_cleanup(*, weekly: bool | None = None, weekday: int | None = None,
         cur["hour"] = max(0, min(23, int(hour)))
     if last_run_at is not None:
         cur["last_run_at"] = max(0, int(last_run_at))
+    if light_prune_at is not None:
+        cur["light_prune_at"] = max(0, int(light_prune_at))
     if isinstance(last_report, dict):
         cur["last_report"] = last_report
+    if mode is not None:
+        m = str(mode).strip().lower()
+        cur["mode"] = m if m in ("daily", "weekly") else DISK_CLEAN_MODE_DEFAULT
     data["disk_cleanup"] = {
         "weekly": cur["weekly"],
+        "mode": cur.get("mode") or DISK_CLEAN_MODE_DEFAULT,
         "weekday": cur["weekday"],
         "hour": cur["hour"],
         "last_run_at": cur["last_run_at"],
+        "light_prune_at": int(cur.get("light_prune_at") or 0),
         "last_report": cur["last_report"] if isinstance(cur["last_report"], dict) else {},
     }
     ot.save(data)
@@ -233,7 +257,10 @@ def put_disk_cleanup(*, weekly: bool | None = None, weekday: int | None = None,
 
 
 def disk_cleanup_due_now(now_ts: float | None = None) -> bool:
-    """True nếu lịch tuần bật và đúng cửa sổ giờ (Asia/Ho_Chi_Minh), chưa chạy trong ~20h."""
+    """True nếu lịch bật và đúng cửa sổ giờ (Asia/Ho_Chi_Minh), chưa chạy trong ~20h.
+
+    mode=daily (mặc định): mỗi ngày đúng `hour`. mode=weekly: thêm khớp weekday.
+    """
     s = disk_cleanup_settings()
     if not s.get("weekly"):
         return False
@@ -247,13 +274,22 @@ def disk_cleanup_due_now(now_ts: float | None = None) -> bool:
             local = datetime.fromtimestamp(now, ZoneInfo("Asia/Ho_Chi_Minh"))
         except Exception:
             local = datetime.utcfromtimestamp(now)
-        if int(local.weekday()) != int(s["weekday"]):
-            return False
         if int(local.hour) != int(s["hour"]):
+            return False
+        mode = str(s.get("mode") or DISK_CLEAN_MODE_DEFAULT).lower()
+        if mode == "weekly" and int(local.weekday()) != int(s["weekday"]):
             return False
         return True
     except Exception:
         return False
+
+
+def light_prune_due_now(now_ts: float | None = None, cooldown_sec: int = 6 * 3600) -> bool:
+    """Light prune volume ẩn: tối đa 1 lần / cooldown (mặc định 6h)."""
+    s = disk_cleanup_settings()
+    now = float(now_ts if now_ts is not None else time.time())
+    last = float(s.get("light_prune_at") or 0)
+    return (now - last) >= float(cooldown_sec)
 
 
 def host_cpus() -> int:

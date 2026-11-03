@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.104] - 2026-11-03
+### Sửa
+- **Chặn đầy ổ lặp lại:** bỏ `VOLUME` trong Dockerfile (nguyên nhân hàng trăm volume ẩn dangling); gỡ container kèm `?v=true` để xóa volume ẩn; dọn nhẹ volume ẩn mỗi ~6 giờ.
+- **Lịch dọn mặc định mỗi ngày 03:00** (manager + GitHub Actions cron 20:00 UTC); nút quản trị «Tự dọn mỗi ngày». Dọn khẩn khi trống &lt;8 GiB giữ nguyên.
+
 ## [0.56.103] - 2026-11-03
 ### Sửa
 - **Tổ chức · dọn ổ sâu:** `image prune -af` (image không dùng), cắt log Docker >10M, xóa volume ẩn dangling + volume tenant mồ côi (không còn sổ / không gắn). Não máy còn trong sổ giữ nguyên.

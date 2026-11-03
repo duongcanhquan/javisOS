@@ -1,7 +1,10 @@
-# bump: 2026-11-03T12:40Z — deep clean (image -af, log, anon+orphan vols)
+# bump: 2026-11-03T13:00Z — daily cron 03:00 Asia/Ho_Chi_Minh + deep clean
 name: Free disk once
 
 on:
+  schedule:
+    # 20:00 UTC = 03:00 ngày hôm sau (Asia/Ho_Chi_Minh, không DST)
+    - cron: "0 20 * * *"
   push:
     paths:
       - ".github/workflows/free-disk-once.yml"
@@ -142,15 +145,15 @@ jobs:
                   }'
                 done
 
-            echo "=== bật lịch dọn tuần CN 03:00 ==="
+            echo "=== bật lịch dọn mỗi ngày 03:00 ==="
             if docker ps --format '{{.Names}}' | grep -qx javis-manager; then
               docker exec javis-manager python -c '
             import sys
             sys.path.insert(0,"/app/server")
             import org_coord as oc
-            s = oc.put_disk_cleanup(weekly=True, weekday=6, hour=3)
-            print("disk_cleanup weekly=", s.get("weekly"), "wd=", s.get("weekday"), "hour=", s.get("hour"))
-            ' 2>/dev/null || echo "WARN enable weekly failed"
+            s = oc.put_disk_cleanup(weekly=True, mode="daily", weekday=6, hour=3)
+            print("disk_cleanup weekly=", s.get("weekly"), "mode=", s.get("mode"), "hour=", s.get("hour"))
+            ' 2>/dev/null || echo "WARN enable daily failed"
             fi
 
             echo "=== DISK SAU ==="

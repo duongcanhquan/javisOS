@@ -253,10 +253,12 @@ def _make_router() -> APIRouter:
         weekly = body.get("weekly")
         weekday = body.get("weekday")
         hour = body.get("hour")
+        mode = body.get("mode")
         settings = oc.put_disk_cleanup(
             weekly=None if weekly is None else bool(weekly),
             weekday=None if weekday is None else _int(weekday, oc.DISK_CLEAN_WEEKDAY_DEFAULT, 0, 6),
             hour=None if hour is None else _int(hour, oc.DISK_CLEAN_HOUR_DEFAULT, 0, 23),
+            mode=None if mode is None else str(mode),
         )
         return {"ok": True, "disk_cleanup": settings}
 

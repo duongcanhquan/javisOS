@@ -435,10 +435,10 @@
     const diskCleanPanel = `
       <div class="org-sec org-disk-clean" style="margin-top:12px">
         <div class="org-sec-h"><div><h3>Dọn ổ máy chủ</h3>
-          <p class="dim org-sec-sub">Giống nhả cache RAM: bấm tay khi đầy, hoặc bật lịch tuần. Xóa image treo, build cache, và volume ẩn không gắn máy - <b>không</b> đụng container / não / volume tên javis.</p></div></div>
+          <p class="dim org-sec-sub">Bấm tay khi cần, hoặc bật lịch (mặc định mỗi ngày 03:00). Xóa image thừa, build cache, volume ẩn — <b>không</b> đụng container / não / volume tên javis. Thêm dọn nhẹ volume ẩn mỗi ~6 giờ + dọn khẩn khi ổ &lt;8 GiB.</p></div></div>
         <div class="org-form org-form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
           <button type="button" class="btn primary" id="orgDiskCleanBtn">Dọn ổ ngay</button>
-          <label class="org-check" style="margin:0"><input type="checkbox" id="orgDiskWeekly"${diskWeekly ? " checked" : ""}> Tự dọn mỗi tuần (CN 03:00)</label>
+          <label class="org-check" style="margin:0"><input type="checkbox" id="orgDiskWeekly"${diskWeekly ? " checked" : ""}> Tự dọn mỗi ngày (03:00)</label>
         </div>
         <p class="dim" id="orgDiskCleanMsg" style="margin-top:8px">${esc(diskLastLine)}</p>
       </div>`;
@@ -993,16 +993,16 @@
     });
     if (diskWeeklyEl) diskWeeklyEl.addEventListener("change", async () => {
       const on = !!diskWeeklyEl.checked;
-      if (diskMsg) diskMsg.textContent = on ? "Đang bật lịch tuần…" : "Đang tắt lịch tuần…";
+      if (diskMsg) diskMsg.textContent = on ? "Đang bật lịch dọn ngày…" : "Đang tắt lịch dọn…";
       try {
         await api("/org/settings/disk_cleanup", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ weekly: on }),
+          body: JSON.stringify({ weekly: on, mode: "daily", hour: 3 }),
         });
         orgFlash = on
-          ? "Đã bật tự dọn ổ mỗi Chủ nhật 03:00 (image treo + build cache)."
-          : "Đã tắt lịch dọn ổ tuần.";
+          ? "Đã bật tự dọn ổ mỗi ngày 03:00 (image thừa + build cache + volume ẩn)."
+          : "Đã tắt lịch dọn ổ tự động.";
         orgTab = "cai";
         render(el);
       } catch (e) {

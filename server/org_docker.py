@@ -994,7 +994,8 @@ def apply_public_hosts(slug: str) -> None:
         body["User"] = user.strip()
     # Xóa container, GIỮ volume (không gắn cờ xóa volume).
     _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
-    rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true", timeout=30.0)
+    # v=true: xóa volume ẨN gắn container (không đụng named javis-*). Chặn leak dangling.
+    rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true&v=true", timeout=30.0)
     if rm.status_code not in (204, 200, 404):
         raise RuntimeError(f"gỡ máy cũ HTTP {rm.status_code}: {(rm.text or '')[:200]}")
     cr = _docker_api("POST", f"/containers/create?name={quote(cname)}", json_body=body, timeout=120.0)
@@ -1287,7 +1288,8 @@ def destroy(slug: str) -> None:
         raise RuntimeError("Không xóa máy hệ thống.")
     if docker_available() and inspect_name(cname):
         _docker_api("POST", f"/containers/{quote(cname)}/stop", timeout=60.0)
-        rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true", timeout=30.0)
+        # v=true: xóa volume ẨN gắn container (không đụng named javis-*). Chặn leak dangling.
+    rm = _docker_api("DELETE", f"/containers/{quote(cname)}?force=true&v=true", timeout=30.0)
         if rm.status_code not in (204, 200, 404):
             raise RuntimeError(f"gỡ máy HTTP {rm.status_code}: {(rm.text or '')[:200]}")
     if docker_available():
@@ -1982,11 +1984,49 @@ _DISK_EMERGENCY_FREE = 8 * 1024 * 1024 * 1024
 _DISK_EMERGENCY_COOLDOWN = 6 * 3600
 
 
+def ensure_disk_schedule_on() -> None:
+    """Một lần: bật lịch dọn mỗi ngày 03:00 nếu sổ chưa có / đang tắt sau sự cố đầy ổ."""
+    try:
+        data = ot.load()
+        raw = data.get("disk_cleanup") if isinstance(data.get("disk_cleanup"), dict) else {}
+        # Chỉ ép bật khi chưa từng cấu hình (tránh ghi đè admin đã tắt cố ý).
+        if raw and ("weekly" in raw):
+            # Đảm bảo mode daily nếu thiếu (nâng từ bản cũ chỉ có weekly).
+            if not raw.get("mode"):
+                oc.put_disk_cleanup(mode="daily")
+            return
+        oc.put_disk_cleanup(weekly=True, mode="daily", weekday=6, hour=3)
+        print("[org disk] đã bật lịch dọn mỗi ngày 03:00 (mặc định)", flush=True)
+    except Exception as e:
+        print(f"[org disk] ensure schedule: {e}", flush=True)
+
+
 def maybe_weekly_disk_cleanup() -> dict | None:
-    """Nếu lịch tuần tới giờ thì chạy free_host_disk. Trả None nếu chưa đến."""
+    """Nếu lịch tới giờ (mặc định mỗi ngày 03:00) thì free_host_disk. Trả None nếu chưa đến."""
     if not oc.disk_cleanup_due_now():
         return None
-    return free_host_disk(reason="weekly")
+    reason = "daily" if str((oc.disk_cleanup_settings() or {}).get("mode") or "daily") == "daily" else "weekly"
+    return free_host_disk(reason=reason)
+
+
+def maybe_light_dangling_prune() -> int:
+    """Mỗi ~6h: chỉ xóa volume ẩn dangling (rẻ) — chặn rác tích tụ giữa hai lần dọn đầy."""
+    if not oc.light_prune_due_now():
+        return 0
+    try:
+        deleted, _blocked, err = prune_safe_dangling_volumes()
+    except Exception as e:
+        print(f"[org disk] light prune: {e}", flush=True)
+        return 0
+    try:
+        oc.put_disk_cleanup(light_prune_at=int(time.time()))
+    except Exception:
+        pass
+    if deleted:
+        print(f"[org disk] light prune: xóa {deleted} volume ẩn dangling", flush=True)
+    elif err:
+        print(f"[org disk] light prune: {err}", flush=True)
+    return int(deleted or 0)
 
 
 def maybe_emergency_disk_cleanup() -> dict | None:
@@ -2010,7 +2050,6 @@ def maybe_emergency_disk_cleanup() -> dict | None:
         return None
     print(f"[org disk] emergency: free={free_i // (1024**2)}MB < 8GiB → dọn", flush=True)
     return free_host_disk(reason="emergency_low_disk")
-
 _BURST_BAO: set[str] = set()
 
 
@@ -2114,6 +2153,14 @@ def tick_coord() -> None:
         reclaim_idle_file_cache()
     except Exception as e:
         print(f"[org cache] {e}", flush=True)
+    try:
+        ensure_disk_schedule_on()
+    except Exception as e:
+        print(f"[org disk schedule] {e}", flush=True)
+    try:
+        maybe_light_dangling_prune()
+    except Exception as e:
+        print(f"[org disk light] {e}", flush=True)
     try:
         maybe_emergency_disk_cleanup()
     except Exception as e:
@@ -2250,7 +2297,7 @@ def sync_park() -> None:
         return
     if data:
         _docker_api("POST", f"/containers/{quote(oc.PARK_NAME)}/stop", timeout=30.0)
-        rm = _docker_api("DELETE", f"/containers/{quote(oc.PARK_NAME)}?force=true", timeout=30.0)
+        rm = _docker_api("DELETE", f"/containers/{quote(oc.PARK_NAME)}?force=true&v=true", timeout=30.0)
         if rm.status_code not in (204, 200, 404):
             raise RuntimeError(f"gỡ park HTTP {rm.status_code}")
     if not hosts:

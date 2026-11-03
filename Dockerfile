@@ -126,8 +126,10 @@ ENV JAVIS_CODEX_SANDBOX=off
 
 USER javis
 
-# Persist state (/data) + brains (/brains) + Claude auth + Codex auth (login ChatGPT).
-VOLUME ["/data", "/brains", "/home/javis/.claude", "/home/javis/.codex"]
+# KHÔNG khai báo VOLUME ở đây. Org luôn gắn named volume qua Binds khi create.
+# VOLUME trong image khiến Docker tự tạo volume ẩn mỗi lần dựng máy; gỡ container
+# không kèm ?v=true → hàng trăm volume dangling đầy ổ (sự cố 2026-11-03).
+# Persist: /data /brains ~/.claude ~/.codex vẫn qua bind named volume ở org_docker.
 
 EXPOSE 7777
 

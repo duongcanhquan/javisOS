@@ -130,10 +130,10 @@ if docker ps --format '{{.Names}}' | grep -qx javis-manager; then
 import sys
 sys.path.insert(0,"/app/server")
 import org_coord as oc
-s = oc.put_disk_cleanup(weekly=True, weekday=6, hour=3)
-print("disk_cleanup", s.get("weekly"), "weekday", s.get("weekday"), "hour", s.get("hour"),
+s = oc.put_disk_cleanup(weekly=True, mode="daily", weekday=6, hour=3)
+print("disk_cleanup", s.get("weekly"), "mode", s.get("mode"), "hour", s.get("hour"),
       "last_run", s.get("last_run_at"))
-' 2>/dev/null || echo "WARN enable weekly cleanup failed"
+' 2>/dev/null || echo "WARN enable daily cleanup failed"
 fi
 
 echo "=== DISK SAU ==="

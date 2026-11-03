@@ -69,16 +69,22 @@ check("snapshot có chỗ còn + ổ VPS",
       and "host_disk_free_bytes" in snap and "suggest" in snap
       and isinstance(snap.get("disk_cleanup"), dict))
 dc0 = oc.disk_cleanup_settings()
-check("disk_cleanup mặc định tắt tuần", dc0.get("weekly") is False and int(dc0.get("weekday")) == 6)
-dc1 = oc.put_disk_cleanup(weekly=True, weekday=0, hour=4)
-check("put_disk_cleanup bật tuần", dc1.get("weekly") is True and dc1.get("weekday") == 0 and dc1.get("hour") == 4)
+check("disk_cleanup mặc định bật mỗi ngày",
+      dc0.get("weekly") is True and dc0.get("mode") == "daily" and int(dc0.get("weekday")) == 6)
+dc1 = oc.put_disk_cleanup(weekly=True, mode="daily", weekday=0, hour=4)
+check("put_disk_cleanup bật lịch",
+      dc1.get("weekly") is True and dc1.get("mode") == "daily"
+      and dc1.get("weekday") == 0 and dc1.get("hour") == 4)
 check("disk_cleanup_due tắt khi weekly=False",
       oc.put_disk_cleanup(weekly=False) is not None and oc.disk_cleanup_due_now() is False)
-oc.put_disk_cleanup(weekly=True, weekday=6, hour=3, last_run_at=0)
-# Không giả giờ cố định theo CN - chỉ kiểm cooldown khi vừa chạy
+oc.put_disk_cleanup(weekly=True, mode="daily", weekday=6, hour=3, last_run_at=0)
+# Không giả giờ cố định - chỉ kiểm cooldown khi vừa chạy
 oc.put_disk_cleanup(last_run_at=int(__import__("time").time()))
 check("disk_cleanup_due False khi vừa chạy", oc.disk_cleanup_due_now() is False)
-oc.put_disk_cleanup(weekly=False, last_run_at=0)
+check("light_prune_due khi chưa chạy", oc.light_prune_due_now(cooldown_sec=60) is True)
+oc.put_disk_cleanup(light_prune_at=int(__import__("time").time()))
+check("light_prune_due False ngay sau khi chạy", oc.light_prune_due_now(cooldown_sec=3600) is False)
+oc.put_disk_cleanup(weekly=False, last_run_at=0, light_prune_at=0)
 cset = oc.put_coord(max_running=99, idle_minutes=-1)
 check("kẹp trần 20", cset["max_running"] == 20)
 check("kẹp idle 0", cset["idle_minutes"] == 0)
@@ -352,12 +358,20 @@ check("gắn lại máy luôn đặt trần 1024",
       '"Memory": _MEM' in src and 'hc.get("Memory") or _MEM' not in src)
 check("tick nâng trần máy người", "def ensure_people_memory" in src)
 check("tick nhả cache file máy nghỉ", "def reclaim_idle_file_cache" in src and "reclaim_idle_file_cache()" in src)
-check("free_host_disk + lịch tuần trong tick",
+check("free_host_disk + lịch trong tick",
       "def free_host_disk" in src and "maybe_weekly_disk_cleanup()" in src)
 check("emergency disk cleanup khi ổ thấp",
       "def maybe_emergency_disk_cleanup" in src and "maybe_emergency_disk_cleanup()" in src)
+check("light dangling prune + ensure schedule trong tick",
+      "def maybe_light_dangling_prune" in src and "ensure_disk_schedule_on()" in src
+      and "maybe_light_dangling_prune()" in src)
 check("tenant LogConfig giới hạn json-file",
       '"max-size": "20m"' in src and '"max-file": "3"' in src)
+check("gỡ container kèm v=true (xóa volume ẩn)",
+      "force=true&v=true" in src)
+df_src = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+check("Dockerfile không còn VOLUME (chặn leak anon)",
+      ("VOLUME [" not in df_src) and ("KHÔNG khai báo VOLUME" in df_src))
 check("volume ẩn hex mới được xóa",
       od_mem._is_safe_anon_volume("a" * 64) is True
       and od_mem._is_safe_anon_volume("javis-bach_javis-data") is False
