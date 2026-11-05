@@ -411,7 +411,7 @@
     const ramCalc = `
       <div class="org-sec org-ram-calc">
         <div class="org-sec-h"><div><h3>Tính RAM thật</h3>
-          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Máy nghỉ đủ lâu theo «Tự tắt sau» thì <b>tắt hẳn</b> để trả RAM (não giữ). Trong lúc chờ, máy nghỉ ≥15 phút cũng nhả cache file.
+          <p class="dim org-sec-sub">Cột RAM = Docker stats máy <b>còn bật</b> (kể cả không chat). Hệ thống tự <b>nhả cache file</b> máy nghỉ (không tắt app). «Tự tắt sau» = 0 thì <b>không tắt máy</b>; RAM chật thì nhả cache mạnh hơn + thả page cache host.
             Cập nhật mỗi ~4 giây. Nhãn tín hiệu = mở trang / chat / API gần đây - không phải «đang chat». Healthcheck và poll nền không tính.
             Một máy dùng gần hết sàn thì được nới tới 2048 MB nếu host còn trống. Máy khác cũng gần đầy thì cả hai về lại 1024 MB.</p></div></div>
         <div class="org-kpi">
@@ -435,7 +435,7 @@
     const diskCleanPanel = `
       <div class="org-sec org-disk-clean" style="margin-top:12px">
         <div class="org-sec-h"><div><h3>Dọn ổ máy chủ</h3>
-          <p class="dim org-sec-sub">Bấm tay khi cần, hoặc bật lịch (mặc định mỗi ngày 03:00). Xóa image thừa, build cache, volume ẩn — <b>không</b> đụng container / não / volume tên javis. Thêm dọn nhẹ volume ẩn mỗi ~6 giờ + dọn khẩn khi ổ &lt;8 GiB.</p></div></div>
+          <p class="dim org-sec-sub">Bấm tay khi cần, hoặc bật lịch (mặc định mỗi ngày 03:00). Xóa image thừa, build cache, volume ẩn - <b>không</b> đụng container / não / volume tên javis. Thêm dọn nhẹ volume ẩn mỗi ~6 giờ + dọn khẩn khi ổ &lt;8 GiB.</p></div></div>
         <div class="org-form org-form-row" style="align-items:center;gap:10px;flex-wrap:wrap">
           <button type="button" class="btn primary" id="orgDiskCleanBtn">Dọn ổ ngay</button>
           <label class="org-check" style="margin:0"><input type="checkbox" id="orgDiskWeekly"${diskWeekly ? " checked" : ""}> Tự dọn mỗi ngày (03:00)</label>
@@ -690,11 +690,11 @@
                 <label>Tự tắt sau (phút)<input name="idle_minutes" type="number" min="0" max="1440" value="${esc(String(idleMin))}" title="0 = không tự tắt theo giờ. Vẫn tắt máy nghỉ khi vượt trần hoặc RAM host thấp."></label>
                 <button class="btn primary" type="submit">Lưu điều phối</button>
               </form>
-              <p class="dim org-sec-note"><b>Tự nhả RAM.</b> Không chat / không tín hiệu người thật đủ lâu → tắt máy (não không mất).
+              <p class="dim org-sec-note"><b>Tự làm sạch RAM.</b> «Tự tắt sau» = 0 → <b>không tắt máy</b>; chỉ nhả cache file máy nghỉ + khi RAM thấp thì nhả mạnh hơn và thả page cache host.
+                RSS tiến trình (Python/model) không gỡ được nếu không tắt máy.
                 ${ramHost ? (" VPS " + ramHost + " GB, còn " + ramAvail + " GB.") : ""}
-                Gợi ý RAM an toàn khoảng <b>${esc(String(suggestN))}</b> máy (ước theo trần Docker ${esc(String(ramPer))} MB) - chỉ cảnh báo.
-                Trần đang dùng = trần tay <b>${esc(String(maxHand))}</b>.
-                Vượt trần hoặc RAM host thấp → tắt máy nghỉ lâu nhất để nhường chỗ.</p>
+                Gợi ý RAM an toàn ~<b>${esc(String(suggestN))}</b> máy (trần Docker ${esc(String(ramPer))} MB).
+                Trần tay <b>${esc(String(maxHand))}</b>. Chỉ khi «Tự tắt sau» &gt; 0 mới tắt máy nghỉ theo phút đó.</p>
               <p class="dim" id="orgCoordMsg"></p>
             </div>
             <div class="org-sec">

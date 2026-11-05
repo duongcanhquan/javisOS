@@ -1705,13 +1705,20 @@ def start_with_capacity(slug: str, handoff: bool = False) -> dict:
     return rec
 
 
-# Máy nghỉ lâu thì nhả cache file (cgroup memory.reclaim). Không tắt app, không đụng RAM tiến trình.
+# Nhả cache file (cgroup memory.reclaim) - KHÔNG tắt tenant, không đụng RSS tiến trình.
 _CACHE_IDLE_SEC = 15 * 60
 _CACHE_MIN_BYTES = 64 * 1024 * 1024
 _CACHE_EVERY_SEC = 30 * 60
+_CACHE_PRESSURE_IDLE_SEC = 3 * 60
+_CACHE_PRESSURE_MIN_BYTES = 32 * 1024 * 1024
+_CACHE_PRESSURE_EVERY_SEC = 5 * 60
+_CACHE_BATCH_IDLE = 2
+_CACHE_BATCH_PRESSURE = 8
 _CACHE_LAST: dict[str, float] = {}
 _CACHE_CURSOR = 0
 _CACHE_BAO: set[str] = set()
+_HOST_DROP_LAST = 0.0
+_HOST_DROP_EVERY_SEC = 30 * 60
 
 
 def parse_cgroup_memory_stat(text: str) -> dict[str, int]:
@@ -1752,25 +1759,17 @@ def cache_reclaim_due(idle_age_sec: int, last_reclaim: float, now: float,
     return (float(now) - last) >= int(every)
 
 
-def reclaim_idle_file_cache() -> int:
-    """Mỗi nhịp xét một máy người đang bật. Nghỉ >= 15 phút và cache file >= 64 MB thì nhả.
-
-    Không restart, không tắt. Kernel lấy lại trang file; lần đọc sau có thể cache lại.
-    """
-    global _CACHE_CURSOR
-    tenants = people_running()
-    if not tenants:
-        return 0
-    t = tenants[_CACHE_CURSOR % len(tenants)]
-    _CACHE_CURSOR += 1
+def _reclaim_one_file_cache(t: dict, *, now: float, idle_need: int, every: int,
+                            min_bytes: int) -> int:
+    """Nhả cache file 1 máy. 1 = đã nhả; 0 = bỏ qua / lỗi."""
     slug = str(t.get("slug") or "")
     cname = str(t.get("container") or "")
     if not cname or not slug:
         return 0
-    now = time.time()
     ts = read_last_active(cname, t, assume_running=True)
     age = int(now - ts) if ts > 0 else 10**9
-    if not cache_reclaim_due(age, _CACHE_LAST.get(cname, 0.0), now):
+    if not cache_reclaim_due(age, _CACHE_LAST.get(cname, 0.0), now,
+                             idle_need=idle_need, every=every):
         return 0
     try:
         raw = _exec(cname, ["cat", "/sys/fs/cgroup/memory.stat"], timeout=12.0)
@@ -1780,7 +1779,7 @@ def reclaim_idle_file_cache() -> int:
             _CACHE_BAO.add(cname)
         _CACHE_LAST[cname] = now
         return 0
-    nbytes = file_cache_reclaim_bytes(parse_cgroup_memory_stat(raw))
+    nbytes = file_cache_reclaim_bytes(parse_cgroup_memory_stat(raw), min_bytes=min_bytes)
     if nbytes <= 0:
         return 0
     box: list[int] = []
@@ -1811,6 +1810,81 @@ def reclaim_idle_file_cache() -> int:
     mb = nbytes // (1024 * 1024)
     print(f"[org cache] {slug} nhả {mb} MB cache file", flush=True)
     return 1
+
+
+def reclaim_idle_file_cache(*, pressure: bool = False) -> int:
+    """Nhả cache file trên máy đang bật. Không restart, không tắt.
+
+    - Bình thường: mỗi nhịp tối đa 2 máy nghỉ ≥15 phút, cache ≥64 MB.
+    - pressure=True (RAM host thấp): tối đa 8 máy nghỉ ≥3 phút, cache ≥32 MB.
+    """
+    global _CACHE_CURSOR
+    tenants = people_running()
+    if not tenants:
+        return 0
+    now = time.time()
+    if pressure:
+        idle_need, every, min_b, batch = (
+            _CACHE_PRESSURE_IDLE_SEC, _CACHE_PRESSURE_EVERY_SEC,
+            _CACHE_PRESSURE_MIN_BYTES, _CACHE_BATCH_PRESSURE,
+        )
+    else:
+        idle_need, every, min_b, batch = (
+            _CACHE_IDLE_SEC, _CACHE_EVERY_SEC, _CACHE_MIN_BYTES, _CACHE_BATCH_IDLE,
+        )
+    n = len(tenants)
+    done = 0
+    for _ in range(min(batch, n)):
+        t = tenants[_CACHE_CURSOR % n]
+        _CACHE_CURSOR += 1
+        done += _reclaim_one_file_cache(
+            t, now=now, idle_need=idle_need, every=every, min_bytes=min_b,
+        )
+    return done
+
+
+def maybe_drop_host_page_cache(*, avail_mb: int | None = None) -> bool:
+    """Khi RAM host thấp: thả page cache kernel (echo 1). Không tắt container.
+
+    Tối đa 1 lần / 30 phút. Cần `docker` CLI + socket trên manager.
+    """
+    global _HOST_DROP_LAST
+    import shutil
+    import subprocess
+    if avail_mb is None:
+        _, avail_mb = oc.host_mem_mb()
+    try:
+        avail = int(avail_mb or 0)
+    except (TypeError, ValueError):
+        return False
+    if avail <= 0 or avail >= oc.KEEP_FREE_MB + oc.RAM_MB:
+        return False
+    now = time.time()
+    if now - float(_HOST_DROP_LAST or 0) < _HOST_DROP_EVERY_SEC:
+        return False
+    if not docker_available() or not shutil.which("docker"):
+        return False
+    img = _self_image() or "alpine:3.20"
+    try:
+        proc = subprocess.run(
+            [
+                "docker", "run", "--rm", "--privileged", "--pid=host",
+                "--entrypoint", "sh", img,
+                "-c", "echo 1 > /proc/1/root/proc/sys/vm/drop_caches",
+            ],
+            capture_output=True, text=True, timeout=90,
+        )
+    except Exception as e:
+        print(f"[org ram] drop_caches: {e}", flush=True)
+        _HOST_DROP_LAST = now
+        return False
+    _HOST_DROP_LAST = now
+    if proc.returncode != 0:
+        err = ((proc.stderr or proc.stdout or "")[:200]).strip()
+        print(f"[org ram] drop_caches exit={proc.returncode} {err}", flush=True)
+        return False
+    print(f"[org ram] đã thả page cache host (avail trước ~{avail} MB)", flush=True)
+    return True
 
 
 def _prune_bytes(resp_json: Any) -> int:
@@ -2149,10 +2223,17 @@ def tick_coord() -> None:
         ensure_shared_runtime()
     except Exception as e:
         print(f"[org moon] {e}", flush=True)
+    _, avail = oc.host_mem_mb()
+    pressure = bool(avail and 0 < avail < oc.KEEP_FREE_MB + oc.RAM_MB)
     try:
-        reclaim_idle_file_cache()
+        reclaim_idle_file_cache(pressure=pressure)
     except Exception as e:
         print(f"[org cache] {e}", flush=True)
+    try:
+        if pressure:
+            maybe_drop_host_page_cache(avail_mb=avail)
+    except Exception as e:
+        print(f"[org ram] {e}", flush=True)
     try:
         ensure_disk_schedule_on()
     except Exception as e:
@@ -2173,13 +2254,12 @@ def tick_coord() -> None:
         purge_soft_deleted()
     except Exception as e:
         print(f"[org purge] {e}", flush=True)
-    # Tự tắt máy nghỉ / vượt trần / RAM thấp - não và volume giữ nguyên.
+    # Tắt máy chỉ khi admin còn bật «Tự tắt sau» (idle>0). idle=0 = chỉ nhả cache, không tắt.
     now = int(time.time())
     idle = int(oc.coord().get("idle_minutes") or 0)
-    _, avail = oc.host_mem_mb()
     if avail and avail < oc.KEEP_FREE_MB + oc.RAM_MB and idle:
         idle = min(idle, 10)
-    if avail and 0 < avail < oc.KEEP_FREE_MB:
+    if idle > 0 and avail and 0 < avail < oc.KEEP_FREE_MB:
         victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
         if victim:
             try:
@@ -2188,6 +2268,7 @@ def tick_coord() -> None:
                 print(f"[org coord] RAM thấp, tắt {victim}: {e}", flush=True)
     cap = int(oc.effective_max())
     running = people_running()
+    # Vượt trần tay admin: vẫn hạ máy nghỉ để tôn trọng ô «Trần máy mở».
     while len(running) > cap:
         victim = _pick_evict("", grace_sec=oc.PRESSURE_IDLE_SEC)
         if not victim:

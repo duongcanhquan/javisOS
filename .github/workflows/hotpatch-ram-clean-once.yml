@@ -1,0 +1,65 @@
+# One-shot: vá nóng manager - nhả cache RAM không tắt tenant.
+# bump: 2026-11-05T03:16Z ram-clean-no-stop curl
+name: Hotpatch RAM clean once
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/hotpatch-ram-clean-once.yml"
+      - "server/org_docker.py"
+      - "dashboard/org.js"
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Apply into javis-manager
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            SHA="${{ github.sha }}"
+            BASE="https://raw.githubusercontent.com/duongcanhquan/javisOS/${SHA}"
+            mkdir -p /tmp/javis-ram-clean
+            curl -fsSL "$BASE/server/org_docker.py" -o /tmp/javis-ram-clean/org_docker.py
+            curl -fsSL "$BASE/dashboard/org.js" -o /tmp/javis-ram-clean/org.js
+            grep -q 'maybe_drop_host_page_cache' /tmp/javis-ram-clean/org_docker.py
+            grep -q 'pressure: bool = False' /tmp/javis-ram-clean/org_docker.py
+            docker cp /tmp/javis-ram-clean/org_docker.py javis-manager:/app/server/org_docker.py
+            docker cp /tmp/javis-ram-clean/org.js javis-manager:/app/dashboard/org.js
+            docker restart javis-manager
+            ok=0
+            for i in $(seq 1 40); do
+              if docker exec javis-manager curl -fsS -m 3 http://127.0.0.1:7777/health >/dev/null 2>&1; then
+                ok=1
+                echo manager_healthy
+                break
+              fi
+              sleep 3
+            done
+            [ "$ok" = 1 ]
+            docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_docker as od, org_coord as oc
+            print("has_pressure", "pressure" in od.reclaim_idle_file_cache.__code__.co_varnames)
+            print("has_drop", hasattr(od, "maybe_drop_host_page_cache"))
+            c=oc.coord()
+            print("idle_minutes", c.get("idle_minutes"), "max_running", c.get("max_running"))
+            n=od.reclaim_idle_file_cache(pressure=True)
+            print("reclaim_tick", n)
+            '
+            echo HOTPATCH_RAM_CLEAN_DONE

@@ -357,7 +357,11 @@ check("1024 MB thì giữ", od_mem.memory_should_raise(1024 * 1024 * 1024) is Fa
 check("gắn lại máy luôn đặt trần 1024",
       '"Memory": _MEM' in src and 'hc.get("Memory") or _MEM' not in src)
 check("tick nâng trần máy người", "def ensure_people_memory" in src)
-check("tick nhả cache file máy nghỉ", "def reclaim_idle_file_cache" in src and "reclaim_idle_file_cache()" in src)
+check("tick nhả cache file máy nghỉ", "def reclaim_idle_file_cache" in src and "reclaim_idle_file_cache(pressure=" in src)
+check("nhả cache có chế độ pressure", "pressure: bool = False" in src and "_CACHE_BATCH_PRESSURE" in src)
+check("thả page cache host khi RAM thấp", "def maybe_drop_host_page_cache" in src and "maybe_drop_host_page_cache(" in src)
+check("idle=0 không tắt vì RAM thấp",
+      "if idle > 0 and avail and 0 < avail < oc.KEEP_FREE_MB:" in src)
 check("free_host_disk + lịch trong tick",
       "def free_host_disk" in src and "maybe_weekly_disk_cleanup()" in src)
 check("emergency disk cleanup khi ổ thấp",
@@ -380,13 +384,18 @@ org_py = (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8")
 check("route POST /org/disk/cleanup", '"/org/disk/cleanup"' in org_py)
 check("route PUT disk_cleanup settings", '"/org/settings/disk_cleanup"' in org_py)
 check("org.js nút Dọn ổ ngay", "Dọn ổ ngay" in org_js and 'api("/org/disk/cleanup"' in org_js)
-check("org.js lịch dọn tuần", "orgDiskWeekly" in org_js and "Tự dọn mỗi tuần" in org_js)
+check("org.js lịch dọn ổ", "orgDiskWeekly" in org_js and "Tự dọn mỗi ngày" in org_js)
 check("cache file 10MB thì không nhả", od_mem.file_cache_reclaim_bytes({"file": 10 * 1024 * 1024}) == 0)
 check("cache file 200MB thì nhả đúng số",
       od_mem.file_cache_reclaim_bytes({"file": 200 * 1024 * 1024}) == 200 * 1024 * 1024)
 check("nghỉ 10 phút chưa nhả cache", od_mem.cache_reclaim_due(10 * 60, 0, 10_000) is False)
 check("nghỉ 16 phút thì đến lượt nhả", od_mem.cache_reclaim_due(16 * 60, 0, 10_000) is True)
 check("vừa nhả thì chưa nhả lại", od_mem.cache_reclaim_due(20 * 60, 10_000, 10_000 + 60) is False)
+check("pressure: nghỉ 3 phút đủ điều kiện",
+      od_mem.cache_reclaim_due(3 * 60, 0, 10_000, idle_need=3 * 60, every=5 * 60) is True)
+check("pressure: cache 32MB được nhả",
+      od_mem.file_cache_reclaim_bytes({"file": 32 * 1024 * 1024}, min_bytes=32 * 1024 * 1024)
+      == 32 * 1024 * 1024)
 check("đọc memory.stat", od_mem.parse_cgroup_memory_stat("file 123\r\nanon 4\n")["file"] == 123)
 check("org.js nói máy nghỉ tự nhả cache", "nhả cache file" in org_js)
 check("route /org/ram_live", '"/org/ram_live"' in (ROOT / "server" / "routes" / "org.py").read_text(encoding="utf-8"))
