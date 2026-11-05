@@ -49,8 +49,9 @@ jobs:
             free -m | head -3
             df -h / | head -2
 
-            echo "======== RECLAIM RAM TENANT ========"
-            bash "$DIR/scripts/reclaim-org-ram-vps.sh"
+            echo "======== RECLAIM COORD (không tự tắt tenant) ========"
+            # IDLE_MINUTES=0 FORCE_STOP=0: chỉ giữ máy mở, không ép idle=15 như bản cũ.
+            IDLE_MINUTES=0 FORCE_STOP=0 MAX_RUNNING=20 bash "$DIR/scripts/reclaim-org-ram-vps.sh"
 
             echo "======== FREE DISK (an toàn) ========"
             journalctl --vacuum-size=80M 2>/dev/null || true

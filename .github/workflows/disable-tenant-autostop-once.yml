@@ -1,0 +1,78 @@
+# One-shot: TẮT tự tắt tenant (idle_minutes=0). Não/volume giữ nguyên.
+# bump: 2026-11-05T02:50Z no-autostop
+name: Disable tenant autostop once
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/disable-tenant-autostop-once.yml"
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  disable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set idle_minutes=0 over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== TRƯỚC ==="
+            date -u
+            free -m | head -3
+            docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_coord as oc, org_docker as od, org_tenants as ot
+            c=oc.coord()
+            print("coord_before max_running", c.get("max_running"), "idle_minutes", c.get("idle_minutes"), "effective", c.get("effective_max"))
+            run=od.people_running()
+            print("people_running", len(run), [t.get("slug") for t in run])
+            ts=ot.load().get("tenants") or []
+            stopped=[]
+            for t in ts:
+              if t.get("deleted_at") or t.get("paused"):
+                continue
+              slug=t.get("slug")
+              if not slug or t.get("protected"):
+                continue
+              st=od.container_status(str(t.get("container") or ("javis-"+slug)))
+              print("tenant", slug, "status", st)
+              if st != "running":
+                stopped.append(slug)
+            print("stopped_people", stopped)
+            '
+
+            echo "=== ĐẶT idle_minutes=0, max_running=20 ==="
+            docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_coord as oc
+            c=oc.put_coord(max_running=20, idle_minutes=0)
+            print("coord_after", c)
+            print("effective", oc.effective_max(), "idle", oc.coord().get("idle_minutes"))
+            '
+
+            echo "=== SAU ==="
+            docker exec javis-manager python -c '
+            import sys
+            sys.path.insert(0,"/app/server")
+            import org_coord as oc, org_docker as od
+            c=oc.coord()
+            print("idle_minutes", c.get("idle_minutes"), "max_running", c.get("max_running"), "effective", c.get("effective_max"))
+            print("people_running", [t.get("slug") for t in od.people_running()])
+            '
+            free -m | head -3
+            echo DISABLE_AUTOSTOP_DONE
