@@ -1309,14 +1309,15 @@ def _session_cookie(resp, token, request=None):
     # tạo tài khoản xong vẫn bị hỏi lại từ đầu). Mặc định TẮT Secure để chạy được cả HTTP lẫn HTTPS.
     # Chỉ bật khi bạn CHẮC CHẮN HTTPS đầu-cuối: đặt env JAVIS_SECURE_COOKIE=1.
     secure = os.getenv("JAVIS_SECURE_COOKIE", "").strip().lower() in ("1", "true", "yes", "on")
-    # HTTPS thật qua TÊN MIỀN RIÊNG (Caddy On-Demand TLS): Host khớp custom domain → chắc chắn đi
-    # qua Caddy = HTTPS đầu-cuối → bật Secure. An toàn: KHÔNG suy từ X-Forwarded-Proto, và không
-    # ảnh hưởng bản localhost/Hostinger (Host khác custom domain → giữ nguyên như cũ).
+    # HTTPS thật qua TÊN MIỀN RIÊNG (Caddy On-Demand TLS): Host khớp custom domain / DOMAIN_NAME
+    # (tenant org) → chắc chắn đi qua Caddy = HTTPS đầu-cuối → bật Secure. An toàn: KHÔNG suy từ
+    # X-Forwarded-Proto, và không ảnh hưởng bản localhost/Hostinger (Host khác → giữ như cũ).
     if not secure and request is not None:
         try:
             host = (request.headers.get("host", "") or "").split(":")[0].strip().lower()
             custom = (cfgmod.read_settings().get("domain", {}) or {}).get("custom", "").strip().lower()
-            if custom and host == custom:
+            env_dom = (os.getenv("DOMAIN_NAME") or "").strip().lower()
+            if host and host in {d for d in (custom, env_dom) if d}:
                 secure = True
         except Exception:
             pass
@@ -1407,7 +1408,9 @@ async def auth_login(request: Request, username: str = Form(...), password: str 
     cfg = cfgmod.read_settings()
     if not cfgmod.auth_enabled(cfg):
         return {"ok": True, "note": "auth chưa bật"}
-    if username.strip() != cfg["auth"].get("username") or not cfgmod.verify_password(password, cfg):
+    # So khớp tên không phân biệt hoa/thường: sổ Tổ chức và người gõ hay lệch hoa thường.
+    want_user = str((cfg.get("auth") or {}).get("username") or "")
+    if username.strip().lower() != want_user.strip().lower() or not cfgmod.verify_password(password, cfg):
         _login_fail(ip)
         await asyncio.sleep(0.5)   # làm chậm brute-force online
         return JSONResponse({"ok": False, "error": "Sai tài khoản hoặc mật khẩu"}, status_code=401)

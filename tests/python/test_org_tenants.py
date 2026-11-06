@@ -209,7 +209,17 @@ check("org.js tìm và lọc người", "orgSearch" in org_js and "orgSt" in org
 check("org.js placeholder Ví dụ", "Ví dụ: lan" in org_js)
 check("org.js dùng host_prefix từ API", "host_prefix" in org_js and "hostOf" in org_js)
 check("gắn lại luôn 4 ổ tenant, không ổ rỗng",
-      "Từ chối gắn lại máy không có ổ não" in src and "ot.volume_names" in src.split("def apply_public_hosts", 1)[-1].split("def write_quota", 1)[0])
+      "Từ chối gắn lại máy không có ổ não" in src
+      and "def _tenant_core_binds" in src
+      and "ot.volume_names" in src.split("def _tenant_core_binds", 1)[-1].split("def apply_public_hosts", 1)[0])
+check("recreate bỏ MK bootstrap ngẫu nhiên",
+      'startswith("JAVIS_ADMIN_PASSWORD=")' in src.split("def apply_public_hosts", 1)[-1].split("def write_quota", 1)[0]
+      or "JAVIS_ADMIN_PASSWORD=" in src.split("def apply_public_hosts", 1)[-1].split("def write_quota", 1)[0])
+check("restore không nhét MK bootstrap ngẫu nhiên",
+      "JAVIS_ADMIN_PASSWORD=" not in src.split("def restore_tenant_container", 1)[-1].split("def start(", 1)[0])
+check("proxy giữ Set-Cookie đăng nhập",
+      "set-cookie" in src.split("async def proxy_tenant_request", 1)[-1].split("def wake_or_wait", 1)[0]
+      and "cookies=None" in src.split("async def proxy_tenant_request", 1)[-1].split("def wake_or_wait", 1)[0])
 lock_fn = src.split("def start_with_capacity", 1)[-1].split("with _LOCK:", 1)[-1].split("def tick_coord", 1)[0]
 check("giữ khóa chỗ đến khi bật máy",
       "_acquire_slot(slug)" in lock_fn and lock_fn.find("_acquire_slot") < lock_fn.find("start(slug)"))

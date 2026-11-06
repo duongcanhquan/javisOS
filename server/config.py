@@ -1179,8 +1179,8 @@ def _load_sessions():
                 return {k: float(v) for k, v in data.items()}
             if isinstance(data, list):   # tương thích định dạng cũ → coi như vừa tạo
                 return {k: _time.time() for k in data}
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[auth] đọc .sessions.json lỗi: {e}", file=__import__("sys").stderr)
     return {}
 
 
@@ -1188,10 +1188,15 @@ SESSIONS = _load_sessions()
 
 
 def _save_sessions():
+    """Ghi session ra ổ. Nuốt lỗi = mất phiên sau restart (đá đăng nhập oan trên tenant)."""
     try:
-        _SESS_PATH.write_text(json.dumps(SESSIONS), encoding="utf-8")
-    except Exception:
-        pass
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = _SESS_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(SESSIONS), encoding="utf-8")
+        tmp.replace(_SESS_PATH)
+    except Exception as e:
+        print(f"[auth] KHÔNG ghi được .sessions.json ({_SESS_PATH}): {e}",
+              file=__import__("sys").stderr)
 
 
 def new_session():
@@ -1202,8 +1207,15 @@ def new_session():
 
 
 def valid_session(token):
-    if not token or token not in SESSIONS:
+    if not token:
         return False
+    if token not in SESSIONS:
+        # Máy vừa recreate / hot-patch: RAM trống nhưng file volume vẫn còn token.
+        disk = _load_sessions()
+        if token in disk:
+            SESSIONS.update(disk)
+        else:
+            return False
     if _time.time() - SESSIONS.get(token, 0) > _SESSION_TTL:
         SESSIONS.pop(token, None)
         _save_sessions()

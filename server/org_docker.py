@@ -433,6 +433,8 @@ def set_admin(cname: str, username: str, password: str, *, slug: str | None = No
         "a=dict(cfg.get('auth') or {})\n"
         "a['username']=user; a['password_hash']=h; a['salt']=s\n"
         "cfg['auth']=a; c.write_settings(cfg)\n"
+        # Đổi MK từ Tổ chức = hạ mọi phiên cũ (tránh cookie còn sống với MK đã đổi).
+        "c.clear_sessions()\n"
         "print('OK')\n"
     )
     try:
@@ -924,6 +926,44 @@ def create_and_start(
         return ot.upsert(rec)
 
 
+def _tenant_core_binds(slug: str, data: dict | None = None, rec: dict | None = None) -> list[str]:
+    """4 ổ não/đăng nhập của máy người. Ưu tiên ổ ĐANG GẮN → sổ → tên chuẩn.
+
+    Không được nhảy sang volume tên mới rỗng khi recreate (mất settings/mật khẩu/session).
+    """
+    need = ("/data", "/brains", "/home/javis/.claude", "/home/javis/.codex")
+    if isinstance(data, dict):
+        by_dest: dict[str, str] = {}
+        for m in data.get("Mounts") or []:
+            if not isinstance(m, dict):
+                continue
+            dest = str(m.get("Destination") or "").strip()
+            name = str(m.get("Name") or "").strip()
+            if str(m.get("Type") or "") == "volume" and dest in need and name:
+                by_dest[dest] = name
+        if all(d in by_dest for d in need):
+            return [f"{by_dest[d]}:{d}" for d in need]
+        # Fallback: Binds cũ (volume:path hoặc volume:path:ro)
+        hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
+        from_binds: dict[str, str] = {}
+        for raw in hc.get("Binds") or []:
+            parts = str(raw or "").split(":")
+            if len(parts) < 2:
+                continue
+            src, dest = parts[0].strip(), parts[1].strip()
+            if dest in need and src and not src.startswith("/"):
+                from_binds[dest] = src
+        if all(d in from_binds for d in need):
+            return [f"{from_binds[d]}:{d}" for d in need]
+    vols = list((rec or {}).get("volumes") or [])
+    if len(vols) >= 4:
+        return [f"{vols[0]}:/data", f"{vols[1]}:/brains",
+                f"{vols[2]}:/home/javis/.claude", f"{vols[3]}:/home/javis/.codex"]
+    names = ot.volume_names(str((rec or {}).get("slug") or slug))
+    return [f"{names[0]}:/data", f"{names[1]}:/brains",
+            f"{names[2]}:/home/javis/.claude", f"{names[3]}:/home/javis/.codex"]
+
+
 def apply_public_hosts(slug: str) -> None:
     """Cập nhật nhãn Caddy sang prefix mới (vd vmos-), không đụng volume. Không đụng bản quan."""
     rec = ot.get(slug)
@@ -950,10 +990,13 @@ def apply_public_hosts(slug: str) -> None:
             and not need_force_file and not need_term_remote):
         return
     hc = data.get("HostConfig") if isinstance(data.get("HostConfig"), dict) else {}
+    # Bỏ JAVIS_ADMIN_PASSWORD bootstrap: auth nằm trong volume. Giữ MK ngẫu nhiên trong env
+    # khi ổ rỗng/lệch → provision_admin tạo MK mà chủ không biết → «quên mật khẩu».
     env = [e for e in env_now
            if not str(e).startswith("DOMAIN_NAME=") and not str(e).startswith("WORKSPACE_NAME=")
            and not str(e).startswith("GEMINI_FORCE_FILE_STORAGE=")
-           and not str(e).startswith("JAVIS_TERMINAL_REMOTE=")]
+           and not str(e).startswith("JAVIS_TERMINAL_REMOTE=")
+           and not str(e).startswith("JAVIS_ADMIN_PASSWORD=")]
     env.append("DOMAIN_NAME=" + wanted)
     env.append("WORKSPACE_NAME=VietMy OS")
     # Đăng nhập agy trên VPS: lưu token ra file + terminal khai phiên từ xa (SSH_CONNECTION).
@@ -961,16 +1004,7 @@ def apply_public_hosts(slug: str) -> None:
     env.append("JAVIS_TERMINAL_REMOTE=1")
     labels["caddy"] = wanted
     labels["caddy.reverse_proxy"] = "{{upstreams 7777}}"
-    try:
-        vols = ot.volume_names(str(rec.get("slug") or slug))
-        binds = [
-            f"{vols[0]}:/data",
-            f"{vols[1]}:/brains",
-            f"{vols[2]}:/home/javis/.claude",
-            f"{vols[3]}:/home/javis/.codex",
-        ]
-    except Exception:
-        binds = list(hc.get("Binds") or [])
+    binds = _tenant_core_binds(str(rec.get("slug") or slug), data=data, rec=rec)
     if not binds:
         raise RuntimeError("Từ chối gắn lại máy không có ổ não.")
     binds = attach_shared_runtime_binds(binds)
@@ -1042,8 +1076,8 @@ def restore_tenant_container(slug: str, *, start_after: bool = False) -> dict:
     tz = (os.getenv("TZ") or "Asia/Ho_Chi_Minh").strip() or "Asia/Ho_Chi_Minh"
     mgr = (os.getenv("JAVIS_NAME") or "").strip() or "javis-manager"
     login = str(rec.get("login_user") or "admin").strip() or "admin"
-    import secrets as _secrets
-    bootstrap = _secrets.token_urlsafe(24)  # chỉ nếu /data chưa có auth; không gọi set_admin
+    # Không nhét mật khẩu bootstrap ngẫu nhiên: ổ còn auth thì bỏ qua; ổ trống thì hiện
+    # màn tạo tài khoản (cần mã thiết lập) thay vì MK bí mật chủ không bao giờ biết.
     env = [
         f"DOMAIN_NAME={domain}",
         "JAVIS_HOST=0.0.0.0",
@@ -1051,7 +1085,6 @@ def restore_tenant_container(slug: str, *, start_after: bool = False) -> dict:
         f"JAVIS_NAME={cname}",
         f"TZ={tz}",
         f"JAVIS_ADMIN_USER={login}",
-        f"JAVIS_ADMIN_PASSWORD={bootstrap}",
         "GEMINI_FORCE_FILE_STORAGE=true",
         "JAVIS_TERMINAL_REMOTE=1",
         "JAVIS_ENABLE_USER_PLUGINS=false",
@@ -2656,7 +2689,9 @@ async def proxy_tenant_request(request, slug: str):
     headers["x-forwarded-host"] = host
     body = await request.body()
     timeout = httpx.Timeout(180.0, connect=15.0)
-    client = httpx.AsyncClient(timeout=timeout)
+    # cookies=None: không nuốt Set-Cookie của tenant vào jar httpx (mất cookie đăng nhập
+    # khi máy vừa wake, request còn đi qua proxy manager).
+    client = httpx.AsyncClient(timeout=timeout, cookies=None)
     try:
         req = client.build_request(request.method, url, headers=headers, content=body or None)
         r = await client.send(req, stream=True)
@@ -2672,19 +2707,32 @@ async def proxy_tenant_request(request, slug: str):
         )
     out_headers = {
         k: v for k, v in r.headers.items()
-        if k.lower() not in skip and k.lower() != "content-encoding"
+        if k.lower() not in skip and k.lower() not in ("content-encoding", "set-cookie")
     }
 
     async def _close():
         await r.aclose()
         await client.aclose()
 
-    return StreamingResponse(
+    resp = StreamingResponse(
         r.aiter_raw(),
         status_code=r.status_code,
         headers=out_headers,
         background=BackgroundTask(_close),
     )
+    # Set-Cookie phải append từng cái (dict gộp sẽ mất / gãy cookie đăng nhập).
+    try:
+        sc_list = r.headers.get_list("set-cookie") if hasattr(r.headers, "get_list") else []
+    except Exception:
+        sc_list = []
+    if not sc_list:
+        one = r.headers.get("set-cookie")
+        if one:
+            sc_list = [one]
+    for sc in sc_list:
+        if sc:
+            resp.headers.append("set-cookie", sc)
+    return resp
 
 
 def wake_or_wait(slug: str, host: str) -> tuple[str, int]:
