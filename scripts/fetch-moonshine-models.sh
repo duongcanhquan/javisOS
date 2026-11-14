@@ -126,7 +126,7 @@ copy_moonshine_everywhere() {
   while IFS= read -r name; do
     [ -n "$name" ] || continue
     case "$name" in
-      javis-manager|javis-proxy|javis-park|"$primary") continue ;;
+      javis-manager|javis-proxy|javis-park|*-guard|"$primary") continue ;;
     esac
     echo "==> copy Moonshine vào $name"
     if ! CONTAINER="$name" copy_into_container; then

@@ -35,7 +35,7 @@ patch_one "$CONTAINER"
 while IFS= read -r name; do
   [ -n "$name" ] || continue
   case "$name" in
-    javis-proxy|javis-park|"$CONTAINER") continue ;;
+    javis-proxy|javis-park|*-guard|"$CONTAINER") continue ;;
   esac
   patch_one "$name" || echo "WARN: patch $name"
 done < <(docker ps --format '{{.Names}}' 2>/dev/null | grep -E '^javis-' || true)

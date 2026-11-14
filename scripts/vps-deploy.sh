@@ -219,7 +219,7 @@ if [ -d /root/javis-data/dashboard-vendor ]; then
   echo "==> restore dashboard CDN vendor cho mọi máy người"
   _share_vendor() {
     local name="$1"
-    docker exec -u root "$name" mkdir -p /app/dashboard/vendor
+    docker exec -u root "$name" mkdir -p /app/dashboard/vendor || { echo "WARN: vendor bỏ $name"; return 0; }
     local d
     for d in mermaid turndown fonts; do
       if [ -d "/root/javis-data/dashboard-vendor/$d" ]; then
@@ -232,7 +232,7 @@ if [ -d /root/javis-data/dashboard-vendor ]; then
   while IFS= read -r _vn; do
     [ -n "$_vn" ] || continue
     case "$_vn" in
-      javis-proxy|javis-park|"${JAVIS_CONTAINER}") continue ;;
+      javis-proxy|javis-park|*-guard|"${JAVIS_CONTAINER}") continue ;;
     esac
     echo "==> vendor → $_vn"
     _share_vendor "$_vn"
@@ -306,7 +306,7 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
     _mgr_set DOCKER_GID "$DOCKER_GID"
   fi
   # Máy đang chạy trước khi Javis gốc gắn lại. Sau gắn lại, máy người phải có model họp.
-  _MEET_PEOPLE=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE '^(javis-manager|javis-proxy|javis-park)$' || true)
+  _MEET_PEOPLE=$(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE '^(javis-manager|javis-proxy|javis-park)$' | grep -vE -- '-guard$' || true)
   (
     cd "$MGR_DIR"
     unset JAVIS_NAME JAVIS_HOST_PORT DOMAIN_NAME JAVIS_ORG_MANAGER JAVIS_ORG_TENANT JAVIS_ORG_HOST_PREFIX
