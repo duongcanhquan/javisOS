@@ -17,6 +17,7 @@ Xem docs/dev/2026-08-bot-chuyen-trach-spec.md.
 from __future__ import annotations
 
 import json
+import kept
 import os
 import re
 import threading
@@ -148,9 +149,25 @@ def _now() -> float:
     return time.time()
 
 
+def _read_text():
+    """Nội dung file kho, None khi chưa có file. Lỗi đọc khác để `_load` xử lý."""
+    try:
+        return STORE_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+
+
+# Cùng lý do channel_accounts._TEXT: mỗi tin bot tra bot của nó, và mỗi lần tra đọc file
+# này trên vòng lặp chính. Vòng lặp lấy chữ từ bộ nhớ; `_save` quên bản đã giữ.
+_TEXT = kept.Value(lambda: _read_text(), key=lambda: str(STORE_PATH), name="chatbots.json")
+
+
 def _load() -> dict:
     try:
-        d = json.loads(STORE_PATH.read_text(encoding="utf-8"))
+        text = _TEXT.get()
+        if text is None:
+            return {"version": 1, "bots": []}
+        d = json.loads(text)
     except FileNotFoundError:
         return {"version": 1, "bots": []}
     except Exception:
@@ -160,6 +177,7 @@ def _load() -> dict:
             STORE_PATH.rename(STORE_PATH.with_suffix(".json.hong"))
         except Exception:
             pass
+        _TEXT.drop()
         return {"version": 1, "bots": []}
     if not isinstance(d, dict) or not isinstance(d.get("bots"), list):
         return {"version": 1, "bots": []}
@@ -193,6 +211,7 @@ def _save(d: dict) -> None:
     tmp = STORE_PATH.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, STORE_PATH)   # ghi nguyên tử: mất điện giữa chừng không để lại file cụt
+    _TEXT.drop()
 
 
 def _slugify(name: str) -> str:

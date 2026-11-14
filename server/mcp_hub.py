@@ -11,6 +11,7 @@ Mode đến từ header X-Javis-Mode (Claude/Codex) hoặc tham số (engine API
 import asyncio
 import hashlib
 import json
+import kept
 import os
 import re
 import secrets as _secrets
@@ -50,15 +51,24 @@ _rate = {}           # conn_id -> deque[timestamps]
 _mem_token = None   # fallback khi STATE_DIR không ghi được - PHẢI ngẫu nhiên, không được hằng số
 
 
+def _token_on_disk() -> str:
+    return _TOKEN_PATH.read_text(encoding="utf-8").strip() if _TOKEN_PATH.exists() else ""
+
+
+# Mỗi request tới /hub/mcp so Bearer với token này. Đọc file trên vòng lặp chính từng làm hub
+# đứng khi đĩa chậm. Vòng lặp lấy token từ bộ nhớ (kept.py).
+_TOKEN = kept.Value(lambda: _token_on_disk(), key=lambda: str(_TOKEN_PATH), name="hub token")
+
+
 def hub_token():
     global _mem_token
     try:
-        if _TOKEN_PATH.exists():
-            t = _TOKEN_PATH.read_text(encoding="utf-8").strip()
-            if t:
-                return t
+        t = _TOKEN.get()
+        if t:
+            return t
         t = _secrets.token_urlsafe(32)
         _TOKEN_PATH.write_text(t, encoding="utf-8")
+        _TOKEN.drop()
         try:
             os.chmod(_TOKEN_PATH, 0o600)
         except Exception:
@@ -876,6 +886,10 @@ def _store_mtime():
 
     Đây là đường CHẬM (trong TTL 60 giây sẵn có), dành cho ca thả thư mục vào bằng tay. Đổi qua
     endpoint thì đã gọi thẳng `invalidate_cache()` nên có hiệu lực ngay."""
+    return _STORE_MTIME.get()
+
+
+def _store_mtime_now():
     tong = 0.0
     for f in (mcp_store.STORE, STATE_DIR / "core-off.json", STATE_DIR / "packs"):
         try:
@@ -883,6 +897,12 @@ def _store_mtime():
         except OSError:
             pass
     return tong
+
+
+# Ba lệnh stat này chạy trên vòng lặp chính mỗi lần hub dựng danh sách tool. Vòng lặp lấy tổng
+# từ bộ nhớ; `invalidate_cache()` quên nó cùng lúc xoá danh sách tool.
+_STORE_MTIME = kept.Value(lambda: _store_mtime_now(), key=lambda: (str(mcp_store.STORE), str(STATE_DIR)),
+                          name="hub store mtime")
 
 
 async def discover_all(mode="full", vault_root=None, include_plugins=True, include_ambient=False,
@@ -1072,6 +1092,7 @@ def invalidate_cache(*, drop_sessions: bool = True, conn_id: str | None = None):
     conn_id: chỉ invalidate một kết nối (toggle/xoá một cái), không đụng cả pool.
     """
     _cache.clear()
+    _STORE_MTIME.drop()
     _ambient_cache["ts"] = 0.0   # ép nạp lại danh sách connector tài khoản ở lần discover kế
     if not drop_sessions:
         return

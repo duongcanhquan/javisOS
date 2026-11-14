@@ -4,6 +4,7 @@ Gồm: workspace, tài khoản admin (mật khẩu hash), model engine, telegram
 Auth CHỈ bật khi đã đặt mật khẩu → bản local chưa đặt vẫn chạy như cũ.
 """
 import json
+import kept
 import os
 import hashlib
 import secrets
@@ -542,6 +543,20 @@ def _transform_secret_fields(cfg, fn):
 # (x2 middleware = 10-16ms/request chỉ để check đăng nhập). File đổi (kể cả write_settings
 # ghi đè) thì mtime/size đổi -> tự đọc lại. Trả deep copy để caller sửa thoải mái không bẩn cache.
 _SETTINGS_CACHE = {"sig": None, "cfg": None}
+
+
+def _settings_sig_now():
+    try:
+        st = SETTINGS_PATH.stat()
+        return (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return None
+
+
+# Vòng lặp chính đọc chữ ký từ bộ nhớ (kept.py). Ghi qua Javis thì drop, thấy ngay;
+# sửa file bằng tay thì vòng lặp thấy sau khoảng một giây. Một lần stat chậm từng
+# làm mọi request đứng theo trên VPS.
+_SETTINGS_SIG = kept.Value(lambda: _settings_sig_now(), key=lambda: str(SETTINGS_PATH), name="settings.json")
 # Tên máy móc mặc định (chưa tự đặt). Giữ cả tên cũ để lần đọc settings cũ vẫn bị
 # thay bằng VMOS / VietMy OS theo cổng.
 _FACTORY_WS = frozenset({
@@ -829,11 +844,7 @@ def _no_rong_pham_vi_bo_nao(cfg: dict) -> bool:
 
 
 def read_settings():
-    try:
-        st = SETTINGS_PATH.stat()
-        sig = (st.st_mtime_ns, st.st_size)
-    except OSError:
-        sig = None
+    sig = _SETTINGS_SIG.get()
     if sig is not None and sig == _SETTINGS_CACHE["sig"] and _SETTINGS_CACHE["cfg"] is not None:
         cfg = json.loads(_SETTINGS_CACHE["cfg"])
         _apply_workspace_default(cfg)
@@ -904,6 +915,7 @@ def write_settings(cfg):
     except Exception as e:      # tấm che hỏng thì vẫn ghi như cũ, không chặn việc lưu
         print(f"[config] giữ secret khi khoá lệch lỗi: {e}", file=__import__('sys').stderr)
     SETTINGS_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    _SETTINGS_SIG.drop()
 
 
 def _giu_secret_khong_giai_duoc(out):

@@ -160,7 +160,7 @@ if [ "$ok_pull" != 1 ]; then
 fi
 
 echo "==> up (image mới, không --build)"
-UP_SERVICES=(javis)
+UP_SERVICES=(javis guard)
 if printf '%s ' "${COMPOSE_UP[@]}" | grep -q 'docker-compose.https.yml'; then
   UP_SERVICES+=(caddy)
 fi
@@ -320,7 +320,7 @@ elif [ -d "$MGR_DIR" ] && [ -f "$MGR_DIR/docker-compose.yml" ]; then
       MGR_FILES+=(-f docker-compose.manager.yml)
     fi
     docker compose "${MGR_FILES[@]}" pull javis || echo "WARN: pull Javis gốc thất bại"
-    docker compose "${MGR_FILES[@]}" up -d --no-build --force-recreate javis
+    docker compose "${MGR_FILES[@]}" up -d --no-build --force-recreate javis guard
   )
   echo "==> health Javis gốc (:7778)"
   _mgr_ok=0

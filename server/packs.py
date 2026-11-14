@@ -47,6 +47,7 @@ thứ đang chạy được; một file lạ trong STATE_DIR không được ph�
 from __future__ import annotations
 
 import json
+import kept
 import os
 import re
 import sys
@@ -368,6 +369,13 @@ def _so_cai_dat() -> dict:
         return {}
 
 
+# Vòng lặp chính lấy chữ ký lần trước từ bộ nhớ; luồng phụ tính chữ ký mới (kept.py).
+# Một lần tính lại từng mất tới gần một phút trên VPS và làm cả server đứng.
+SIGNATURE_S = 2.0
+_SIG = kept.Value(lambda: _signature_now(), fresh_s=lambda: SIGNATURE_S, key=lambda: str(PACKS_DIR),
+                  name="packs.signature")
+
+
 def signature():
     """Chữ ký để `mcp_catalog.load()` gộp vào khoá cache của nó.
 
@@ -377,6 +385,10 @@ def signature():
     chat đều gọi qua `mcp_catalog.load()`."""
     if tat_het():
         return "off"
+    return _SIG.get()
+
+
+def _signature_now():
     try:
         st = PACKS_DIR.stat()
     except OSError:
@@ -481,3 +493,9 @@ def page_path(pid: str, rel: str):
 def invalidate():
     with _lock:
         _cache.update(sig=None, packs=[], connectors={})
+        _SIG.drop()
+    try:
+        import mcp_catalog
+        mcp_catalog.invalidate()
+    except Exception:
+        pass

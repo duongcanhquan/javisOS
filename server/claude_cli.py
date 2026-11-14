@@ -785,6 +785,13 @@ def claude_engine(system_prompt=None, cwd=None, tag="chat", allowed_tools=None, 
         _engine_env_warned = True
         print(f"[claude engine] JAVIS_CLAUDE_ENGINE={mode} đã gỡ từ v0.9.37 - engine Claude "
               "luôn chạy Agent SDK. Gặp lỗi hãy báo issue kèm log.", file=sys.stderr)
+    try:
+        # Claude thoát trước khi trả lời thì nêu đúng câu nó in ra, thay cho câu
+        # "Check stderr output for details" của SDK.
+        import claude_exit_reason
+        claude_exit_reason.install()
+    except Exception as e:  # noqa: BLE001 - báo lỗi, không được làm hỏng lượt
+        print(f"[claude] không gắn được lớp giải thích mã thoát: {type(e).__name__}: {e}", file=sys.stderr)
     from claude_sdk_engine import ClaudeSDK
     return ClaudeSDK(system_prompt=system_prompt, cwd=cwd, tag=tag,
                      allowed_tools=allowed_tools, model=model)

@@ -19,6 +19,7 @@ Tài khoản của kênh `kind == "account"` (Zalo cá nhân) KHÔNG ở đây: 
 from __future__ import annotations
 
 import json
+import kept
 import os
 import threading
 import time
@@ -40,9 +41,25 @@ def _now() -> float:
     return time.time()
 
 
+def _read_text():
+    """Nội dung file kho, None khi chưa có file. Lỗi đọc khác để `_load` xử lý."""
+    try:
+        return STORE_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+
+
+# Mỗi tin bot và mỗi lần liệt kê bot đọc lại file này. Vòng lặp chính lấy chữ từ bộ nhớ
+# (kept.py). Chỉ module này ghi file, và `_save` quên bản đã giữ nên lần tra tiếp theo thấy ngay.
+_TEXT = kept.Value(lambda: _read_text(), key=lambda: str(STORE_PATH), name="channel_accounts.json")
+
+
 def _load() -> dict:
     try:
-        d = json.loads(STORE_PATH.read_text(encoding="utf-8"))
+        text = _TEXT.get()
+        if text is None:
+            return {"version": 1, "accounts": []}
+        d = json.loads(text)
     except FileNotFoundError:
         return {"version": 1, "accounts": []}
     except Exception:
@@ -50,6 +67,7 @@ def _load() -> dict:
             STORE_PATH.rename(STORE_PATH.with_suffix(".json.hong"))
         except Exception:
             pass
+        _TEXT.drop()
         return {"version": 1, "accounts": []}
     if not isinstance(d, dict) or not isinstance(d.get("accounts"), list):
         return {"version": 1, "accounts": []}
@@ -61,6 +79,7 @@ def _save(d: dict) -> None:
     tmp = STORE_PATH.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, STORE_PATH)
+    _TEXT.drop()
 
 
 def _clean_kenh(v: Any) -> str:

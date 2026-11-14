@@ -252,6 +252,7 @@ class ClaudeSDK:
         # claude_code thì tự nhét lại prompt đầy đủ của Claude Code và ăn sạch phần tiết kiệm.
         self.system_prompt_raw = False
         self._tmp_files = []      # file tạm (system prompt) dọn sau mỗi query
+        self._stderr_tail = []    # vài dòng cuối claude in ra stderr, để giải thích mã thoát
 
     def is_available(self) -> bool:
         if not _SDK_OK:
@@ -471,6 +472,13 @@ class ClaudeSDK:
             kw["effort"] = self.effort
         if self.session_id:
             kw["resume"] = self.session_id
+        if "stderr" in fields:
+            def _gom_stderr(line):
+                s = str(line or "").strip()
+                if s:
+                    self._stderr_tail.append(s)
+                    del self._stderr_tail[:-20]
+            kw["stderr"] = _gom_stderr
         servers, strict = self._mcp_servers()
         if servers is not None:
             kw["mcp_servers"] = servers

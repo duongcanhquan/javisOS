@@ -6,6 +6,7 @@ Javis KHÔNG gọi Anthropic API trực tiếp. Mọi reasoning + tool calling �
 `claude` CLI đã cài trên máy → tự kế thừa MCP, skills, auth.
 """
 import localefmt   # múi giờ theo cấu hình, thay UTC+7 nhúng cứng
+import kept            # giá trị vòng lặp chính đọc từ bộ nhớ thay vì chờ đĩa (2026-11-14)
 import os
 import posixpath
 import json
@@ -116,6 +117,7 @@ import quota_scheduler        # sổ cái TPM dùng chung (Việc 6)
 import model_limits           # hạn mức GỢI Ý theo provider, để khai quota profile cho canary
 import model_router           # Phase 12: chọn model theo từng bước, lọc năng lực trước
 import model_routing          # Thứ tự dùng / nhiều key / nghỉ hết lượt (port upstream 0.350)
+import signin_loss            # thẻ gói mất đăng nhập thì lượt sau chuyển model khác (port upstream 0.551.1)
 import plan_accounts          # Nhiều tài khoản gói Claude/Codex/Grok (0.353)
 import workflow_graph          # Phase 10: workflow -> capability graph (thuần dữ liệu)
 import workflow_runtime        # Phase 10: chạy graph có checkpoint/resume
@@ -1778,6 +1780,8 @@ def _route_ready(mcfg, prov) -> bool:
     # CLI / OAuth: nghỉ hết lượt (account main hoặc mọi tài khoản phụ)
     if model_routing.resting_until(prov, "main") > time.time():
         return False
+    if _signed_out_until(prov):
+        return False
     try:
         if plan_accounts.supported(prov) and plan_accounts.has_extra(mcfg, prov):
             return plan_accounts.pick(mcfg, prov) is not None
@@ -2068,6 +2072,99 @@ def _chat_provider(mcfg):
     return prov, kind, key, model
 
 
+# Thẻ gói (Claude Code, ChatGPT, Grok, Antigravity, Copilot) mất ĐĂNG NHẬP thì các lượt sau
+# bỏ qua thẻ đó, giống khi thẻ đang nghỉ hết lượt. Giữ riêng khỏi dấu nghỉ hạn mức để giao diện
+# không nói "hết lượt tới 12:40" với một thẻ cần đăng nhập lại. Chỉ nằm trong bộ nhớ: sau
+# restart, lượt đầu phát hiện lại. Tự gỡ sau signin_loss.RETRY_S để một lần từ chối nhầm
+# không khoá thẻ mãi.
+_PLAN_SIGNIN = {"anthropic-cli", "openai-oauth", "grok-cli", "antigravity-cli", "copilot-cli"}
+_SIGNED_OUT: dict = {}
+_SIGNED_OUT_TOLD: dict = {}
+_SIGNED_OUT_NOTICE_EVERY_S = 24 * 3600
+
+
+def _plan_label(provider: str) -> str:
+    d = _provider_def(provider) or {}
+    return str(d.get("label") or provider)
+
+
+def _signed_out_until(provider: str, now: float = None) -> float:
+    """Mốc tới khi `provider` bị coi là mất đăng nhập. 0 nếu không, hoặc cửa sổ đã hết."""
+    prov = str(provider or "")
+    now = time.time() if now is None else now
+    until = float(_SIGNED_OUT.get(prov, 0) or 0)
+    if until <= now:
+        _SIGNED_OUT.pop(prov, None)
+        return 0.0
+    return until
+
+
+def _signin_lost_text(provider: str, text, answer: bool = False) -> bool:
+    """Lỗi (hoặc, khi `answer`, cả câu trả lời) có nói thẻ gói `provider` mất đăng nhập không.
+    Chỉ bốn loại thẻ có phiên đăng nhập. Câu hết lượt không tính."""
+    prov = str(provider or "")
+    if prov not in _PLAN_SIGNIN or not str(text or "").strip():
+        return False
+    try:
+        if _subscription_limit_event(str(text), "")[0]:
+            return False
+    except Exception:  # noqa: BLE001
+        pass
+    return signin_loss.is_signin_error(text, answer=answer)
+
+
+def _signin_lost_message(provider: str, raw="") -> str:
+    name = _plan_label(provider)
+    detail = " ".join(str(raw or "").split())[:200]
+    return localefmt.chu(
+        f"⚠ {name} mất đăng nhập nên lượt này chưa chạy. Các lượt sau dùng model khác đã kết nối, nếu có. "
+        f"Vào trang Models đăng nhập lại {name}."
+        + (f" (Chi tiết: {detail})" if detail else ""),
+        f"⚠ {name} lost its sign-in, so this turn did not run. Later turns use another connected model, if there is one. "
+        f"Sign in to {name} again on the Models page."
+        + (f" (Details: {detail})" if detail else ""))
+
+
+def _note_signin_lost(provider: str, account: str = None, now: float = None) -> None:
+    """Một lượt trên thẻ gói bị từ chối vì mất đăng nhập: các lượt sau bỏ qua thẻ trong RETRY_S.
+
+    Thẻ có nhiều tài khoản thì tài khoản vừa bị từ chối nghỉ, và cả thẻ chỉ bị đánh dấu khi
+    không còn tài khoản nào chạy được. Chuông báo chủ một lần mỗi ngày. Không bao giờ ném lỗi."""
+    prov = str(provider or "")
+    if prov not in _PLAN_SIGNIN:
+        return
+    now = time.time() if now is None else now
+    until = now + signin_loss.RETRY_S
+    try:
+        if plan_accounts.in_use(prov):
+            m = cfgmod.read_settings().get("model") or {}
+            if plan_accounts.has_extra(m, prov):
+                aid = account or plan_accounts.MAIN
+                model_routing.mark_rest(prov, aid, until=until)
+                if plan_accounts.usable(m, prov, now):
+                    return
+    except Exception as e:  # noqa: BLE001
+        print(f"[routing] signed out {prov}: {type(e).__name__}: {e}", file=sys.stderr)
+    first = not _signed_out_until(prov, now)
+    _SIGNED_OUT[prov] = until
+    if first:
+        print(f"[routing] {prov} mất đăng nhập: các lượt sau dùng thẻ kế trong {int(signin_loss.RETRY_S)} giây",
+              file=sys.stderr)
+    if now - float(_SIGNED_OUT_TOLD.get(prov, 0) or 0) < _SIGNED_OUT_NOTICE_EVERY_S:
+        return
+    _SIGNED_OUT_TOLD[prov] = now
+    try:
+        name = _plan_label(prov)
+        inbox.add(localefmt.chu(
+            f"{name} mất đăng nhập. Javis đang chạy bằng model khác đã kết nối (nếu có). "
+            f"Vào trang Models đăng nhập lại {name} để dùng lại model này.",
+            f"{name} lost its sign-in. Javis is running on another connected model (if there is one). "
+            f"Sign in to {name} again on the Models page to use this model again."),
+            kind="system")
+    except Exception as e:  # noqa: BLE001
+        print(f"[routing] signed-out notice {prov}: {type(e).__name__}: {e}", file=sys.stderr)
+
+
 def _chat_reasoning(mcfg, prov) -> str:
     """Effort của thẻ đang chạy chat (MAIN lấy `reasoning`, thẻ khác lấy profile)."""
     if prov == model_routing.main_provider(mcfg):
@@ -2155,6 +2252,10 @@ def _chat_provider_for_session(mcfg, row):
         return _chat_provider(mcfg)
     d = _provider_def(pprov)
     if not d:
+        return _chat_provider(mcfg)
+    if _signed_out_until(pprov):
+        # Thẻ ghim của phiên (agent hoặc bot) mất đăng nhập: chạy bằng model chính,
+        # hoặc thẻ kế trong thứ tự dùng còn kết nối được.
         return _chat_provider(mcfg)
     kind = d.get("kind", "cli")
     key = _provider_key(mcfg, d)
@@ -4107,11 +4208,14 @@ async def hub_mcp(request: Request):
 
 
 @app.get("/connect/catalog")
-async def connect_catalog():
+def connect_catalog():
     """Kho kết nối cho giao diện, kèm phần người dùng đã GỠ và kết nối đã mồ côi.
 
     `catalog` đã TRỪ cái đã gỡ (lọc trong `mcp_catalog.load`), còn `removed` là danh sách để vẽ
-    khu "Đã gỡ" có nút Cài lại - nên nó phải đọc từ `tat_ca()` chứ không phải `load()`."""
+    khu "Đã gỡ" có nút Cài lại - nên nó phải đọc từ `tat_ca()` chứ không phải `load()`.
+
+    Hàm đồng bộ để FastAPI chạy trên luồng phụ: nó đọc catalog, sổ kết nối và sổ gói.
+    Để `async def` thì toàn bộ việc đó chạy trên vòng lặp chính, và đĩa chậm làm cả server đứng."""
     tat_ca = mcp_catalog.tat_ca()
     da_go = core_off.da_go("connectors")
     return {"catalog": mcp_catalog.public_catalog(), "connections": mcp_store.list_connections(),
@@ -5420,14 +5524,22 @@ async def reflect(brain: str = Form("brain")):
             "status": res.get("status", ""), "report": rep, "git": g}
 
 
+# Health check của Docker và mọi probe uptime gọi GET /health. Trước đây mỗi lần gọi đi tìm
+# binary `claude` bằng cách duyệt PATH trên đĩa, ngay trên vòng lặp chính. Đĩa kẹt thì chính
+# probe dùng để biết Javis còn sống cũng hết giờ, container bị đánh dấu unhealthy trong khi
+# Javis vẫn ổn. Câu trả lời giờ lấy từ bộ nhớ (kept.py).
+_HEALTH_CLI = kept.Value(lambda: find_claude_cli(), name="claude cli path")
+
+
 @app.get("/health")
 async def health():
-    cli = find_claude_cli()
+    cli = _HEALTH_CLI.get()
     return {
         "status": "ok",
         "claude_cli": cli or "NOT FOUND",
         "claude_cli_available": cli is not None,
         "cwd": CLAUDE_CWD,
+        "disk": kept.report(),
     }
 
 
@@ -5494,13 +5606,21 @@ def _set_default_brain_name(name: str) -> None:
     p = cfgmod.STATE_DIR / _DEFAULT_BRAIN_NAME_FILE
     p.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write_text(p, safe + "\n")
+    _brain_paths_changed()
 
 
 def _default_brain_dir() -> Path:
     """Brain mặc định = <BRAINS_DIR>/<tên mặc định>. BRAINS_DIR = thư mục CHA chứa mọi brain
     (mỗi folder con = 1 brain). Docker = /brains (mount riêng, ghi được, git-backup được).
     Local = <project>/brains. Đây là 'bộ não khởi đầu' - user vẫn chọn brain khác trong danh
-    sách hoặc folder ngoài bất kỳ qua 'path:<thư mục>'."""
+    sách hoặc folder ngoài bất kỳ qua 'path:<thư mục>'.
+
+    Gần như mọi request hỏi thư mục này, và mỗi lần là một stat cộng một mkdir trên vòng
+    lặp chính. Vòng lặp lấy từ bộ nhớ (kept.py); `_brain_paths_changed()` quên bản đã giữ."""
+    return _DEFAULT_BRAIN_DIR.get()
+
+
+def _default_brain_dir_now() -> Path:
     p = Path(BRAINS_DIR) / _default_brain_name()
     try:
         p.mkdir(parents=True, exist_ok=True)
@@ -5509,10 +5629,24 @@ def _default_brain_dir() -> Path:
     return p
 
 
+_DEFAULT_BRAIN_DIR = kept.Value(lambda: _default_brain_dir_now(), key=lambda: str(BRAINS_DIR), name="default brain")
+# "thư mục này có phải brain không", theo từng đường dẫn. Cùng lý do: gần như mọi request
+# gọi tên một brain đều stat trên vòng lặp chính.
+_BRAIN_IS_DIR = kept.Keyed(lambda b: os.path.isdir(b), name="brain folder")
+
+
+def _brain_paths_changed() -> None:
+    """Tạo, xoá hoặc đổi tên brain qua Javis: đọc lại thư mục ngay. Đổi bằng cách khác
+    (khôi phục, nhập, sửa tay) thì vòng lặp thấy trong khoảng kept.RECHECK_S."""
+    _DEFAULT_BRAIN_DIR.drop()
+    _BRAIN_IS_DIR.drop()
+    kept.forget_resolved()
+
+
 def _brain_root(brain: str) -> str:
     if not brain or brain == "brain":
         return str(_default_brain_dir())
-    return brain if os.path.isdir(brain) else str(_default_brain_dir())
+    return brain if _BRAIN_IS_DIR.get(brain) else str(_default_brain_dir())
 
 
 def _brain_key(brain) -> str:
@@ -5525,7 +5659,7 @@ def _brain_key(brain) -> str:
     """
     root = _brain_root(str(brain or ""))
     try:
-        return str(Path(root).resolve())
+        return kept.resolved(root)
     except OSError:
         return str(root)
 
@@ -6558,6 +6692,8 @@ async def new_brain(name: str = Form(...)):
         _ensure_brain_scaffold(root)
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _brain_paths_changed()
     git_brain.clear_tombstone(BRAINS_DIR, safe)   # dựng lại não cùng tên -> gỡ giấy báo tử để không bị xoá oan
     return {"ok": True, "name": safe, "path": str(root)}
 
@@ -6602,6 +6738,7 @@ async def rename_brain(old_name: str = Form(...), new_name: str = Form(...)):
             return JSONResponse({"ok": False, "error": f"Đổi tên xong nhưng không ghi được tên mặc định: {e}"},
                                 status_code=500)
     git_brain.clear_tombstone(BRAINS_DIR, new)
+    _brain_paths_changed()
     return {"ok": True, "name": new, "path": str(dst), "was_default": was_default,
             "default_name": _default_brain_name()}
 
@@ -6645,6 +6782,8 @@ async def delete_brain(name: str = Form(...), confirm: str = Form("")):
     except Exception as e:
         return JSONResponse({"ok": False, "error": f"Không xoá được (brain đang bận?): {e}"},
                             status_code=500)
+    finally:
+        _brain_paths_changed()
 
     # Eager sync (nền, best-effort): đẩy lệnh xoá + tombstone lên remote NGAY thay vì chờ chu kỳ 6h.
     try:
@@ -7952,8 +8091,11 @@ async def share_list(brain: str = Query("")):
                                    "url": "/s/" + b["token"]} for b in ds]}
 
 
+# Bốn route công khai bên dưới là hàm đồng bộ, FastAPI chạy chúng trên luồng phụ. Mỗi route
+# tra link, kiểm file rồi đọc hoặc phục vụ file. Để async thì toàn bộ việc đó chạy trên vòng
+# lặp chính, và người xem trang chia sẻ làm cả server đứng mỗi khi đĩa chậm.
 @app.get("/s/{token}")
-async def share_xem(token: str):
+def share_xem(token: str):
     """TRANG XEM công khai. Không cần đăng nhập - xem chú thích đầu khối."""
     ban = share_store.doc(token)
     if not ban:
@@ -7994,7 +8136,7 @@ async def share_xem(token: str):
 
 
 @app.get("/s/{token}/raw")
-async def share_raw(token: str, dl: int = Query(0)):
+def share_raw(token: str, dl: int = Query(0)):
     """File gốc, để tải về hoặc để trang .html nhúng thẳng."""
     ban = share_store.doc(token)
     if not ban:
@@ -8012,7 +8154,7 @@ async def share_raw(token: str, dl: int = Query(0)):
 
 
 @app.get("/s/{token}/asset")
-async def share_asset(token: str, p: str = Query(...)):
+def share_asset(token: str, p: str = Query(...)):
     """Ảnh và tài nguyên kèm theo. Phạm vi bó hẹp, xem _share_asset."""
     ban = share_store.doc(token)
     if not ban:
@@ -8080,7 +8222,7 @@ def _share_sibling(ban, p: str):
 
 
 @app.get("/s/{token}/")
-async def share_xem_html(token: str):
+def share_xem_html(token: str):
     """Trang .html chia sẻ, ở địa chỉ có dấu gạch cuối (xem share_xem vì sao)."""
     ban = share_store.doc(token)
     if not ban:
@@ -8107,7 +8249,7 @@ async def share_xem_html(token: str):
 
 
 @app.get("/s/{token}/{p:path}")
-async def share_sibling(token: str, p: str):
+def share_sibling(token: str, p: str):
     """File cạnh trang .html chia sẻ, theo đường dẫn tương đối app đó xin. Phạm vi: _share_sibling.
 
     Header `Access-Control-Allow-Origin: *` là BẮT BUỘC chứ không phải cho rộng rãi: trang chạy
@@ -14575,6 +14717,10 @@ async def websocket_endpoint(ws: WebSocket):
                     _limit_state.update(notice=noi, limit=lim)
                     frame["limit"] = {"engine": lim.engine, "scope": lim.scope,
                                       "reset_epoch": float(lim.reset_epoch or 0)}
+                elif _signin_lost_text(prov, raw):
+                    _limit_state["signin"] = True
+                    _note_signin_lost(prov)
+                    frame["content"] = _signin_lost_message(prov, raw)
                 return json.dumps(frame)
             # NGÔN NGỮ chốt MỘT LẦN cho cả lượt, ngay đây. Chốt sớm và chốt một chỗ là để câu
             # trả lời, giọng đọc và các cổng chặn không bao giờ hiểu khác nhau trong cùng một
@@ -14594,6 +14740,15 @@ async def websocket_endpoint(ws: WebSocket):
             # Đọc row phiên TRƯỚC khi chọn provider: phiên có thể đã ghim model riêng.
             _row0 = store.get_session(conv_sid) or {}
             prov, kind, api_key, api_model = _chat_provider_for_session(mcfg, _row0)
+            _wanted = ((_row0.get("pinned_provider") or "").strip()
+                       or model_routing.main_provider(mcfg))
+            if _wanted and _wanted != prov and _signed_out_until(_wanted):
+                await ws.send_text(json.dumps({
+                    "type": "system",
+                    "content": localefmt.chu(
+                        f"Đang dùng {_plan_label(prov)} vì {_plan_label(_wanted)} mất đăng nhập.",
+                        f"Using {_plan_label(prov)} because {_plan_label(_wanted)} lost its sign-in."),
+                }))
             reasoning = _reasoning_level(mcfg)
             _CONTEXT_RUNTIME.set_route(
                 runtime_trace,
@@ -15560,6 +15715,10 @@ async def websocket_endpoint(ws: WebSocket):
                     "type": "resume", "state": "scheduled" if _item.auto else "off",
                     **_item.payload()}))
 
+            if final_text and _signin_lost_text(prov, final_text, answer=True):
+                # Claude Code đôi khi in "Not logged in" như một câu trả lời. Đó không phải
+                # câu trả lời: đánh dấu thẻ để lượt sau chuyển model.
+                _note_signin_lost(prov)
             # Lưu lượt assistant: kho phiên + title + log Memory + hàng đợi tự học.
             # Đường lưu DÙNG CHUNG với Telegram (_persist_turn) - nó tự bóc khối điều khiển.
             if final_text:
@@ -18056,6 +18215,17 @@ async def _tg_answer(text, meta=None, progress=None, channel="telegram", bot=Non
             text, meta, progress, chat_id=chat_id, sess=sess, brain=brain, mcfg=mcfg,
             prov=prov, kind=kind, api_key=api_key, api_model=api_model,
             store=store, conv_sid=conv_sid, channel=channel, bot=bot)
+        # Bot, Telegram và Zalo đi chung vỏ này. Web đã đánh dấu ở _do_turn; thiếu bước này
+        # thì một bot mất đăng nhập vẫn gọi lại đúng thẻ đó mỗi lượt, vì không ai ghi dấu.
+        _raw_out = out if isinstance(out, str) else (
+            (out.get("text") if isinstance(out, dict) else "") or "")
+        if _signin_lost_text(prov, _raw_out, answer=isinstance(out, dict)):
+            _note_signin_lost(prov)
+            _bao = _signin_lost_message(prov, _raw_out)
+            if isinstance(out, str):
+                out = _bao
+            elif isinstance(out, dict):
+                out["text"] = _bao
         if isinstance(out, dict) and (out.get("text") or "").strip():
             out["text"] = channel_context.gon_nhat_ky_lam_viec(out["text"])
 
@@ -20496,6 +20666,26 @@ async def telegram_send_file(payload: dict = Body(...)):
         except Exception:
             pass
     return {"ok": ok, "error": err}
+
+
+@app.on_event("startup")
+async def _prime_kept_values():
+    """Đọc trước, trên luồng phụ, những thứ vòng lặp chính hỏi ngay từ request đầu: chữ ký
+    settings, thư mục brain mặc định, chữ ký gói, catalog MCP, token hub, kho bot và kênh,
+    đường dẫn `claude` của GET /health. Không có bước này thì request đầu sau restart tự đọc
+    trên vòng lặp, đúng lúc đĩa chậm nhất. Chờ tối đa mười giây; đĩa chậm hơn thì đọc tiếp phía sau."""
+    def run():
+        for read in (cfgmod.read_settings, _default_brain_dir, packs.signature, mcp_catalog.load,
+                     mcp_hub.hub_token, mcp_hub._store_mtime, channel_accounts._load,
+                     chatbot_store._load, _HEALTH_CLI.get):
+            try:
+                read()
+            except Exception as e:  # noqa: BLE001 - request đầu sẽ đọc lại
+                print(f"[kept] prime: {type(e).__name__}: {e}", file=sys.stderr)
+    try:
+        await asyncio.wait_for(asyncio.to_thread(run), timeout=10)
+    except Exception as e:  # noqa: BLE001 - hết giờ: luồng vẫn đọc tiếp, server vẫn lên
+        print(f"[kept] prime chưa xong lúc khởi động: {type(e).__name__}", file=sys.stderr)
 
 
 @app.on_event("startup")

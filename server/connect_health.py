@@ -11,6 +11,7 @@ nói thẳng nguyên nhân là một tính năng, không phải trang trí.
 """
 import asyncio
 import sys
+import threading
 import time
 
 import mcp_client
@@ -22,6 +23,7 @@ _CHECK_TIMEOUT = 60       # trần một lần ping (stdio spawn nguội trên W
 
 _state: dict = {}         # conn_id -> {ok, kind, message, checked_at, tools}
 _task = None
+_main_loop = None       # vòng lặp mà start() chạy trên; luồng phụ giao thông báo chủ cho vòng đó
 
 
 # Thứ tự các nhánh CÓ Ý NGHĨA: auth soi trước (chuỗi 401/unauthorized đặc trưng),
@@ -51,6 +53,13 @@ def classify_error(err: str) -> tuple[str, str]:
     return "unknown", (err or "Lỗi không rõ").strip()[:160]
 
 
+def _oauth_facts(oauth_mcp, conn_id) -> tuple:
+    """(đã đăng nhập, danh sách quyền còn thiếu). Quyền thiếu chỉ hỏi khi đã đăng nhập."""
+    if not oauth_mcp.status(conn_id).get("connected"):
+        return False, []
+    return True, list(oauth_mcp.scope_report(conn_id).get("missing") or [])
+
+
 async def check_one(conn, pool=None) -> dict:
     """Ping MỘT connection, cập nhật _state và trả bản ghi kết quả."""
     pool = pool or mcp_client.pool
@@ -61,7 +70,9 @@ async def check_one(conn, pool=None) -> dict:
     if (conn.get("auth") == "oauth"):
         try:
             import oauth_mcp
-            if not oauth_mcp.status(conn["id"]).get("connected"):
+            # Cả hai lần gọi đều đọc kho token: chuyển sang luồng phụ để đĩa chậm không khóa server.
+            connected, missing = await asyncio.to_thread(_oauth_facts, oauth_mcp, conn["id"])
+            if not connected:
                 rec.update(kind="auth",
                            message="Chưa hoàn tất đăng nhập - bấm Kết nối lại để đăng nhập.")
                 _state[conn["id"]] = rec
@@ -69,7 +80,6 @@ async def check_one(conn, pool=None) -> dict:
             # Đăng nhập rồi nhưng token THIẾU PHẠM VI QUYỀN: tools/list của Google không cần
             # token nên ping bên dưới vẫn xanh, chỉ tool thật mới chết. Không soi ở đây thì
             # trang Kết nối nói dối là mọi thứ ổn (vụ Lịch thiếu calendar.events.freebusy).
-            missing = oauth_mcp.scope_report(conn["id"]).get("missing") or []
             if missing:
                 rec.update(kind="auth",
                            message="Thiếu quyền: " + ", ".join(oauth_mcp.short_scopes(missing))
@@ -122,7 +132,7 @@ async def check_one(conn, pool=None) -> dict:
 
 async def check_by_id(conn_id, pool=None) -> dict:
     """Ép check ngay một connection theo id (nút test trên UI)."""
-    conn = next((c for c in mcp_store.resolved(enabled_only=False)
+    conn = next((c for c in await asyncio.to_thread(mcp_store.resolved, False)
                  if c["id"] == conn_id), None)
     if not conn:
         return {"ok": False, "kind": "unknown", "message": "Không tìm thấy kết nối",
@@ -133,7 +143,7 @@ async def check_by_id(conn_id, pool=None) -> dict:
 async def sweep(pool=None) -> int:
     """Quét mọi connection đang bật. Trả số connection đã check."""
     n = 0
-    for conn in mcp_store.resolved(enabled_only=True):
+    for conn in await asyncio.to_thread(mcp_store.resolved, True):
         try:
             await check_one(conn, pool)
             n += 1
@@ -211,9 +221,25 @@ def _set_engine(name, ok, message="", source="probe"):
                 + ENGINE_FIX.get(name, ENGINE_FIX_DEFAULT)
                 + f" (chi tiết: {name} - {message})")
             if asyncio.iscoroutine(coro):
-                asyncio.ensure_future(coro)
+                _send(coro)
         except Exception as e:
             print(f"[engine health] notify lỗi: {e}", file=sys.stderr)
+
+
+def _send(coro) -> None:
+    """Bắt đầu thông báo cho chủ. `_set_engine` chạy trên vòng lặp khi một lượt chat báo,
+    và trên luồng phụ khi vòng quét định kỳ gọi. Chỉ vòng lặp mới tạo được coroutine:
+    từ luồng khác thì giao cho vòng mà `start()` đã thấy."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        if _main_loop is not None and not _main_loop.is_closed():
+            asyncio.run_coroutine_threadsafe(coro, _main_loop)
+        else:
+            coro.close()
+            print("[engine health] không gửi được thông báo: không có vòng lặp để giao", file=sys.stderr)
+        return
+    asyncio.ensure_future(coro)
 
 
 def flag_engine_auth_error(name, raw) -> bool:
@@ -393,7 +419,8 @@ async def _loop():
     await asyncio.sleep(_STARTUP_DELAY)
     while True:
         try:
-            probe_engines()
+            # probe đọc file đăng nhập. Vòng đầu chạy 25 giây sau restart, đúng lúc đĩa bận nhất.
+            await asyncio.to_thread(probe_engines)
             await sweep()
         except Exception as e:
             print(f"[connect health] vòng quét lỗi: {type(e).__name__}: {e}",
@@ -403,6 +430,7 @@ async def _loop():
 
 def start() -> None:
     """Gọi từ startup của app. Idempotent."""
-    global _task
+    global _task, _main_loop
+    _main_loop = asyncio.get_running_loop()
     if _task is None or _task.done():
         _task = asyncio.create_task(_loop())

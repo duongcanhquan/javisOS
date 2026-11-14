@@ -50,6 +50,7 @@ from __future__ import annotations
 import localefmt   # múi giờ theo cấu hình, thay UTC+7 nhúng cứng
 import asyncio
 import json
+import kept
 import re
 import time
 import unicodedata
@@ -534,7 +535,7 @@ class LoopFeature:
         out, seen = [], set()
         for b in cands:
             try:
-                root = str(Path(self.deps.brain_root(b)).resolve())
+                root = kept.resolved(self.deps.brain_root(b))
             except Exception:
                 continue
             if root in seen:
@@ -546,9 +547,9 @@ class LoopFeature:
     def register_brain(self, brain: str) -> None:
         """Ghi nhớ brain có loop để scheduler quét (gọi khi tạo/toggle/run-now)."""
         try:
-            root = str(Path(self.deps.brain_root(brain)).resolve())
+            root = kept.resolved(self.deps.brain_root(brain))
             cfg = self._read_legacy_raw()
-            known = {str(Path(self.deps.brain_root(b)).resolve()) for b in self.scheduler_brains()}
+            known = {kept.resolved(self.deps.brain_root(b)) for b in self.scheduler_brains()}
             if root in known:
                 return
             brains = list(cfg.get("brains") or [])

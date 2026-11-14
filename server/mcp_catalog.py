@@ -10,6 +10,7 @@ Tool đa hành động kiểu Pancake (1 tool, tham số action=list|create|...)
 THAM SỐ qua arg_rules - enforcement thật diễn ra lúc tools/call (có args).
 """
 import json
+import kept
 import re
 import sys
 from fnmatch import fnmatch
@@ -30,6 +31,15 @@ PERM_RANK = {"readonly": 0, "safe": 1, "full": 2}
 _MODE_CAP = {"suggest": "readonly", "auto": "safe", "full": "full"}
 
 _cache = {"sig": None, "by_id": {}}
+
+# Bản catalog vừa kiểm được tin trong khoảng này. Quá hạn thì vòng lặp chính vẫn lấy từ bộ nhớ
+# trong khi luồng phụ kiểm lại (kept.py), nên không ai trên vòng lặp phải chờ đĩa.
+CHECK_S = 2.0
+
+
+def invalidate() -> None:
+    """Lần `load()` sau nhìn lại đĩa (vừa cài gói hoặc gỡ connector)."""
+    _LOADED.drop()
 
 
 def _da_go():
@@ -76,7 +86,17 @@ def load():
     nhất lọc được một lần cho tất cả.
 
     Cache theo (chữ ký file catalog, chữ ký danh sách đã gỡ). Thiếu vế thứ hai thì gỡ một
-    connector sẽ không có hiệu lực cho tới khi ai đó sửa file catalog, tức là không bao giờ."""
+    connector sẽ không có hiệu lực cho tới khi ai đó sửa file catalog, tức là không bao giờ.
+
+    Bản vừa kiểm được tin CHECK_S giây. Quá hạn, vòng lặp chính vẫn lấy từ bộ nhớ trong lúc
+    luồng phụ kiểm lại (`_LOADED`), nên không request nào phải chờ đĩa."""
+    if _cache["sig"] is None:
+        _LOADED.drop()
+    return _LOADED.get()
+
+
+def _load_now():
+    """Ba chữ ký trên đĩa, và chỉ đọc lại catalog khi một trong ba đổi."""
     try:
         st = CATALOG_PATH.stat()
         sig_file = (st.st_mtime_ns, st.st_size)
@@ -100,6 +120,10 @@ def load():
         by_id.setdefault(cid, con)
     _cache.update(sig=sig, by_id=by_id)
     return by_id
+
+
+_LOADED = kept.Value(lambda: _load_now(), fresh_s=lambda: CHECK_S, key=lambda: str(CATALOG_PATH),
+                     name="mcp_catalog.load")
 
 
 def tat_ca():

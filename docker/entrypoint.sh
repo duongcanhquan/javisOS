@@ -31,7 +31,12 @@ PERSIST_ROOT="${JAVIS_HOME_PERSIST:-/data/home}"
 # lại bị logout". Thêm một chữ vào danh sách này là xong, không phải sửa docker-compose.
 #
 # ~/.copilot: GitHub Copilot CLI (binary `copilot`) - MCP config + phiên đăng nhập nếu có.
-for d in .local .antigravity .config .gemini .grok .copilot; do
+#
+# ~/.npm và ~/.cache: chỗ `npx` và `uvx` giữ package của các nguồn MCP (~/.npm/_npx,
+# ~/.cache/uv). Để ngoài volume thì mỗi lần cập nhật image là mất, và ngay sau cập nhật
+# MỌI nguồn tải rồi cài lại cùng lúc — đúng lúc server đang khởi động, đĩa và RAM nghẽn.
+# Giữ trên volume thì nguồn khởi động sau cập nhật giống như sau một lần restart thường.
+for d in .local .antigravity .config .gemini .grok .copilot .npm .cache; do
     src="$HOME/$d"
     dst="$PERSIST_ROOT/$d"
     # Đã là symlink (boot thứ hai trở đi) → xong từ lâu.
@@ -45,6 +50,18 @@ for d in .local .antigravity .config .gemini .grok .copilot; do
     fi
     ln -sfn "$dst" "$src" 2>/dev/null || true
 done
+
+# Package npx đã cài (~/.npm/_npx) có thể build cho MỘT phiên bản Node major. Cập nhật
+# image đổi major thì xoá chúng để npx cài lại, khỏi nạp nhầm binary cũ. Cache tải nằm cạnh
+# nên lần cài lại gần như không cần mạng.
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+NODE_STAMP="$PERSIST_ROOT/.npm/.javis-node-major"
+if [ -n "$NODE_MAJOR" ] && [ -d "$PERSIST_ROOT/.npm" ]; then
+    if [ -f "$NODE_STAMP" ] && [ "$(cat "$NODE_STAMP" 2>/dev/null)" != "$NODE_MAJOR" ]; then
+        rm -rf "$PERSIST_ROOT/.npm/_npx" 2>/dev/null || true
+    fi
+    echo "$NODE_MAJOR" > "$NODE_STAMP" 2>/dev/null || true
+fi
 
 # Tự cài Antigravity CLI (`agy`) và Grok Build (`grok`) nếu máy chưa có.
 # Hai CLI này không phát hành qua npm, và không nhúng binary của Google/xAI vào image công khai.

@@ -1,5 +1,12 @@
 # Nhật ký cập nhật
 
+## [0.56.106] - 2026-11-14
+### Sửa
+- **Đĩa chậm không khóa cả máy.** Các chỗ đọc đĩa trên vòng lặp chính (settings, catalog MCP, chữ ký gói, token hub, kho bot/kênh, thư mục brain, probe sức khoẻ) lấy từ bộ nhớ và chỉ chờ đĩa tối đa một nhịp ngắn. `~/.npm` và `~/.cache` nằm trên volume, nên sau cập nhật các nguồn MCP không tải lại cùng lúc. Vòng làm nóng lúc khởi động mở 3 phiên MCP một lượt.
+- **javis-guard.** Container cạnh Watchtower: Javis biến mất hoặc bị dừng giữa cập nhật quá 2 phút thì tự dựng lại hoặc bật lại. Bấm dừng tay thì để yên. Nút cập nhật được 30 phút. Chỉ trong `docker-compose.yml` (VPS). Bản Hostinger vẫn cập nhật bằng Redeploy vì không vào được Docker socket.
+- **Mất đăng nhập gói thì các lượt sau chuyển model khác** đã kết nối (Claude, ChatGPT, Grok, Antigravity, Copilot). Khung chat, Telegram, Zalo, bot và chuông nói rõ. Lượt đang chạy dở vẫn kết thúc bằng câu báo; lượt kế chạy trên thẻ còn dùng được.
+- **Claude thoát lúc khởi động thì nói lý do** (đang chạy bằng root, cấu hình MCP hỏng, hoặc bản CLI quá cũ) thay cho câu "Check stderr output for details".
+
 ## [0.56.105] - 2026-11-03
 ### Sửa
 - **Hotfix:** IndentationError trong `destroy()` sau khi thêm `?v=true` — máy không boot được.

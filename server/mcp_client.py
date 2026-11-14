@@ -39,6 +39,11 @@ _IDLE_TTL = 900          # đóng session không dùng > 15 phút
 _INTERNAL = {"botcake": "botcake_mcp", "substack": "substack_mcp"}   # transport internal → tên module
 
 _DIAL_SONG_SONG = 8      # số connection dò tool CÙNG LÚC (đừng để npx nổ ra 30 tiến trình)
+# Vòng làm nóng lúc khởi động mở ít phiên hơn một lượt chat. Không ai chờ vòng này, và nó
+# chạy đúng lúc server còn đang lên: tám tiến trình npx/uvx cùng lúc (mỗi cái một runtime
+# cộng một lần cài package khi cache nguội) từng làm VPS nhỏ nghẽn đĩa và RAM. Đổi bằng
+# JAVIS_MCP_WARM_PARALLEL.
+_WARM_SONG_SONG = "3"
 _DIAL_TRAN = "20"        # giây - trần dò tool CHO MỖI connection (0 = không giới hạn)
 # Docker compose VPS có thể ghi đè lên 45s (Tavily/remote MCP chậm); mặc định code giữ 20
 # để khớp trần khởi động Claude SDK và bộ test.
@@ -749,6 +754,15 @@ def tran_warm():
     return v if v > 0 else None
 
 
+def warm_parallel() -> int:
+    """Số connection vòng làm nóng lúc khởi động được mở cùng lúc (xem `_WARM_SONG_SONG`)."""
+    try:
+        v = int(os.getenv("JAVIS_MCP_WARM_PARALLEL", _WARM_SONG_SONG))
+    except (TypeError, ValueError):
+        v = int(_WARM_SONG_SONG)
+    return max(1, min(v, _DIAL_SONG_SONG))
+
+
 async def warm_pool(conns):
     """Mở sẵn phiên MCP cho từng connection. Trả (id đã nóng, id còn nguội). Không bao giờ raise.
 
@@ -763,7 +777,7 @@ async def warm_pool(conns):
     phiên chat, dù kết nối chẳng hỏng gì.
     """
     tran = tran_warm()
-    sem = asyncio.Semaphore(_DIAL_SONG_SONG)
+    sem = asyncio.Semaphore(warm_parallel())
     nong, con_lanh = [], []
 
     async def _mo(conn):

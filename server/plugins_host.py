@@ -30,6 +30,7 @@ import copy
 import importlib.util
 import inspect
 import json
+import kept
 import os
 import re
 import sys
@@ -394,6 +395,15 @@ def _key(vault_root: Optional[str], scope_vault: bool = True) -> str:
 
 
 def _signature(vault_root: Optional[str], scope_vault: bool = True) -> tuple:
+    """Chữ ký để biết khi nào phải nạp lại: mtime state + mtime entry/manifest mọi plugin + env flag.
+
+    Tính chữ ký phải đi qua từng thư mục plugin và stat vài file mỗi plugin. `_load_all` hỏi
+    chữ ký này ở mỗi danh sách tool, mỗi lần gọi tool có hook và mỗi lượt bot. Trên vòng lặp
+    chính, chữ ký lấy từ bộ nhớ (kept.py); `invalidate()` quên nó nên plugin đổi qua Javis thấy ngay."""
+    return _SIGS.get((vault_root, bool(scope_vault)))
+
+
+def _signature_now(vault_root: Optional[str], scope_vault: bool = True) -> tuple:
     """Chữ ký để biết khi nào phải nạp lại: mtime state + mtime entry/manifest mọi plugin + env flag."""
     sig: List[Any] = [_env_user_enabled()]
     try:
@@ -418,6 +428,9 @@ def _signature(vault_root: Optional[str], scope_vault: bool = True) -> tuple:
             except OSError:
                 pass
     return tuple(sig)
+
+
+_SIGS = kept.Keyed(lambda a: _signature_now(a[0], a[1]), name="plugins signature")
 
 
 def _import_entry(slug: str, source: str, entry: Path):
@@ -575,6 +588,7 @@ def invalidate() -> None:
     """
     with _lock:
         _cache.clear()
+    _SIGS.drop()
     _STATE_CACHE["sig"] = None
     _STATE_CACHE["data"] = None
     _MANIFEST_CACHE.clear()
