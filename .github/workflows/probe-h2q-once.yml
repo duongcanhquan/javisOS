@@ -1,0 +1,75 @@
+# One-shot: chẩn đoán Javis tại javis.h2q.com.vn (Contabo org).
+# bump: 2026-11-15T13:30Z h2q-down-report
+name: Probe h2q once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-h2q-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Diagnose h2q / manager / quan
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 12m
+          script: |
+            set -euo pipefail
+            echo "=== HOST $(date -u) ==="
+            hostname -f || hostname || true
+            ip -4 addr show | sed -n 's/.*inet //p' | head -20 || true
+            free -m | head -3 || true
+            df -h / /var/lib/docker 2>/dev/null | head -10 || df -h / | head -2
+            echo "=== PUBLIC curl javis.h2q ==="
+            curl -fsS -m 15 -w '\nhttp=%{http_code} t=%{time_total}\n' https://javis.h2q.com.vn/health || echo PUBLIC_HEALTH_FAIL
+            curl -fsS -m 15 -o /tmp/h2q_root.html -w 'root=%{http_code} t=%{time_total}\n' https://javis.h2q.com.vn/ || echo PUBLIC_ROOT_FAIL
+            grep -oE '<title>[^<]+</title>' /tmp/h2q_root.html 2>/dev/null || true
+            echo "=== CADDY / DOMAIN LABELS (h2q) ==="
+            for c in $(docker ps -a --format '{{.Names}}' | grep -E '^javis-' | sort); do
+              labs=$(docker inspect -f '{{range $k,$v := .Config.Labels}}{{printf "%s=%s\n" $k $v}}{{end}}' "$c" 2>/dev/null || true)
+              if echo "$labs" | grep -qiE 'h2q|caddy'; then
+                echo "---- $c ----"
+                echo "$labs" | grep -iE 'h2q|caddy|virtual|host' || true
+              fi
+            done
+            echo "=== MANAGER / QUAN HEALTH ==="
+            for c in javis-manager javis-quan javis-proxy; do
+              echo "-- $c --"
+              docker ps -a --filter "name=^/${c}$" --format '{{.Names}} {{.Status}}' || true
+              docker inspect "$c" --format 'State={{.State.Status}} OOM={{.State.OOMKilled}} Exit={{.State.ExitCode}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} Started={{.State.StartedAt}}' 2>/dev/null || echo no_inspect
+              if [ "$c" != "javis-proxy" ]; then
+                docker exec "$c" curl -fsS -m 8 http://127.0.0.1:7777/health 2>&1 | head -c 800 || echo health_fail
+                echo
+                docker exec "$c" cat /app/VERSION 2>/dev/null || echo no_version
+                echo
+              fi
+            done
+            echo "=== PROXY CADDY CONFIG snip ==="
+            docker exec javis-proxy sh -c 'ls /config /data 2>/dev/null; wget -qO- http://127.0.0.1:2019/config/ 2>/dev/null | head -c 2000' || true
+            echo
+            echo "=== RECENT manager logs ==="
+            docker logs javis-manager --tail 120 2>&1 | tail -n 120
+            echo "=== RECENT quan logs ==="
+            docker logs javis-quan --tail 120 2>&1 | tail -n 120
+            echo "=== GREP errors manager/quan ==="
+            for c in javis-manager javis-quan; do
+              echo "---- $c ----"
+              docker logs "$c" --tail 600 2>&1 | grep -iE 'error|traceback|exception|timeout|502|503|oom|killed|disk|no space|read-only|unauthorized|login' | tail -n 40 || echo '(no matches)'
+            done
+            echo "=== DISK PRESSURE ==="
+            docker system df || true
+            echo H2Q_PROBE_DONE
