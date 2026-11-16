@@ -61,6 +61,14 @@ def loi_tu_choi_whitelist(chat, chat_ids, token="", bot_id=0) -> str:
             "Bot đang chặn vì ô Chat ID đang là số của chính bot (" + me + "). "
             "Chat ID của bạn là " + cid + ". Dán số đó vào ô Chat ID trên VMOS rồi Lưu."
         )
+    # ID nhóm Telegram là số âm (vd -100…). Whitelist chỉ có ID người thì tin nhóm bị chặn.
+    if cid.startswith("-"):
+        return (
+            "Nhóm này chưa được phép. Chat ID nhóm là " + cid
+            + ". Vào Javis > Kênh > Telegram, thêm số này vào ô Chat ID được phép "
+            + "(cách ID bằng dấu phẩy), rồi Lưu. BotFather cũng cần tắt Group Privacy "
+            + "(/setprivacy > Disable) nếu muốn bot nghe mọi tin trong nhóm, không chỉ khi @mention."
+        )
     return (
         "Bạn không có quyền dùng bot Javis này. Chat ID của bạn là " + cid
         + ". Dán số này vào ô Chat ID được phép rồi Lưu."

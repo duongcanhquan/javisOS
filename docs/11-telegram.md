@@ -224,6 +224,15 @@ Chi tiết cách gõ `/model`:
 - Cho thêm người dùng chung 1 bot: thêm Chat ID của họ vào ô, cách nhau dấu phẩy, rồi **Lưu & bật**. Nút **Gửi test** sẽ gửi tin thử tới TẤT CẢ ID và báo rõ ID nào lỗi (thường do người đó chưa bấm Start bot).
 - Mỗi người có **mạch hội thoại riêng**: ngữ cảnh của từng Chat ID tách biệt, không lẫn sang người khác, và hai người có thể nhắn cùng lúc mà không phải chờ nhau. `/reset` và `/stop` chỉ tác động phiên của chính người gõ. Tuy vậy tất cả vẫn **chung một vault và cùng quyền** (ai cũng đọc/ghi được dữ liệu, số liệu, brain của bạn) - chỉ thêm ID người bạn tin tưởng. Cần tách bạch hoàn toàn cả dữ liệu thì dựng Javis + bot riêng cho mỗi người.
 
+### Dùng bot trong nhóm Telegram
+
+Hai điều phải đúng, thiếu một là bot im:
+
+1. **Whitelist có ID của nhóm** (số âm, thường dạng `-100…`), không chỉ ID cá nhân. Thêm bot vào nhóm, trong nhóm gõ `@tên_bot ơi` (hoặc reply tin của bot): nếu nhóm chưa được phép, bot trả lời kèm đúng Chat ID nhóm để bạn dán vào ô Chat ID (cách ID bằng dấu phẩy) rồi Lưu.
+2. **BotFather Group Privacy**: mặc định bot trong nhóm chỉ nhận tin khi bị @mention, bị reply, hoặc là lệnh `/…`. Muốn bot nghe mọi tin trong nhóm: mở @BotFather > `/setprivacy` > chọn bot > **Disable**.
+
+Thiếu (1) thì bot nhận tin nhưng từ chối. Thiếu (2) thì Telegram không gửi tin tới Javis nên bot im hoàn toàn.
+
 ## Ai nhận thông báo nền
 
 Dùng chung bot nhiều người thì phải biết mỗi loại thông báo rơi vào máy ai. Không phải cái gì cũng gửi cho tất cả.
