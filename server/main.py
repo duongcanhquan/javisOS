@@ -215,7 +215,10 @@ _AUTH_PUBLIC_EXACT = ("/", "/favicon.ico", "/auth/status", "/auth/login", "/auth
 # (op=update) gọi từ chính máy này khi user nói "đổi giờ việc đó sang 8h" - thiếu nó thì sửa lịch
 # bằng chat trả 401 câm. /reminders/delete CỐ Ý không có ở đây: xoá hẳn thì để dashboard (có
 # session) làm, chat chỉ cần huỷ.
-_AUTH_LOCAL_EXACT = ("/telegram/send-file", "/reminders", "/reminders/cancel", "/reminders/update")
+# /telegram/status + /telegram/restart: ops trên máy (probe/SSH/docker exec curl localhost)
+# xem bot sống hay 409 và bật lại, không cần cookie dashboard - request ngoài vẫn bị chặn.
+_AUTH_LOCAL_EXACT = ("/telegram/send-file", "/telegram/status", "/telegram/restart",
+                      "/reminders", "/reminders/cancel", "/reminders/update")
 
 
 def duong_dan_router(request) -> str:
