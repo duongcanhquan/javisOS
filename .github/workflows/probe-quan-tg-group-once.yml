@@ -1,0 +1,69 @@
+# One-shot: vì sao bot quan không trả lời tin TRONG NHÓM.
+# bump: 2026-11-16T03:12Z group-silent
+name: Probe quan tg group once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-quan-tg-group-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Diagnose quan telegram groups
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            CNAME=javis-quan
+            echo "=== $(date -u) ==="
+            docker ps -a --filter "name=^/${CNAME}$" --format '{{.Names}} {{.Status}}'
+            docker exec "$CNAME" curl -fsS -m 8 http://127.0.0.1:7777/telegram/status || true
+            echo
+            cat > /tmp/quan_tg_group.py <<'PY'
+            import sys, urllib.request, json
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            from telegram_bot import parse_chat_ids
+            st = cfgmod.read_settings()
+            tg = st.get("telegram") or {}
+            ids = parse_chat_ids(tg.get("chat_id"))
+            print("enabled", tg.get("enabled"), "ids", ids)
+            print("group_ids_in_whitelist", [x for x in ids if str(x).startswith("-")])
+            print("user_ids_in_whitelist", [x for x in ids if str(x).lstrip("-").isdigit() and not str(x).startswith("-")])
+            tok = (tg.get("token") or "").strip()
+            if tok:
+              with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/getMe", timeout=20) as r:
+                me = json.loads(r.read().decode())
+              print("getMe", json.dumps(me.get("result") or {}, ensure_ascii=False)[:500])
+              # can_read_all_group_messages = Group Privacy OFF
+              res = (me.get("result") or {})
+              print("can_read_all_group_messages", res.get("can_read_all_group_messages"))
+              print("username", res.get("username"), "id", res.get("id"))
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/telegram/status", timeout=10) as r:
+                print("status", r.read().decode()[:600])
+            except Exception as e:
+              print("status_err", e)
+            PY
+            docker cp /tmp/quan_tg_group.py "$CNAME:/tmp/quan_tg_group.py"
+            docker exec -u root -w /app "$CNAME" python /tmp/quan_tg_group.py || true
+            echo "=== recent telegram logs (group/whitelist/im) ==="
+            docker logs --tail 1500 "$CNAME" 2>&1 | grep -iE '\[telegram\]|whitelist|không có quyền|im_lang|nhóm|group|chat_id=-|Bad Gateway|409|CONFLICT|lượt hỏng|bot started|mention|riêng tư' | tail -80 || true
+            echo "=== last 80 telegram lines ==="
+            docker logs --tail 400 "$CNAME" 2>&1 | grep -iE '\[telegram\]|telegram ' | tail -80 || true
+            echo QUAN_TG_GROUP_DONE
