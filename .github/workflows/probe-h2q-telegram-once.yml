@@ -1,5 +1,5 @@
 # One-shot: chẩn đoán bot Telegram H2Q (Contabo javis.h2q + quan/manager Vietnix).
-# bump: 2026-11-16T02:56Z telegram-down
+# bump: 2026-11-16T03:10Z telegram-down-retry
 name: Probe h2q telegram once
 
 on:
