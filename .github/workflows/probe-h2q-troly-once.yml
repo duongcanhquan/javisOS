@@ -1,0 +1,97 @@
+# One-shot: javis-troly.h2q.com.vn đang 502 trên Contabo 62.84.177.39
+# bump: 2026-11-16T03:17Z troly-502
+name: Probe h2q troly once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-h2q-troly-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Thử SSH Contabo bằng cả 2 khóa + user root/ubuntu nếu secret user khác
+  contabo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: VPS_SSH_KEY
+            user: VPS_USER
+            label: org-key
+          - key: VPS_STANDALONE_SSH_KEY
+            user: VPS_USER
+            label: standalone-key
+    steps:
+      - name: Contabo SSH ${{ matrix.label }}
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 62.84.177.39
+          username: ${{ secrets[matrix.user] }}
+          key: ${{ secrets[matrix.key] }}
+          command_timeout: 12m
+          script: |
+            set -euo pipefail
+            echo "=== CONTABO ${{ matrix.label }} $(date -u) ==="
+            hostname -f || hostname || true
+            free -m | head -2 || true
+            df -h / | head -2 || true
+            echo "=== docker ps -a ==="
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}' || true
+            echo "=== caddy / troly labels ==="
+            for c in $(docker ps -a --format '{{.Names}}' | sort); do
+              labs=$(docker inspect -f '{{range $k,$v := .Config.Labels}}{{printf "%s=%s\n" $k $v}}{{end}}' "$c" 2>/dev/null || true)
+              if echo "$labs" | grep -qiE 'troly|h2q|caddy'; then
+                echo "---- $c ----"
+                echo "$labs" | grep -iE 'troly|h2q|caddy' || true
+                docker inspect "$c" --format 'State={{.State.Status}} OOM={{.State.OOMKilled}} Exit={{.State.ExitCode}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || true
+              fi
+            done
+            echo "=== curl local hosts ==="
+            for h in javis-troly.h2q.com.vn javis.h2q.com.vn; do
+              echo "-- $h"
+              curl -fsS -m 8 -H "Host: $h" http://127.0.0.1/health 2>&1 | head -c 200 || true
+              echo
+              curl -skS -m 8 --resolve "$h:443:127.0.0.1" "https://$h/health" 2>&1 | head -c 200 || true
+              echo
+            done
+            echo "=== find javis containers health ==="
+            for c in $(docker ps -a --format '{{.Names}}' | grep -iE 'javis|troly|h2q' | sort); do
+              echo "---- $c ----"
+              docker ps -a --filter "name=^/${c}$" --format '{{.Names}} {{.Status}}'
+              docker logs --tail 80 "$c" 2>&1 | tail -n 80 || true
+            done
+            # Thử start lại container troly nếu tìm thấy
+            for c in $(docker ps -a --format '{{.Names}}' | grep -iE 'troly' | sort); do
+              echo "=== restart $c ==="
+              docker start "$c" 2>&1 || docker restart "$c" 2>&1 || true
+              sleep 5
+              docker ps -a --filter "name=^/${c}$" --format '{{.Names}} {{.Status}}'
+              docker exec "$c" curl -fsS -m 8 http://127.0.0.1:7777/health 2>&1 | head -c 300 || echo still_down
+              echo
+            done
+            echo CONTABO_TROLY_DONE
+
+  public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Public 502 check
+        run: |
+          set -euo pipefail
+          echo "=== $(date -u) ==="
+          dig +short javis-troly.h2q.com.vn A || true
+          curl -sS -o /tmp/b.txt -w 'troly=%{http_code} t=%{time_total}\n' --max-time 20 https://javis-troly.h2q.com.vn/health || true
+          head -c 300 /tmp/b.txt; echo
+          curl -sS -o /tmp/j.txt -w 'javis=%{http_code} t=%{time_total}\n' --max-time 20 https://javis.h2q.com.vn/health || true
+          head -c 200 /tmp/j.txt; echo
+          echo PUBLIC_TROLY_DONE
