@@ -238,6 +238,10 @@ check("số đầu token là id bot", telegram_bot.id_bot_tu_token("8813210964:A
 check("từ chối whitelist nói số người nhắn",
       "Chat ID của bạn là 42" in telegram_bot.loi_tu_choi_whitelist("42", ["8813210964"], "8813210964:AAE")
       and "chính bot" in telegram_bot.loi_tu_choi_whitelist("42", ["8813210964"], "8813210964:AAE"))
+check("từ chối whitelist với ID nhóm (âm) nói rõ dán ID nhóm + Group Privacy",
+      "Nhóm này chưa được phép" in telegram_bot.loi_tu_choi_whitelist("-100123", ["485567058"])
+      and "-100123" in telegram_bot.loi_tu_choi_whitelist("-100123", ["485567058"])
+      and "Group Privacy" in telegram_bot.loi_tu_choi_whitelist("-100123", ["485567058"]))
 check("chat id trùng bot thì nói rõ, không gửi",
       "chính con bot" in telegram_bot.loi_chat_id_la_bot("8813210964:AAE", ["8813210964"])
       and telegram_bot.loi_chat_id_la_bot("8813210964:AAE", ["555"]) == "")

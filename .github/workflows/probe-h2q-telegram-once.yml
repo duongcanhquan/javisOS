@@ -1,0 +1,219 @@
+# One-shot: chẩn đoán bot Telegram H2Q (Contabo javis.h2q + quan/manager Vietnix).
+# bump: 2026-11-16T03:10Z telegram-down-retry
+name: Probe h2q telegram once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-h2q-telegram-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  contabo-org-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Probe Contabo with VPS_SSH_KEY
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 62.84.177.39
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== CONTABO org-key $(date -u) ==="
+            hostname -f || hostname || true
+            free -m | head -2 || true
+            df -h / | head -2 || true
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}' | head -40 || true
+            CNAME=""
+            for c in javis javis-os javis-quan javis-manager; do
+              docker inspect "$c" >/dev/null 2>&1 && CNAME=$c && break || true
+            done
+            if [ -z "$CNAME" ]; then CNAME=$(docker ps --format '{{.Names}}' | grep -E '^javis' | head -1 || true); fi
+            echo "CNAME=$CNAME"
+            [ -n "$CNAME" ] || { echo NO_JAVIS_CONTAINER; exit 0; }
+            docker exec "$CNAME" curl -fsS -m 8 http://127.0.0.1:7777/health | head -c 400 || echo health_fail
+            echo
+            docker exec "$CNAME" cat /app/VERSION 2>/dev/null || true
+            echo
+            cat > /tmp/h2q_tg_probe.py <<'PY'
+            import sys, urllib.request, hashlib
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            from telegram_bot import parse_chat_ids
+            st = cfgmod.read_settings()
+            tg = st.get("telegram") or {}
+            tok = (tg.get("token") or "").strip()
+            print("TELEGRAM enabled=", tg.get("enabled"), "has_token=", bool(tok), "chat_id=", repr(tg.get("chat_id")))
+            print("TELEGRAM whitelist=", parse_chat_ids(tg.get("chat_id")))
+            print("MAIN_MODEL=", (st.get("model") or {}).get("main"))
+            if tok:
+              print("TOKEN_FP=", hashlib.sha256(tok.encode()).hexdigest()[:12], "bot_id_prefix=", tok.split(":",1)[0])
+              for path in ("getMe", "getWebhookInfo"):
+                try:
+                  with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/{path}", timeout=20) as r:
+                    print("TG_"+path, r.read().decode()[:500])
+                except Exception as e:
+                  print("TG_"+path+"_ERR", type(e).__name__, e)
+            else:
+              print("TG_API skip (no token)")
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/telegram/status", timeout=10) as r:
+                print("TG_STATUS", r.read().decode()[:800])
+            except Exception as e:
+              print("TG_STATUS_ERR", type(e).__name__, e)
+            PY
+            docker cp /tmp/h2q_tg_probe.py "$CNAME:/tmp/h2q_tg_probe.py"
+            docker exec -u root "$CNAME" chmod 644 /tmp/h2q_tg_probe.py
+            echo "=== probe ==="
+            docker exec -u root -w /app "$CNAME" python /tmp/h2q_tg_probe.py || true
+            echo "=== telegram logs ==="
+            docker logs --tail 400 "$CNAME" 2>&1 | grep -iE '\[telegram\]|telegram ' | tail -60 || true
+            echo "=== conflict/errors ==="
+            docker logs --tail 800 "$CNAME" 2>&1 | grep -iE '409|CONFLICT|giải mã|secret|Traceback|getUpdates|token' | tail -50 || true
+            echo "=== restart telegram (localhost) ==="
+            docker exec "$CNAME" python - <<'PY' || true
+            import urllib.request
+            try:
+              req = urllib.request.Request("http://127.0.0.1:7777/telegram/restart", data=b"{}", method="POST")
+              req.add_header("Content-Type", "application/json")
+              with urllib.request.urlopen(req, timeout=20) as r:
+                print("RESTART", r.read().decode()[:400])
+            except Exception as e:
+              print("RESTART_ERR", type(e).__name__, e)
+            PY
+            sleep 3
+            docker exec -u root -w /app "$CNAME" python /tmp/h2q_tg_probe.py || true
+            echo CONTABO_TG_DONE
+
+  contabo-standalone-key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Probe Contabo with VPS_STANDALONE_SSH_KEY
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 62.84.177.39
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== CONTABO standalone-key $(date -u) ==="
+            hostname -f || hostname || true
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}' | head -20 || true
+            echo CONTABO_STANDALONE_REACHABLE
+
+  vietnix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Probe Vietnix quan/manager + token map
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== VIETNIX HOST $(date -u) ==="
+            hostname -f || hostname || true
+            free -m | head -2 || true
+            df -h / | head -2 || true
+            cat > /tmp/h2q_tg_probe.py <<'PY'
+            import sys, urllib.request, hashlib
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            from telegram_bot import parse_chat_ids
+            st = cfgmod.read_settings()
+            tg = st.get("telegram") or {}
+            tok = (tg.get("token") or "").strip()
+            print("TELEGRAM enabled=", tg.get("enabled"), "has_token=", bool(tok), "chat_id=", repr(tg.get("chat_id")))
+            print("TELEGRAM whitelist=", parse_chat_ids(tg.get("chat_id")))
+            print("MAIN_MODEL=", (st.get("model") or {}).get("main"))
+            if tok:
+              print("TOKEN_FP=", hashlib.sha256(tok.encode()).hexdigest()[:12], "bot_id_prefix=", tok.split(":",1)[0])
+              for path in ("getMe", "getWebhookInfo"):
+                try:
+                  with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/{path}", timeout=20) as r:
+                    print("TG_"+path, r.read().decode()[:500])
+                except Exception as e:
+                  print("TG_"+path+"_ERR", type(e).__name__, e)
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/telegram/status", timeout=10) as r:
+                print("TG_STATUS", r.read().decode()[:800])
+            except Exception as e:
+              print("TG_STATUS_ERR", type(e).__name__, e)
+            PY
+            for CNAME in javis-quan javis-manager; do
+              echo "======== $CNAME ========"
+              docker ps -a --filter "name=^/${CNAME}$" --format '{{.Names}} {{.Status}}' || true
+              docker exec "$CNAME" curl -fsS -m 8 http://127.0.0.1:7777/health | head -c 300 || echo health_fail
+              echo
+              docker exec "$CNAME" cat /app/VERSION 2>/dev/null || true
+              echo
+              docker cp /tmp/h2q_tg_probe.py "$CNAME:/tmp/h2q_tg_probe.py"
+              docker exec -u root "$CNAME" chmod 644 /tmp/h2q_tg_probe.py
+              docker exec -u root -w /app "$CNAME" python /tmp/h2q_tg_probe.py || true
+              echo "--- logs ---"
+              docker logs --tail 400 "$CNAME" 2>&1 | grep -iE '\[telegram\]|409|CONFLICT|getUpdates|giải mã thất bại' | tail -50 || true
+            done
+            echo "=== token map (enabled|bot_id|fp) ==="
+            for CNAME in $(docker ps --format '{{.Names}}' | grep -E '^javis-' | grep -vE 'proxy|guard' | sort); do
+              line=$(docker exec -u root -w /app "$CNAME" python - <<'PY' 2>/dev/null || true
+            import sys, hashlib
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            tg = (cfgmod.read_settings().get("telegram") or {})
+            tok = (tg.get("token") or "").strip()
+            en = bool(tg.get("enabled"))
+            if tok:
+              print("%s|%s|%s" % (en, tok.split(":",1)[0], hashlib.sha256(tok.encode()).hexdigest()[:12]))
+            else:
+              print("%s|-|none" % en)
+            PY
+              )
+              echo "$CNAME $line"
+            done
+            echo "=== restart telegram on quan if enabled but not running ==="
+            docker exec javis-quan python - <<'PY' || true
+            import json, urllib.request
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/telegram/status", timeout=10) as r:
+                st = json.loads(r.read().decode())
+              print("before", st)
+              if st.get("enabled") and st.get("token_set") and not st.get("running"):
+                req = urllib.request.Request("http://127.0.0.1:7777/telegram/restart", data=b"{}", method="POST")
+                req.add_header("Content-Type", "application/json")
+                with urllib.request.urlopen(req, timeout=20) as r:
+                  print("restart", r.read().decode()[:400])
+              else:
+                print("no_restart_needed_or_auth_block")
+            except Exception as e:
+              print("status/restart err", type(e).__name__, e)
+              # fallback in-process
+              try:
+                import sys
+                sys.path.insert(0, "/app/server")
+                import main as m
+                print("inprocess_restart", m.restart_telegram())
+                import time; time.sleep(2)
+                print("after_inprocess", m._TG_BOT.status if m._TG_BOT else None, getattr(m._TG_BOT, "last_error", None) if m._TG_BOT else None)
+              except Exception as e2:
+                print("inprocess_err", type(e2).__name__, e2)
+            PY
+            sleep 2
+            docker exec -u root -w /app javis-quan python /tmp/h2q_tg_probe.py || true
+            echo VIETNIX_TG_DONE

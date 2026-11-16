@@ -1,5 +1,10 @@
 # Nhật ký cập nhật
 
+## [0.56.107] - 2026-11-16
+### Sửa
+- **Ops Telegram trên máy:** `/telegram/status` và `/telegram/restart` gọi được từ localhost (SSH/`docker exec curl`) khi đã bật mật khẩu dashboard - xem bot sống hay lỗi 409 và bật lại không cần cookie. Request từ ngoài vẫn bị chặn.
+- **Bot im trong nhóm:** câu từ chối whitelist nói rõ khi Chat ID là ID nhóm (số âm) và nhắc tắt Group Privacy ở BotFather; tài liệu kênh Telegram thêm mục dùng bot trong nhóm.
+
 ## [0.56.106] - 2026-11-14
 ### Sửa
 - **Đĩa chậm không khóa cả máy.** Các chỗ đọc đĩa trên vòng lặp chính (settings, catalog MCP, chữ ký gói, token hub, kho bot/kênh, thư mục brain, probe sức khoẻ) lấy từ bộ nhớ và chỉ chờ đĩa tối đa một nhịp ngắn. `~/.npm` và `~/.cache` nằm trên volume, nên sau cập nhật các nguồn MCP không tải lại cùng lúc. Vòng làm nóng lúc khởi động mở 3 phiên MCP một lượt.

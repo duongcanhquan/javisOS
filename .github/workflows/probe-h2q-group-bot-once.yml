@@ -1,0 +1,95 @@
+# One-shot: bot Telegram của nhóm H2Q (Contabo + chatbot trên quan/manager).
+# bump: 2026-11-16T03:15Z h2q-group
+name: Probe h2q group bot once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-h2q-group-bot-once.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  vietnix-chatbots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Scan quan/manager telegram + chatbots for H2Q/group
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== $(date -u) ==="
+            cat > /tmp/h2q_bots.py <<'PY'
+            import sys, json, urllib.request, hashlib
+            sys.path.insert(0, "/app/server")
+            import config as cfgmod
+            from telegram_bot import parse_chat_ids
+            st = cfgmod.read_settings()
+            tg = st.get("telegram") or {}
+            ids = parse_chat_ids(tg.get("chat_id"))
+            print("CHANNEL_TG enabled=", tg.get("enabled"), "ids=", ids,
+                  "groups=", [i for i in ids if str(i).startswith("-")])
+            tok = (tg.get("token") or "").strip()
+            if tok:
+              print("CHANNEL_TG token_fp=", hashlib.sha256(tok.encode()).hexdigest()[:12],
+                    "bot_id=", tok.split(":",1)[0])
+              try:
+                with urllib.request.urlopen(f"https://api.telegram.org/bot{tok}/getMe", timeout=15) as r:
+                  print("CHANNEL_TG getMe", r.read().decode()[:400])
+              except Exception as e:
+                print("CHANNEL_TG getMe_err", e)
+            try:
+              import chatbot_store
+              bots = chatbot_store.list_bots()
+              print("CHATBOTS", len(bots))
+              for b in bots:
+                ch = b.get("channel") or b.get("channels") or ""
+                name = str(b.get("name") or "")
+                bid = str(b.get("id") or "")
+                en = b.get("enabled")
+                # in đậm bot telegram / tên có h2q
+                mark = ""
+                blob = json.dumps(b, ensure_ascii=False).lower()
+                if "telegram" in blob or "h2q" in blob or "group" in blob:
+                  mark = " <<"
+                print(f"  bot id={bid} en={en} name={name!r} channel={ch!r}{mark}")
+                # fields hữu ích
+                for k in ("telegram_token","token","chat_id","chat_ids","allowed_chats",
+                          "group_ids","whitelist","brain","mode","giau_trang_thai"):
+                  if k in b and b.get(k) not in (None, "", [], {}):
+                    v = b.get(k)
+                    if "token" in k and isinstance(v, str) and v:
+                      v = v.split(":",1)[0] + ":*** fp=" + hashlib.sha256(v.encode()).hexdigest()[:12]
+                    print(f"    {k}=", v)
+            except Exception as e:
+              print("CHATBOTS_ERR", type(e).__name__, e)
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/telegram/status", timeout=10) as r:
+                print("TG_STATUS", r.read().decode()[:500])
+            except Exception as e:
+              print("TG_STATUS_ERR", e)
+            try:
+              with urllib.request.urlopen("http://127.0.0.1:7777/chatbots", timeout=10) as r:
+                print("CHATBOTS_HTTP", r.read().decode()[:1500])
+            except Exception as e:
+              print("CHATBOTS_HTTP_ERR", e)
+            PY
+            for CNAME in javis-quan javis-manager; do
+              echo "======== $CNAME ========"
+              docker cp /tmp/h2q_bots.py "$CNAME:/tmp/h2q_bots.py"
+              docker exec -u root -w /app "$CNAME" python /tmp/h2q_bots.py || true
+              echo "--- logs h2q/group/chatbot/telegram ---"
+              docker logs --tail 800 "$CNAME" 2>&1 | grep -iE 'h2q|chatbot|\[telegram\]|whitelist|nhóm|group|im_lang|không có quyền|-100' | tail -40 || true
+            done
+            echo VIETNIX_H2Q_BOTS_DONE
