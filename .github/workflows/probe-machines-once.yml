@@ -1,5 +1,5 @@
 # One-shot: đo RAM + sổ máy người trên VPS (tránh workflow_dispatch 403).
-# bump: 2026-11-15T13:26Z fresh-machines-snapshot
+# bump: 2026-11-19T03:48Z fresh-machines-snapshot
 name: Probe machines once
 
 on:
