@@ -1,0 +1,72 @@
+# One-shot: public Contabo H2Q + thử SSH Contabo
+# bump: 2026-11-19T03:50Z troly-fresh-fix-yaml
+name: Probe h2q troly fresh
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-h2q-troly-fresh.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Public Contabo health
+        run: |
+          set -euo pipefail
+          echo "=== $(date -u) ==="
+          for h in javis-troly.h2q.com.vn javis.h2q.com.vn; do
+            echo "---- $h ----"
+            dig +short "$h" A || true
+            code=$(curl -sS -o /tmp/h.json -w "%{http_code}" --max-time 25 "https://$h/health" || echo fail)
+            echo "code=$code"
+            python3 -c 'import json;d=json.load(open("/tmp/h.json"));disk=d.get("disk") or {};print("status",d.get("status"),"late_total",disk.get("late_total"));print("slow",[(x.get("what"),x.get("late")) for x in (disk.get("slow") or [])[:4]])'
+            curl -sS --max-time 20 "https://$h/" | grep -oE '<title>[^<]+</title>|asset/[0-9.]+' | head -3 || true
+          done
+          echo PUBLIC_DONE
+
+  contabo-ssh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: VPS_SSH_KEY
+            label: org-key
+          - key: VPS_STANDALONE_SSH_KEY
+            label: standalone-key
+    steps:
+      - name: Contabo SSH ${{ matrix.label }}
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 62.84.177.39
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets[matrix.key] }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            echo "=== CONTABO ${{ matrix.label }} $(date -u) ==="
+            hostname -f || hostname
+            free -m | head -2
+            df -h / | head -2
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}' || true
+            for c in $(docker ps -a --format '{{.Names}}' | grep -iE 'javis|troly|h2q' | sort); do
+              echo "---- $c ----"
+              docker inspect "$c" --format 'State={{.State.Status}} Exit={{.State.ExitCode}} OOM={{.State.OOMKilled}}' || true
+              docker exec "$c" curl -fsS -m 8 http://127.0.0.1:7777/health 2>&1 | head -c 280 || echo no_health
+              echo
+              docker exec "$c" curl -fsS -m 8 http://127.0.0.1:7777/telegram/status 2>&1 | head -c 400 || echo no_tg
+              echo
+            done
+            echo CONTABO_DONE

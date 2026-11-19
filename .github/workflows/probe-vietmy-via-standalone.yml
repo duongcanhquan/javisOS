@@ -1,0 +1,87 @@
+# Jump từ standalone → kiểm tra VPS VietMy College
+# bump: 2026-11-19T03:57Z vietmy-jump-oneline
+name: Probe vietmy via standalone
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-vietmy-via-standalone.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  jump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Probe + try SSH Vietnix via jump 203
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ORG_KEY: ${{ secrets.VPS_SSH_KEY }}
+          ORG_USER: ${{ secrets.VPS_USER }}
+          ORG_HOST: ${{ secrets.VPS_HOST }}
+        with:
+          host: 221.132.19.203
+          username: root
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          command_timeout: 20m
+          envs: ORG_KEY,ORG_USER,ORG_HOST
+          script: |
+            set -euo pipefail
+            FIXED=14.225.205.248
+            echo "=== JUMP $(hostname) $(date -u) ORG_HOST=$ORG_HOST USER=$ORG_USER ==="
+            echo "=== reachability FIXED ==="
+            ping -c 2 -W 2 "$FIXED" 2>&1 | tail -6 || true
+            for p in 22 80 443 7777; do
+              timeout 4 bash -c "echo >/dev/tcp/$FIXED/$p" 2>/dev/null && echo "OPEN $p" || echo "CLOSED $p"
+            done
+            echo "=== HTTP from jump ==="
+            for h in javis-manager.vietmycollege.com javis-quan.vietmycollege.com javis-bach.vietmycollege.com javis-lananh.vietmycollege.com javis.vietmycollege.com; do
+              echo "-- $h"
+              curl -sS -o /tmp/b -w "http=%{http_code} t=%{time_total}\n" --max-time 15 -H "Host: $h" "http://$FIXED/health" || echo http_fail
+              curl -skS -o /tmp/bs -w "https=%{http_code} t=%{time_total}\n" --max-time 15 --resolve "$h:443:$FIXED" "https://$h/health" || echo https_fail
+              head -c 120 /tmp/b 2>/dev/null || true
+              echo
+            done
+            echo "=== SSH with org key ==="
+            umask 077
+            KEYF=/tmp/org_vps_key_$$
+            printf '%s\n' "$ORG_KEY" > "$KEYF"
+            chmod 600 "$KEYF"
+            cat > /tmp/remote_vietmy.sh <<'EOS'
+            set -e
+            echo SSH_OK $(hostname -f || hostname) $(date -u)
+            free -m | head -2
+            df -h / | head -2
+            echo ===docker===
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | grep -E 'javis|NAMES' || true
+            echo ===edge===
+            docker ps -a --format '{{.Names}} {{.Status}}' | grep -iE 'caddy|traefik|nginx' || true
+            echo ===health===
+            curl -fsS -m 8 http://127.0.0.1:7777/health | head -c 250 || echo no7777
+            echo
+            docker exec javis-manager curl -fsS -m 8 http://127.0.0.1:7777/health 2>/dev/null | head -c 200 || true
+            echo
+            echo ===tenants===
+            docker exec javis-manager python -c 'import sys;sys.path.insert(0,"/app/server");import org_tenants as ot,org_docker as od,org_coord as oc;ts=ot.load().get("tenants") or [];print("tenants",len(ts)); [print(" -",t.get("slug"),"paused",bool(t.get("paused")),"del",bool(t.get("deleted_at")),"st",t.get("status"),"c",t.get("container")) for t in ts];run=od.people_running();print("people_running",len(run),[x.get("slug") for x in run]);c=oc.coord();print("ram",c.get("host_ram_mb"),"avail",c.get("host_avail_mb"),"max",c.get("max_running"),"eff",oc.effective_max())'
+            for c in $(docker ps -a --format '{{.Names}}' | grep -iE 'caddy|traefik|nginx' || true); do echo restart $c; docker restart $c || true; done
+            sleep 3
+            curl -fsS -m 8 -H 'Host: javis-manager.vietmycollege.com' http://127.0.0.1/health | head -c 200 || true
+            echo
+            echo INNER_DONE
+            EOS
+            # strip leading spaces from heredoc body
+            sed -i 's/^            //' /tmp/remote_vietmy.sh
+            for dest in "$ORG_HOST" "$FIXED"; do
+              echo "-- ssh $ORG_USER@$dest"
+              ssh -i "$KEYF" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=no \
+                "$ORG_USER@$dest" "bash -s" < /tmp/remote_vietmy.sh 2>&1 | head -220 || echo "ssh_fail dest=$dest"
+            done
+            rm -f "$KEYF" /tmp/remote_vietmy.sh
+            echo JUMP_DONE
