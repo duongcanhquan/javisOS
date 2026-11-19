@@ -1,0 +1,61 @@
+# One-shot: standalone 221.132.19.203 / .197
+# bump: 2026-11-19T03:50Z standalone-fresh
+name: Probe standalone fresh
+
+on:
+  push:
+    paths:
+      - ".github/workflows/probe-standalone-fresh.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [221.132.19.203, 221.132.19.197]
+    steps:
+      - name: Probe ${{ matrix.host }}
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ matrix.host }}
+          username: root
+          key: ${{ secrets.VPS_STANDALONE_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            echo "=== STANDALONE ${{ matrix.host }} $(date -u) ==="
+            hostname -f || hostname
+            free -m | head -3
+            df -h / | head -2
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' | head -40 || true
+            curl -fsS -m 8 http://127.0.0.1:7777/health | head -c 400 || echo no_local_health
+            echo
+            curl -fsS -m 8 http://127.0.0.1:7777/telegram/status | head -c 400 || echo no_tg
+            echo
+            echo STANDALONE_DONE
+
+  org-ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping VPS_HOST TCP22
+        run: |
+          set -euo pipefail
+          # Không lộ host: chỉ báo timeout/ok qua appleboy sẽ chạy job khác.
+          # Public probe Contabo + standalone ports.
+          for ip in 62.84.177.39 221.132.19.203 221.132.19.197; do
+            echo "---- $ip:7777 ----"
+            curl -sS -o /tmp/h.json -w "code=%{http_code} t=%{time_total}\n" --max-time 12 "http://$ip:7777/health" || echo fail
+            python3 -c 'import json,sys;d=json.load(open("/tmp/h.json"));disk=d.get("disk") or {};print("late_total",disk.get("late_total"))' 2>/dev/null || true
+          done
+          echo PING_DONE
