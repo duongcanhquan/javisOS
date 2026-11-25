@@ -1,0 +1,51 @@
+name: Probe chat smoke once
+on:
+  workflow_dispatch:
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Smoke chat turn inside lananh
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            docker exec javis-lananh python - <<'PY'
+            import sys, time, json
+            sys.path.insert(0, "/app/server")
+            import antigravity_cli as a
+            print("agy", json.dumps(a.auth_status(bo_qua_cache=True), ensure_ascii=False), flush=True)
+            t0 = time.time()
+            try:
+              # list models is lighter than full chat
+              ms = a.list_models() or []
+              print("models_n", len(ms), "sample", ms[:5], "dt", round(time.time()-t0,1), flush=True)
+            except Exception as e:
+              print("list_models_err", type(e).__name__, e, flush=True)
+            # tiny prompt
+            t1 = time.time()
+            try:
+              cli = a.AntigravityCLI(model="gemini-3.8-flash-low")
+              # sync one-shot if available
+              out = ""
+              if hasattr(cli, "run_once"):
+                out = cli.run_once("Trả lời đúng 1 chữ: OK") or ""
+              elif hasattr(a, "chat_once"):
+                out = a.chat_once("Trả lời đúng 1 chữ: OK", model="gemini-3.8-flash-low") or ""
+              else:
+                print("no_run_once", [x for x in dir(a) if "chat" in x.lower() or "run" in x.lower()][:20], flush=True)
+              print("chat_out", repr(out)[:300], "dt", round(time.time()-t1,1), flush=True)
+            except Exception as e:
+              print("chat_err", type(e).__name__, e, flush=True)
+            print("SMOKE_DONE", flush=True)
+            PY
