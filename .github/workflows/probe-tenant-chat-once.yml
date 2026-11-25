@@ -1,0 +1,111 @@
+# One-shot: chẩn đoán tenant VietMy không chat / effort tắt
+name: Probe tenant chat once
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Probe chat/engine on tenants
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 12m
+          script: |
+            set -euo pipefail
+            echo "=== HOST $(date -u) ==="
+            free -h | head -2 || true
+            df -h / | head -2 || true
+            echo "=== MANAGER ==="
+            docker exec javis-manager cat /app/VERSION 2>/dev/null || echo missing
+            echo "=== TENANTS SNAPSHOT ==="
+            docker exec -i javis-manager python - <<'PY'
+            import sys, json, urllib.request
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot, org_docker as od, org_coord as oc
+            ts = [t for t in (ot.load().get("tenants") or []) if not t.get("protected")]
+            print("tenants", len(ts), flush=True)
+            c = oc.coord()
+            print("coord", {k: c.get(k) for k in ("max_running","idle_minutes","host_avail_mb","host_disk_free_bytes")}, flush=True)
+            print("effective_max", oc.effective_max(), flush=True)
+            try:
+              print("people_running", [x.get("slug") for x in od.people_running()], flush=True)
+            except Exception as e:
+              print("people_running_err", e, flush=True)
+
+            def http(cname, path, timeout=8):
+              try:
+                with urllib.request.urlopen(f"http://{cname}:7777{path}", timeout=timeout) as r:
+                  return r.status, r.read().decode("utf-8", "replace")[:4000]
+              except Exception as e:
+                return None, f"{type(e).__name__}: {e}"
+
+            for t in ts[:40]:
+              slug = str(t.get("slug") or "").strip()
+              cname = str(t.get("container") or f"javis-{slug}")
+              exists = bool(od.inspect_name(cname))
+              st = od.container_status(cname) if exists else "MISSING"
+              print(f"\n## {slug} docker={st} paused={bool(t.get('paused'))} deleted={bool(t.get('deleted_at'))}", flush=True)
+              if st != "running":
+                continue
+              code, body = http(cname, "/health")
+              print("health", code, (body or "")[:120], flush=True)
+              # settings peek via python inside tenant
+              try:
+                out = od._exec(cname, ["python", "-c",
+                  "import json,os,sys; sys.path.insert(0,'/app/server'); import config as c;\n"
+                  "s=c.read_settings(); m=s.get('model') or {};\n"
+                  "main=m.get('main') or {};\n"
+                  "print('VERSION', open('/app/VERSION').read().strip() if os.path.isfile('/app/VERSION') else '?');\n"
+                  "print('engine', m.get('engine')); print('main', main.get('provider'), main.get('model'));\n"
+                  "print('reasoning', m.get('reasoning'));\n"
+                  "print('aux', (m.get('auxiliary') or {}).get('provider'), (m.get('auxiliary') or {}).get('model'));\n"
+                ], timeout=25.0)
+                print(out[-800:], flush=True)
+              except Exception as e:
+                print("settings_err", e, flush=True)
+              # auth status of plan CLIs (no secrets)
+              try:
+                out = od._exec(cname, ["python", "-c",
+                  "import sys; sys.path.insert(0,'/app/server');\n"
+                  "checks=[]\n"
+                  "try:\n"
+                  " import claude_cli as cc; checks.append(('claude', bool(cc.find_claude_cli()), bool(getattr(cc,'logged_in',lambda:False)() if hasattr(cc,'logged_in') else None)))\n"
+                  "except Exception as e: checks.append(('claude_err', str(e)[:80]))\n"
+                  "try:\n"
+                  " import antigravity_cli as a; st=a.auth_status_nen(); checks.append(('agy', bool(a.find_antigravity_cli()), bool(st.get('connected'))))\n"
+                  "except Exception as e: checks.append(('agy_err', str(e)[:80]))\n"
+                  "try:\n"
+                  " import grok_cli as g; checks.append(('grok', bool(getattr(g,'find_grok_cli',lambda:None)()), 'skip'))\n"
+                  "except Exception as e: checks.append(('grok_err', str(e)[:80]))\n"
+                  "print('cli', checks)\n"
+                ], timeout=40.0)
+                print(out[-600:], flush=True)
+              except Exception as e:
+                print("cli_err", e, flush=True)
+              # recent errors in logs
+              import subprocess
+              try:
+                p = subprocess.run(["docker","logs",cname,"--tail","120"], capture_output=True, text=True, timeout=20)
+                lines = (p.stdout or "") + "\n" + (p.stderr or "")
+                hit = [ln for ln in lines.splitlines() if any(k in ln.lower() for k in (
+                  "error","traceback","signed out","not logged","unauthorized","429","quota",
+                  "effort","no model","timeout","oom","killed","refused","không"))]
+                for ln in hit[-12:]:
+                  print("log:", ln[:220], flush=True)
+              except Exception as e:
+                print("logs_err", e, flush=True)
+            print("\nPROBE_TENANT_CHAT_DONE", flush=True)
+            PY
