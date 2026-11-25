@@ -1,0 +1,60 @@
+name: Probe tenant chat fail once
+on:
+  workflow_dispatch:
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Chat/Telegram fail signals
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 12m
+          script: |
+            set -euo pipefail
+            echo "=== RAM ==="; free -h | head -2
+            echo "=== SAMPLE LOGS (lananh hang thai hanh bach) ==="
+            for c in javis-lananh javis-hang javis-thai javis-hanh javis-bach javis-thuha; do
+              echo "---- $c ----"
+              docker logs "$c" --tail 80 2>&1 | grep -iE 'chat|stream|error|traceback|signed|quota|429|timeout|telegram|zalo|antigravity|agy |routing|effort|không|refused|oauth|websocket' | tail -25 || true
+            done
+            echo "=== PROVIDERS VIEW sample lananh ==="
+            docker exec javis-lananh python - <<'PY'
+            import sys, json
+            sys.path.insert(0,"/app/server")
+            import config as c
+            s=c.read_settings(); m=s.get("model") or {}
+            print("main", m.get("main")); print("reasoning", m.get("reasoning")); print("engine", m.get("engine"))
+            print("telegram", {k:(s.get("telegram") or {}).get(k) for k in ("enabled","chat_id")})
+            print("token_set", bool(((s.get("telegram") or {}).get("token") or "")))
+            try:
+              import antigravity_cli as a
+              print("agy", a.auth_status(bo_qua_cache=True))
+            except Exception as e:
+              print("agy_err", e)
+            PY
+            echo "=== HANH engine detail ==="
+            docker exec javis-hanh python - <<'PY'
+            import sys, json
+            sys.path.insert(0,"/app/server")
+            import config as c
+            s=c.read_settings(); m=s.get("model") or {}
+            print(json.dumps({k:m.get(k) for k in ("engine","main","auxiliary","reasoning","providers")}, ensure_ascii=False)[:1500])
+            try:
+              import antigravity_cli as a
+              print("agy", a.auth_status(bo_qua_cache=True))
+            except Exception as e:
+              print("agy_err", e)
+            PY
+            echo "=== CONNECT HEALTH quan/manager ==="
+            docker exec javis-quan curl -fsS -m 5 http://127.0.0.1:7777/connect/health 2>&1 | head -c 800 || true
+            echo
+            echo DONE
