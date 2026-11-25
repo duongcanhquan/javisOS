@@ -1,0 +1,46 @@
+name: Probe agy auth real once
+on:
+  workflow_dispatch:
+concurrency:
+  group: vps-ssh
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Real agy auth_status
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 18m
+          script: |
+            set -euo pipefail
+            docker exec -i javis-manager python - <<'PY'
+            import sys
+            sys.path.insert(0, "/app/server")
+            import org_tenants as ot, org_docker as od
+            ts = [t for t in (ot.load().get("tenants") or []) if not t.get("protected") and not t.get("deleted_at")]
+            # bỏ guard
+            ts = [t for t in ts if "guard" not in str(t.get("slug") or "")]
+            for t in ts:
+              slug = str(t.get("slug") or "")
+              cname = str(t.get("container") or f"javis-{slug}")
+              if od.container_status(cname) != "running":
+                print(slug, "SKIP", od.container_status(cname), flush=True)
+                continue
+              code = (
+                "import sys; sys.path.insert(0,'/app/server'); import antigravity_cli as a, json;\n"
+                "print(json.dumps(a.auth_status(bo_qua_cache=True), ensure_ascii=False))\n"
+              )
+              try:
+                out = od._exec(cname, ["python","-c", code], timeout=90.0)
+                print(slug, out.strip()[-400:], flush=True)
+              except Exception as e:
+                print(slug, "ERR", e, flush=True)
+            print("DONE", flush=True)
+            PY
